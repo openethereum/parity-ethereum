@@ -9,7 +9,7 @@ Usage:
     ethabi [options]
 
 Options:
-    -h, --help         Display this message.
+    -h, --help         Display this message and exit.
 
 Commands:
     encode             Encode ABI call.
@@ -27,7 +27,8 @@ Usage:
     ethabi encode [options]
 
 Options:
-    -h, --help         Display this message.
+    -h, --help         Display this message and exit.
+    -l, --lenient      Allow short representation of input params.
 "#);
 }
 
@@ -41,7 +42,7 @@ Usage:
     ethabi decode [options]
 
 Options:
-    -h, --help         Display this message.
+    -h, --help         Display this message and exit.
 "#);
 }
 
@@ -49,5 +50,7 @@ Options:
 
 
 fn main() {
+	print_help();
+	print_encode_help();
 	print_decode_help();
 }
