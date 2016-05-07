@@ -1,3 +1,6 @@
+//! Ethereum ABI params.
+use spec::ParamType;
+
 /// Ethereum ABI params.
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -45,4 +48,25 @@ pub enum Token {
 	/// 
 	/// solidity name eg. int[], bool[], address[5][]
 	Array(Vec<Token>),
+}
+
+impl Token {
+	/// Returns true if token matches given type.
+	pub fn matches(&self, param: ParamType) -> bool {
+		match *self {
+			Token::Address(_) => ParamType::Address == param,
+			Token::FixedBytes(ref bytes) => ParamType::FixedBytes(bytes.len()) == param,
+			Token::Bytes(_) => ParamType::Bytes == param,
+			Token::Int(_) => ParamType::Int == param,
+			Token::Uint(_) => ParamType::Uint == param,
+			Token::Bool(_) => ParamType::Bool == param,
+			Token::String(_) => ParamType::String == param,
+			Token::FixedArray(ref items) => {
+				unimplemented!();
+			},
+			Token::Array(ref items) => {
+				unimplemented!();
+			}
+		}
+	}
 }
