@@ -12,9 +12,9 @@ pub enum ParamType {
 	/// Bytes.
 	Bytes,
 	/// Signed integer.
-	Int,
+	Int(usize),
 	/// Unisgned integer.
-	Uint,
+	Uint(usize),
 	/// Boolean.
 	Bool,
 	/// String.
@@ -93,15 +93,15 @@ impl Reader {
 			"bytes" => ParamType::Bytes,
 			"bool" => ParamType::Bool,
 			"string" => ParamType::String,
-			"int" => ParamType::Int,
-			"uint" => ParamType::Uint,
+			"int" => ParamType::Int(256),
+			"uint" => ParamType::Uint(256),
 			s if s.starts_with("int") => {
-				let _ = try!(usize::from_str_radix(&s[5..], 10));
-				ParamType::Int
+				let len = try!(usize::from_str_radix(&s[3..], 10));
+				ParamType::Int(len)
 			},
 			s if s.starts_with("uint") => {
-				let _ = try!(usize::from_str_radix(&s[5..], 10));
-				ParamType::Uint
+				let len = try!(usize::from_str_radix(&s[4..], 10));
+				ParamType::Uint(len)
 			},
 			s if s.starts_with("bytes") => {
 				let len = try!(usize::from_str_radix(&s[5..], 10));
@@ -116,10 +116,28 @@ impl Reader {
 	}
 }
 
+pub struct Writer;
+
+impl Writer {
+	pub fn write(param: &ParamType) -> String {
+		match *param {
+			ParamType::Address => "address".to_owned(),
+			ParamType::Bytes => "bytes".to_owned(),
+			ParamType::FixedBytes(len) => format!("bytes{}", len),
+			ParamType::Int(len) => format!("int{}", len),
+			ParamType::Uint(len) => format!("uint{}", len),
+			ParamType::Bool => "bool".to_owned(),
+			ParamType::String => "string".to_owned(),
+			ParamType::FixedArray(ref param, len) => format!("{}[{}]", Writer::write(param), len),
+			ParamType::Array(ref param) => format!("{}[]", Writer::write(param)),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use super::{Reader, ParamType};
+	use super::{Reader, Writer, ParamType};
 
 	#[test]
 	fn test_read_param() {
@@ -128,14 +146,16 @@ mod tests {
 		assert_eq!(Reader::read("bytes32").unwrap(), ParamType::FixedBytes(32));
 		assert_eq!(Reader::read("bool").unwrap(), ParamType::Bool);
 		assert_eq!(Reader::read("string").unwrap(), ParamType::String);
-		assert_eq!(Reader::read("int").unwrap(), ParamType::Int);
-		assert_eq!(Reader::read("uint").unwrap(), ParamType::Uint);
+		assert_eq!(Reader::read("int").unwrap(), ParamType::Int(256));
+		assert_eq!(Reader::read("uint").unwrap(), ParamType::Uint(256));
+		assert_eq!(Reader::read("int32").unwrap(), ParamType::Int(32));
+		assert_eq!(Reader::read("uint32").unwrap(), ParamType::Uint(32));
 	}
 
 	#[test]
 	fn test_read_array_param() {
 		assert_eq!(Reader::read("address[]").unwrap(), ParamType::Array(Box::new(ParamType::Address)));
-		assert_eq!(Reader::read("uint[]").unwrap(), ParamType::Array(Box::new(ParamType::Uint)));
+		assert_eq!(Reader::read("uint[]").unwrap(), ParamType::Array(Box::new(ParamType::Uint(256))));
 		assert_eq!(Reader::read("bytes[]").unwrap(), ParamType::Array(Box::new(ParamType::Bytes)));
 		assert_eq!(Reader::read("bool[][]").unwrap(), ParamType::Array(Box::new(ParamType::Array(Box::new(ParamType::Bool)))));
 	}
@@ -163,12 +183,25 @@ mod tests {
 			ParamType::FixedBytes(32),
 			ParamType::Bool,
 			ParamType::String,
-			ParamType::Int,
-			ParamType::Uint,
+			ParamType::Int(256),
+			ParamType::Uint(256),
 			ParamType::Array(Box::new(ParamType::Address)),
-			ParamType::FixedArray(Box::new(ParamType::Uint), 3),
+			ParamType::FixedArray(Box::new(ParamType::Uint(256)), 3),
 			ParamType::FixedArray(Box::new(ParamType::Array(Box::new(ParamType::Bool))), 5)
 		]);
 	}
 
+	#[test]
+	fn test_write_param() {
+		assert_eq!(Writer::write(&ParamType::Address), "address".to_owned());
+		assert_eq!(Writer::write(&ParamType::Bytes), "bytes".to_owned());
+		assert_eq!(Writer::write(&ParamType::FixedBytes(32)), "bytes32".to_owned());
+		assert_eq!(Writer::write(&ParamType::Uint(256)), "uint256".to_owned());
+		assert_eq!(Writer::write(&ParamType::Int(64)), "int64".to_owned());
+		assert_eq!(Writer::write(&ParamType::Bool), "bool".to_owned());
+		assert_eq!(Writer::write(&ParamType::String), "string".to_owned());
+		assert_eq!(Writer::write(&ParamType::Array(Box::new(ParamType::Bool))), "bool[]".to_owned());
+		assert_eq!(Writer::write(&ParamType::FixedArray(Box::new(ParamType::String), 2)), "string[2]".to_owned());
+		assert_eq!(Writer::write(&ParamType::FixedArray(Box::new(ParamType::Array(Box::new(ParamType::Bool))), 2)), "bool[][2]".to_owned());
+	}
 }

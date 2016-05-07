@@ -17,8 +17,8 @@ pub trait Tokenizer {
 			ParamType::Bool => Self::tokenize_bool(value).map(Token::Bool),
 			ParamType::Bytes => Self::tokenize_bytes(value).map(Token::Bytes),
 			ParamType::FixedBytes(len) => Self::tokenize_fixed_bytes(value, len).map(Token::FixedBytes),
-			ParamType::Uint => Self::tokenize_uint(value).map(Token::Uint),
-			ParamType::Int => Self::tokenize_int(value).map(Token::Int),
+			ParamType::Uint(_) => Self::tokenize_uint(value).map(Token::Uint),
+			ParamType::Int(_) => Self::tokenize_int(value).map(Token::Int),
 			_ => {
 				unimplemented!();
 			}

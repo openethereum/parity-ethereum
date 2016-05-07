@@ -112,7 +112,7 @@ impl Decoder {
 
 				Ok(result)
 			},
-			ParamType::Int => {
+			ParamType::Int(_) => {
 				let slice = try!(Self::peek(slices, offset));
 
 				let result = DecodeResult {
@@ -122,7 +122,7 @@ impl Decoder {
 
 				Ok(result)
 			},
-			ParamType::Uint => {
+			ParamType::Uint(_) => {
 				let slice = try!(Self::peek(slices, offset));
 
 				let result = DecodeResult {
@@ -274,7 +274,7 @@ mod tests {
 		let encoded = "1111111111111111111111111111111111111111111111111111111111111111".from_hex().unwrap();
 		let uint = Token::Uint([0x11u8; 32]);
 		let expected = vec![uint];
-		let decoded = Decoder::decode(vec![ParamType::Uint], encoded).unwrap();
+		let decoded = Decoder::decode(vec![ParamType::Uint(32)], encoded).unwrap();
 		assert_eq!(decoded, expected);	
 	}
 
@@ -283,7 +283,7 @@ mod tests {
 		let encoded = "1111111111111111111111111111111111111111111111111111111111111111".from_hex().unwrap();
 		let int = Token::Int([0x11u8; 32]);
 		let expected = vec![int];
-		let decoded = Decoder::decode(vec![ParamType::Int], encoded).unwrap();
+		let decoded = Decoder::decode(vec![ParamType::Int(32)], encoded).unwrap();
 		assert_eq!(decoded, expected);	
 	}
 

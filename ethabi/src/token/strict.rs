@@ -113,12 +113,12 @@ mod tests {
 	#[test]
 	fn tokenize_uint() {
 		assert_eq!(
-			StrictTokenizer::tokenize(&ParamType::Uint, "1111111111111111111111111111111111111111111111111111111111111111").unwrap(), 
+			StrictTokenizer::tokenize(&ParamType::Uint(256), "1111111111111111111111111111111111111111111111111111111111111111").unwrap(), 
 			Token::Uint([0x11u8; 32])
 		);
 
 		assert_eq!(
-			StrictTokenizer::tokenize(&ParamType::Uint, "2222222222222222222222222222222222222222222222222222222222222222").unwrap(), 
+			StrictTokenizer::tokenize(&ParamType::Uint(256), "2222222222222222222222222222222222222222222222222222222222222222").unwrap(), 
 			Token::Uint([0x22u8; 32])
 		);
 	}
@@ -126,12 +126,12 @@ mod tests {
 	#[test]
 	fn tokenize_int() {
 		assert_eq!(
-			StrictTokenizer::tokenize(&ParamType::Int, "1111111111111111111111111111111111111111111111111111111111111111").unwrap(), 
+			StrictTokenizer::tokenize(&ParamType::Int(256), "1111111111111111111111111111111111111111111111111111111111111111").unwrap(), 
 			Token::Int([0x11u8; 32])
 		);
 
 		assert_eq!(
-			StrictTokenizer::tokenize(&ParamType::Int, "2222222222222222222222222222222222222222222222222222222222222222").unwrap(), 
+			StrictTokenizer::tokenize(&ParamType::Int(256), "2222222222222222222222222222222222222222222222222222222222222222").unwrap(), 
 			Token::Int([0x22u8; 32])
 		);
 	}

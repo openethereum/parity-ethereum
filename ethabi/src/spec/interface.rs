@@ -77,7 +77,7 @@ mod tests {
 				inputs: vec![
 					EventParam {
 						name: "a".to_owned(),
-						kind: ParamType::Uint,
+						kind: ParamType::Uint(256),
 						indexed: true,
 					},
 					EventParam {
@@ -93,7 +93,7 @@ mod tests {
 				inputs: vec![
 					Param {
 						name: "a".to_owned(),
-						kind: ParamType::Uint,
+						kind: ParamType::Uint(256),
 					}
 				],
 				outputs: vec![]

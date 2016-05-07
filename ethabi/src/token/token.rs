@@ -57,8 +57,14 @@ impl Token {
 			Token::Address(_) => ParamType::Address == param,
 			Token::FixedBytes(ref bytes) => ParamType::FixedBytes(bytes.len()) == param,
 			Token::Bytes(_) => ParamType::Bytes == param,
-			Token::Int(_) => ParamType::Int == param,
-			Token::Uint(_) => ParamType::Uint == param,
+			Token::Int(_) => {
+				unimplemented!();
+				//ParamType::Int == param
+			},
+			Token::Uint(_) => {
+				unimplemented!();
+				//ParamType::Uint == param
+			},
 			Token::Bool(_) => ParamType::Bool == param,
 			Token::String(_) => ParamType::String == param,
 			Token::FixedArray(ref items) => {
