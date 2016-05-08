@@ -10,7 +10,7 @@ extern crate serde_json;
 extern crate tiny_keccak;
 
 pub mod spec;
-mod token;
+pub mod token;
 mod constructor;
 mod contract;
 mod decoder;

@@ -2,8 +2,15 @@ extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethabi;
 
-use docopt::Docopt;
+mod error;
+
 use std::process;
+use docopt::Docopt;
+use rustc_serialize::hex::ToHex;
+use ethabi::spec::param_type::{ParamType, Reader}; 
+use ethabi::token::{Token, Tokenizer, StrictTokenizer};
+use ethabi::Encoder;
+use error::Error;
 
 pub const ETHABI: &'static str = r#"
 Ethereum ABI coder.
@@ -42,21 +49,48 @@ fn main() {
 		.and_then(|d| d.decode())
 		.unwrap_or_else(|e| e.exit());
 
-	if args.cmd_encode && args.cmd_abi {
-		encode_call();
+	let result = if args.cmd_encode && args.cmd_abi {
+		//encode_call();
+		unimplemented!()
 	} else if args.cmd_encode && args.cmd_params {
-		encode_params();
+		encode_params(&args.arg_type, &args.arg_param)
 	} else if args.cmd_decode && args.cmd_abi {
-		decode_call_output();
+		//decode_call_output();
+		unimplemented!()
 	} else if args.cmd_decode && args.cmd_params {
-		decode_params();
+		//decode_params();
+		unimplemented!()
+	} else {
+		unreachable!()
+	};
+
+	match result {
+		Ok(s) => println!("{}", s),
+		Err(error) => println!("error: {:?}", error)
 	}
 }
 
 fn encode_call() {
 }
 
-fn encode_params() {
+fn encode_params(types: &[String], values: &[String]) -> Result<String, Error> {
+	assert_eq!(types.len(), values.len());
+
+	let types: Result<Vec<ParamType>, _> = types.iter()
+		.map(|s| Reader::read(s))
+		.collect();
+
+	let types = try!(types);
+
+	let tokens: Result<Vec<Token>, _> = types.iter()
+		.zip(values.iter())
+		.map(|(param, value)| StrictTokenizer::tokenize(param, value))
+		.collect();
+
+	let tokens = try!(tokens);
+	let result = Encoder::encode(tokens);
+
+	Ok(result.to_hex())
 }
 
 fn decode_call_output() {
