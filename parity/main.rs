@@ -40,8 +40,6 @@ extern crate rpassword;
 extern crate semver;
 extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
-extern crate serde;
-extern crate bincode;
 #[macro_use]
 extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;

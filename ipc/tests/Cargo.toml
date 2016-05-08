@@ -17,5 +17,4 @@ ethcore-util = { path = "../../util" }
 
 [build-dependencies]
 syntex = "*"
-serde_codegen = "0.7.0"
 "ethcore-ipc-codegen" = { path = "../codegen" }

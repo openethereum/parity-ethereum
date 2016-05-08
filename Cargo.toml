@@ -17,7 +17,7 @@ env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
 time = "0.1"
-ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
+ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 num_cpus = "0.2"
@@ -34,9 +34,7 @@ ethcore-webapp = { path = "webapp", optional = true }
 semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
 "ethcore-ipc" = { path = "ipc/rpc" }
-bincode = "*"
-serde = "0.7.0"
-json-ipc-server = { git = "https://github.com/NikVolf/json-ipc-server.git" }
+json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 
 [dependencies.hyper]
 version = "0.8"
