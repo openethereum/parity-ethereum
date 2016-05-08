@@ -21,7 +21,7 @@ Usage:
     ethabi encode params [-p <type> <param>]... [-l | --lenient]
     ethabi decode abi <abi-path> <function-name> <data>
     ethabi decode params [-p <type>]... <data>
-    ethabi [--help]
+    ethabi [-h | --help]
 
 Options:
     -h, --help         Display this message and exit.
