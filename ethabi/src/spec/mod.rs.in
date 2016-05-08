@@ -4,7 +4,7 @@ mod function;
 mod interface;
 mod operation;
 mod param;
-mod param_type;
+pub mod param_type;
 
 pub use self::event::Event;
 pub use self::event_param::EventParam;

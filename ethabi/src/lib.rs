@@ -10,13 +10,14 @@ extern crate serde_json;
 extern crate tiny_keccak;
 
 pub mod spec;
+mod token;
 mod constructor;
 mod contract;
 mod decoder;
 mod encoder;
 mod error;
 mod function;
-mod token;
+mod signature;
 
 pub use self::constructor::Constructor;
 pub use self::contract::Contract;
