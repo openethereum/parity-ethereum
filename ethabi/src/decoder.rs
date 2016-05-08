@@ -40,9 +40,9 @@ fn as_u32(slice: &[u8; 32]) -> Result<u32, Error> {
 		return Err(Error::InvalidData);
 	}
 
-	let result = ((slice[28] as u32) << 3) +
-		((slice[29] as u32) << 2) +
-		((slice[30] as u32) << 1) +
+	let result = ((slice[28] as u32) << 24) +
+		((slice[29] as u32) << 16) +
+		((slice[30] as u32) << 8) +
 		(slice[31] as u32);
 
 	Ok(result)

@@ -5,15 +5,10 @@ use token::Token;
 
 fn pad_u32(value: u32) -> [u8; 32] {
 	let mut padded = [0u8; 32];
-	let bytes = ((32 - value.leading_zeros() + 7) / 8) as usize;
-	let offset = 32 - bytes as isize;
-	unsafe {
-		let mut value_bytes = Vec::with_capacity(bytes);
-		value_bytes.set_len(bytes);
-		ptr::copy(&[value] as *const u32 as *const u8, value_bytes.as_mut_ptr(), bytes);
-		value_bytes.reverse();
-		ptr::copy(value_bytes.as_ptr(), padded.as_mut_ptr().offset(offset), bytes);
-	}
+	padded[28] = (value >> 24) as u8;
+	padded[29] = (value >> 16) as u8;
+	padded[30] = (value >> 8) as u8;
+	padded[31] = value as u8;
 	padded
 }
 
