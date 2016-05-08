@@ -5,7 +5,7 @@ Ethereum ABI coder.
   Copyright 2016 Ethcore (UK) Limited
 
 Usage:
-    ethabi encode abi <abi-path> <function-name> [<param>]... [-l | --lenient]
+    ethabi encode abi <abi-path> <function-name> [-p <param>]... [-l | --lenient]
     ethabi encode params [-p <type> <param>]... [-l | --lenient]
     ethabi decode abi <abi-path> <function-name> <data>
     ethabi decode params [-p <type>]... <data>

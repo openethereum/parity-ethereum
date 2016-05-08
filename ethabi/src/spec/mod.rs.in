@@ -1,3 +1,4 @@
+mod error;
 mod event;
 mod event_param;
 mod function;
@@ -6,6 +7,7 @@ mod operation;
 mod param;
 pub mod param_type;
 
+pub use self::error::Error;
 pub use self::event::Event;
 pub use self::event_param::EventParam;
 pub use self::function::Function;

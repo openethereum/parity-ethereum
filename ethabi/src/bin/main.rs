@@ -5,11 +5,14 @@ extern crate ethabi;
 mod error;
 
 use std::process;
+use std::fs::File;
+use std::io::Read;
 use docopt::Docopt;
-use rustc_serialize::hex::ToHex;
+use rustc_serialize::hex::{ToHex, FromHex};
+use ethabi::spec::Interface;
 use ethabi::spec::param_type::{ParamType, Reader}; 
 use ethabi::token::{Token, Tokenizer, StrictTokenizer};
-use ethabi::Encoder;
+use ethabi::{Encoder, Decoder, Contract};
 use error::Error;
 
 pub const ETHABI: &'static str = r#"
@@ -17,7 +20,7 @@ Ethereum ABI coder.
   Copyright 2016 Ethcore (UK) Limited
 
 Usage:
-    ethabi encode abi <abi-path> <function-name> [<param>]... [-l | --lenient]
+    ethabi encode abi <abi-path> <function-name> [-p <param>]... [-l | --lenient]
     ethabi encode params [-p <type> <param>]... [-l | --lenient]
     ethabi decode abi <abi-path> <function-name> <data>
     ethabi decode params [-p <type>]... <data>
@@ -40,8 +43,11 @@ pub struct Args {
 	pub cmd_decode: bool,
 	pub cmd_abi: bool,
 	pub cmd_params: bool,
+	pub arg_abi_path: String,
+	pub arg_function_name: String,
 	pub arg_param: Vec<String>,
 	pub arg_type: Vec<String>,
+	pub arg_data: String,
 }
 
 fn main() {
@@ -50,16 +56,13 @@ fn main() {
 		.unwrap_or_else(|e| e.exit());
 
 	let result = if args.cmd_encode && args.cmd_abi {
-		//encode_call();
-		unimplemented!()
+		encode_call(&args.arg_abi_path, args.arg_function_name, args.arg_param)
 	} else if args.cmd_encode && args.cmd_params {
-		encode_params(&args.arg_type, &args.arg_param)
+		encode_params(args.arg_type, args.arg_param)
 	} else if args.cmd_decode && args.cmd_abi {
-		//decode_call_output();
-		unimplemented!()
+		decode_call_output()
 	} else if args.cmd_decode && args.cmd_params {
-		//decode_params();
-		unimplemented!()
+		decode_params(args.arg_type, args.arg_data)
 	} else {
 		unreachable!()
 	};
@@ -70,10 +73,33 @@ fn main() {
 	}
 }
 
-fn encode_call() {
+fn parse_tokens(params: &[(ParamType, String)]) -> Result<Vec<Token>, Error> {
+	params.iter()
+		.map(|&(ref param, ref value)| StrictTokenizer::tokenize(param, value))
+		.collect::<Result<_, _>>()
+		.map_err(From::from)
 }
 
-fn encode_params(types: &[String], values: &[String]) -> Result<String, Error> {
+fn encode_call(path: &str, function: String, values: Vec<String>) -> Result<String, Error> {
+	let file = try!(File::open(path));
+	let bytes: Vec<u8> = try!(file.bytes().collect());
+
+	let interface = try!(Interface::load(&bytes));
+	let contract = Contract::new(interface);
+	let function = contract.function(function).expect("TODO: function not found");
+	let types = function.input_params();
+
+	let params: Vec<_> = types.into_iter()
+		.zip(values.into_iter())
+		.collect();
+	
+	let tokens = try!(parse_tokens(&params));
+	let result = try!(function.encode_call(tokens));
+	
+	Ok(result.to_hex())
+}
+
+fn encode_params(types: Vec<String>, values: Vec<String>) -> Result<String, Error> {
 	assert_eq!(types.len(), values.len());
 
 	let types: Result<Vec<ParamType>, _> = types.iter()
@@ -82,19 +108,31 @@ fn encode_params(types: &[String], values: &[String]) -> Result<String, Error> {
 
 	let types = try!(types);
 
-	let tokens: Result<Vec<Token>, _> = types.iter()
-		.zip(values.iter())
-		.map(|(param, value)| StrictTokenizer::tokenize(param, value))
+	let params: Vec<_> = types.into_iter()
+		.zip(values.into_iter())
 		.collect();
 
-	let tokens = try!(tokens);
+	let tokens = try!(parse_tokens(&params));
 	let result = Encoder::encode(tokens);
 
 	Ok(result.to_hex())
 }
 
-fn decode_call_output() {
+fn decode_call_output() -> Result<String, Error> {
+	unimplemented!();
 }
 
-fn decode_params() {
+fn decode_params(types: Vec<String>, data: String) -> Result<String, Error> {
+	let types: Result<Vec<ParamType>, _> = types.iter()
+		.map(|s| Reader::read(s))
+		.collect();
+
+	let types = try!(types);
+	let data = try!(data.from_hex());
+
+	let _tokens = try!(Decoder::decode(types, data));
+
+	// TODO: implement fmt display for tokens.
+
+	Ok("".to_owned())
 }

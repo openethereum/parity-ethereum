@@ -1,6 +1,6 @@
 //! Contract function call builder.
 
-use spec::Function as FunctionInterface;
+use spec::{Function as FunctionInterface, ParamType};
 use token::Token;
 use encoder::Encoder;
 use decoder::Decoder;
@@ -18,6 +18,11 @@ impl Function {
 		Function {
 			interface: interface
 		}
+	}
+
+	/// Returns function params.
+	pub fn input_params(&self) -> Vec<ParamType> {
+		self.interface.input_param_types()
 	}
 
 	/// Prepares ABI function call with given input params.
