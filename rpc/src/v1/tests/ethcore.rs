@@ -62,6 +62,21 @@ fn rpc_ethcore_extra_data() {
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
 
+#[test]
+fn rpc_ethcore_default_extra_data() {
+	use util::misc;
+	use util::ToPretty;
+
+	let miner = miner_service();
+	let ethcore = ethcore_client(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_defaultExtraData", "params": [], "id": 1}"#;
+	let response = format!(r#"{{"jsonrpc":"2.0","result":"0x{}","id":1}}"#, misc::version_data().to_hex());
+
+	assert_eq!(io.handle_request(request), Some(response));
+}
 
 #[test]
 fn rpc_ethcore_gas_floor_target() {
