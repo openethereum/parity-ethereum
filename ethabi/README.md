@@ -25,7 +25,7 @@ Commands:
 ### Examples
 
 ```
-encode params -p bool 1
+ethabi encode params -p bool 1
 ```
 
 > 0000000000000000000000000000000000000000000000000000000000000001
