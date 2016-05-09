@@ -136,4 +136,23 @@ mod tests {
 			Token::Int([0x22u8; 32])
 		);
 	}
+
+	#[test]
+	fn tokenize_bool_array() {
+		assert_eq!(
+			StrictTokenizer::tokenize(&ParamType::Array(Box::new(ParamType::Bool)), "[true,1,0,false]").unwrap(),
+			Token::Array(vec![Token::Bool(true), Token::Bool(true), Token::Bool(false), Token::Bool(false)])
+		);
+	}
+
+	#[test]
+	fn tokenize_bool_array_of_arrays() {
+		assert_eq!(
+			StrictTokenizer::tokenize(&ParamType::Array(Box::new(ParamType::Array(Box::new(ParamType::Bool)))), "[[true,1,0],[false]]").unwrap(),
+			Token::Array(vec![
+				Token::Array(vec![Token::Bool(true), Token::Bool(true), Token::Bool(false)]), 
+				Token::Array(vec![Token::Bool(false)])
+			])
+		);
+	}
 }

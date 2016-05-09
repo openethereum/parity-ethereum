@@ -241,7 +241,7 @@ mod tests {
 		let encoded = "0000000000000000000000001111111111111111111111111111111111111111".from_hex().unwrap();
 		let address = Token::Address([0x11u8; 20]);
 		let expected = vec![address];
-		let decoded = Decoder::decode(vec![ParamType::Address], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::Address], encoded).unwrap();
 		assert_eq!(decoded, expected);	
 	}
 
@@ -253,7 +253,7 @@ mod tests {
 		let address1 = Token::Address([0x11u8; 20]);
 		let address2 = Token::Address([0x22u8; 20]);
 		let expected = vec![address1, address2];
-		let decoded = Decoder::decode(vec![ParamType::Address, ParamType::Address], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::Address, ParamType::Address], encoded).unwrap();
 		assert_eq!(decoded, expected);	
 	}
 
@@ -265,7 +265,7 @@ mod tests {
 		let address1 = Token::Address([0x11u8; 20]);
 		let address2 = Token::Address([0x22u8; 20]);
 		let expected = vec![Token::FixedArray(vec![address1, address2])];
-		let decoded = Decoder::decode(vec![ParamType::FixedArray(Box::new(ParamType::Address), 2)], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::FixedArray(Box::new(ParamType::Address), 2)], encoded).unwrap();
 		assert_eq!(decoded, expected);	
 	}
 
@@ -274,7 +274,7 @@ mod tests {
 		let encoded = "1111111111111111111111111111111111111111111111111111111111111111".from_hex().unwrap();
 		let uint = Token::Uint([0x11u8; 32]);
 		let expected = vec![uint];
-		let decoded = Decoder::decode(vec![ParamType::Uint(32)], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::Uint(32)], encoded).unwrap();
 		assert_eq!(decoded, expected);	
 	}
 
@@ -283,7 +283,7 @@ mod tests {
 		let encoded = "1111111111111111111111111111111111111111111111111111111111111111".from_hex().unwrap();
 		let int = Token::Int([0x11u8; 32]);
 		let expected = vec![int];
-		let decoded = Decoder::decode(vec![ParamType::Int(32)], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::Int(32)], encoded).unwrap();
 		assert_eq!(decoded, expected);	
 	}
 
@@ -298,7 +298,7 @@ mod tests {
 		let address2 = Token::Address([0x22u8; 20]);
 		let addresses = Token::Array(vec![address1, address2]);
 		let expected = vec![addresses];
-		let decoded = Decoder::decode(vec![ParamType::Array(Box::new(ParamType::Address))], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::Array(Box::new(ParamType::Address))], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
 
@@ -319,7 +319,7 @@ mod tests {
 		let array1 = Token::FixedArray(vec![address3, address4]);
 		let dynamic = Token::Array(vec![array0, array1]);
 		let expected = vec![dynamic];
-		let decoded = Decoder::decode(vec![
+		let decoded = Decoder::decode(&[
 			ParamType::Array(Box::new(
 				ParamType::FixedArray(Box::new(ParamType::Address), 2)
 			))
@@ -345,7 +345,7 @@ mod tests {
 		let array1 = Token::Array(vec![address2]);
 		let dynamic = Token::Array(vec![array0, array1]);
 		let expected = vec![dynamic];
-		let decoded = Decoder::decode(vec![
+		let decoded = Decoder::decode(&[
 			ParamType::Array(Box::new(
 				ParamType::Array(Box::new(ParamType::Address))
 			))
@@ -375,7 +375,7 @@ mod tests {
 		let array1 = Token::Array(vec![address3, address4]);
 		let dynamic = Token::Array(vec![array0, array1]);
 		let expected = vec![dynamic];
-		let decoded = Decoder::decode(vec![
+		let decoded = Decoder::decode(&[
 			ParamType::Array(Box::new(
 				ParamType::Array(Box::new(ParamType::Address))
 			))
@@ -399,7 +399,7 @@ mod tests {
 		let fixed = Token::FixedArray(vec![array0, array1]);
 		let expected = vec![fixed];
 
-		let decoded = Decoder::decode(vec![
+		let decoded = Decoder::decode(&[
 			ParamType::FixedArray(
 				Box::new(ParamType::FixedArray(Box::new(ParamType::Address), 2)), 
 				2
@@ -429,7 +429,7 @@ mod tests {
 		let fixed = Token::FixedArray(vec![array0, array1]);
 		let expected = vec![fixed];
 
-		let decoded = Decoder::decode(vec![
+		let decoded = Decoder::decode(&[
 			ParamType::FixedArray(
 				Box::new(ParamType::Array(Box::new(ParamType::Address))),
 				2
@@ -445,7 +445,7 @@ mod tests {
 			"1234000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
 		let bytes = Token::FixedBytes(vec![0x12, 0x34]);
 		let expected = vec![bytes];
-		let decoded = Decoder::decode(vec![ParamType::FixedBytes(2)], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::FixedBytes(2)], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
 
@@ -457,7 +457,7 @@ mod tests {
 			"1234000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
 		let bytes = Token::Bytes(vec![0x12, 0x34]);
 		let expected = vec![bytes];
-		let decoded = Decoder::decode(vec![ParamType::Bytes], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::Bytes], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
 
@@ -472,7 +472,7 @@ mod tests {
 			"1000000000000000000000000000000000000000000000000000000000000000" +
 			"1000000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap());
 		let expected = vec![bytes];
-		let decoded = Decoder::decode(vec![ParamType::Bytes], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::Bytes], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
 
@@ -488,7 +488,7 @@ mod tests {
 		let bytes1 = Token::Bytes("10000000000000000000000000000000000000000000000000000000000002".from_hex().unwrap());
 		let bytes2 = Token::Bytes("0010000000000000000000000000000000000000000000000000000000000002".from_hex().unwrap());
 		let expected = vec![bytes1, bytes2];
-		let decoded = Decoder::decode(vec![ParamType::Bytes, ParamType::Bytes], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::Bytes, ParamType::Bytes], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
 
@@ -500,7 +500,7 @@ mod tests {
 			"6761766f66796f726b0000000000000000000000000000000000000000000000").from_hex().unwrap();
 		let s = Token::String("gavofyork".to_owned());
 		let expected = vec![s];
-		let decoded = Decoder::decode(vec![ParamType::String], encoded).unwrap();
+		let decoded = Decoder::decode(&[ParamType::String], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
 }

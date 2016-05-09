@@ -23,10 +23,60 @@ pub trait Tokenizer {
 			ParamType::FixedBytes(len) => Self::tokenize_fixed_bytes(value, len).map(Token::FixedBytes),
 			ParamType::Uint(_) => Self::tokenize_uint(value).map(Token::Uint),
 			ParamType::Int(_) => Self::tokenize_int(value).map(Token::Int),
-			_ => {
-				unimplemented!();
+			ParamType::Array(ref p) => Self::tokenize_array(value, p).map(Token::Array),
+			ParamType::FixedArray(ref p, len) => Self::tokenize_fixed_array(value, p, len).map(Token::FixedArray),
+		}
+	}
+
+	/// Tries to parse a value as a vector of tokens of fixed size.
+	fn tokenize_fixed_array(value: &str, param: &ParamType, len: usize) -> Result<Vec<Token>, Error> {
+		let result = try!(Self::tokenize_array(value, param));
+		match result.len() == len {
+			true => Ok(result),
+			false => Err(Error::InvalidValue),
+		}
+	}
+
+	/// Tries to parse a value as a vector of tokens.
+	fn tokenize_array(value: &str, param: &ParamType) -> Result<Vec<Token>, Error> {
+		if Some('[') != value.chars().next() || Some(']') != value.chars().last() {
+			return Err(Error::InvalidValue);
+		}
+
+		let mut result = vec![];
+		let mut nested = 0isize;
+		let mut ignore = false;
+		let mut last_item = 1;
+		for (i, ch) in value.chars().enumerate() {
+			match ch {
+				'[' if ignore == false => {
+					nested += 1;
+				},
+				']' if ignore == false => {
+					nested -= 1;
+					if nested < 0 {
+						return Err(Error::InvalidValue);
+					} else if nested == 0 {
+						let sub = &value[last_item..i];
+						let token = try!(Self::tokenize(param, sub));
+						result.push(token);
+						last_item = i + 1;
+					}
+				},
+				'"' => {
+					ignore = !ignore;
+				},
+				',' if nested == 1 && ignore == false => {
+					let sub = &value[last_item..i];
+					let token = try!(Self::tokenize(param, sub));
+					result.push(token);
+					last_item = i + 1;
+				},
+				_ => ()
 			}
 		}
+
+		Ok(result)
 	}
 
 	/// Tries to parse a value as an address.
