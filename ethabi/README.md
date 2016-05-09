@@ -65,3 +65,25 @@ ethabi decode params -p bool -p string -p bool 000000000000000000000000000000000
 ```
 
 > bool true string gavofyork bool false
+
+```
+ethabi decode abi ./examples/foo.json bar 0000000000000000000000000000000000000000000000000000000000000001
+```
+
+```json
+[{
+	"constant":false,
+	"inputs":[{
+		"name":"hello",
+		"type":"address"
+	}],
+	"name":"bar",
+	"outputs":[{
+		"name":"",
+		"type":"bool"
+	}],
+	"type":"function"
+}]
+```
+
+> bool true

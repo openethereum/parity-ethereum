@@ -133,7 +133,7 @@ fn decode_call_output(path: &str, function: String, data: String) -> Result<Stri
 
 	let result = types.iter()
 		.zip(tokens.iter())
-		.map(|(ty, to)| format!("{} {}", to, to))
+		.map(|(ty, to)| format!("{} {}", ty, to))
 		.collect::<Vec<String>>()
 		.join(" ");
 
