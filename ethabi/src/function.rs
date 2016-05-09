@@ -36,7 +36,7 @@ impl Function {
 
 	/// Parses the ABI function output to list of tokens.
 	pub fn decode_output(&self, data: Vec<u8>) -> Result<Vec<Token>, Error> {
-		Decoder::decode(self.interface.output_param_types(), data)
+		Decoder::decode(&self.interface.output_param_types(), data)
 	}
 }
 

@@ -129,9 +129,15 @@ fn decode_params(types: Vec<String>, data: String) -> Result<String, Error> {
 	let types = try!(types);
 	let data = try!(data.from_hex());
 
-	let _tokens = try!(Decoder::decode(types, data));
+	let tokens = try!(Decoder::decode(&types, data));
 
-	// TODO: implement fmt display for tokens.
+	assert_eq!(types.len(), tokens.len());
 
-	Ok("".to_owned())
+	let result = types.iter()
+		.zip(tokens.iter())
+		.map(|(ty, to)| format!("{} {}", ty, to))
+		.collect::<Vec<String>>()
+		.join(" ");
+
+	Ok(result)
 }

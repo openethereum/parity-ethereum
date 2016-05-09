@@ -58,11 +58,11 @@ fn as_bool(slice: &[u8; 32]) -> Result<bool, Error> {
 
 impl Decoder {
 	/// Decodes ABI compliant vector of bytes into vector of tokens described by types param.
-	pub fn decode(types: Vec<ParamType>, data: Vec<u8>) -> Result<Vec<Token>, Error> {
+	pub fn decode(types: &[ParamType], data: Vec<u8>) -> Result<Vec<Token>, Error> {
 		let slices = try!(slice_data(data));
 		let mut tokens = vec![];
 		let mut offset = 0;
-		for param in &types {
+		for param in types {
 			let res = try!(Self::decode_param(param, &slices, offset));
 			offset = res.new_offset;
 			tokens.push(res.token);

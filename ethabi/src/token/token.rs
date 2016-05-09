@@ -1,4 +1,6 @@
 //! Ethereum ABI params.
+use std::fmt::{Display, Formatter, Error};
+use rustc_serialize::hex::ToHex;
 use spec::ParamType;
 
 /// Ethereum ABI params.
@@ -48,6 +50,26 @@ pub enum Token {
 	/// 
 	/// solidity name eg. int[], bool[], address[5][]
 	Array(Vec<Token>),
+}
+
+impl Display for Token {
+	fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+		match *self {
+			Token::Bool(b) => write!(f, "{}", b),
+			Token::String(ref s) => write!(f, "{}", s),
+			Token::Address(ref a) => write!(f, "{}", a.to_hex()),
+			Token::Bytes(ref bytes) | Token::FixedBytes(ref bytes) => write!(f, "{}", bytes.to_hex()),
+			Token::Uint(ref i) | Token::Int(ref i) => write!(f, "{}", i.to_hex()),
+			Token::Array(ref arr) | Token::FixedArray(ref arr) => {
+				let s = arr.iter()
+					.map(|ref t| format!("{}", t))
+					.collect::<Vec<String>>()
+					.join(",");
+
+				write!(f, "[{}]", s)
+			}
+		}
+	}
 }
 
 impl Token {
