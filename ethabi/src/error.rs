@@ -9,6 +9,8 @@ pub enum Error {
 	InvalidData,
 	/// Returned when there is a problem with decoding utf8 string.
 	Utf8(FromUtf8Error),
+	/// Returned when constructor or function does not exists.
+	InvalidName,
 }
 
 impl From<FromUtf8Error> for Error {

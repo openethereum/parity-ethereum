@@ -78,7 +78,7 @@ fn load_function(path: &str, function: String) -> Result<Function, Error> {
 
 	let interface = try!(Interface::load(&bytes));
 	let contract = Contract::new(interface);
-	let function = contract.function(function).expect("TODO: function not found");
+	let function = try!(contract.function(function));
 	Ok(function)
 }
 
