@@ -25,6 +25,7 @@ use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::*;
 use ethcore::client::{Executive, Executed, EnvInfo, TransactOptions};
 use ethcore::transaction::SignedTransaction;
+use ethcore::receipt::{Receipt};
 use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
@@ -393,18 +394,41 @@ impl MinerService for Miner {
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
-		let transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.pending_hashes()
+		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
+			(true, Some(pending)) => pending.transactions().iter().map(|t| t.hash()).collect(),
+			_ => {
+				let queue = self.transaction_queue.lock().unwrap();
+				queue.pending_hashes()
+			}
+		}
 	}
 
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
-		let queue = self.transaction_queue.lock().unwrap();
-		queue.find(hash)
+		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
+			(true, Some(pending)) => pending.transactions().iter().find(|t| &t.hash() == hash).map(|t| t.clone()),
+			_ => {
+				let queue = self.transaction_queue.lock().unwrap();
+				queue.find(hash)
+			}
+		}
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		let queue = self.transaction_queue.lock().unwrap();
-		queue.top_transactions()
+		// TODO: should only use the sealing_work when it's current (it could be an old block)
+		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
+			(true, Some(pending)) => pending.transactions().clone(),
+			_ => {
+				let queue = self.transaction_queue.lock().unwrap();
+				queue.top_transactions()
+			}
+		}
+	}
+
+	fn pending_receipts(&self) -> Vec<Receipt> {
+		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
+			(true, Some(pending)) => pending.receipts().clone(),
+			_ => vec![],
+		}
 	}
 
 	fn last_nonce(&self, address: &Address) -> Option<U256> {
