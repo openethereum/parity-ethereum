@@ -24,6 +24,11 @@ impl Function {
 	pub fn input_params(&self) -> Vec<ParamType> {
 		self.interface.input_param_types()
 	}
+	
+	/// Return output params.
+	pub fn output_params(&self) -> Vec<ParamType> {
+		self.interface.output_param_types()
+	}
 
 	/// Prepares ABI function call with given input params.
 	pub fn encode_call(&self, tokens: Vec<Token>) -> Result<Vec<u8>, Error> {
