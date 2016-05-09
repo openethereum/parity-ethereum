@@ -358,7 +358,8 @@ dependencies = [
  "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-status 0.3.6 (git+https://github.com/ethcore/parity-status.git)",
+ "parity-status 0.3.7 (git+https://github.com/ethcore/parity-status.git)",
+ "parity-wallet 0.1.1 (git+https://github.com/ethcore/parity-wallet.git)",
  "parity-webapp 0.1.0 (git+https://github.com/ethcore/parity-webapp.git)",
  "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -821,8 +822,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "parity-status"
-version = "0.3.6"
-source = "git+https://github.com/ethcore/parity-status.git#738f8d9da554f82492721f99ba064e7fec693300"
+version = "0.3.7"
+source = "git+https://github.com/ethcore/parity-status.git#b0ae32a7fe2f843e4e22dc38903fd2c3e7fb0763"
+dependencies = [
+ "parity-webapp 0.1.0 (git+https://github.com/ethcore/parity-webapp.git)",
+]
+
+[[package]]
+name = "parity-wallet"
+version = "0.1.1"
+source = "git+https://github.com/ethcore/parity-wallet.git#125b2c05118890eac7b845f832f39b069d9b4be8"
 dependencies = [
  "parity-webapp 0.1.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
