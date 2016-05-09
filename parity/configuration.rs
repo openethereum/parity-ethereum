@@ -266,11 +266,19 @@ impl Configuration {
 	pub fn rpc_cors(&self) -> Option<String> {
 		self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone())
 	}
+	
+	fn geth_ipc_path() -> &'static str {
+		if cfg!(target_os = "macos") {
+			"$HOME/Library/Ethereum/geth.ipc"
+		} else {
+			"$HOME/.ethereum/geth.ipc"
+		}
+	}
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
-			socket_addr: if self.args.flag_geth { "$HOME/.ethereum/geth.ipc".to_owned() } else { self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()) }
+			socket_addr: if self.args.flag_geth { Self::geth_ipc_path().to_owned() } else { self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()) }
 				.replace("$HOME", env::home_dir().unwrap().to_str().unwrap()),
 			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
 		}
