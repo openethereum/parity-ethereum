@@ -24,4 +24,5 @@ cli = ["docopt"]
 
 [[bin]]
 name = "ethabi"
+doc = false
 

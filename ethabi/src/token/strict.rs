@@ -2,6 +2,7 @@ use std::ptr;
 use rustc_serialize::hex::FromHex;
 use token::{Tokenizer, Error};
 
+/// Tries to parse string as a token. Require string to clearly represent the value.
 pub struct StrictTokenizer;
 
 impl Tokenizer for StrictTokenizer {

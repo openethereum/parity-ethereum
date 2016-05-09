@@ -4,7 +4,6 @@ extern crate ethabi;
 
 mod error;
 
-use std::process;
 use std::fs::File;
 use std::io::Read;
 use docopt::Docopt;
@@ -24,7 +23,7 @@ Usage:
     ethabi encode params [-p <type> <param>]... [-l | --lenient]
     ethabi decode abi <abi-path> <function-name> <data>
     ethabi decode params [-p <type>]... <data>
-    ethabi [-h | --help]
+    ethabi -h | --help
 
 Options:
     -h, --help         Display this message and exit.
@@ -38,16 +37,16 @@ Commands:
 "#;
 
 #[derive(Debug, RustcDecodable)]
-pub struct Args {
-	pub cmd_encode: bool,
-	pub cmd_decode: bool,
-	pub cmd_abi: bool,
-	pub cmd_params: bool,
-	pub arg_abi_path: String,
-	pub arg_function_name: String,
-	pub arg_param: Vec<String>,
-	pub arg_type: Vec<String>,
-	pub arg_data: String,
+struct Args {
+	cmd_encode: bool,
+	cmd_decode: bool,
+	cmd_abi: bool,
+	cmd_params: bool,
+	arg_abi_path: String,
+	arg_function_name: String,
+	arg_param: Vec<String>,
+	arg_type: Vec<String>,
+	arg_data: String,
 }
 
 fn main() {

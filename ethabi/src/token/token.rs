@@ -67,10 +67,10 @@ impl Token {
 			},
 			Token::Bool(_) => ParamType::Bool == param,
 			Token::String(_) => ParamType::String == param,
-			Token::FixedArray(ref items) => {
+			Token::FixedArray(ref _items) => {
 				unimplemented!();
 			},
-			Token::Array(ref items) => {
+			Token::Array(ref _items) => {
 				unimplemented!();
 			}
 		}
