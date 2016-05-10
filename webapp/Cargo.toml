@@ -11,7 +11,7 @@ authors = ["Ethcore <admin@ethcore.io"]
 log = "0.3"
 jsonrpc-core = "2.0"
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
-hyper = { default-features = false, git = "https://github.com/hyperium/hyper", branch = "mio" }
+hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 url = "1.0"
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
