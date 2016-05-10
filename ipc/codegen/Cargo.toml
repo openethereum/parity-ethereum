@@ -23,4 +23,4 @@ clippy = { version = "^0.*", optional = true }
 quasi = { version = "0.10", default-features = false }
 quasi_macros = { version = "0.10", optional = true }
 syntex = { version = "0.32", optional = true }
-syntex_syntax = { version = "*", optional = true }
+syntex_syntax = { version = "0.32", optional = true }
