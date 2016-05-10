@@ -17,10 +17,10 @@ ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 parity-webapp = { git = "https://github.com/ethcore/parity-webapp.git" }
 # List of apps
-parity-status = { git = "https://github.com/ethcore/parity-status.git", version = "0.3.6" }
-parity-wallet = { git = "https://github.com/ethcore/parity-wallet.git", optional = true }
+parity-status = { git = "https://github.com/ethcore/parity-status.git", version = "0.3.7" }
+parity-wallet = { git = "https://github.com/ethcore/parity-wallet.git", version = "0.1.1", optional = true }
 clippy = { version = "0.0.64", optional = true}
 
 [features]
-default = []
+default = ["parity-wallet"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
