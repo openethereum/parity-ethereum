@@ -197,14 +197,14 @@ fn implement_dispatch_arm_invoke_stmt(
 			let mut tt = ::std::vec::Vec::new();
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("ipc"), ::syntax::parse::token::ModName)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("ipc"))));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("binary"), ::syntax::parse::token::ModName)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("binary"))));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"), ::syntax::parse::token::Plain)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"))));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"), ::syntax::parse::token::Plain)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"))));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
 			tt.extend(::quasi::ToTokens::to_tokens(&function_name, ext_cx).into_iter());
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
@@ -217,7 +217,7 @@ fn implement_dispatch_arm_invoke_stmt(
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"), ::syntax::parse::token::Plain)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"))));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
@@ -365,18 +365,18 @@ fn implement_client_method_body(
 				{
 					let _sp = ext_cx.call_site();
 					let mut tt = ::std::vec::Vec::new();
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("let"), ::syntax::parse::token::Plain)));
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("let"))));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"))));
 					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Eq));
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Request"), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Request"))));
 					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
 
 					for arg in dispatch.input_arg_names.iter() {
-						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()), ::syntax::parse::token::Plain)));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()))));
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
 
-						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()), ::syntax::parse::token::Plain)));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()))));
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
 					}
 
@@ -452,18 +452,18 @@ fn implement_client_method(
 			{
 				let _sp = ext_cx.call_site();
 				let mut tt = ::std::vec::Vec::new();
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("fn"), ::syntax::parse::token::Plain)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("fn"))));
 				tt.extend(::quasi::ToTokens::to_tokens(&method_name, ext_cx).into_iter());
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"), ::syntax::parse::token::Plain)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"))));
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
 
 				for arg_idx in 0..dispatch.input_arg_names.len() {
 					let arg_name = dispatch.input_arg_names[arg_idx].as_str();
 					let arg_ty = dispatch.input_arg_tys[arg_idx].clone();
 
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg_name), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg_name))));
 					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
 					tt.extend(::quasi::ToTokens::to_tokens(&arg_ty, ext_cx).into_iter());
 					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));

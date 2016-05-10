@@ -8,7 +8,7 @@ build = "build.rs"
 
 [build-dependencies]
 rustc_version = "0.1"
-syntex = "*"
+syntex = "0.32"
 "ethcore-ipc-codegen" = { path = "ipc/codegen" }
 
 [dependencies]
