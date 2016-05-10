@@ -133,6 +133,6 @@ impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
 
 	fn default_extra_data(&self, _params: Params) -> Result<Value, Error> {
 		let version = version_data();
-		to_value(&version)
+		to_value(&Bytes::new(version))
 	}
 }

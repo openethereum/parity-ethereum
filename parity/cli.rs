@@ -136,6 +136,9 @@ Footprint Options:
                            options.
 
 Legacy Options:
+  --geth                   Run in Geth-compatibility mode. Currently just sets
+                           the IPC path to be the same as Geth's. Overrides
+                           the --ipc-path/--ipcpath options.
   --datadir PATH           Equivalent to --db-path PATH.
   --testnet                Equivalent to --chain testnet.
   --networkid INDEX        Equivalent to --network-id INDEX.
@@ -214,6 +217,7 @@ pub struct Args {
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
 	// legacy...
+	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,
 	pub flag_nodiscover: bool,
 	pub flag_maxpeers: Option<usize>,
