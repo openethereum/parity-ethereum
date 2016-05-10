@@ -9,9 +9,15 @@ authors = ["Ethcore <admin@ethcore.io"]
 
 [dependencies]
 log = "0.3"
+<<<<<<< HEAD
 jsonrpc-core = { git = "https://github.com/tomusdrw/jsonrpc-core.git" }
 jsonrpc-http-server = { git = "https://github.com/tomusdrw/jsonrpc-http-server.git", version = "5.1.0" }
 hyper = { default-features = false, git = "https://github.com/hyperium/hyper", branch = "mio" }
+=======
+jsonrpc-core = "2.0"
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
+hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
+>>>>>>> 16395a8... moving deps to ethcore/hyper and bumping jsonrpc-http-server version
 url = "1.0"
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }

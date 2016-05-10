@@ -369,9 +369,9 @@ dependencies = [
  "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-rpc 1.1.0",
  "ethcore-util 1.1.0",
- "hyper 0.9.3 (git+https://github.com/hyperium/hyper?branch=mio)",
- "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
- "jsonrpc-http-server 5.1.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git)",
+ "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
+ "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-status 0.3.6 (git+https://github.com/tomusdrw/parity-status.git)",
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
@@ -505,7 +505,7 @@ dependencies = [
 [[package]]
 name = "hyper"
 version = "0.9.3"
-source = "git+https://github.com/hyperium/hyper?branch=mio#dbb4cf160ebf242f7f0459d547c40e9e6877ccf4"
+source = "git+https://github.com/ethcore/hyper#dbb4cf160ebf242f7f0459d547c40e9e6877ccf4"
 dependencies = [
  "cookie 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -584,10 +584,10 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "5.1.0"
-source = "git+https://github.com/tomusdrw/jsonrpc-http-server.git#fafd6410284710b7e662fe7d76249cc496451f27"
+source = "git+https://github.com/ethcore/jsonrpc-http-server.git#12f23b0cd85013ca980240b9d0206bf1fc9c909e"
 dependencies = [
- "hyper 0.9.3 (git+https://github.com/hyperium/hyper?branch=mio)",
- "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
+ "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
+ "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
