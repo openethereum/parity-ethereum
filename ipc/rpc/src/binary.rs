@@ -233,6 +233,29 @@ impl<T> BinaryConvertable for ::std::cell::RefCell<T> where T: BinaryConvertable
 	}
 }
 
+impl<T> BinaryConvertable for ::std::cell::Cell<T> where T: BinaryConvertable + Copy {
+	fn size(&self) -> usize {
+		self.get().size()
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(::std::cell::Cell::new(try!(T::from_empty_bytes())))
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		Ok(::std::cell::Cell::new(try!(T::from_bytes(buffer, length_stack))))
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		try!(self.get().to_bytes(buffer, length_stack));
+		Ok(())
+	}
+
+	fn len_params() -> usize {
+		T::len_params()
+	}
+}
+
 impl BinaryConvertable for Vec<u8> {
 	fn size(&self) -> usize {
 		self.len()

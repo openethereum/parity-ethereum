@@ -16,13 +16,21 @@
 
 //! Transaction data structure.
 
-use util::*;
+use util::numbers::*;
+use std::ops::Deref;
+use util::rlp::*;
+use util::sha3::*;
+use util::{UtilError, CryptoError, Bytes, HeapSizeOf, Signature, Secret, ec};
+use std::cell::*;
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Binary)]
 /// Transaction action type.
 pub enum Action {
 	/// Create creates new contract.
@@ -48,7 +56,7 @@ impl Decodable for Action {
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Binary)]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -183,7 +191,7 @@ impl Transaction {
 }
 
 /// Signed transaction information.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Binary)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
