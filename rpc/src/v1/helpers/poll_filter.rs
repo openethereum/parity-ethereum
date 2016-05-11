@@ -1,7 +1,7 @@
 //! Helper type with all filter possibilities.
 
 use util::hash::H256;
-use ethcore::filter::Filter;
+use v1::types::Filter;
 
 pub type BlockNumber = u64;
 

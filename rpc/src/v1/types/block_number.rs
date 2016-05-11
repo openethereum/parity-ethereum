@@ -19,7 +19,7 @@ use serde::de::Visitor;
 use ethcore::client::BlockId;
 
 /// Represents rpc api block number param.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BlockNumber {
 	Num(u64),
 	Latest,

@@ -589,6 +589,21 @@ impl<C, M> EthFilterClient<C, M>
 			polls: Mutex::new(PollManager::new()),
 		}
 	}
+
+	fn pending_logs(&self, filter: &EthcoreFilter) -> Result<Vec<Log>, Error> {
+		let miner = take_weak!(self.miner);
+		let pending_logs = miner.pending_receipts()
+			.into_iter()
+			.flat_map(|r| r.logs)
+			.collect::<Vec<_>>();
+
+		let result = pending_logs.into_iter()
+			.filter(|l| filter.matches(l))
+			.map(From::from)
+			.collect();
+
+		Ok(result)
+	}
 }
 
 impl<C, M> EthFilter for EthFilterClient<C, M>
@@ -600,7 +615,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 			.and_then(|(filter,)| {
 				let mut polls = self.polls.lock().unwrap();
 				let block_number = take_weak!(self.client).chain_info().best_block_number;
-				let id = polls.create_poll(PollFilter::Logs(block_number, filter.into()));
+				let id = polls.create_poll(PollFilter::Logs(block_number, filter));
 				to_value(&U256::from(id))
 			})
 	}
@@ -664,13 +679,18 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 							to_value(&diff)
 						},
 						PollFilter::Logs(ref mut block_number, ref filter) => {
-							let mut filter = filter.clone();
+							let include_pending = filter.to_block == Some(BlockNumber::Pending);
+							let mut filter: EthcoreFilter = filter.clone().into();
 							filter.from_block = BlockId::Number(*block_number);
 							filter.to_block = BlockId::Latest;
-							let logs = client.logs(filter)
+							let mut logs = client.logs(filter.clone())
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
+
+							if include_pending {
+								logs.extend(try!(self.pending_logs(&filter)));
+							}
 
 							let current_number = client.chain_info().best_block_number;
 
@@ -688,10 +708,17 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 				let mut polls = self.polls.lock().unwrap();
 				match polls.poll(&index.value()) {
 					Some(&PollFilter::Logs(ref _block_number, ref filter)) => {
-						let logs = take_weak!(self.client).logs(filter.clone())
+						let include_pending = filter.to_block == Some(BlockNumber::Pending);
+						let filter: EthcoreFilter = filter.clone().into();
+						let mut logs = take_weak!(self.client).logs(filter.clone())
 							.into_iter()
 							.map(From::from)
 							.collect::<Vec<Log>>();
+
+						if include_pending {
+							logs.extend(try!(self.pending_logs(&filter)));
+						}
+
 						to_value(&logs)
 					},
 					// just empty array
