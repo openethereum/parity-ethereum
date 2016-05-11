@@ -33,6 +33,7 @@ use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
@@ -188,6 +189,21 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 				to_value(&H256::zero())
 			}
 		}
+	}
+
+	fn pending_logs(&self, filter: &EthcoreFilter) -> Result<Vec<Log>, Error> {
+		let miner = take_weak!(self.miner);
+		let pending_logs = miner.pending_receipts()
+			.into_iter()
+			.flat_map(|r| r.logs)
+			.collect::<Vec<_>>();
+
+		let result = pending_logs.into_iter()
+			.filter(|l| filter.matches(l))
+			.map(From::from)
+			.collect();
+
+		Ok(result)
 	}
 }
 
@@ -422,10 +438,18 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn logs(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
-				let logs = take_weak!(self.client).logs(filter.into())
+				let include_pending = filter.to_block == Some(BlockNumber::Pending);
+				let filter: EthcoreFilter = filter.into();
+				let mut logs = take_weak!(self.client).logs(filter.clone())
 					.into_iter()
 					.map(From::from)
 					.collect::<Vec<Log>>();
+
+				if include_pending {
+					let pending = try!(self.pending_logs(&filter));
+					logs.extend(pending);
+				}
+
 				to_value(&logs)
 			})
 	}

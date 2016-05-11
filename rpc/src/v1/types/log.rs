@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::numbers::*;
-use ethcore::log_entry::LocalizedLogEntry;
+use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use v1::types::Bytes;
 
 #[derive(Debug, Serialize)]
@@ -24,15 +24,15 @@ pub struct Log {
 	pub topics: Vec<H256>,
 	pub data: Bytes,
 	#[serde(rename="blockHash")]
-	pub block_hash: H256,
+	pub block_hash: Option<H256>,
 	#[serde(rename="blockNumber")]
-	pub block_number: U256,
+	pub block_number: Option<U256>,
 	#[serde(rename="transactionHash")]
-	pub transaction_hash: H256,
+	pub transaction_hash: Option<H256>,
 	#[serde(rename="transactionIndex")]
-	pub transaction_index: U256,
+	pub transaction_index: Option<U256>,
 	#[serde(rename="logIndex")]
-	pub log_index: U256,
+	pub log_index: Option<U256>,
 }
 
 impl From<LocalizedLogEntry> for Log {
@@ -41,11 +41,26 @@ impl From<LocalizedLogEntry> for Log {
 			address: e.entry.address,
 			topics: e.entry.topics,
 			data: Bytes::new(e.entry.data),
-			block_hash: e.block_hash,
-			block_number: From::from(e.block_number),
-			transaction_hash: e.transaction_hash,
-			transaction_index: From::from(e.transaction_index),
-			log_index: From::from(e.log_index)
+			block_hash: Some(e.block_hash),
+			block_number: Some(From::from(e.block_number)),
+			transaction_hash: Some(e.transaction_hash),
+			transaction_index: Some(From::from(e.transaction_index)),
+			log_index: Some(From::from(e.log_index))
+		}
+	}
+}
+
+impl From<LogEntry> for Log {
+	fn from(e: LogEntry) -> Log {
+		Log {
+			address: e.address,
+			topics: e.topics,
+			data: Bytes::new(e.data),
+			block_hash: None,
+			block_number: None,
+			transaction_hash: None,
+			transaction_index: None,
+			log_index: None,
 		}
 	}
 }
@@ -68,11 +83,11 @@ mod tests {
 				H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap()
 			],
 			data: Bytes::new(vec![]),
-			block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
-			block_number: U256::from(0x4510c),
-			transaction_hash: H256::new(),
-			transaction_index: U256::zero(),
-			log_index: U256::one()
+			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
+			block_number: Some(U256::from(0x4510c)),
+			transaction_hash: Some(H256::new()),
+			transaction_index: Some(U256::zero()),
+			log_index: Some(U256::one())
 		};
 
 		let serialized = serde_json::to_string(&log).unwrap();

@@ -79,11 +79,11 @@ mod tests {
 					H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap()
 				],
 				data: Bytes::new(vec![]),
-				block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
-				block_number: U256::from(0x4510c),
-				transaction_hash: H256::new(),
-				transaction_index: U256::zero(),
-				log_index: U256::one()
+				block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
+				block_number: Some(U256::from(0x4510c)),
+				transaction_hash: Some(H256::new()),
+				transaction_index: Some(U256::zero()),
+				log_index: Some(U256::one())
 			}]
 		};
 
