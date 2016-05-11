@@ -42,7 +42,7 @@ use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use error::{ImportResult, Error};
+use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use engine::{Engine};
 use trace::LocalizedTrace;
@@ -133,7 +133,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
 
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
 
 	/// Attempt to seal the block internally. See `Engine`.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { self.engine().generate_seal(block, accounts) }

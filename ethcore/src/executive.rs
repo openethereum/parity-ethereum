@@ -119,7 +119,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// This function should be used to execute transaction.
-	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, Error> {
+	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
 		let check = options.check_nonce;
 		match options.tracing {
 			true => self.transact_with_tracer(t, check, ExecutiveTracer::default()),
@@ -128,8 +128,11 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Execute transaction/call with tracing enabled
-	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, Error> where T: Tracer {
-		let sender = try!(t.sender());
+	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, ExecutionError> where T: Tracer {
+		let sender = try!(t.sender().map_err(|e| {
+			warn!(target: "evm", "Transaction mallformed: {:?}", e);
+			ExecutionError::TransactionMallformed
+		}));
 		let nonce = self.state.nonce(&sender);
 
 		let schedule = self.engine.schedule(self.info);

@@ -59,7 +59,9 @@ pub enum ExecutionError {
 		got: U512
 	},
 	/// Returned when internal evm error occurs.
-	Internal
+	Internal,
+	/// Returned when transaction mallformed.
+	TransactionMallformed
 }
 
 #[derive(Debug, PartialEq)]
