@@ -440,8 +440,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		// that's just a copy of the state.
 		let mut state = self.state();
 		let sender = try!(t.sender().map_err(|e| {
-			warn!(target: "evm", "Transaction mallformed: {:?}", e);
-			ExecutionError::TransactionMallformed
+			let message = format!("Transaction mallformed: {:?}", e);
+			ExecutionError::TransactionMallformed(message)
 		}));
 		let balance = state.balance(&sender);
 		// give the sender max balance

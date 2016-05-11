@@ -259,8 +259,8 @@ impl MinerService for Miner {
 				// that's just a copy of the state.
 				let mut state = block.state().clone();
 				let sender = try!(t.sender().map_err(|e| {
-					warn!(target: "miner", "Transaction mallformed: {:?}", e);
-					ExecutionError::TransactionMallformed
+					let message = format!("Transaction mallformed: {:?}", e);
+					ExecutionError::TransactionMallformed(message)
 				}));
 				let balance = state.balance(&sender);
 				// give the sender max balance
