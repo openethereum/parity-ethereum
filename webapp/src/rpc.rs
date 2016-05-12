@@ -19,7 +19,7 @@ use hyper::server;
 use hyper::net::HttpStream;
 use jsonrpc_core::IoHandler;
 use jsonrpc_http_server::{ServerHandler, PanicHandler, AccessControlAllowOrigin};
-use endpoint::Endpoint;
+use endpoint::{Endpoint, HostInfo};
 
 pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
@@ -36,7 +36,7 @@ struct RpcEndpoint {
 }
 
 impl Endpoint for RpcEndpoint {
-	fn to_handler(&self, _prefix: &str) -> Box<server::Handler<HttpStream>> {
+	fn to_handler(&self, _prefix: &str, _host: Option<HostInfo>) -> Box<server::Handler<HttpStream>> {
 		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
 		Box::new(ServerHandler::new(self.handler.clone(), self.cors_domain.clone(), panic_handler))
 	}

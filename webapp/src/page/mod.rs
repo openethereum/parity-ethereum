@@ -22,7 +22,7 @@ use hyper::header;
 use hyper::status::StatusCode;
 use hyper::net::HttpStream;
 use hyper::{Decoder, Encoder, Next};
-use endpoint::Endpoint;
+use endpoint::{Endpoint, HostInfo};
 use parity_webapp::WebApp;
 
 pub struct PageEndpoint<T : WebApp + 'static> {
@@ -38,7 +38,7 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 }
 
 impl<T: WebApp> Endpoint for PageEndpoint<T> {
-	fn to_handler(&self, prefix: &str) -> Box<server::Handler<HttpStream>> {
+	fn to_handler(&self, prefix: &str, _host: Option<HostInfo>) -> Box<server::Handler<HttpStream>> {
 		Box::new(PageHandler {
 			app: self.app.clone(),
 			prefix: prefix.to_owned(),

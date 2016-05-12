@@ -26,7 +26,7 @@ use hyper;
 use hyper::{server, uri, header};
 use hyper::{Next, Encoder, Decoder};
 use hyper::net::HttpStream;
-use endpoint::{Endpoint, Endpoints};
+use endpoint::{Endpoint, Endpoints, HostInfo};
 use self::url::Url;
 use self::auth::{Authorization, Authorized};
 use self::redirect::Redirection;
@@ -43,32 +43,39 @@ pub struct Router<A: Authorization + 'static> {
 impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 	fn on_request(&mut self, req: server::Request) -> Next {
+		// Check authorization
 		let auth = self.authorization.is_authorized(&req);
+
+		// Choose proper handler depending on path / domain
 		self.handler = match auth {
 			Authorized::No(handler) => handler,
 			Authorized::Yes => {
-				let path = self.extract_request_path(&req);
-				match path {
-					Some(ref url) if self.endpoints.contains_key(url) => {
-						let prefix = "/".to_owned() + url;
-						self.endpoints.get(url).unwrap().to_handler(&prefix)
+				let url = self.extract_url(&req);
+				let app_id = self.extract_app_id(&url);
+				let host = url.map(|u| HostInfo {
+					host: u.host,
+					port: u.port
+				});
+
+				match app_id {
+					Some(ref app_id) if self.endpoints.contains_key(&app_id.id) => {
+						self.endpoints.get(&app_id.id).unwrap().to_handler(&app_id.prefix, host)
 					},
-					Some(ref url) if url == "api" => {
-						self.api.to_handler("/api")
+					Some(ref app_id) if app_id.id == "api" => {
+						self.api.to_handler(&app_id.prefix, host)
 					},
 					_ if *req.method() == hyper::method::Method::Get => {
 						Redirection::new(self.main_page)
 					},
 					_ => {
-						self.rpc.to_handler(&"/")
+						self.rpc.to_handler("/", host)
 					}
 				}
 			}
 		};
-		self.handler.on_request(req)
-		// Check authorization
-		// Choose proper handler depending on path
+
 		// Delegate on_request to proper handler
+		self.handler.on_request(req)
 	}
 
 	/// This event occurs each time the `Request` is ready to be read from.
@@ -95,7 +102,7 @@ impl<A: Authorization> Router<A> {
 		api: Arc<Box<Endpoint>>,
 		authorization: Arc<A>) -> Self {
 
-		let handler = rpc.to_handler(&"/");
+		let handler = rpc.to_handler("/", None);
 		Router {
 			main_page: main_page,
 			endpoints: endpoints,
@@ -132,16 +139,23 @@ impl<A: Authorization> Router<A> {
 		}
 	}
 
-	fn extract_request_path(&self, req: &server::Request) -> Option<String> {
-		let url = self.extract_url(&req);
-		match url {
+	fn extract_app_id(&self, url: &Option<Url>) -> Option<AppId> {
+		match *url {
 			Some(ref url) if url.path.len() > 1 => {
-				let part = url.path[0].clone();
-				Some(part)
+				let id = url.path[0].clone();
+				Some(AppId {
+					id: id.clone(),
+					prefix: "/".to_owned() + &id
+				})
 			},
 			_ => {
 				None
 			},
 		}
 	}
+}
+
+struct AppId {
+	id: String,
+	prefix: String
 }

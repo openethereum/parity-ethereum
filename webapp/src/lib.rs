@@ -57,11 +57,14 @@ mod page;
 mod router;
 mod rpc;
 mod api;
+mod proxypac;
 
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
+
+static DAPPS_DOMAIN : &'static str = "dapp";
 
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
@@ -103,7 +106,7 @@ pub struct Server {
 impl Server {
 	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
-		let endpoints = Arc::new(apps::all_endpoints());
+		let endpoints = Arc::new(apps::all_endpoints(addr));
 		let authorization = Arc::new(authorization);
 		let rpc_endpoint = Arc::new(rpc::rpc(handler, panic_handler.clone()));
 		let api = Arc::new(api::RestApi::new(endpoints.clone()));
