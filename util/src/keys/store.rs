@@ -374,7 +374,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 				iv,
 				salt,
 				mac,
-				KEY_ITERATIONS,
+				self.key_iterations,
 				KEY_LENGTH));
 		key_file.id = key;
 		if let Err(io_error) = self.directory.save(key_file) {
