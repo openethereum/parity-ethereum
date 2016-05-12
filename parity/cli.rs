@@ -35,6 +35,8 @@ Protocol Options:
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
+  --keys-path PATH         Specify the path for JSON key files to be found
+                           [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
 
 Account Options:
@@ -42,6 +44,9 @@ Account Options:
                            ACCOUNTS is a comma-delimited list of addresses.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
+  --keys-iterations NUM    Specify the number of iterations to use when deriving key
+                           from the password (bigger is more secure)
+                           [default: 10240].
 
 Networking Options:
   --port PORT              Override the port on which the node should listen
@@ -182,6 +187,7 @@ pub struct Args {
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,
 	pub flag_keys_path: String,
+	pub flag_keys_iterations: u32,
 	pub flag_bootnodes: Option<String>,
 	pub flag_network_id: Option<String>,
 	pub flag_pruning: String,
