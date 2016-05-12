@@ -130,8 +130,8 @@ impl<'a> Executive<'a> {
 	/// Execute transaction/call with tracing enabled
 	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, ExecutionError> where T: Tracer {
 		let sender = try!(t.sender().map_err(|e| {
-			let message = format!("Transaction mallformed: {:?}", e);
-			ExecutionError::TransactionMallformed(message)
+			let message = format!("Transaction malformed: {:?}", e);
+			ExecutionError::TransactionMalformed(message)
 		}));
 		let nonce = self.state.nonce(&sender);
 
@@ -986,7 +986,7 @@ mod tests {
 		};
 
 		match res {
-			Err(ExecutionError::TransactionMallformed(_)) => (),
+			Err(ExecutionError::TransactionMalformed(_)) => (),
 			_ => assert!(false, "Expected an invalid transaction error.")
 		}
 	}

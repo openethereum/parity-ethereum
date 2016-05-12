@@ -61,7 +61,7 @@ pub enum ExecutionError {
 	/// Returned when internal evm error occurs.
 	Internal,
 	/// Returned when generic transaction occurs
-	TransactionMallformed(String),
+	TransactionMalformed(String),
 }
 
 #[derive(Debug, PartialEq)]
