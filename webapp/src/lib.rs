@@ -106,7 +106,7 @@ pub struct Server {
 impl Server {
 	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
-		let endpoints = Arc::new(apps::all_endpoints(addr));
+		let endpoints = Arc::new(apps::all_endpoints());
 		let authorization = Arc::new(authorization);
 		let rpc_endpoint = Arc::new(rpc::rpc(handler, panic_handler.clone()));
 		let api = Arc::new(api::RestApi::new(endpoints.clone()));

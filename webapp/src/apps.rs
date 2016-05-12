@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::SocketAddr;
 use endpoint::Endpoints;
 use page::PageEndpoint;
 use proxypac::ProxyPac;
@@ -28,9 +27,9 @@ pub fn main_page() -> &'static str {
 	"/status/"
 }
 
-pub fn all_endpoints(addr: &SocketAddr) -> Endpoints {
+pub fn all_endpoints() -> Endpoints {
 	let mut pages = Endpoints::new();
-	pages.insert("proxy".to_owned(), ProxyPac::new(addr));
+	pages.insert("proxy".to_owned(), ProxyPac::boxed());
 
 	insert::<parity_status::App>(&mut pages, "status");
 	insert::<parity_status::App>(&mut pages, "parity");

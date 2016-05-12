@@ -16,37 +16,31 @@
 
 //! Serving ProxyPac file
 
-use std::net::SocketAddr;
-use endpoint::{Endpoint, Handler, ContentHandler, HostInfo};
+use endpoint::{Endpoint, Handler, ContentHandler, EndpointPath};
 use DAPPS_DOMAIN;
 
-pub struct ProxyPac {
-	addr: SocketAddr,
-}
+pub struct ProxyPac;
 
 impl ProxyPac {
-	pub fn new(addr: &SocketAddr) -> Box<Endpoint> {
-		Box::new(ProxyPac {
-			addr: addr.clone(),
-		})
+	pub fn boxed() -> Box<Endpoint> {
+		Box::new(ProxyPac)
 	}
 }
 
 impl Endpoint for ProxyPac {
-	fn to_handler(&self, _prefix: &str, host: Option<HostInfo>) -> Box<Handler> {
-		let host = host.map_or_else(|| format!("{}", self.addr), |h| format!("{}:{}", h.host, h.port));
+	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
 		let content = format!(
 r#"
 function FindProxyForURL(url, host) {{
 	if (shExpMatch(host, "*{0}"))
 	{{
-		return "PROXY {1}";
+		return "PROXY {1}:{2}";
 	}}
 
 	return "DIRECT";
 }}
 "#,
-			DAPPS_DOMAIN, host);
+			DAPPS_DOMAIN, path.host, path.port);
 		Box::new(ContentHandler::new(content, "application/javascript".to_owned()))
 	}
 }

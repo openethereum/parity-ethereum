@@ -17,7 +17,7 @@
 //! Simple REST API
 
 use std::sync::Arc;
-use endpoint::{Endpoint, Endpoints, ContentHandler, Handler, HostInfo};
+use endpoint::{Endpoint, Endpoints, ContentHandler, Handler, EndpointPath};
 
 pub struct RestApi {
 	endpoints: Arc<Endpoints>,
@@ -42,7 +42,7 @@ impl RestApi {
 }
 
 impl Endpoint for RestApi {
-	fn to_handler(&self, _prefix: &str, _host: Option<HostInfo>) -> Box<Handler> {
+	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
 		Box::new(ContentHandler::new(self.list_pages(), "application/json".to_owned()))
 	}
 }

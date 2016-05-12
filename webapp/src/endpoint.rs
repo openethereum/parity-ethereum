@@ -16,7 +16,6 @@
 
 //! URL Endpoint traits
 
-use url::Host;
 use hyper::status::StatusCode;
 use hyper::{header, server, Decoder, Encoder, Next};
 use hyper::net::HttpStream;
@@ -24,13 +23,15 @@ use hyper::net::HttpStream;
 use std::io::Write;
 use std::collections::HashMap;
 
-pub struct HostInfo {
-	pub host: Host,
+#[derive(Debug, PartialEq, Default, Clone)]
+pub struct EndpointPath {
+	pub app_id: String,
+	pub host: String,
 	pub port: u16,
 }
 
 pub trait Endpoint : Send + Sync {
-	fn to_handler(&self, prefix: &str, host: Option<HostInfo>) -> Box<server::Handler<HttpStream>>;
+	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<HttpStream>>;
 }
 
 pub type Endpoints = HashMap<String, Box<Endpoint>>;
