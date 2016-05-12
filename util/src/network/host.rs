@@ -466,8 +466,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			io.register_stream(DISCOVERY).expect("Error registering UDP listener");
 			io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
 			io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
-			io.register_timer(NODE_TABLE, 300_000).expect("Error registering node table timer");
 		}
+		try!(io.register_timer(NODE_TABLE, 300_000));
 		try!(io.register_stream(TCP_ACCEPT));
 		Ok(())
 	}
@@ -509,6 +509,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+		if self.info.read().unwrap().deref().capabilities.is_empty() {
+			return;
+		}
 		let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
 		let pin = { self.info.read().unwrap().deref().config.pin };
 		let session_count = self.session_count();

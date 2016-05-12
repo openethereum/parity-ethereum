@@ -442,6 +442,8 @@ impl TransactionQueue {
 			}));
 		}
 
+		try!(tx.check_low_s());
+
 		if tx.gas > self.gas_limit {
 			trace!(target: "miner",
 				"Dropping transaction above gas limit: {:?} ({} > {})",
@@ -654,7 +656,6 @@ impl TransactionQueue {
 			trace!(target: "miner", "Dropping already imported transaction: {:?}", tx.hash());
 			return Err(TransactionError::AlreadyImported);
 		}
-
 
 		let address = tx.sender();
 		let nonce = tx.nonce();
