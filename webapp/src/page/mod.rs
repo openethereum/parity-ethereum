@@ -57,15 +57,27 @@ struct PageHandler<T: WebApp + 'static> {
 	write_pos: usize,
 }
 
+impl<T: WebApp + 'static> PageHandler<T> {
+	fn extract_path(&self, path: &str) -> String {
+		// Index file support
+		match path == &self.prefix || path == &self.prefix_with_slash {
+			true => "index.html".to_owned(),
+			false => path[self.prefix_with_slash.len()..].to_owned(),
+		}
+	}
+}
+
 impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 	fn on_request(&mut self, req: server::Request) -> Next {
-		if let RequestUri::AbsolutePath(ref path) = *req.uri() {
-			// Index file support
-			self.path = match path == &self.prefix || path == &self.prefix_with_slash {
-				true => Some("index.html".to_owned()),
-				false => Some(path[self.prefix_with_slash.len()..].to_owned()),
-			};
-		}
+		self.path = match *req.uri() {
+			RequestUri::AbsolutePath(ref path) => {
+				Some(self.extract_path(path))
+			},
+			RequestUri::AbsoluteUri(ref url) => {
+				Some(self.extract_path(url.path()))
+			},
+			_ => None,
+		};
 		Next::write()
 	}
 

@@ -18,11 +18,11 @@ use std::net::SocketAddr;
 use endpoint::Endpoints;
 use page::PageEndpoint;
 use proxypac::ProxyPac;
+use parity_webapp::WebApp;
 
 extern crate parity_status;
 #[cfg(feature = "parity-wallet")]
 extern crate parity_wallet;
-
 
 pub fn main_page() -> &'static str {
 	"/status/"
@@ -30,15 +30,23 @@ pub fn main_page() -> &'static str {
 
 pub fn all_endpoints(addr: &SocketAddr) -> Endpoints {
 	let mut pages = Endpoints::new();
-	pages.insert("status".to_owned(), Box::new(PageEndpoint::new(parity_status::App::default())));
 	pages.insert("proxy".to_owned(), ProxyPac::new(addr));
+
+	insert::<parity_status::App>(&mut pages, "status");
+	insert::<parity_status::App>(&mut pages, "parity");
 
 	wallet_page(&mut pages);
 	pages
 }
 
+#[cfg(feature = "parity-wallet")]
 fn wallet_page(pages: &mut Endpoints) {
-	if cfg!(feature = "parity-wallet") {
-		pages.insert("wallet".to_owned(), Box::new(PageEndpoint::new(parity_wallet::App::default())));
-	}
+	insert::<parity_wallet::App>(pages, "wallet");
+}
+
+#[cfg(not(feature = "parity-wallet"))]
+fn wallet_page(_pages: &mut Endpoints) {}
+
+fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
+	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));
 }
