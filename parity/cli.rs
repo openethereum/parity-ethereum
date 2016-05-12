@@ -35,8 +35,6 @@ Protocol Options:
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
-  --keys-path PATH         Specify the path for JSON key files to be found
-                           [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
 
 Account Options:
