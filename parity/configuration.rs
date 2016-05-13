@@ -37,6 +37,11 @@ pub struct Configuration {
 	pub args: Args
 }
 
+pub struct Directories {
+	pub keys: String,
+	pub db: String,
+}
+
 impl Configuration {
 	pub fn parse() -> Self {
 		Configuration {
@@ -58,10 +63,6 @@ impl Configuration {
 
 	fn max_peers(&self) -> u32 {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
-	}
-
-	pub fn path(&self) -> String {
-		Configuration::replace_home(&self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path))
 	}
 
 	pub fn author(&self) -> Address {
@@ -110,10 +111,6 @@ impl Configuration {
 			None => version_data(),
 			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
 		}
-	}
-
-	pub fn keys_path(&self) -> String {
-		Configuration::replace_home(&self.args.flag_keys_path)
 	}
 
 	pub fn spec(&self) -> Spec {
@@ -270,15 +267,6 @@ impl Configuration {
 		path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned()
 	}
 
-	fn replace_home(arg: &str) -> String {
-		arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
-	}
-
-	fn ipc_path(&self) -> String {
-		if self.args.flag_geth { Self::geth_ipc_path() }
-		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
-	}
-
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
@@ -298,6 +286,36 @@ impl Configuration {
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
+	}
+
+	pub fn directories(&self) -> Directories {
+		let db_path = Configuration::replace_home(
+			&self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
+		std::fs::create_dir_all(db_path).unwrap_or_else(|e| die_with_io_error(e));
+
+		let keys_path = Configuration::replace_home(&self.args.flag_keys_path);
+
+		Directories {
+			keys: keys_path,
+			db: db_path,
+		}
+	}
+
+	pub fn keys_path(&self) -> String {
+		self.directories().keys
+	}
+
+	pub fn path(&self) -> String {
+		self.directories().db
+	}
+
+	fn replace_home(arg: &str) -> String {
+		arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	}
+
+	fn ipc_path(&self) -> String {
+		if self.args.flag_geth { Self::geth_ipc_path() }
+		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
 	}
 }
 
