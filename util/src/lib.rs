@@ -148,6 +148,7 @@ pub mod panics;
 pub mod keys;
 pub mod table;
 pub mod network_settings;
+pub mod path;
 
 pub use common::*;
 pub use misc::*;
