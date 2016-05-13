@@ -40,7 +40,7 @@ pub mod ethereum {
 	}
 
 	#[cfg(not(any(target_os = "macos", windows)))]
-	/// Default path for ethereum installation on posix system which and not Mac OS
+	/// Default path for ethereum installation on posix system which is not Mac OS
 	pub fn default() -> PathBuf {
 		let mut home = ::std::env::home_dir().expect("Failed to get home dir");
 		home.push(".ethereum");
@@ -54,4 +54,3 @@ pub mod ethereum {
 		pth
 	}
 }
-

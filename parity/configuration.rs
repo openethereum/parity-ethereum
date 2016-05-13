@@ -61,8 +61,7 @@ impl Configuration {
 	}
 
 	pub fn path(&self) -> String {
-		let d = self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path);
-		d.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+		Configuration::replace_home(&self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path))
 	}
 
 	pub fn author(&self) -> Address {
@@ -114,7 +113,7 @@ impl Configuration {
 	}
 
 	pub fn keys_path(&self) -> String {
-		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+		Configuration::replace_home(&self.args.flag_keys_path)
 	}
 
 	pub fn spec(&self) -> Spec {
@@ -266,20 +265,24 @@ impl Configuration {
 	pub fn rpc_cors(&self) -> Option<String> {
 		self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone())
 	}
-	
-	fn geth_ipc_path() -> &'static str {
-		if cfg!(target_os = "macos") {
-			"$HOME/Library/Ethereum/geth.ipc"
-		} else {
-			"$HOME/.ethereum/geth.ipc"
-		}
+
+	fn geth_ipc_path() -> String {
+		path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned()
+	}
+
+	fn replace_home(arg: &str) -> String {
+		arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	}
+
+	fn ipc_path(&self) -> String {
+		if self.args.flag_geth { Self::geth_ipc_path() }
+		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
 	}
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
-			socket_addr: if self.args.flag_geth { Self::geth_ipc_path().to_owned() } else { self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()) }
-				.replace("$HOME", env::home_dir().unwrap().to_str().unwrap()),
+			socket_addr: self.ipc_path(),
 			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
 		}
 	}
