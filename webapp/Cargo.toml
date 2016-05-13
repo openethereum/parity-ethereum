@@ -18,7 +18,7 @@ ethcore-util = { path = "../util" }
 parity-webapp = { git = "https://github.com/ethcore/parity-webapp.git" }
 # List of apps
 parity-status = { git = "https://github.com/ethcore/parity-status.git", version = "0.4.0" }
-parity-idmanager = { git = "https://github.com/ethcore/parity-idmanager-rs.git", version = "0.1.1" }
+parity-idmanager = { git = "https://github.com/ethcore/parity-idmanager-rs.git", version = "0.1.2" }
 parity-wallet = { git = "https://github.com/ethcore/parity-wallet.git", version = "0.3.0", optional = true }
 clippy = { version = "0.0.64", optional = true}
 
