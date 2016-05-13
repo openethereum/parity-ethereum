@@ -17,7 +17,7 @@
 //! Serving ProxyPac file
 
 use endpoint::{Endpoint, Handler, ContentHandler, EndpointPath};
-use DAPPS_DOMAIN;
+use apps::DAPPS_DOMAIN;
 
 pub struct ProxyPac;
 

@@ -14,17 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use endpoint::Endpoints;
+use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
 use proxypac::ProxyPac;
 use parity_webapp::WebApp;
 
 extern crate parity_status;
+extern crate parity_idmanager;
 #[cfg(feature = "parity-wallet")]
 extern crate parity_wallet;
 
+pub const DAPPS_DOMAIN : &'static str = ".dapp";
+pub const RPC_PATH : &'static str =  "rpc";
+pub const API_PATH : &'static str =  "api";
+pub const UTILS_PATH : &'static str =  "parity-utils";
+
 pub fn main_page() -> &'static str {
 	"/status/"
+}
+
+pub fn utils() -> Box<Endpoint> {
+	Box::new(PageEndpoint::with_prefix(parity_idmanager::App::default(), UTILS_PATH.to_owned()))
 }
 
 pub fn all_endpoints() -> Endpoints {

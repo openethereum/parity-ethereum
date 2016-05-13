@@ -26,13 +26,23 @@ use endpoint::{Endpoint, EndpointPath};
 use parity_webapp::WebApp;
 
 pub struct PageEndpoint<T : WebApp + 'static> {
+	/// Content of the files
 	pub app: Arc<T>,
+	/// Prefix to strip from the path (when `None` deducted from `app_id`)
+	pub prefix: Option<String>,
 }
 
 impl<T: WebApp + 'static> PageEndpoint<T> {
 	pub fn new(app: T) -> Self {
 		PageEndpoint {
-			app: Arc::new(app)
+			app: Arc::new(app),
+			prefix: None,
+		}
+	}
+	pub fn with_prefix(app: T, prefix: String) -> Self {
+		PageEndpoint {
+			app: Arc::new(app),
+			prefix: Some(prefix),
 		}
 	}
 }
@@ -41,6 +51,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<HttpStream>> {
 		Box::new(PageHandler {
 			app: self.app.clone(),
+			prefix: self.prefix.clone(),
 			path: path,
 			file: None,
 			write_pos: 0,
@@ -50,6 +61,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 
 struct PageHandler<T: WebApp + 'static> {
 	app: Arc<T>,
+	prefix: Option<String>,
 	path: EndpointPath,
 	file: Option<String>,
 	write_pos: usize,
@@ -57,7 +69,8 @@ struct PageHandler<T: WebApp + 'static> {
 
 impl<T: WebApp + 'static> PageHandler<T> {
 	fn extract_path(&self, path: &str) -> String {
-		let prefix = "/".to_owned() + &self.path.app_id;
+		let app_id = &self.path.app_id;
+		let prefix = "/".to_owned() + self.prefix.as_ref().unwrap_or(app_id);
 		let prefix_with_slash = prefix.clone() + "/";
 
 		// Index file support
