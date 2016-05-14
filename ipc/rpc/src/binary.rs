@@ -389,6 +389,7 @@ pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryConvertEr
 	Ok(buff.into_inner())
 }
 
+#[macro_export]
 macro_rules! binary_fixed_size {
 	($target_ty: ty) => {
 		impl BinaryConvertable for $target_ty {

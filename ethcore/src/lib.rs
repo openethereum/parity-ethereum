@@ -85,7 +85,7 @@ extern crate num_cpus;
 extern crate crossbeam;
 extern crate ethjson;
 extern crate bloomchain;
-extern crate ethcore_ipc as ipc;
+#[macro_use] extern crate ethcore_ipc as ipc;
 
 #[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
