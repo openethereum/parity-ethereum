@@ -73,6 +73,7 @@ pub enum SigningError {
 pub struct SecretStore {
 	directory: KeyDirectory,
 	unlocks: RwLock<HashMap<Address, AccountUnlock>>,
+	key_iterations: u32,
 }
 
 struct AccountUnlock {
@@ -128,10 +129,15 @@ impl AccountProvider for AccountService {
 impl AccountService {
 	/// New account service with the keys store in specific location
 	pub fn new_in(path: &Path) -> Self {
-		let secret_store = RwLock::new(SecretStore::new_in(path));
+		AccountService::with_security(path, KEY_ITERATIONS)
+	}
+
+	/// New account service with the keys store in specific location and configured security parameters
+	pub fn with_security(path: &Path, key_iterations: u32) -> Self {
+		let secret_store = RwLock::new(SecretStore::with_security(path, key_iterations));
 		secret_store.write().unwrap().try_import_existing();
 		AccountService {
-			secret_store: secret_store
+			secret_store: secret_store,
 		}
 	}
 
@@ -157,10 +163,16 @@ impl AccountService {
 impl SecretStore {
 	/// new instance of Secret Store in specific directory
 	pub fn new_in(path: &Path) -> Self {
+		SecretStore::with_security(path, KEY_ITERATIONS)
+	}
+
+	/// new instance of Secret Store in specific directory and configured security parameters
+	pub fn with_security(path: &Path, key_iterations: u32) -> Self {
 		::std::fs::create_dir_all(&path).expect("Cannot access requested key directory - critical");
 		SecretStore {
 			directory: KeyDirectory::new(path),
 			unlocks: RwLock::new(HashMap::new()),
+			key_iterations: key_iterations,
 		}
 	}
 
@@ -206,6 +218,7 @@ impl SecretStore {
 		SecretStore {
 			directory: KeyDirectory::new(path.as_path()),
 			unlocks: RwLock::new(HashMap::new()),
+			key_iterations: KEY_ITERATIONS,
 		}
 	}
 
@@ -289,8 +302,8 @@ fn derive_key_iterations(password: &str, salt: &H256, c: u32) -> (Bytes, Bytes) 
 	(derived_right_bits.to_vec(), derived_left_bits.to_vec())
 }
 
-fn derive_key(password: &str, salt: &H256) -> (Bytes, Bytes) {
-	derive_key_iterations(password, salt, KEY_ITERATIONS)
+fn derive_key(password: &str, salt: &H256, iterations: u32) -> (Bytes, Bytes) {
+	derive_key_iterations(password, salt, iterations)
 }
 
 fn derive_key_scrypt(password: &str, salt: &H256, n: u32, p: u32, r: u32) -> (Bytes, Bytes) {
@@ -346,7 +359,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 
 		// two parts of derived key
 		// DK = [ DK[0..15] DK[16..31] ] = [derived_left_bits, derived_right_bits]
-		let (derived_left_bits, derived_right_bits) = derive_key(password, &salt);
+		let (derived_left_bits, derived_right_bits) = derive_key(password, &salt, self.key_iterations);
 
 		let mut cipher_text = vec![0u8; value.as_slice().len()];
 		// aes-128-ctr with initial vector of iv
@@ -361,7 +374,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 				iv,
 				salt,
 				mac,
-				KEY_ITERATIONS,
+				self.key_iterations,
 				KEY_LENGTH));
 		key_file.id = key;
 		if let Err(io_error) = self.directory.save(key_file) {

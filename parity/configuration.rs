@@ -117,6 +117,10 @@ impl Configuration {
 		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
+	pub fn keys_iterations(&self) -> u32 {
+		self.args.flag_keys_iterations
+	}
+
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
@@ -245,7 +249,7 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-		let account_service = AccountService::new_in(Path::new(&self.keys_path()));
+		let account_service = AccountService::with_security(Path::new(&self.keys_path()), self.keys_iterations());
 		if let Some(ref unlocks) = self.args.flag_unlock {
 			for d in unlocks.split(',') {
 				let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
