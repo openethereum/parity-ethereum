@@ -11,9 +11,9 @@ use error::Error;
 #[derive(Debug, PartialEq)]
 pub struct DecodedLog {
 	/// Ordered params.
-	params: Vec<(String, Token)>,
+	pub params: Vec<(String, Token)>,
 	/// Address, is none for anonymous logs.
-	address: Option<[u8; 20]>,
+	pub address: Option<[u8; 20]>,
 }
 
 /// Contract event.
@@ -102,8 +102,7 @@ mod tests {
 	use rustc_serialize::hex::FromHex;
 	use spec::{Event as EventInterface, EventParam, ParamType};
 	use super::{Event, DecodedLog};
-	use token::Token;
-	use util::{read32, read20};
+	use token::{Token, TokenFromHex};
 
 	#[test]
 	fn test_decoding_event() {
@@ -133,9 +132,9 @@ mod tests {
 
 		let result = event.decode_log(
 			vec![
-				read32("0000000000000000000000004444444444444444444444444444444444444444"),
-				read32("0000000000000000000000000000000000000000000000000000000000000002"),
-				read32("0000000000000000000000001111111111111111111111111111111111111111"),
+				"0000000000000000000000004444444444444444444444444444444444444444".token_from_hex().unwrap(),
+				"0000000000000000000000000000000000000000000000000000000000000002".token_from_hex().unwrap(),
+				"0000000000000000000000001111111111111111111111111111111111111111".token_from_hex().unwrap(),
 			],
 			("".to_owned() +
 				"0000000000000000000000000000000000000000000000000000000000000003" +
@@ -144,12 +143,12 @@ mod tests {
 
 		assert_eq!(result, DecodedLog {
 			params: vec![
-				("a".to_owned(), Token::Int(read32("0000000000000000000000000000000000000000000000000000000000000003"))),
-				("b".to_owned(), Token::Int(read32("0000000000000000000000000000000000000000000000000000000000000002"))),
-				("c".to_owned(), Token::Address(read20("2222222222222222222222222222222222222222"))),
-				("d".to_owned(), Token::Address(read20("1111111111111111111111111111111111111111"))),
+				("a".to_owned(), Token::Int("0000000000000000000000000000000000000000000000000000000000000003".token_from_hex().unwrap())),
+				("b".to_owned(), Token::Int("0000000000000000000000000000000000000000000000000000000000000002".token_from_hex().unwrap())),
+				("c".to_owned(), Token::Address("2222222222222222222222222222222222222222".token_from_hex().unwrap())),
+				("d".to_owned(), Token::Address("1111111111111111111111111111111111111111".token_from_hex().unwrap())),
 			],
-			address: Some(read20("4444444444444444444444444444444444444444"))
+			address: Some("4444444444444444444444444444444444444444".token_from_hex().unwrap())
 		});
 	}
 }

@@ -6,14 +6,12 @@ mod error;
 
 use std::fs::File;
 use std::io::Read;
-use std::ptr;
 use docopt::Docopt;
 use rustc_serialize::hex::{ToHex, FromHex};
 use ethabi::spec::Interface;
 use ethabi::spec::param_type::{ParamType, Reader}; 
-use ethabi::token::{Token, Tokenizer, StrictTokenizer};
+use ethabi::token::{Token, Tokenizer, StrictTokenizer, TokenFromHex};
 use ethabi::{Encoder, Decoder, Contract, Function, Event};
-use ethabi::util::slice_data;
 use error::Error;
 
 pub const ETHABI: &'static str = r#"
@@ -153,7 +151,7 @@ fn decode_call_output(path: &str, function: String, data: String) -> Result<Stri
 		.zip(tokens.iter())
 		.map(|(ty, to)| format!("{} {}", ty, to))
 		.collect::<Vec<String>>()
-		.join(" ");
+		.join("\n");
 
 	Ok(result)
 }
@@ -174,7 +172,7 @@ fn decode_params(types: Vec<String>, data: String) -> Result<String, Error> {
 		.zip(tokens.iter())
 		.map(|(ty, to)| format!("{} {}", ty, to))
 		.collect::<Vec<String>>()
-		.join(" ");
+		.join("\n");
 
 	Ok(result)
 }
@@ -182,18 +180,16 @@ fn decode_params(types: Vec<String>, data: String) -> Result<String, Error> {
 fn decode_log(path: &str, event: String, topics: Vec<String>, data: String) -> Result<String, Error> {
 	let event = try!(load_event(path, event));
 	let topics: Result<Vec<[u8; 32]>, Error> = topics.into_iter()
-		.map(|t| {
-			let bytes = try!(t.from_hex());
-			let mut result = [0u8; 32];
-			unsafe {
-				ptr::copy(bytes.as_ptr(), result.as_mut_ptr(), 32);
-			}
-			Ok(result)
-		})
+		.map(|t| t.token_from_hex().map_err(From::from))
 		.collect();
 	let topics = try!(topics);
 	let data = try!(data.from_hex());
 	let decoded = try!(event.decode_log(topics, data));
+	
+	let result = decoded.params.into_iter()
+		.map(|(name, value)| format!("{} {}", name, value))
+		.collect::<Vec<String>>()
+		.join("\n");
 
-	Ok("".to_owned())
+	Ok(result)
 }

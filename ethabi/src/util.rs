@@ -1,3 +1,5 @@
+//! Utils used by different modules.
+
 use std::ptr;
 use error::Error;
 
@@ -17,42 +19,4 @@ pub fn slice_data(data: Vec<u8>) -> Result<Vec<[u8; 32]>, Error> {
 		result.push(slice);
 	}
 	Ok(result)
-}
-
-/// Reads string as 32 bytes len slice. Unsafe.
-#[cfg(test)]
-pub fn read32(s: &str) -> [u8; 32] {
-	use rustc_serialize::hex::FromHex;
-
-	let mut result = [0u8; 32];
-	let bytes = s.from_hex().unwrap();
-	
-	if bytes.len() != 32 {
-		panic!();
-	}
-	
-	unsafe {
-		ptr::copy(bytes.as_ptr(), result.as_mut_ptr(), 32);
-	}
-
-	result
-}
-
-/// Reads string as 20 bytes len slice. Unsafe.
-#[cfg(test)]
-pub fn read20(s: &str) -> [u8; 20] {
-	use rustc_serialize::hex::FromHex;
-
-	let mut result = [0u8; 20];
-	let bytes = s.from_hex().unwrap();
-	
-	if bytes.len() != 20 {
-		panic!();
-	}
-	
-	unsafe {
-		ptr::copy(bytes.as_ptr(), result.as_mut_ptr(), 20);
-	}
-
-	result
 }
