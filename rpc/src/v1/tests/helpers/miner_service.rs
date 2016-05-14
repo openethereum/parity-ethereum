@@ -18,7 +18,7 @@
 
 use util::{Address, H256, Bytes, U256, FixedHash, Uint};
 use util::standard::*;
-use ethcore::error::Error;
+use ethcore::error::{Error, ExecutionError};
 use ethcore::client::{BlockChainClient, Executed};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::transaction::SignedTransaction;
@@ -179,7 +179,7 @@ impl MinerService for TestMinerService {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
 	}
 
-	fn call(&self, _chain: &BlockChainClient, _t: &SignedTransaction) -> Result<Executed, Error> {
+	fn call(&self, _chain: &BlockChainClient, _t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		unimplemented!();
 	}
 

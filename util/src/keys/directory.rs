@@ -381,7 +381,7 @@ impl KeyFileContent {
 		}
 	}
 
-	/// Loads key from valid json, returns error and records warning if key is mallformed
+	/// Loads key from valid json, returns error and records warning if key is malformed
 	pub fn load(json: &Json) -> Result<KeyFileContent, ()> {
 		match Self::from_json(json) {
 			Ok(key_file) => Ok(key_file),

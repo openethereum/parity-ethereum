@@ -398,7 +398,7 @@ impl<V> Client<V> where V: Verifier {
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
-	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error> {
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockId::Latest).unwrap();
 		let view = HeaderView::new(&header);
 		let last_hashes = self.build_last_hashes(view.hash());
@@ -413,7 +413,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		};
 		// that's just a copy of the state.
 		let mut state = self.state();
-		let sender = try!(t.sender());
+		let sender = try!(t.sender().map_err(|e| {
+			let message = format!("Transaction malformed: {:?}", e);
+			ExecutionError::TransactionMalformed(message)
+		}));
 		let balance = state.balance(&sender);
 		// give the sender max balance
 		state.sub_balance(&sender, &balance);

@@ -219,7 +219,7 @@ fn flush_stdout() {
 fn execute_account_cli(conf: Configuration) {
 	use util::keys::store::SecretStore;
 	use rpassword::read_password;
-	let mut secret_store = SecretStore::new_in(Path::new(&conf.keys_path()));
+	let mut secret_store = SecretStore::with_security(Path::new(&conf.keys_path()), conf.keys_iterations());
 	if conf.args.cmd_new {
 		println!("Please note that password is NOT RECOVERABLE.");
 		print!("Type password: ");
