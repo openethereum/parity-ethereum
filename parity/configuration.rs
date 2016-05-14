@@ -268,6 +268,10 @@ impl Configuration {
 		path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned()
 	}
 
+	pub fn keys_iterations(&self) -> u32 {
+		self.args.flag_keys_iterations
+	}
+
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
