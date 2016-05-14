@@ -326,7 +326,7 @@ impl SignedTransaction {
 }
 
 /// Signed Transaction that is a part of canon blockchain.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Binary)]
 pub struct LocalizedTransaction {
 	/// Signed part.
 	pub signed: SignedTransaction,
