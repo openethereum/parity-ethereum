@@ -4,6 +4,7 @@ use std::ptr;
 use spec::ParamType;
 use error::Error;
 use token::Token;
+use util::slice_data;
 
 /// ABI decoder.
 pub struct Decoder;
@@ -16,23 +17,6 @@ struct DecodeResult {
 struct BytesTaken {
 	bytes: Vec<u8>,
 	new_offset: usize,
-}
-
-fn slice_data(data: Vec<u8>) -> Result<Vec<[u8; 32]>, Error> {
-	if data.len() % 32 != 0 {
-		return Err(Error::InvalidData);
-	}
-
-	let times = data.len() / 32;
-	let mut result = vec![];
-	for i in 0..times {
-		let mut slice = [0u8; 32];
-		unsafe {
-			ptr::copy(data.as_ptr().offset(32 * i as isize), slice.as_mut_ptr(), 32);
-		}
-		result.push(slice);
-	}
-	Ok(result)
 }
 
 fn as_u32(slice: &[u8; 32]) -> Result<u32, Error> {

@@ -4,7 +4,7 @@ use rustc_serialize::hex::ToHex;
 use spec::ParamType;
 
 /// Ethereum ABI params.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
 	/// Address.
 	/// 

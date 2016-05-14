@@ -14,10 +14,17 @@ pub struct Event {
 }
 
 impl Event {
-	/// Returns all indexed params of the event.
-	pub fn indexed_params(&self) -> Vec<EventParam> {
+	/// Returns names of all params.
+	pub fn params_names(&self) -> Vec<String> {
 		self.inputs.iter()
-			.filter(|p| p.indexed)
+			.map(|p| p.name.clone())
+			.collect()
+	}
+
+	/// Returns all params of the event.
+	pub fn indexed_params(&self, indexed: bool) -> Vec<EventParam> {
+		self.inputs.iter()
+			.filter(|p| p.indexed == indexed)
 			.cloned()
 			.collect()
 	}

@@ -17,7 +17,9 @@ mod decoder;
 mod encoder;
 mod error;
 mod function;
+mod event;
 mod signature;
+pub mod util;
 
 pub use self::constructor::Constructor;
 pub use self::contract::Contract;
@@ -26,3 +28,4 @@ pub use self::error::Error;
 pub use self::encoder::Encoder;
 pub use self::decoder::Decoder;
 pub use self::function::Function;
+pub use self::event::Event;

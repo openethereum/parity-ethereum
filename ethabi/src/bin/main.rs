@@ -11,7 +11,8 @@ use rustc_serialize::hex::{ToHex, FromHex};
 use ethabi::spec::Interface;
 use ethabi::spec::param_type::{ParamType, Reader}; 
 use ethabi::token::{Token, Tokenizer, StrictTokenizer};
-use ethabi::{Encoder, Decoder, Contract, Function};
+use ethabi::{Encoder, Decoder, Contract, Function, Event};
+use ethabi::util::slice_data;
 use error::Error;
 
 pub const ETHABI: &'static str = r#"
@@ -23,6 +24,7 @@ Usage:
     ethabi encode params [-p <type> <param>]... [-l | --lenient]
     ethabi decode abi <abi-path> <function-name> <data>
     ethabi decode params [-p <type>]... <data>
+	ethabi decode log <abi-path> <event-name> [-p <topic>]... <data>
     ethabi -h | --help
 
 Options:
@@ -42,11 +44,14 @@ struct Args {
 	cmd_decode: bool,
 	cmd_abi: bool,
 	cmd_params: bool,
+	cmd_log: bool,
 	arg_abi_path: String,
 	arg_function_name: String,
+	arg_event_name: String,
 	arg_param: Vec<String>,
 	arg_type: Vec<String>,
 	arg_data: String,
+	arg_topic: Vec<String>,
 }
 
 fn main() {
@@ -62,6 +67,8 @@ fn main() {
 		decode_call_output(&args.arg_abi_path, args.arg_function_name, args.arg_data)
 	} else if args.cmd_decode && args.cmd_params {
 		decode_params(args.arg_type, args.arg_data)
+	} else if args.cmd_decode && args.cmd_log {
+		decode_log(&args.arg_abi_path, args.arg_event_name, args.arg_topic, args.arg_data)
 	} else {
 		unreachable!()
 	};
@@ -80,6 +87,16 @@ fn load_function(path: &str, function: String) -> Result<Function, Error> {
 	let contract = Contract::new(interface);
 	let function = try!(contract.function(function));
 	Ok(function)
+}
+
+fn load_event(path: &str, function: String) -> Result<Event, Error> {
+	let file = try!(File::open(path));
+	let bytes: Vec<u8> = try!(file.bytes().collect());
+
+	let interface = try!(Interface::load(&bytes));
+	let contract = Contract::new(interface);
+	let event = try!(contract.event());
+	Ok(event)
 }
 
 fn parse_tokens(params: &[(ParamType, String)]) -> Result<Vec<Token>, Error> {
@@ -159,4 +176,11 @@ fn decode_params(types: Vec<String>, data: String) -> Result<String, Error> {
 		.join(" ");
 
 	Ok(result)
+}
+
+fn decode_log(path: &str, event: String, topics: Vec<String>, data: String) -> Result<String, Error> {
+	let event = load_event(path, event);
+	let topics = slice_data(try!(topics.from_hex()));
+	let data = try!(data.from_hex());
+	let decoded = event.decode_log(topics, data);
 }
