@@ -20,7 +20,7 @@ use util::numbers::*;
 use std::ops::Deref;
 use util::rlp::*;
 use util::sha3::*;
-use util::{UtilError, CryptoError, Bytes, HeapSizeOf, Signature, Secret, ec};
+use util::{UtilError, CryptoError, Bytes, HeapSizeOf, Signature, Secret, ec, OutOfBounds};
 use std::cell::*;
 use error::*;
 use evm::Schedule;
