@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Blockhain info type definition
+
 use util::numbers::*;
 use header::BlockNumber;
 use ipc::binary::BinaryConvertError;

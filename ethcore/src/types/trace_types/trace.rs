@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tracing datatypes.
+
 use util::{U256, Bytes, Address, FixedHash};
 use util::rlp::*;
 use util::sha3::Hashable;

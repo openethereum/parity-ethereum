@@ -18,7 +18,6 @@
 
 use util::hash::H256;
 use header::BlockNumber;
-use util::bytes::{FromRawBytes, FromBytesError, ToBytesWithMap, Populatable};
 
 /// Uniquely identifies block.
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
