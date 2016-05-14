@@ -102,7 +102,9 @@ Sealing/Mining Options:
                            [default: 0.005]. The minimum gas price is set
                            accordingly.
   --usd-per-eth SOURCE     USD value of a single ETH. SOURCE may be either an
-                           amount in USD or a web service [default: etherscan].
+                           amount in USD, a web service or 'auto' to use each
+                           web service in turn and fallback on the last known
+                           good value [default: auto].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
                            block [default: 4712388].
   --author ADDRESS         Specify the block author (aka "coinbase") address

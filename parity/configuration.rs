@@ -91,11 +91,18 @@ impl Configuration {
 					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
 				});
 				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
+					"auto" => PriceInfo::get().map_or_else(|| {
+						let last_known_good = 9.69696;
+						// TODO: use #1083 to read last known good value.
+						last_known_good
+					}, |x| x.ethusd),
 					"etherscan" => PriceInfo::get().map_or_else(|| {
 						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
 					}, |x| x.ethusd),
 					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
 				};
+				// TODO: use #1083 to write last known good value as use_per_eth.
+
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
