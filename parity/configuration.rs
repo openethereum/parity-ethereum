@@ -241,7 +241,7 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-		let account_service = AccountService::new_in(Path::new(&self.keys_path()));
+		let account_service = AccountService::with_security(Path::new(&self.keys_path()), self.keys_iterations());
 		if let Some(ref unlocks) = self.args.flag_unlock {
 			for d in unlocks.split(',') {
 				let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
@@ -259,8 +259,9 @@ impl Configuration {
 		self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone())
 	}
 
-	pub fn rpc_cors(&self) -> Option<String> {
-		self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone())
+	pub fn rpc_cors(&self) -> Vec<String> {
+		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
+		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
 	}
 
 	fn geth_ipc_path() -> String {
@@ -360,7 +361,7 @@ mod tests {
 			assert_eq!(net.rpc_enabled, true);
 			assert_eq!(net.rpc_interface, "all".to_owned());
 			assert_eq!(net.rpc_port, 8000);
-			assert_eq!(conf.rpc_cors(), Some("*".to_owned()));
+			assert_eq!(conf.rpc_cors(), vec!["*".to_owned()]);
 			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
 		}
 

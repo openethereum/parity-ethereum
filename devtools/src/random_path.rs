@@ -59,7 +59,7 @@ impl RandomTempPath {
 impl Drop for RandomTempPath {
 	fn drop(&mut self) {
 		if let Err(e) = fs::remove_dir_all(self.as_path()) {
-			panic!("failed to remove temp directory, probably something failed to destroyed ({})", e);
+			panic!("Failed to remove temp directory. Here's what prevented this from happening:  ({})", e);
 		}
 	}
 }

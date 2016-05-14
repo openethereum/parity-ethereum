@@ -119,7 +119,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// This function should be used to execute transaction.
-	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, Error> {
+	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
 		let check = options.check_nonce;
 		match options.tracing {
 			true => self.transact_with_tracer(t, check, ExecutiveTracer::default()),
@@ -128,8 +128,11 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Execute transaction/call with tracing enabled
-	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, Error> where T: Tracer {
-		let sender = try!(t.sender());
+	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, ExecutionError> where T: Tracer {
+		let sender = try!(t.sender().map_err(|e| {
+			let message = format!("Transaction malformed: {:?}", e);
+			ExecutionError::TransactionMalformed(message)
+		}));
 		let nonce = self.state.nonce(&sender);
 
 		let schedule = self.engine.schedule(self.info);
@@ -983,8 +986,8 @@ mod tests {
 		};
 
 		match res {
-			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => (),
-			_ => assert!(false, "Expected invalid signature error.")
+			Err(ExecutionError::TransactionMalformed(_)) => (),
+			_ => assert!(false, "Expected an invalid transaction error.")
 		}
 	}
 
@@ -1015,7 +1018,7 @@ mod tests {
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::InvalidNonce { expected, got }))
+			Err(ExecutionError::InvalidNonce { expected, got })
 				if expected == U256::zero() && got == U256::one() => (),
 			_ => assert!(false, "Expected invalid nonce error.")
 		}
@@ -1049,7 +1052,7 @@ mod tests {
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas }))
+			Err(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })
 				if gas_limit == U256::from(100_000) && gas_used == U256::from(20_000) && gas == U256::from(80_001) => (),
 			_ => assert!(false, "Expected block gas limit error.")
 		}
@@ -1083,7 +1086,7 @@ mod tests {
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::NotEnoughCash { required , got }))
+			Err(ExecutionError::NotEnoughCash { required , got })
 				if required == U512::from(100_018) && got == U512::from(100_017) => (),
 			_ => assert!(false, "Expected not enough cash error. {:?}", res)
 		}

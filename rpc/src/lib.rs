@@ -59,9 +59,11 @@ impl RpcServer {
 	}
 
 	/// Start http server asynchronously and returns result with `Server` handle on success or an error.
-	pub fn start_http(&self, addr: &SocketAddr, cors_domain: Option<String>) -> Result<Server, RpcServerError> {
-		let cors_domain = cors_domain.to_owned();
-		Server::start(addr, self.handler.clone(), cors_domain.map(jsonrpc_http_server::AccessControlAllowOrigin::Value))
+	pub fn start_http(&self, addr: &SocketAddr, cors_domains: Vec<String>) -> Result<Server, RpcServerError> {
+		let cors_domains = cors_domains.into_iter()
+			.map(jsonrpc_http_server::AccessControlAllowOrigin::Value)
+			.collect();
+		Server::start(addr, self.handler.clone(), cors_domains)
 	}
 
 	/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
