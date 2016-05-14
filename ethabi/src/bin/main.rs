@@ -6,6 +6,7 @@ mod error;
 
 use std::fs::File;
 use std::io::Read;
+use std::env;
 use docopt::Docopt;
 use rustc_serialize::hex::{ToHex, FromHex};
 use ethabi::spec::Interface;
@@ -54,11 +55,20 @@ struct Args {
 }
 
 fn main() {
+	let result = execute(env::args());
+
+	match result {
+		Ok(s) => println!("{}", s),
+		Err(error) => println!("error: {:?}", error)
+	}
+}
+
+fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
 	let args: Args = Docopt::new(ETHABI)
-		.and_then(|d| d.decode())
+		.and_then(|d| d.argv(command).decode())
 		.unwrap_or_else(|e| e.exit());
 
-	let result = if args.cmd_encode && args.cmd_abi {
+	if args.cmd_encode && args.cmd_abi {
 		encode_call(&args.arg_abi_path, args.arg_function_name, args.arg_param)
 	} else if args.cmd_encode && args.cmd_params {
 		encode_params(args.arg_type, args.arg_param)
@@ -70,11 +80,6 @@ fn main() {
 		decode_log(&args.arg_abi_path, args.arg_event_name, args.arg_topic, args.arg_data)
 	} else {
 		unreachable!()
-	};
-
-	match result {
-		Ok(s) => println!("{}", s),
-		Err(error) => println!("error: {:?}", error)
 	}
 }
 
@@ -192,4 +197,23 @@ fn decode_log(path: &str, event: String, topics: Vec<String>, data: String) -> R
 		.join("\n");
 
 	Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::execute;
+	
+	#[test]
+	fn simple_encode() {
+		let command = "ethabi encode params -p bool 1".split(" ");
+		let expected = "0000000000000000000000000000000000000000000000000000000000000001";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn multi_encode() {
+		let command = "ethabi encode params -p bool 1 -p string gavofyork -p bool 0".split(" ");
+		let expected = "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000096761766f66796f726b0000000000000000000000000000000000000000000000";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
 }
