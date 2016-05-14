@@ -6,6 +6,7 @@ mod error;
 
 use std::fs::File;
 use std::io::Read;
+use std::ptr;
 use docopt::Docopt;
 use rustc_serialize::hex::{ToHex, FromHex};
 use ethabi::spec::Interface;
@@ -89,13 +90,13 @@ fn load_function(path: &str, function: String) -> Result<Function, Error> {
 	Ok(function)
 }
 
-fn load_event(path: &str, function: String) -> Result<Event, Error> {
+fn load_event(path: &str, event: String) -> Result<Event, Error> {
 	let file = try!(File::open(path));
 	let bytes: Vec<u8> = try!(file.bytes().collect());
 
 	let interface = try!(Interface::load(&bytes));
 	let contract = Contract::new(interface);
-	let event = try!(contract.event());
+	let event = try!(contract.event(event));
 	Ok(event)
 }
 
@@ -179,8 +180,20 @@ fn decode_params(types: Vec<String>, data: String) -> Result<String, Error> {
 }
 
 fn decode_log(path: &str, event: String, topics: Vec<String>, data: String) -> Result<String, Error> {
-	let event = load_event(path, event);
-	let topics = slice_data(try!(topics.from_hex()));
+	let event = try!(load_event(path, event));
+	let topics: Result<Vec<[u8; 32]>, Error> = topics.into_iter()
+		.map(|t| {
+			let bytes = try!(t.from_hex());
+			let mut result = [0u8; 32];
+			unsafe {
+				ptr::copy(bytes.as_ptr(), result.as_mut_ptr(), 32);
+			}
+			Ok(result)
+		})
+		.collect();
+	let topics = try!(topics);
 	let data = try!(data.from_hex());
-	let decoded = event.decode_log(topics, data);
+	let decoded = try!(event.decode_log(topics, data));
+
+	Ok("".to_owned())
 }
