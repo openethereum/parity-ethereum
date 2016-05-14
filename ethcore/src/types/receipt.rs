@@ -28,6 +28,7 @@ use log_entry::{LogEntry, LocalizedLogEntry};
 use ipc::binary::BinaryConvertError;
 use std::mem;
 use std::collections::VecDeque;
+use rustc_serialize::hex::FromHex;
 
 /// Information describing execution of a transaction.
 #[derive(Default, Debug, Clone, Binary)]

@@ -36,3 +36,9 @@ pub struct DoubleRoot {
 pub struct ReferenceStruct<'a> {
 	pub ref_data: &'a u64,
 }
+
+#[derive(Binary, PartialEq, Debug)]
+pub enum EnumWithStruct {
+	Left,
+	Right { how_much: u64 },
+}

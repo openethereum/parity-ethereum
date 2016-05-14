@@ -382,6 +382,8 @@ fn fields_sequence(
 	use syntax::parse::token;
 	use syntax::ast::TokenTree::Token;
 
+	let named_members = fields.iter().any(|f| f.ident.is_some());
+
 	::quasi::parse_expr_panic(&mut ::syntax::parse::new_parser_from_tts(
 		ext_cx.parse_sess(),
 		ext_cx.cfg(),
@@ -389,7 +391,12 @@ fn fields_sequence(
 			let _sp = ext_cx.call_site();
 			let mut tt = ::std::vec::Vec::new();
 			tt.push(Token(_sp, token::Ident(variant_ident.clone())));
-			tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+			if named_members {
+				tt.push(Token(_sp, token::OpenDelim(token::Brace)));
+			}
+			else {
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+			}
 
 			for (idx, field) in fields.iter().enumerate() {
 				if field.ident.is_some() {
@@ -450,8 +457,12 @@ fn fields_sequence(
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 				tt.push(Token(_sp, token::Comma));
 			}
-			tt.push(Token(_sp, token::CloseDelim(token::Paren)));
-
+			if named_members {
+				tt.push(Token(_sp, token::CloseDelim(token::Brace)));
+			}
+			else {
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+			}
 			tt
 		})
 	).unwrap()
@@ -620,7 +631,6 @@ fn binary_expr_variant(
 						.map(|(id, field)|(field.ident.unwrap(), builder.pat().ref_id(id))))
 				.build();
 
-
 			let binary_expr = try!(binary_expr_struct(
 				cx,
 				&builder,
@@ -640,7 +650,7 @@ fn binary_expr_variant(
 						let buffer = &mut buffer[1..];
 						$write_expr
 				}),
-				read: quote_arm!(cx, $pat => { $read_expr } ),
+				read: quote_arm!(cx, $variant_index_ident => { $read_expr } ),
 			})
 		},
 	}

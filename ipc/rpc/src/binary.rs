@@ -17,7 +17,7 @@
 //! Binary representation of types
 
 use util::bytes::Populatable;
-use util::numbers::{U256, H256, H2048, Address};
+use util::numbers::{U256, U512, H256, H2048, Address};
 use std::mem;
 use std::collections::VecDeque;
 use std::ops::Range;
@@ -422,6 +422,7 @@ binary_fixed_size!(usize);
 binary_fixed_size!(i32);
 binary_fixed_size!(bool);
 binary_fixed_size!(U256);
+binary_fixed_size!(U512);
 binary_fixed_size!(H256);
 binary_fixed_size!(H2048);
 binary_fixed_size!(Address);

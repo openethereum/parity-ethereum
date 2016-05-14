@@ -61,7 +61,7 @@ pub struct Executed {
 }
 
 /// Result of executing the transaction.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Binary)]
 pub enum ExecutionError {
 	/// Returned when there gas paid for transaction execution is
 	/// lower than base gas required.

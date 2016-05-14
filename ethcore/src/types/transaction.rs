@@ -29,6 +29,8 @@ use ethjson;
 use ipc::binary::BinaryConvertError;
 use std::mem;
 use std::collections::VecDeque;
+use rustc_serialize::hex::FromHex;
+use util::crypto::KeyPair;
 
 #[derive(Debug, Clone, PartialEq, Eq, Binary)]
 /// Transaction action type.
