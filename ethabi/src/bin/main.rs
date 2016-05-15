@@ -36,6 +36,7 @@ Commands:
     decode             Decode ABI call result.
     abi                Load json ABI from file.
     params             Specify types of input params inline.
+    log                Decode event log.
 "#;
 
 #[derive(Debug, RustcDecodable)]
