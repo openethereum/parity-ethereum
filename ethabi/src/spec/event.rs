@@ -1,6 +1,6 @@
 //! Contract event specification.
 
-use super::EventParam;
+use super::{EventParam, ParamType};
 
 /// Contract event specification.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -18,6 +18,13 @@ impl Event {
 	pub fn params_names(&self) -> Vec<String> {
 		self.inputs.iter()
 			.map(|p| p.name.clone())
+			.collect()
+	}
+
+	/// Returns types of all params.
+	pub fn param_types(&self) -> Vec<ParamType> {
+		self.inputs.iter()
+			.map(|p| p.kind.clone())
 			.collect()
 	}
 

@@ -11,7 +11,7 @@ use error::Error;
 #[derive(Debug, PartialEq)]
 pub struct DecodedLog {
 	/// Ordered params.
-	pub params: Vec<(String, Token)>,
+	pub params: Vec<(String, ParamType, Token)>,
 	/// Address, is none for anonymous logs.
 	pub address: Option<[u8; 20]>,
 }
@@ -85,7 +85,8 @@ impl Event {
 
 		let decoded_params = self.interface.params_names()
 			.into_iter()
-			.map(|name| (name.clone(), named_tokens.get(&name).unwrap().clone()))
+			.zip(self.interface.param_types().into_iter())
+			.map(|(name, kind)| (name.clone(), kind, named_tokens.get(&name).unwrap().clone()))
 			.collect();
 
 		let result = DecodedLog {
@@ -143,10 +144,10 @@ mod tests {
 
 		assert_eq!(result, DecodedLog {
 			params: vec![
-				("a".to_owned(), Token::Int("0000000000000000000000000000000000000000000000000000000000000003".token_from_hex().unwrap())),
-				("b".to_owned(), Token::Int("0000000000000000000000000000000000000000000000000000000000000002".token_from_hex().unwrap())),
-				("c".to_owned(), Token::Address("2222222222222222222222222222222222222222".token_from_hex().unwrap())),
-				("d".to_owned(), Token::Address("1111111111111111111111111111111111111111".token_from_hex().unwrap())),
+				("a".to_owned(), ParamType::Int(256), Token::Int("0000000000000000000000000000000000000000000000000000000000000003".token_from_hex().unwrap())),
+				("b".to_owned(), ParamType::Int(256), Token::Int("0000000000000000000000000000000000000000000000000000000000000002".token_from_hex().unwrap())),
+				("c".to_owned(), ParamType::Address, Token::Address("2222222222222222222222222222222222222222".token_from_hex().unwrap())),
+				("d".to_owned(), ParamType::Address, Token::Address("1111111111111111111111111111111111111111".token_from_hex().unwrap())),
 			],
 			address: Some("4444444444444444444444444444444444444444".token_from_hex().unwrap())
 		});

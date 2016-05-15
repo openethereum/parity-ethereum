@@ -193,7 +193,7 @@ fn decode_log(path: &str, event: String, topics: Vec<String>, data: String) -> R
 	let decoded = try!(event.decode_log(topics, data));
 	
 	let result = decoded.params.into_iter()
-		.map(|(name, value)| format!("{} {}", name, value))
+		.map(|(name, kind, value)| format!("{} {} {}", name, kind, value))
 		.collect::<Vec<String>>()
 		.join("\n");
 
@@ -260,6 +260,15 @@ bool false";
 	fn abi_decode() {
 		let command = "ethabi decode abi ./examples/foo.json bar 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
 		let expected = "bool true";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn log_decode() {
+		let command = "ethabi decode log ./examples/event.json Event -l 0000000000000000000000000000000000000000000000000000000000000001 0000000000000000000000004444444444444444444444444444444444444444".split(" ");
+		let expected = 
+"a bool true
+b address 4444444444444444444444444444444444444444";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 }
