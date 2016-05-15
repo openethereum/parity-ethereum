@@ -21,10 +21,10 @@ Ethereum ABI coder.
 
 Usage:
     ethabi encode abi <abi-path> <function-name> [-p <param>]... [-l | --lenient]
-    ethabi encode params [-p <type> <param>]... [-l | --lenient]
+    ethabi encode params [-v <type> <param>]... [-l | --lenient]
     ethabi decode abi <abi-path> <function-name> <data>
-    ethabi decode params [-p <type>]... <data>
-	ethabi decode log <abi-path> <event-name> [-p <topic>]... <data>
+    ethabi decode params [-t <type>]... <data>
+    ethabi decode log <abi-path> <event-name> [-l <topic>]... <data>
     ethabi -h | --help
 
 Options:
@@ -205,15 +205,60 @@ mod tests {
 	
 	#[test]
 	fn simple_encode() {
-		let command = "ethabi encode params -p bool 1".split(" ");
+		let command = "ethabi encode params -v bool 1".split(" ");
 		let expected = "0000000000000000000000000000000000000000000000000000000000000001";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
 	#[test]
 	fn multi_encode() {
-		let command = "ethabi encode params -p bool 1 -p string gavofyork -p bool 0".split(" ");
+		let command = "ethabi encode params -v bool 1 -v string gavofyork -v bool 0".split(" ");
 		let expected = "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000096761766f66796f726b0000000000000000000000000000000000000000000000";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn array_encode() {
+		let command = "ethabi encode params -v bool[] [1,0,false]".split(" ");
+		let expected = "00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn abi_encode() {
+		let command = "ethabi encode abi examples/test.json foo -p 1".split(" ");
+		let expected = "455575780000000000000000000000000000000000000000000000000000000000000001";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn simple_decode() {
+		let command = "ethabi decode params -t bool 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
+		let expected = "bool true";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn multi_decode() {
+		let command = "ethabi decode params -t bool -t string -t bool 00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000096761766f66796f726b0000000000000000000000000000000000000000000000".split(" ");
+		let expected = 
+"bool true
+string gavofyork
+bool false";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn array_decode() {
+		let command = "ethabi decode params -t bool[] 00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".split(" ");
+		let expected = "bool[] [true,false,false]";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn abi_decode() {
+		let command = "ethabi decode abi ./examples/foo.json bar 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
+		let expected = "bool true";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 }
