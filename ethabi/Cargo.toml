@@ -3,6 +3,9 @@ name = "ethabi"
 version = "0.1.0"
 authors = ["debris <marek.kotewicz@gmail.com>"]
 build = "build.rs"
+homepage = "https://github.com/ethcore/ethabi"
+license = "MIT"
+keywords = ["ethereum", "eth", "abi", "solidity", "cli"]
 
 [dependencies]
 rustc-serialize = "0.3"
