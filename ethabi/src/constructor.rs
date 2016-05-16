@@ -1,18 +1,18 @@
 //! Contract constructor call builder.
 
-use spec::Function as FunctionInterface;
+use spec::Constructor as ConstructorInterface;
 use token::Token;
 use error::Error;
 use encoder::Encoder;
 
 /// Contract constructor call builder.
 pub struct Constructor {
-	_interface: FunctionInterface,
+	_interface: ConstructorInterface,
 }
 
 impl Constructor {
 	/// Creates new constructor call builder.
-	pub fn new(interface: FunctionInterface) -> Self {
+	pub fn new(interface: ConstructorInterface) -> Self {
 		Constructor {
 			_interface: interface
 		}

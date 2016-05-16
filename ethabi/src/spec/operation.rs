@@ -3,13 +3,13 @@
 use serde::{Deserialize, Deserializer, Error as SerdeError};
 use serde_json::Value;
 use serde_json::value;
-use super::{Function, Event};
+use super::{Function, Event, Constructor};
 
 /// Operation type.
 #[derive(Debug, PartialEq)]
 pub enum Operation {
 	/// Contract constructor.
-	Constructor(Function),
+	Constructor(Constructor),
 	/// Contract function.
 	Function(Function),
 	/// Contract event.
@@ -38,7 +38,7 @@ impl Deserialize for Operation {
 
 impl Operation {
 	/// Return some if this operation is a `Constructor`.
-	pub fn constructor(&self) -> Option<&Function> {
+	pub fn constructor(&self) -> Option<&Constructor> {
 		match *self {
 			Operation::Constructor(ref f) => Some(f),
 			_ => None

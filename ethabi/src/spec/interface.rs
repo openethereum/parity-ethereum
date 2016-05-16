@@ -1,7 +1,7 @@
 //! Contract interface.
 
 use serde_json;
-use super::{Operation, Function, Event, Error};
+use super::{Operation, Constructor, Function, Event, Error};
 
 /// Contract interface.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -14,7 +14,7 @@ impl Interface {
 	}
 
 	/// Returns contract constructor specification.
-	pub fn constructor(&self) -> Option<Function> {
+	pub fn constructor(&self) -> Option<Constructor> {
 		self.0.iter()
 			.filter_map(Operation::constructor)
 			.next()
@@ -99,5 +99,34 @@ mod tests {
 				outputs: vec![]
 			})
 		]));
+	}
+
+	#[test]
+	fn deserialize_event2() {
+		let s = r#"[{
+			"inputs": [{
+				"name": "_curator",
+				"type": "address"
+			}, {
+				"name": "_daoCreator",
+				"type": "address"
+			}, {
+				"name": "_proposalDeposit",
+				"type": "uint256"
+			}, {
+				"name": "_minTokensToCreate",
+				"type": "uint256"
+			}, {
+				"name": "_closingTime",
+				"type": "uint256"
+			}, {
+				"name": "_privateCreation",
+				"type": "address"
+			}],
+			"type": "constructor"
+		}]"#;
+
+		let deserialized: Interface = serde_json::from_str(s).unwrap();
+
 	}
 }
