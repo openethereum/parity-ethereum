@@ -24,7 +24,7 @@ extern crate parity_idmanager;
 #[cfg(feature = "parity-wallet")]
 extern crate parity_wallet;
 
-pub const DAPPS_DOMAIN : &'static str = ".dapp";
+pub const DAPPS_DOMAIN : &'static str = ".parity";
 pub const RPC_PATH : &'static str =  "rpc";
 pub const API_PATH : &'static str =  "api";
 pub const UTILS_PATH : &'static str =  "parity-utils";
