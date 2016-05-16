@@ -33,17 +33,15 @@ use std::collections::HashSet;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
-use util::keys::store::AccountProvider;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::{ExecutedBlock, ClosedBlock, LockedBlock, SealedBlock};
+use block::{ClosedBlock, LockedBlock, SealedBlock};
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
-use engine::{Engine};
 use trace::LocalizedTrace;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.

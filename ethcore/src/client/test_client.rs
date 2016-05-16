@@ -32,7 +32,6 @@ use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
 use error::{ExecutionError};
-use engine::Engine;
 use trace::LocalizedTrace;
 
 /// Test client.
