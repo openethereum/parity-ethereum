@@ -23,28 +23,31 @@ pub mod auth;
 
 use DAPPS_DOMAIN;
 use std::sync::Arc;
+use std::collections::HashMap;
 use url::Host;
 use hyper;
 use hyper::{server, uri, header};
 use hyper::{Next, Encoder, Decoder};
 use hyper::net::HttpStream;
+use apps;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
 use self::url::Url;
 use self::auth::{Authorization, Authorized};
 use self::redirect::Redirection;
 
-#[derive(Debug, PartialEq)]
-enum SpecialEndpoint {
+/// Special endpoints are accessible on every domain (every dapp)
+#[derive(Debug, PartialEq, Hash, Eq)]
+pub enum SpecialEndpoint {
 	Rpc,
 	Api,
-	None
+	Utils,
+	None,
 }
 
 pub struct Router<A: Authorization + 'static> {
 	main_page: &'static str,
 	endpoints: Arc<Endpoints>,
-	rpc: Arc<Box<Endpoint>>,
-	api: Arc<Box<Endpoint>>,
+	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
 	handler: Box<server::Handler<HttpStream>>,
 }
@@ -63,13 +66,9 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 				let endpoint = extract_endpoint(&url);
 
 				match endpoint {
-					// First check RPC requests
-					(ref path, SpecialEndpoint::Rpc) if *req.method() != hyper::method::Method::Get => {
-						self.rpc.to_handler(path.clone().unwrap_or_default())
-					},
-					// Check API requests
-					(ref path, SpecialEndpoint::Api) => {
-						self.api.to_handler(path.clone().unwrap_or_default())
+					// First check special endpoints
+					(ref path, ref endpoint) if self.special.contains_key(endpoint) => {
+						self.special.get(endpoint).unwrap().to_handler(path.clone().unwrap_or_default())
 					},
 					// Then delegate to dapp
 					(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
@@ -81,7 +80,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 					},
 					// RPC by default
 					_ => {
-						self.rpc.to_handler(EndpointPath::default())
+						self.special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default())
 					}
 				}
 			}
@@ -111,16 +110,14 @@ impl<A: Authorization> Router<A> {
 	pub fn new(
 		main_page: &'static str,
 		endpoints: Arc<Endpoints>,
-		rpc: Arc<Box<Endpoint>>,
-		api: Arc<Box<Endpoint>>,
+		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 		authorization: Arc<A>) -> Self {
 
-		let handler = rpc.to_handler(EndpointPath::default());
+		let handler = special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default());
 		Router {
 			main_page: main_page,
 			endpoints: endpoints,
-			rpc: rpc,
-			api: api,
+			special: special,
 			authorization: authorization,
 			handler: handler,
 		}
@@ -158,9 +155,11 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 		if url.path.len() <= 1 {
 			return SpecialEndpoint::None;
 		}
+
 		match url.path[0].as_ref() {
-			"rpc" => SpecialEndpoint::Rpc,
-			"api" => SpecialEndpoint::Api,
+			apps::RPC_PATH => SpecialEndpoint::Rpc,
+			apps::API_PATH => SpecialEndpoint::Api,
+			apps::UTILS_PATH => SpecialEndpoint::Utils,
 			_ => SpecialEndpoint::None,
 		}
 	}
@@ -215,6 +214,15 @@ fn should_extract_endpoint() {
 		}), SpecialEndpoint::Rpc)
 	);
 
+	assert_eq!(
+		extract_endpoint(&Url::parse("http://my.status.dapp/parity-utils/inject.js").ok()),
+		(Some(EndpointPath {
+			app_id: "my.status".to_owned(),
+			host: "my.status.dapp".to_owned(),
+			port: 80,
+		}), SpecialEndpoint::Utils)
+	);
+
 	// By Subdomain
 	assert_eq!(
 		extract_endpoint(&Url::parse("http://my.status.dapp/test.html").ok()),
@@ -237,7 +245,7 @@ fn should_extract_endpoint() {
 
 	// API by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.dapp/rpc/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.dapp/api/").ok()),
 		(Some(EndpointPath {
 			app_id: "my.status".to_owned(),
 			host: "my.status.dapp".to_owned(),
