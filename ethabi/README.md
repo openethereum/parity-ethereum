@@ -5,9 +5,9 @@ Ethereum ABI coder.
   Copyright 2016 Ethcore (UK) Limited
 
 Usage:
-    ethabi encode abi <abi-path> <function-name> [-p <param>]... [-l | --lenient]
+    ethabi encode function <abi-path> <function-name> [-p <param>]... [-l | --lenient]
     ethabi encode params [-v <type> <param>]... [-l | --lenient]
-    ethabi decode abi <abi-path> <function-name> <data>
+    ethabi decode function <abi-path> <function-name> <data>
     ethabi decode params [-t <type>]... <data>
     ethabi decode log <abi-path> <event-name> [-l <topic>]... <data>
     ethabi -h | --help
@@ -45,7 +45,7 @@ ethabi encode params -v bool[] [1,0,false]
 > 00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
 ```
-ethabi encode abi examples/test.json foo -p 1
+ethabi encode function examples/test.json foo -p 1
 ```
 
 ```json
@@ -83,7 +83,7 @@ ethabi decode params -t bool[] 0000000000000000000000000000000000000000000000000
 > bool[] [true,false,false]
 
 ```
-ethabi decode abi ./examples/foo.json bar 0000000000000000000000000000000000000000000000000000000000000001
+ethabi decode function ./examples/foo.json bar 0000000000000000000000000000000000000000000000000000000000000001
 ```
 
 ```json

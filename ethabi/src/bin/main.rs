@@ -19,9 +19,9 @@ Ethereum ABI coder.
   Copyright 2016 Ethcore (UK) Limited
 
 Usage:
-    ethabi encode abi <abi-path> <function-name> [-p <param>]... [-l | --lenient]
+    ethabi encode function <abi-path> <function-name> [-p <param>]... [-l | --lenient]
     ethabi encode params [-v <type> <param>]... [-l | --lenient]
-    ethabi decode abi <abi-path> <function-name> <data>
+    ethabi decode function <abi-path> <function-name> <data>
     ethabi decode params [-t <type>]... <data>
     ethabi decode log <abi-path> <event-name> [-l <topic>]... <data>
     ethabi -h | --help
@@ -33,7 +33,7 @@ Options:
 Commands:
     encode             Encode ABI call.
     decode             Decode ABI call result.
-    abi                Load json ABI from file.
+    function           Load function from json ABI file.
     params             Specify types of input params inline.
     log                Decode event log.
 "#;
@@ -42,7 +42,7 @@ Commands:
 struct Args {
 	cmd_encode: bool,
 	cmd_decode: bool,
-	cmd_abi: bool,
+	cmd_function: bool,
 	cmd_params: bool,
 	cmd_log: bool,
 	arg_abi_path: String,
@@ -68,11 +68,11 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		.and_then(|d| d.argv(command).decode())
 		.unwrap_or_else(|e| e.exit());
 
-	if args.cmd_encode && args.cmd_abi {
+	if args.cmd_encode && args.cmd_function {
 		encode_call(&args.arg_abi_path, args.arg_function_name, args.arg_param)
 	} else if args.cmd_encode && args.cmd_params {
 		encode_params(args.arg_type, args.arg_param)
-	} else if args.cmd_decode && args.cmd_abi {
+	} else if args.cmd_decode && args.cmd_function {
 		decode_call_output(&args.arg_abi_path, args.arg_function_name, args.arg_data)
 	} else if args.cmd_decode && args.cmd_params {
 		decode_params(args.arg_type, args.arg_data)
@@ -226,7 +226,7 @@ mod tests {
 
 	#[test]
 	fn abi_encode() {
-		let command = "ethabi encode abi examples/test.json foo -p 1".split(" ");
+		let command = "ethabi encode function examples/test.json foo -p 1".split(" ");
 		let expected = "455575780000000000000000000000000000000000000000000000000000000000000001";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
@@ -257,7 +257,7 @@ bool false";
 
 	#[test]
 	fn abi_decode() {
-		let command = "ethabi decode abi ./examples/foo.json bar 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
+		let command = "ethabi decode function ./examples/foo.json bar 0000000000000000000000000000000000000000000000000000000000000001".split(" ");
 		let expected = "bool true";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
