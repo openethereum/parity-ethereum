@@ -64,7 +64,7 @@ use std::net::SocketAddr;
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 
-static DAPPS_DOMAIN : &'static str = ".dapp";
+static DAPPS_DOMAIN : &'static str = ".parity";
 
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
