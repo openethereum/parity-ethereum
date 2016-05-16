@@ -21,15 +21,24 @@ mod url;
 mod redirect;
 pub mod auth;
 
+use DAPPS_DOMAIN;
 use std::sync::Arc;
+use url::Host;
 use hyper;
 use hyper::{server, uri, header};
 use hyper::{Next, Encoder, Decoder};
 use hyper::net::HttpStream;
-use endpoint::{Endpoint, Endpoints};
+use endpoint::{Endpoint, Endpoints, EndpointPath};
 use self::url::Url;
 use self::auth::{Authorization, Authorized};
 use self::redirect::Redirection;
+
+#[derive(Debug, PartialEq)]
+enum SpecialEndpoint {
+	Rpc,
+	Api,
+	None
+}
 
 pub struct Router<A: Authorization + 'static> {
 	main_page: &'static str,
@@ -43,32 +52,43 @@ pub struct Router<A: Authorization + 'static> {
 impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 	fn on_request(&mut self, req: server::Request) -> Next {
+		// Check authorization
 		let auth = self.authorization.is_authorized(&req);
+
+		// Choose proper handler depending on path / domain
 		self.handler = match auth {
 			Authorized::No(handler) => handler,
 			Authorized::Yes => {
-				let path = self.extract_request_path(&req);
-				match path {
-					Some(ref url) if self.endpoints.contains_key(url) => {
-						let prefix = "/".to_owned() + url;
-						self.endpoints.get(url).unwrap().to_handler(&prefix)
+				let url = extract_url(&req);
+				let endpoint = extract_endpoint(&url);
+
+				match endpoint {
+					// First check RPC requests
+					(ref path, SpecialEndpoint::Rpc) if *req.method() != hyper::method::Method::Get => {
+						self.rpc.to_handler(path.clone().unwrap_or_default())
 					},
-					Some(ref url) if url == "api" => {
-						self.api.to_handler("/api")
+					// Check API requests
+					(ref path, SpecialEndpoint::Api) => {
+						self.api.to_handler(path.clone().unwrap_or_default())
 					},
+					// Then delegate to dapp
+					(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
+						self.endpoints.get(&path.app_id).unwrap().to_handler(path.clone())
+					},
+					// Redirection to main page
 					_ if *req.method() == hyper::method::Method::Get => {
 						Redirection::new(self.main_page)
 					},
+					// RPC by default
 					_ => {
-						self.rpc.to_handler(&"/")
+						self.rpc.to_handler(EndpointPath::default())
 					}
 				}
 			}
 		};
-		self.handler.on_request(req)
-		// Check authorization
-		// Choose proper handler depending on path
+
 		// Delegate on_request to proper handler
+		self.handler.on_request(req)
 	}
 
 	/// This event occurs each time the `Request` is ready to be read from.
@@ -95,7 +115,7 @@ impl<A: Authorization> Router<A> {
 		api: Arc<Box<Endpoint>>,
 		authorization: Arc<A>) -> Self {
 
-		let handler = rpc.to_handler(&"/");
+		let handler = rpc.to_handler(EndpointPath::default());
 		Router {
 			main_page: main_page,
 			endpoints: endpoints,
@@ -105,43 +125,123 @@ impl<A: Authorization> Router<A> {
 			handler: handler,
 		}
 	}
+}
 
-	fn extract_url(&self, req: &server::Request) -> Option<Url> {
-		match *req.uri() {
-			uri::RequestUri::AbsoluteUri(ref url) => {
-				match Url::from_generic_url(url.clone()) {
-					Ok(url) => Some(url),
-					_ => None,
-				}
-			},
-			uri::RequestUri::AbsolutePath(ref path) => {
-				// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-				let url_string = match req.headers().get::<header::Host>() {
-					Some(ref host) => {
-						format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
-					},
-					None => return None,
-				};
+fn extract_url(req: &server::Request) -> Option<Url> {
+	match *req.uri() {
+		uri::RequestUri::AbsoluteUri(ref url) => {
+			match Url::from_generic_url(url.clone()) {
+				Ok(url) => Some(url),
+				_ => None,
+			}
+		},
+		uri::RequestUri::AbsolutePath(ref path) => {
+			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
+			let url_string = match req.headers().get::<header::Host>() {
+				Some(ref host) => {
+					format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
+				},
+				None => return None,
+			};
 
-				match Url::parse(&url_string) {
-					Ok(url) => Some(url),
-					_ => None,
-				}
-			},
-			_ => None,
+			match Url::parse(&url_string) {
+				Ok(url) => Some(url),
+				_ => None,
+			}
+		},
+		_ => None,
+	}
+}
+
+fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint) {
+	fn special_endpoint(url: &Url) -> SpecialEndpoint {
+		if url.path.len() <= 1 {
+			return SpecialEndpoint::None;
+		}
+		match url.path[0].as_ref() {
+			"rpc" => SpecialEndpoint::Rpc,
+			"api" => SpecialEndpoint::Api,
+			_ => SpecialEndpoint::None,
 		}
 	}
 
-	fn extract_request_path(&self, req: &server::Request) -> Option<String> {
-		let url = self.extract_url(&req);
-		match url {
-			Some(ref url) if url.path.len() > 1 => {
-				let part = url.path[0].clone();
-				Some(part)
+	match *url {
+		Some(ref url) => match url.host {
+			Host::Domain(ref domain) if domain.ends_with(DAPPS_DOMAIN) => {
+				let len = domain.len() - DAPPS_DOMAIN.len();
+				let id = domain[0..len].to_owned();
+
+				(Some(EndpointPath {
+					app_id: id,
+					host: domain.clone(),
+					port: url.port,
+				}), special_endpoint(url))
 			},
-			_ => {
-				None
+			_ if url.path.len() > 1 => {
+				let id = url.path[0].clone();
+				(Some(EndpointPath {
+					app_id: id.clone(),
+					host: format!("{}", url.host),
+					port: url.port,
+				}), special_endpoint(url))
 			},
-		}
+			_ => (None, special_endpoint(url)),
+		},
+		_ => (None, SpecialEndpoint::None)
 	}
+}
+
+#[test]
+fn should_extract_endpoint() {
+	assert_eq!(extract_endpoint(&None), (None, SpecialEndpoint::None));
+
+	// With path prefix
+	assert_eq!(
+		extract_endpoint(&Url::parse("http://localhost:8080/status/index.html").ok()),
+		(Some(EndpointPath {
+			app_id: "status".to_owned(),
+			host: "localhost".to_owned(),
+			port: 8080,
+		}), SpecialEndpoint::None)
+	);
+
+	// With path prefix
+	assert_eq!(
+		extract_endpoint(&Url::parse("http://localhost:8080/rpc/").ok()),
+		(Some(EndpointPath {
+			app_id: "rpc".to_owned(),
+			host: "localhost".to_owned(),
+			port: 8080,
+		}), SpecialEndpoint::Rpc)
+	);
+
+	// By Subdomain
+	assert_eq!(
+		extract_endpoint(&Url::parse("http://my.status.dapp/test.html").ok()),
+		(Some(EndpointPath {
+			app_id: "my.status".to_owned(),
+			host: "my.status.dapp".to_owned(),
+			port: 80,
+		}), SpecialEndpoint::None)
+	);
+
+	// RPC by subdomain
+	assert_eq!(
+		extract_endpoint(&Url::parse("http://my.status.dapp/rpc/").ok()),
+		(Some(EndpointPath {
+			app_id: "my.status".to_owned(),
+			host: "my.status.dapp".to_owned(),
+			port: 80,
+		}), SpecialEndpoint::Rpc)
+	);
+
+	// API by subdomain
+	assert_eq!(
+		extract_endpoint(&Url::parse("http://my.status.dapp/rpc/").ok()),
+		(Some(EndpointPath {
+			app_id: "my.status".to_owned(),
+			host: "my.status.dapp".to_owned(),
+			port: 80,
+		}), SpecialEndpoint::Api)
+	);
 }
