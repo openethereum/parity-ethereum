@@ -1,4 +1,5 @@
 # ethabi
+Easy to use conversion of ethereum contract calls to bytecode.
 
 [![Build Status][travis-image]][travis-url]
 
@@ -6,6 +7,23 @@
 [travis-url]: https://travis-ci.org/ethcore/ethabi
 
 [Documentation](http://ethcore.github.io/ethabi/ethabi/index.html)
+
+### Installation
+
+- via cargo
+
+  ```
+  cargo install ethabi
+  ```
+
+- via homebrew
+
+  ```
+  brew tap ethcore/ethcore
+  brew install ethabi
+  ```
+
+### Usage
 
 ```
 Ethereum ABI coder.
