@@ -430,10 +430,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
-	fn engine(&self) -> &Engine {
-		self.engine.deref().deref()
-	}
-
 	// TODO [todr] Should be moved to miner crate eventually.
 	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
 		-> (Option<ClosedBlock>, HashSet<H256>) {

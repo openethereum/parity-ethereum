@@ -430,10 +430,6 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn engine(&self) -> &Engine {
-		unimplemented!();
-	}
-
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
 		unimplemented!();
 	}

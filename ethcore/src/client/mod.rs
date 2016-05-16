@@ -134,12 +134,6 @@ pub trait BlockChainClient : Sync + Send {
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
 
-	/// Attempt to seal the block internally. See `Engine`.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { self.engine().generate_seal(block, accounts) }
-
-	/// Executes a function providing it with a reference to an engine.
-	fn engine(&self) -> &Engine;
-
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
 
