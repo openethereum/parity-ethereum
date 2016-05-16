@@ -93,7 +93,7 @@ impl TestNet {
 		for _ in 0..n {
 			net.peers.push(TestPeer {
 				chain: TestBlockChainClient::new(),
-				sync: ChainSync::new(SyncConfig::default(), Miner::new(false)),
+				sync: ChainSync::new(SyncConfig::default(), Arc::new(Miner::default())),
 				queue: VecDeque::new(),
 			});
 		}
