@@ -30,5 +30,4 @@ fn main() {
 		codegen::register(&mut registry);
 		registry.expand("", &src, &dst).unwrap();
 	}
-
 }
