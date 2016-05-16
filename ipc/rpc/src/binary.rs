@@ -17,9 +17,10 @@
 //! Binary representation of types
 
 use util::bytes::Populatable;
-use util::numbers::{U256, H256, H2048, Address};
+use util::numbers::{U256, U512, H256, H2048, Address};
 use std::mem;
 use std::collections::VecDeque;
+use std::ops::Range;
 
 #[derive(Debug)]
 pub struct BinaryConvertError;
@@ -232,6 +233,29 @@ impl<T> BinaryConvertable for ::std::cell::RefCell<T> where T: BinaryConvertable
 	}
 }
 
+impl<T> BinaryConvertable for ::std::cell::Cell<T> where T: BinaryConvertable + Copy {
+	fn size(&self) -> usize {
+		self.get().size()
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(::std::cell::Cell::new(try!(T::from_empty_bytes())))
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		Ok(::std::cell::Cell::new(try!(T::from_bytes(buffer, length_stack))))
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		try!(self.get().to_bytes(buffer, length_stack));
+		Ok(())
+	}
+
+	fn len_params() -> usize {
+		T::len_params()
+	}
+}
+
 impl BinaryConvertable for Vec<u8> {
 	fn size(&self) -> usize {
 		self.len()
@@ -365,8 +389,9 @@ pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryConvertEr
 	Ok(buff.into_inner())
 }
 
+#[macro_export]
 macro_rules! binary_fixed_size {
-	($target_ty: ident) => {
+	($target_ty: ty) => {
 		impl BinaryConvertable for $target_ty {
 			fn from_bytes(bytes: &[u8], _length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
 				match bytes.len().cmp(&::std::mem::size_of::<$target_ty>()) {
@@ -398,9 +423,12 @@ binary_fixed_size!(usize);
 binary_fixed_size!(i32);
 binary_fixed_size!(bool);
 binary_fixed_size!(U256);
+binary_fixed_size!(U512);
 binary_fixed_size!(H256);
 binary_fixed_size!(H2048);
 binary_fixed_size!(Address);
+binary_fixed_size!(Range<usize>);
+binary_fixed_size!(Range<u64>);
 
 #[test]
 fn vec_serialize() {

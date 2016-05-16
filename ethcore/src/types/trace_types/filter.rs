@@ -14,41 +14,49 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Trace filters type definitions
+
 use std::ops::Range;
 use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
-use super::flat::FlatTrace;
-use super::trace::Action;
+use trace::flat::FlatTrace;
+use types::trace_types::trace::Action;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// Addresses filter.
 ///
 /// Used to create bloom possibilities and match filters.
-pub struct AddressesFilter(Vec<Address>);
+#[derive(Binary)]
+pub struct AddressesFilter {
+	list: Vec<Address>
+}
 
 impl From<Vec<Address>> for AddressesFilter {
 	fn from(addresses: Vec<Address>) -> Self {
-		AddressesFilter(addresses)
+		AddressesFilter { list: addresses }
 	}
 }
 
 impl AddressesFilter {
 	/// Returns true if address matches one of the searched addresses.
 	pub fn matches(&self, address: &Address) -> bool {
-		self.matches_all() || self.0.contains(address)
+		self.matches_all() || self.list.contains(address)
 	}
 
 	/// Returns true if this address filter matches everything.
 	pub fn matches_all(&self) -> bool {
-		self.0.is_empty()
+		self.list.is_empty()
 	}
 
 	/// Returns blooms of this addresses filter.
 	pub fn blooms(&self) -> Vec<LogBloom> {
-		match self.0.is_empty() {
+		match self.list.is_empty() {
 			true => vec![LogBloom::new()],
-			false => self.0.iter()
+			false => self.list.iter()
 				.map(|address| LogBloom::from_bloomed(&address.sha3()))
 				.collect()
 		}
@@ -56,11 +64,11 @@ impl AddressesFilter {
 
 	/// Returns vector of blooms zipped with blooms of this addresses filter.
 	pub fn with_blooms(&self, blooms: Vec<LogBloom>) -> Vec<LogBloom> {
-		match self.0.is_empty() {
+		match self.list.is_empty() {
 			true => blooms,
 			false => blooms
 				.into_iter()
-				.flat_map(|bloom| self.0.iter()
+				.flat_map(|bloom| self.list.iter()
 					.map(|address| bloom.with_bloomed(&address.sha3()))
 					.collect::<Vec<_>>())
 				.collect()
@@ -68,6 +76,7 @@ impl AddressesFilter {
 	}
 }
 
+#[derive(Binary)]
 /// Traces filter.
 pub struct Filter {
 	/// Block range.

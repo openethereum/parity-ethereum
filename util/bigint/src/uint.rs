@@ -517,7 +517,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 	/// Return single byte
 	fn byte(&self, index: usize) -> u8;
 	/// Get this Uint as slice of bytes
-	fn to_bytes(&self, bytes: &mut[u8]);
+	fn to_raw_bytes(&self, bytes: &mut[u8]);
 
 	/// Create `Uint(10**n)`
 	fn exp10(n: usize) -> Self;
@@ -621,7 +621,7 @@ macro_rules! construct_uint {
 				(arr[index / 8] >> (((index % 8)) * 8)) as u8
 			}
 
-			fn to_bytes(&self, bytes: &mut[u8]) {
+			fn to_raw_bytes(&self, bytes: &mut[u8]) {
 				assert!($n_words * 8 == bytes.len());
 				let &$name(ref arr) = self;
 				for i in 0..bytes.len() {
@@ -780,7 +780,7 @@ macro_rules! construct_uint {
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				let mut bytes = [0u8; 8 * $n_words];
-				self.to_bytes(&mut bytes);
+				self.to_raw_bytes(&mut bytes);
 				let len = cmp::max((self.bits() + 7) / 8, 1);
 				hex.push_str(bytes[bytes.len() - len..].to_hex().as_ref());
 				serializer.serialize_str(hex.as_ref())
@@ -1482,7 +1482,7 @@ mod tests {
 		let hex = "8090a0b0c0d0e0f00910203040506077583a2cf8264910e1436bda32571012f0";
 		let uint = U256::from_str(hex).unwrap();
 		let mut bytes = [0u8; 32];
-		uint.to_bytes(&mut bytes);
+		uint.to_raw_bytes(&mut bytes);
 		let uint2 = U256::from(&bytes[..]);
 		assert_eq!(uint, uint2);
 	}
