@@ -14,22 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Tree route info type definition
 
-mod best_block;
-mod block_info;
-pub mod blockchain;
-mod cache;
-mod config;
-pub mod extras;
-mod import_route;
-mod update;
+use util::numbers::H256;
 
-#[cfg(test)]
-mod generator;
+/// Represents a tree route between `from` block and `to` block:
+#[derive(Debug)]
+pub struct TreeRoute {
+	/// A vector of hashes of all blocks, ordered from `from` to `to`.
+	pub blocks: Vec<H256>,
+	/// Best common ancestor of these blocks.
+	pub ancestor: H256,
+	/// An index where best common ancestor would be.
+	pub index: usize,
+}
 
-pub use self::blockchain::{BlockProvider, BlockChain};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use types::tree_route::TreeRoute;
-pub use self::import_route::ImportRoute;

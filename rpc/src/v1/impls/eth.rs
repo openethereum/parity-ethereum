@@ -123,8 +123,8 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 
 	fn uncle(&self, id: UncleId) -> Result<Value, Error> {
 		let client = take_weak!(self.client);
-		match client.uncle(id).and_then(|u| client.block_total_difficulty(BlockId::Hash(u.hash())).map(|diff| (diff, u))) {
-			Some((difficulty, uncle)) => {
+		match client.uncle(id).and_then(|u| client.block_total_difficulty(BlockId::Hash(u.parent_hash().clone())).map(|diff| (diff, u))) {
+			Some((parent_difficulty, uncle)) => {
 				let block = Block {
 					hash: OptionalValue::Value(uncle.hash()),
 					parent_hash: uncle.parent_hash,
@@ -139,7 +139,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					logs_bloom: uncle.log_bloom,
 					timestamp: U256::from(uncle.timestamp),
 					difficulty: uncle.difficulty,
-					total_difficulty: difficulty,
+					total_difficulty: uncle.difficulty + parent_difficulty,
 					receipts_root: uncle.receipts_root,
 					extra_data: Bytes::new(uncle.extra_data),
 					seal_fields: uncle.seal.into_iter().map(Bytes::new).collect(),

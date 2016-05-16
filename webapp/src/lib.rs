@@ -57,11 +57,15 @@ mod page;
 mod router;
 mod rpc;
 mod api;
+mod proxypac;
 
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
+use std::collections::HashMap;
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
+
+static DAPPS_DOMAIN : &'static str = ".parity";
 
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
@@ -103,17 +107,21 @@ pub struct Server {
 impl Server {
 	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
-		let endpoints = Arc::new(apps::all_endpoints());
 		let authorization = Arc::new(authorization);
-		let rpc_endpoint = Arc::new(rpc::rpc(handler, panic_handler.clone()));
-		let api = Arc::new(api::RestApi::new(endpoints.clone()));
+		let endpoints = Arc::new(apps::all_endpoints());
+		let special = Arc::new({
+			let mut special = HashMap::new();
+			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
+			special.insert(router::SpecialEndpoint::Api, api::RestApi::new(endpoints.clone()));
+			special.insert(router::SpecialEndpoint::Utils, apps::utils());
+			special
+		});
 
 		try!(hyper::Server::http(addr))
 			.handle(move |_| router::Router::new(
 				apps::main_page(),
 				endpoints.clone(),
-				rpc_endpoint.clone(),
-				api.clone(),
+				special.clone(),
 				authorization.clone(),
 			))
 			.map(|l| Server {

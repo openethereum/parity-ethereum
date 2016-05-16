@@ -44,34 +44,8 @@ use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
-
-/// General block status
-#[derive(Debug, Eq, PartialEq)]
-pub enum BlockStatus {
-	/// Part of the blockchain.
-	InChain,
-	/// Queued for import.
-	Queued,
-	/// Known as bad.
-	Bad,
-	/// Unknown.
-	Unknown,
-}
-
-/// Information about the blockchain gathered together.
-#[derive(Debug)]
-pub struct BlockChainInfo {
-	/// Blockchain difficulty.
-	pub total_difficulty: U256,
-	/// Block queue difficulty.
-	pub pending_total_difficulty: U256,
-	/// Genesis block hash.
-	pub genesis_hash: H256,
-	/// Best blockchain block hash.
-	pub best_block_hash: H256,
-	/// Best blockchain block number.
-	pub best_block_number: BlockNumber
-}
+pub use types::blockchain_info::BlockChainInfo;
+pub use types::block_status::BlockStatus;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -424,7 +398,7 @@ impl<V> Client<V> where V: Verifier {
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
-	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error> {
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockId::Latest).unwrap();
 		let view = HeaderView::new(&header);
 		let last_hashes = self.build_last_hashes(view.hash());
@@ -439,7 +413,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		};
 		// that's just a copy of the state.
 		let mut state = self.state();
-		let sender = try!(t.sender());
+		let sender = try!(t.sender().map_err(|e| {
+			let message = format!("Transaction malformed: {:?}", e);
+			ExecutionError::TransactionMalformed(message)
+		}));
 		let balance = state.balance(&sender);
 		// give the sender max balance
 		state.sub_balance(&sender, &balance);

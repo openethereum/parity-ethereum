@@ -31,7 +31,7 @@ use error::{ImportResult};
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
-use error::Error;
+use error::{ExecutionError};
 use engine::Engine;
 use trace::LocalizedTrace;
 
@@ -221,7 +221,7 @@ impl TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction) -> Result<Executed, Error> {
+	fn call(&self, _t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		Ok(self.execution_result.read().unwrap().clone().unwrap())
 	}
 

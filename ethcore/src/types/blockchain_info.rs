@@ -14,22 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Blockhain info type definition
 
-mod best_block;
-mod block_info;
-pub mod blockchain;
-mod cache;
-mod config;
-pub mod extras;
-mod import_route;
-mod update;
+use util::numbers::*;
+use header::BlockNumber;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
-#[cfg(test)]
-mod generator;
-
-pub use self::blockchain::{BlockProvider, BlockChain};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use types::tree_route::TreeRoute;
-pub use self::import_route::ImportRoute;
+/// Information about the blockchain gathered together.
+#[derive(Debug, Binary)]
+pub struct BlockChainInfo {
+	/// Blockchain difficulty.
+	pub total_difficulty: U256,
+	/// Block queue difficulty.
+	pub pending_total_difficulty: U256,
+	/// Genesis block hash.
+	pub genesis_hash: H256,
+	/// Best blockchain block hash.
+	pub best_block_hash: H256,
+	/// Best blockchain block number.
+	pub best_block_number: BlockNumber
+}

@@ -517,7 +517,7 @@ impl From<U256> for H256 {
 	fn from(value: U256) -> H256 {
 		unsafe {
 			let mut ret: H256 = ::std::mem::uninitialized();
-			value.to_bytes(&mut ret);
+			value.to_raw_bytes(&mut ret);
 			ret
 		}
 	}
@@ -527,7 +527,7 @@ impl<'_> From<&'_ U256> for H256 {
 	fn from(value: &'_ U256) -> H256 {
 		unsafe {
 			let mut ret: H256 = ::std::mem::uninitialized();
-			value.to_bytes(&mut ret);
+			value.to_raw_bytes(&mut ret);
 			ret
 		}
 	}

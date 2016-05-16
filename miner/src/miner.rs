@@ -240,7 +240,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction) -> Result<Executed, Error> {
+	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		match sealing_work.peek_last_ref() {
 			Some(work) => {
@@ -258,7 +258,10 @@ impl MinerService for Miner {
 				};
 				// that's just a copy of the state.
 				let mut state = block.state().clone();
-				let sender = try!(t.sender());
+				let sender = try!(t.sender().map_err(|e| {
+					let message = format!("Transaction malformed: {:?}", e);
+					ExecutionError::TransactionMalformed(message)
+				}));
 				let balance = state.balance(&sender);
 				// give the sender max balance
 				state.sub_balance(&sender, &balance);
