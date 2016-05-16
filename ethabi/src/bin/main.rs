@@ -9,10 +9,9 @@ use std::io::Read;
 use std::env;
 use docopt::Docopt;
 use rustc_serialize::hex::{ToHex, FromHex};
-use ethabi::spec::Interface;
 use ethabi::spec::param_type::{ParamType, Reader}; 
 use ethabi::token::{Token, Tokenizer, StrictTokenizer, TokenFromHex};
-use ethabi::{Encoder, Decoder, Contract, Function, Event};
+use ethabi::{Encoder, Decoder, Contract, Function, Event, Interface};
 use error::Error;
 
 pub const ETHABI: &'static str = r#"

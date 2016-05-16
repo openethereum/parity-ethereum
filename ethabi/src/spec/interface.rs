@@ -126,7 +126,7 @@ mod tests {
 			"type": "constructor"
 		}]"#;
 
-		let deserialized: Interface = serde_json::from_str(s).unwrap();
+		let _: Interface = serde_json::from_str(s).unwrap();
 
 	}
 }

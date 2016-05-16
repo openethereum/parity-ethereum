@@ -1,7 +1,6 @@
 //! Ethereum ABI params.
 use std::fmt::{Display, Formatter, Error};
 use rustc_serialize::hex::ToHex;
-use spec::ParamType;
 
 /// Ethereum ABI params.
 #[derive(Debug, PartialEq, Clone)]
@@ -73,28 +72,75 @@ impl Display for Token {
 }
 
 impl Token {
-	/// Returns true if token matches given type.
-	pub fn matches(&self, param: ParamType) -> bool {
-		match *self {
-			Token::Address(_) => ParamType::Address == param,
-			Token::FixedBytes(ref bytes) => ParamType::FixedBytes(bytes.len()) == param,
-			Token::Bytes(_) => ParamType::Bytes == param,
-			Token::Int(_) => {
-				unimplemented!();
-				//ParamType::Int == param
-			},
-			Token::Uint(_) => {
-				unimplemented!();
-				//ParamType::Uint == param
-			},
-			Token::Bool(_) => ParamType::Bool == param,
-			Token::String(_) => ParamType::String == param,
-			Token::FixedArray(ref _items) => {
-				unimplemented!();
-			},
-			Token::Array(ref _items) => {
-				unimplemented!();
-			}
+	/// Converts token to...
+	pub fn to_address(self) -> Option<[u8; 20]> {
+		match self {
+			Token::Address(address) => Some(address),
+			_ => None,
+		}
+	}
+
+	/// Converts token to...
+	pub fn to_fixed_bytes(self) -> Option<Vec<u8>> {
+		match self {
+			Token::FixedBytes(bytes) => Some(bytes),
+			_ => None,
+		}
+	}
+
+	/// Converts token to...
+	pub fn to_bytes(self) -> Option<Vec<u8>> {
+		match self {
+			Token::Bytes(bytes) => Some(bytes),
+			_ => None,
+		}
+	}
+
+	/// Converts token to...
+	pub fn to_int(self) -> Option<[u8; 32]> {
+		match self {
+			Token::Int(int) => Some(int),
+			_ => None,
+		}
+	}
+
+	/// Converts token to...
+	pub fn to_uint(self) -> Option<[u8; 32]> {
+		match self {
+			Token::Uint(uint) => Some(uint),
+			_ => None,
+		}
+	}
+
+	/// Converts token to...
+	pub fn to_bool(self) -> Option<bool> {
+		match self {
+			Token::Bool(b) => Some(b),
+			_ => None,
+		}
+	}
+
+	/// Converts token to...
+	pub fn to_string(self) -> Option<String> {
+		match self {
+			Token::String(s) => Some(s),
+			_ => None,
+		}
+	}
+
+	/// Converts token to...
+	pub fn to_fixed_array(self) -> Option<Vec<Token>> {
+		match self {
+			Token::FixedArray(arr) => Some(arr),
+			_ => None,
+		}
+	}
+
+	/// Converts token to...
+	pub fn to_array(self) -> Option<Vec<Token>> {
+		match self {
+			Token::Array(arr) => Some(arr),
+			_ => None,
 		}
 	}
 }

@@ -21,6 +21,7 @@ mod event;
 mod signature;
 pub mod util;
 
+pub use self::spec::Interface;
 pub use self::constructor::Constructor;
 pub use self::contract::Contract;
 pub use self::token::Token;
@@ -29,3 +30,12 @@ pub use self::encoder::Encoder;
 pub use self::decoder::Decoder;
 pub use self::function::Function;
 pub use self::event::Event;
+
+/// ABI address.
+pub type Address = [u8; 20];
+
+/// ABI unsigned integer.
+pub type Uint = [u8; 32];
+
+/// ABI signed integer.
+pub type Int = [u8; 32];
