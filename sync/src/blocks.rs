@@ -83,7 +83,7 @@ impl BlockCollection {
 		self.heads = hashes;
 	}
 
-	/// Insert a set oh headers into collection and advance subchain head pointers.
+	/// Insert a set of headers into collection and advance subchain head pointers.
 	pub fn insert_headers(&mut self, headers: Vec<Bytes>) {
 		for h in headers.into_iter() {
 			if let Err(e) =  self.insert_header(h) {
@@ -92,6 +92,7 @@ impl BlockCollection {
 		}
 		self.update_heads();
 	}
+
 	/// Insert a collection of block bodies for previously downloaded headers.
 	pub fn insert_bodies(&mut self, bodies: Vec<Bytes>) {
 		for b in bodies.into_iter() {
