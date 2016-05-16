@@ -20,6 +20,7 @@ use common::*;
 use keys::store::SecretStore;
 use keys::directory::KeyFileContent;
 use std::path::PathBuf;
+use path;
 
 /// Enumerates all geth keys in the directory and returns collection of tuples `(accountId, filename)`
 pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, ImportError> {
@@ -98,30 +99,7 @@ pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory:
 ///
 /// Based on https://github.com/ethereum/go-ethereum/blob/e553215/common/path.go#L75
 pub fn keystore_dir() -> PathBuf {
-	#[cfg(target_os = "macos")]
-	fn data_dir(mut home: PathBuf) -> PathBuf {
-		home.push("Library");
-		home.push("Ethereum");
-		home
-	}
-	
-	#[cfg(windows)]
-	fn data_dir(mut home: PathBuf) -> PathBuf {
-		home.push("AppData");
-		home.push("Roaming");
-		home.push("Ethereum");
-		home	
-	}
-	
-	#[cfg(not(any(target_os = "macos", windows)))]
-	fn data_dir(mut home: PathBuf) -> PathBuf {
-		home.push(".ethereum");
-        home
-	}
-	
-	let mut data_dir = data_dir(::std::env::home_dir().expect("Failed to get home dir"));
-	data_dir.push("keystore");
-	data_dir
+	path::ethereum::with_default("keystore")
 }
 
 #[cfg(test)]

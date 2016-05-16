@@ -15,14 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tracing datatypes.
+
 use util::{U256, Bytes, Address, FixedHash};
 use util::rlp::*;
 use util::sha3::Hashable;
 use action_params::ActionParams;
 use basic_types::LogBloom;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// `Call` result.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Binary)]
 pub struct CallResult {
 	/// Gas used by call.
 	pub gas_used: U256,
@@ -51,7 +55,7 @@ impl Decodable for CallResult {
 }
 
 /// `Create` result.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Binary)]
 pub struct CreateResult {
 	/// Gas used by create.
 	pub gas_used: U256,
@@ -84,7 +88,7 @@ impl Decodable for CreateResult {
 }
 
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Binary)]
 pub struct Call {
 	/// The sending account.
 	pub from: Address,
@@ -146,7 +150,7 @@ impl Call {
 }
 
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Binary)]
 pub struct Create {
 	/// The address of the creator.
 	pub from: Address,
@@ -202,7 +206,7 @@ impl Create {
 }
 
 /// Description of an action that we trace; will be either a call or a create.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Binary)]
 pub enum Action {
 	/// It's a call action.
 	Call(Call),
@@ -249,7 +253,7 @@ impl Action {
 }
 
 /// The result of the performed action.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Binary)]
 pub enum Res {
 	/// Successful call action result.
 	Call(CallResult),
@@ -300,7 +304,7 @@ impl Decodable for Res {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Binary)]
 /// A trace; includes a description of the action being traced and sub traces of each interior action.
 pub struct Trace {
 	/// The number of EVM execution environments active when this action happened; 0 if it's

@@ -1193,7 +1193,7 @@ impl ChainSync {
 						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
 						for block_hash in route.blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
-							let difficulty = chain.block_total_difficulty(BlockId::Hash(block_hash.clone())).expect("Mallformed block without a difficulty on the chain!");
+							let difficulty = chain.block_total_difficulty(BlockId::Hash(block_hash.clone())).expect("Malformed block without a difficulty on the chain!");
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&difficulty);
 							rlp_stream.append_raw(&hash_rlp.out(), 1);
@@ -1570,7 +1570,7 @@ mod tests {
 	}
 
 	#[test]
-	fn handles_peer_new_block_mallformed() {
+	fn handles_peer_new_block_malformed() {
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(10, EachBlockWith::Uncle);
 

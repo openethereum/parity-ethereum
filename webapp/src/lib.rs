@@ -65,6 +65,8 @@ use std::collections::HashMap;
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 
+static DAPPS_DOMAIN : &'static str = ".parity";
+
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
 	handler: Arc<IoHandler>,

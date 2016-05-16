@@ -21,6 +21,7 @@ mod url;
 mod redirect;
 pub mod auth;
 
+use DAPPS_DOMAIN;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::Host;
@@ -40,7 +41,7 @@ pub enum SpecialEndpoint {
 	Rpc,
 	Api,
 	Utils,
-	None
+	None,
 }
 
 pub struct Router<A: Authorization + 'static> {
@@ -165,8 +166,8 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 
 	match *url {
 		Some(ref url) => match url.host {
-			Host::Domain(ref domain) if domain.ends_with(apps::DAPPS_DOMAIN) => {
-				let len = domain.len() - apps::DAPPS_DOMAIN.len();
+			Host::Domain(ref domain) if domain.ends_with(DAPPS_DOMAIN) => {
+				let len = domain.len() - DAPPS_DOMAIN.len();
 				let id = domain[0..len].to_owned();
 
 				(Some(EndpointPath {

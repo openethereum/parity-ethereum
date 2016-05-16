@@ -41,7 +41,7 @@ pub struct HttpConfiguration {
 	pub interface: String,
 	pub port: u16,
 	pub apis: String,
-	pub cors: Option<String>,
+	pub cors: Vec<String>,
 }
 
 pub struct IpcConfiguration {
@@ -139,11 +139,11 @@ pub fn setup_http_rpc_server(
 pub fn setup_http_rpc_server(
 	dependencies: &Arc<Dependencies>,
 	url: &SocketAddr,
-	cors_domain: Option<String>,
+	cors_domains: Vec<String>,
 	apis: Vec<&str>,
 ) -> RpcServer {
 	let server = setup_rpc_server(apis, dependencies);
-	let start_result = server.start_http(url, cors_domain);
+	let start_result = server.start_http(url, cors_domains);
 	let deps = dependencies.clone();
 	match start_result {
 		Err(RpcServerError::IoError(err)) => die_with_io_error("RPC", err),

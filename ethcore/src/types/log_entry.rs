@@ -14,15 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Block log.
+//! Log entry type definition.
 
-use util::*;
+use util::numbers::*;
+use std::ops::Deref;
+use util::rlp::*;
+use util::Bytes;
+use util::HeapSizeOf;
+use util::sha3::*;
 use basic_types::LogBloom;
 use header::BlockNumber;
 use ethjson;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// A record of execution for a `LOG` operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Binary)]
 pub struct LogEntry {
 	/// The address of the contract executing at the point of the `LOG` operation.
 	pub address: Address,
@@ -77,7 +85,7 @@ impl From<ethjson::state::Log> for LogEntry {
 }
 
 /// Log localized in a blockchain.
-#[derive(Default, Debug, PartialEq, Clone)]
+#[derive(Default, Debug, PartialEq, Clone, Binary)]
 pub struct LocalizedLogEntry {
 	/// Plain log entry.
 	pub entry: LogEntry,

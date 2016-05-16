@@ -175,6 +175,11 @@ fn binary_expr_struct(
 ) -> Result<BinaryExpressions, Error> {
 
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
+
+		if ::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)) == "u8" {
+			return quote_expr!(cx, 1);
+		}
+
 		let field_type_ident = builder.id(
 			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)));
 
@@ -228,23 +233,34 @@ fn binary_expr_struct(
 			},
 		};
 
-		write_stmts.push(quote_stmt!(cx, let next_line = offset + match $field_type_ident_qualified::len_params() {
-				0 => mem::size_of::<$field_type_ident>(),
-				_ => { let size = $member_expr .size(); length_stack.push_back(size); size },
-			}).unwrap());
-
-		write_stmts.push(quote_stmt!(cx,
-			if let Err(e) = $member_expr .to_bytes(&mut buffer[offset..next_line], length_stack) { return Err(e) };).unwrap());
+		if ::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)) == "u8" {
+			write_stmts.push(quote_stmt!(cx, let next_line = offset + 1;).unwrap());
+			write_stmts.push(quote_stmt!(cx, buffer[offset] = $member_expr; ).unwrap());
+		}
+		else {
+			write_stmts.push(quote_stmt!(cx, let next_line = offset + match $field_type_ident_qualified::len_params() {
+					0 => mem::size_of::<$field_type_ident>(),
+					_ => { let size = $member_expr .size(); length_stack.push_back(size); size },
+				}).unwrap());
+			write_stmts.push(quote_stmt!(cx,
+				if let Err(e) = $member_expr .to_bytes(&mut buffer[offset..next_line], length_stack) { return Err(e) };).unwrap());
+		}
 
 		write_stmts.push(quote_stmt!(cx, offset = next_line; ).unwrap());
 
 		let field_index = builder.id(&format!("{}", index));
 		map_stmts.push(quote_stmt!(cx, map[$field_index] = total;).unwrap());
-		map_stmts.push(quote_stmt!(cx, let size = match $field_type_ident_qualified::len_params() {
-				0 => mem::size_of::<$field_type_ident>(),
-				_ => length_stack.pop_front().unwrap(),
-			}).unwrap());
-		map_stmts.push(quote_stmt!(cx, total = total + size;).unwrap());
+
+		if ::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)) == "u8" {
+			map_stmts.push(quote_stmt!(cx, total = total + 1;).unwrap());
+		}
+		else {
+			map_stmts.push(quote_stmt!(cx, let size = match $field_type_ident_qualified::len_params() {
+					0 => mem::size_of::<$field_type_ident>(),
+					_ => length_stack.pop_front().unwrap(),
+				}).unwrap());
+			map_stmts.push(quote_stmt!(cx, total = total + size;).unwrap());
+		}
 	};
 
 	let read_expr = match fields.iter().any(|f| codegen::has_ptr(&f.ty)) {
@@ -366,6 +382,8 @@ fn fields_sequence(
 	use syntax::parse::token;
 	use syntax::ast::TokenTree::Token;
 
+	let named_members = fields.iter().any(|f| f.ident.is_some());
+
 	::quasi::parse_expr_panic(&mut ::syntax::parse::new_parser_from_tts(
 		ext_cx.parse_sess(),
 		ext_cx.cfg(),
@@ -373,12 +391,32 @@ fn fields_sequence(
 			let _sp = ext_cx.call_site();
 			let mut tt = ::std::vec::Vec::new();
 			tt.push(Token(_sp, token::Ident(variant_ident.clone())));
-			tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+			if named_members {
+				tt.push(Token(_sp, token::OpenDelim(token::Brace)));
+			}
+			else {
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+			}
 
 			for (idx, field) in fields.iter().enumerate() {
 				if field.ident.is_some() {
 					tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap())));
 					tt.push(Token(_sp, token::Colon));
+				}
+
+				// special case for u8, it just takes byte form sequence
+				if ::syntax::print::pprust::ty_to_string(&field.ty) == "u8" {
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"))));
+
+					tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"))));
+					tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)))));
+					tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+					tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+
+					tt.push(Token(_sp, token::Comma));
+					continue;
 				}
 
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("try!"))));
@@ -393,6 +431,7 @@ fn fields_sequence(
 				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
 
 				tt.push(Token(_sp, token::BinOp(token::And)));
+
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"))));
 
 				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
@@ -418,8 +457,12 @@ fn fields_sequence(
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 				tt.push(Token(_sp, token::Comma));
 			}
-			tt.push(Token(_sp, token::CloseDelim(token::Paren)));
-
+			if named_members {
+				tt.push(Token(_sp, token::CloseDelim(token::Brace)));
+			}
+			else {
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+			}
 			tt
 		})
 	).unwrap()
@@ -454,6 +497,21 @@ fn named_fields_sequence(
 			for (idx, field) in fields.iter().enumerate() {
 				tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap())));
 				tt.push(Token(_sp, token::Colon));
+
+				// special case for u8, it just takes byte form sequence
+				if ::syntax::print::pprust::ty_to_string(&field.ty) == "u8" {
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"))));
+
+					tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"))));
+					tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)))));
+					tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+					tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+
+					tt.push(Token(_sp, token::Comma));
+					continue;
+				}
 
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("try!"))));
 				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
@@ -573,7 +631,6 @@ fn binary_expr_variant(
 						.map(|(id, field)|(field.ident.unwrap(), builder.pat().ref_id(id))))
 				.build();
 
-
 			let binary_expr = try!(binary_expr_struct(
 				cx,
 				&builder,
@@ -593,7 +650,7 @@ fn binary_expr_variant(
 						let buffer = &mut buffer[1..];
 						$write_expr
 				}),
-				read: quote_arm!(cx, $pat => { $read_expr } ),
+				read: quote_arm!(cx, $variant_index_ident => { $read_expr } ),
 			})
 		},
 	}
