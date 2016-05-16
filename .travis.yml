@@ -1,0 +1,23 @@
+sudo: false
+language: rust
+branches:
+  only:
+  - master
+matrix:
+  fast_finish: false
+  include:
+  - rust: stable
+  - rust: beta
+  - rust: nightly
+after_success: |
+  [ $TRAVIS_BRANCH = master ] &&
+  [ $TRAVIS_PULL_REQUEST = false ] &&
+  [ $TRAVIS_RUST_VERSION = stable ] &&
+  cargo doc --no-deps --verbose &&
+  echo '<meta http-equiv=refresh content=0;url=ethabi/index.html>' > target/doc/index.html &&
+  pip install --user ghp-import &&
+  /home/travis/.local/bin/ghp-import -n target/doc &&
+  git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+env:
+  global:
+  - secure: zdEco0QAPik4peDfWuLHHex67LVe3E7c5VJNx+7ygH1pt+mzgobKo8jgT7WuH70xPRA717txNaj/zYGj5EuBKLn+Tkw3feDjrISYRD7ZOXFm1urv53KDx8xh2QJld2fHOc4UWcQ1qqBOWWOR9donuOaRfdDSOpWjLhl14heMgsW3o5Q/V4HN//VPHQctzaCq6r5eerx82B6SSNQ7+42rESu37N0Plv8JtCswihCuoUsMuzbXGwGzafR8IVf5WJPB1WM1KpjdWHgZCCgIfdH6C9fJ1P4fd2Z7EQJ0PYwxRntPlONzUr5khGPldXn7Czwoq9Go4eOZaTwHizprI/KCXBXASXQ/Z7EsU2AKl90qvUHLDB9i4aa/eDrkzQGPQ+dkjNckdQaaucIKX/r8VDm7ZVefkLOgbzc1plE6/TXslAS/n0OoXUXydzueyqi8oeVEagt/nSYaR4t/8C10eC/6gjVF6X6mpgM6/p8eVrN8bltMa0KSDfRvhi3kU1Nmc5b3CWg+neWYYFPHak3GyFwh3uRC0LJroO+j+dkQZiEpSsMgthx69RBDjYvoi3T5FGwt5s/FfnOtcHM65M9sGubMW4DsVaI7OHt7FUnp5dlqxk6NGT68R/E1ZeCwr7Y4QCXr4agew5OpxTni4MK7aCVnmAtabNVLI4wKdCy2ULJWLsE= 

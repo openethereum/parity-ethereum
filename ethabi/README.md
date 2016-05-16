@@ -1,5 +1,12 @@
 # ethabi
 
+[![Build Status][travis-image]][travis-url]
+
+[travis-image]: https://travis-ci.org/ethcore/ethabi.svg?branch=master
+[travis-url]: https://travis-ci.org/ethcore/ethabi
+
+[Documentation](http://ethcore.github.io/ethabi/ethabi/index.html)
+
 ```
 Ethereum ABI coder.
   Copyright 2016 Ethcore (UK) Limited
