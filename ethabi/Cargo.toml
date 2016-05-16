@@ -1,11 +1,12 @@
 [package]
 name = "ethabi"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["debris <marek.kotewicz@gmail.com>"]
 build = "build.rs"
 homepage = "https://github.com/ethcore/ethabi"
 license = "MIT"
 keywords = ["ethereum", "eth", "abi", "solidity", "cli"]
+description = "Easy to use conversion of ethereum contract calls to bytecode."
 
 [dependencies]
 rustc-serialize = "0.3"
