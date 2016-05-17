@@ -88,6 +88,13 @@ fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
 	}
 }
 
+pub fn replace_slice_u8(builder: &aster::AstBuilder, ty: &P<ast::Ty>) -> P<ast::Ty> {
+	if ::syntax::print::pprust::ty_to_string(&strip_ptr(ty)) == "[u8]" {
+		return builder.ty().id("Vec<u8>")
+	}
+	ty.clone()
+}
+
 fn push_invoke_signature_aster(
 	builder: &aster::AstBuilder,
 	implement: &ImplItem,
@@ -112,8 +119,8 @@ fn push_invoke_signature_aster(
 				.attr().word("derive(Binary)")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
-				.field(arg_name.as_str()).ty()
-				.build(strip_ptr(arg_ty));
+				.field(arg_name.as_str())
+				.ty().build(replace_slice_u8(builder, &strip_ptr(arg_ty)));
 
 			arg_names.push(arg_name);
 			arg_tys.push(arg_ty.clone());
@@ -121,7 +128,7 @@ fn push_invoke_signature_aster(
 				let arg_name = format!("{}", field_name(builder, &arg));
 				let arg_ty = &arg.ty;
 
-				tree = tree.field(arg_name.as_str()).ty().build(strip_ptr(arg_ty));
+				tree = tree.field(arg_name.as_str()).ty().build(replace_slice_u8(builder, &strip_ptr(arg_ty)));
 				arg_names.push(arg_name);
 				arg_tys.push(arg_ty.clone());
 			}
