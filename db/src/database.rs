@@ -20,90 +20,107 @@ use traits::*;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{RwLock, Mutex};
+use std::path::Path;
+use std::convert::From;
+use std::ops::Deref;
 
-pub struct DatabaseInstance {
-	db: DB,
-	is_open: bool,
+impl From<String> for Error {
+	fn from(s: String) -> Error {
+		Error::RocksDb(s)
+	}
+}
+
+pub struct Database {
+	db: RwLock<Option<DB>>,
+	is_open: Mutex<bool>,
 	transactions: RwLock<HashMap<TransactionHandle, WriteBatch>>,
 	iterators: RwLock<HashMap<IteratorHandle, DBIterator<'static>>>,
 }
 
-impl Database for DatabaseInstance {
-	fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String> {
-		self.db.put(&key, &value)
+impl DatabaseService for Database {
+	fn open(&self, path: String) -> Result<(), Error> {
+		if *self.is_open.lock().unwrap() { return Err(Error::AlreadyOpen); }
+		Ok(())
 	}
 
-	fn delete(&self, key: Vec<u8>) -> Result<(), String> {
-		self.db.delete(&key)
+	fn close(&self) -> Result<(), Error> {
+		if *self.is_open.lock().unwrap() { return Err(Error::IsClosed); }
+		Ok(())
 	}
 
-	fn write(&self, handle: TransactionHandle) -> Result<(), String> {
-		let transactions = self.transactions.write().unwrap();
+	fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), Error> {
+		let db_lock = self.db.read().unwrap();
+		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+
+		try!(db.put(&key, &value));
+		Ok(())
+	}
+
+	fn delete(&self, key: Vec<u8>) -> Result<(), Error> {
+		let db_lock = self.db.read().unwrap();
+		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+
+		try!(db.delete(&key));
+		Ok(())
+	}
+
+	fn write(&self, handle: TransactionHandle) -> Result<(), Error> {
+		let db_lock = self.db.read().unwrap();
+		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+
+		let mut transactions = self.transactions.write().unwrap();
 		let batch = try!(
-			transactions.get(&handle).ok_or("Unknown transaction to write".to_owned())
+			transactions.remove(&handle).ok_or(Error::TransactionUnknown)
 		);
-		self.db.write(*batch)
+		try!(db.write(batch));
+		Ok(())
 	}
 
-	fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
-		match try!(self.db.get(&key)) {
+	fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, Error> {
+		let db_lock = self.db.read().unwrap();
+		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+
+		match try!(db.get(&key)) {
 			Some(db_vec) => Ok(Some(db_vec.to_vec())),
 			None => Ok(None),
 		}
 	}
 
-	fn get_by_prefix(&self, prefix: Vec<u8>) -> Option<Vec<u8>> {
-		let mut iter = self.db.iterator(IteratorMode::From(&prefix, Direction::forward));
+	fn get_by_prefix(&self, prefix: Vec<u8>) -> Result<Option<Vec<u8>>, Error> {
+		let db_lock = self.db.read().unwrap();
+		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+
+		let mut iter = db.iterator(IteratorMode::From(&prefix, Direction::forward));
 		match iter.next() {
 			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
-			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v.to_vec()) } else { None },
-			_ => None
+			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Ok(Some(v.to_vec())) } else { Ok(None) },
+			_ => Ok(None)
 		}
 	}
 
-	fn is_empty(&self) -> bool {
-		self.db.iterator(IteratorMode::Start).next().is_none()
+	fn is_empty(&self) -> Result<bool, Error> {
+		let db_lock = self.db.read().unwrap();
+		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+
+		Ok(db.iterator(IteratorMode::Start).next().is_none())
 	}
 
-	fn iter(&self) -> IteratorHandle {
-		let iterators = self.iterators.write().unwrap();
+	fn iter(&self) -> Result<IteratorHandle, Error> {
+		let db_lock = self.db.read().unwrap();
+		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+
+		let mut iterators = self.iterators.write().unwrap();
 		let next_iterator = iterators.keys().last().unwrap_or(&0) + 1;
-		iterators.insert(next_iterator, self.db.iterator(IteratorMode::Start));
-
-		next_iterator
-	}
-
-	fn transaction_put(&self, transaction: TransactionHandle, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>
-	{
-		let transactions = self.transactions.write().unwrap();
-		let batch = try!(
-			transactions.get(&transaction).ok_or("Unknown transaction to write to".to_owned())
-		);
-		batch.put(&key, &value)
-	}
-
-	fn transaction_delete(&self, transaction: TransactionHandle, key: Vec<u8>) -> Result<(), String> {
-		let transactions = self.transactions.write().unwrap();
-		let batch = try!(
-			transactions.get(&transaction).ok_or("Unknown transaction to delete from".to_owned())
-		);
-		batch.delete(&key)
-	}
-
-	fn new_transaction(&self) -> TransactionHandle {
-		let transactions = self.transactions.write().unwrap();
-		let next_transaction = transactions.keys().last().unwrap_or(&0) + 1;
-		transactions.insert(next_transaction, WriteBatch::new());
-
-		next_transaction
+		iterators.insert(next_iterator, db.iterator(IteratorMode::Start));
+		Ok(next_iterator)
 	}
 
 	fn iter_next(&self, handle: IteratorHandle) -> Option<KeyValue>
 	{
-		let iterators = self.iterators.write().unwrap();
-		let iterator = match iterators.get(&handle) {
-			Some(ref some_iterator) => some_iterator,
+		let mut iterators = self.iterators.write().unwrap();
+		let mut iterator = match iterators.get_mut(&handle) {
+			Some(some_iterator) => some_iterator,
 			None => { return None; },
 		};
 
@@ -113,5 +130,32 @@ impl Database for DatabaseInstance {
 				value: some_val.to_vec(),
 			})
 		})
+	}
+
+	fn transaction_put(&self, transaction: TransactionHandle, key: Vec<u8>, value: Vec<u8>) -> Result<(), Error>
+	{
+		let mut transactions = self.transactions.write().unwrap();
+		let batch = try!(
+			transactions.get_mut(&transaction).ok_or(Error::TransactionUnknown)
+		);
+		try!(batch.put(&key, &value));
+		Ok(())
+	}
+
+	fn transaction_delete(&self, transaction: TransactionHandle, key: Vec<u8>) -> Result<(), Error> {
+		let mut transactions = self.transactions.write().unwrap();
+		let batch = try!(
+			transactions.get_mut(&transaction).ok_or(Error::TransactionUnknown)
+		);
+		try!(batch.delete(&key));
+		Ok(())
+	}
+
+	fn new_transaction(&self) -> TransactionHandle {
+		let mut transactions = self.transactions.write().unwrap();
+		let next_transaction = transactions.keys().last().unwrap_or(&0) + 1;
+		transactions.insert(next_transaction, WriteBatch::new());
+
+		next_transaction
 	}
 }
