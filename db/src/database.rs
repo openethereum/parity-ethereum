@@ -14,50 +14,104 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore database trait
+//! Ethcore rocksdb ipc service
 
-pub type TransactionHandle = u32;
-pub type IteratorHandle = u32;
-
+use traits::*;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
+use std::collections::HashMap;
+use std::sync::RwLock;
 
-pub struct KeyValue {
-	pub key: Vec<u8>,
-	pub value: Vec<u8>,
+pub struct DatabaseInstance {
+	db: DB,
+	is_open: bool,
+	transactions: RwLock<HashMap<TransactionHandle, WriteBatch>>,
+	iterators: RwLock<HashMap<IteratorHandle, DBIterator<'static>>>,
 }
 
-pub trait Database {
-	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
-	fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
+impl Database for DatabaseInstance {
+	fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String> {
+		self.db.put(&key, &value)
+	}
 
-	/// Delete value by key.
-	fn delete(&self, key: Vec<u8>) -> Result<(), String>;
+	fn delete(&self, key: Vec<u8>) -> Result<(), String> {
+		self.db.delete(&key)
+	}
 
-	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
-	fn transaction_put(&self, transaction: TransactionHandle, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
+	fn write(&self, handle: TransactionHandle) -> Result<(), String> {
+		let transactions = self.transactions.write().unwrap();
+		let batch = try!(
+			transactions.get(&handle).ok_or("Unknown transaction to write".to_owned())
+		);
+		self.db.write(*batch)
+	}
 
-	/// Delete value by key using transaction
-	fn transaction_delete(&self, transaction: TransactionHandle, key: Vec<u8>) -> Result<(), String>;
+	fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
+		match try!(self.db.get(&key)) {
+			Some(db_vec) => Ok(Some(db_vec.to_vec())),
+			None => Ok(None),
+		}
+	}
 
-	/// Commit transaction to database.
-	fn write(&self, tr: TransactionHandle) -> Result<(), String>;
+	fn get_by_prefix(&self, prefix: Vec<u8>) -> Option<Vec<u8>> {
+		let mut iter = self.db.iterator(IteratorMode::From(&prefix, Direction::forward));
+		match iter.next() {
+			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
+			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v.to_vec()) } else { None },
+			_ => None
+		}
+	}
 
-	/// Initiate new transaction on database
-	fn new_transaction(&self) -> TransactionHandle;
+	fn is_empty(&self) -> bool {
+		self.db.iterator(IteratorMode::Start).next().is_none()
+	}
 
-	/// Get value by key.
-	fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
+	fn iter(&self) -> IteratorHandle {
+		let iterators = self.iterators.write().unwrap();
+		let next_iterator = iterators.keys().last().unwrap_or(&0) + 1;
+		iterators.insert(next_iterator, self.db.iterator(IteratorMode::Start));
 
-	/// Get value by partial key. Prefix size should match configured prefix size.
-	fn get_by_prefix(&self, prefix: Vec<u8>) -> Option<Vec<u8>>;
+		next_iterator
+	}
 
-	/// Check if there is anything in the database.
-	fn is_empty(&self) -> bool;
+	fn transaction_put(&self, transaction: TransactionHandle, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>
+	{
+		let transactions = self.transactions.write().unwrap();
+		let batch = try!(
+			transactions.get(&transaction).ok_or("Unknown transaction to write to".to_owned())
+		);
+		batch.put(&key, &value)
+	}
 
-	/// Get handle to iterate through keys
-	fn iter(&self) -> IteratorHandle;
+	fn transaction_delete(&self, transaction: TransactionHandle, key: Vec<u8>) -> Result<(), String> {
+		let transactions = self.transactions.write().unwrap();
+		let batch = try!(
+			transactions.get(&transaction).ok_or("Unknown transaction to delete from".to_owned())
+		);
+		batch.delete(&key)
+	}
 
-	/// Next key-value for the the given iterator
-	fn iter_next(&self, iterator: IteratorHandle) -> Option<KeyValue>;
+	fn new_transaction(&self) -> TransactionHandle {
+		let transactions = self.transactions.write().unwrap();
+		let next_transaction = transactions.keys().last().unwrap_or(&0) + 1;
+		transactions.insert(next_transaction, WriteBatch::new());
+
+		next_transaction
+	}
+
+	fn iter_next(&self, handle: IteratorHandle) -> Option<KeyValue>
+	{
+		let iterators = self.iterators.write().unwrap();
+		let iterator = match iterators.get(&handle) {
+			Some(ref some_iterator) => some_iterator,
+			None => { return None; },
+		};
+
+		iterator.next().and_then(|(some_key, some_val)| {
+			Some(KeyValue {
+				key: some_key.to_vec(),
+				value: some_val.to_vec(),
+			})
+		})
+	}
 }
