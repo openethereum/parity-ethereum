@@ -17,13 +17,11 @@
 //! Ethcore rocksdb ipc service
 
 use traits::*;
-use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
+use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 use std::collections::HashMap;
-use std::sync::{RwLock, Mutex};
-use std::path::Path;
+use std::sync::{RwLock};
 use std::convert::From;
-use std::ops::Deref;
 
 impl From<String> for Error {
 	fn from(s: String) -> Error {
@@ -39,7 +37,7 @@ pub struct Database {
 }
 
 impl Database {
-	fn new() -> Database {
+	pub fn new() -> Database {
 		Database {
 			db: RwLock::new(None),
 			is_open: RwLock::new(false),
@@ -74,9 +72,12 @@ impl DatabaseService for Database {
 
 	fn close(&self) -> Result<(), Error> {
 		let mut is_open = self.is_open.write().unwrap();
-		if *is_open { return Err(Error::IsClosed); }
+		if !*is_open { return Err(Error::IsClosed); }
 
 		// TODO: wait for transactions to expire/close and destroy self.db?
+		let mut db = self.db.write().unwrap();
+		*db = None;
+
 		*is_open = false;
 		Ok(())
 	}
@@ -210,7 +211,7 @@ mod test {
 	fn can_be_open_empty() {
 		let db = Database::new();
 		let path = RandomTempPath::create_dir();
-		db.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned());
+		db.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
 
 		assert!(db.is_empty().is_ok());
 	}
@@ -219,9 +220,9 @@ mod test {
 	fn can_store_key() {
 		let db = Database::new();
 		let path = RandomTempPath::create_dir();
-		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned());
+		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned()).unwrap();
 
-		db.put("xxx".as_bytes(), "1".as_bytes());
+		db.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
 		assert!(!db.is_empty().unwrap());
 	}
 
@@ -229,11 +230,11 @@ mod test {
 	fn can_retrieve() {
 		let db = Database::new();
 		let path = RandomTempPath::create_dir();
-		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned());
-		db.put("xxx".as_bytes(), "1".as_bytes());
-		db.close();
+		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned()).unwrap();
+		db.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
+		db.close().unwrap();
 
-		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned());
+		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned()).unwrap();
 		assert_eq!(db.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 	}
 }
