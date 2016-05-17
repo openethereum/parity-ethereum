@@ -38,6 +38,17 @@ pub struct Database {
 	iterators: RwLock<HashMap<IteratorHandle, DBIterator<'static>>>,
 }
 
+impl Database {
+	fn new() -> Database {
+		Database {
+			db: RwLock::new(None),
+			is_open: Mutex::new(false),
+			transactions: RwLock::new(HashMap::new()),
+			iterators: RwLock::new(HashMap::new()),
+		}
+	}
+}
+
 impl DatabaseService for Database {
 	fn open(&self, path: String) -> Result<(), Error> {
 		if *self.is_open.lock().unwrap() { return Err(Error::AlreadyOpen); }
@@ -157,5 +168,19 @@ impl DatabaseService for Database {
 		transactions.insert(next_transaction, WriteBatch::new());
 
 		next_transaction
+	}
+}
+
+
+#[cfg(test)]
+mod test {
+
+	use super::Database;
+	use traits::*;
+
+	#[test]
+	fn can_be_created() {
+		let db = Database::new();
+		assert!(db.is_empty().is_err());
 	}
 }
