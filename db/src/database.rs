@@ -81,19 +81,19 @@ impl DatabaseService for Database {
 		Ok(())
 	}
 
-	fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), Error> {
+	fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
-		try!(db.put(&key, &value));
+		try!(db.put(key, value));
 		Ok(())
 	}
 
-	fn delete(&self, key: Vec<u8>) -> Result<(), Error> {
+	fn delete(&self, key: &[u8]) -> Result<(), Error> {
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
-		try!(db.delete(&key));
+		try!(db.delete(key));
 		Ok(())
 	}
 
@@ -109,21 +109,21 @@ impl DatabaseService for Database {
 		Ok(())
 	}
 
-	fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, Error> {
+	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
-		match try!(db.get(&key)) {
+		match try!(db.get(key)) {
 			Some(db_vec) => Ok(Some(db_vec.to_vec())),
 			None => Ok(None),
 		}
 	}
 
-	fn get_by_prefix(&self, prefix: Vec<u8>) -> Result<Option<Vec<u8>>, Error> {
+	fn get_by_prefix(&self, prefix: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
-		let mut iter = db.iterator(IteratorMode::From(&prefix, Direction::forward));
+		let mut iter = db.iterator(IteratorMode::From(prefix, Direction::forward));
 		match iter.next() {
 			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
 			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Ok(Some(v.to_vec())) } else { Ok(None) },
@@ -164,7 +164,7 @@ impl DatabaseService for Database {
 		})
 	}
 
-	fn transaction_put(&self, transaction: TransactionHandle, key: Vec<u8>, value: Vec<u8>) -> Result<(), Error>
+	fn transaction_put(&self, transaction: TransactionHandle, key: &[u8], value: &[u8]) -> Result<(), Error>
 	{
 		let mut transactions = self.transactions.write().unwrap();
 		let batch = try!(
@@ -174,7 +174,7 @@ impl DatabaseService for Database {
 		Ok(())
 	}
 
-	fn transaction_delete(&self, transaction: TransactionHandle, key: Vec<u8>) -> Result<(), Error> {
+	fn transaction_delete(&self, transaction: TransactionHandle, key: &[u8]) -> Result<(), Error> {
 		let mut transactions = self.transactions.write().unwrap();
 		let batch = try!(
 			transactions.get_mut(&transaction).ok_or(Error::TransactionUnknown)
@@ -213,5 +213,27 @@ mod test {
 		db.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned());
 
 		assert!(db.is_empty().is_ok());
+	}
+
+	#[test]
+	fn can_store_key() {
+		let db = Database::new();
+		let path = RandomTempPath::create_dir();
+		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned());
+
+		db.put("xxx".as_bytes(), "1".as_bytes());
+		assert!(!db.is_empty().unwrap());
+	}
+
+	#[test]
+	fn can_retrieve() {
+		let db = Database::new();
+		let path = RandomTempPath::create_dir();
+		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned());
+		db.put("xxx".as_bytes(), "1".as_bytes());
+		db.close();
+
+		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned());
+		assert_eq!(db.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 	}
 }

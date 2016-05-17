@@ -8,6 +8,7 @@ pub struct KeyValue {
 	pub value: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub enum Error {
 	AlreadyOpen,
 	IsClosed,
@@ -30,16 +31,16 @@ pub trait DatabaseService {
 	fn close(&self) -> Result<(), Error>;
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
-	fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), Error>;
+	fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error>;
 
 	/// Delete value by key.
-	fn delete(&self, key: Vec<u8>) -> Result<(), Error>;
+	fn delete(&self, key: &[u8]) -> Result<(), Error>;
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
-	fn transaction_put(&self, transaction: TransactionHandle, key: Vec<u8>, value: Vec<u8>) -> Result<(), Error>;
+	fn transaction_put(&self, transaction: TransactionHandle, key: &[u8], value: &[u8]) -> Result<(), Error>;
 
 	/// Delete value by key using transaction
-	fn transaction_delete(&self, transaction: TransactionHandle, key: Vec<u8>) -> Result<(), Error>;
+	fn transaction_delete(&self, transaction: TransactionHandle, key: &[u8]) -> Result<(), Error>;
 
 	/// Commit transaction to database.
 	fn write(&self, tr: TransactionHandle) -> Result<(), Error>;
@@ -48,10 +49,10 @@ pub trait DatabaseService {
 	fn new_transaction(&self) -> TransactionHandle;
 
 	/// Get value by key.
-	fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, Error>;
+	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error>;
 
 	/// Get value by partial key. Prefix size should match configured prefix size.
-	fn get_by_prefix(&self, prefix: Vec<u8>) -> Result<Option<Vec<u8>>, Error>;
+	fn get_by_prefix(&self, prefix: &[u8]) -> Result<Option<Vec<u8>>, Error>;
 
 	/// Check if there is anything in the database.
 	fn is_empty(&self) -> Result<bool, Error>;
