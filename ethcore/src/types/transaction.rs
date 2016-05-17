@@ -16,13 +16,21 @@
 
 //! Transaction data structure.
 
-use util::*;
+use util::numbers::*;
+use std::ops::Deref;
+use util::rlp::*;
+use util::sha3::*;
+use util::{UtilError, CryptoError, Bytes, Signature, Secret, ec};
+use std::cell::*;
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Binary)]
 /// Transaction action type.
 pub enum Action {
 	/// Create creates new contract.
@@ -48,7 +56,7 @@ impl Decodable for Action {
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Binary)]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -183,7 +191,7 @@ impl Transaction {
 }
 
 /// Signed transaction information.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Binary)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
@@ -310,7 +318,7 @@ impl SignedTransaction {
 		}
 		try!(self.sender());
 		if self.gas < U256::from(self.gas_required(&schedule)) {
-			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas})))
+			Err(From::from(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas})))
 		} else {
 			Ok(self)
 		}
@@ -318,7 +326,7 @@ impl SignedTransaction {
 }
 
 /// Signed Transaction that is a part of canon blockchain.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Binary)]
 pub struct LocalizedTransaction {
 	/// Signed part.
 	pub signed: SignedTransaction,
@@ -340,7 +348,7 @@ impl Deref for LocalizedTransaction {
 
 #[test]
 fn sender_test() {
-	let t: SignedTransaction = decode(&FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+	let t: SignedTransaction = decode(&::rustc_serialize::hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
 	assert_eq!(t.data, b"");
 	assert_eq!(t.gas, U256::from(0x5208u64));
 	assert_eq!(t.gas_price, U256::from(0x01u64));
@@ -354,7 +362,7 @@ fn sender_test() {
 
 #[test]
 fn signing() {
-	let key = KeyPair::create().unwrap();
+	let key = ::util::crypto::KeyPair::create().unwrap();
 	let t = Transaction {
 		action: Action::Create,
 		nonce: U256::from(42),

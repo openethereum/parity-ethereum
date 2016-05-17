@@ -14,19 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Block status description module
 
-pub mod blockchain;
-mod best_block;
-mod block_info;
-mod bloom_indexer;
-mod cache;
-mod update;
-mod import_route;
-#[cfg(test)]
-mod generator;
+use ipc::binary::BinaryConvertError;
+use std::collections::VecDeque;
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
-pub use self::cache::CacheSize;
-pub use types::tree_route::TreeRoute;
-pub use self::import_route::ImportRoute;
+/// General block status
+#[derive(Debug, Eq, PartialEq, Binary)]
+pub enum BlockStatus {
+	/// Part of the blockchain.
+	InChain,
+	/// Queued for import.
+	Queued,
+	/// Known as bad.
+	Bad,
+	/// Unknown.
+	Unknown,
+}

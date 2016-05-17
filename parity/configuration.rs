@@ -37,6 +37,11 @@ pub struct Configuration {
 	pub args: Args
 }
 
+pub struct Directories {
+	pub keys: String,
+	pub db: String,
+}
+
 impl Configuration {
 	pub fn parse() -> Self {
 		Configuration {
@@ -58,11 +63,6 @@ impl Configuration {
 
 	fn max_peers(&self) -> u32 {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
-	}
-
-	pub fn path(&self) -> String {
-		let d = self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path);
-		d.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
 	pub fn author(&self) -> Address {
@@ -91,11 +91,18 @@ impl Configuration {
 					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
 				});
 				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
+					"auto" => PriceInfo::get().map_or_else(|| {
+						let last_known_good = 9.69696;
+						// TODO: use #1083 to read last known good value.
+						last_known_good
+					}, |x| x.ethusd),
 					"etherscan" => PriceInfo::get().map_or_else(|| {
 						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
 					}, |x| x.ethusd),
 					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
 				};
+				// TODO: use #1083 to write last known good value as use_per_eth.
+
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
@@ -111,14 +118,6 @@ impl Configuration {
 			None => version_data(),
 			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
 		}
-	}
-
-	pub fn keys_path(&self) -> String {
-		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
-	}
-
-	pub fn keys_iterations(&self) -> u32 {
-		self.args.flag_keys_iterations
 	}
 
 	pub fn spec(&self) -> Spec {
@@ -272,19 +271,18 @@ impl Configuration {
 		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
 	}
 
-	fn geth_ipc_path() -> &'static str {
-		if cfg!(target_os = "macos") {
-			"$HOME/Library/Ethereum/geth.ipc"
-		} else {
-			"$HOME/.ethereum/geth.ipc"
-		}
+	fn geth_ipc_path() -> String {
+		path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned()
+	}
+
+	pub fn keys_iterations(&self) -> u32 {
+		self.args.flag_keys_iterations
 	}
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
-			socket_addr: if self.args.flag_geth { Self::geth_ipc_path().to_owned() } else { self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()) }
-				.replace("$HOME", env::home_dir().unwrap().to_str().unwrap()),
+			socket_addr: self.ipc_path(),
 			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
 		}
 	}
@@ -300,6 +298,37 @@ impl Configuration {
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
+	}
+
+	pub fn directories(&self) -> Directories {
+		let db_path = Configuration::replace_home(
+			&self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
+		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
+
+		let keys_path = Configuration::replace_home(&self.args.flag_keys_path);
+		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
+
+		Directories {
+			keys: keys_path,
+			db: db_path,
+		}
+	}
+
+	pub fn keys_path(&self) -> String {
+		self.directories().keys
+	}
+
+	pub fn path(&self) -> String {
+		self.directories().db
+	}
+
+	fn replace_home(arg: &str) -> String {
+		arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	}
+
+	fn ipc_path(&self) -> String {
+		if self.args.flag_geth { Self::geth_ipc_path() }
+		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
 	}
 }
 

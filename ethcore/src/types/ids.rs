@@ -18,10 +18,13 @@
 
 use util::hash::H256;
 use header::BlockNumber;
-use util::bytes::{FromRawBytes, FromBytesError, ToBytesWithMap, Populatable};
+use ipc::binary::BinaryConvertError;
+use ipc::binary::BinaryConvertable;
+use std::mem;
+use std::collections::VecDeque;
 
 /// Uniquely identifies block.
-#[derive(Debug, PartialEq, Clone, Hash, Eq)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq, Binary)]
 pub enum BlockId {
 	/// Block's sha3.
 	/// Querying by hash is always faster.
@@ -35,7 +38,7 @@ pub enum BlockId {
 }
 
 /// Uniquely identifies transaction.
-#[derive(Debug, PartialEq, Clone, Hash, Eq)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq, Binary)]
 pub enum TransactionId {
 	/// Transaction's sha3.
 	Hash(H256),
@@ -53,13 +56,10 @@ pub struct TraceId {
 }
 
 /// Uniquely identifies Uncle.
+#[derive(Debug)]
 pub struct UncleId (
 	/// Block id.
 	pub BlockId,
 	/// Position in block.
 	pub usize
 );
-
-sized_binary_map!(TransactionId);
-sized_binary_map!(UncleId);
-sized_binary_map!(BlockId);

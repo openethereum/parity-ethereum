@@ -44,34 +44,8 @@ use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
-
-/// General block status
-#[derive(Debug, Eq, PartialEq)]
-pub enum BlockStatus {
-	/// Part of the blockchain.
-	InChain,
-	/// Queued for import.
-	Queued,
-	/// Known as bad.
-	Bad,
-	/// Unknown.
-	Unknown,
-}
-
-/// Information about the blockchain gathered together.
-#[derive(Debug)]
-pub struct BlockChainInfo {
-	/// Blockchain difficulty.
-	pub total_difficulty: U256,
-	/// Block queue difficulty.
-	pub pending_total_difficulty: U256,
-	/// Genesis block hash.
-	pub genesis_hash: H256,
-	/// Best blockchain block hash.
-	pub best_block_hash: H256,
-	/// Best blockchain block number.
-	pub best_block_number: BlockNumber
-}
+pub use types::blockchain_info::BlockChainInfo;
+pub use types::block_status::BlockStatus;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
