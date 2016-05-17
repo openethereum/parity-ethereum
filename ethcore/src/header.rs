@@ -61,7 +61,7 @@ pub struct Header {
 
 	/// Block difficulty.
 	pub difficulty: U256,
-	/// Block seal.
+	/// Vector of post-RLP-encoded fields.
 	pub seal: Vec<Bytes>,
 
 	/// The memoized hash of the RLP representation *including* the seal fields.
@@ -220,7 +220,7 @@ impl Header {
 		s.append(&self.extra_data);
 		if let Seal::With = with_seal {
 			for b in &self.seal {
-				s.append(b);
+				s.append_raw(&b, 1);
 			}
 		}
 	}
@@ -260,7 +260,7 @@ impl Decodable for Header {
 		};
 
 		for i in 13..r.item_count() {
-			blockheader.seal.push(try!(r.val_at(i)));
+			blockheader.seal.push(try!(r.at(i)).as_raw().to_vec())
 		}
 
 		Ok(blockheader)
@@ -283,8 +283,8 @@ mod tests {
 	fn test_header_seal_fields() {
 		// that's rlp of block header created with ethash engine.
 		let header_rlp = "f901f9a0d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a05fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25a088d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158a007c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302008003832fefba82524d84568e932a80a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd88ab4e252a7e8c2a23".from_hex().unwrap();
-		let mix_hash = "a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd".from_hex().unwrap();
-		let nonce = "ab4e252a7e8c2a23".from_hex().unwrap();
+		let mix_hash = "a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd".from_hex().unwrap();
+		let nonce = "88ab4e252a7e8c2a23".from_hex().unwrap();
 
 		let header: Header = decode(&header_rlp);
 		let seal_fields = header.seal;
