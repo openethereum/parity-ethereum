@@ -14,19 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Serving ProxyPac file
 
-pub mod blockchain;
-mod best_block;
-mod block_info;
-mod bloom_indexer;
-mod cache;
-mod update;
-mod import_route;
-#[cfg(test)]
-mod generator;
+use endpoint::{Endpoint, Handler, ContentHandler, EndpointPath};
+use apps::DAPPS_DOMAIN;
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
-pub use self::cache::CacheSize;
-pub use types::tree_route::TreeRoute;
-pub use self::import_route::ImportRoute;
+pub struct ProxyPac;
+
+impl ProxyPac {
+	pub fn boxed() -> Box<Endpoint> {
+		Box::new(ProxyPac)
+	}
+}
+
+impl Endpoint for ProxyPac {
+	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
+		let content = format!(
+r#"
+function FindProxyForURL(url, host) {{
+	if (shExpMatch(host, "*{0}"))
+	{{
+		return "PROXY {1}:{2}";
+	}}
+
+	return "DIRECT";
+}}
+"#,
+			DAPPS_DOMAIN, path.host, path.port);
+		Box::new(ContentHandler::new(content, "application/javascript".to_owned()))
+	}
+}
+
+

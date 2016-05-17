@@ -22,28 +22,38 @@ use hyper::header;
 use hyper::status::StatusCode;
 use hyper::net::HttpStream;
 use hyper::{Decoder, Encoder, Next};
-use endpoint::Endpoint;
+use endpoint::{Endpoint, EndpointPath};
 use parity_webapp::WebApp;
 
 pub struct PageEndpoint<T : WebApp + 'static> {
+	/// Content of the files
 	pub app: Arc<T>,
+	/// Prefix to strip from the path (when `None` deducted from `app_id`)
+	pub prefix: Option<String>,
 }
 
 impl<T: WebApp + 'static> PageEndpoint<T> {
 	pub fn new(app: T) -> Self {
 		PageEndpoint {
-			app: Arc::new(app)
+			app: Arc::new(app),
+			prefix: None,
+		}
+	}
+	pub fn with_prefix(app: T, prefix: String) -> Self {
+		PageEndpoint {
+			app: Arc::new(app),
+			prefix: Some(prefix),
 		}
 	}
 }
 
 impl<T: WebApp> Endpoint for PageEndpoint<T> {
-	fn to_handler(&self, prefix: &str) -> Box<server::Handler<HttpStream>> {
+	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<HttpStream>> {
 		Box::new(PageHandler {
 			app: self.app.clone(),
-			prefix: prefix.to_owned(),
-			prefix_with_slash: prefix.to_owned() + "/",
-			path: None,
+			prefix: self.prefix.clone(),
+			path: path,
+			file: None,
 			write_pos: 0,
 		})
 	}
@@ -51,21 +61,43 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 
 struct PageHandler<T: WebApp + 'static> {
 	app: Arc<T>,
-	prefix: String,
-	prefix_with_slash: String,
-	path: Option<String>,
+	prefix: Option<String>,
+	path: EndpointPath,
+	file: Option<String>,
 	write_pos: usize,
+}
+
+impl<T: WebApp + 'static> PageHandler<T> {
+	fn extract_path(&self, path: &str) -> String {
+		let app_id = &self.path.app_id;
+		let prefix = "/".to_owned() + self.prefix.as_ref().unwrap_or(app_id);
+		let prefix_with_slash = prefix.clone() + "/";
+
+		// Index file support
+		match path == "/" || path == &prefix || path == &prefix_with_slash {
+			true => "index.html".to_owned(),
+			false => if path.starts_with(&prefix_with_slash) {
+				path[prefix_with_slash.len()..].to_owned()
+			} else if path.starts_with("/") {
+				path[1..].to_owned()
+			} else {
+				path.to_owned()
+			}
+		}
+	}
 }
 
 impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 	fn on_request(&mut self, req: server::Request) -> Next {
-		if let RequestUri::AbsolutePath(ref path) = *req.uri() {
-			// Index file support
-			self.path = match path == &self.prefix || path == &self.prefix_with_slash {
-				true => Some("index.html".to_owned()),
-				false => Some(path[self.prefix_with_slash.len()..].to_owned()),
-			};
-		}
+		self.file = match *req.uri() {
+			RequestUri::AbsolutePath(ref path) => {
+				Some(self.extract_path(path))
+			},
+			RequestUri::AbsoluteUri(ref url) => {
+				Some(self.extract_path(url.path()))
+			},
+			_ => None,
+		};
 		Next::write()
 	}
 
@@ -74,7 +106,7 @@ impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 	}
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		if let Some(f) = self.path.as_ref().and_then(|f| self.app.file(f)) {
+		if let Some(f) = self.file.as_ref().and_then(|f| self.app.file(f)) {
 			res.set_status(StatusCode::Ok);
 			res.headers_mut().set(header::ContentType(f.content_type.parse().unwrap()));
 			Next::write()
@@ -86,7 +118,7 @@ impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		let (wrote, res) = {
-			let file = self.path.as_ref().and_then(|f| self.app.file(f));
+			let file = self.file.as_ref().and_then(|f| self.app.file(f));
 			match file {
 				None => (None, Next::end()),
 				Some(f) if self.write_pos == f.content.len() => (None, Next::end()),

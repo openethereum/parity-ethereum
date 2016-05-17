@@ -14,19 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+extern crate syntex;
+extern crate ethcore_ipc_codegen as codegen;
 
-pub mod blockchain;
-mod best_block;
-mod block_info;
-mod bloom_indexer;
-mod cache;
-mod update;
-mod import_route;
-#[cfg(test)]
-mod generator;
+use std::env;
+use std::path::Path;
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
-pub use self::cache::CacheSize;
-pub use types::tree_route::TreeRoute;
-pub use self::import_route::ImportRoute;
+fn main() {
+	let out_dir = env::var_os("OUT_DIR").unwrap();
+	// serialization pass
+	{
+		let src = Path::new("src/types/mod.rs.in");
+		let dst = Path::new(&out_dir).join("types.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
+}

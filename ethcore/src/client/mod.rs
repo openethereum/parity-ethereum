@@ -18,13 +18,12 @@
 
 mod client;
 mod config;
-mod ids;
 mod test_client;
 mod trace;
 
 pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch};
-pub use self::ids::{BlockId, TransactionId, UncleId, TraceId};
+pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::trace::Filter as TraceFilter;
 pub use executive::{Executed, Executive, TransactOptions};
@@ -42,7 +41,7 @@ use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use error::{ImportResult, Error};
+use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use engine::{Engine};
 use trace::LocalizedTrace;
@@ -133,7 +132,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
 
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
 
 	/// Attempt to seal the block internally. See `Engine`.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { self.engine().generate_seal(block, accounts) }

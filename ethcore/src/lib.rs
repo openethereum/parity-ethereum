@@ -27,6 +27,10 @@
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
 // In most cases it expresses function flow better
 #![cfg_attr(feature="dev", allow(if_not_else))]
+// TODO [todr] a lot of warnings to be fixed
+#![cfg_attr(feature="dev", allow(needless_borrow))]
+#![cfg_attr(feature="dev", allow(assign_op_pattern))]
+
 
 //! Ethcore library
 //!
@@ -85,6 +89,7 @@ extern crate num_cpus;
 extern crate crossbeam;
 extern crate ethjson;
 extern crate bloomchain;
+#[macro_use] extern crate ethcore_ipc as ipc;
 
 #[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
@@ -98,12 +103,9 @@ pub mod ethereum;
 pub mod filter;
 pub mod header;
 pub mod service;
-pub mod log_entry;
 pub mod trace;
 pub mod spec;
-pub mod transaction;
 pub mod views;
-pub mod receipt;
 pub mod pod_state;
 
 mod db;
@@ -128,9 +130,12 @@ mod executive;
 mod externalities;
 mod verification;
 mod blockchain;
+mod types;
 
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 #[cfg(feature="json-tests")]
 mod json_tests;
+
+pub use types::*;

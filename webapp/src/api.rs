@@ -16,12 +16,8 @@
 
 //! Simple REST API
 
-use std::io::Write;
 use std::sync::Arc;
-use hyper::status::StatusCode;
-use hyper::{header, server, Decoder, Encoder, Next};
-use hyper::net::HttpStream;
-use endpoint::{Endpoint, Endpoints};
+use endpoint::{Endpoint, Endpoints, ContentHandler, Handler, EndpointPath};
 
 pub struct RestApi {
 	endpoints: Arc<Endpoints>,
@@ -46,49 +42,8 @@ impl RestApi {
 }
 
 impl Endpoint for RestApi {
-	fn to_handler(&self, _prefix: &str) -> Box<server::Handler<HttpStream>> {
-		Box::new(RestApiHandler {
-			pages: self.list_pages(),
-			write_pos: 0,
-		})
+	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
+		Box::new(ContentHandler::new(self.list_pages(), "application/json".to_owned()))
 	}
 }
 
-struct RestApiHandler {
-	pages: String,
-	write_pos: usize,
-}
-
-impl server::Handler<HttpStream> for RestApiHandler {
-	fn on_request(&mut self, _request: server::Request) -> Next {
-		Next::write()
-	}
-
-	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
-		Next::write()
-	}
-
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		res.set_status(StatusCode::Ok);
-		res.headers_mut().set(header::ContentType("application/json".parse().unwrap()));
-		Next::write()
-	}
-	
-	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		let bytes = self.pages.as_bytes();
-		if self.write_pos == bytes.len() {
-			return Next::end();
-		}
-
-		match encoder.write(&bytes[self.write_pos..]) {
-			Ok(bytes) => {
-				self.write_pos += bytes;
-				Next::write()
-			},
-			Err(e) => match e.kind() {
-				::std::io::ErrorKind::WouldBlock => Next::write(),
-				_ => Next::end()
-			},
-		}
-	}
-}

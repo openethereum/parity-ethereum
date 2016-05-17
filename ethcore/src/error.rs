@@ -20,47 +20,7 @@ use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 
-/// Result of executing the transaction.
-#[derive(PartialEq, Debug)]
-pub enum ExecutionError {
-	/// Returned when there gas paid for transaction execution is
-	/// lower than base gas required.
-	NotEnoughBaseGas {
-		/// Absolute minimum gas required.
-		required: U256,
-		/// Gas provided.
-		got: U256
-	},
-	/// Returned when block (gas_used + gas) > gas_limit.
-	///
-	/// If gas =< gas_limit, upstream may try to execute the transaction
-	/// in next block.
-	BlockGasLimitReached {
-		/// Gas limit of block for transaction.
-		gas_limit: U256,
-		/// Gas used in block prior to transaction.
-		gas_used: U256,
-		/// Amount of gas in block.
-		gas: U256
-	},
-	/// Returned when transaction nonce does not match state nonce.
-	InvalidNonce {
-		/// Nonce expected.
-		expected: U256,
-		/// Nonce found.
-		got: U256
-	},
-	/// Returned when cost of transaction (value + gas_price * gas) exceeds
-	/// current sender balance.
-	NotEnoughCash {
-		/// Minimum required balance.
-		required: U512,
-		/// Actual balance.
-		got: U512
-	},
-	/// Returned when internal evm error occurs.
-	Internal
-}
+pub use types::executed::ExecutionError;
 
 #[derive(Debug, PartialEq)]
 /// Errors concerning transaction processing.
