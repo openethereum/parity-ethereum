@@ -171,7 +171,7 @@ impl Configuration {
 		let (listen, public) = self.net_addresses();
 		ret.listen_address = listen;
 		ret.public_address = public;
-		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).unwrap_or_else(|_| s.sha3()));
+		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(s).unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.ideal_peers = self.max_peers();
 		let mut net_path = PathBuf::from(&self.path());
@@ -185,7 +185,7 @@ impl Configuration {
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
-			let db = journaldb::new(&append_path(&get_db_path(&Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
@@ -251,7 +251,7 @@ impl Configuration {
 		let account_service = AccountService::with_security(Path::new(&self.keys_path()), self.keys_iterations());
 		if let Some(ref unlocks) = self.args.flag_unlock {
 			for d in unlocks.split(',') {
-				let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
+				let a = Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
 					die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
 				});
 				if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
@@ -302,7 +302,7 @@ impl Configuration {
 
 	pub fn directories(&self) -> Directories {
 		let db_path = Configuration::replace_home(
-			&self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
+			self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
 		let keys_path = Configuration::replace_home(&self.args.flag_keys_path);

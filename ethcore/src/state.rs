@@ -358,8 +358,6 @@ mod tests {
 
 use super::*;
 use util::common::*;
-use util::trie::*;
-use util::rlp::*;
 use account::*;
 use tests::helpers::*;
 use devtools::*;

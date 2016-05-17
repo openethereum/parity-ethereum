@@ -200,7 +200,6 @@ mod tests {
 	use super::*;
 	use common::*;
 	use block::*;
-	use engine::*;
 	use tests::helpers::*;
 	use util::keys::{TestAccountProvider, TestAccount};
 
