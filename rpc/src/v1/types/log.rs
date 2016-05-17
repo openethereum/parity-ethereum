@@ -18,7 +18,7 @@ use util::numbers::*;
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use v1::types::Bytes;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq, Hash, Clone)]
 pub struct Log {
 	pub address: Address,
 	pub topics: Vec<H256>,

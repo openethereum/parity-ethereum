@@ -615,7 +615,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 			.and_then(|(filter,)| {
 				let mut polls = self.polls.lock().unwrap();
 				let block_number = take_weak!(self.client).chain_info().best_block_number;
-				let id = polls.create_poll(PollFilter::Logs(block_number, filter));
+				let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
 				to_value(&U256::from(id))
 			})
 	}
@@ -678,23 +678,50 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 
 							to_value(&diff)
 						},
-						PollFilter::Logs(ref mut block_number, ref filter) => {
+						PollFilter::Logs(ref mut block_number, ref mut previous_logs, ref filter) => {
+							// retrive the current block number
+							let current_number = client.chain_info().best_block_number;
+
+							// check if we already polled from given block_number
+							let already_polled = &current_number == block_number;
+
+							// check if we need to check pending hashes
 							let include_pending = filter.to_block == Some(BlockNumber::Pending);
+
+							// build appropriate filter
 							let mut filter: EthcoreFilter = filter.clone().into();
 							filter.from_block = BlockId::Number(*block_number);
 							filter.to_block = BlockId::Latest;
+
+							// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 							let mut logs = client.logs(filter.clone())
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
 
+							// additionally retrieve pending logs
 							if include_pending {
-								logs.extend(try!(self.pending_logs(&filter)));
+								let pending_logs = try!(self.pending_logs(&filter));
+
+								// remove logs about which client was already notified about
+								let new_pending_logs = match already_polled {
+									true => pending_logs.iter()
+										.filter(|p| !previous_logs.contains(p))
+										.cloned()
+										.collect(),
+									false => pending_logs.clone()
+								};
+
+								// save hashes of all logs retrieved by client
+								*previous_logs = pending_logs.into_iter().collect();
+
+								// append logs array with new pending logs
+								logs.extend(new_pending_logs);
 							}
 
-							let current_number = client.chain_info().best_block_number;
-
+							// save current block number as next from block number
 							*block_number = current_number;
+
 							to_value(&logs)
 						}
 					}
@@ -707,7 +734,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 			.and_then(|(index,)| {
 				let mut polls = self.polls.lock().unwrap();
 				match polls.poll(&index.value()) {
-					Some(&PollFilter::Logs(ref _block_number, ref filter)) => {
+					Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
 						let include_pending = filter.to_block == Some(BlockNumber::Pending);
 						let filter: EthcoreFilter = filter.clone().into();
 						let mut logs = take_weak!(self.client).logs(filter.clone())
