@@ -2,7 +2,7 @@
 name = "parity"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.67 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/ethcore/rust-ctrlc.git)",
  "daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -119,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "clippy"
-version = "0.0.64"
+version = "0.0.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "quine-mc_cluskey 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -146,11 +146,6 @@ dependencies = [
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "crossbeam"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "crossbeam"
@@ -235,8 +230,8 @@ name = "ethcore"
 version = "1.2.0"
 dependencies = [
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
- "crossbeam 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.67 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.2.0",
  "ethcore-devtools 1.2.0",
@@ -296,7 +291,7 @@ dependencies = [
 name = "ethcore-rpc"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.67 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.2.0",
  "ethcore 1.2.0",
  "ethcore-util 1.2.0",
@@ -321,7 +316,7 @@ dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "bigint 0.1.0",
  "chrono 0.2.22 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.67 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -354,7 +349,7 @@ dependencies = [
 name = "ethcore-webapp"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.67 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-rpc 1.2.0",
  "ethcore-util 1.2.0",
  "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
@@ -384,7 +379,7 @@ dependencies = [
 name = "ethminer"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.67 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.2.0",
  "ethcore-util 1.2.0",
@@ -398,7 +393,7 @@ dependencies = [
 name = "ethsync"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.67 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.2.0",
  "ethcore-util 1.2.0",
