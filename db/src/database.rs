@@ -33,7 +33,7 @@ impl From<String> for Error {
 
 pub struct Database {
 	db: RwLock<Option<DB>>,
-	is_open: Mutex<bool>,
+	is_open: RwLock<bool>,
 	transactions: RwLock<HashMap<TransactionHandle, WriteBatch>>,
 	iterators: RwLock<HashMap<IteratorHandle, DBIterator<'static>>>,
 }
@@ -42,7 +42,7 @@ impl Database {
 	fn new() -> Database {
 		Database {
 			db: RwLock::new(None),
-			is_open: Mutex::new(false),
+			is_open: RwLock::new(false),
 			transactions: RwLock::new(HashMap::new()),
 			iterators: RwLock::new(HashMap::new()),
 		}
@@ -50,13 +50,34 @@ impl Database {
 }
 
 impl DatabaseService for Database {
-	fn open(&self, path: String) -> Result<(), Error> {
-		if *self.is_open.lock().unwrap() { return Err(Error::AlreadyOpen); }
+	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error> {
+		let mut is_open = self.is_open.write().unwrap();
+		if *is_open { return Err(Error::AlreadyOpen); }
+
+		let mut db = self.db.write().unwrap();
+		let mut opts = Options::new();
+		opts.set_max_open_files(256);
+		opts.create_if_missing(true);
+		opts.set_use_fsync(false);
+		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
+		if let Some(size) = config.prefix_size {
+			let mut block_opts = BlockBasedOptions::new();
+			block_opts.set_index_type(IndexType::HashSearch);
+			opts.set_block_based_table_factory(&block_opts);
+			opts.set_prefix_extractor_fixed_size(size);
+		}
+		*db = Some(try!(DB::open(&opts, &path)));
+
+		*is_open = true;
 		Ok(())
 	}
 
 	fn close(&self) -> Result<(), Error> {
-		if *self.is_open.lock().unwrap() { return Err(Error::IsClosed); }
+		let mut is_open = self.is_open.write().unwrap();
+		if *is_open { return Err(Error::IsClosed); }
+
+		// TODO: wait for transactions to expire/close and destroy self.db?
+		*is_open = false;
 		Ok(())
 	}
 
@@ -177,10 +198,20 @@ mod test {
 
 	use super::Database;
 	use traits::*;
+	use devtools::*;
 
 	#[test]
 	fn can_be_created() {
 		let db = Database::new();
 		assert!(db.is_empty().is_err());
+	}
+
+	#[test]
+	fn can_be_open_empty() {
+		let db = Database::new();
+		let path = RandomTempPath::create_dir();
+		db.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned());
+
+		assert!(db.is_empty().is_ok());
 	}
 }

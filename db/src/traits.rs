@@ -16,9 +16,15 @@ pub enum Error {
 	IteratorUnknown,
 }
 
+/// Database configuration
+pub struct DatabaseConfig {
+	/// Optional prefix size in bytes. Allows lookup by partial key.
+	pub prefix_size: Option<usize>
+}
+
 pub trait DatabaseService {
 	/// Opens database in the specified path
-	fn open(&self, path: String) -> Result<(), Error>;
+	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error>;
 
 	/// Closes database
 	fn close(&self) -> Result<(), Error>;

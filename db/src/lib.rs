@@ -16,6 +16,7 @@
 
 extern crate ethcore_ipc as ipc;
 extern crate rocksdb;
+extern crate ethcore_devtools as devtools;
 
 pub mod database;
 pub mod traits;
