@@ -1,0 +1,20 @@
+[package]
+description = "Ethcore Database"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "ethcore-db"
+version = "1.2.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[build-dependencies]
+syntex = "*"
+"ethcore-ipc-codegen" = { path = "../ipc/codegen" }
+
+[dependencies]
+ethcore-util = { path = "../util" }
+clippy = { version = "0.0.67", optional = true}
+ethcore-devtools = { path = "../devtools" }
+"ethcore-ipc" = { path = "../ipc/rpc" }
+
+[features]
+dev = ["clippy"]
