@@ -70,6 +70,4 @@ pub trait DatabaseService {
 
 	/// Next key-value for the the given iterator
 	fn iter_next(&self, iterator: IteratorHandle) -> Option<KeyValue>;
-
-	fn test(&self) -> Result<(), H2048>;
 }

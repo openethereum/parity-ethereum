@@ -198,11 +198,6 @@ impl DatabaseService for Database {
 
 		next_transaction
 	}
-
-	fn test(&self) -> Result<(), H2048> {
-		use util::hash::FixedHash;
-		Ok(())
-	}
 }
 
 // TODO : put proper at compile-time
@@ -320,7 +315,7 @@ mod client_tests {
 		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
 
 		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
-		assert!(client.iter_next(2).is_none());
+		assert!(client.is_empty().unwrap());
 		worker_should_exit.store(true, Ordering::Relaxed);
 	}
 }

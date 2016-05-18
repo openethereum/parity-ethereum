@@ -104,8 +104,8 @@ impl<R: BinaryConvertable, E: BinaryConvertable> BinaryConvertable for Result<R,
 
 	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
 		match *self {
-			Ok(ref r) => Ok(try!(r.to_bytes(buffer, length_stack))),
-			Err(ref e) => Ok(try!(e.to_bytes(buffer, length_stack))),
+			Ok(ref r) => { buffer[0] = 0; Ok(try!(r.to_bytes(&mut buffer[1..], length_stack))) },
+			Err(ref e) => { buffer[1] = 1; Ok(try!(e.to_bytes(&mut buffer[1..], length_stack))) },
 		}
 	}
 
