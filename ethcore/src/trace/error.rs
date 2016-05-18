@@ -19,9 +19,9 @@
 use std::fmt::{Display, Formatter, Error as FmtError};
 
 const RESYNC_ERR: &'static str =
-"Your current parity installation has synced without transaction tracing. To use
-Parity with transaction tracing, you'll need to resync with tracing. To do this, remove or move away your current
-database and restart parity. e.g.:
+"Your current parity installation has synced without transaction tracing.
+To use Parity with transaction tracing, you'll need to resync with tracing.
+To do this, remove or move away your current database and restart parity. e.g.:
 
 > mv ~/.parity/906a34e69aec8c0d /tmp
 > parity";
