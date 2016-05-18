@@ -42,3 +42,17 @@ pub enum EnumWithStruct {
 	Left,
 	Right { how_much: u64 },
 }
+
+#[derive(Binary)]
+pub struct TwoVec {
+	v1: Vec<u8>,
+	v2: Vec<u8>,
+}
+
+#[test]
+fn opt_two_vec() {
+	let example: Option<TwoVec> = None;
+
+	let serialized = ::ipc::binary::serialize(&example).unwrap();
+	assert_eq!(serialized, vec![0u8; 16]);
+}

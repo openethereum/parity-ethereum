@@ -27,6 +27,7 @@ use std::ops::*;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
+use util::numbers::H2048;
 
 impl From<String> for Error {
 	fn from(s: String) -> Error {
@@ -38,7 +39,7 @@ pub struct Database {
 	db: RwLock<Option<DB>>,
 	is_open: RwLock<bool>,
 	transactions: RwLock<HashMap<TransactionHandle, WriteBatch>>,
-	iterators: RwLock<HashMap<IteratorHandle, DBIterator<'static>>>,
+	iterators: RwLock<HashMap<IteratorHandle, DBIterator>>,
 }
 
 impl Database {
@@ -130,7 +131,7 @@ impl DatabaseService for Database {
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
-		let mut iter = db.iterator(IteratorMode::From(prefix, Direction::forward));
+		let mut iter = db.iterator(IteratorMode::From(prefix, Direction::Forward));
 		match iter.next() {
 			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
 			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Ok(Some(v.to_vec())) } else { Ok(None) },
@@ -196,6 +197,11 @@ impl DatabaseService for Database {
 		transactions.insert(next_transaction, WriteBatch::new());
 
 		next_transaction
+	}
+
+	fn test(&self) -> Option<H2048> {
+		use util::hash::FixedHash;
+		Some(H2048::zero())
 	}
 }
 
@@ -291,6 +297,9 @@ mod client_tests {
 
 	#[test]
 	fn can_open_db() {
+		use util::numbers::H2048;
+		use util::hash::FixedHash;
+
 		let url = "ipc:///tmp/parity-db-ipc-test-20.ipc";
 		let path = RandomTempPath::create_dir();
 
@@ -312,7 +321,10 @@ mod client_tests {
 
 		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
 		assert!(client.is_empty().is_ok());
+		assert!(client.iter_next(2).is_none());
 		worker_should_exit.store(true, Ordering::Relaxed);
+
+//		assert_eq!(client.test(), Some(H2048::zero()));
 
 	}
 }

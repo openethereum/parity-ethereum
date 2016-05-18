@@ -16,7 +16,7 @@ ethcore-util = { path = "../util" }
 clippy = { version = "0.0.67", optional = true}
 ethcore-devtools = { path = "../devtools" }
 "ethcore-ipc" = { path = "../ipc/rpc" }
-rocksdb = { path = "../../rust-rocksdb" }
+rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
 semver = "0.2"
 ethcore-ipc-nano = { path = "../ipc/nano" }
 
