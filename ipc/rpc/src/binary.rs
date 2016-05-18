@@ -581,3 +581,16 @@ fn serialize_opt_vec() {
 
 	assert_eq!(0, buff.get_ref()[2]);
 }
+
+#[test]
+fn deserialize_opt_vec() {
+	use std::io::Cursor;
+    let mut buff = Cursor::new(vec![
+		0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+		0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+	]);
+
+	let vec = deserialize_from::<Option<Vec<u8>>, _>(&mut buff).unwrap();
+
+	assert!(vec.is_none());
+}
