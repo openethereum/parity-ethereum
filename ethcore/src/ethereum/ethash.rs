@@ -21,7 +21,7 @@ use common::*;
 use block::*;
 use spec::CommonParams;
 use engine::*;
-use evm::{Schedule, Factory};
+use evm::Schedule;
 use ethjson;
 
 /// Ethash params.
@@ -64,7 +64,6 @@ pub struct Ethash {
 	ethash_params: EthashParams,
 	builtins: BTreeMap<Address, Builtin>,
 	pow: EthashManager,
-	factory: Factory,
 }
 
 impl Ethash {
@@ -75,7 +74,6 @@ impl Ethash {
 			ethash_params: ethash_params,
 			builtins: builtins,
 			pow: EthashManager::new(),
-			factory: Factory::default(),
 		}
 	}
 }
@@ -95,10 +93,6 @@ impl Engine for Ethash {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> HashMap<String, String> {
 		hash_map!["nonce".to_owned() => format!("0x{}", header.nonce().hex()), "mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())]
-	}
-
-	fn vm_factory(&self) -> &Factory {
-		&self.factory
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
@@ -313,7 +307,8 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
+		let vm_factory = Default::default();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -327,7 +322,8 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let mut b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
+		let vm_factory = Default::default();
+		let mut b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let mut uncle = Header::new();
 		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 		uncle.author = uncle_author.clone();
@@ -343,12 +339,6 @@ mod tests {
 		let engine = new_morden().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
-	}
-
-	#[test]
-	fn can_return_factory() {
-		let engine = new_morden().engine;
-		engine.vm_factory();
 	}
 
 	#[test]

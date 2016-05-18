@@ -27,6 +27,7 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use extras::BlockReceipts;
 use error::{ImportResult};
+use evm::Factory as EvmFactory;
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
@@ -431,6 +432,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn engine(&self) -> &Engine {
+		unimplemented!();
+	}
+
+	fn vm_factory(&self) -> &EvmFactory {
 		unimplemented!();
 	}
 

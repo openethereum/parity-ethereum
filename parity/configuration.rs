@@ -26,7 +26,7 @@ use die::*;
 use util::*;
 use util::keys::store::AccountService;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig, Switch};
+use ethcore::client::{append_path, get_db_path, ClientConfig, Switch, VMType};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -201,6 +201,7 @@ impl Configuration {
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
+
 		match self.args.flag_cache {
 			Some(mb) => {
 				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
@@ -211,12 +212,14 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
+
 		client_config.tracing.enabled = match self.args.flag_tracing.as_str() {
 			"auto" => Switch::Auto,
 			"on" => Switch::On,
 			"off" => Switch::Off,
 			_ => { die!("Invalid tracing method given!") }
 		};
+
 		client_config.pruning = match self.args.flag_pruning.as_str() {
 			"archive" => journaldb::Algorithm::Archive,
 			"light" => journaldb::Algorithm::EarlyMerge,
@@ -225,6 +228,11 @@ impl Configuration {
 			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
+
+		if self.args.flag_jitvm {
+			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
+		}
+
 		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
