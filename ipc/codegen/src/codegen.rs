@@ -33,7 +33,6 @@ use syntax::ast::{
 use syntax::ast;
 use syntax::codemap::Span;
 use syntax::ext::base::{Annotatable, ExtCtxt};
-use syntax::ext::build::AstBuilder;
 use syntax::ptr::P;
 
 pub struct Error;

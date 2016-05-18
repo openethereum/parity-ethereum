@@ -27,7 +27,7 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::bytes::{ToPretty};
-use util::rlp::{encode, UntrustedRlp, View};
+use util::rlp::{encode, decode, UntrustedRlp, View};
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
@@ -97,7 +97,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					timestamp: U256::from(view.timestamp()),
 					difficulty: view.difficulty(),
 					total_difficulty: total_difficulty,
-					seal_fields: view.seal().into_iter().map(Bytes::new).collect(),
+					seal_fields: view.seal().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
 					uncles: block_view.uncle_hashes(),
 					transactions: {
 						if include_txs {
@@ -142,7 +142,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					total_difficulty: uncle.difficulty + parent_difficulty,
 					receipts_root: uncle.receipts_root,
 					extra_data: Bytes::new(uncle.extra_data),
-					seal_fields: uncle.seal.into_iter().map(Bytes::new).collect(),
+					seal_fields: uncle.seal.into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
 					uncles: vec![],
 					transactions: BlockTransactions::Hashes(vec![]),
 				};

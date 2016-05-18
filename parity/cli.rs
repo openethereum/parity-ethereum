@@ -140,6 +140,9 @@ Footprint Options:
                            the entire system, overrides other cache and queue
                            options.
 
+Virtual Machine Options:
+  --jitvm                  Enable the JIT VM.
+
 Legacy Options:
   --geth                   Run in Geth-compatibility mode. Currently just sets
                            the IPC path to be the same as Geth's. Overrides
@@ -222,6 +225,7 @@ pub struct Args {
 	pub flag_tx_limit: usize,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
+	pub flag_jitvm: bool,
 	// legacy...
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,

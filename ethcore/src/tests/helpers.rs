@@ -19,7 +19,7 @@ use common::*;
 use spec::*;
 use blockchain::{BlockChain, BlockChainConfig};
 use state::*;
-use evm::{Schedule, Factory};
+use evm::Schedule;
 use engine::*;
 use ethereum;
 use devtools::*;
@@ -51,15 +51,13 @@ impl<T> GuardedTempResult<T> {
 }
 
 pub struct TestEngine {
-	factory: Factory,
 	engine: Box<Engine>,
 	max_depth: usize
 }
 
 impl TestEngine {
-	pub fn new(max_depth: usize, factory: Factory) -> TestEngine {
+	pub fn new(max_depth: usize) -> TestEngine {
 		TestEngine {
-			factory: factory,
 			engine: ethereum::new_frontier_test().engine,
 			max_depth: max_depth
 		}
@@ -77,10 +75,6 @@ impl Engine for TestEngine {
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
 		self.engine.builtins()
-	}
-
-	fn vm_factory(&self) -> &Factory {
-		&self.factory
 	}
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {

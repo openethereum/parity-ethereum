@@ -58,6 +58,7 @@ impl<'a, T> TestExt<'a, T> where T: 'a + Tracer {
 	fn new(state: &'a mut State,
 			   info: &'a EnvInfo,
 			   engine: &'a Engine,
+			   vm_factory: &'a Factory,
 			   depth: usize,
 			   origin_info: OriginInfo,
 			   substate: &'a mut Substate,
@@ -66,7 +67,7 @@ impl<'a, T> TestExt<'a, T> where T: 'a + Tracer {
 			   tracer: &'a mut T) -> Self {
 		TestExt {
 			contract_address: contract_address(&address, &state.nonce(&address)),
-			ext: Externalities::new(state, info, engine, depth, origin_info, substate, output, tracer),
+			ext: Externalities::new(state, info, engine, vm_factory, depth, origin_info, substate, output, tracer),
 			callcreates: vec![]
 		}
 	}
@@ -179,7 +180,8 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		let mut state = state_result.reference_mut();
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
-		let engine = TestEngine::new(1, Factory::new(vm_type.clone()));
+		let engine = TestEngine::new(1);
+		let vm_factory = Factory::new(vm_type.clone());
 		let params = ActionParams::from(vm.transaction);
 
 		let mut substate = Substate::new();
@@ -192,6 +194,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				&mut state,
 				&info,
 				&engine,
+				&vm_factory,
 				0,
 				OriginInfo::from(&params),
 				&mut substate,
@@ -199,7 +202,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				params.address.clone(),
 				&mut tracer,
 			);
-			let evm = engine.vm_factory().create();
+			let evm = vm_factory.create();
 			let res = evm.exec(params, &mut ex);
 			(res, ex.callcreates)
 		};
