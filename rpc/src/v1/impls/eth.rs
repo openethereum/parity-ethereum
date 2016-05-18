@@ -28,7 +28,7 @@ use util::numbers::*;
 use util::sha3::*;
 use util::bytes::{ToPretty};
 use util::rlp::{encode, UntrustedRlp, View};
-use ethcore::client::*;
+use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
