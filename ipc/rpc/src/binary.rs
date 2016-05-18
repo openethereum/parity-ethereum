@@ -594,3 +594,17 @@ fn deserialize_opt_vec() {
 
 	assert!(vec.is_none());
 }
+
+#[test]
+fn deserialize_opt_vec_in_out() {
+	use std::io::{Cursor, SeekFrom, Seek};
+
+	let mut buff = Cursor::new(vec![0; 128]);
+	let optional_vec: Option<Vec<u8>> = None;
+	serialize_into(&optional_vec, &mut buff).unwrap();
+
+	buff.seek(SeekFrom::Start(0)).unwrap();
+	let vec = deserialize_from::<Option<Vec<u8>>, _>(&mut buff).unwrap();
+
+	assert!(vec.is_none());
+}
