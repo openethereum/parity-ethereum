@@ -16,7 +16,7 @@
 
 //! TraceDB errors.
 
-use std::fmt::{Debug, Display, Formatter, Error as FmtError};
+use std::fmt::{Display, Formatter, Error as FmtError};
 
 const RESYNC_ERR: &'static str =
 "Your current parity installation has synced without transaction tracing. To use
@@ -27,18 +27,11 @@ database and restart parity. e.g.:
 > parity";
 
 /// TraceDB errors.
+#[derive(Debug)]
 pub enum Error {
 	/// Returned when tracing is enabled,
 	/// but database does not contain traces of old transactions.
 	ResyncRequired,
-}
-
-/// TODO: replace `Debug` with default implementation,
-/// once we stop using it to display errors to user.
-impl Debug for Error {
-	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
-		write!(f, "{}", RESYNC_ERR)
-	}
 }
 
 impl Display for Error {
