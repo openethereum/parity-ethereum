@@ -22,6 +22,11 @@ use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator,
 use std::collections::HashMap;
 use std::sync::{RwLock};
 use std::convert::From;
+use ipc::IpcConfig;
+use std::ops::*;
+use std::mem;
+use ipc::binary::BinaryConvertError;
+use std::collections::VecDeque;
 
 impl From<String> for Error {
 	fn from(s: String) -> Error {
@@ -47,6 +52,7 @@ impl Database {
 	}
 }
 
+#[derive(Ipc)]
 impl DatabaseService for Database {
 	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error> {
 		let mut is_open = self.is_open.write().unwrap();
@@ -193,6 +199,9 @@ impl DatabaseService for Database {
 	}
 }
 
+// TODO : put proper at compile-time
+impl IpcConfig for Database {}
+
 
 #[cfg(test)]
 mod test {
@@ -236,5 +245,74 @@ mod test {
 
 		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned()).unwrap();
 		assert_eq!(db.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
+	}
+}
+
+#[cfg(test)]
+mod client_tests {
+	use super::{DatabaseClient, Database};
+	use traits::*;
+	use devtools::*;
+	use nanoipc;
+	use std::sync::Arc;
+	use std::io::Write;
+	use std::sync::atomic::{Ordering, AtomicBool};
+
+	fn init_worker(addr: &str) -> nanoipc::Worker<Database> {
+		let mut worker = nanoipc::Worker::<Database>::new(&Arc::new(Database::new()));
+		worker.add_duplex(addr).unwrap();
+		worker
+	}
+
+	#[test]
+	fn can_call_handshake() {
+		let url = "ipc:///tmp/parity-db-ipc-test-10.ipc";
+		let worker_should_exit = Arc::new(AtomicBool::new(false));
+		let worker_is_ready = Arc::new(AtomicBool::new(false));
+		let c_worker_should_exit = worker_should_exit.clone();
+		let c_worker_is_ready = worker_is_ready.clone();
+
+		::std::thread::spawn(move || {
+			let mut worker = init_worker(url);
+    		while !c_worker_should_exit.load(Ordering::Relaxed) {
+				worker.poll();
+				c_worker_is_ready.store(true, Ordering::Relaxed);
+			}
+		});
+
+		while !worker_is_ready.load(Ordering::Relaxed) { }
+		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
+
+		let hs = client.handshake();
+
+		worker_should_exit.store(true, Ordering::Relaxed);
+		assert!(hs.is_ok());
+	}
+
+	#[test]
+	fn can_open_db() {
+		let url = "ipc:///tmp/parity-db-ipc-test-20.ipc";
+		let path = RandomTempPath::create_dir();
+
+		let worker_should_exit = Arc::new(AtomicBool::new(false));
+		let worker_is_ready = Arc::new(AtomicBool::new(false));
+		let c_worker_should_exit = worker_should_exit.clone();
+		let c_worker_is_ready = worker_is_ready.clone();
+
+		::std::thread::spawn(move || {
+			let mut worker = init_worker(url);
+    		while !c_worker_should_exit.load(Ordering::Relaxed) {
+				worker.poll();
+				c_worker_is_ready.store(true, Ordering::Relaxed);
+			}
+		});
+
+		while !worker_is_ready.load(Ordering::Relaxed) { }
+		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
+
+		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+
+		worker_should_exit.store(true, Ordering::Relaxed);
+		assert!(client.is_empty().is_ok());
 	}
 }

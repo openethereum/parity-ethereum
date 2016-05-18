@@ -1,14 +1,20 @@
 //! Ethcore database trait
 
+use ipc::BinaryConvertable;
+use std::mem;
+use ipc::binary::BinaryConvertError;
+use std::collections::VecDeque;
+
 pub type TransactionHandle = u32;
 pub type IteratorHandle = u32;
 
+#[derive(Binary)]
 pub struct KeyValue {
 	pub key: Vec<u8>,
 	pub value: Vec<u8>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Binary)]
 pub enum Error {
 	AlreadyOpen,
 	IsClosed,
@@ -18,6 +24,7 @@ pub enum Error {
 }
 
 /// Database configuration
+#[derive(Binary)]
 pub struct DatabaseConfig {
 	/// Optional prefix size in bytes. Allows lookup by partial key.
 	pub prefix_size: Option<usize>
