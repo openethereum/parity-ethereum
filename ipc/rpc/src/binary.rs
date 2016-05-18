@@ -67,7 +67,7 @@ impl<T> BinaryConvertable for Option<T> where T: BinaryConvertable {
 
 impl<E: BinaryConvertable> BinaryConvertable for Result<(), E> {
 	fn size(&self) -> usize {
-		1usize + match *self {
+		match *self {
 			Ok(_) => 0,
 			Err(ref e) => e.size(),
 		}
@@ -75,17 +75,17 @@ impl<E: BinaryConvertable> BinaryConvertable for Result<(), E> {
 
 	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
 		match *self {
-			Ok(_) => Ok(()),
+			Ok(_) => Err(BinaryConvertError),
 			Err(ref e) => Ok(try!(e.to_bytes(buffer, length_stack))),
 		}
 	}
 
 	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
-		match buffer[0] {
-			0 => Ok(Ok(())),
-			1 => Ok(Err(try!(E::from_bytes(&buffer[1..], length_stack)))),
-			_ => Err(BinaryConvertError)
-		}
+		Ok(Err(try!(E::from_bytes(&buffer, length_stack))))
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(Ok(()))
 	}
 
 	fn len_params() -> usize {
@@ -551,7 +551,7 @@ fn deserialize_from_ok() {
 fn serialize_into_deserialize_from() {
 	use std::io::{Cursor, SeekFrom, Seek};
 
-	let mut buff = Cursor::new(vec![0u8; 1024]);
+	let mut buff = Cursor::new(Vec::new());
 	let mut v = Vec::new();
 	v.push(Some(5u64));
 	v.push(None);
@@ -594,6 +594,16 @@ fn deserialize_opt_vec() {
 	let vec = deserialize_from::<Option<Vec<u8>>, _>(&mut buff).unwrap();
 
 	assert!(vec.is_none());
+}
+
+#[test]
+fn deserialize_simple_err() {
+	use std::io::Cursor;
+    let mut buff = Cursor::new(vec![0u8; 16]);
+
+	let result = deserialize_from::<Result<(), u32>, _>(&mut buff).unwrap();
+
+	assert!(result.is_ok());
 }
 
 #[test]

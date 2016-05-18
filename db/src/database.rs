@@ -199,9 +199,9 @@ impl DatabaseService for Database {
 		next_transaction
 	}
 
-	fn test(&self) -> Option<H2048> {
+	fn test(&self) -> Result<(), H2048> {
 		use util::hash::FixedHash;
-		Some(H2048::zero())
+		Ok(())
 	}
 }
 
@@ -320,11 +320,7 @@ mod client_tests {
 		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
 
 		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
-		assert!(client.is_empty().is_ok());
 		assert!(client.iter_next(2).is_none());
 		worker_should_exit.store(true, Ordering::Relaxed);
-
-//		assert_eq!(client.test(), Some(H2048::zero()));
-
 	}
 }
