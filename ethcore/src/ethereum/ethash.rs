@@ -299,7 +299,6 @@ mod tests {
 
 	use common::*;
 	use block::*;
-	use engine::*;
 	use tests::helpers::*;
 	use super::super::new_morden;
 

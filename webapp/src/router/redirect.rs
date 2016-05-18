@@ -16,7 +16,6 @@
 
 //! HTTP Redirection hyper handler
 
-use std::io::Write;
 use hyper::{header, server, Decoder, Encoder, Next};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
