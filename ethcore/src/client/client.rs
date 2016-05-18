@@ -153,7 +153,7 @@ impl<V> Client<V> where V: Verifier {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			verifier: PhantomData,
-			vm_factory: Arc::new(EvmFactory::default()),
+			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
 		})
 	}
 
@@ -435,6 +435,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 	fn engine(&self) -> &Engine {
 		self.engine.deref().deref()
+	}
+
+	fn vm_factory(&self) -> &EvmFactory {
+		&self.vm_factory
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.
