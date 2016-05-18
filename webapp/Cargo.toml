@@ -22,8 +22,8 @@ ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 parity-webapp = { git = "https://github.com/ethcore/parity-webapp.git", version = "0.2" }
 # List of apps
-parity-status = { git = "https://github.com/ethcore/parity-status.git", version = "0.4.0" }
-parity-idmanager = { git = "https://github.com/ethcore/parity-idmanager-rs.git", version = "0.2.0" }
+parity-status = { git = "https://github.com/ethcore/parity-status.git", version = "0.4.3" }
+parity-idmanager = { git = "https://github.com/ethcore/parity-idmanager-rs.git", version = "0.2.2" }
 parity-wallet = { git = "https://github.com/ethcore/parity-wallet.git", version = "0.4.0", optional = true }
 clippy = { version = "0.0.67", optional = true}
 
