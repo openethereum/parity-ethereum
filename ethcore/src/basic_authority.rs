@@ -21,7 +21,7 @@ use util::keys::store::AccountProvider;
 use block::*;
 use spec::{CommonParams, Spec};
 use engine::*;
-use evm::{Schedule, Factory};
+use evm::Schedule;
 use ethjson;
 
 /// `BasicAuthority` params.
@@ -51,7 +51,6 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	our_params: BasicAuthorityParams,
 	builtins: BTreeMap<Address, Builtin>,
-	factory: Factory,
 }
 
 impl BasicAuthority {
@@ -61,7 +60,6 @@ impl BasicAuthority {
 			params: params,
 			our_params: our_params,
 			builtins: builtins,
-			factory: Factory::default(),
 		}
 	}
 }
@@ -77,8 +75,6 @@ impl Engine for BasicAuthority {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { hash_map!["signature".to_owned() => "TODO".to_owned()] }
-
-	fn vm_factory(&self) -> &Factory { &self.factory }
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
 		Schedule::new_homestead()
@@ -208,12 +204,6 @@ mod tests {
 		let engine = new_test_authority().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
-	}
-
-	#[test]
-	fn can_return_factory() {
-		let engine = new_test_authority().engine;
-		engine.vm_factory();
 	}
 
 	#[test]

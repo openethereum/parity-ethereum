@@ -63,7 +63,8 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				let mut state = state_result.reference_mut();
 				state.populate_from(pre);
 				state.commit();
-				let res = state.apply(&env, engine.deref(), &transaction, false);
+				let vm_factory = Default::default();
+				let res = state.apply(&env, engine.deref(), &vm_factory, &transaction, false);
 
 				if fail_unless(state.root() == &post_state_root) {
 					println!("!!! {}: State mismatch (got: {}, expect: {}):", name, state.root(), post_state_root);

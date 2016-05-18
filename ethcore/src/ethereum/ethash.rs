@@ -21,7 +21,7 @@ use common::*;
 use block::*;
 use spec::CommonParams;
 use engine::*;
-use evm::{Schedule, Factory};
+use evm::Schedule;
 use ethjson;
 
 /// Ethash params.
@@ -64,7 +64,6 @@ pub struct Ethash {
 	ethash_params: EthashParams,
 	builtins: BTreeMap<Address, Builtin>,
 	pow: EthashManager,
-	factory: Factory,
 }
 
 impl Ethash {
@@ -75,7 +74,6 @@ impl Ethash {
 			ethash_params: ethash_params,
 			builtins: builtins,
 			pow: EthashManager::new(),
-			factory: Factory::default(),
 		}
 	}
 }
@@ -94,10 +92,6 @@ impl Engine for Ethash {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
-
-	fn vm_factory(&self) -> &Factory {
-		&self.factory
-	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
 		trace!(target: "client", "Creating schedule. fCML={}", self.ethash_params.frontier_compatibility_mode_limit);
@@ -343,12 +337,6 @@ mod tests {
 		let engine = new_morden().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
-	}
-
-	#[test]
-	fn can_return_factory() {
-		let engine = new_morden().engine;
-		engine.vm_factory();
 	}
 
 	#[test]
