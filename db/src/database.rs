@@ -73,7 +73,6 @@ impl DatabaseService for Database {
 		*db = Some(try!(DB::open(&opts, &path)));
 
 		*is_open = true;
-		assert_eq!(1, 0);
 		Ok(())
 	}
 
