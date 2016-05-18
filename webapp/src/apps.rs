@@ -23,6 +23,9 @@ extern crate parity_status;
 extern crate parity_idmanager;
 #[cfg(feature = "parity-wallet")]
 extern crate parity_wallet;
+#[cfg(feature = "parity-daodapp")]
+extern crate parity_daodapp;
+
 
 pub const DAPPS_DOMAIN : &'static str = ".parity";
 pub const RPC_PATH : &'static str =  "rpc";
@@ -46,6 +49,7 @@ pub fn all_endpoints() -> Endpoints {
 	insert::<parity_idmanager::App>(&mut pages, "home");
 
 	wallet_page(&mut pages);
+	daodapp_page(&mut pages);
 	pages
 }
 
@@ -53,9 +57,15 @@ pub fn all_endpoints() -> Endpoints {
 fn wallet_page(pages: &mut Endpoints) {
 	insert::<parity_wallet::App>(pages, "wallet");
 }
-
 #[cfg(not(feature = "parity-wallet"))]
 fn wallet_page(_pages: &mut Endpoints) {}
+
+#[cfg(feature = "parity-daodapp")]
+fn daodapp_page(pages: &mut Endpoints) {
+	insert::<parity_daodapp::App>(pages, "dao");
+}
+#[cfg(not(feature = "parity-daodapp"))]
+fn daodapp_page(_pages: &mut Endpoints) {}
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
 	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));

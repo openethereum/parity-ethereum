@@ -25,6 +25,7 @@ parity-webapp = { git = "https://github.com/ethcore/parity-webapp.git", version 
 parity-status = { git = "https://github.com/ethcore/parity-status.git", version = "0.4.3" }
 parity-idmanager = { git = "https://github.com/ethcore/parity-idmanager-rs.git", version = "0.2.2" }
 parity-wallet = { git = "https://github.com/ethcore/parity-wallet.git", version = "0.4.0", optional = true }
+parity-daodapp = { git = "https://github.com/ethcore/parity-daodapp-rs.git", version = "0.1.0", optional = true }
 clippy = { version = "0.0.67", optional = true}
 
 [build-dependencies]
@@ -32,6 +33,6 @@ serde_codegen = { version = "0.7.0", optional = true }
 syntex = "0.32.0"
 
 [features]
-default = ["parity-wallet", "serde_codegen"]
+default = ["parity-wallet", "serde_codegen", "parity-daodapp"]
 nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
