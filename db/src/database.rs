@@ -73,6 +73,7 @@ impl DatabaseService for Database {
 		*db = Some(try!(DB::open(&opts, &path)));
 
 		*is_open = true;
+		assert_eq!(1, 0);
 		Ok(())
 	}
 
@@ -310,9 +311,10 @@ mod client_tests {
 		while !worker_is_ready.load(Ordering::Relaxed) { }
 		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
 
-		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
-
+//		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+//		assert!(client.is_empty().is_ok());
 		worker_should_exit.store(true, Ordering::Relaxed);
-		assert!(client.is_empty().is_ok());
+
+		assert!(client.iter_next(0).is_none());
 	}
 }

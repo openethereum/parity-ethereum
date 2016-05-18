@@ -315,11 +315,18 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
 			try!(r.read(&mut size_buffer[..]).map_err(|_| BinaryConvertError));
 			let size = try!(u64::from_bytes(&size_buffer[..], &mut fake_stack)) as usize;
 
-			let mut data = Vec::with_capacity(size);
-			unsafe { data.set_len(size) };
-			try!(r.read(&mut data).map_err(|_| BinaryConvertError));
+			match size {
+				0 => {
+					T::from_empty_bytes()
+				},
+				_ => {
+					let mut data = Vec::with_capacity(size);
+					unsafe { data.set_len(size) };
+					try!(r.read(&mut data).map_err(|_| BinaryConvertError));
 
-			T::from_bytes(&data[..], &mut length_stack)
+					T::from_bytes(&data[..], &mut length_stack)
+				}
+			}
 		},
 	}
 }
@@ -350,6 +357,12 @@ pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
 			let mut size_buffer = [0u8; 8];
 
 			let size = t.size();
+			if size == 0 {
+				let empty_payload = [0u8; 16];
+				try!(w.write(&empty_payload[..]).map_err(|_| BinaryConvertError));
+				return Ok(());
+			}
+
 			let mut buffer = Vec::with_capacity(size);
 			unsafe { buffer.set_len(size); }
 			try!(t.to_bytes(&mut buffer[..], &mut length_stack));
@@ -556,4 +569,15 @@ fn serialize_into_deserialize_from() {
 	buff.seek(SeekFrom::Start(0)).unwrap();
 	let de_v = deserialize_from::<Vec<Option<u64>>, _>(&mut buff).unwrap();
 	assert_eq!(v, de_v);
+}
+
+#[test]
+fn serialize_opt_vec() {
+ 	use std::io::Cursor;
+
+	let mut buff = Cursor::new(vec![0; 128]);
+	let optional_vec: Option<Vec<u8>> = None;
+	serialize_into(&optional_vec, &mut buff).unwrap();
+
+	assert_eq!(0, buff.get_ref()[2]);
 }

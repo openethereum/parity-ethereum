@@ -414,7 +414,7 @@ fn implement_client_method_body(
 		request_serialization_statements.push(
 			quote_stmt!(cx, let mut socket = socket_ref.deref_mut()));
 		request_serialization_statements.push(
-			quote_stmt!(cx, ::ipc::invoke($index_ident, Vec::new(), &mut socket)));
+			quote_stmt!(cx, ::ipc::invoke($index_ident, &None, &mut socket)));
 		request_serialization_statements
 	};
 
