@@ -27,7 +27,6 @@ use std::ops::*;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
-use util::numbers::H2048;
 
 impl From<String> for Error {
 	fn from(s: String) -> Error {
@@ -256,7 +255,6 @@ mod client_tests {
 	use devtools::*;
 	use nanoipc;
 	use std::sync::Arc;
-	use std::io::Write;
 	use std::sync::atomic::{Ordering, AtomicBool};
 
 	fn init_worker(addr: &str) -> nanoipc::Worker<Database> {
@@ -292,9 +290,6 @@ mod client_tests {
 
 	#[test]
 	fn can_open_db() {
-		use util::numbers::H2048;
-		use util::hash::FixedHash;
-
 		let url = "ipc:///tmp/parity-db-ipc-test-20.ipc";
 		let path = RandomTempPath::create_dir();
 

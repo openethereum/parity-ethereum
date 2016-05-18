@@ -4,7 +4,6 @@ use ipc::BinaryConvertable;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
-use util::numbers::H2048;
 
 pub type TransactionHandle = u32;
 pub type IteratorHandle = u32;
