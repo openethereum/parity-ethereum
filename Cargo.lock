@@ -837,7 +837,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-idmanager"
 version = "0.2.2"
-source = "git+https://github.com/ethcore/parity-idmanager-rs.git#a1c2ab1893d4abe801c821eb49247d89ab016d44"
+source = "git+https://github.com/ethcore/parity-idmanager-rs.git#e93ef48a78722561d52ab88c3dfcc5c1465558ac"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
