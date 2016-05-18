@@ -19,7 +19,6 @@
 use util::hash::H256;
 use header::BlockNumber;
 use ipc::binary::BinaryConvertError;
-use ipc::binary::BinaryConvertable;
 use std::mem;
 use std::collections::VecDeque;
 

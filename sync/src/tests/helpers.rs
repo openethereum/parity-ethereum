@@ -147,7 +147,7 @@ impl TestNet {
 		let mut total_steps = 0;
 		while !self.done() {
 			self.sync_step();
-			total_steps = total_steps + 1;
+			total_steps += 1;
 		}
 		total_steps
 	}

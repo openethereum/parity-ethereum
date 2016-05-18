@@ -18,7 +18,6 @@ use std::sync::{RwLock,Arc};
 use std::ops::*;
 use ipc::IpcConfig;
 use std::collections::HashMap;
-use ipc::BinaryConvertable;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
