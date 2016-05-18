@@ -143,3 +143,6 @@ ethabi decode log ./examples/event.json Event -l 0000000000000000000000000000000
 > a bool true<br/>
 > b address 4444444444444444444444444444444444444444
 
+### Alternative tools
+
+-  [ethabi-js](https://github.com/jacogr/ethabi-js) - javascript port of this library created by [@jacogr](https://github.com/jacogr)
