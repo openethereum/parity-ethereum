@@ -20,7 +20,7 @@ use traits::*;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 use std::collections::BTreeMap;
-use std::sync::{RwLock};
+use std::sync::{RwLock, Arc};
 use std::convert::From;
 use ipc::IpcConfig;
 use std::ops::*;
@@ -197,6 +197,44 @@ impl DatabaseService for Database {
 // TODO : put proper at compile-time
 impl IpcConfig for Database {}
 
+/// Write transaction. Batches a sequence of put/delete operations for efficiency.
+pub struct DBTransaction {
+	client: Arc<DatabaseClient<::nanomsg::Socket>>,
+	handle: TransactionHandle,
+}
+
+impl DBTransaction {
+	/// Create new transaction.
+	pub fn new(client: &Arc<DatabaseClient<::nanomsg::Socket>>) -> Result<DBTransaction, Error> {
+		let client_ref = client.clone();
+		let new_handle = client_ref.new_transaction();
+		Ok(DBTransaction { client: client_ref, handle: new_handle })
+	}
+
+	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
+	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
+		self.client.transaction_put(self.handle, key, value)
+	}
+
+	/// Delete value by key.
+	pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
+		self.client.transaction_delete(self.handle, key)
+	}
+}
+
+/// Database iterator
+pub struct DatabaseIterator {
+	client: Arc<DatabaseClient<::nanomsg::Socket>>,
+	handle: IteratorHandle,
+}
+
+impl Iterator for DatabaseIterator {
+	type Item = (Vec<u8>, Vec<u8>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+		self.client.iter_next(self.handle).and_then(|kv| Some((kv.key, kv.value)))
+	}
+}
 
 #[cfg(test)]
 mod test {
