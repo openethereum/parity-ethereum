@@ -22,7 +22,7 @@ mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch};
+pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch, VMType};
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::trace::Filter as TraceFilter;
@@ -33,42 +33,41 @@ use std::collections::HashSet;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
-use util::keys::store::AccountProvider;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::{ExecutedBlock, ClosedBlock, LockedBlock, SealedBlock};
+use block::{ClosedBlock, LockedBlock, SealedBlock};
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
-use engine::{Engine};
 use trace::LocalizedTrace;
+use evm::Factory as EvmFactory;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
 	/// Get raw block header data by block id.
-	fn block_header(&self, id: BlockId) -> Option<Bytes>;
+	fn block_header(&self, id: BlockID) -> Option<Bytes>;
 
 	/// Get raw block body data by block id.
 	/// Block body is an RLP list of two items: uncles and transactions.
-	fn block_body(&self, id: BlockId) -> Option<Bytes>;
+	fn block_body(&self, id: BlockID) -> Option<Bytes>;
 
 	/// Get raw block data by block header hash.
-	fn block(&self, id: BlockId) -> Option<Bytes>;
+	fn block(&self, id: BlockID) -> Option<Bytes>;
 
 	/// Get block status by block header hash.
-	fn block_status(&self, id: BlockId) -> BlockStatus;
+	fn block_status(&self, id: BlockID) -> BlockStatus;
 
 	/// Get block total difficulty.
-	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
+	fn block_total_difficulty(&self, id: BlockID) -> Option<U256>;
 
 	/// Get address nonce.
 	fn nonce(&self, address: &Address) -> U256;
 
 	/// Get block hash.
-	fn block_hash(&self, id: BlockId) -> Option<H256>;
+	fn block_hash(&self, id: BlockID) -> Option<H256>;
 
 	/// Get address code.
 	fn code(&self, address: &Address) -> Option<Bytes>;
@@ -80,13 +79,13 @@ pub trait BlockChainClient : Sync + Send {
 	fn storage_at(&self, address: &Address, position: &H256) -> H256;
 
 	/// Get transaction with given hash.
-	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
+	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
 
 	/// Get uncle with given id.
-	fn uncle(&self, id: UncleId) -> Option<Header>;
+	fn uncle(&self, id: UncleID) -> Option<Header>;
 
 	/// Get transaction receipt with given hash.
-	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
+	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -113,11 +112,11 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get the best block header.
 	fn best_block_header(&self) -> Bytes {
 		// TODO: lock blockchain only once
-		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).unwrap()
+		self.block_header(BlockID::Hash(self.chain_info().best_block_hash)).unwrap()
 	}
 
 	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>>;
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
@@ -134,11 +133,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
 
-	/// Attempt to seal the block internally. See `Engine`.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { self.engine().generate_seal(block, accounts) }
-
-	/// Executes a function providing it with a reference to an engine.
-	fn engine(&self) -> &Engine;
+	/// Returns EvmFactory.
+	fn vm_factory(&self) -> &EvmFactory;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
@@ -147,10 +143,10 @@ pub trait BlockChainClient : Sync + Send {
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace>;
 
 	/// Returns traces created by transaction.
-	fn transaction_traces(&self, trace: TransactionId) -> Option<Vec<LocalizedTrace>>;
+	fn transaction_traces(&self, trace: TransactionID) -> Option<Vec<LocalizedTrace>>;
 
 	/// Returns traces created by transaction from block.
-	fn block_traces(&self, trace: BlockId) -> Option<Vec<LocalizedTrace>>;
+	fn block_traces(&self, trace: BlockID) -> Option<Vec<LocalizedTrace>>;
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;

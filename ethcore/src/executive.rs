@@ -18,7 +18,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Ext};
+use evm::{self, Ext, Factory};
 use externalities::*;
 use substate::*;
 use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
@@ -52,33 +52,36 @@ pub struct Executive<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
+	vm_factory: &'a Factory,
 	depth: usize,
 }
 
 impl<'a> Executive<'a> {
 	/// Basic constructor.
-	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine) -> Self {
+	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, vm_factory: &'a Factory) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
+			vm_factory: vm_factory,
 			depth: 0,
 		}
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, parent_depth: usize) -> Self {
+	pub fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, vm_factory: &'a Factory, parent_depth: usize) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
+			vm_factory: vm_factory,
 			depth: parent_depth + 1,
 		}
 	}
 
 	/// Creates `Externalities` from `Executive`.
 	pub fn as_externalities<'_, T>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_, '_>, tracer: &'_ mut T) -> Externalities<'_, T> where T: Tracer {
-		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer)
+		Externalities::new(self.state, self.info, self.engine, self.vm_factory, self.depth, origin_info, substate, output, tracer)
 	}
 
 	/// This function should be used to execute transaction.
@@ -179,8 +182,8 @@ impl<'a> Executive<'a> {
 		-> evm::Result where T: Tracer {
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
+			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
-			let vm_factory = self.engine.vm_factory();
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
 			return vm_factory.create().exec(params, &mut ext);
 		}
@@ -189,8 +192,8 @@ impl<'a> Executive<'a> {
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
+			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
-			let vm_factory = self.engine.vm_factory();
 
 			scope.spawn(move || {
 				vm_factory.create().exec(params, &mut ext)
@@ -458,11 +461,11 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
 		};
 
@@ -517,11 +520,11 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
 		};
 
@@ -572,12 +575,12 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(5, factory);
+		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
 			ex.call(params, &mut substate, output, &mut tracer).unwrap()
 		};
@@ -644,12 +647,12 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(5, factory);
+		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(params.clone(), &mut substate, &mut tracer).unwrap()
 		};
 
@@ -714,11 +717,11 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
 		};
 
@@ -766,11 +769,11 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(1024, factory);
+		let engine = TestEngine::new(1024);
 		let mut substate = Substate::new();
 
 		{
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(params, &mut substate, &mut NoopTracer).unwrap();
 		}
 
@@ -827,11 +830,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100_000));
 
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer).unwrap()
 		};
 
@@ -872,11 +875,11 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer).unwrap()
 		};
 
@@ -906,10 +909,10 @@ mod tests {
 		state.add_balance(&sender, &U256::from(18));
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 
 		let executed = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let opts = TransactOptions { check_nonce: true, tracing: false };
 			ex.transact(&t, opts).unwrap()
 		};
@@ -940,10 +943,10 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let opts = TransactOptions { check_nonce: true, tracing: false };
 			ex.transact(&t, opts)
 		};
@@ -972,10 +975,10 @@ mod tests {
 		state.add_balance(&sender, &U256::from(17));
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let opts = TransactOptions { check_nonce: true, tracing: false };
 			ex.transact(&t, opts)
 		};
@@ -1006,10 +1009,10 @@ mod tests {
 		let mut info = EnvInfo::default();
 		info.gas_used = U256::from(20_000);
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let opts = TransactOptions { check_nonce: true, tracing: false };
 			ex.transact(&t, opts)
 		};
@@ -1040,10 +1043,10 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100_017));
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let opts = TransactOptions { check_nonce: true, tracing: false };
 			ex.transact(&t, opts)
 		};
@@ -1074,11 +1077,11 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0, factory);
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let result = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(params, &mut substate, &mut NoopTracer)
 		};
 

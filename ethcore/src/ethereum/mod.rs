@@ -51,7 +51,6 @@ pub fn new_morden() -> Spec { Spec::load(include_bytes!("../../res/ethereum/mord
 mod tests {
 	use common::*;
 	use state::*;
-	use engine::*;
 	use super::*;
 	use tests::helpers::*;
 
