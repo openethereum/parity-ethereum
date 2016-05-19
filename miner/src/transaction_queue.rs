@@ -535,12 +535,12 @@ impl TransactionQueue {
 	/// Update height of all transactions in future transactions set.
 	fn update_future(&mut self, sender: &Address, current_nonce: U256) {
 		// We need to drain all transactions for current sender from future and reinsert them with updated height
-		let all_nonces_from_sender = match self.future.by_address.row(&sender) {
+		let all_nonces_from_sender = match self.future.by_address.row(sender) {
 			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
 			None => vec![],
 		};
 		for k in all_nonces_from_sender {
-			let order = self.future.drop(&sender, &k).unwrap();
+			let order = self.future.drop(sender, &k).unwrap();
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
@@ -554,14 +554,14 @@ impl TransactionQueue {
 	/// Drop all transactions from given sender from `current`.
 	/// Either moves them to `future` or removes them from queue completely.
 	fn move_all_to_future(&mut self, sender: &Address, current_nonce: U256) {
-		let all_nonces_from_sender = match self.current.by_address.row(&sender) {
+		let all_nonces_from_sender = match self.current.by_address.row(sender) {
 			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
 			None => vec![],
 		};
 
 		for k in all_nonces_from_sender {
 			// Goes to future or is removed
-			let order = self.current.drop(&sender, &k).unwrap();
+			let order = self.current.drop(sender, &k).unwrap();
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
@@ -803,7 +803,7 @@ mod test {
 
 	fn new_tx() -> SignedTransaction {
 		let keypair = KeyPair::create().unwrap();
-		new_unsigned_tx(U256::from(123)).sign(&keypair.secret())
+		new_unsigned_tx(U256::from(123)).sign(keypair.secret())
 	}
 
 
@@ -1173,9 +1173,9 @@ mod test {
 		let mut txq = TransactionQueue::new();
 		let kp = KeyPair::create().unwrap();
 		let secret = kp.secret();
-		let tx = new_unsigned_tx(U256::from(123)).sign(&secret);
-		let tx1 = new_unsigned_tx(U256::from(124)).sign(&secret);
-		let tx2 = new_unsigned_tx(U256::from(125)).sign(&secret);
+		let tx = new_unsigned_tx(U256::from(123)).sign(secret);
+		let tx1 = new_unsigned_tx(U256::from(124)).sign(secret);
+		let tx2 = new_unsigned_tx(U256::from(125)).sign(secret);
 
 		txq.add(tx, &default_nonce, TransactionOrigin::External).unwrap();
 		assert_eq!(txq.status().pending, 1);
@@ -1403,11 +1403,11 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::new();
 		let keypair = KeyPair::create().unwrap();
-		let tx = new_unsigned_tx(U256::from(123)).sign(&keypair.secret());
+		let tx = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
 		let tx2 = {
 			let mut tx2 = tx.deref().clone();
 			tx2.gas_price = U256::from(200);
-			tx2.sign(&keypair.secret())
+			tx2.sign(keypair.secret())
 		};
 
 		// when
@@ -1426,16 +1426,16 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::new();
 		let keypair = KeyPair::create().unwrap();
-		let tx0 = new_unsigned_tx(U256::from(123)).sign(&keypair.secret());
+		let tx0 = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
 		let tx1 = {
 			let mut tx1 = tx0.deref().clone();
 			tx1.nonce = U256::from(124);
-			tx1.sign(&keypair.secret())
+			tx1.sign(keypair.secret())
 		};
 		let tx2 = {
 			let mut tx2 = tx1.deref().clone();
 			tx2.gas_price = U256::from(200);
-			tx2.sign(&keypair.secret())
+			tx2.sign(keypair.secret())
 		};
 
 		// when

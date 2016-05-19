@@ -20,7 +20,7 @@ use common::*;
 use util::keys::store::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
-use evm::{Schedule, Factory};
+use evm::Schedule;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -38,9 +38,6 @@ pub trait Engine : Sync + Send {
 
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams;
-
-	/// Get current EVM factory
-	fn vm_factory(&self) -> &Factory;
 
 	/// Get the EVM schedule for the given `env_info`.
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule;

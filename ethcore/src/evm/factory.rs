@@ -17,11 +17,10 @@
 //! Evm factory.
 //!
 //! TODO: consider spliting it into two separate files.
-#[cfg(test)]
 use std::fmt;
 use evm::Evm;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 /// Type of EVM to use.
 pub enum VMType {
 	/// JIT EVM
@@ -31,7 +30,6 @@ pub enum VMType {
 	Interpreter
 }
 
-#[cfg(test)]
 impl fmt::Display for VMType {
 	#[cfg(feature="jit")]
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -48,8 +46,12 @@ impl fmt::Display for VMType {
 	}
 }
 
-#[cfg(test)]
-#[cfg(feature = "json-tests")]
+impl Default for VMType {
+	fn default() -> Self {
+		VMType::Interpreter
+	}
+}
+
 impl VMType {
 	/// Return all possible VMs (JIT, Interpreter)
 	#[cfg(feature = "jit")]
@@ -61,6 +63,18 @@ impl VMType {
 	#[cfg(not(feature = "jit"))]
 	pub fn all() -> Vec<VMType> {
 		vec![VMType::Interpreter]
+	}
+
+	/// Return new jit if it's possible
+	#[cfg(not(feature = "jit"))]
+	pub fn jit() -> Option<Self> {
+		None
+	}
+
+	/// Return new jit if it's possible
+	#[cfg(feature = "jit")]
+	pub fn jit() -> Option<Self> {
+		Some(VMType::Jit)
 	}
 }
 
@@ -80,7 +94,7 @@ impl Factory {
 			VMType::Interpreter => {
 				Box::new(super::interpreter::Interpreter)
 			}
-		}	
+		}
 	}
 
 	/// Create fresh instance of VM
@@ -90,17 +104,17 @@ impl Factory {
 			VMType::Interpreter => {
 				Box::new(super::interpreter::Interpreter)
 			}
-		}	
+		}
 	}
 
 	/// Create new instance of specific `VMType` factory
-	#[cfg(test)]
-	pub fn new(evm: VMType) -> Factory {
+	pub fn new(evm: VMType) -> Self {
 		Factory {
 			evm: evm
 		}
 	}
 }
+
 impl Default for Factory {
 	/// Returns jitvm factory
 	#[cfg(feature = "jit")]

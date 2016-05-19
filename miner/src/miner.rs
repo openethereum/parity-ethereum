@@ -123,7 +123,7 @@ impl Miner {
 				// add transactions to old_block
 				let e = self.engine();
 				let mut invalid_transactions = HashSet::new();
-				let mut block = old_block.reopen(e);
+				let mut block = old_block.reopen(e, chain.vm_factory());
 				let block_number = block.block().fields().header.number();
 
 				// TODO: push new uncles, too.
@@ -277,7 +277,8 @@ impl MinerService for Miner {
 				state.sub_balance(&sender, &balance);
 				state.add_balance(&sender, &U256::max_value());
 				let options = TransactOptions { tracing: false, check_nonce: false };
-				Executive::new(&mut state, &env_info, self.engine()).transact(t, options)
+
+				Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options)
 			},
 			None => {
 				chain.call(t)

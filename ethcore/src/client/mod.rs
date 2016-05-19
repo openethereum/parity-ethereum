@@ -22,7 +22,7 @@ mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch};
+pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch, VMType};
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::trace::Filter as TraceFilter;
@@ -43,6 +43,7 @@ use filter::Filter;
 use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
+use evm::Factory as EvmFactory;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -131,6 +132,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
+
+	/// Returns EvmFactory.
+	fn vm_factory(&self) -> &EvmFactory;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;

@@ -46,6 +46,7 @@ use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Databa
 use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
+use evm::Factory as EvmFactory;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -87,6 +88,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
 	verifier: PhantomData<V>,
+	vm_factory: Arc<EvmFactory>,
 }
 
 const HISTORY: u64 = 1200;
@@ -151,6 +153,7 @@ impl<V> Client<V> where V: Verifier {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			verifier: PhantomData,
+			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
 		})
 	}
 
@@ -204,7 +207,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -422,12 +425,16 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		state.sub_balance(&sender, &balance);
 		state.add_balance(&sender, &U256::max_value());
 		let options = TransactOptions { tracing: false, check_nonce: false };
-		Executive::new(&mut state, &env_info, self.engine.deref().deref()).transact(t, options)
+		Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options)
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.
 	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)
+	}
+
+	fn vm_factory(&self) -> &EvmFactory {
+		&self.vm_factory
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.
@@ -439,6 +446,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 		let mut b = OpenBlock::new(
 			engine,
+			&self.vm_factory,
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().boxed_clone(),
 			match self.chain.block_header(&h) { Some(ref x) => x, None => { return (None, invalid_transactions) } },

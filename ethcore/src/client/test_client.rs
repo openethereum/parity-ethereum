@@ -27,6 +27,7 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use extras::BlockReceipts;
 use error::{ImportResult};
+use evm::Factory as EvmFactory;
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
@@ -427,6 +428,10 @@ impl BlockChainClient for TestBlockChainClient {
 			best_block_hash: self.last_hash.read().unwrap().clone(),
 			best_block_number: self.blocks.read().unwrap().len() as BlockNumber - 1,
 		}
+	}
+
+	fn vm_factory(&self) -> &EvmFactory {
+		unimplemented!();
 	}
 
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {

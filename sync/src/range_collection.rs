@@ -70,7 +70,7 @@ impl<'c, K:'c, V:'c> Iterator for RangeIterator<'c, K, V> where K: Add<Output = 
 		}
 		match self.collection.get(self.range) {
 			Some(&(ref k, ref vec)) => {
-				Some((*k, &vec))
+				Some((*k, vec))
 			},
 			None => None
 		}
