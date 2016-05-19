@@ -27,12 +27,12 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use extras::BlockReceipts;
 use error::{ImportResult};
+use evm::Factory as EvmFactory;
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
 use error::{ExecutionError};
-use engine::Engine;
 use trace::LocalizedTrace;
 
 /// Test client.
@@ -430,7 +430,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn engine(&self) -> &Engine {
+	fn vm_factory(&self) -> &EvmFactory {
 		unimplemented!();
 	}
 

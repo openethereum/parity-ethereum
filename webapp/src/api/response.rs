@@ -14,25 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use block_queue::BlockQueueConfig;
-pub use blockchain::BlockChainConfig;
-pub use trace::{Config as TraceConfig, Switch};
-pub use evm::VMType;
-use util::journaldb;
+use serde::Serialize;
+use serde_json;
+use endpoint::{ContentHandler, Handler};
 
-/// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, Default)]
-pub struct ClientConfig {
-	/// Block queue configuration.
-	pub queue: BlockQueueConfig,
-	/// Blockchain configuration.
-	pub blockchain: BlockChainConfig,
-	/// Trace configuration.
-	pub tracing: TraceConfig,
-	/// VM type.
-	pub vm_type: VMType,
-	/// The JournalDB ("pruning") algorithm to use.
-	pub pruning: journaldb::Algorithm,
-	/// The name of the client instance.
-	pub name: String,
+pub fn as_json<T : Serialize>(val: &T) -> Box<Handler> {
+	Box::new(ContentHandler::new(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
 }

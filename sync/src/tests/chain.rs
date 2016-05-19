@@ -16,7 +16,6 @@
 
 use util::*;
 use ethcore::client::{BlockChainClient, BlockId, EachBlockWith};
-use io::SyncIo;
 use chain::{SyncState};
 use super::helpers::*;
 

@@ -87,7 +87,7 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 		if upgrade_key.is_applicable(previous_version, &current_version) {
 			let upgrade_script = upgrades[upgrade_key];
 			try!(upgrade_script());
-			count = count + 1;
+			count += 1;
 		}
 	}
 	Ok(count)

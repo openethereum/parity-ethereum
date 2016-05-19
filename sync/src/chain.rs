@@ -791,8 +791,8 @@ impl ChainSync {
 			self.downloading_hashes.remove(&hash);
 		}
 		for b in &peer.asking_blocks {
-			self.downloading_headers.remove(&b);
-			self.downloading_bodies.remove(&b);
+			self.downloading_headers.remove(b);
+			self.downloading_bodies.remove(b);
 		}
 		peer.asking_blocks.clear();
 	}
@@ -1255,7 +1255,7 @@ impl ChainSync {
 			self.send_packet(io, peer_id, NEW_BLOCK_PACKET, rlp);
 			self.peers.get_mut(&peer_id).unwrap().latest_hash = chain_info.best_block_hash.clone();
 			self.peers.get_mut(&peer_id).unwrap().latest_number = Some(chain_info.best_block_number);
-			sent = sent + 1;
+			sent += 1;
 		}
 		sent
 	}
@@ -1271,7 +1271,7 @@ impl ChainSync {
 				// If we think peer is too far behind just send one latest hash
 				peer_best = last_parent.clone();
 			}
-			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(), &peer_best, &chain_info.best_block_hash) {
+			sent += match ChainSync::create_new_hashes_rlp(io.chain(), &peer_best, &chain_info.best_block_hash) {
 				Some(rlp) => {
 					{
 						let peer = self.peers.get_mut(&peer_id).unwrap();
@@ -1668,7 +1668,7 @@ mod tests {
 		sync.propagate_new_hashes(&chain_info, &mut io);
 
 		let data = &io.queue[0].data.clone();
-		let result = sync.on_peer_new_hashes(&mut io, 0, &UntrustedRlp::new(&data));
+		let result = sync.on_peer_new_hashes(&mut io, 0, &UntrustedRlp::new(data));
 		assert!(result.is_ok());
 	}
 
@@ -1686,7 +1686,7 @@ mod tests {
 		sync.propagate_blocks(&chain_info, &mut io);
 
 		let data = &io.queue[0].data.clone();
-		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));
+		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(data));
 		assert!(result.is_ok());
 	}
 

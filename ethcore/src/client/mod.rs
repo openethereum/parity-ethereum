@@ -22,7 +22,7 @@ mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch};
+pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch, VMType};
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::trace::Filter as TraceFilter;
@@ -33,18 +33,17 @@ use std::collections::HashSet;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
-use util::keys::store::AccountProvider;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::{ExecutedBlock, ClosedBlock, LockedBlock, SealedBlock};
+use block::{ClosedBlock, LockedBlock, SealedBlock};
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
-use engine::{Engine};
 use trace::LocalizedTrace;
+use evm::Factory as EvmFactory;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -134,11 +133,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
 
-	/// Attempt to seal the block internally. See `Engine`.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { self.engine().generate_seal(block, accounts) }
-
-	/// Executes a function providing it with a reference to an engine.
-	fn engine(&self) -> &Engine;
+	/// Returns EvmFactory.
+	fn vm_factory(&self) -> &EvmFactory;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;

@@ -25,6 +25,8 @@ use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::*;
 use ethcore::client::{Executive, Executed, EnvInfo, TransactOptions};
 use ethcore::transaction::SignedTransaction;
+use ethcore::spec::Spec;
+use ethcore::engine::Engine;
 use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
@@ -39,6 +41,7 @@ pub struct Miner {
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
+	spec: Spec,
 
 	accounts: RwLock<Option<Arc<AccountService>>>,		// TODO: this is horrible since AccountService already contains a single RwLock field. refactor.
 }
@@ -55,13 +58,14 @@ impl Default for Miner {
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: RwLock::new(None),
+			spec: Spec::new_test(),
 		}
 	}
 }
 
 impl Miner {
 	/// Creates new instance of miner
-	pub fn new(force_sealing: bool) -> Arc<Miner> {
+	pub fn new(force_sealing: bool, spec: Spec) -> Arc<Miner> {
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: force_sealing,
@@ -72,11 +76,12 @@ impl Miner {
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: RwLock::new(None),
+			spec: spec,
 		})
 	}
 
 	/// Creates new instance of miner
-	pub fn with_accounts(force_sealing: bool, accounts: Arc<AccountService>) -> Arc<Miner> {
+	pub fn with_accounts(force_sealing: bool, spec: Spec, accounts: Arc<AccountService>) -> Arc<Miner> {
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: force_sealing,
@@ -87,7 +92,12 @@ impl Miner {
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: RwLock::new(Some(accounts)),
+			spec: spec,
 		})
+	}
+
+	fn engine(&self) -> &Engine {
+		self.spec.engine.deref()
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
@@ -111,9 +121,9 @@ impl Miner {
 			Some(old_block) => {
 				trace!(target: "miner", "Already have previous work; updating and returning");
 				// add transactions to old_block
-				let e = chain.engine();
+				let e = self.engine();
 				let mut invalid_transactions = HashSet::new();
-				let mut block = old_block.reopen(e);
+				let mut block = old_block.reopen(e, chain.vm_factory());
 				let block_number = block.block().fields().header.number();
 
 				// TODO: push new uncles, too.
@@ -166,7 +176,7 @@ impl Miner {
 				trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
 				// block with transactions - see if we can seal immediately.
 				let a = self.accounts.read().unwrap();
-				let s = chain.generate_seal(block.block(), match *a.deref() {
+				let s = self.engine().generate_seal(block.block(), match *a.deref() {
 					Some(ref x) => Some(x.deref() as &AccountProvider),
 					None => None,
 				});
@@ -267,7 +277,8 @@ impl MinerService for Miner {
 				state.sub_balance(&sender, &balance);
 				state.add_balance(&sender, &U256::max_value());
 				let options = TransactOptions { tracing: false, check_nonce: false };
-				Executive::new(&mut state, &env_info, chain.engine()).transact(t, options)
+
+				Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options)
 			},
 			None => {
 				chain.call(t)

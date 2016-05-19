@@ -252,14 +252,14 @@ fn binary_expr_struct(
 		map_stmts.push(quote_stmt!(cx, map[$field_index] = total;).unwrap());
 
 		if ::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)) == "u8" {
-			map_stmts.push(quote_stmt!(cx, total = total + 1;).unwrap());
+			map_stmts.push(quote_stmt!(cx, total += 1;).unwrap());
 		}
 		else {
 			map_stmts.push(quote_stmt!(cx, let size = match $field_type_ident_qualified::len_params() {
 					0 => mem::size_of::<$field_type_ident>(),
 					_ => length_stack.pop_front().unwrap(),
 				}).unwrap());
-			map_stmts.push(quote_stmt!(cx, total = total + size;).unwrap());
+			map_stmts.push(quote_stmt!(cx, total += size;).unwrap());
 		}
 	};
 
