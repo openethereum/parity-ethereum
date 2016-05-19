@@ -225,7 +225,7 @@ impl Configuration {
 			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::Archive),
 			_ => { die!("Invalid pruning method given."); }
 		};
 

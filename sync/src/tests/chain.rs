@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{BlockChainClient, BlockId, EachBlockWith};
+use ethcore::client::{BlockChainClient, BlockID, EachBlockWith};
 use chain::{SyncState};
 use super::helpers::*;
 
@@ -26,7 +26,7 @@ fn two_peers() {
 	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
-	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
+	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
 	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
 }
 
@@ -60,7 +60,7 @@ fn empty_blocks() {
 		net.peer_mut(2).chain.add_blocks(5, with);
 	}
 	net.sync();
-	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
+	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
 	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
 }
 

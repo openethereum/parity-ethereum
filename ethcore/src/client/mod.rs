@@ -50,26 +50,26 @@ use evm::Factory as EvmFactory;
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
 	/// Get raw block header data by block id.
-	fn block_header(&self, id: BlockId) -> Option<Bytes>;
+	fn block_header(&self, id: BlockID) -> Option<Bytes>;
 
 	/// Get raw block body data by block id.
 	/// Block body is an RLP list of two items: uncles and transactions.
-	fn block_body(&self, id: BlockId) -> Option<Bytes>;
+	fn block_body(&self, id: BlockID) -> Option<Bytes>;
 
 	/// Get raw block data by block header hash.
-	fn block(&self, id: BlockId) -> Option<Bytes>;
+	fn block(&self, id: BlockID) -> Option<Bytes>;
 
 	/// Get block status by block header hash.
-	fn block_status(&self, id: BlockId) -> BlockStatus;
+	fn block_status(&self, id: BlockID) -> BlockStatus;
 
 	/// Get block total difficulty.
-	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
+	fn block_total_difficulty(&self, id: BlockID) -> Option<U256>;
 
 	/// Get address nonce.
 	fn nonce(&self, address: &Address) -> U256;
 
 	/// Get block hash.
-	fn block_hash(&self, id: BlockId) -> Option<H256>;
+	fn block_hash(&self, id: BlockID) -> Option<H256>;
 
 	/// Get address code.
 	fn code(&self, address: &Address) -> Option<Bytes>;
@@ -81,13 +81,13 @@ pub trait BlockChainClient : Sync + Send {
 	fn storage_at(&self, address: &Address, position: &H256) -> H256;
 
 	/// Get transaction with given hash.
-	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
+	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
 
 	/// Get uncle with given id.
-	fn uncle(&self, id: UncleId) -> Option<Header>;
+	fn uncle(&self, id: UncleID) -> Option<Header>;
 
 	/// Get transaction receipt with given hash.
-	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
+	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -114,11 +114,11 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get the best block header.
 	fn best_block_header(&self) -> Bytes {
 		// TODO: lock blockchain only once
-		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).unwrap()
+		self.block_header(BlockID::Hash(self.chain_info().best_block_hash)).unwrap()
 	}
 
 	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>>;
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
@@ -145,10 +145,10 @@ pub trait BlockChainClient : Sync + Send {
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace>;
 
 	/// Returns traces created by transaction.
-	fn transaction_traces(&self, trace: TransactionId) -> Option<Vec<LocalizedTrace>>;
+	fn transaction_traces(&self, trace: TransactionID) -> Option<Vec<LocalizedTrace>>;
 
 	/// Returns traces created by transaction from block.
-	fn block_traces(&self, trace: BlockId) -> Option<Vec<LocalizedTrace>>;
+	fn block_traces(&self, trace: BlockID) -> Option<Vec<LocalizedTrace>>;
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;

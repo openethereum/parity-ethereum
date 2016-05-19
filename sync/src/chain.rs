@@ -33,7 +33,7 @@ use util::*;
 use std::mem::{replace};
 use ethcore::views::{HeaderView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo};
+use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
@@ -377,7 +377,7 @@ impl ChainSync {
 				self.highest_block = Some(number);
 			}
 			let hash = info.hash();
-			match io.chain().block_status(BlockId::Hash(hash.clone())) {
+			match io.chain().block_status(BlockID::Hash(hash.clone())) {
 				BlockStatus::InChain | BlockStatus::Queued => {
 					if !self.have_common_block || self.current_base_block() < number {
 						self.last_imported_block = Some(number);
@@ -572,7 +572,7 @@ impl ChainSync {
 			if self.downloading_hashes.contains(&h) {
 				continue;
 			}
-			match io.chain().block_status(BlockId::Hash(h.clone())) {
+			match io.chain().block_status(BlockID::Hash(h.clone())) {
 				BlockStatus::InChain  => {
 					trace!(target: "sync", "New block hash already in chain {:?}", h);
 				},
@@ -670,7 +670,7 @@ impl ChainSync {
 			self.downloading_hashes.insert(peer_latest.clone());
 			self.request_headers_by_hash(io, peer_id, &peer_latest, 1, 0, false);
 		}
-		else if self.state == SyncState::Blocks && io.chain().block_status(BlockId::Hash(peer_latest)) == BlockStatus::Unknown {
+		else if self.state == SyncState::Blocks && io.chain().block_status(BlockID::Hash(peer_latest)) == BlockStatus::Unknown {
 			self.request_blocks(io, peer_id, false);
 		}
 	}
@@ -1002,7 +1002,7 @@ impl ChainSync {
 			// id is a hash
 			let hash: H256 = try!(r.val_at(0));
 			trace!(target: "sync", "-> GetBlockHeaders (hash: {}, max: {}, skip: {}, reverse:{})", hash, max_headers, skip, reverse);
-			match io.chain().block_header(BlockId::Hash(hash)) {
+			match io.chain().block_header(BlockID::Hash(hash)) {
 				Some(hdr) => From::from(HeaderView::new(&hdr).number()),
 				None => last
 			}
@@ -1022,7 +1022,7 @@ impl ChainSync {
 		let mut data = Bytes::new();
 		let inc = (skip + 1) as BlockNumber;
 		while number <= last && count < max_count {
-			if let Some(mut hdr) = io.chain().block_header(BlockId::Number(number)) {
+			if let Some(mut hdr) = io.chain().block_header(BlockID::Number(number)) {
 				data.append(&mut hdr);
 				count += 1;
 			}
@@ -1054,7 +1054,7 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(mut hdr) = io.chain().block_body(BlockId::Hash(try!(r.val_at::<H256>(i)))) {
+			if let Some(mut hdr) = io.chain().block_body(BlockID::Hash(try!(r.val_at::<H256>(i)))) {
 				data.append(&mut hdr);
 				added += 1;
 			}
@@ -1193,7 +1193,7 @@ impl ChainSync {
 						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
 						for block_hash in route.blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
-							let difficulty = chain.block_total_difficulty(BlockId::Hash(block_hash.clone())).expect("Malformed block without a difficulty on the chain!");
+							let difficulty = chain.block_total_difficulty(BlockID::Hash(block_hash.clone())).expect("Malformed block without a difficulty on the chain!");
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&difficulty);
 							rlp_stream.append_raw(&hash_rlp.out(), 1);
@@ -1209,7 +1209,7 @@ impl ChainSync {
 	/// creates latest block rlp for the given client
 	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
 		let mut rlp_stream = RlpStream::new_list(2);
-		rlp_stream.append_raw(&chain.block(BlockId::Hash(chain.chain_info().best_block_hash)).unwrap(), 1);
+		rlp_stream.append_raw(&chain.block(BlockID::Hash(chain.chain_info().best_block_hash)).unwrap(), 1);
 		rlp_stream.append(&chain.chain_info().total_difficulty);
 		rlp_stream.out()
 	}
@@ -1219,10 +1219,10 @@ impl ChainSync {
 		let latest_hash = chain_info.best_block_hash;
 		let latest_number = chain_info.best_block_number;
 		self.peers.iter_mut().filter_map(|(&id, ref mut peer_info)|
-			match io.chain().block_status(BlockId::Hash(peer_info.latest_hash.clone())) {
+			match io.chain().block_status(BlockID::Hash(peer_info.latest_hash.clone())) {
 				BlockStatus::InChain => {
 					if peer_info.latest_number.is_none() {
-						peer_info.latest_number = Some(HeaderView::new(&io.chain().block_header(BlockId::Hash(peer_info.latest_hash.clone())).unwrap()).number());
+						peer_info.latest_number = Some(HeaderView::new(&io.chain().block_header(BlockID::Hash(peer_info.latest_hash.clone())).unwrap()).number());
 					}
 					if peer_info.latest_hash != latest_hash && latest_number > peer_info.latest_number.unwrap() {
 						Some((id, peer_info.latest_number.unwrap()))
@@ -1264,7 +1264,7 @@ impl ChainSync {
 	fn propagate_new_hashes(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo) -> usize {
 		let updated_peers = self.get_lagging_peers(chain_info, io);
 		let mut sent = 0;
-		let last_parent = HeaderView::new(&io.chain().block_header(BlockId::Hash(chain_info.best_block_hash.clone())).unwrap()).parent_hash();
+		let last_parent = HeaderView::new(&io.chain().block_header(BlockID::Hash(chain_info.best_block_hash.clone())).unwrap()).parent_hash();
 		for (peer_id, peer_number) in updated_peers {
 			let mut peer_best = self.peers.get(&peer_id).unwrap().latest_hash.clone();
 			if chain_info.best_block_number - peer_number > MAX_PEERS_PROPAGATION as BlockNumber {
@@ -1704,7 +1704,7 @@ mod tests {
 
 		// Add some balance to clients and reset nonces
 		for h in &[good_blocks[0], retracted_blocks[0]] {
-			let block = client.block(BlockId::Hash(*h)).unwrap();
+			let block = client.block(BlockID::Hash(*h)).unwrap();
 			let view = BlockView::new(&block);
 			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(1_000_000_000));
 			client.set_nonce(view.transactions()[0].sender().unwrap(), U256::from(0));
@@ -1721,7 +1721,7 @@ mod tests {
 		}
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
-			let block = client.block(BlockId::Hash(*h)).unwrap();
+			let block = client.block(BlockID::Hash(*h)).unwrap();
 			let view = BlockView::new(&block);
 			client.set_nonce(view.transactions()[0].sender().unwrap(), U256::from(1));
 		}
