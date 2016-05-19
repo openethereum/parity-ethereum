@@ -17,7 +17,7 @@
 //! Trace filter deserialization.
 
 use util::Address;
-use ethcore::client::BlockId;
+use ethcore::client::BlockID;
 use ethcore::client;
 use super::BlockNumber;
 
@@ -35,8 +35,8 @@ pub struct TraceFilter {
 
 impl Into<client::TraceFilter> for TraceFilter {
 	fn into(self) -> client::TraceFilter {
-		let start = self.from_block.map_or(BlockId::Latest, Into::into);
-		let end = self.to_block.map_or(BlockId::Latest, Into::into);
+		let start = self.from_block.map_or(BlockID::Latest, Into::into);
+		let end = self.to_block.map_or(BlockID::Latest, Into::into);
 		client::TraceFilter {
 			range: start..end,
 			from_address: self.from_address.unwrap_or_else(Vec::new),

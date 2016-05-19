@@ -107,6 +107,7 @@ pub mod trace;
 pub mod spec;
 pub mod views;
 pub mod pod_state;
+pub mod engine;
 
 mod db;
 mod common;
@@ -116,7 +117,6 @@ mod env_info;
 mod pod_account;
 mod account_diff;
 mod state_diff;
-mod engine;
 mod state;
 mod account;
 mod account_db;

@@ -14,14 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethcore_ipc as ipc;
-extern crate rocksdb;
-extern crate ethcore_devtools as devtools;
-extern crate semver;
-extern crate ethcore_ipc_nano as nanoipc;
-extern crate ethcore_util as util;
-extern crate nanomsg;
+use serde::Serialize;
+use serde_json;
+use endpoint::{ContentHandler, Handler};
 
-
-pub mod database;
-pub mod traits;
+pub fn as_json<T : Serialize>(val: &T) -> Box<Handler> {
+	Box::new(ContentHandler::new(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
+}

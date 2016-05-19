@@ -122,12 +122,13 @@ Footprint Options:
                            auto uses last used value of this option (off if it does
                            not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
-                           may be one of auto, archive, basic, fast, light:
+                           may be one of auto, archive, fast, basic, light:
                            archive - keep all state trie data. No pruning.
-                           basic - reference count in disk DB. Slow but light.
                            fast - maintain journal overlay. Fast but 50MB used.
-                           light - early merges with partial tracking. Fast
-                           and light. Experimental!
+                           basic - reference count in disk DB. Slow, light, and
+                           experimental!
+                           light - early merges with partial tracking. Fast,
+                           light, and experimental!
                            auto - use the method most recently synced or
                            default to archive if none synced [default: auto].
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
@@ -139,6 +140,9 @@ Footprint Options:
   --cache MEGABYTES        Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
+
+Virtual Machine Options:
+  --jitvm                  Enable the JIT VM.
 
 Legacy Options:
   --geth                   Run in Geth-compatibility mode. Currently just sets
@@ -222,6 +226,7 @@ pub struct Args {
 	pub flag_tx_limit: usize,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
+	pub flag_jitvm: bool,
 	// legacy...
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,

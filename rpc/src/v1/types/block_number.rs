@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
-use ethcore::client::BlockId;
+use ethcore::client::BlockID;
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq)]
@@ -54,20 +54,20 @@ impl Visitor for BlockNumberVisitor {
 	}
 }
 
-impl Into<BlockId> for BlockNumber {
-	fn into(self) -> BlockId {
+impl Into<BlockID> for BlockNumber {
+	fn into(self) -> BlockID {
 		match self {
-			BlockNumber::Num(n) => BlockId::Number(n),
-			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Num(n) => BlockID::Number(n),
+			BlockNumber::Earliest => BlockID::Earliest,
 			// TODO: change this once blockid support pendingst,
-			BlockNumber::Pending | BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending | BlockNumber::Latest => BlockID::Latest,
 		}
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::BlockId;
+	use ethcore::client::BlockID;
 	use super::*;
 	use serde_json;
 
@@ -80,10 +80,10 @@ mod tests {
 
 	#[test]
 	fn block_number_into() {
-		assert_eq!(BlockId::Number(100), BlockNumber::Num(100).into());
-		assert_eq!(BlockId::Earliest, BlockNumber::Earliest.into());
-		assert_eq!(BlockId::Latest, BlockNumber::Latest.into());
-		assert_eq!(BlockId::Latest, BlockNumber::Pending.into());
+		assert_eq!(BlockID::Number(100), BlockNumber::Num(100).into());
+		assert_eq!(BlockID::Earliest, BlockNumber::Earliest.into());
+		assert_eq!(BlockID::Latest, BlockNumber::Latest.into());
+		assert_eq!(BlockID::Latest, BlockNumber::Pending.into());
 	}
 }
 

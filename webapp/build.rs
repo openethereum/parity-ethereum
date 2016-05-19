@@ -14,14 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethcore_ipc as ipc;
-extern crate rocksdb;
-extern crate ethcore_devtools as devtools;
-extern crate semver;
-extern crate ethcore_ipc_nano as nanoipc;
-extern crate ethcore_util as util;
-extern crate nanomsg;
+#[cfg(not(feature = "serde_macros"))]
+mod inner {
+    extern crate syntex;
+    extern crate serde_codegen;
 
+    use std::env;
+    use std::path::Path;
 
-pub mod database;
-pub mod traits;
+    pub fn main() {
+        let out_dir = env::var_os("OUT_DIR").unwrap();
+
+        let src = Path::new("./src/api/mod.rs.in");
+        let dst = Path::new(&out_dir).join("mod.rs");
+
+        let mut registry = syntex::Registry::new();
+
+        serde_codegen::register(&mut registry);
+        registry.expand("", &src, &dst).unwrap();
+    }
+}
+
+#[cfg(feature = "serde_macros")]
+mod inner {
+    pub fn main() {}
+}
+
+fn main() {
+    inner::main();
+}
