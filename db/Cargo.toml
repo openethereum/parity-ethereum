@@ -1,0 +1,24 @@
+[package]
+description = "Ethcore Database"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "ethcore-db"
+version = "1.2.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
+
+[build-dependencies]
+syntex = "*"
+ethcore-ipc-codegen = { path = "../ipc/codegen" }
+
+[dependencies]
+ethcore-util = { path = "../util" }
+clippy = { version = "0.0.67", optional = true}
+ethcore-devtools = { path = "../devtools" }
+ethcore-ipc = { path = "../ipc/rpc" }
+rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
+semver = "0.2"
+ethcore-ipc-nano = { path = "../ipc/nano" }
+
+[features]
+dev = ["clippy"]
