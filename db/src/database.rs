@@ -36,7 +36,6 @@ impl From<String> for Error {
 
 pub struct Database {
 	db: RwLock<Option<DB>>,
-	is_open: RwLock<bool>,
 	transactions: RwLock<HashMap<TransactionHandle, WriteBatch>>,
 	iterators: RwLock<HashMap<IteratorHandle, DBIterator>>,
 }
@@ -45,7 +44,6 @@ impl Database {
 	pub fn new() -> Database {
 		Database {
 			db: RwLock::new(None),
-			is_open: RwLock::new(false),
 			transactions: RwLock::new(HashMap::new()),
 			iterators: RwLock::new(HashMap::new()),
 		}
@@ -55,10 +53,9 @@ impl Database {
 #[derive(Ipc)]
 impl DatabaseService for Database {
 	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error> {
-		let mut is_open = self.is_open.write().unwrap();
-		if *is_open { return Err(Error::AlreadyOpen); }
-
 		let mut db = self.db.write().unwrap();
+		if db.is_some() { return Err(Error::AlreadyOpen); }
+
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
@@ -72,19 +69,17 @@ impl DatabaseService for Database {
 		}
 		*db = Some(try!(DB::open(&opts, &path)));
 
-		*is_open = true;
 		Ok(())
 	}
 
 	fn close(&self) -> Result<(), Error> {
-		let mut is_open = self.is_open.write().unwrap();
-		if !*is_open { return Err(Error::IsClosed); }
-
-		// TODO: wait for transactions to expire/close and destroy self.db?
 		let mut db = self.db.write().unwrap();
-		*db = None;
+		if db.is_none() { return Err(Error::IsClosed); }
 
-		*is_open = false;
+		// TODO: wait for transactions to expire/close here?
+		if self.transactions.read().unwrap().len() > 0 { return Err(Error::UncommitedTransactions); }
+
+		*db = None;
 		Ok(())
 	}
 

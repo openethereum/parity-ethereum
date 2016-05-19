@@ -21,6 +21,7 @@ pub enum Error {
 	RocksDb(String),
 	TransactionUnknown,
 	IteratorUnknown,
+	UncommitedTransactions,
 }
 
 /// Database configuration
