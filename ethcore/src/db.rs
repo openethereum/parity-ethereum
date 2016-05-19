@@ -167,7 +167,9 @@ impl Writable for ethcore_db::DBTransaction {
 	}
 }
 
-impl Readable for ethcore_db::DatabaseClient<::nanomsg::Socket> {
+pub type DBClient = ethcore_db::DatabaseClient<::nanomsg::Socket>;
+
+impl Readable for DBClient {
 	fn read<T, R>(&self, key: &Key<T, Target = R>) -> Option<T> where T: Decodable, R: Deref<Target = [u8]> {
 		let result = self.get(&key.key());
 

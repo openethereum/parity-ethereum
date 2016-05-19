@@ -26,3 +26,44 @@ pub mod traits;
 
 pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DBTransaction, DatabaseIterator};
+
+pub enum ServiceError {
+	Io(std::io::Error),
+	Socket(nanoipc::SocketError),
+}
+
+impl std::convert::From<std::io::Error> for ServiceError {
+	fn from(io_error: std::io::Error) -> ServiceError { ServiceError::Io(io_error) }
+}
+
+impl std::convert::From<nanoipc::SocketError> for ServiceError {
+	fn from(socket_error: nanoipc::SocketError) -> ServiceError { ServiceError::Socket(socket_error) }
+}
+
+fn blocks_service_url() -> Result<String, std::io::Error> {
+	let mut home = ::std::env::home_dir().expect("home dir not found");
+	home.push("ipc");
+	try!(::std::fs::create_dir_all(home.as_path()));
+	home.push("db_blocks.ipc");
+	Ok(home.to_str().unwrap().to_owned())
+}
+
+fn extras_service_url() -> Result<String, ::std::io::Error> {
+	let mut home = ::std::env::home_dir().expect("home dir not found");
+	home.push("ipc");
+	try!(::std::fs::create_dir_all(home.as_path()));
+	home.push("db_extras.ipc");
+	Ok(home.to_str().unwrap().to_owned())
+}
+
+pub fn blocks_client() -> Result<nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>, ServiceError> {
+	let url = try!(blocks_service_url());
+	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
+	Ok(client)
+}
+
+pub fn extras_client() -> Result<nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>, ServiceError> {
+	let url = try!(extras_service_url());
+	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
+	Ok(client)
+}
