@@ -45,7 +45,7 @@
 //! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
-//! 	let miner = Miner::new(false);
+//! 	let miner = Miner::new(false, ethereum::new_frontier());
 //! 	EthSync::register(&mut service, SyncConfig::default(), client, miner);
 //! }
 //! ```
