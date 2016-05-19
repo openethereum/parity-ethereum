@@ -31,7 +31,7 @@ pub fn setup_log(init: &Option<String>) -> Arc<RotatingLogger> {
 
 	if env::var("RUST_LOG").is_ok() {
 		let lvl = &env::var("RUST_LOG").unwrap();
-		levels.push_str(&lvl);
+		levels.push_str(lvl);
 		levels.push_str(",");
 		builder.parse(lvl);
 	}

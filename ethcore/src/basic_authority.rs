@@ -21,7 +21,7 @@ use util::keys::store::AccountProvider;
 use block::*;
 use spec::{CommonParams, Spec};
 use engine::*;
-use evm::{Schedule, Factory};
+use evm::Schedule;
 use ethjson;
 
 /// `BasicAuthority` params.
@@ -51,7 +51,6 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	our_params: BasicAuthorityParams,
 	builtins: BTreeMap<Address, Builtin>,
-	factory: Factory,
 }
 
 impl BasicAuthority {
@@ -61,7 +60,6 @@ impl BasicAuthority {
 			params: params,
 			our_params: our_params,
 			builtins: builtins,
-			factory: Factory::default(),
 		}
 	}
 }
@@ -77,8 +75,6 @@ impl Engine for BasicAuthority {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { hash_map!["signature".to_owned() => "TODO".to_owned()] }
-
-	fn vm_factory(&self) -> &Factory { &self.factory }
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
 		Schedule::new_homestead()
@@ -200,7 +196,6 @@ mod tests {
 	use super::*;
 	use common::*;
 	use block::*;
-	use engine::*;
 	use tests::helpers::*;
 	use util::keys::{TestAccountProvider, TestAccount};
 
@@ -209,12 +204,6 @@ mod tests {
 		let engine = new_test_authority().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
-	}
-
-	#[test]
-	fn can_return_factory() {
-		let engine = new_test_authority().engine;
-		engine.vm_factory();
 	}
 
 	#[test]
@@ -288,7 +277,8 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, addr.clone(), x!(3141562), vec![]);
+		let vm_factory = Default::default();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, addr.clone(), x!(3141562), vec![]);
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 

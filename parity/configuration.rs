@@ -26,7 +26,7 @@ use die::*;
 use util::*;
 use util::keys::store::AccountService;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig, Switch};
+use ethcore::client::{append_path, get_db_path, ClientConfig, Switch, VMType};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -171,7 +171,7 @@ impl Configuration {
 		let (listen, public) = self.net_addresses();
 		ret.listen_address = listen;
 		ret.public_address = public;
-		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).unwrap_or_else(|_| s.sha3()));
+		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(s).unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.ideal_peers = self.max_peers();
 		let mut net_path = PathBuf::from(&self.path());
@@ -185,7 +185,7 @@ impl Configuration {
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
-			let db = journaldb::new(&append_path(&get_db_path(&Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
@@ -201,6 +201,7 @@ impl Configuration {
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
+
 		match self.args.flag_cache {
 			Some(mb) => {
 				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
@@ -211,12 +212,14 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
+
 		client_config.tracing.enabled = match self.args.flag_tracing.as_str() {
 			"auto" => Switch::Auto,
 			"on" => Switch::On,
 			"off" => Switch::Off,
 			_ => { die!("Invalid tracing method given!") }
 		};
+
 		client_config.pruning = match self.args.flag_pruning.as_str() {
 			"archive" => journaldb::Algorithm::Archive,
 			"light" => journaldb::Algorithm::EarlyMerge,
@@ -225,6 +228,11 @@ impl Configuration {
 			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
+
+		if self.args.flag_jitvm {
+			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
+		}
+
 		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
@@ -251,7 +259,7 @@ impl Configuration {
 		let account_service = AccountService::with_security(Path::new(&self.keys_path()), self.keys_iterations());
 		if let Some(ref unlocks) = self.args.flag_unlock {
 			for d in unlocks.split(',') {
-				let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
+				let a = Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
 					die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
 				});
 				if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
@@ -302,7 +310,7 @@ impl Configuration {
 
 	pub fn directories(&self) -> Directories {
 		let db_path = Configuration::replace_home(
-			&self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
+			self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
 		let keys_path = Configuration::replace_home(&self.args.flag_keys_path);

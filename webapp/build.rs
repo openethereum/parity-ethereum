@@ -14,25 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use block_queue::BlockQueueConfig;
-pub use blockchain::BlockChainConfig;
-pub use trace::{Config as TraceConfig, Switch};
-pub use evm::VMType;
-use util::journaldb;
+#[cfg(not(feature = "serde_macros"))]
+mod inner {
+    extern crate syntex;
+    extern crate serde_codegen;
 
-/// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, Default)]
-pub struct ClientConfig {
-	/// Block queue configuration.
-	pub queue: BlockQueueConfig,
-	/// Blockchain configuration.
-	pub blockchain: BlockChainConfig,
-	/// Trace configuration.
-	pub tracing: TraceConfig,
-	/// VM type.
-	pub vm_type: VMType,
-	/// The JournalDB ("pruning") algorithm to use.
-	pub pruning: journaldb::Algorithm,
-	/// The name of the client instance.
-	pub name: String,
+    use std::env;
+    use std::path::Path;
+
+    pub fn main() {
+        let out_dir = env::var_os("OUT_DIR").unwrap();
+
+        let src = Path::new("./src/api/mod.rs.in");
+        let dst = Path::new(&out_dir).join("mod.rs");
+
+        let mut registry = syntex::Registry::new();
+
+        serde_codegen::register(&mut registry);
+        registry.expand("", &src, &dst).unwrap();
+    }
+}
+
+#[cfg(feature = "serde_macros")]
+mod inner {
+    pub fn main() {}
+}
+
+fn main() {
+    inner::main();
 }
