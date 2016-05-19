@@ -233,8 +233,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			Params::None => {
 				let status = take_weak!(self.sync).status();
 				let res = match status.state {
-					SyncState::NotSynced | SyncState::Idle => SyncStatus::None,
-					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks => SyncStatus::Info(SyncInfo {
+					SyncState::Idle => SyncStatus::None,
+					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => SyncStatus::Info(SyncInfo {
 						starting_block: U256::from(status.start_block_number),
 						current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
 						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
