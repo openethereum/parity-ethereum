@@ -19,14 +19,13 @@ use util::hash::Address;
 use builtin::Builtin;
 use engine::Engine;
 use spec::CommonParams;
-use evm::{Schedule, Factory};
+use evm::Schedule;
 use env_info::EnvInfo;
 
 /// An engine which does not provide any consensus mechanism.
 pub struct NullEngine {
 	params: CommonParams,
 	builtins: BTreeMap<Address, Builtin>,
-	factory: Factory,
 }
 
 impl NullEngine {
@@ -35,16 +34,11 @@ impl NullEngine {
 		NullEngine{
 			params: params,
 			builtins: builtins,
-			factory: Factory::default()
 		}
 	}
 }
 
 impl Engine for NullEngine {
-	fn vm_factory(&self) -> &Factory {
-		&self.factory
-	}
-
 	fn name(&self) -> &str {
 		"NullEngine"
 	}

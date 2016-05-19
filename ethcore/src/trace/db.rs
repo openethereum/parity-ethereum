@@ -22,7 +22,7 @@ use std::sync::{RwLock, Arc};
 use std::path::Path;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use util::{FixedHash, H256, H264, Database, DBTransaction};
+use util::{H256, H264, Database, DBTransaction};
 use header::BlockNumber;
 use trace::{BlockTraces, LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest,
 DatabaseExtras};

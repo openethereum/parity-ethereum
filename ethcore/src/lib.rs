@@ -27,6 +27,10 @@
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
 // In most cases it expresses function flow better
 #![cfg_attr(feature="dev", allow(if_not_else))]
+// TODO [todr] a lot of warnings to be fixed
+#![cfg_attr(feature="dev", allow(needless_borrow))]
+#![cfg_attr(feature="dev", allow(assign_op_pattern))]
+
 
 //! Ethcore library
 //!
@@ -103,6 +107,7 @@ pub mod trace;
 pub mod spec;
 pub mod views;
 pub mod pod_state;
+pub mod engine;
 
 mod blooms;
 mod db;
@@ -113,7 +118,6 @@ mod env_info;
 mod pod_account;
 mod account_diff;
 mod state_diff;
-mod engine;
 mod state;
 mod account;
 mod account_db;

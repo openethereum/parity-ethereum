@@ -14,22 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum virtual machine.
+#[cfg(not(feature = "serde_macros"))]
+mod inner {
+    extern crate syntex;
+    extern crate serde_codegen;
 
-pub mod ext;
-pub mod evm;
-pub mod interpreter;
-#[macro_use]
-pub mod factory;
-pub mod schedule;
-mod instructions;
-#[cfg(feature = "jit" )]
-mod jit;
+    use std::env;
+    use std::path::Path;
 
-#[cfg(test)]
-mod tests;
+    pub fn main() {
+        let out_dir = env::var_os("OUT_DIR").unwrap();
 
-pub use self::evm::{Evm, Error, Result};
-pub use self::ext::{Ext, ContractCreateResult, MessageCallResult};
-pub use self::factory::{Factory, VMType};
-pub use self::schedule::Schedule;
+        let src = Path::new("./src/api/mod.rs.in");
+        let dst = Path::new(&out_dir).join("mod.rs");
+
+        let mut registry = syntex::Registry::new();
+
+        serde_codegen::register(&mut registry);
+        registry.expand("", &src, &dst).unwrap();
+    }
+}
+
+#[cfg(feature = "serde_macros")]
+mod inner {
+    pub fn main() {}
+}
+
+fn main() {
+    inner::main();
+}

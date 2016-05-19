@@ -14,22 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum virtual machine.
+use serde::Serialize;
+use serde_json;
+use endpoint::{ContentHandler, Handler};
 
-pub mod ext;
-pub mod evm;
-pub mod interpreter;
-#[macro_use]
-pub mod factory;
-pub mod schedule;
-mod instructions;
-#[cfg(feature = "jit" )]
-mod jit;
-
-#[cfg(test)]
-mod tests;
-
-pub use self::evm::{Evm, Error, Result};
-pub use self::ext::{Ext, ContractCreateResult, MessageCallResult};
-pub use self::factory::{Factory, VMType};
-pub use self::schedule::Schedule;
+pub fn as_json<T : Serialize>(val: &T) -> Box<Handler> {
+	Box::new(ContentHandler::new(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
+}

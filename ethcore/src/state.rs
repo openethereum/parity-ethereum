@@ -17,6 +17,7 @@
 use common::*;
 use engine::Engine;
 use executive::{Executive, TransactOptions};
+use evm::Factory as EvmFactory;
 use account_db::*;
 use trace::Trace;
 #[cfg(test)]
@@ -218,11 +219,11 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, vm_factory: &EvmFactory, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
 		let options = TransactOptions { tracing: tracing, check_nonce: true };
-		let e = try!(Executive::new(self, env_info, engine).transact(t, options));
+		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
@@ -358,12 +359,9 @@ mod tests {
 
 use super::*;
 use util::common::*;
-use util::trie::*;
-use util::rlp::*;
 use account::*;
 use tests::helpers::*;
 use devtools::*;
-use evm::factory::*;
 use env_info::*;
 use spec::*;
 use transaction::*;
@@ -380,7 +378,7 @@ fn should_apply_create_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -392,7 +390,8 @@ fn should_apply_create_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Create(trace::Create {
@@ -440,7 +439,7 @@ fn should_trace_failed_create_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -452,7 +451,8 @@ fn should_trace_failed_create_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Create(trace::Create {
@@ -477,7 +477,7 @@ fn should_trace_call_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -490,7 +490,8 @@ fn should_trace_call_transaction() {
 
 	state.init_code(&x!(0xa), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {
@@ -519,7 +520,7 @@ fn should_trace_basic_call_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -531,7 +532,8 @@ fn should_trace_basic_call_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {
@@ -571,7 +573,8 @@ fn should_trace_call_transaction_to_builtin() {
 		data: vec![],
 	}.sign(&"".sha3());
 
-	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
 	assert_eq!(result.trace, Some(Trace {
 		depth: 0,
@@ -611,7 +614,8 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 	}.sign(&"".sha3());
 
 	state.init_code(&x!(0xa), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
-	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
 	let expected_trace = Some(Trace {
 		depth: 0,
@@ -653,7 +657,8 @@ fn should_not_trace_callcode() {
 
 	state.init_code(&x!(0xa), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
 	state.init_code(&x!(0xb), FromHex::from_hex("6000").unwrap());
-	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
 	let expected_trace = Some(Trace {
 		depth: 0,
@@ -698,7 +703,8 @@ fn should_not_trace_delegatecall() {
 
 	state.init_code(&x!(0xa), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
 	state.init_code(&x!(0xb), FromHex::from_hex("6000").unwrap());
-	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
 	let expected_trace = Some(Trace {
 		depth: 0,
@@ -727,7 +733,7 @@ fn should_trace_failed_call_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -740,7 +746,8 @@ fn should_trace_failed_call_transaction() {
 
 	state.init_code(&x!(0xa), FromHex::from_hex("5b600056").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {
@@ -768,7 +775,7 @@ fn should_trace_call_with_subcall_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -782,7 +789,8 @@ fn should_trace_call_with_subcall_transaction() {
 	state.init_code(&x!(0xa), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&x!(0xb), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {
@@ -825,7 +833,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -838,7 +846,8 @@ fn should_trace_call_with_basic_subcall_transaction() {
 
 	state.init_code(&x!(0xa), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {
@@ -878,7 +887,7 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -891,7 +900,8 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 
 	state.init_code(&x!(0xa), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {
@@ -920,7 +930,7 @@ fn should_trace_failed_subcall_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -934,7 +944,8 @@ fn should_trace_failed_subcall_transaction() {
 	state.init_code(&x!(0xa), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&x!(0xb), FromHex::from_hex("5b600056").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {
@@ -974,7 +985,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -989,7 +1000,8 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 	state.init_code(&x!(0xb), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
 	state.init_code(&x!(0xc), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {
@@ -1046,7 +1058,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = TestEngine::new(5, Factory::default());
+	let engine = TestEngine::new(5);
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -1061,7 +1073,8 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 	state.init_code(&x!(0xb), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
 	state.init_code(&x!(0xc), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
-	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
 		action: trace::Action::Call(trace::Call {

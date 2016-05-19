@@ -19,7 +19,7 @@ use common::*;
 use state::*;
 use engine::*;
 use executive::*;
-use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult};
+use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
 use substate::*;
 use trace::Tracer;
 
@@ -59,6 +59,7 @@ pub struct Externalities<'a, T> where T: 'a + Tracer {
 	state: &'a mut State,
 	env_info: &'a EnvInfo,
 	engine: &'a Engine,
+	vm_factory: &'a Factory,
 	depth: usize,
 	origin_info: OriginInfo,
 	substate: &'a mut Substate,
@@ -74,6 +75,7 @@ impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
 	pub fn new(state: &'a mut State,
 		env_info: &'a EnvInfo,
 		engine: &'a Engine,
+		vm_factory: &'a Factory,
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
@@ -84,6 +86,7 @@ impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
 			state: state,
 			env_info: env_info,
 			engine: engine,
+			vm_factory: vm_factory,
 			depth: depth,
 			origin_info: origin_info,
 			substate: substate,
@@ -146,7 +149,7 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 		};
 
 		self.state.inc_nonce(&self.origin_info.address);
-		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
+		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.vm_factory, self.depth);
 
 		// TODO: handle internal error separately
 		match ex.create(params, self.substate, self.tracer) {
@@ -185,7 +188,7 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 			params.value = ActionValue::Transfer(value);
 		}
 
-		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
+		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.vm_factory, self.depth);
 
 		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer) {
 			Ok(gas_left) => MessageCallResult::Success(gas_left),
@@ -347,7 +350,8 @@ mod tests {
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
 
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+		let vm_factory = Default::default();
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 
 		assert_eq!(ext.env_info().number, 100);
 	}
@@ -358,7 +362,8 @@ mod tests {
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
 
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+		let vm_factory = Default::default();
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -379,7 +384,8 @@ mod tests {
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
 
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+		let vm_factory = Default::default();
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -393,7 +399,8 @@ mod tests {
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+		let vm_factory = Default::default();
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 
 		let mut output = vec![];
 
@@ -418,7 +425,8 @@ mod tests {
 		let mut tracer = NoopTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+			let vm_factory = Default::default();
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 			ext.log(log_topics, &log_data);
 		}
 
@@ -434,7 +442,8 @@ mod tests {
 		let mut tracer = NoopTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+			let vm_factory = Default::default();
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 			ext.suicide(&refund_account);
 		}
 

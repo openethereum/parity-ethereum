@@ -37,7 +37,7 @@ impl PriceInfo {
 			.and_then(|json| json.find_path(&["result", "ethusd"])
 				.and_then(|obj| match *obj {
 					Json::String(ref s) => Some(PriceInfo {
-						ethusd: FromStr::from_str(&s).unwrap()
+						ethusd: FromStr::from_str(s).unwrap()
 					}),
 					_ => None
 				}))

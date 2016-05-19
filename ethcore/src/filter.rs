@@ -18,16 +18,16 @@
 
 use util::hash::*;
 use util::sha3::*;
-use client::BlockId;
+use client::BlockID;
 use log_entry::LogEntry;
 
 /// Blockchain Filter.
 pub struct Filter {
 	/// Blockchain will be searched from this block.
-	pub from_block: BlockId,
+	pub from_block: BlockID,
 
 	/// Till this block.
-	pub to_block: BlockId,
+	pub to_block: BlockID,
 
 	/// Search addresses. 
 	/// 
@@ -102,14 +102,14 @@ mod tests {
 	use std::str::FromStr;
 	use util::hash::*;
 	use filter::Filter;
-	use client::BlockId;
+	use client::BlockID;
 	use log_entry::LogEntry;
 
 	#[test]
 	fn test_bloom_possibilities_none() {
 		let none_filter = Filter {
-			from_block: BlockId::Earliest,
-			to_block: BlockId::Latest,
+			from_block: BlockID::Earliest,
+			to_block: BlockID::Latest,
 			address: None,
 			topics: [None, None, None, None]
 		};
@@ -123,8 +123,8 @@ mod tests {
 	#[test]
 	fn test_bloom_possibilities_single_address_and_topic() {
 		let filter = Filter {
-			from_block: BlockId::Earliest,
-			to_block: BlockId::Latest,
+			from_block: BlockID::Earliest,
+			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
 			topics: [
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
@@ -139,8 +139,8 @@ mod tests {
 	#[test]
 	fn test_bloom_possibilities_single_address_and_many_topics() {
 		let filter = Filter {
-			from_block: BlockId::Earliest,
-			to_block: BlockId::Latest,
+			from_block: BlockID::Earliest,
+			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
 			topics: [
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
@@ -156,8 +156,8 @@ mod tests {
 	#[test]
 	fn test_bloom_possibilites_multiple_addresses_and_topics() {
 		let filter = Filter {
-			from_block: BlockId::Earliest,
-			to_block: BlockId::Latest,
+			from_block: BlockID::Earliest,
+			to_block: BlockID::Latest,
 			address: Some(vec![
 						  Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap(),
 						  Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap(),
@@ -185,8 +185,8 @@ mod tests {
 	#[test]
 	fn test_filter_matches() {
 		let filter = Filter {
-			from_block: BlockId::Earliest,
-			to_block: BlockId::Latest,
+			from_block: BlockID::Earliest,
+			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
 			topics: [
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
