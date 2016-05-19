@@ -433,10 +433,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
-	fn engine(&self) -> &Engine {
-		self.engine.deref().deref()
-	}
-
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.vm_factory
 	}

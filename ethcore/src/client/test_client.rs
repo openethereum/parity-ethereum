@@ -33,7 +33,6 @@ use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
 use error::{ExecutionError};
-use engine::Engine;
 use trace::LocalizedTrace;
 
 /// Test client.
@@ -429,10 +428,6 @@ impl BlockChainClient for TestBlockChainClient {
 			best_block_hash: self.last_hash.read().unwrap().clone(),
 			best_block_number: self.blocks.read().unwrap().len() as BlockNumber - 1,
 		}
-	}
-
-	fn engine(&self) -> &Engine {
-		unimplemented!();
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {
