@@ -19,7 +19,7 @@
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
 use util::H256;
-use ethcore::client::{BlockChainClient, TransactionId, TraceId};
+use ethcore::client::{BlockChainClient, TransactionID, TraceId};
 use v1::traits::Traces;
 use v1::types::{TraceFilter, Trace, BlockNumber, Index};
 
@@ -62,7 +62,7 @@ impl<C> Traces for TracesClient<C> where C: BlockChainClient + 'static {
 		from_params::<(H256,)>(params)
 			.and_then(|(transaction_hash,)| {
 				let client = take_weak!(self.client);
-				let traces = client.transaction_traces(TransactionId::Hash(transaction_hash));
+				let traces = client.transaction_traces(TransactionID::Hash(transaction_hash));
 				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(Trace::from).collect());
 				to_value(&traces)
 			})
@@ -73,7 +73,7 @@ impl<C> Traces for TracesClient<C> where C: BlockChainClient + 'static {
 			.and_then(|(transaction_hash, address)| {
 				let client = take_weak!(self.client);
 				let id = TraceId {
-					transaction: TransactionId::Hash(transaction_hash),
+					transaction: TransactionID::Hash(transaction_hash),
 					address: address.into_iter().map(|i| i.value()).collect()
 				};
 				let trace = client.trace(id);
