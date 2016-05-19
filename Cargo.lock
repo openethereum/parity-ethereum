@@ -358,6 +358,7 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-daodapp 0.1.0 (git+https://github.com/ethcore/parity-daodapp-rs.git)",
  "parity-idmanager 0.2.2 (git+https://github.com/ethcore/parity-idmanager-rs.git)",
+ "parity-makerotc 0.1.1 (git+https://github.com/ethcore/parity-makerotc-rs.git)",
  "parity-status 0.4.3 (git+https://github.com/ethcore/parity-status.git)",
  "parity-wallet 0.4.0 (git+https://github.com/ethcore/parity-wallet.git)",
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
@@ -847,6 +848,14 @@ dependencies = [
 name = "parity-idmanager"
 version = "0.2.2"
 source = "git+https://github.com/ethcore/parity-idmanager-rs.git#047d95a6acac2f6c8096e91d75717101f894559d"
+dependencies = [
+ "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
+]
+
+[[package]]
+name = "parity-makerotc"
+version = "0.1.1"
+source = "git+https://github.com/ethcore/parity-makerotc-rs.git#08da644b86a5e3aeec00ea548c446373d7b0c871"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
