@@ -19,7 +19,7 @@
 use traits::*;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::{RwLock};
 use std::convert::From;
 use ipc::IpcConfig;
@@ -36,16 +36,16 @@ impl From<String> for Error {
 
 pub struct Database {
 	db: RwLock<Option<DB>>,
-	transactions: RwLock<HashMap<TransactionHandle, WriteBatch>>,
-	iterators: RwLock<HashMap<IteratorHandle, DBIterator>>,
+	transactions: RwLock<BTreeMap<TransactionHandle, WriteBatch>>,
+	iterators: RwLock<BTreeMap<IteratorHandle, DBIterator>>,
 }
 
 impl Database {
 	pub fn new() -> Database {
 		Database {
 			db: RwLock::new(None),
-			transactions: RwLock::new(HashMap::new()),
-			iterators: RwLock::new(HashMap::new()),
+			transactions: RwLock::new(BTreeMap::new()),
+			iterators: RwLock::new(BTreeMap::new()),
 		}
 	}
 }
