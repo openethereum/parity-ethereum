@@ -30,7 +30,7 @@ pub const API_PATH : &'static str =  "api";
 pub const UTILS_PATH : &'static str =  "parity-utils";
 
 pub fn main_page() -> &'static str {
-	"/status/"
+	"/home/"
 }
 
 pub fn utils() -> Box<Endpoint> {
@@ -43,6 +43,7 @@ pub fn all_endpoints() -> Endpoints {
 
 	insert::<parity_status::App>(&mut pages, "status");
 	insert::<parity_status::App>(&mut pages, "parity");
+	insert::<parity_idmanager::App>(&mut pages, "home");
 
 	wallet_page(&mut pages);
 	pages

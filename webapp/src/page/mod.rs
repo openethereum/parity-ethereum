@@ -22,8 +22,8 @@ use hyper::header;
 use hyper::status::StatusCode;
 use hyper::net::HttpStream;
 use hyper::{Decoder, Encoder, Next};
-use endpoint::{Endpoint, EndpointPath};
-use parity_webapp::WebApp;
+use endpoint::{Endpoint, EndpointInfo, EndpointPath};
+use parity_webapp::{WebApp, Info};
 
 pub struct PageEndpoint<T : WebApp + 'static> {
 	/// Content of the files
@@ -39,6 +39,7 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 			prefix: None,
 		}
 	}
+
 	pub fn with_prefix(app: T, prefix: String) -> Self {
 		PageEndpoint {
 			app: Arc::new(app),
@@ -48,6 +49,11 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 }
 
 impl<T: WebApp> Endpoint for PageEndpoint<T> {
+
+	fn info(&self) -> Option<EndpointInfo> {
+		Some(EndpointInfo::from(self.app.info()))
+	}
+
 	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<HttpStream>> {
 		Box::new(PageHandler {
 			app: self.app.clone(),
@@ -56,6 +62,18 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 			file: None,
 			write_pos: 0,
 		})
+	}
+}
+
+impl From<Info> for EndpointInfo {
+	fn from(info: Info) -> Self {
+		EndpointInfo {
+			name: info.name,
+			description: info.description,
+			author: info.author,
+			icon_url: info.icon_url,
+			version: info.version,
+		}
 	}
 }
 

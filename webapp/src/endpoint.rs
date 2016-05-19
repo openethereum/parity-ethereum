@@ -30,7 +30,18 @@ pub struct EndpointPath {
 	pub port: u16,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct EndpointInfo {
+	pub name: String,
+	pub description: String,
+	pub version: String,
+	pub author: String,
+	pub icon_url: String,
+}
+
 pub trait Endpoint : Send + Sync {
+	fn info(&self) -> Option<EndpointInfo> { None }
+
 	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<HttpStream>>;
 }
 

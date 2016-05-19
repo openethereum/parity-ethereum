@@ -14,36 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Simple REST API
+//! REST API
 
-use std::sync::Arc;
-use endpoint::{Endpoint, Endpoints, ContentHandler, Handler, EndpointPath};
+#![warn(missing_docs)]
+#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
+#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
 
-pub struct RestApi {
-	endpoints: Arc<Endpoints>,
-}
+#[cfg(feature = "serde_macros")]
+include!("mod.rs.in");
 
-impl RestApi {
-	pub fn new(endpoints: Arc<Endpoints>) -> Box<Endpoint> {
-		Box::new(RestApi {
-			endpoints: endpoints
-		})
-	}
-
-	fn list_pages(&self) -> String {
-		let mut s = "[".to_owned();
-		for name in self.endpoints.keys() {
-			s.push_str(&format!("\"{}\",", name));
-		}
-		s.push_str("\"rpc\"");
-		s.push_str("]");
-		s
-	}
-}
-
-impl Endpoint for RestApi {
-	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
-		Box::new(ContentHandler::new(self.list_pages(), "application/json".to_owned()))
-	}
-}
+#[cfg(not(feature = "serde_macros"))]
+include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 
