@@ -413,8 +413,6 @@ mod client_tests {
 
 	#[test]
 	fn can_create_transaction() {
-		use std::ops::Deref;
-
 		let url = "ipc:///tmp/parity-db-ipc-test-50.ipc";
 		let path = RandomTempPath::create_dir();
 
@@ -436,7 +434,7 @@ mod client_tests {
 		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
 
 		let transaction = DBTransaction::new(&client.service()).unwrap();
-		transaction.put("xxx".as_bytes(), "1".as_bytes());
+		transaction.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
 		transaction.commit().unwrap();
 
 		client.close().unwrap();

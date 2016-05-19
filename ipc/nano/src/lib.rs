@@ -46,6 +46,12 @@ pub struct GuardedSocket<S> where S: WithSocket<Socket> {
 	_endpoint: Endpoint,
 }
 
+impl<S> GuardedSocket<S> where S: WithSocket<Socket> {
+	pub fn service(&self) -> Arc<S> {
+		self.client.clone()
+	}
+}
+
 impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
     type Target = S;
 
