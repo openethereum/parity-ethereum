@@ -14,15 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethcore_ipc as ipc;
-extern crate rocksdb;
-extern crate ethcore_devtools as devtools;
-extern crate semver;
+//! Parity database ipc service
+
+extern crate ethcore_db as db;
 extern crate ethcore_ipc_nano as nanoipc;
-extern crate nanomsg;
 
-pub mod database;
-pub mod traits;
+use db::database::Database;
 
-pub use traits::DatabaseService;
-pub use database::{Database, DatabaseClient, DBTransaction, DatabaseIterator};
+fn init_worker(addr: &str) -> nanoipc::Worker<Database> {
+	let mut worker = nanoipc::Worker::<Database>::new(&Arc::new(Database::new()));
+	worker.add_reqrep(addr).unwrap();
+	worker
+}
+
+fn main() {
+	let mut blocks_db_worker = init_worker(url);
+	loop {
+		worker.poll();
+		c_worker_is_ready.store(true, Ordering::Relaxed);
+	}
+}

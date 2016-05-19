@@ -28,7 +28,9 @@ lazy_static = "0.1"
 ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }
 bloomchain = "0.1"
-"ethcore-ipc" = { path = "../ipc/rpc" }
+ethcore-ipc = { path = "../ipc/rpc" }
+ethcore-db = { path = "../db" }
+nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 
 [features]
 jit = ["evmjit"]
