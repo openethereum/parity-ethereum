@@ -220,6 +220,11 @@ impl DBTransaction {
 	pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
 		self.client.transaction_delete(self.handle, key)
 	}
+
+	/// Commits transaction
+	pub fn commit(self) -> Result<(), Error> {
+		self.client.write(self.handle)
+	}
 }
 
 /// Database iterator
@@ -283,7 +288,7 @@ mod test {
 
 #[cfg(test)]
 mod client_tests {
-	use super::{DatabaseClient, Database};
+	use super::{DatabaseClient, Database, DBTransaction};
 	use traits::*;
 	use devtools::*;
 	use nanoipc;
@@ -404,5 +409,42 @@ mod client_tests {
 		assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 
 		worker_should_exit.store(true, Ordering::Relaxed);
+	}
+
+	#[test]
+	fn can_create_transaction() {
+		use std::ops::Deref;
+
+		let url = "ipc:///tmp/parity-db-ipc-test-50.ipc";
+		let path = RandomTempPath::create_dir();
+
+		let worker_should_exit = Arc::new(AtomicBool::new(false));
+		let worker_is_ready = Arc::new(AtomicBool::new(false));
+		let c_worker_should_exit = worker_should_exit.clone();
+		let c_worker_is_ready = worker_is_ready.clone();
+
+		::std::thread::spawn(move || {
+			let mut worker = init_worker(url);
+    		while !c_worker_should_exit.load(Ordering::Relaxed) {
+				worker.poll();
+				c_worker_is_ready.store(true, Ordering::Relaxed);
+			}
+		});
+
+		while !worker_is_ready.load(Ordering::Relaxed) { }
+		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
+		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+
+		let transaction = DBTransaction::new(&client.service()).unwrap();
+		transaction.put("xxx".as_bytes(), "1".as_bytes());
+		transaction.commit().unwrap();
+
+		client.close().unwrap();
+
+		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+		assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
+
+		worker_should_exit.store(true, Ordering::Relaxed);
+
 	}
 }
