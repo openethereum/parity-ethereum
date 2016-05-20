@@ -263,13 +263,13 @@ impl BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
-		let extras_db = ethcore_db::extras_client().unwrap();
+		let extras_db = ethcore_db::extras_client(path.to_str().unwrap()).unwrap();
 		extras_db.open_default(extras_path.to_str().unwrap().to_owned()).unwrap();
 
 		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
-		let blocks_db = ethcore_db::blocks_client().unwrap();
+		let blocks_db = ethcore_db::blocks_client(path.to_str().unwrap()).unwrap();
 		blocks_db.open_default(blocks_path.to_str().unwrap().to_owned()).unwrap();
 
 		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
@@ -286,8 +286,8 @@ impl BlockChain {
 			block_logs: RwLock::new(HashMap::new()),
 			blocks_blooms: RwLock::new(HashMap::new()),
 			block_receipts: RwLock::new(HashMap::new()),
-			extras_db: ethcore_db::extras_client().unwrap(),
-			blocks_db: ethcore_db::blocks_client().unwrap(),
+			extras_db: extras_db,
+			blocks_db: blocks_db,
 			cache_man: RwLock::new(cache_man),
 			bloom_indexer: BloomIndexer::new(BLOOM_INDEX_SIZE, BLOOM_LEVELS),
 			insert_lock: Mutex::new(()),
@@ -846,8 +846,8 @@ mod tests {
 
 		::crossbeam::scope(|scope| {
 			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), ethcore_db::extras_service_url().unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), ethcore_db::blocks_service_url().unwrap());
+			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 
