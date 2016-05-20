@@ -264,13 +264,17 @@ impl BlockChain {
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
 		let extras_db = ethcore_db::extras_client(path.to_str().unwrap()).unwrap();
-		extras_db.open_default(extras_path.to_str().unwrap().to_owned());
+		extras_db.open_default(extras_path.to_str().unwrap().to_owned()).unwrap();
 
 		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
 		let blocks_db = ethcore_db::blocks_client(path.to_str().unwrap()).unwrap();
-		blocks_db.open_default(blocks_path.to_str().unwrap().to_owned()).unwrap();
+		match blocks_db.open_default(blocks_path.to_str().unwrap().to_owned()) {
+			Err(ethcore_db::Error::AlreadyOpen) => {},
+			Ok(_) => {},
+			Err(e) => panic!("error opening blocks_db: {:?}", e),
+		}
 
 		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));

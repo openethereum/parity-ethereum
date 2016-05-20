@@ -25,7 +25,7 @@ extern crate crossbeam;
 pub mod database;
 pub mod traits;
 
-pub use traits::DatabaseService;
+pub use traits::{DatabaseService, Error};
 pub use database::{Database, DatabaseClient, DBTransaction, DatabaseIterator};
 
 use std::sync::Arc;
