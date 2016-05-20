@@ -839,7 +839,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-daodapp"
 version = "0.2.1"
-source = "git+https://github.com/ethcore/parity-daodapp-rs.git#ea67a06f73c6771091706e35c614cb9c2db2d9c5"
+source = "git+https://github.com/ethcore/parity-daodapp-rs.git#333478fac5b0dfa3c17a740316eda51e5305fc42"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
@@ -847,7 +847,7 @@ dependencies = [
 [[package]]
 name = "parity-idmanager"
 version = "0.2.2"
-source = "git+https://github.com/ethcore/parity-idmanager-rs.git#e95d642d4f1ffe9cb190288abe9e52c898f5635a"
+source = "git+https://github.com/ethcore/parity-idmanager-rs.git#19dd79ca7b7afb8824ad072b43ca63babe2ba9bc"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
@@ -871,7 +871,7 @@ dependencies = [
 [[package]]
 name = "parity-wallet"
 version = "0.4.1"
-source = "git+https://github.com/ethcore/parity-wallet.git#dd0e6f022e85680a3b5c936272a631d343600902"
+source = "git+https://github.com/ethcore/parity-wallet.git#6e714a31cdc26cc86f0edb14fd1ae1dc7d496d1e"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
