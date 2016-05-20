@@ -831,6 +831,10 @@ mod tests {
 
 	#[test]
 	fn basic_blockchain_insert() {
+		use std::sync::atomic::*;
+		use std::sync::Arc;
+		use ethcore_db;
+
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
@@ -840,24 +844,33 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 
-		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		::crossbeam::scope(|scope| {
+			let stop = Arc::new(AtomicBool::new(false));
+			ethcore_db::run_worker(scope, stop.clone(), ethcore_db::extras_service_url().unwrap());
+			ethcore_db::run_worker(scope, stop.clone(), ethcore_db::blocks_service_url().unwrap());
 
-		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
-		assert_eq!(bc.best_block_number(), 0);
-		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
-		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
-		assert_eq!(bc.block_hash(1), None);
-		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
+			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 
-		bc.insert_block(&first, vec![]);
+			assert_eq!(bc.genesis_hash(), genesis_hash.clone());
+			assert_eq!(bc.best_block_number(), 0);
+			assert_eq!(bc.best_block_hash(), genesis_hash.clone());
+			assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
+			assert_eq!(bc.block_hash(1), None);
+			assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
 
-		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
-		assert_eq!(bc.best_block_number(), 1);
-		assert_eq!(bc.best_block_hash(), first_hash.clone());
-		assert_eq!(bc.block_hash(1), Some(first_hash.clone()));
-		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
-		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
-		assert_eq!(bc.block_hash(2), None);
+			bc.insert_block(&first, vec![]);
+
+			assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
+			assert_eq!(bc.best_block_number(), 1);
+			assert_eq!(bc.best_block_hash(), first_hash.clone());
+			assert_eq!(bc.block_hash(1), Some(first_hash.clone()));
+			assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
+			assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
+			assert_eq!(bc.block_hash(2), None);
+
+			stop.store(true, Ordering::Relaxed);
+		});
+
 
 	}
 
