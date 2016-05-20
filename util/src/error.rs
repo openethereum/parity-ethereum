@@ -30,6 +30,17 @@ pub enum BaseDataError {
 	NegativelyReferencedHash(H256),
 }
 
+impl fmt::Display for BaseDataError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		 match *self {
+			 BaseDataError::NegativelyReferencedHash(hash) => {
+				 f.write_fmt(format_args!("Entry {} removed from database more times \
+				 	than it was added.", hash))
+			 }
+		 }
+	}
+}
+
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum UtilError {
@@ -55,6 +66,25 @@ pub enum UtilError {
 	SimpleString(String),
 	/// Error from a bad input size being given for the needed output.
 	BadSize,
+}
+
+impl fmt::Display for UtilError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			UtilError::Crypto(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::StdIo(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::Io(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::AddressParse(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::AddressResolve(Some(ref err)) => f.write_fmt(format_args!("{}", err)),
+			UtilError::AddressResolve(_) => f.write_str("Failed to resolve network address."),
+			UtilError::FromHex(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::BaseData(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::Network(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::Decoder(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::SimpleString(ref msg) => f.write_str(&msg),
+			UtilError::BadSize => f.write_str("Bad input size."),
+		}
+	}
 }
 
 #[derive(Debug, PartialEq, Eq)]
