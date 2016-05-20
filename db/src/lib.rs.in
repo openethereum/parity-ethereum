@@ -27,6 +27,9 @@ pub mod traits;
 pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DBTransaction, DatabaseIterator};
 
+pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>;
+
+#[derive(Debug)]
 pub enum ServiceError {
 	Io(std::io::Error),
 	Socket(nanoipc::SocketError),
@@ -56,13 +59,13 @@ fn extras_service_url() -> Result<String, ::std::io::Error> {
 	Ok(home.to_str().unwrap().to_owned())
 }
 
-pub fn blocks_client() -> Result<nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>, ServiceError> {
+pub fn blocks_client() -> Result<DatabaseConnection, ServiceError> {
 	let url = try!(blocks_service_url());
 	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
 	Ok(client)
 }
 
-pub fn extras_client() -> Result<nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>, ServiceError> {
+pub fn extras_client() -> Result<DatabaseConnection, ServiceError> {
 	let url = try!(extras_service_url());
 	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
 	Ok(client)

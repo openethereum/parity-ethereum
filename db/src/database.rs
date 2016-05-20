@@ -72,6 +72,11 @@ impl DatabaseService for Database {
 		Ok(())
 	}
 
+	/// Opens database in the specified path with the default config
+	fn open_default(&self, path: String) -> Result<(), Error> {
+		self.open(DatabaseConfig { prefix_size: None }, path)
+	}
+
 	fn close(&self) -> Result<(), Error> {
 		let mut db = self.db.write().unwrap();
 		if db.is_none() { return Err(Error::IsClosed); }

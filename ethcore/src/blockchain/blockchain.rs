@@ -31,6 +31,8 @@ use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute};
 use db::{Writable, Readable, Key, CacheUpdatePolicy};
+use ethcore_db;
+use ethcore_db::{DatabaseConnection, DatabaseService};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
@@ -158,8 +160,8 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<H256, BlocksBlooms>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	extras_db: Database,
-	blocks_db: Database,
+	extras_db: DatabaseConnection,
+	blocks_db: DatabaseConnection,
 
 	cache_man: RwLock<CacheManager>,
 
@@ -261,12 +263,14 @@ impl BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
-		let extras_db = Database::open_default(extras_path.to_str().unwrap()).unwrap();
+		let extras_db = ethcore_db::extras_client().unwrap();
+		extras_db.open_default(extras_path.to_str().unwrap().to_owned()).unwrap();
 
 		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
-		let blocks_db = Database::open_default(blocks_path.to_str().unwrap()).unwrap();
+		let blocks_db = ethcore_db::blocks_client().unwrap();
+		blocks_db.open_default(blocks_path.to_str().unwrap().to_owned()).unwrap();
 
 		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
@@ -282,8 +286,8 @@ impl BlockChain {
 			block_logs: RwLock::new(HashMap::new()),
 			blocks_blooms: RwLock::new(HashMap::new()),
 			block_receipts: RwLock::new(HashMap::new()),
-			extras_db: extras_db,
-			blocks_db: blocks_db,
+			extras_db: ethcore_db::extras_client().unwrap(),
+			blocks_db: ethcore_db::blocks_client().unwrap(),
 			cache_man: RwLock::new(cache_man),
 			bloom_indexer: BloomIndexer::new(BLOOM_INDEX_SIZE, BLOOM_LEVELS),
 			insert_lock: Mutex::new(()),
@@ -308,11 +312,11 @@ impl BlockChain {
 
 				bc.blocks_db.put(&hash, genesis).unwrap();
 
-				let batch = DBTransaction::new();
+				let batch = ethcore_db::DBTransaction::new(&bc.extras_db.service()).unwrap();
 				batch.write(&hash, &details);
 				batch.write(&header.number(), &hash);
 				batch.put(b"best", &hash).unwrap();
-				bc.extras_db.write(batch).unwrap();
+				batch.commit().unwrap();
 
 				hash
 			}
@@ -456,7 +460,7 @@ impl BlockChain {
 
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
-		let batch = DBTransaction::new();
+		let batch = ethcore_db::DBTransaction::new(&self.extras_db.service()).unwrap();
 		batch.put(b"best", &update.info.hash).unwrap();
 
 		{
@@ -500,7 +504,7 @@ impl BlockChain {
 			batch.extend_with_cache(&mut write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
 
 			// update extras database
-			self.extras_db.write(batch).unwrap();
+			batch.commit().unwrap();
 		}
 	}
 

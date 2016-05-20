@@ -35,6 +35,9 @@ pub trait DatabaseService {
 	/// Opens database in the specified path
 	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error>;
 
+	/// Opens database in the specified path with the default config
+	fn open_default(&self, path: String) -> Result<(), Error>;
+
 	/// Closes database
 	fn close(&self) -> Result<(), Error>;
 

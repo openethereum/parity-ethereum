@@ -392,16 +392,13 @@ fn implement_client_method_body(
 			});
 
 		request_serialization_statements.push(
-			quote_stmt!(cx, let mut socket_ref = self.socket.borrow_mut()));
-
-		request_serialization_statements.push(
-			quote_stmt!(cx, let mut socket = socket_ref.deref_mut()));
+			quote_stmt!(cx, let mut socket = self.socket.write().unwrap(); ));
 
 		request_serialization_statements.push(
 			quote_stmt!(cx, let serialized_payload = ::ipc::binary::serialize(&payload).unwrap()));
 
 		request_serialization_statements.push(
-			quote_stmt!(cx, ::ipc::invoke($index_ident, &Some(serialized_payload), &mut socket)));
+			quote_stmt!(cx, ::ipc::invoke($index_ident, &Some(serialized_payload), &mut *socket)));
 
 
 		request_serialization_statements
@@ -409,17 +406,15 @@ fn implement_client_method_body(
 	else {
 		let mut request_serialization_statements = Vec::new();
 		request_serialization_statements.push(
-			quote_stmt!(cx, let mut socket_ref = self.socket.borrow_mut()));
+			quote_stmt!(cx, let mut socket = self.socket.write().unwrap(); ));
 		request_serialization_statements.push(
-			quote_stmt!(cx, let mut socket = socket_ref.deref_mut()));
-		request_serialization_statements.push(
-			quote_stmt!(cx, ::ipc::invoke($index_ident, &None, &mut socket)));
+			quote_stmt!(cx, ::ipc::invoke($index_ident, &None, &mut *socket)));
 		request_serialization_statements
 	};
 
 	if let Some(ref return_ty) = dispatch.return_type_ty {
 		let return_expr = quote_expr!(cx,
-			::ipc::binary::deserialize_from::<$return_ty, _>(&mut socket).unwrap()
+			::ipc::binary::deserialize_from::<$return_ty, _>(&mut *socket).unwrap()
 		);
 		quote_expr!(cx, {
 			$request
@@ -525,7 +520,7 @@ fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, interface_map: 
 
 	let client_struct_item = quote_item!(cx,
 		pub struct $client_short_ident $generics {
-			socket: ::std::cell::RefCell<S>,
+			socket: ::std::sync::RwLock<S>,
 			phantom: $phantom,
 		});
 
@@ -560,7 +555,7 @@ fn push_with_socket_client_implementation(
 		impl $generics ::ipc::WithSocket<S> for $client_ident $where_clause {
 			fn init(socket: S) -> $client_ident {
 				$client_short_ident {
-					socket: ::std::cell::RefCell::new(socket),
+					socket: ::std::sync::RwLock::new(socket),
 					phantom: ::std::marker::PhantomData,
 				}
 			}
@@ -594,15 +589,13 @@ fn push_client_implementation(
 				reserved: vec![0u8; 64],
 			};
 
-			let mut socket_ref = self.socket.borrow_mut();
-			let mut socket = socket_ref.deref_mut();
 			::ipc::invoke(
 				0,
 				&Some(::ipc::binary::serialize(&payload).unwrap()),
-				&mut socket);
+				&mut *self.socket.write().unwrap());
 
 			let mut result = vec![0u8; 1];
-			if try!(socket.read(&mut result).map_err(|_| ::ipc::Error::HandshakeFailed)) == 1 {
+			if try!(self.socket.write().unwrap().read(&mut result).map_err(|_| ::ipc::Error::HandshakeFailed)) == 1 {
 				match result[0] {
 					1 => Ok(()),
 					_ => Err(::ipc::Error::RemoteServiceUnsupported),
@@ -613,7 +606,7 @@ fn push_client_implementation(
 
 	let socket_item = quote_impl_item!(cx,
 		#[cfg(test)]
-		pub fn socket(&self) -> &::std::cell::RefCell<S> {
+		pub fn socket(&self) -> &::std::sync::RwLock<S> {
 			&self.socket
 		}).unwrap();
 
