@@ -29,6 +29,8 @@ pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DBTransaction, DatabaseIterator};
 
 use crossbeam::Scope;
+use std::sync::Arc;
+use std::sync::atomic::*;
 
 pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>;
 
@@ -72,4 +74,15 @@ pub fn extras_client() -> Result<DatabaseConnection, ServiceError> {
 	let url = try!(extras_service_url());
 	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
 	Ok(client)
+}
+
+// for tests
+pub fn run_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, addr: String) {
+	scope.spawn(move || {
+		let mut worker = nanoipc::Worker::new(&Arc::new(Database::new()));
+		worker.add_reqrep(&addr).unwrap();
+		while !stop.load(Ordering::Relaxed) {
+			worker.poll();
+		}
+	});
 }

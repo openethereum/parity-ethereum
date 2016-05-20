@@ -299,6 +299,9 @@ mod client_tests {
 	use nanoipc;
 	use std::sync::Arc;
 	use std::sync::atomic::{Ordering, AtomicBool};
+	use crossbeam;
+	use run_worker;
+
 
 	fn init_worker(addr: &str) -> nanoipc::Worker<Database> {
 		let mut worker = nanoipc::Worker::<Database>::new(&Arc::new(Database::new()));
@@ -362,27 +365,16 @@ mod client_tests {
 		let url = "ipc:///tmp/parity-db-ipc-test-30.ipc";
 		let path = RandomTempPath::create_dir();
 
-		let worker_should_exit = Arc::new(AtomicBool::new(false));
-		let worker_is_ready = Arc::new(AtomicBool::new(false));
-		let c_worker_should_exit = worker_should_exit.clone();
-		let c_worker_is_ready = worker_is_ready.clone();
+		crossbeam::scope(move |scope| {
+			let stop = Arc::new(AtomicBool::new(false));
+			run_worker(scope, stop.clone(), url.to_owned());
+			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+			client.open_default(path.as_str().to_owned()).unwrap();
+			client.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
+			client.close().unwrap();
 
-		::std::thread::spawn(move || {
-			let mut worker = init_worker(url);
-    		while !c_worker_should_exit.load(Ordering::Relaxed) {
-				worker.poll();
-				c_worker_is_ready.store(true, Ordering::Relaxed);
-			}
+			stop.store(true, Ordering::Relaxed);
 		});
-
-		while !worker_is_ready.load(Ordering::Relaxed) { }
-		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
-
-		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
-		client.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
-		client.close().unwrap();
-
-		worker_should_exit.store(true, Ordering::Relaxed);
 	}
 
 	#[test]
@@ -390,30 +382,20 @@ mod client_tests {
 		let url = "ipc:///tmp/parity-db-ipc-test-40.ipc";
 		let path = RandomTempPath::create_dir();
 
-		let worker_should_exit = Arc::new(AtomicBool::new(false));
-		let worker_is_ready = Arc::new(AtomicBool::new(false));
-		let c_worker_should_exit = worker_should_exit.clone();
-		let c_worker_is_ready = worker_is_ready.clone();
+		crossbeam::scope(move |scope| {
+			let stop = Arc::new(AtomicBool::new(false));
+			run_worker(scope, stop.clone(), url.to_owned());
+			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
 
-		::std::thread::spawn(move || {
-			let mut worker = init_worker(url);
-    		while !c_worker_should_exit.load(Ordering::Relaxed) {
-				worker.poll();
-				c_worker_is_ready.store(true, Ordering::Relaxed);
-			}
+			client.open_default(path.as_str().to_owned()).unwrap();
+			client.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
+			client.close().unwrap();
+
+			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+			assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
+
+			stop.store(true, Ordering::Relaxed);
 		});
-
-		while !worker_is_ready.load(Ordering::Relaxed) { }
-		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
-
-		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
-		client.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
-		client.close().unwrap();
-
-		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
-		assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
-
-		worker_should_exit.store(true, Ordering::Relaxed);
 	}
 
 	#[test]
@@ -421,33 +403,22 @@ mod client_tests {
 		let url = "ipc:///tmp/parity-db-ipc-test-50.ipc";
 		let path = RandomTempPath::create_dir();
 
-		let worker_should_exit = Arc::new(AtomicBool::new(false));
-		let worker_is_ready = Arc::new(AtomicBool::new(false));
-		let c_worker_should_exit = worker_should_exit.clone();
-		let c_worker_is_ready = worker_is_ready.clone();
+		crossbeam::scope(move |scope| {
+			let stop = Arc::new(AtomicBool::new(false));
+			run_worker(scope, stop.clone(), url.to_owned());
+			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+			client.open_default(path.as_str().to_owned()).unwrap();
 
-		::std::thread::spawn(move || {
-			let mut worker = init_worker(url);
-    		while !c_worker_should_exit.load(Ordering::Relaxed) {
-				worker.poll();
-				c_worker_is_ready.store(true, Ordering::Relaxed);
-			}
+			let transaction = DBTransaction::new(&client.service()).unwrap();
+			transaction.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
+			transaction.commit().unwrap();
+
+			client.close().unwrap();
+
+			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+			assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
+
+			stop.store(true, Ordering::Relaxed);
 		});
-
-		while !worker_is_ready.load(Ordering::Relaxed) { }
-		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
-		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
-
-		let transaction = DBTransaction::new(&client.service()).unwrap();
-		transaction.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
-		transaction.commit().unwrap();
-
-		client.close().unwrap();
-
-		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
-		assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
-
-		worker_should_exit.store(true, Ordering::Relaxed);
-
 	}
 }
