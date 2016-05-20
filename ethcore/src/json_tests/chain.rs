@@ -22,6 +22,9 @@ use tests::helpers::*;
 use devtools::*;
 use spec::Genesis;
 use ethjson;
+use std::sync::atomic::{AtomicBool, Ordering as SyncOrdering};
+use ethcore_db;
+use client;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();
@@ -53,15 +56,32 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			let temp = RandomTempPath::new();
 			{
-				let client = Client::new(ClientConfig::default(), spec, temp.as_path(), IoChannel::disconnected()).unwrap();
-				for b in &blockchain.blocks_rlp() {
-					if Block::is_good(&b) {
-						let _ = client.import_block(b.clone());
-						client.flush_queue();
-						client.import_verified_blocks(&IoChannel::disconnected());
+				let db_path = client::get_db_path(
+					temp.as_path(),
+					ClientConfig::default().pruning,
+					spec.genesis_header().hash()).to_str().unwrap().to_owned();
+
+				let success = ::crossbeam::scope(|scope| {
+					let stop = Arc::new(AtomicBool::new(false));
+					ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
+					ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+
+
+					let client = Client::new(ClientConfig::default(), spec, temp.as_path(), IoChannel::disconnected()).unwrap();
+					for b in &blockchain.blocks_rlp() {
+						if Block::is_good(&b) {
+							let _ = client.import_block(b.clone());
+							client.flush_queue();
+							client.import_verified_blocks(&IoChannel::disconnected());
+						}
 					}
-				}
-				fail_unless(client.chain_info().best_block_hash == blockchain.best_block.into());
+					let compared = client.chain_info().best_block_hash == blockchain.best_block.clone().into();
+
+					stop.store(true, SyncOrdering::Relaxed);
+					compared
+				});
+
+				fail_unless(success);
 			}
 		}
 
