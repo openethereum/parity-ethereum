@@ -33,6 +33,7 @@ use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::{Eth, EthFilter};
@@ -190,21 +191,6 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			}
 		}
 	}
-
-	fn pending_logs(&self, filter: &EthcoreFilter) -> Result<Vec<Log>, Error> {
-		let miner = take_weak!(self.miner);
-		let pending_logs = miner.pending_receipts()
-			.into_iter()
-			.flat_map(|r| r.logs)
-			.collect::<Vec<_>>();
-
-		let result = pending_logs.into_iter()
-			.filter(|l| filter.matches(l))
-			.map(From::from)
-			.collect();
-
-		Ok(result)
-	}
 }
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
@@ -228,6 +214,29 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
 		_ => from_params::<(F1, F2, BlockNumber)>(params)
 	}
+}
+
+
+fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
+	let txs = miner.pending_transactions();
+	let receipts = miner.pending_receipts();
+	assert_eq!(txs.len(), receipts.len());
+
+	let pending_logs = receipts.into_iter()
+		.enumerate()
+		.flat_map(|(i, r)| r.logs.into_iter().map(|l| (txs[i].hash(), l)).collect::<Vec<(H256, LogEntry)>>())
+		.collect::<Vec<(H256, LogEntry)>>();
+
+	let result = pending_logs.into_iter()
+		.filter(|pair| filter.matches(&pair.1))
+		.map(|pair| {
+			let mut log = Log::from(pair.1);
+			log.transaction_hash = Some(pair.0);
+			log
+		})
+		.collect();
+
+	result
 }
 
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
@@ -446,7 +455,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 					.collect::<Vec<Log>>();
 
 				if include_pending {
-					let pending = try!(self.pending_logs(&filter));
+					let pending = pending_logs(take_weak!(self.miner).deref(), &filter);
 					logs.extend(pending);
 				}
 
@@ -589,21 +598,6 @@ impl<C, M> EthFilterClient<C, M>
 			polls: Mutex::new(PollManager::new()),
 		}
 	}
-
-	fn pending_logs(&self, filter: &EthcoreFilter) -> Result<Vec<Log>, Error> {
-		let miner = take_weak!(self.miner);
-		let pending_logs = miner.pending_receipts()
-			.into_iter()
-			.flat_map(|r| r.logs)
-			.collect::<Vec<_>>();
-
-		let result = pending_logs.into_iter()
-			.filter(|l| filter.matches(l))
-			.map(From::from)
-			.collect();
-
-		Ok(result)
-	}
 }
 
 impl<C, M> EthFilter for EthFilterClient<C, M>
@@ -682,9 +676,6 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 							// retrive the current block number
 							let current_number = client.chain_info().best_block_number;
 
-							// check if we already polled from given block_number
-							let already_polled = &current_number == block_number;
-
 							// check if we need to check pending hashes
 							let include_pending = filter.to_block == Some(BlockNumber::Pending);
 
@@ -701,18 +692,15 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 
 							// additionally retrieve pending logs
 							if include_pending {
-								let pending_logs = try!(self.pending_logs(&filter));
+								let pending_logs = pending_logs(take_weak!(self.miner).deref(), &filter);
 
 								// remove logs about which client was already notified about
-								let new_pending_logs = match already_polled {
-									true => pending_logs.iter()
-										.filter(|p| !previous_logs.contains(p))
-										.cloned()
-										.collect(),
-									false => pending_logs.clone()
-								};
+								let new_pending_logs: Vec<_> = pending_logs.iter()
+									.filter(|p| !previous_logs.contains(p))
+									.cloned()
+									.collect();
 
-								// save hashes of all logs retrieved by client
+								// save all logs retrieved by client
 								*previous_logs = pending_logs.into_iter().collect();
 
 								// append logs array with new pending logs
@@ -743,7 +731,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 							.collect::<Vec<Log>>();
 
 						if include_pending {
-							logs.extend(try!(self.pending_logs(&filter)));
+							logs.extend(pending_logs(take_weak!(self.miner).deref(), &filter));
 						}
 
 						to_value(&logs)
