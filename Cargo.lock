@@ -356,11 +356,11 @@ dependencies = [
  "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-daodapp 0.2.0 (git+https://github.com/ethcore/parity-daodapp-rs.git)",
+ "parity-daodapp 0.2.1 (git+https://github.com/ethcore/parity-daodapp-rs.git)",
  "parity-idmanager 0.2.2 (git+https://github.com/ethcore/parity-idmanager-rs.git)",
- "parity-makerotc 0.1.2 (git+https://github.com/ethcore/parity-makerotc-rs.git)",
+ "parity-makerotc 0.1.3 (git+https://github.com/ethcore/parity-makerotc-rs.git)",
  "parity-status 0.4.3 (git+https://github.com/ethcore/parity-status.git)",
- "parity-wallet 0.4.0 (git+https://github.com/ethcore/parity-wallet.git)",
+ "parity-wallet 0.4.1 (git+https://github.com/ethcore/parity-wallet.git)",
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -838,8 +838,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "parity-daodapp"
-version = "0.2.0"
-source = "git+https://github.com/ethcore/parity-daodapp-rs.git#4d7acf6e53b86629e5f217eaa08dd57c41fda820"
+version = "0.2.1"
+source = "git+https://github.com/ethcore/parity-daodapp-rs.git#ea67a06f73c6771091706e35c614cb9c2db2d9c5"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
@@ -847,15 +847,15 @@ dependencies = [
 [[package]]
 name = "parity-idmanager"
 version = "0.2.2"
-source = "git+https://github.com/ethcore/parity-idmanager-rs.git#047d95a6acac2f6c8096e91d75717101f894559d"
+source = "git+https://github.com/ethcore/parity-idmanager-rs.git#e95d642d4f1ffe9cb190288abe9e52c898f5635a"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
 
 [[package]]
 name = "parity-makerotc"
-version = "0.1.2"
-source = "git+https://github.com/ethcore/parity-makerotc-rs.git#5a3e1ebd5206b2f03a003100fde34594c2364992"
+version = "0.1.3"
+source = "git+https://github.com/ethcore/parity-makerotc-rs.git#5fec743658e82b365e1db739a966a69e557b5873"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
@@ -870,8 +870,8 @@ dependencies = [
 
 [[package]]
 name = "parity-wallet"
-version = "0.4.0"
-source = "git+https://github.com/ethcore/parity-wallet.git#5391a89dc5dbf162d1beeba555f03c24bfd619bd"
+version = "0.4.1"
+source = "git+https://github.com/ethcore/parity-wallet.git#dd0e6f022e85680a3b5c936272a631d343600902"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
