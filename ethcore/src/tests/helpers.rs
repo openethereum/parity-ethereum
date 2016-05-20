@@ -222,10 +222,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
-	for block_order in 1..block_number {
-		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
-	}
+	let bc = generate_dummy_blockchain_in(&temp, block_number);
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
@@ -233,17 +230,30 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 	}
 }
 
-pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
-	let temp = RandomTempPath::new();
+pub fn generate_dummy_blockchain_in(temp: &RandomTempPath, block_number: u32) -> BlockChain {
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
-		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
+		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
 	}
+	bc
+}
+
+pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
+	let temp = RandomTempPath::new();
+	let bc = generate_dummy_blockchain_with_extra_in(&temp, block_number);
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
 		result: Some(bc)
 	}
+}
+
+pub fn generate_dummy_blockchain_with_extra_in(temp: &RandomTempPath, block_number: u32) -> BlockChain {
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
+	for block_order in 1..block_number {
+		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
+	}
+	bc
 }
 
 pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
