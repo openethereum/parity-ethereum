@@ -16,6 +16,7 @@
 
 //! Traces config.
 use bloomchain::Config as BloomConfig;
+use trace::Error;
 
 /// 3-value enum.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -30,10 +31,10 @@ pub enum Switch {
 
 impl Switch {
 	/// Tries to turn old switch to new value.
-	pub fn turn_to(&self, to: Switch) -> Result<bool, &'static str> {
+	pub fn turn_to(&self, to: Switch) -> Result<bool, Error> {
 		match (*self, to) {
 			(Switch::On, Switch::On) | (Switch::On, Switch::Auto) | (Switch::Auto, Switch::On) => Ok(true),
-			(Switch::Off, Switch::On) => Err("Tracing can't be enabled"),
+			(Switch::Off, Switch::On) => Err(Error::ResyncRequired),
 			_ => Ok(false),
 		}
 	}

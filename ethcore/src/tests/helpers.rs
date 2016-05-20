@@ -201,6 +201,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 
 pub fn get_test_client_with_blocks_in(dir: &RandomTempPath, blocks: Vec<Bytes>) -> Arc<Client> {
 	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
+
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");
