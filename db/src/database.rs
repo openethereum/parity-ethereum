@@ -399,6 +399,23 @@ mod client_tests {
 	}
 
 	#[test]
+	fn can_read_empty() {
+		let url = "ipc:///tmp/parity-db-ipc-test-45.ipc";
+		let path = RandomTempPath::create_dir();
+
+		crossbeam::scope(move |scope| {
+			let stop = Arc::new(AtomicBool::new(false));
+			run_worker(scope, stop.clone(), url.to_owned());
+			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+
+			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+			assert!(client.get("xxx".as_bytes()).unwrap().is_none());
+
+			stop.store(true, Ordering::Relaxed);
+		});
+	}
+
+	#[test]
 	fn can_create_transaction() {
 		let url = "ipc:///tmp/parity-db-ipc-test-50.ipc";
 		let path = RandomTempPath::create_dir();
