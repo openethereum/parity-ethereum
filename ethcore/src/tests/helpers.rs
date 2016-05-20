@@ -138,7 +138,14 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTrans
 
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
+	let client = generate_dummy_client_in(&dir, block_number);
+	GuardedTempResult::<Arc<Client>> {
+		_temp: dir,
+		result: Some(client)
+	}
+}
 
+pub fn generate_dummy_client_in(dir: &RandomTempPath, block_number: u32) -> Arc<Client> {
 	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
@@ -168,10 +175,7 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
 
-	GuardedTempResult::<Arc<Client>> {
-		_temp: dir,
-		result: Some(client)
-	}
+	client
 }
 
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
@@ -205,6 +209,14 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
+	let client = get_test_client_with_blocks_in(&dir, blocks);
+	GuardedTempResult::<Arc<Client>> {
+		_temp: dir,
+		result: Some(client)
+	}
+}
+
+pub fn get_test_client_with_blocks_in(dir: &RandomTempPath, blocks: Vec<Bytes>) -> Arc<Client> {
 	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
@@ -213,11 +225,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	}
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
-
-	GuardedTempResult::<Arc<Client>> {
-		_temp: dir,
-		result: Some(client)
-	}
+	client
 }
 
 pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
