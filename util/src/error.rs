@@ -66,6 +66,12 @@ pub struct Mismatch<T: fmt::Debug> {
 	pub found: T,
 }
 
+impl<T: fmt::Debug + fmt::Display> fmt::Display for Mismatch<T> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.write_fmt(format_args!("Expected {}, found {}", self.expected, self.found))
+	}
+}
+
 #[derive(Debug, PartialEq, Eq)]
 /// Error indicating value found is outside of a valid range.
 pub struct OutOfBounds<T: fmt::Debug> {
