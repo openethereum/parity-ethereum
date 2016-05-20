@@ -255,6 +255,7 @@ dependencies = [
 name = "ethcore-db"
 version = "1.2.0"
 dependencies = [
+ "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.2.0",
  "ethcore-ipc 1.2.0",
  "ethcore-ipc-codegen 1.2.0",

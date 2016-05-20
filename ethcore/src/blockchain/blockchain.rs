@@ -839,6 +839,7 @@ mod tests {
 		let first_hash = BlockView::new(&first).header_view().sha3();
 
 		let temp = RandomTempPath::new();
+
 		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
@@ -857,6 +858,7 @@ mod tests {
 		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
 		assert_eq!(bc.block_hash(2), None);
+
 	}
 
 	#[test]

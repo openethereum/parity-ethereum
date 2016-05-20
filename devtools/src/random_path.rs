@@ -54,6 +54,12 @@ impl RandomTempPath {
 	pub fn as_str(&self) -> &str {
 		self.path.to_str().unwrap()
 	}
+
+	pub fn new_in(&self, name: &str) -> String {
+		let mut path = self.path.clone();
+		path.push(name);
+		path.to_str().unwrap().to_owned()
+	}
 }
 
 impl Drop for RandomTempPath {

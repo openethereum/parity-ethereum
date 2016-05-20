@@ -20,12 +20,15 @@ extern crate ethcore_devtools as devtools;
 extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate nanomsg;
+extern crate crossbeam;
 
 pub mod database;
 pub mod traits;
 
 pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DBTransaction, DatabaseIterator};
+
+use crossbeam::Scope;
 
 pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>;
 
@@ -43,20 +46,20 @@ impl std::convert::From<nanoipc::SocketError> for ServiceError {
 	fn from(socket_error: nanoipc::SocketError) -> ServiceError { ServiceError::Socket(socket_error) }
 }
 
-fn blocks_service_url() -> Result<String, std::io::Error> {
+pub fn blocks_service_url() -> Result<String, std::io::Error> {
 	let mut home = ::std::env::home_dir().expect("home dir not found");
 	home.push("ipc");
 	try!(::std::fs::create_dir_all(home.as_path()));
 	home.push("db_blocks.ipc");
-	Ok(home.to_str().unwrap().to_owned())
+	Ok(format!("ipc://{}", home.to_str().unwrap()))
 }
 
-fn extras_service_url() -> Result<String, ::std::io::Error> {
+pub fn extras_service_url() -> Result<String, ::std::io::Error> {
 	let mut home = ::std::env::home_dir().expect("home dir not found");
 	home.push("ipc");
 	try!(::std::fs::create_dir_all(home.as_path()));
 	home.push("db_extras.ipc");
-	Ok(home.to_str().unwrap().to_owned())
+	Ok(format!("ipc://{}", home.to_str().unwrap()))
 }
 
 pub fn blocks_client() -> Result<DatabaseConnection, ServiceError> {

@@ -19,6 +19,7 @@ rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
 semver = "0.2"
 ethcore-ipc-nano = { path = "../ipc/nano" }
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
+crossbeam = "0.2"
 
 [features]
 dev = ["clippy"]
