@@ -28,9 +28,9 @@ pub mod traits;
 pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DBTransaction, DatabaseIterator};
 
-use crossbeam::Scope;
 use std::sync::Arc;
 use std::sync::atomic::*;
+use std::path::PathBuf;
 
 pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>;
 
@@ -48,39 +48,38 @@ impl std::convert::From<nanoipc::SocketError> for ServiceError {
 	fn from(socket_error: nanoipc::SocketError) -> ServiceError { ServiceError::Socket(socket_error) }
 }
 
-pub fn blocks_service_url() -> Result<String, std::io::Error> {
-	let mut home = ::std::env::home_dir().expect("home dir not found");
-	home.push("ipc");
-	try!(::std::fs::create_dir_all(home.as_path()));
-	home.push("db_blocks.ipc");
-	Ok(format!("ipc://{}", home.to_str().unwrap()))
+pub fn blocks_service_url(db_path: &str) -> Result<String, std::io::Error> {
+	let mut path = PathBuf::from(db_path);
+	try!(::std::fs::create_dir_all(db_path));
+	path.push("blocks.ipc");
+	Ok(format!("ipc://{}", path.to_str().unwrap()))
 }
 
-pub fn extras_service_url() -> Result<String, ::std::io::Error> {
-	let mut home = ::std::env::home_dir().expect("home dir not found");
-	home.push("ipc");
-	try!(::std::fs::create_dir_all(home.as_path()));
-	home.push("db_extras.ipc");
-	Ok(format!("ipc://{}", home.to_str().unwrap()))
+pub fn extras_service_url(db_path: &str) -> Result<String, ::std::io::Error> {
+	let mut path = PathBuf::from(db_path);
+	try!(::std::fs::create_dir_all(db_path));
+	path.push("extras.ipc");
+	Ok(format!("ipc://{}", path.to_str().unwrap()))
 }
 
-pub fn blocks_client() -> Result<DatabaseConnection, ServiceError> {
-	let url = try!(blocks_service_url());
+pub fn blocks_client(db_path: &str) -> Result<DatabaseConnection, ServiceError> {
+	let url = try!(blocks_service_url(db_path));
 	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
 	Ok(client)
 }
 
-pub fn extras_client() -> Result<DatabaseConnection, ServiceError> {
-	let url = try!(extras_service_url());
+pub fn extras_client(db_path: &str) -> Result<DatabaseConnection, ServiceError> {
+	let url = try!(extras_service_url(db_path));
 	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
 	Ok(client)
 }
 
 // for tests
-pub fn run_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, addr: String) {
+pub fn run_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_path: &str) {
+	let socket_path = socket_path.to_owned();
 	scope.spawn(move || {
 		let mut worker = nanoipc::Worker::new(&Arc::new(Database::new()));
-		worker.add_reqrep(&addr).unwrap();
+		worker.add_reqrep(&socket_path).unwrap();
 		while !stop.load(Ordering::Relaxed) {
 			worker.poll();
 		}

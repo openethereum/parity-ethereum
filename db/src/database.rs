@@ -23,7 +23,6 @@ use std::collections::BTreeMap;
 use std::sync::{RwLock, Arc};
 use std::convert::From;
 use ipc::IpcConfig;
-use std::ops::*;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
@@ -302,7 +301,6 @@ mod client_tests {
 	use crossbeam;
 	use run_worker;
 
-
 	fn init_worker(addr: &str) -> nanoipc::Worker<Database> {
 		let mut worker = nanoipc::Worker::<Database>::new(&Arc::new(Database::new()));
 		worker.add_duplex(addr).unwrap();
@@ -367,7 +365,7 @@ mod client_tests {
 
 		crossbeam::scope(move |scope| {
 			let stop = Arc::new(AtomicBool::new(false));
-			run_worker(scope, stop.clone(), url.to_owned());
+			run_worker(scope, stop.clone(), url);
 			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
 			client.open_default(path.as_str().to_owned()).unwrap();
 			client.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
@@ -384,7 +382,7 @@ mod client_tests {
 
 		crossbeam::scope(move |scope| {
 			let stop = Arc::new(AtomicBool::new(false));
-			run_worker(scope, stop.clone(), url.to_owned());
+			run_worker(scope, stop.clone(), url);
 			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
 
 			client.open_default(path.as_str().to_owned()).unwrap();
@@ -405,7 +403,7 @@ mod client_tests {
 
 		crossbeam::scope(move |scope| {
 			let stop = Arc::new(AtomicBool::new(false));
-			run_worker(scope, stop.clone(), url.to_owned());
+			run_worker(scope, stop.clone(), url);
 			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
 
 			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
@@ -422,7 +420,7 @@ mod client_tests {
 
 		crossbeam::scope(move |scope| {
 			let stop = Arc::new(AtomicBool::new(false));
-			run_worker(scope, stop.clone(), url.to_owned());
+			run_worker(scope, stop.clone(), url);
 			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
 			client.open_default(path.as_str().to_owned()).unwrap();
 
