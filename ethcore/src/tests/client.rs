@@ -36,7 +36,7 @@ fn imports_from_empty() {
 		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
 		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
-		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
+		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 
 		client.import_verified_blocks(&IoChannel::disconnected());
 		client.flush_queue();
@@ -80,7 +80,7 @@ fn imports_good_block() {
 		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
 		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
-		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
+		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 		let good_block = get_good_dummy_block();
 		if let Err(_) = client.import_block(good_block) {
 			panic!("error importing block being good by definition");
@@ -107,7 +107,7 @@ fn query_none_block() {
 		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
 		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
-		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
+		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 		let non_existant = client.block_header(BlockID::Number(188));
 		assert!(non_existant.is_none());
 		stop.store(true, SyncOrdering::Relaxed);
