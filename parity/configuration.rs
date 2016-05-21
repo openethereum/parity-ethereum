@@ -256,7 +256,7 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-		let account_service = AccountService::with_security(Path::new(&self.keys_path()), self.keys_iterations());
+		let account_service = AccountService::with_security(Path::new(&self.keys_path()), self.keys_iterations(), !self.args.flag_no_import_keys, self.args.flag_testnet);
 		if let Some(ref unlocks) = self.args.flag_unlock {
 			for d in unlocks.split(',') {
 				let a = Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
@@ -313,7 +313,10 @@ impl Configuration {
 			self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
-		let keys_path = Configuration::replace_home(&self.args.flag_keys_path);
+		let keys_path = match self.args.flag_testnet {
+			true => Configuration::replace_home("$HOME/.parity/testnet_keys"),
+			false => Configuration::replace_home(&self.args.flag_keys_path),
+		};
 		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
 		Directories {

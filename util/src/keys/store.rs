@@ -127,15 +127,12 @@ impl AccountProvider for AccountService {
 }
 
 impl AccountService {
-	/// New account service with the keys store in specific location
-	pub fn new_in(path: &Path) -> Self {
-		AccountService::with_security(path, KEY_ITERATIONS)
-	}
-
-	/// New account service with the keys store in specific location and configured security parameters
-	pub fn with_security(path: &Path, key_iterations: u32) -> Self {
+	/// New account service with the keys store in specific location and configured security parameters.
+	pub fn with_security(path: &Path, key_iterations: u32, import_keys: bool, is_testnet: bool) -> Self {
 		let secret_store = RwLock::new(SecretStore::with_security(path, key_iterations));
-		secret_store.write().unwrap().try_import_existing();
+		if import_keys {
+			secret_store.write().unwrap().try_import_existing(is_testnet);
+		}
 		AccountService {
 			secret_store: secret_store,
 		}
@@ -177,10 +174,10 @@ impl SecretStore {
 	}
 
 	/// trys to import keys in the known locations
-	pub fn try_import_existing(&mut self) {
+	pub fn try_import_existing(&mut self, is_testnet: bool) {
 		use keys::geth_import;
 
-		let import_path = geth_import::keystore_dir();
+		let import_path = geth_import::keystore_dir(is_testnet);
 		if let Err(e) = geth_import::import_geth_keys(self, &import_path) {
 			trace!(target: "sstore", "Geth key not imported: {:?}", e);
 		}

@@ -98,8 +98,8 @@ pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory:
 /// Gets the default geth keystore directory.
 ///
 /// Based on https://github.com/ethereum/go-ethereum/blob/e553215/common/path.go#L75
-pub fn keystore_dir() -> PathBuf {
-	path::ethereum::with_default("keystore")
+pub fn keystore_dir(is_testnet: bool) -> PathBuf {
+	path::ethereum::with_default(if is_testnet {"testnet/keystore"} else {"keystore"})
 }
 
 #[cfg(test)]
