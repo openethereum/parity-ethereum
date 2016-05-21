@@ -80,6 +80,8 @@ struct AccountUnlock {
 	secret: H256,
 	/// expiration datetime (None - never)
 	expires: Option<DateTime<UTC>>,
+	/// Sccount should be relocked after first use.
+	relock_on_use: bool,
 }
 
 /// Basic account management trait
@@ -88,6 +90,8 @@ pub trait AccountProvider : Send + Sync {
 	fn accounts(&self) -> Result<Vec<Address>, ::std::io::Error>;
 	/// Unlocks account with the password provided
 	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError>;
+	/// Unlocks account with the password provided; relocks it on the next call to `account_secret` or `sign`.
+	fn unlock_account_temp(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError>;
 	/// Creates account
 	fn new_account(&self, pass: &str) -> Result<Address, ::std::io::Error>;
 	/// Returns secret for unlocked `account`.
@@ -111,6 +115,9 @@ impl AccountProvider for AccountService {
 	/// Unlocks account with the password provided
 	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
 		self.secret_store.read().unwrap().unlock_account(account, pass)
+	}
+	fn unlock_account_temp(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		self.secret_store.read().unwrap().unlock_account_temp(account, pass)
 	}
 	/// Creates account
 	fn new_account(&self, pass: &str) -> Result<Address, ::std::io::Error> {
@@ -165,7 +172,7 @@ impl AccountService {
 
 	/// Unlocks account for use (no expiration of unlock)
 	pub fn unlock_account_no_expire(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
-		self.secret_store.write().unwrap().unlock_account_with_expiration(account, pass, None)
+		self.secret_store.write().unwrap().unlock_account_with_expiration(account, pass, None, false)
 	}
 }
 
@@ -233,21 +240,26 @@ impl SecretStore {
 
 	/// Unlocks account for use
 	pub fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
-		self.unlock_account_with_expiration(account, pass, Some(UTC::now() + Duration::minutes(20)))
+		self.unlock_account_with_expiration(account, pass, Some(UTC::now() + Duration::minutes(20)), false)
 	}
 
 	/// Unlocks account for use (no expiration of unlock)
 	pub fn unlock_account_no_expire(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
-		self.unlock_account_with_expiration(account, pass, None)
+		self.unlock_account_with_expiration(account, pass, None, false)
 	}
 
-	fn unlock_account_with_expiration(&self, account: &Address, pass: &str, expiration: Option<DateTime<UTC>>) -> Result<(), EncryptedHashMapError> {
+	/// Unlocks account for use (no expiration of unlock)
+	pub fn unlock_account_temp(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		self.unlock_account_with_expiration(account, pass, None, true)
+	}
+
+	fn unlock_account_with_expiration(&self, account: &Address, pass: &str, expiration: Option<DateTime<UTC>>, relock_on_use: bool) -> Result<(), EncryptedHashMapError> {
 		let secret_id = try!(self.account(&account).ok_or(EncryptedHashMapError::UnknownIdentifier));
 		let secret = try!(self.get(&secret_id, pass));
 		{
 			let mut write_lock = self.unlocks.write().unwrap();
 			let mut unlock = write_lock.entry(*account)
-				.or_insert_with(|| AccountUnlock { secret: secret, expires: Some(UTC::now()) });
+				.or_insert_with(|| AccountUnlock { secret: secret, expires: Some(UTC::now()), relock_on_use: relock_on_use });
 			unlock.secret = secret;
 			unlock.expires = expiration;
 		}
@@ -267,24 +279,42 @@ impl SecretStore {
 		Ok(address)
 	}
 
-	/// Signs message with unlocked account
+	/// Signs message with unlocked account.
 	pub fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
-		let read_lock = self.unlocks.read().unwrap();
-		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
-		match crypto::KeyPair::from_secret(unlock.secret) {
-			Ok(pair) => match pair.sign(message) {
-					Ok(signature) => Ok(signature),
+		let (relock, ret) = {
+			let read_lock = self.unlocks.read().unwrap();
+			if let Some(unlock) = read_lock.get(account) {
+				(unlock.relock_on_use, match crypto::KeyPair::from_secret(unlock.secret) {
+					Ok(pair) => match pair.sign(message) {
+							Ok(signature) => Ok(signature),
+							Err(_) => Err(SigningError::InvalidSecret)
+						},
 					Err(_) => Err(SigningError::InvalidSecret)
-				},
-			Err(_) => Err(SigningError::InvalidSecret)
+				})
+			} else {
+				(false, Err(SigningError::AccountNotUnlocked))
+			}
+		};
+		if relock {
+			self.unlocks.write().unwrap().remove(account);
 		}
+		ret
 	}
 
-	/// Returns secret for unlocked account
+	/// Returns secret for unlocked account.
 	pub fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError> {
-		let read_lock = self.unlocks.read().unwrap();
-		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
-		Ok(unlock.secret as crypto::Secret)
+		let (relock, ret) = {
+			let read_lock = self.unlocks.read().unwrap();
+			if let Some(unlock) = read_lock.get(account) {
+				(unlock.relock_on_use, Ok(unlock.secret as crypto::Secret))
+			} else {
+				(false, Err(SigningError::AccountNotUnlocked))
+			}
+		};
+		if relock {
+			self.unlocks.write().unwrap().remove(account);
+		}
+		ret
 	}
 
 	/// Makes account unlocks expire and removes unused key files from memory
@@ -580,6 +610,30 @@ mod tests {
 		};
 
 		assert!(signature != x!(0));
+	}
+
+	#[test]
+	fn can_relock_temp_account() {
+		let temp = RandomTempPath::create_dir();
+		let address = {
+			let mut sstore = SecretStore::new_test(&temp);
+			sstore.new_account("334").unwrap()
+		};
+		let signature = {
+			let sstore = SecretStore::new_test(&temp);
+			sstore.unlock_account_temp(&address, "334").unwrap();
+			sstore.sign(&address, &H256::random()).unwrap();
+			sstore.sign(&address, &H256::random())
+		};
+		assert!(signature.is_err());
+
+		let secret = {
+			let sstore = SecretStore::new_test(&temp);
+			sstore.unlock_account_temp(&address, "334").unwrap();
+			sstore.account_secret(&address).unwrap();
+			sstore.account_secret(&address)
+		};
+		assert!(secret.is_err());
 	}
 
 	#[test]
