@@ -60,7 +60,7 @@ impl<A> Personal for PersonalClient<A> where A: AccountProvider + 'static {
 		from_params::<(Address, String, u64)>(params).and_then(
 			|(account, account_pass, _)|{
 				let store = take_weak!(self.accounts);
-				match store.unlock_account(&account, &account_pass) {
+				match store.unlock_account_temp(&account, &account_pass) {
 					Ok(_) => Ok(Value::Bool(true)),
 					Err(_) => Ok(Value::Bool(false)),
 				}
