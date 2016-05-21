@@ -126,12 +126,24 @@ impl AccountProvider for AccountService {
 	}
 }
 
+/// Which set of keys to import.
+#[derive(PartialEq)]
+pub enum ImportKeySet {
+	/// Empty set.
+	None,
+	/// Import legacy client's general keys.
+	Legacy,
+	/// Import legacy client's testnet keys.
+	LegacyTestnet,
+}
+
 impl AccountService {
 	/// New account service with the keys store in specific location and configured security parameters.
-	pub fn with_security(path: &Path, key_iterations: u32, import_keys: bool, is_testnet: bool) -> Self {
+	pub fn with_security(path: &Path, key_iterations: u32, import_keys: ImportKeySet) -> Self {
 		let secret_store = RwLock::new(SecretStore::with_security(path, key_iterations));
-		if import_keys {
-			secret_store.write().unwrap().try_import_existing(is_testnet);
+		match import_keys {
+			ImportKeySet::None => {}
+			_ => { secret_store.write().unwrap().try_import_existing(import_keys == ImportKeySet::LegacyTestnet); }
 		}
 		AccountService {
 			secret_store: secret_store,
