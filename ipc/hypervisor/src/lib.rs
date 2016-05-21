@@ -109,7 +109,7 @@ impl Hypervisor {
 			executable_path.pop();
 			executable_path.push(binary_id);
 
-			let child = Command::new(binary_id).arg(&executable_path.to_str().unwrap()).spawn().unwrap_or_else(
+			let child = Command::new(&executable_path.to_str().unwrap()).arg(&self.db_path).spawn().unwrap_or_else(
 				|e| panic!("Hypervisor cannot start binary ({:?}): {}", executable_path, e));
 			processes.insert(binary_id, child);
 		});
@@ -125,6 +125,24 @@ impl Hypervisor {
 		let mut worker = self.ipc_worker.write().unwrap();
 		while !self.modules_ready() {
 			worker.poll()
+		}
+	}
+
+	pub fn shutdown(&self) {
+		let mut childs = self.processes.write().unwrap();
+		for (ref mut binary, ref mut child) in childs.iter_mut() {
+			println!("Stopping {}", binary);
+			child.kill().unwrap();
+		}
+	}
+}
+
+impl Drop for Hypervisor {
+	fn drop(&mut self) {
+		let mut childs = self.processes.get_mut().unwrap();
+		for (ref mut binary, ref mut child) in childs.iter_mut() {
+			println!("Stopping {}", binary);
+			child.kill().unwrap();
 		}
 	}
 }
