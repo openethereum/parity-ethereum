@@ -218,7 +218,7 @@ fn execute_client(conf: Configuration) {
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	// Handle exit
-	wait_for_exit(panic_handler, rpc_server, webapp_server);
+	wait_for_exit(panic_handler, rpc_server, webapp_server, hypervisor);
 }
 
 fn flush_stdout() {
@@ -254,12 +254,21 @@ fn execute_account_cli(conf: Configuration) {
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _webapp_server: Option<WebappServer>) {
+fn wait_for_exit(
+	panic_handler: Arc<PanicHandler>,
+	_rpc_server: Option<RpcServer>,
+	_webapp_server: Option<WebappServer>,
+	hypervisor: hypervisor::Hypervisor)
+
+{
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
 	let e = exit.clone();
-	CtrlC::set_handler(move || { e.notify_all(); });
+	CtrlC::set_handler(move || {
+		e.notify_all();
+		hypervisor.shutdown();
+	});
 
 	// Handle panics
 	let e = exit.clone();
