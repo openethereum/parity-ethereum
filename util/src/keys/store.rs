@@ -604,6 +604,30 @@ mod tests {
 	}
 
 	#[test]
+	fn can_relock_temp_account() {
+		let temp = RandomTempPath::create_dir();
+		let address = {
+			let mut sstore = SecretStore::new_test(&temp);
+			sstore.new_account("334").unwrap()
+		};
+		let signature = {
+			let sstore = SecretStore::new_test(&temp);
+			sstore.unlock_account_temp(&address, "334").unwrap();
+			sstore.sign(&address, &H256::random()).unwrap();
+			sstore.sign(&address, &H256::random())
+		};
+		assert!(signature.is_err());
+
+		let secret = {
+			let sstore = SecretStore::new_test(&temp);
+			sstore.unlock_account_temp(&address, "334").unwrap();
+			sstore.account_secret(&address).unwrap();
+			sstore.account_secret(&address)
+		};
+		assert!(secret.is_err());
+	}
+
+	#[test]
 	fn can_import_account() {
 		use keys::directory::{KeyFileContent, KeyFileCrypto};
 		let temp = RandomTempPath::create_dir();
