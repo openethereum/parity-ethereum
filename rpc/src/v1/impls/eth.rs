@@ -28,7 +28,7 @@ use util::numbers::*;
 use util::sha3::*;
 use util::bytes::{ToPretty};
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use ethcore::client::*;
+use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -75,7 +75,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		}
 	}
 
-	fn block(&self, id: BlockId, include_txs: bool) -> Result<Value, Error> {
+	fn block(&self, id: BlockID, include_txs: bool) -> Result<Value, Error> {
 		let client = take_weak!(self.client);
 		match (client.block(id.clone()), client.block_total_difficulty(id)) {
 			(Some(bytes), Some(total_difficulty)) => {
@@ -114,16 +114,16 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		}
 	}
 
-	fn transaction(&self, id: TransactionId) -> Result<Value, Error> {
+	fn transaction(&self, id: TransactionID) -> Result<Value, Error> {
 		match take_weak!(self.client).transaction(id) {
 			Some(t) => to_value(&Transaction::from(t)),
 			None => Ok(Value::Null)
 		}
 	}
 
-	fn uncle(&self, id: UncleId) -> Result<Value, Error> {
+	fn uncle(&self, id: UncleID) -> Result<Value, Error> {
 		let client = take_weak!(self.client);
-		match client.uncle(id).and_then(|u| client.block_total_difficulty(BlockId::Hash(u.parent_hash().clone())).map(|diff| (diff, u))) {
+		match client.uncle(id).and_then(|u| client.block_total_difficulty(BlockID::Hash(u.parent_hash().clone())).map(|diff| (diff, u))) {
 			Some((parent_difficulty, uncle)) => {
 				let block = Block {
 					hash: OptionalValue::Value(uncle.hash()),
@@ -233,8 +233,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			Params::None => {
 				let status = take_weak!(self.sync).status();
 				let res = match status.state {
-					SyncState::NotSynced | SyncState::Idle => SyncStatus::None,
-					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks => SyncStatus::Info(SyncInfo {
+					SyncState::Idle => SyncStatus::None,
+					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => SyncStatus::Info(SyncInfo {
 						starting_block: U256::from(status.start_block_number),
 						current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
 						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
@@ -322,7 +322,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| // match
-				take_weak!(self.client).block(BlockId::Hash(hash))
+				take_weak!(self.client).block(BlockID::Hash(hash))
 					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count()))))
 	}
 
@@ -340,7 +340,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn block_uncles_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)|
-				take_weak!(self.client).block(BlockId::Hash(hash))
+				take_weak!(self.client).block(BlockID::Hash(hash))
 					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count()))))
 	}
 
@@ -364,7 +364,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, bool)>(params)
-			.and_then(|(hash, include_txs)| self.block(BlockId::Hash(hash), include_txs))
+			.and_then(|(hash, include_txs)| self.block(BlockID::Hash(hash), include_txs))
 	}
 
 	fn block_by_number(&self, params: Params) -> Result<Value, Error> {
@@ -378,38 +378,38 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				let miner = take_weak!(self.miner);
 				match miner.transaction(&hash) {
 					Some(pending_tx) => to_value(&Transaction::from(pending_tx)),
-					None => self.transaction(TransactionId::Hash(hash))
+					None => self.transaction(TransactionID::Hash(hash))
 				}
 			})
 	}
 
 	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| self.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())))
+			.and_then(|(hash, index)| self.transaction(TransactionID::Location(BlockID::Hash(hash), index.value())))
 	}
 
 	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
-			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
+			.and_then(|(number, index)| self.transaction(TransactionID::Location(number.into(), index.value())))
 	}
 
 	fn transaction_receipt(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| {
 				let client = take_weak!(self.client);
-				let receipt = client.transaction_receipt(TransactionId::Hash(hash));
+				let receipt = client.transaction_receipt(TransactionID::Hash(hash));
 				to_value(&receipt.map(Receipt::from))
 			})
 	}
 
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| self.uncle(UncleId(BlockId::Hash(hash), index.value())))
+			.and_then(|(hash, index)| self.uncle(UncleID(BlockID::Hash(hash), index.value())))
 	}
 
 	fn uncle_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
-			.and_then(|(number, index)| self.uncle(UncleId(number.into(), index.value())))
+			.and_then(|(number, index)| self.uncle(UncleID(number.into(), index.value())))
 	}
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
@@ -617,7 +617,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 							// + 1, cause we want to return hashes including current block hash.
 							let current_number = client.chain_info().best_block_number + 1;
 							let hashes = (*block_number..current_number).into_iter()
-								.map(BlockId::Number)
+								.map(BlockID::Number)
 								.filter_map(|id| client.block_hash(id))
 								.collect::<Vec<H256>>();
 
@@ -641,8 +641,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 						},
 						PollFilter::Logs(ref mut block_number, ref filter) => {
 							let mut filter = filter.clone();
-							filter.from_block = BlockId::Number(*block_number);
-							filter.to_block = BlockId::Latest;
+							filter.from_block = BlockID::Number(*block_number);
+							filter.to_block = BlockID::Latest;
 							let logs = client.logs(filter)
 								.into_iter()
 								.map(From::from)

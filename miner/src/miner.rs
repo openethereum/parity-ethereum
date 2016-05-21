@@ -20,7 +20,7 @@ use std::sync::atomic::AtomicBool;
 use util::*;
 use util::keys::store::{AccountService, AccountProvider};
 use ethcore::views::{BlockView, HeaderView};
-use ethcore::client::{BlockChainClient, BlockId};
+use ethcore::client::{BlockChainClient, BlockID};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::*;
 use ethcore::client::{Executive, Executed, EnvInfo, TransactOptions};
@@ -475,7 +475,7 @@ impl MinerService for Miner {
 	fn chain_new_blocks(&self, chain: &BlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
-				.block(BlockId::Hash(*hash))
+				.block(BlockID::Hash(*hash))
 				// Client should send message after commit to db and inserting to chain.
 				.expect("Expected in-chain blocks.");
 			let block = BlockView::new(&block);

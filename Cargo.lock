@@ -332,7 +332,7 @@ dependencies = [
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb 0.4.3 (git+https://github.com/arkpar/rust-rocksdb.git)",
+ "rocksdb 0.4.3 (git+https://github.com/ethcore/rust-rocksdb)",
  "rust-crypto 0.2.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -628,7 +628,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "librocksdb-sys"
 version = "0.2.3"
-source = "git+https://github.com/arkpar/rust-rocksdb.git#ae44ef33ed1358ffc79aa05ed77839d555daba33"
+source = "git+https://github.com/ethcore/rust-rocksdb#6b6ce93e2828182691e00da57fdfb2926226f1f1"
 dependencies = [
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -970,10 +970,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rocksdb"
 version = "0.4.3"
-source = "git+https://github.com/arkpar/rust-rocksdb.git#ae44ef33ed1358ffc79aa05ed77839d555daba33"
+source = "git+https://github.com/ethcore/rust-rocksdb#6b6ce93e2828182691e00da57fdfb2926226f1f1"
 dependencies = [
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "librocksdb-sys 0.2.3 (git+https://github.com/arkpar/rust-rocksdb.git)",
+ "librocksdb-sys 0.2.3 (git+https://github.com/ethcore/rust-rocksdb)",
 ]
 
 [[package]]

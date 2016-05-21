@@ -30,6 +30,7 @@ pub struct DB<L: Sized> {
 
 pub trait DBWriter {
 	fn write(&self, data: Vec<u8>)  -> Result<(), DBError>;
+	fn write_slice(&self, data: &[u8]) -> Result<(), DBError>;
 }
 
 impl<L: Sized> IpcConfig for DB<L> {}
@@ -40,6 +41,12 @@ pub enum DBError { Write, Read }
 #[derive(Ipc)]
 impl<L: Sized> DBWriter for DB<L> {
 	fn write(&self, data: Vec<u8>) -> Result<(), DBError> {
+		let mut writes = self.writes.write().unwrap();
+		*writes = *writes + data.len() as u64;
+		Ok(())
+	}
+
+	fn write_slice(&self, data: &[u8]) -> Result<(), DBError> {
 		let mut writes = self.writes.write().unwrap();
 		*writes = *writes + data.len() as u64;
 		Ok(())

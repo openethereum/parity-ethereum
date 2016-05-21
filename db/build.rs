@@ -14,45 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate syntex;
+extern crate ethcore_ipc_codegen as codegen;
 
-use ipc::*;
-use std::mem;
-use std::collections::VecDeque;
+use std::env;
+use std::path::Path;
 
-#[derive(Binary)]
-pub enum Root {
-	Top,
-	Middle(u32, u64),
-}
+pub fn main() {
+	let out_dir = env::var_os("OUT_DIR").unwrap();
 
-#[derive(Binary, PartialEq, Debug)]
-pub struct DoubleRoot {
-	pub x1: u32,
-	pub x2: u64,
-	pub x3: u32,
-}
+	// ipc pass
+	{
+		let src = Path::new("src/lib.rs.in");
+		let dst = Path::new(&out_dir).join("lib.intermediate.rs.in");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
 
-#[derive(Binary, PartialEq, Debug)]
-pub struct ReferenceStruct<'a> {
-	pub ref_data: &'a u64,
-}
-
-#[derive(Binary, PartialEq, Debug)]
-pub enum EnumWithStruct {
-	Left,
-	Right { how_much: u64 },
-}
-
-#[derive(Binary)]
-pub struct TwoVec {
-	v1: Vec<u8>,
-	v2: Vec<u8>,
-}
-
-#[test]
-fn opt_two_vec() {
-	let example: Option<TwoVec> = None;
-
-	let serialized = ::ipc::binary::serialize(&example).unwrap();
-	assert_eq!(serialized, vec![0u8; 16]);
+	// binary serialization pass
+	{
+		let src = Path::new(&out_dir).join("lib.intermediate.rs.in");
+		let dst = Path::new(&out_dir).join("lib.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
 }

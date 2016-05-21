@@ -24,7 +24,7 @@ use std::collections::VecDeque;
 
 /// Uniquely identifies block.
 #[derive(Debug, PartialEq, Clone, Hash, Eq, Binary)]
-pub enum BlockId {
+pub enum BlockID {
 	/// Block's sha3.
 	/// Querying by hash is always faster.
 	Hash(H256),
@@ -38,27 +38,27 @@ pub enum BlockId {
 
 /// Uniquely identifies transaction.
 #[derive(Debug, PartialEq, Clone, Hash, Eq, Binary)]
-pub enum TransactionId {
+pub enum TransactionID {
 	/// Transaction's sha3.
 	Hash(H256),
 	/// Block id and transaction index within this block.
 	/// Querying by block position is always faster.
-	Location(BlockId, usize)
+	Location(BlockID, usize)
 }
 
 /// Uniquely identifies Trace.
 pub struct TraceId {
 	/// Transaction
-	pub transaction: TransactionId,
+	pub transaction: TransactionID,
 	/// Trace address within transaction.
 	pub address: Vec<usize>,
 }
 
 /// Uniquely identifies Uncle.
 #[derive(Debug)]
-pub struct UncleId (
+pub struct UncleID (
 	/// Block id.
-	pub BlockId,
+	pub BlockID,
 	/// Position in block.
 	pub usize
 );

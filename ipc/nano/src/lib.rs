@@ -116,6 +116,8 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 
 	/// Polls all sockets, reads and dispatches method invocations
 	pub fn poll(&mut self) {
+		use std::io::Write;
+
 		let mut request = PollRequest::new(&mut self.polls[..]);
  		let _result_guard = Socket::poll(&mut request, POLL_TIMEOUT);
 
@@ -135,7 +137,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 							// dispatching for ipc interface
 							let result = self.service.dispatch_buf(method_num, payload);
 
-							if let Err(e) = socket.nb_write(&result) {
+							if let Err(e) = socket.write(&result) {
 								warn!(target: "ipc", "Failed to write response: {:?}", e);
 							}
 						}
