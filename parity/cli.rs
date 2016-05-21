@@ -45,6 +45,7 @@ Account Options:
   --keys-iterations NUM    Specify the number of iterations to use when deriving key
                            from the password (bigger is more secure)
                            [default: 10240].
+  --no-import-keys         Do not import keys from legacy clients.
 
 Networking Options:
   --port PORT              Override the port on which the node should listen
@@ -148,8 +149,10 @@ Legacy Options:
   --geth                   Run in Geth-compatibility mode. Currently just sets
                            the IPC path to be the same as Geth's. Overrides
                            the --ipc-path/--ipcpath options.
+  --testnet                Geth-compatible testnet mode. Equivalent to --chain
+                           testnet --keys-path $HOME/parity/testnet-keys.
+                           Overrides the --keys-path option.
   --datadir PATH           Equivalent to --db-path PATH.
-  --testnet                Equivalent to --chain testnet.
   --networkid INDEX        Equivalent to --network-id INDEX.
   --maxpeers COUNT         Equivalent to --peers COUNT.
   --nodekey KEY            Equivalent to --node-key KEY.
@@ -192,6 +195,7 @@ pub struct Args {
 	pub flag_cache: Option<usize>,
 	pub flag_keys_path: String,
 	pub flag_keys_iterations: u32,
+	pub flag_no_import_keys: bool,
 	pub flag_bootnodes: Option<String>,
 	pub flag_network_id: Option<String>,
 	pub flag_pruning: String,

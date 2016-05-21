@@ -126,16 +126,25 @@ impl AccountProvider for AccountService {
 	}
 }
 
-impl AccountService {
-	/// New account service with the keys store in specific location
-	pub fn new_in(path: &Path) -> Self {
-		AccountService::with_security(path, KEY_ITERATIONS)
-	}
+/// Which set of keys to import.
+#[derive(PartialEq)]
+pub enum ImportKeySet {
+	/// Empty set.
+	None,
+	/// Import legacy client's general keys.
+	Legacy,
+	/// Import legacy client's testnet keys.
+	LegacyTestnet,
+}
 
-	/// New account service with the keys store in specific location and configured security parameters
-	pub fn with_security(path: &Path, key_iterations: u32) -> Self {
+impl AccountService {
+	/// New account service with the keys store in specific location and configured security parameters.
+	pub fn with_security(path: &Path, key_iterations: u32, import_keys: ImportKeySet) -> Self {
 		let secret_store = RwLock::new(SecretStore::with_security(path, key_iterations));
-		secret_store.write().unwrap().try_import_existing();
+		match import_keys {
+			ImportKeySet::None => {}
+			_ => { secret_store.write().unwrap().try_import_existing(import_keys == ImportKeySet::LegacyTestnet); }
+		}
 		AccountService {
 			secret_store: secret_store,
 		}
@@ -177,10 +186,10 @@ impl SecretStore {
 	}
 
 	/// trys to import keys in the known locations
-	pub fn try_import_existing(&mut self) {
+	pub fn try_import_existing(&mut self, is_testnet: bool) {
 		use keys::geth_import;
 
-		let import_path = geth_import::keystore_dir();
+		let import_path = geth_import::keystore_dir(is_testnet);
 		if let Err(e) = geth_import::import_geth_keys(self, &import_path) {
 			trace!(target: "sstore", "Geth key not imported: {:?}", e);
 		}
