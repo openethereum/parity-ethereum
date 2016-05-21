@@ -90,16 +90,17 @@ impl<T: WebApp + 'static> PageHandler<T> {
 		let app_id = &self.path.app_id;
 		let prefix = "/".to_owned() + self.prefix.as_ref().unwrap_or(app_id);
 		let prefix_with_slash = prefix.clone() + "/";
+		let query_pos = path.find('?').unwrap_or_else(|| path.len());
 
 		// Index file support
 		match path == "/" || path == &prefix || path == &prefix_with_slash {
 			true => "index.html".to_owned(),
 			false => if path.starts_with(&prefix_with_slash) {
-				path[prefix_with_slash.len()..].to_owned()
+				path[prefix_with_slash.len()..query_pos].to_owned()
 			} else if path.starts_with("/") {
-				path[1..].to_owned()
+				path[1..query_pos].to_owned()
 			} else {
-				path.to_owned()
+				path[0..query_pos].to_owned()
 			}
 		}
 	}
@@ -154,4 +155,54 @@ impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 		}
 		res
 	}
+}
+
+
+#[cfg(test)]
+use parity_webapp::File;
+
+#[cfg(test)]
+#[derive(Default)]
+struct TestWebapp;
+
+#[cfg(test)]
+impl WebApp for TestWebapp {
+	fn file(&self, _path: &str) -> Option<&File> {
+		None
+	}
+	fn info(&self) -> Info {
+		unimplemented!()
+	}
+}
+
+#[test]
+fn should_extract_path_with_appid() {
+	// given
+	let path1 = "/";
+	let path2= "/test.css";
+	let path3 = "/app/myfile.txt";
+	let path4 = "/app/myfile.txt?query=123";
+	let page_handler = PageHandler {
+		app: Arc::new(TestWebapp),
+		prefix: None,
+		path: EndpointPath {
+			app_id: "app".to_owned(),
+			host: "".to_owned(),
+			port: 8080
+		},
+		file: None,
+		write_pos: 0,
+	};
+
+	// when
+	let res1 = page_handler.extract_path(path1);
+	let res2 = page_handler.extract_path(path2);
+	let res3 = page_handler.extract_path(path3);
+	let res4 = page_handler.extract_path(path4);
+
+	// then
+	assert_eq!(&res1, "index.html");
+	assert_eq!(&res2, "test.css");
+	assert_eq!(&res3, "myfile.txt");
+	assert_eq!(&res4, "myfile.txt");
 }

@@ -21,8 +21,7 @@ use parity_webapp::WebApp;
 
 extern crate parity_status;
 extern crate parity_idmanager;
-#[cfg(feature = "parity-wallet")]
-extern crate parity_wallet;
+
 
 pub const DAPPS_DOMAIN : &'static str = ".parity";
 pub const RPC_PATH : &'static str =  "rpc";
@@ -46,16 +45,34 @@ pub fn all_endpoints() -> Endpoints {
 	insert::<parity_idmanager::App>(&mut pages, "home");
 
 	wallet_page(&mut pages);
+	daodapp_page(&mut pages);
+	makerotc_page(&mut pages);
 	pages
 }
 
 #[cfg(feature = "parity-wallet")]
 fn wallet_page(pages: &mut Endpoints) {
+	extern crate parity_wallet;
 	insert::<parity_wallet::App>(pages, "wallet");
 }
-
 #[cfg(not(feature = "parity-wallet"))]
 fn wallet_page(_pages: &mut Endpoints) {}
+
+#[cfg(feature = "parity-daodapp")]
+fn daodapp_page(pages: &mut Endpoints) {
+	extern crate parity_daodapp;
+	insert::<parity_daodapp::App>(pages, "dao");
+}
+#[cfg(not(feature = "parity-daodapp"))]
+fn daodapp_page(_pages: &mut Endpoints) {}
+
+#[cfg(feature = "parity-makerotc")]
+fn makerotc_page(pages: &mut Endpoints) {
+	extern crate parity_makerotc;
+	insert::<parity_makerotc::App>(pages, "makerotc");
+}
+#[cfg(not(feature = "parity-makerotc"))]
+fn makerotc_page(_pages: &mut Endpoints) {}
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
 	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));
