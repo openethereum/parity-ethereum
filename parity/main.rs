@@ -43,6 +43,7 @@ extern crate ethcore_ipc_nano as nanoipc;
 #[macro_use]
 extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
+extern crate ethcore_ipc_hypervisor as hypervisor;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
@@ -54,7 +55,6 @@ extern crate ethcore_webapp;
 mod die;
 mod price_info;
 mod upgrade;
-mod hypervisor;
 mod setup_log;
 mod rpc;
 mod webapp;
@@ -132,6 +132,15 @@ fn execute_client(conf: Configuration) {
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
 	let client_config = conf.client_config(&spec);
+
+	let db_path = ethcore::client::get_db_path(
+		Path::new(&conf.path()),
+		client_config.pruning,
+		spec.genesis_header().hash()).to_str().unwrap().to_owned();
+
+	let hypervisor = hypervisor::Hypervisor::new(&db_path);
+	hypervisor.start();
+	hypervisor.wait_for_startup();
 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());

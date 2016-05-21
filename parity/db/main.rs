@@ -18,8 +18,26 @@
 
 extern crate ethcore_db as db;
 extern crate ethcore_ipc_nano as nanoipc;
+extern crate rustc_serialize;
+extern crate docopt;
+extern crate ethcore_ipc_hypervisor as hypervisor;
 
 use db::database::Database;
+use docopt::Docopt;
+use std::sync::Arc;
+use hypervisor::{HypervisorServiceClient, BLOCKCHAIN_MODULE_ID, HYPERVISOR_IPC_URL};
+
+const USAGE: &'static str = "
+Ethcore database service
+
+Usage:
+  db <path>
+";
+
+#[derive(Debug, RustcDecodable)]
+struct Args {
+	arg_path: String,
+}
 
 fn init_worker(addr: &str) -> nanoipc::Worker<Database> {
 	let mut worker = nanoipc::Worker::<Database>::new(&Arc::new(Database::new()));
@@ -28,9 +46,29 @@ fn init_worker(addr: &str) -> nanoipc::Worker<Database> {
 }
 
 fn main() {
-	let mut blocks_db_worker = init_worker(url);
+	let args: Args = Docopt::new(USAGE)
+							.and_then(|d| d.decode())
+							.unwrap_or_else(|e| e.exit());
+
+	println!("Database: {}", args.arg_path);
+
+	let blocks_url = db::blocks_service_url(&args.arg_path).unwrap();
+	let extras_url = db::extras_service_url(&args.arg_path).unwrap();
+
+	std::thread::spawn(move || {
+		let mut extras_db_worker = init_worker(&extras_url);
+		loop {
+			extras_db_worker.poll();
+		}
+	});
+
+	let mut blocks_db_worker = init_worker(&blocks_url);
+
+	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(HYPERVISOR_IPC_URL).unwrap();
+	hypervisor_client.handshake().unwrap();
+	hypervisor_client.module_ready(BLOCKCHAIN_MODULE_ID);
+
 	loop {
-		worker.poll();
-		c_worker_is_ready.store(true, Ordering::Relaxed);
+		blocks_db_worker.poll();
 	}
 }

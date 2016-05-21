@@ -35,6 +35,8 @@ semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
+ethcore-db = { path = "db" }
+ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 
 [dependencies.hyper]
 version = "0.8"
@@ -52,6 +54,10 @@ travis-nightly = ["ethcore/json-tests", "dev"]
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
+
+[[bin]]
+path = "parity/db/main.rs"
+name = "db"
 
 [profile.release]
 debug = true
