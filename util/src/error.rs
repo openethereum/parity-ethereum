@@ -32,12 +32,11 @@ pub enum BaseDataError {
 
 impl fmt::Display for BaseDataError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		 match *self {
-			 BaseDataError::NegativelyReferencedHash(hash) => {
-				 f.write_fmt(format_args!("Entry {} removed from database more times \
-				 	than it was added.", hash))
-			 }
-		 }
+		match *self {
+			BaseDataError::NegativelyReferencedHash(hash) =>
+				f.write_fmt(format_args!("Entry {} removed from database more times \
+					than it was added.", hash)),
+		}
 	}
 }
 
@@ -116,18 +115,10 @@ pub struct OutOfBounds<T: fmt::Debug> {
 impl<T: fmt::Debug + fmt::Display> fmt::Display for OutOfBounds<T> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let msg = match (self.min.as_ref(), self.max.as_ref()) {
-			(Some(min), Some(max)) => {
-				format!("Min={}, Max={}", min, max)
-			}
-			(Some(min), _) => {
-				format!("Min={}", min)
-			}
-			(_, Some(max)) => {
-				format!("Max={}", max)
-			}
-			(None, None) => {
-				"".into()
-			}
+			(Some(min), Some(max)) => format!("Min={}, Max={}", min, max),
+			(Some(min), _) => format!("Min={}", min),
+			(_, Some(max)) => format!("Max={}", max),
+			(None, None) => "".into(),
 		};
 
 		f.write_fmt(format_args!("Value {} out of bounds. {}", self.found, msg))

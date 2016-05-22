@@ -64,33 +64,18 @@ impl fmt::Display for TransactionError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::TransactionError::*;
 		let msg = match *self {
-			AlreadyImported => {
-				"Already imported".into()
-			}
-			Old => {
-				"No longer valid".into()
-			}
-			TooCheapToReplace => {
-				"Gas price too low to replace".into()
-			}
-			LimitReached => {
-				"Transaction limit reached".into()
-			}
-			InsufficientGasPrice { minimal, got } => {
-				format!("Insufficient gas price. Min={}, Given={}",
-					minimal, got)
-			}
-			InsufficientBalance { balance, cost } => {
+			AlreadyImported => "Already imported".into(),
+			Old => "No longer valid".into(),
+			TooCheapToReplace => "Gas price too low to replace".into(),
+			LimitReached => "Transaction limit reached".into(),
+			InsufficientGasPrice { minimal, got } =>
+				format!("Insufficient gas price. Min={}, Given={}", minimal, got),
+			InsufficientBalance { balance, cost } =>
 				format!("Insufficient balance for transaction. Balance={}, Cost={}",
-					balance, cost)
-			}
-			GasLimitExceeded { limit, got } => {
-				format!("Gas limit exceeded. Limit={}, Given={}",
-					limit, got)
-			}
-			InvalidGasLimit(ref err) => {
-				format!("Invalid gas limit. {}", err)
-			}
+					balance, cost),
+			GasLimitExceeded { limit, got } =>
+				format!("Gas limit exceeded. Limit={}, Given={}", limit, got),
+			InvalidGasLimit(ref err) => format!("Invalid gas limit. {}", err),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
@@ -163,84 +148,32 @@ impl fmt::Display for BlockError {
 		use self::BlockError::*;
 
 		let msg = match *self {
-			TooManyUncles(ref oob) => {
-				format!("Block has too many uncles. {}", oob)
-			}
-			ExtraDataOutOfBounds(ref oob) => {
-				format!("Extra block data too long. {}", oob)
-			}
-			InvalidSealArity(ref mis) => {
-				format!("Block seal in incorrect format: {}", mis)
-			}
-			TooMuchGasUsed(ref oob) => {
-				format!("Block has too much gas used. {}", oob)
-			}
-			InvalidUnclesHash(ref mis) => {
-				format!("Block has invalid uncles hash: {}", mis)
-			}
-			UncleTooOld(ref oob) => {
-				format!("Uncle block is too old. {}", oob)
-			}
-			UncleIsBrother(ref oob) => {
-				format!("Uncle from same generation as block. {}", oob)
-			}
-			UncleInChain(ref hash) => {
-				format!("Uncle {} already in chain", hash)
-			}
-			UncleParentNotInChain(ref hash) => {
-				format!("Uncle {} has a parent not in the chain", hash)
-			}
-			InvalidStateRoot(ref mis) => {
-				format!("Invalid state root in header: {}", mis)
-			}
-			InvalidGasUsed(ref mis) => {
-				format!("Invalid gas used in header: {}", mis)
-			}
-			InvalidTransactionsRoot(ref mis) => {
-				format!("Invalid transactions root in header: {}", mis)
-			}
-			DifficultyOutOfBounds(ref oob) => {
-				format!("Invalid block difficulty: {}", oob)
-			}
-			InvalidDifficulty(ref mis) => {
-				format!("Invalid block difficulty: {}", mis)
-			}
-			MismatchedH256SealElement(ref mis) => {
-				format!("Seal element out of bounds: {}", mis)
-			}
-			InvalidProofOfWork(ref oob) => {
-				format!("Block has invalid PoW: {}", oob)
-			}
-			InvalidSeal => {
-				"Block has invalid seal.".into()
-			}
-			InvalidGasLimit(ref oob) => {
-				format!("Invalid gas limit: {}", oob)
-			}
-			InvalidReceiptsRoot(ref mis) => {
-				format!("Invalid receipts trie root in header: {}", mis)
-			}
-			InvalidTimestamp(ref oob) => {
-				format!("Invalid timestamp in header: {}", oob)
-			}
-			InvalidLogBloom(ref oob) => {
-				format!("Invalid log bloom in header: {}", oob)
-			}
-			InvalidParentHash(ref mis) => {
-				format!("Invalid parent hash: {}", mis)
-			}
-			InvalidNumber(ref mis) => {
-				format!("Invalid number in header: {}", mis)
-			}
-			RidiculousNumber(ref oob) => {
-				format!("Implausible block number. {}", oob)
-			}
-			UnknownParent(ref hash) => {
-				format!("Unknown parent: {}", hash)
-			}
-			UnknownUncleParent(ref hash) => {
-				format!("Unknown uncle parent: {}", hash)
-			}
+			TooManyUncles(ref oob) => format!("Block has too many uncles. {}", oob),
+			ExtraDataOutOfBounds(ref oob) => format!("Extra block data too long. {}", oob),
+			InvalidSealArity(ref mis) => format!("Block seal in incorrect format: {}", mis),
+			TooMuchGasUsed(ref oob) => format!("Block has too much gas used. {}", oob),
+			InvalidUnclesHash(ref mis) => format!("Block has invalid uncles hash: {}", mis),
+			UncleTooOld(ref oob) => format!("Uncle block is too old. {}", oob),
+			UncleIsBrother(ref oob) => format!("Uncle from same generation as block. {}", oob),
+			UncleInChain(ref hash) => format!("Uncle {} already in chain", hash),
+			UncleParentNotInChain(ref hash) => format!("Uncle {} has a parent not in the chain", hash),
+			InvalidStateRoot(ref mis) => format!("Invalid state root in header: {}", mis),
+			InvalidGasUsed(ref mis) => format!("Invalid gas used in header: {}", mis),
+			InvalidTransactionsRoot(ref mis) => format!("Invalid transactions root in header: {}", mis),
+			DifficultyOutOfBounds(ref oob) => format!("Invalid block difficulty: {}", oob),
+			InvalidDifficulty(ref mis) => format!("Invalid block difficulty: {}", mis),
+			MismatchedH256SealElement(ref mis) => format!("Seal element out of bounds: {}", mis),
+			InvalidProofOfWork(ref oob) => format!("Block has invalid PoW: {}", oob),
+			InvalidSeal => "Block has invalid seal.".into(),
+			InvalidGasLimit(ref oob) => format!("Invalid gas limit: {}", oob),
+			InvalidReceiptsRoot(ref mis) => format!("Invalid receipts trie root in header: {}", mis),
+			InvalidTimestamp(ref oob) => format!("Invalid timestamp in header: {}", oob),
+			InvalidLogBloom(ref oob) => format!("Invalid log bloom in header: {}", oob),
+			InvalidParentHash(ref mis) => format!("Invalid parent hash: {}", mis),
+			InvalidNumber(ref mis) => format!("Invalid number in header: {}", mis),
+			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
+			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
+			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
 		};
 
 		f.write_fmt(format_args!("Block error ({})", msg))
@@ -260,16 +193,10 @@ pub enum ImportError {
 
 impl fmt::Display for ImportError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let msg = match self {
-			&ImportError::AlreadyInChain => {
-				"block already in chain"
-			}
-			&ImportError::AlreadyQueued => {
-				"block already in the block queue"
-			}
-			&ImportError::KnownBad => {
-				"block known to be bad"
-			}
+		let msg = match *self {
+			ImportError::AlreadyInChain => "block already in chain",
+			ImportError::AlreadyQueued => "block already in the block queue",
+			ImportError::KnownBad => "block known to be bad",
 		};
 
 		f.write_fmt(format_args!("Block import error ({})", msg))
@@ -308,15 +235,10 @@ impl fmt::Display for Error {
 			Error::Execution(ref err) => f.write_fmt(format_args!("{}", err)),
 			Error::Transaction(ref err) => f.write_fmt(format_args!("{}", err)),
 			Error::Import(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::UnknownEngineName(ref name) => {
-				f.write_fmt(format_args!("Unknown engine name ({})", name))
-			}
-			Error::PowHashInvalid => {
-				f.write_str("Invalid or out of date PoW hash.")
-			}
-			Error::PowInvalid => {
-				f.write_str("Invalid nonce or mishash")
-			}
+			Error::UnknownEngineName(ref name) =>
+				f.write_fmt(format_args!("Unknown engine name ({})", name)),
+			Error::PowHashInvalid => f.write_str("Invalid or out of date PoW hash."),
+			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
 		}
 	}
 }
