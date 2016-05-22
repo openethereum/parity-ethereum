@@ -49,7 +49,7 @@ pub fn die_with_io_error(module: &'static str, e: std::io::Error) -> ! {
 		std::io::ErrorKind::AddrNotAvailable => {
 			die!("{}: Could not use specified interface or given address is invalid.", module)
 		},
-		_ => die!("{}: {:?}", module, e),
+		_ => die!("{}: {}", module, e),
 	}
 }
 
