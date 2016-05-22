@@ -110,29 +110,18 @@ impl fmt::Display for ExecutionError {
 		use self::ExecutionError::*;
 
 		let msg = match *self {
-			NotEnoughBaseGas { required, got } => {
-				format!("Not enough base gas. {} is required, but only {} paid",
-					required, got)
-			}
-			BlockGasLimitReached { gas_limit, gas_used, gas } => {
+			NotEnoughBaseGas { required, got } =>
+				format!("Not enough base gas. {} is required, but only {} paid", required, got),
+			BlockGasLimitReached { gas_limit, gas_used, gas } =>
 				format!("Block gas limit reached. The limit is {}, {} has \
-					already been used, and {} more is required",
-					gas_limit, gas_used, gas)
-			}
-			InvalidNonce { expected, got } => {
-				format!("Invalid transaction nonce: expected {}, found {}",
-					expected, got)
-			}
-			NotEnoughCash { required, got } => {
+					already been used, and {} more is required", gas_limit, gas_used, gas),
+			InvalidNonce { expected, got } =>
+				format!("Invalid transaction nonce: expected {}, found {}", expected, got),
+			NotEnoughCash { required, got } =>
 				format!("Cost of transaction exceeds sender balance. {} is required \
-					but the sender only has {}", required, got)
-			}
-			Internal => {
-				"Internal evm error".into()
-			}
-			TransactionMalformed(ref err) => {
-				format!("Malformed transaction: {}", err)
-			}
+					but the sender only has {}", required, got),
+			Internal => "Internal evm error".into(),
+			TransactionMalformed(ref err) => format!("Malformed transaction: {}", err),
 		};
 
 		f.write_fmt(format_args!("Transaction execution error ({}).", msg))
