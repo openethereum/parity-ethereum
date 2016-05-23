@@ -47,7 +47,7 @@ pub struct EthClient<C, S, A, M, EM> where
 	A: AccountProvider,
 	M: MinerService,
 	EM: ExternalMinerService {
-		
+
 	client: Weak<C>,
 	sync: Weak<S>,
 	accounts: Weak<A>,
@@ -151,6 +151,27 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 			},
 			None => Ok(Value::Null)
 		}
+	}
+
+	fn sign_and_dispatch(&self, request: TransactionRequest, secret: H256) -> Result<Value, Error> {
+		let signed_transaction = {
+			let client = take_weak!(self.client);
+			let miner = take_weak!(self.miner);
+			EthTransaction {
+				nonce: request.nonce
+					.or_else(|| miner
+							 .last_nonce(&request.from)
+							 .map(|nonce| nonce + U256::one()))
+					.unwrap_or_else(|| client.nonce(&request.from)),
+					action: request.to.map_or(Action::Create, Action::Call),
+					gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
+					gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+					value: request.value.unwrap_or_else(U256::zero),
+					data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
+			}.sign(&secret)
+		};
+		trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
+		self.dispatch_transaction(signed_transaction)
 	}
 
 	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
@@ -483,27 +504,19 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(request, )| {
 				let accounts = take_weak!(self.accounts);
 				match accounts.account_secret(&request.from) {
-					Ok(secret) => {
-						let signed_transaction = {
-							let client = take_weak!(self.client);
-							let miner = take_weak!(self.miner);
-							EthTransaction {
-								nonce: request.nonce
-									.or_else(|| miner
-											 .last_nonce(&request.from)
-											 .map(|nonce| nonce + U256::one()))
-									.unwrap_or_else(|| client.nonce(&request.from)),
-								action: request.to.map_or(Action::Create, Action::Call),
-								gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
-								gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
-								value: request.value.unwrap_or_else(U256::zero),
-								data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
-							}.sign(&secret)
-						};
-						trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
-						self.dispatch_transaction(signed_transaction)
-					},
-					Err(_) => { to_value(&H256::zero()) }
+					Ok(secret) => self.sign_and_dispatch(request, secret),
+					Err(_) => to_value(&H256::zero())
+				}
+		})
+	}
+
+	fn sign_and_send_transaction(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, String)>(params)
+			.and_then(|(request, password)| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.locked_account_secret(&request.from, &password) {
+					Ok(secret) => self.sign_and_dispatch(request, secret),
+					Err(_) => to_value(&H256::zero()),
 				}
 		})
 	}

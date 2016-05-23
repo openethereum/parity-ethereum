@@ -103,5 +103,16 @@ impl AccountProvider for TestAccountProvider {
 			.ok_or(SigningError::NoAccount)
 			.map(|acc| acc.secret.clone())
 	}
+
+	fn locked_account_secret(&self, address: &Address, pass: &str) -> Result<Secret, SigningError> {
+		let accounts = self.accounts.read().unwrap();
+		match accounts.get(address) {
+			Some(ref acc) if acc.password == pass => {
+				Ok(acc.secret.clone())
+			},
+			Some(ref _acc) => Err(SigningError::InvalidPassword),
+			_ => Err(SigningError::NoAccount),
+		}
+	}
 }
 

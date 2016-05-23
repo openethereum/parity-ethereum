@@ -80,6 +80,9 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Sends transaction.
 	fn send_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Sends transaction and signs it in single call. The account is not unlocked in such case.
+	fn sign_and_send_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Sends signed transaction.
 	fn send_raw_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
@@ -152,6 +155,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_getCode", Eth::code_at);
 		delegate.add_method("eth_sign", Eth::sign);
 		delegate.add_method("eth_sendTransaction", Eth::send_transaction);
+		delegate.add_method("eth_signAndSendTransaction", Eth::sign_and_send_transaction);
 		delegate.add_method("eth_sendRawTransaction", Eth::send_raw_transaction);
 		delegate.add_method("eth_call", Eth::call);
 		delegate.add_method("eth_estimateGas", Eth::estimate_gas);
