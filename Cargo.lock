@@ -863,7 +863,7 @@ dependencies = [
 [[package]]
 name = "parity-status"
 version = "0.4.3"
-source = "git+https://github.com/ethcore/parity-status.git#1d383d74010f6ebcd712b60b8fc5ff547b44f4e5"
+source = "git+https://github.com/ethcore/parity-status.git#606dfe6d272792f2fdb90909318f2439d58330a5"
 dependencies = [
  "parity-webapp 0.2.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
