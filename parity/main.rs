@@ -65,6 +65,7 @@ mod configuration;
 
 use ctrlc::CtrlC;
 use util::*;
+use std::fs::File;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient};
 use ethcore::service::ClientService;
@@ -222,6 +223,11 @@ fn flush_stdout() {
 	::std::io::stdout().flush().expect("stdout is flushable; qed");
 }
 
+enum DataFormat {
+	Hex,
+	Binary,
+}
+
 fn execute_export(conf: Configuration) {
 	println!("Exporting to {:?} from {}, to {}", conf.args.arg_file, conf.args.flag_from, conf.args.flag_to);
 
@@ -265,14 +271,29 @@ fn execute_export(conf: Configuration) {
 				die!("Unknown block hash passed to --to parameter: {:?}", s);
 			})
 		} else {
-			die!("Invalid --to parameter given: {:?}", s);
+			die!("Invalid block ID parameter given: {:?}", s);
 		}
 	};
 	let from = parse_block_id(&conf.args.flag_from);
 	let to = parse_block_id(&conf.args.flag_to);
+	let format = match conf.args.flag_format.deref() {
+		"binary" | "bin" => DataFormat::Binary,
+		"hex" => DataFormat::Hex,
+		x => die!("Invalid --format parameter given: {:?}", x),
+	};
 
-	for i in from..to {
-		println!("{}", client.deref().block(BlockID::Number(i)).unwrap().pretty());
+	let mut out: Box<Write> = if let Some(f) = conf.args.arg_file {
+		Box::new(File::create(&f).unwrap_or_else(|_| die!("Cannot write to file given: {}", f)))
+	} else {
+		Box::new(::std::io::stdout())
+	};
+
+	for i in from..(to + 1) {
+		let b = client.deref().block(BlockID::Number(i)).unwrap();
+		match format {
+			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
+			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }
+		}
 	}
 }
 
