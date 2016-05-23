@@ -849,9 +849,9 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 
@@ -871,8 +871,6 @@ mod tests {
 			assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
 			assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
 			assert_eq!(bc.block_hash(2), None);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 
 
@@ -888,9 +886,9 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 
@@ -904,8 +902,6 @@ mod tests {
 			block_hashes.reverse();
 
 			assert_eq!(bc.ancestry_iter(block_hashes[0].clone()).unwrap().collect::<Vec<_>>(), block_hashes);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 	}
 
@@ -929,9 +925,9 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 			bc.insert_block(&b1a, vec![]);
@@ -949,8 +945,6 @@ mod tests {
 				[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
 				bc.find_uncle_headers(&BlockView::new(&b4a).header_view().sha3(), 3).unwrap()
 			);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
@@ -979,9 +973,9 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 			let ir1 = bc.insert_block(&b1, vec![]);
@@ -1075,8 +1069,6 @@ mod tests {
 			assert_eq!(r3b_3a.ancestor, b2_hash);
 			assert_eq!(r3b_3a.blocks, [b3b_hash.clone(), b3a_hash.clone()]);
 			assert_eq!(r3b_3a.index, 1);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 	}
 
@@ -1092,27 +1084,23 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			bc.insert_block(&first, vec![]);
 			assert_eq!(bc.best_block_hash(), first_hash);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), first_hash);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 	}
 
@@ -1120,14 +1108,12 @@ mod tests {
 	fn can_contain_arbitrary_block_sequence() {
 		let temp = RandomTempPath::new();
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = generate_dummy_blockchain_in(&temp, 500);
 			assert_eq!(bc.best_block_number(), 499);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 	}
 
@@ -1136,9 +1122,9 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = generate_dummy_blockchain_in(&temp, 3000);
 			assert_eq!(bc.best_block_number(), 2999);
@@ -1154,8 +1140,6 @@ mod tests {
 				bc.collect_garbage();
 			}
 			assert!(bc.cache_size().blocks < 1024 * 1024);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 	}
 
@@ -1163,14 +1147,12 @@ mod tests {
 	fn can_contain_arbitrary_block_sequence_with_extra() {
 		let temp = RandomTempPath::new();
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = generate_dummy_blockchain_with_extra_in(&temp, 25);
 			assert_eq!(bc.best_block_number(), 24);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 	}
 
@@ -1183,9 +1165,9 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 			bc.insert_block(&b1, vec![]);
@@ -1195,8 +1177,6 @@ mod tests {
 			for t in transactions {
 				assert_eq!(bc.transaction(&bc.transaction_address(&t.hash()).unwrap()).unwrap(), t);
 			}
-
-			stop.store(true, Ordering::Relaxed);
 		});
 	}
 
@@ -1223,9 +1203,9 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		::crossbeam::scope(|scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
-			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 
@@ -1272,8 +1252,6 @@ mod tests {
 			assert_eq!(blocks_b1, vec![1]);
 			assert_eq!(blocks_b2, vec![2]);
 			assert_eq!(blocks_ba, vec![3]);
-
-			stop.store(true, Ordering::Relaxed);
 		});
 	}
 }
