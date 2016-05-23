@@ -215,40 +215,40 @@ fn should_extract_endpoint() {
 	);
 
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.dapp/parity-utils/inject.js").ok()),
+		extract_endpoint(&Url::parse("http://my.status.parity/parity-utils/inject.js").ok()),
 		(Some(EndpointPath {
 			app_id: "my.status".to_owned(),
-			host: "my.status.dapp".to_owned(),
+			host: "my.status.parity".to_owned(),
 			port: 80,
 		}), SpecialEndpoint::Utils)
 	);
 
 	// By Subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.dapp/test.html").ok()),
+		extract_endpoint(&Url::parse("http://my.status.parity/test.html").ok()),
 		(Some(EndpointPath {
 			app_id: "my.status".to_owned(),
-			host: "my.status.dapp".to_owned(),
+			host: "my.status.parity".to_owned(),
 			port: 80,
 		}), SpecialEndpoint::None)
 	);
 
 	// RPC by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.dapp/rpc/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.parity/rpc/").ok()),
 		(Some(EndpointPath {
 			app_id: "my.status".to_owned(),
-			host: "my.status.dapp".to_owned(),
+			host: "my.status.parity".to_owned(),
 			port: 80,
 		}), SpecialEndpoint::Rpc)
 	);
 
 	// API by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.dapp/api/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.parity/api/").ok()),
 		(Some(EndpointPath {
 			app_id: "my.status".to_owned(),
-			host: "my.status.dapp".to_owned(),
+			host: "my.status.parity".to_owned(),
 			port: 80,
 		}), SpecialEndpoint::Api)
 	);
