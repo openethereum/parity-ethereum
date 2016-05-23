@@ -128,7 +128,9 @@ impl Hypervisor {
 		}
 	}
 
-	pub fn shutdown(&self) {
+	pub fn shutdown(&self, wait_time: Option<std::time::Duration>) {
+		if wait_time.is_some() { std::thread::sleep(wait_time.unwrap()) }
+
 		let mut childs = self.processes.write().unwrap();
 		for (ref mut binary, ref mut child) in childs.iter_mut() {
 			println!("Stopping {}", binary);
@@ -139,12 +141,7 @@ impl Hypervisor {
 
 impl Drop for Hypervisor {
 	fn drop(&mut self) {
-		let mut childs = self.processes.get_mut().unwrap();
-		for (ref mut binary, ref mut child) in childs.iter_mut() {
-			print!("Stopping {}...", binary);
-			child.kill().unwrap();
-			println!("Done");
-		}
+		self.shutdown(Some(std::time::Duration::new(1, 0)));
 	}
 }
 

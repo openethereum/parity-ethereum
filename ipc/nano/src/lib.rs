@@ -69,6 +69,9 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 		SocketError::DuplexLink
 	}));
 
+	// 500 ms default timeout
+	socket.set_receive_timeout(500).unwrap();
+
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
 		SocketError::DuplexLink
@@ -88,6 +91,9 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 		SocketError::RequestLink
 	}));
+
+	// 500 ms default timeout
+	socket.set_receive_timeout(500).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);

@@ -44,6 +44,7 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
 extern crate ethcore_ipc_hypervisor as hypervisor;
+extern crate crossbeam;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
@@ -120,6 +121,15 @@ fn execute_upgrades(conf: &Configuration) {
 }
 
 fn execute_client(conf: Configuration) {
+	let db_path = ethcore::client::get_db_path(
+		Path::new(&conf.path()),
+		conf.client_config(&conf.spec()).pruning,
+		conf.spec().genesis_header().hash()).to_str().unwrap().to_owned();
+
+	let hypervisor = hypervisor::Hypervisor::new(&db_path);
+	hypervisor.start();
+	hypervisor.wait_for_startup();
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -132,15 +142,6 @@ fn execute_client(conf: Configuration) {
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
 	let client_config = conf.client_config(&spec);
-
-	let db_path = ethcore::client::get_db_path(
-		Path::new(&conf.path()),
-		client_config.pruning,
-		spec.genesis_header().hash()).to_str().unwrap().to_owned();
-
-	let hypervisor = hypervisor::Hypervisor::new(&db_path);
-	hypervisor.start();
-	hypervisor.wait_for_startup();
 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
@@ -218,7 +219,7 @@ fn execute_client(conf: Configuration) {
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	// Handle exit
-	wait_for_exit(panic_handler, rpc_server, webapp_server, hypervisor);
+	wait_for_exit(panic_handler, rpc_server, webapp_server);
 }
 
 fn flush_stdout() {
@@ -257,8 +258,7 @@ fn execute_account_cli(conf: Configuration) {
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
 	_rpc_server: Option<RpcServer>,
-	_webapp_server: Option<WebappServer>,
-	hypervisor: hypervisor::Hypervisor)
+	_webapp_server: Option<WebappServer>,)
 
 {
 	let exit = Arc::new(Condvar::new());
@@ -267,7 +267,6 @@ fn wait_for_exit(
 	let e = exit.clone();
 	CtrlC::set_handler(move || {
 		e.notify_all();
-		hypervisor.shutdown();
 	});
 
 	// Handle panics

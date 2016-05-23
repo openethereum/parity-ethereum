@@ -77,6 +77,7 @@ fn main() {
 	hypervisor_client.module_ready(BLOCKCHAIN_MODULE_ID);
 
 	CtrlC::set_handler(move || {
+		std::thread::sleep(std::time::Duration::new(1, 0));
 		stop.store(true, Ordering::Relaxed);
 	});
 
