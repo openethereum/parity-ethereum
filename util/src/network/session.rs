@@ -17,7 +17,6 @@
 use std::net::SocketAddr;
 use std::io;
 use mio::*;
-use hash::*;
 use rlp::*;
 use network::connection::{EncryptedConnection, Packet};
 use network::handshake::Handshake;
@@ -58,7 +57,7 @@ pub enum SessionData {
 		data: Vec<u8>,
 		/// Packet protocol ID
 		protocol: &'static str,
-		/// Zero based packet ID 
+		/// Zero based packet ID
 		packet_id: u8,
 	},
 }
@@ -111,7 +110,7 @@ const PACKET_USER: u8 = 0x10;
 const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
-	/// Create a new session out of comepleted handshake. This clones the handshake connection object 
+	/// Create a new session out of comepleted handshake. This clones the handshake connection object
 	/// and leaves the handhsake in limbo to be deregistered from the event loop.
 	pub fn new(h: &mut Handshake, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
@@ -159,7 +158,7 @@ impl Session {
 	pub fn done(&self) -> bool {
 		self.expired() && !self.connection.is_sending()
 	}
-	/// Replace socket token 
+	/// Replace socket token
 	pub fn set_token(&mut self, token: StreamToken) {
 		self.connection.set_token(token);
 	}
@@ -172,7 +171,7 @@ impl Session {
 	/// Readable IO handler. Returns packet data if available.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<SessionData, UtilError>  where Message: Send + Sync + Clone {
 		if self.expired() {
-			return Ok(SessionData::None) 
+			return Ok(SessionData::None)
 		}
 		match try!(self.connection.readable(io)) {
 			Some(data) => Ok(try!(self.read_packet(data, host))),

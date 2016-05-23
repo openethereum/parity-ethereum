@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use hash::*;
 use nibbleslice::*;
 use bytes::*;
 use rlp::*;
@@ -34,14 +33,14 @@ pub enum Node<'a> {
 }
 
 impl<'a> Node<'a> {
-	/// Decode the `node_rlp` and return the Node. 
+	/// Decode the `node_rlp` and return the Node.
 	pub fn decoded(node_rlp: &'a [u8]) -> Node<'a> {
 		let r = Rlp::new(node_rlp);
 		match r.prototype() {
-			// either leaf or extension - decode first item with NibbleSlice::??? 
+			// either leaf or extension - decode first item with NibbleSlice::???
 			// and use is_leaf return to figure out which.
 			// if leaf, second item is a value (is_data())
-			// if extension, second item is a node (either SHA3 to be looked up and 
+			// if extension, second item is a node (either SHA3 to be looked up and
 			// fed back into this function or inline RLP which can be fed back into this function).
 			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
 				(slice, true) => Node::Leaf(slice, r.at(1).data()),
@@ -100,7 +99,7 @@ impl<'a> Node<'a> {
 	}
 
 	/// Encode the node, adding it to `journal` if necessary and return the RLP valid for
-	/// insertion into a parent node. 
+	/// insertion into a parent node.
 	pub fn encoded_and_added(&self, journal: &mut Journal) -> Bytes {
 		let mut stream = RlpStream::new();
 		match *self {

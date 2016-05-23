@@ -17,7 +17,6 @@
 use hash::*;
 use sha3::*;
 use hashdb::*;
-use rlp::*;
 use super::triedb::*;
 use super::trietraits::*;
 
