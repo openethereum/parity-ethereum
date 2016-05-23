@@ -463,7 +463,10 @@ impl MinerService for Miner {
 				}
 				Ok(sealed) => {
 					// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-					try!(chain.import_block(sealed.rlp_bytes()));
+					let b = sealed.rlp_bytes();
+					let h = b.sha3();
+					try!(chain.import_block(b));
+					info!("Block {} submitted and imported.", h);
 					Ok(())
 				}
 			}
