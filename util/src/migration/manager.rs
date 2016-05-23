@@ -82,10 +82,9 @@ impl Manager {
 		let mut batch: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 
 		for keypair in db_iter {
-			let mut migrated = Some(keypair);
-			for migration in migrations {
-				migrated = migrated.and_then(|(key, value)| migration.simple_migrate(key, value))
-			}
+			let migrated = migrations.iter().fold(Some(keypair), |migrated, migration| {
+				migrated.and_then(|(key, value)| migration.simple_migrate(key, value))
+			});
 
 			if let Some((key, value)) = migrated {
 				batch.insert(key, value);
