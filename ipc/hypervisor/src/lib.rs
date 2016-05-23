@@ -141,8 +141,9 @@ impl Drop for Hypervisor {
 	fn drop(&mut self) {
 		let mut childs = self.processes.get_mut().unwrap();
 		for (ref mut binary, ref mut child) in childs.iter_mut() {
-			println!("Stopping {}", binary);
+			print!("Stopping {}...", binary);
 			child.kill().unwrap();
+			println!("Done");
 		}
 	}
 }

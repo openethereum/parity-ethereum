@@ -21,11 +21,15 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate rustc_serialize;
 extern crate docopt;
 extern crate ethcore_ipc_hypervisor as hypervisor;
+extern crate ctrlc;
+extern crate ethcore_devtools as devtools;
 
 use db::database::Database;
 use docopt::Docopt;
 use std::sync::Arc;
 use hypervisor::{HypervisorServiceClient, BLOCKCHAIN_MODULE_ID, HYPERVISOR_IPC_URL};
+use ctrlc::CtrlC;
+use std::sync::atomic::*;
 
 const USAGE: &'static str = "
 Ethcore database service
@@ -55,9 +59,13 @@ fn main() {
 	let blocks_url = db::blocks_service_url(&args.arg_path).unwrap();
 	let extras_url = db::extras_service_url(&args.arg_path).unwrap();
 
+	let stop = Arc::new(AtomicBool::new(false));
+	let extras_stop = stop.clone();
+	let main_stop = stop.clone();
+
 	std::thread::spawn(move || {
 		let mut extras_db_worker = init_worker(&extras_url);
-		loop {
+		while !extras_stop.load(Ordering::Relaxed) {
 			extras_db_worker.poll();
 		}
 	});
@@ -68,7 +76,11 @@ fn main() {
 	hypervisor_client.handshake().unwrap();
 	hypervisor_client.module_ready(BLOCKCHAIN_MODULE_ID);
 
-	loop {
+	CtrlC::set_handler(move || {
+		stop.store(true, Ordering::Relaxed);
+	});
+
+	while !main_stop.load(Ordering::Relaxed) {
 		blocks_db_worker.poll();
 	}
 }
