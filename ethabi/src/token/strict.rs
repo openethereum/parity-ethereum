@@ -114,12 +114,12 @@ mod tests {
 	#[test]
 	fn tokenize_uint() {
 		assert_eq!(
-			StrictTokenizer::tokenize(&ParamType::Uint(256), "1111111111111111111111111111111111111111111111111111111111111111").unwrap(), 
+			StrictTokenizer::tokenize(&ParamType::Uint(256), "1111111111111111111111111111111111111111111111111111111111111111").unwrap(),
 			Token::Uint([0x11u8; 32])
 		);
 
 		assert_eq!(
-			StrictTokenizer::tokenize(&ParamType::Uint(256), "2222222222222222222222222222222222222222222222222222222222222222").unwrap(), 
+			StrictTokenizer::tokenize(&ParamType::Uint(256), "2222222222222222222222222222222222222222222222222222222222222222").unwrap(),
 			Token::Uint([0x22u8; 32])
 		);
 	}
@@ -127,12 +127,12 @@ mod tests {
 	#[test]
 	fn tokenize_int() {
 		assert_eq!(
-			StrictTokenizer::tokenize(&ParamType::Int(256), "1111111111111111111111111111111111111111111111111111111111111111").unwrap(), 
+			StrictTokenizer::tokenize(&ParamType::Int(256), "1111111111111111111111111111111111111111111111111111111111111111").unwrap(),
 			Token::Int([0x11u8; 32])
 		);
 
 		assert_eq!(
-			StrictTokenizer::tokenize(&ParamType::Int(256), "2222222222222222222222222222222222222222222222222222222222222222").unwrap(), 
+			StrictTokenizer::tokenize(&ParamType::Int(256), "2222222222222222222222222222222222222222222222222222222222222222").unwrap(),
 			Token::Int([0x22u8; 32])
 		);
 	}
@@ -150,7 +150,7 @@ mod tests {
 		assert_eq!(
 			StrictTokenizer::tokenize(&ParamType::Array(Box::new(ParamType::Array(Box::new(ParamType::Bool)))), "[[true,1,0],[false]]").unwrap(),
 			Token::Array(vec![
-				Token::Array(vec![Token::Bool(true), Token::Bool(true), Token::Bool(false)]), 
+				Token::Array(vec![Token::Bool(true), Token::Bool(true), Token::Bool(false)]),
 				Token::Array(vec![Token::Bool(false)])
 			])
 		);

@@ -9,8 +9,8 @@ use std::io::Read;
 use std::env;
 use docopt::Docopt;
 use rustc_serialize::hex::{ToHex, FromHex};
-use ethabi::spec::param_type::{ParamType, Reader}; 
-use ethabi::token::{Token, Tokenizer, StrictTokenizer, TokenFromHex};
+use ethabi::spec::param_type::{ParamType, Reader};
+use ethabi::token::{Token, Tokenizer, StrictTokenizer, LenientTokenizer, TokenFromHex};
 use ethabi::{Encoder, Decoder, Contract, Function, Event, Interface};
 use error::Error;
 
@@ -52,6 +52,7 @@ struct Args {
 	arg_type: Vec<String>,
 	arg_data: String,
 	arg_topic: Vec<String>,
+	flag_lenient: bool,
 }
 
 fn main() {
@@ -69,9 +70,9 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		.unwrap_or_else(|e| e.exit());
 
 	if args.cmd_encode && args.cmd_function {
-		encode_call(&args.arg_abi_path, args.arg_function_name, args.arg_param)
+		encode_call(&args.arg_abi_path, args.arg_function_name, args.arg_param, args.flag_lenient)
 	} else if args.cmd_encode && args.cmd_params {
-		encode_params(args.arg_type, args.arg_param)
+		encode_params(args.arg_type, args.arg_param, args.flag_lenient)
 	} else if args.cmd_decode && args.cmd_function {
 		decode_call_output(&args.arg_abi_path, args.arg_function_name, args.arg_data)
 	} else if args.cmd_decode && args.cmd_params {
@@ -103,28 +104,31 @@ fn load_event(path: &str, event: String) -> Result<Event, Error> {
 	Ok(event)
 }
 
-fn parse_tokens(params: &[(ParamType, String)]) -> Result<Vec<Token>, Error> {
+fn parse_tokens(params: &[(ParamType, String)], lenient: bool) -> Result<Vec<Token>, Error> {
 	params.iter()
-		.map(|&(ref param, ref value)| StrictTokenizer::tokenize(param, value))
+		.map(|&(ref param, ref value)| match lenient {
+			true => LenientTokenizer::tokenize(param, value),
+			false => StrictTokenizer::tokenize(param, value)
+		})
 		.collect::<Result<_, _>>()
 		.map_err(From::from)
 }
 
-fn encode_call(path: &str, function: String, values: Vec<String>) -> Result<String, Error> {
+fn encode_call(path: &str, function: String, values: Vec<String>, lenient: bool) -> Result<String, Error> {
 	let function = try!(load_function(path, function));
 	let types = function.input_params();
 
 	let params: Vec<_> = types.into_iter()
 		.zip(values.into_iter())
 		.collect();
-	
-	let tokens = try!(parse_tokens(&params));
+
+	let tokens = try!(parse_tokens(&params, lenient));
 	let result = try!(function.encode_call(tokens));
-	
+
 	Ok(result.to_hex())
 }
 
-fn encode_params(types: Vec<String>, values: Vec<String>) -> Result<String, Error> {
+fn encode_params(types: Vec<String>, values: Vec<String>, lenient: bool) -> Result<String, Error> {
 	assert_eq!(types.len(), values.len());
 
 	let types: Result<Vec<ParamType>, _> = types.iter()
@@ -137,7 +141,7 @@ fn encode_params(types: Vec<String>, values: Vec<String>) -> Result<String, Erro
 		.zip(values.into_iter())
 		.collect();
 
-	let tokens = try!(parse_tokens(&params));
+	let tokens = try!(parse_tokens(&params, lenient));
 	let result = Encoder::encode(tokens);
 
 	Ok(result.to_hex())
@@ -190,7 +194,7 @@ fn decode_log(path: &str, event: String, topics: Vec<String>, data: String) -> R
 	let topics = try!(topics);
 	let data = try!(data.from_hex());
 	let decoded = try!(event.decode_log(topics, data));
-	
+
 	let result = decoded.params.into_iter()
 		.map(|(name, kind, value)| format!("{} {} {}", name, kind, value))
 		.collect::<Vec<String>>()
@@ -202,11 +206,20 @@ fn decode_log(path: &str, event: String, topics: Vec<String>, data: String) -> R
 #[cfg(test)]
 mod tests {
 	use super::execute;
-	
+
 	#[test]
 	fn simple_encode() {
 		let command = "ethabi encode params -v bool 1".split(" ");
 		let expected = "0000000000000000000000000000000000000000000000000000000000000001";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	// TODO: parsing negative values is not working
+	#[test]
+	#[ignore]
+	fn int_encode() {
+		let command = "ethabi encode paramas -v int256 -2 --lenient".split(" ");
+		let expected = "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe";
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
@@ -239,9 +252,16 @@ mod tests {
 	}
 
 	#[test]
+	fn int_decode() {
+		let command = "ethabi decode params -t int256 fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe".split(" ");
+		let expected = "int256 fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe";
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
 	fn multi_decode() {
 		let command = "ethabi decode params -t bool -t string -t bool 00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000096761766f66796f726b0000000000000000000000000000000000000000000000".split(" ");
-		let expected = 
+		let expected =
 "bool true
 string gavofyork
 bool false";
@@ -265,7 +285,7 @@ bool false";
 	#[test]
 	fn log_decode() {
 		let command = "ethabi decode log ./examples/event.json Event -l 0000000000000000000000000000000000000000000000000000000000000001 0000000000000000000000004444444444444444444444444444444444444444".split(" ");
-		let expected = 
+		let expected =
 "a bool true
 b address 4444444444444444444444444444444444444444";
 		assert_eq!(execute(command).unwrap(), expected);

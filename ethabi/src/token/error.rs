@@ -1,3 +1,4 @@
+use std::num::ParseIntError;
 use rustc_serialize::hex::FromHexError;
 
 /// Called when tokenizing fails.
@@ -7,10 +8,18 @@ pub enum Error {
 	FromHex(FromHexError),
 	/// Returned in all other cases.
 	InvalidValue,
+	/// Returned when integer value cannot be parsed.
+	ParseInt(ParseIntError),
 }
 
 impl From<FromHexError> for Error {
 	fn from(err: FromHexError) -> Self {
 		Error::FromHex(err)
+	}
+}
+
+impl From<ParseIntError> for Error {
+	fn from(err: ParseIntError) -> Self {
+		Error::ParseInt(err)
 	}
 }
