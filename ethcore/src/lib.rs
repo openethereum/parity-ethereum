@@ -130,6 +130,7 @@ mod externalities;
 mod verification;
 mod blockchain;
 mod types;
+mod migrations;
 
 #[cfg(test)]
 mod tests;
