@@ -427,6 +427,11 @@ impl MinerService for Miner {
 		}
 	}
 
+	fn all_transactions(&self) -> Vec<SignedTransaction> {
+		let queue = self.transaction_queue.lock().unwrap();
+		queue.top_transactions()
+	}
+
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		// TODO: should only use the sealing_work when it's current (it could be an old block)
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {

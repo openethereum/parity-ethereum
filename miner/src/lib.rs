@@ -136,6 +136,9 @@ pub trait MinerService : Send + Sync {
 	/// Query pending transactions for hash.
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction>;
 
+	/// Get a list of all transactions.
+	fn all_transactions(&self) -> Vec<SignedTransaction>;
+
 	/// Get a list of all pending transactions.
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 

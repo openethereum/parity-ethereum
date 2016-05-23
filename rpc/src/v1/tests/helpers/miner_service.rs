@@ -165,6 +165,10 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().unwrap().get(hash).cloned()
 	}
 
+	fn all_transactions(&self) -> Vec<SignedTransaction> {
+		self.pending_transactions.lock().unwrap().values().cloned().collect()
+	}
+
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.pending_transactions.lock().unwrap().values().cloned().collect()
 	}
