@@ -91,9 +91,9 @@ pub struct LocalizedReceipt {
 	pub block_hash: H256,
 	/// Block number.
 	pub block_number: BlockNumber,
-	/// Cumulative gas used.
+	/// The total gas used in the block following execution of the transaction.
 	pub cumulative_gas_used: U256,
-	/// Gas used.
+	/// The gas used in the execution of the transaction. Note the difference of meaning to `Receipt::gas_used`.
 	pub gas_used: U256,
 	/// Contract address.
 	pub contract_address: Option<Address>,

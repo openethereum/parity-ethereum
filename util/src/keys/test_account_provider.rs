@@ -82,6 +82,11 @@ impl AccountProvider for TestAccountProvider {
 		}
 	}
 
+	fn unlock_account_temp(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		// TODO; actually make it relock on use
+		self.unlock_account(account, pass)
+	}
+
 	fn new_account(&self, pass: &str) -> Result<Address, io::Error> {
 		let account = TestAccount::new(pass);
 		let address = KeyPair::from_secret(account.secret.clone()).unwrap().address();

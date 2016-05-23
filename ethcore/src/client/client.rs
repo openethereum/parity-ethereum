@@ -580,14 +580,21 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 					let block_number = tx.block_number.clone();
 					let transaction_hash = tx.hash();
 					let transaction_index = tx.transaction_index;
+					let prior_gas_used = match tx.transaction_index {
+						0 => U256::zero(),
+						i => {
+							let prior_address = TransactionAddress { block_hash: address.block_hash, index: i - 1 };
+							let prior_receipt = self.chain.transaction_receipt(&prior_address).expect("Transaction receipt at `address` exists; `prior_address` has lower index in same block; qed");
+							prior_receipt.gas_used
+						}
+					};
 					Some(LocalizedReceipt {
 						transaction_hash: tx.hash(),
 						transaction_index: tx.transaction_index,
 						block_hash: tx.block_hash,
 						block_number: tx.block_number,
-						// TODO: to fix this, query all previous transaction receipts and retrieve their gas usage
 						cumulative_gas_used: receipt.gas_used,
-						gas_used: receipt.gas_used,
+						gas_used: receipt.gas_used - prior_gas_used,
 						contract_address: match tx.action {
 							Action::Call(_) => None,
 							Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce))
