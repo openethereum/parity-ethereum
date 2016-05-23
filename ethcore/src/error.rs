@@ -19,6 +19,7 @@
 use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
+use client::Error as ClientError;
 
 pub use types::executed::ExecutionError;
 
@@ -134,6 +135,8 @@ pub enum ImportError {
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum Error {
+	/// Client configuration error.
+	Client(ClientError),
 	/// Error concerning a utility.
 	Util(UtilError),
 	/// Error concerning block processing.
@@ -154,6 +157,12 @@ pub enum Error {
 
 /// Result of import block operation.
 pub type ImportResult = Result<H256, Error>;
+
+impl From<ClientError> for Error {
+	fn from(err: ClientError) -> Error {
+		Error::Client(err)
+	}
+}
 
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Error {

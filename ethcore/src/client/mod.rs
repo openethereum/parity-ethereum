@@ -18,11 +18,13 @@
 
 mod client;
 mod config;
+mod error;
 mod test_client;
 mod trace;
 
 pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch, VMType};
+pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::trace::Filter as TraceFilter;

@@ -14,45 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! TraceDB errors.
 
-use ipc::*;
-use std::mem;
-use std::collections::VecDeque;
+use std::fmt::{Display, Formatter, Error as FmtError};
 
-#[derive(Binary)]
-pub enum Root {
-	Top,
-	Middle(u32, u64),
+const RESYNC_ERR: &'static str =
+"Your current parity installation has synced without transaction tracing.
+To use Parity with transaction tracing, you'll need to resync with tracing.
+To do this, remove or move away your current database and restart parity. e.g.:
+
+> mv ~/.parity/906a34e69aec8c0d /tmp
+> parity";
+
+/// TraceDB errors.
+#[derive(Debug)]
+pub enum Error {
+	/// Returned when tracing is enabled,
+	/// but database does not contain traces of old transactions.
+	ResyncRequired,
 }
 
-#[derive(Binary, PartialEq, Debug)]
-pub struct DoubleRoot {
-	pub x1: u32,
-	pub x2: u64,
-	pub x3: u32,
-}
-
-#[derive(Binary, PartialEq, Debug)]
-pub struct ReferenceStruct<'a> {
-	pub ref_data: &'a u64,
-}
-
-#[derive(Binary, PartialEq, Debug)]
-pub enum EnumWithStruct {
-	Left,
-	Right { how_much: u64 },
-}
-
-#[derive(Binary)]
-pub struct TwoVec {
-	v1: Vec<u8>,
-	v2: Vec<u8>,
-}
-
-#[test]
-fn opt_two_vec() {
-	let example: Option<TwoVec> = None;
-
-	let serialized = ::ipc::binary::serialize(&example).unwrap();
-	assert_eq!(serialized, vec![0u8; 16]);
+impl Display for Error {
+	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
+		write!(f, "{}", RESYNC_ERR)
+	}
 }

@@ -45,6 +45,7 @@ Account Options:
   --keys-iterations NUM    Specify the number of iterations to use when deriving key
                            from the password (bigger is more secure)
                            [default: 10240].
+  --no-import-keys         Do not import keys from legacy clients.
 
 Networking Options:
   --port PORT              Override the port on which the node should listen
@@ -117,17 +118,18 @@ Sealing/Mining Options:
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
-                           enabled. Works only if client had been fully synced with
-                           tracing enabled. BOOL may be one of auto, on, off.
-                           auto uses last used value of this option (off if it does
-                           not exist) [default: auto].
+                           enabled. Works only if client had been fully synced
+                           with tracing enabled. BOOL may be one of auto, on,
+                           off. auto uses last used value of this option (off
+                           if it does not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
-                           may be one of auto, archive, basic, fast, light:
+                           may be one of auto, archive, fast, basic, light:
                            archive - keep all state trie data. No pruning.
-                           basic - reference count in disk DB. Slow but light.
                            fast - maintain journal overlay. Fast but 50MB used.
-                           light - early merges with partial tracking. Fast
-                           and light. Experimental!
+                           basic - reference count in disk DB. Slow, light, and
+                           experimental!
+                           light - early merges with partial tracking. Fast,
+                           light, and experimental!
                            auto - use the method most recently synced or
                            default to archive if none synced [default: auto].
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
@@ -147,8 +149,10 @@ Legacy Options:
   --geth                   Run in Geth-compatibility mode. Currently just sets
                            the IPC path to be the same as Geth's. Overrides
                            the --ipc-path/--ipcpath options.
+  --testnet                Geth-compatible testnet mode. Equivalent to --chain
+                           testnet --keys-path $HOME/parity/testnet-keys.
+                           Overrides the --keys-path option.
   --datadir PATH           Equivalent to --db-path PATH.
-  --testnet                Equivalent to --chain testnet.
   --networkid INDEX        Equivalent to --network-id INDEX.
   --maxpeers COUNT         Equivalent to --peers COUNT.
   --nodekey KEY            Equivalent to --node-key KEY.
@@ -191,6 +195,7 @@ pub struct Args {
 	pub flag_cache: Option<usize>,
 	pub flag_keys_path: String,
 	pub flag_keys_iterations: u32,
+	pub flag_no_import_keys: bool,
 	pub flag_bootnodes: Option<String>,
 	pub flag_network_id: Option<String>,
 	pub flag_pruning: String,

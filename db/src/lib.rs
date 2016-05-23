@@ -14,45 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Database ipc service
 
-use ipc::*;
-use std::mem;
-use std::collections::VecDeque;
-
-#[derive(Binary)]
-pub enum Root {
-	Top,
-	Middle(u32, u64),
-}
-
-#[derive(Binary, PartialEq, Debug)]
-pub struct DoubleRoot {
-	pub x1: u32,
-	pub x2: u64,
-	pub x3: u32,
-}
-
-#[derive(Binary, PartialEq, Debug)]
-pub struct ReferenceStruct<'a> {
-	pub ref_data: &'a u64,
-}
-
-#[derive(Binary, PartialEq, Debug)]
-pub enum EnumWithStruct {
-	Left,
-	Right { how_much: u64 },
-}
-
-#[derive(Binary)]
-pub struct TwoVec {
-	v1: Vec<u8>,
-	v2: Vec<u8>,
-}
-
-#[test]
-fn opt_two_vec() {
-	let example: Option<TwoVec> = None;
-
-	let serialized = ::ipc::binary::serialize(&example).unwrap();
-	assert_eq!(serialized, vec![0u8; 16]);
-}
+#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
+include!(concat!(env!("OUT_DIR"), "/lib.rs"));

@@ -55,11 +55,11 @@ pub struct DatabaseConfig {
 }
 
 /// Database iterator
-pub struct DatabaseIterator<'a> {
-	iter: DBIterator<'a>,
+pub struct DatabaseIterator {
+	iter: DBIterator,
 }
 
-impl<'a> Iterator for DatabaseIterator<'a> {
+impl<'a> Iterator for DatabaseIterator {
 	type Item = (Box<[u8]>, Box<[u8]>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -135,7 +135,7 @@ impl Database {
 
 	/// Get value by partial key. Prefix size should match configured prefix size.
 	pub fn get_by_prefix(&self, prefix: &[u8]) -> Option<Box<[u8]>> {
-		let mut iter = self.db.iterator(IteratorMode::From(prefix, Direction::forward));
+		let mut iter = self.db.iterator(IteratorMode::From(prefix, Direction::Forward));
 		match iter.next() {
 			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
 			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },

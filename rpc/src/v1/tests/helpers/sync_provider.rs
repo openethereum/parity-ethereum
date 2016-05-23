@@ -39,7 +39,7 @@ impl TestSyncProvider {
 	pub fn new(config: Config) -> Self {
 		TestSyncProvider {
 			status: RwLock::new(SyncStatus {
-				state: SyncState::NotSynced,
+				state: SyncState::Idle,
 				network_id: config.network_id,
 				protocol_version: 63,
 				start_block_number: 0,

@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use util::*;
 use util::panics::*;
 use views::BlockView;
-use error::*;
+use error::{Error, ImportError, ExecutionError, BlockError, ImportResult};
 use header::{BlockNumber, Header};
 use state::State;
 use spec::Spec;
@@ -38,6 +38,7 @@ use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, TraceFilter};
+use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
@@ -101,7 +102,7 @@ const CLIENT_DB_VER_STR: &'static str = "6.0";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
-	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Arc<Client> {
+	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
 		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
 	}
 }
@@ -125,11 +126,11 @@ pub fn append_path(path: &Path, item: &str) -> String {
 
 impl<V> Client<V> where V: Verifier {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Arc<Client<V>> {
+	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, ClientError> {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
-		let tracedb = Arc::new(TraceDB::new(config.tracing, &path, chain.clone()));
+		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 
@@ -143,7 +144,7 @@ impl<V> Client<V> where V: Verifier {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
-		Arc::new(Client {
+		let client = Client {
 			chain: chain,
 			tracedb: tracedb,
 			engine: engine,
@@ -154,7 +155,9 @@ impl<V> Client<V> where V: Verifier {
 			panic_handler: panic_handler,
 			verifier: PhantomData,
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
-		})
+		};
+
+		Ok(Arc::new(client))
 	}
 
 	/// Flush the block import queue.
@@ -577,14 +580,21 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 					let block_number = tx.block_number.clone();
 					let transaction_hash = tx.hash();
 					let transaction_index = tx.transaction_index;
+					let prior_gas_used = match tx.transaction_index {
+						0 => U256::zero(),
+						i => {
+							let prior_address = TransactionAddress { block_hash: address.block_hash, index: i - 1 };
+							let prior_receipt = self.chain.transaction_receipt(&prior_address).expect("Transaction receipt at `address` exists; `prior_address` has lower index in same block; qed");
+							prior_receipt.gas_used
+						}
+					};
 					Some(LocalizedReceipt {
 						transaction_hash: tx.hash(),
 						transaction_index: tx.transaction_index,
 						block_hash: tx.block_hash,
 						block_number: tx.block_number,
-						// TODO: to fix this, query all previous transaction receipts and retrieve their gas usage
 						cumulative_gas_used: receipt.gas_used,
-						gas_used: receipt.gas_used,
+						gas_used: receipt.gas_used - prior_gas_used,
 						contract_address: match tx.action {
 							Action::Call(_) => None,
 							Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce))
