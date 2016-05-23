@@ -43,12 +43,13 @@ use util::keys::store::AccountProvider;
 use serde;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, A, M, EM>
-	where C: BlockChainClient,
-		  S: SyncProvider,
-		  A: AccountProvider,
-		  M: MinerService,
-		  EM: ExternalMinerService {
+pub struct EthClient<C, S, A, M, EM> where
+	C: BlockChainClient,
+	S: SyncProvider,
+	A: AccountProvider,
+	M: MinerService,
+	EM: ExternalMinerService {
+
 	client: Weak<C>,
 	sync: Weak<S>,
 	accounts: Weak<A>,
@@ -57,12 +58,12 @@ pub struct EthClient<C, S, A, M, EM>
 	seed_compute: Mutex<SeedHashCompute>,
 }
 
-impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
-	where C: BlockChainClient,
-		  S: SyncProvider,
-		  A: AccountProvider,
-		  M: MinerService,
-		  EM: ExternalMinerService {
+impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
+	C: BlockChainClient,
+	S: SyncProvider,
+	A: AccountProvider,
+	M: MinerService,
+	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
 	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: &Arc<EM>)
@@ -216,15 +217,11 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 	}
 }
 
-
 fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
-	let txs = miner.pending_transactions();
 	let receipts = miner.pending_receipts();
-	assert_eq!(txs.len(), receipts.len());
 
 	let pending_logs = receipts.into_iter()
-		.enumerate()
-		.flat_map(|(i, r)| r.logs.into_iter().map(|l| (txs[i].hash(), l)).collect::<Vec<(H256, LogEntry)>>())
+		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
 		.collect::<Vec<(H256, LogEntry)>>();
 
 	let result = pending_logs.into_iter()
@@ -239,12 +236,12 @@ fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: Miner
 	result
 }
 
-impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
-	where C: BlockChainClient + 'static,
-		  S: SyncProvider + 'static,
-		  A: AccountProvider + 'static,
-		  M: MinerService + 'static,
-		  EM: ExternalMinerService + 'static {
+impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
+	C: BlockChainClient + 'static,
+	S: SyncProvider + 'static,
+	A: AccountProvider + 'static,
+	M: MinerService + 'static,
+	EM: ExternalMinerService + 'static {
 
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
@@ -259,11 +256,17 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				let status = take_weak!(self.sync).status();
 				let res = match status.state {
 					SyncState::Idle => SyncStatus::None,
-					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => SyncStatus::Info(SyncInfo {
-						starting_block: U256::from(status.start_block_number),
-						current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
-						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
-					})
+					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => {
+						let info = SyncInfo {
+							starting_block: U256::from(status.start_block_number),
+							current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
+							highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
+						};
+						match info.highest_block > info.starting_block + U256::from(6) {
+							true => SyncStatus::Info(info),
+							false => SyncStatus::None,
+						}
+					}
 				};
 				to_value(&res)
 			}
@@ -271,7 +274,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		}
 	}
 
-	// TODO: do not hardcode author.
 	fn author(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&take_weak!(self.miner).author()),
@@ -279,7 +281,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		}
 	}
 
-	// TODO: return real value of mining once it's implemented.
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&self.external_miner.is_mining()),
@@ -287,7 +288,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		}
 	}
 
-	// TODO: return real hashrate once we have mining
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&self.external_miner.hashrate()),
@@ -577,18 +577,18 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 }
 
 /// Eth filter rpc implementation.
-pub struct EthFilterClient<C, M>
-	where C: BlockChainClient,
-		  M: MinerService {
+pub struct EthFilterClient<C, M> where
+	C: BlockChainClient,
+	M: MinerService {
 
 	client: Weak<C>,
 	miner: Weak<M>,
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
-impl<C, M> EthFilterClient<C, M>
-	where C: BlockChainClient,
-		  M: MinerService {
+impl<C, M> EthFilterClient<C, M> where
+	C: BlockChainClient,
+	M: MinerService {
 
 	/// Creates new Eth filter client.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
@@ -600,9 +600,9 @@ impl<C, M> EthFilterClient<C, M>
 	}
 }
 
-impl<C, M> EthFilter for EthFilterClient<C, M>
-	where C: BlockChainClient + 'static,
-		  M: MinerService + 'static {
+impl<C, M> EthFilter for EthFilterClient<C, M> where
+	C: BlockChainClient + 'static,
+	M: MinerService + 'static {
 
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Filter,)>(params)

@@ -438,10 +438,18 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn pending_receipts(&self) -> Vec<Receipt> {
+	fn pending_receipts(&self) -> BTreeMap<H256, Receipt> {
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
-			(true, Some(pending)) => pending.receipts().clone(),
-			_ => vec![],
+			(true, Some(pending)) => {
+				let hashes = pending.transactions()
+					.iter()
+					.map(|t| t.hash());
+
+				let receipts = pending.receipts().clone().into_iter();
+
+				hashes.zip(receipts).collect()
+			},
+			_ => BTreeMap::new()
 		}
 	}
 

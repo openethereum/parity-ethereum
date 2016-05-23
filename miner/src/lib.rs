@@ -60,6 +60,7 @@ pub use transaction_queue::{TransactionQueue, AccountDetails, TransactionImportR
 pub use miner::{Miner};
 pub use external::{ExternalMiner, ExternalMinerService};
 
+use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
 use ethcore::client::{BlockChainClient, Executed};
 use ethcore::block::{ClosedBlock};
@@ -139,7 +140,7 @@ pub trait MinerService : Send + Sync {
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
 	/// Get a list of all pending receipts.
-	fn pending_receipts(&self) -> Vec<Receipt>;
+	fn pending_receipts(&self) -> BTreeMap<H256, Receipt>;
 
 	/// Returns highest transaction nonce for given address.
 	fn last_nonce(&self, address: &Address) -> Option<U256>;

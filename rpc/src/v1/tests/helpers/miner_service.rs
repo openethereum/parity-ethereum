@@ -34,7 +34,7 @@ pub struct TestMinerService {
 	/// Pre-existed pending transactions
 	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
 	/// Pre-existed pending receipts
-	pub pending_receipts: Mutex<Vec<Receipt>>,
+	pub pending_receipts: Mutex<BTreeMap<H256, Receipt>>,
 	/// Last nonces.
 	pub last_nonces: RwLock<HashMap<Address, U256>>,
 
@@ -51,7 +51,7 @@ impl Default for TestMinerService {
 			imported_transactions: Mutex::new(Vec::new()),
 			latest_closed_block: Mutex::new(None),
 			pending_transactions: Mutex::new(HashMap::new()),
-			pending_receipts: Mutex::new(Vec::new()),
+			pending_receipts: Mutex::new(BTreeMap::new()),
 			last_nonces: RwLock::new(HashMap::new()),
 			min_gas_price: RwLock::new(U256::from(20_000_000)),
 			gas_floor_target: RwLock::new(U256::from(12345)),
@@ -169,7 +169,7 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().unwrap().values().cloned().collect()
 	}
 
-	fn pending_receipts(&self) -> Vec<Receipt> {
+	fn pending_receipts(&self) -> BTreeMap<H256, Receipt> {
 		self.pending_receipts.lock().unwrap().clone()
 	}
 
