@@ -832,8 +832,6 @@ mod tests {
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 	use views::BlockView;
-	use std::sync::atomic::*;
-	use std::sync::Arc;
 	use ethcore_db;
 
 	#[test]
