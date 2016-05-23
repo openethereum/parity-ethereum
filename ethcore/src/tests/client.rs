@@ -32,16 +32,14 @@ fn imports_from_empty() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 
 		client.import_verified_blocks(&IoChannel::disconnected());
 		client.flush_queue();
-
-		stop.store(true, SyncOrdering::Relaxed);
 	});
 }
 
@@ -54,16 +52,15 @@ fn returns_state_root_basic() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let client = generate_dummy_client_in(&dir, 6);
 		let test_spec = get_test_spec();
 		let state_root = test_spec.genesis_header().state_root;
 
 		assert!(client.state_data(&state_root).is_some());
-		stop.store(true, SyncOrdering::Relaxed);
 	});
 }
 
@@ -76,9 +73,9 @@ fn imports_good_block() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 		let good_block = get_good_dummy_block();
@@ -90,7 +87,6 @@ fn imports_good_block() {
 
 		let block = client.block_header(BlockID::Number(1)).unwrap();
 		assert!(!block.is_empty());
-		stop.store(true, SyncOrdering::Relaxed);
 	});
 }
 
@@ -103,14 +99,13 @@ fn query_none_block() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 		let non_existant = client.block_header(BlockID::Number(188));
 		assert!(non_existant.is_none());
-		stop.store(true, SyncOrdering::Relaxed);
 	});
 }
 
@@ -123,15 +118,14 @@ fn query_bad_block() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let client = get_test_client_with_blocks_in(&dir, vec![get_bad_state_dummy_block()]);
 		let bad_block:Option<Bytes> = client.block_header(BlockID::Number(1));
 
-		assert!(bad_block.is_none());
-		stop.store(true, SyncOrdering::Relaxed);
+		assert!(bad_block.is_none());;
 	});
 }
 
@@ -144,17 +138,15 @@ fn returns_chain_info() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let dummy_block = get_good_dummy_block();
 		let client = get_test_client_with_blocks_in(&dir, vec![dummy_block.clone()]);
 		let block = BlockView::new(&dummy_block);
 		let info = client.chain_info();
 		assert_eq!(info.best_block_hash, block.header().hash());
-
-		stop.store(true, SyncOrdering::Relaxed);
 	});
 }
 
@@ -168,9 +160,9 @@ fn returns_block_body() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let dummy_block = get_good_dummy_block();
 		let client = get_test_client_with_blocks_in(&dir, vec![dummy_block.clone()]);
@@ -180,8 +172,6 @@ fn returns_block_body() {
 		assert_eq!(body.item_count(), 2);
 		assert_eq!(body.at(0).as_raw()[..], block.rlp().at(1).as_raw()[..]);
 		assert_eq!(body.at(1).as_raw()[..], block.rlp().at(2).as_raw()[..]);
-
-		stop.store(true, SyncOrdering::Relaxed);
 	});
 }
 
@@ -194,16 +184,14 @@ fn imports_block_sequence() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let client = generate_dummy_client_in(&dir, 6);
 		let block = client.block_header(BlockID::Number(5)).unwrap();
 
 		assert!(!block.is_empty());
-
-		stop.store(true, SyncOrdering::Relaxed);
 	});
 }
 
@@ -237,9 +225,9 @@ fn can_handle_long_fork() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 
 		let client = generate_dummy_client_in(&dir, 1200);
@@ -256,9 +244,7 @@ fn can_handle_long_fork() {
 		for _ in 0..20 {
 			client.import_verified_blocks(&IoChannel::disconnected());
 		}
-		assert_eq!(2000, client.chain_info().best_block_number);
-
-		stop.store(true, SyncOrdering::Relaxed);
+		assert_eq!(2000, client.chain_info().best_block_number);;
 	});
 }
 
@@ -271,9 +257,9 @@ fn can_mine() {
 		get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
 
 	::crossbeam::scope(|scope| {
-		let stop = Arc::new(AtomicBool::new(false));
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
-		ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+		let stop = StopGuard::new();
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(&db_path).unwrap());
+		ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(&db_path).unwrap());
 
 		let dummy_blocks = get_good_dummy_block_seq(2);
 		let client = get_test_client_with_blocks_in(&dir, vec![dummy_blocks[0].clone()]);
@@ -282,7 +268,5 @@ fn can_mine() {
 
 		assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
 		assert!(client.try_seal(b.lock(), vec![]).is_ok());
-
-		stop.store(true, SyncOrdering::Relaxed);
 	});
 }

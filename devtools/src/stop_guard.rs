@@ -14,15 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! dev-tools
+//! Random path
 
+use std::sync::Arc;
+use std::sync::atomic::*;
 
-extern crate rand;
+pub struct StopGuard {
+	flag: Arc<AtomicBool>,
+}
 
-pub mod random_path;
-pub mod test_socket;
-pub mod stop_guard;
+impl StopGuard {
+	pub fn new() -> StopGuard {
+		StopGuard {
+			flag: Arc::new(AtomicBool::new(false))
+		}
+	}
 
-pub use random_path::*;
-pub use test_socket::*;
-pub use stop_guard::*;
+	pub fn share(&self) -> Arc<AtomicBool> {
+		self.flag.clone()
+	}
+}
+
+impl Drop for StopGuard {
+	fn drop(&mut self) {
+		self.flag.store(true, Ordering::Relaxed)
+	}
+}
