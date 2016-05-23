@@ -70,7 +70,7 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 	}));
 
 	// 500 ms default timeout
-	socket.set_receive_timeout(500).unwrap();
+	socket.set_receive_timeout(2500).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
@@ -93,7 +93,7 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 	}));
 
 	// 500 ms default timeout
-	socket.set_receive_timeout(500).unwrap();
+	socket.set_receive_timeout(2500).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
