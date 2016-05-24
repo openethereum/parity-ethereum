@@ -18,7 +18,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ethjson::blockchain::test::Test;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::spec::Genesis;
 use ethcore::block::Block;
@@ -30,16 +29,43 @@ use util::hash::{Address, FixedHash};
 use util::numbers::U256;
 use util::keys::{TestAccount, TestAccountProvider};
 use jsonrpc_core::IoHandler;
+use ethjson::blockchain::BlockChain;
 
 use v1::traits::eth::Eth;
 use v1::impls::EthClient;
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 
-use super::RPC_CHAIN;
-
 #[test]
 fn harness_works() {
-	eth_harness(|_| {});
+	let chain: BlockChain = extract_chain!("BlockchainTests/bcUncleTest");
+	chain_harness(chain, |_| {});
+}
+
+#[test]
+fn eth_get_balance() {
+	let chain = extract_chain!("BlockchainTests/bcWalletTest", "wallet2outOf3txs");
+	chain_harness(chain, |handler| {
+		// final account state
+		let req_latest = r#"{
+			"jsonrpc": "2.0",
+			"method": "eth_getBalance",
+			"params": ["0xaaaf5374fce5edbc8e2a8697c15331677e6ebaaa", "latest"],
+			"id": 1
+		}"#;
+		let res_latest = r#"{"jsonrpc":"2.0","result":"0x09","id":1}"#;
+		assert_eq!(&handler.handle_request(req_latest).unwrap(), res_latest);
+
+		// non-existant account
+		let req_new_acc = r#"{
+			"jsonrpc": "2.0",
+			"method": "eth_getBalance",
+			"params": ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+			"id": 3
+		}"#;
+
+		let res_new_acc = r#"{"jsonrpc":"2.0","result":"0x00","id":3}"#;
+		assert_eq!(&handler.handle_request(req_new_acc).unwrap(), res_new_acc);
+	});
 }
 
 fn account_provider() -> Arc<TestAccountProvider> {
@@ -60,12 +86,10 @@ fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
 }
 
-// this harness will create a handler which tests can send specially-crafted
-// JSONRPC requests to.
-fn eth_harness<F, U>(mut cb: F) -> U
+// given a blockchain, this harness will create an EthClient wrapping it
+// which tests can pass specially crafted requests to.
+fn chain_harness<F, U>(chain: BlockChain, mut cb: F) -> U
 	where F: FnMut(&IoHandler) -> U {
-	let chains = Test::load(RPC_CHAIN).unwrap();
-	let chain = chains.into_iter().next().unwrap().1;
 	let genesis = Genesis::from(chain.genesis());
 	let mut spec = ethereum::new_frontier_test();
 	let state = chain.pre_state.clone().into();

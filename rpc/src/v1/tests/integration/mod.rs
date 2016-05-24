@@ -16,6 +16,37 @@
 
 //! Integration tests for the JSONRPC APIs
 
-mod eth;
+// extract a chain from the given JSON file,
+// stored in ethcore/res/ethereum/tests/.
+//
+// usage:
+//     `extract_chain!("Folder/File")` will load Folder/File.json and extract
+//     the first block chain stored within.
+//
+//     `extract_chain!("Folder/File", "with_name")` will load Folder/File.json and
+//     extract the chain with that name. This will panic if no chain by that name
+//     is found.
+macro_rules! extract_chain {
+	($file:expr, $name:expr) => {{
+		const RAW_DATA: &'static [u8] =
+			include_bytes!(concat!("../../../../../ethcore/res/ethereum/tests/", $file, ".json"));
+		let mut chain = None;
+		for (name, c) in ::ethjson::blockchain::Test::load(RAW_DATA).unwrap() {
+			if name == $name {
+				chain = Some(c);
+				break;
+			}
+		}
+		chain.unwrap()
+	}};
 
-const RPC_CHAIN: &'static [u8] = include_bytes!("../../../../../ethcore/res/ethereum/tests/BlockchainTests/bcRPC_API_Test.json");
+	($file:expr) => {{
+		const RAW_DATA: &'static [u8] =
+			include_bytes!(concat!("../../../../../ethcore/res/ethereum/tests/", $file, ".json"));
+
+		::ethjson::blockchain::Test::load(RAW_DATA)
+			.unwrap().into_iter().next().unwrap().1
+	}};
+}
+
+mod eth;
