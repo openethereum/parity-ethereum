@@ -19,7 +19,7 @@
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
-use hash::{Address, FixedHash};
+use hash::Address;
 use crypto::{Secret, KeyPair};
 use super::store::{AccountProvider, SigningError, EncryptedHashMapError};
 
