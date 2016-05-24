@@ -27,10 +27,8 @@ use std::collections::BTreeMap;
 
 /// Single migration.
 pub trait Migration: 'static {
-	/// Version of database before the migration.
-	fn from_version(&self) -> &'static str;
 	/// Version of database after the migration.
-	fn to_version(&self) -> &'static str;
+	fn version(&self) -> u32;
 	/// Should migrate existing object to new database.
 	/// Returns `None` if the object does not exist in new version of database.
 	fn simple_migrate(&self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)>;

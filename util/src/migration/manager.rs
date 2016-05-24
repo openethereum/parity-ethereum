@@ -61,7 +61,10 @@ impl Manager {
 
 	/// Adds new migration rules.
 	pub fn add_migration<T>(&mut self, migration: T) -> Result<(), Error> where T: Migration {
-		let version_match = self.is_latest_version(migration.from_version());
+		let version_match = match self.migrations.last() {
+			Some(last) => last.version() + 1 == migration.version(),
+			None => true,
+		};
 
 		match version_match {
 			true => Ok(self.migrations.push(Box::new(migration))),
@@ -70,7 +73,7 @@ impl Manager {
 	}
 
 	/// Performs migration to destination.
-	pub fn execute<D>(&self, db_iter: D, version: &'static str, destination: &mut Destination) -> Result<(), Error> where
+	pub fn execute<D>(&self, db_iter: D, version: u32, destination: &mut Destination) -> Result<(), Error> where
 		D: Iterator<Item = (Vec<u8>, Vec<u8>)> {
 
 		if self.is_latest_version(version) {
@@ -102,16 +105,16 @@ impl Manager {
 	}
 
 	/// Returns true if given string is equal to latest known version.
-	pub fn is_latest_version(&self, version: &'static str) -> bool {
+	pub fn is_latest_version(&self, version: u32) -> bool {
 		match self.migrations.last() {
-			Some(last) => version == last.to_version(),
+			Some(last) => version == last.version(),
 			None => true
 		}
 	}
 
-	fn migrations_from(&self, version: &'static str) -> Option<&[Box<Migration>]> {
+	fn migrations_from(&self, version: u32) -> Option<&[Box<Migration>]> {
 		// index of the first required migration
-		let position = self.migrations.iter().position(|m| m.from_version() == version);
+		let position = self.migrations.iter().position(|m| m.version() == version + 1);
 		position.map(|p| &self.migrations[p..])
 	}
 }
