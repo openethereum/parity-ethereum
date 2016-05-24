@@ -81,28 +81,28 @@ impl Informant {
 			self.cache_info.read().unwrap().deref(),
 			write_report.deref()
 		) {
-			println!("#{} {}   {} blk/s {} tx/s {} Kgas/s   {}{}+{} Qed   {} db {} chain {} queue{}",
-				White.bold().paint(format!("{:<7}", chain_info.best_block_number)),
+			println!("{} {}   {} blk/s {} tx/s {} Mgas/s   {}{}+{} Qed   {} db {} chain {} queue{}",
+				White.bold().paint(format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 				White.bold().paint(format!("{}", chain_info.best_block_hash)),
 
-				Yellow.bold().paint(format!("{:3}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
-				Yellow.bold().paint(format!("{:3}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
-				Yellow.bold().paint(format!("{:4}", ((report.gas_processed - last_report.gas_processed) * From::from(1000000 / elapsed.as_milliseconds())).low_u64())),
+				Yellow.bold().paint(format!("{:4}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
+				Yellow.bold().paint(format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
+				Yellow.bold().paint(format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64())),
 
 				match maybe_sync {
 					Some(sync) => {
 						let sync_info = sync.status();
-						format!("{}/{} peers   #{} ",
+						format!("{}/{} peers   {} ",
 							Green.bold().paint(format!("{:2}", sync_info.num_active_peers)),
 							Green.bold().paint(format!("{:2}", sync_info.num_peers)),
-							Cyan.bold().paint(format!("{:<7}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number))),
+							Cyan.bold().paint(format!("{:>8}", format!("#{}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number)))),
 						)
 					}
 					None => String::new()
 				},
 
-				Blue.bold().paint(format!("{:4}", queue_info.unverified_queue_size)),
-				Blue.bold().paint(format!("{:4}", queue_info.verified_queue_size)),
+				Blue.bold().paint(format!("{:5}", queue_info.unverified_queue_size)),
+				Blue.bold().paint(format!("{:5}", queue_info.verified_queue_size)),
 
 				Purple.bold().paint(format!("{:>8}", Informant::format_bytes(report.state_db_mem))),
 				Purple.bold().paint(format!("{:>8}", Informant::format_bytes(cache_info.total()))),
