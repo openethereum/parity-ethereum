@@ -459,9 +459,11 @@ impl MinerService for Miner {
 		if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
 			match chain.try_seal(b.lock(), seal) {
 				Err(_) => {
+					info!(target: "miner", "Mined block rejected, PoW was invalid.");
 					Err(Error::PowInvalid)
 				}
 				Ok(sealed) => {
+					info!(target: "miner", "New block mined, hash: {}", sealed.header().hash());
 					// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
 					let b = sealed.rlp_bytes();
 					let h = b.sha3();
@@ -471,6 +473,7 @@ impl MinerService for Miner {
 				}
 			}
 		} else {
+			info!(target: "miner", "Mined block rejected, PoW hash invalid or out of date.");
 			Err(Error::PowHashInvalid)
 		}
 	}

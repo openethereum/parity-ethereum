@@ -19,7 +19,7 @@
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
-use hash::{Address, FixedHash};
+use hash::Address;
 use crypto::{Secret, KeyPair};
 use super::store::{AccountProvider, SigningError, EncryptedHashMapError};
 
@@ -102,6 +102,17 @@ impl AccountProvider for TestAccountProvider {
 			.get(address)
 			.ok_or(SigningError::NoAccount)
 			.map(|acc| acc.secret.clone())
+	}
+
+	fn locked_account_secret(&self, address: &Address, pass: &str) -> Result<Secret, SigningError> {
+		let accounts = self.accounts.read().unwrap();
+		match accounts.get(address) {
+			Some(ref acc) if acc.password == pass => {
+				Ok(acc.secret.clone())
+			},
+			Some(ref _acc) => Err(SigningError::InvalidPassword),
+			_ => Err(SigningError::NoAccount),
+		}
 	}
 }
 
