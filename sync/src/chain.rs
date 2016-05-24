@@ -252,7 +252,7 @@ impl ChainSync {
 		let chain = chain.chain_info();
 		let mut sync = ChainSync {
 			state: SyncState::ChainHead,
-			starting_block: 0,
+			starting_block: chain.best_block_number,
 			highest_block: None,
 			last_imported_block: chain.best_block_number,
 			last_imported_hash: chain.best_block_hash,
@@ -278,7 +278,7 @@ impl ChainSync {
 			network_id: self.network_id,
 			start_block_number: self.starting_block,
 			last_imported_block_number: Some(self.last_imported_block),
-			highest_block_number: self.highest_block,
+			highest_block_number: self.highest_block.map(|n| max(n, self.last_imported_block)),
 			blocks_received: if self.last_imported_block > self.starting_block { self.last_imported_block - self.starting_block } else { 0 },
 			blocks_total: match self.highest_block { Some(x) if x > self.starting_block => x - self.starting_block, _ => 0 },
 			num_peers: self.peers.len(),
@@ -1114,11 +1114,14 @@ impl ChainSync {
 	fn create_new_hashes_rlp(chain: &BlockChainClient, from: &H256, to: &H256) -> Option<Bytes> {
 		match chain.tree_route(from, to) {
 			Some(route) => {
+				let uncles = chain.find_uncles(from).unwrap_or_else(Vec::new);
 				match route.blocks.len() {
 					0 => None,
 					_ => {
-						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
-						for block_hash in route.blocks {
+						let mut blocks = route.blocks;
+						blocks.extend(uncles);
+						let mut rlp_stream = RlpStream::new_list(blocks.len());
+						for block_hash in  blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
 							let difficulty = chain.block_total_difficulty(BlockID::Hash(block_hash.clone())).expect("Malformed block without a difficulty on the chain!");
 							hash_rlp.append(&block_hash);

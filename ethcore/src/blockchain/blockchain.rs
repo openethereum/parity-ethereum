@@ -518,6 +518,11 @@ impl BlockChain {
 
 	/// Given a block's `parent`, find every block header which represents a valid possible uncle.
 	pub fn find_uncle_headers(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<Header>> {
+		self.find_uncle_hashes(parent, uncle_generations).map(|v| v.into_iter().filter_map(|h| self.block_header(&h)).collect())
+	}
+
+	/// Given a block's `parent`, find every block hash which represents a valid possible uncle.
+	pub fn find_uncle_hashes(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<H256>> {
 		if !self.is_known(parent) { return None; }
 
 		let mut excluded = HashSet::new();
@@ -529,7 +534,7 @@ impl BlockChain {
 		let mut ret = Vec::new();
 		for a in self.ancestry_iter(parent.clone()).unwrap().skip(1).take(uncle_generations) {
 			ret.extend(self.block_details(&a).unwrap().children.iter()
-				.filter_map(|h| if excluded.contains(h) { None } else { self.block_header(h) })
+				.filter(|h| !excluded.contains(h))
 			);
 		}
 		Some(ret)
