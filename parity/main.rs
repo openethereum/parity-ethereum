@@ -66,8 +66,11 @@ mod configuration;
 use ctrlc::CtrlC;
 use util::*;
 use std::fs::File;
+use std::thread::yield_now;
+use std::io::{BufReader, BufRead};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient};
+use ethcore::error::{Error, ImportError};
 use ethcore::service::ClientService;
 use ethsync::EthSync;
 use ethminer::{Miner, MinerService, ExternalMiner};
@@ -108,6 +111,11 @@ fn execute(conf: Configuration) {
 
 	if conf.args.cmd_export {
 		execute_export(conf);
+		return;
+	}
+
+	if conf.args.cmd_import {
+		execute_import(conf);
 		return;
 	}
 
@@ -229,8 +237,6 @@ enum DataFormat {
 }
 
 fn execute_export(conf: Configuration) {
-	println!("Exporting to {:?} from {}, to {}", conf.args.arg_file, conf.args.flag_from, conf.args.flag_to);
-
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -276,10 +282,14 @@ fn execute_export(conf: Configuration) {
 	};
 	let from = parse_block_id(&conf.args.flag_from, "--from");
 	let to = parse_block_id(&conf.args.flag_to, "--to");
-	let format = match conf.args.flag_format.deref() {
-		"binary" | "bin" => DataFormat::Binary,
-		"hex" => DataFormat::Hex,
-		x => die!("Invalid --format parameter given: {:?}", x),
+	let format = match conf.args.flag_format {
+		Some(x) => match x.deref() {
+			"binary" | "bin" => DataFormat::Binary,
+			"hex" => DataFormat::Hex,
+			x => die!("Invalid --format parameter given: {:?}", x),
+		},
+		None if conf.args.arg_file.is_none() => DataFormat::Hex,
+		None => DataFormat::Binary,
 	};
 
 	let mut out: Box<Write> = if let Some(f) = conf.args.arg_file {
@@ -295,6 +305,103 @@ fn execute_export(conf: Configuration) {
 			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }
 		}
 	}
+}
+
+fn execute_import(conf: Configuration) {
+	// Setup panic handler
+	let panic_handler = PanicHandler::new_in_arc();
+
+	// Raise fdlimit
+	unsafe { ::fdlimit::raise_fd_limit(); }
+
+	let spec = conf.spec();
+	let net_settings = NetworkConfiguration {
+		config_path: None,
+		listen_address: None,
+		public_address: None,
+		udp_port: None,
+		nat_enabled: false,
+		discovery_enabled: false,
+		pin: true,
+		boot_nodes: Vec::new(),
+		use_secret: None,
+		ideal_peers: 0,
+	};
+	let client_config = conf.client_config(&spec);
+
+	// Build client
+	let service = ClientService::start(
+		client_config, spec, net_settings, Path::new(&conf.path())
+	).unwrap_or_else(|e| die_with_error("Client", e));
+
+	panic_handler.forward_from(&service);
+	let client = service.client();
+
+	let mut instream: Box<Read> = if let Some(f) = conf.args.arg_file {
+		let f = File::open(&f).unwrap_or_else(|_| die!("Cannot open the file given: {}", f));
+		Box::new(f)
+	} else {
+		Box::new(::std::io::stdin())
+	};
+
+	let mut first_bytes: Bytes = vec![0; 3];
+	let mut first_read = 0;
+
+	let format = match conf.args.flag_format {
+		Some(x) => match x.deref() {
+			"binary" | "bin" => DataFormat::Binary,
+			"hex" => DataFormat::Hex,
+			x => die!("Invalid --format parameter given: {:?}", x),
+		},
+		None => {
+			// autodetect...
+			first_read = instream.read(&mut(first_bytes[..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
+			match first_bytes[0] {
+				0xf9 => {
+					println!("Autodetected binary data format.");
+					DataFormat::Binary
+				}
+				_ => {
+					println!("Autodetected hex data format.");
+					DataFormat::Hex
+				}
+			}
+		}
+	};
+
+	let do_import = |bytes| {
+		while client.queue_info().is_full() { yield_now(); }
+		match client.import_block(bytes) {
+			Ok(_) => { println!("Block imported ok"); }
+			Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
+			Err(e) => die!("Cannot import block: {:?}", e)
+		}
+	};
+
+	match format {
+		DataFormat::Binary => {
+			loop {
+				let mut bytes: Bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; 3]};
+				let n = if first_read > 0 {first_read} else {instream.read(&mut(bytes[..])).unwrap_or_else(|_| die!("Error reading from the file/stream."))};
+				if n == 0 { break; }
+				first_read = 0;
+				let s = PayloadInfo::from(&(bytes[..])).unwrap_or_else(|e| die!("Invalid RLP in the file/stream: {:?}", e)).total();
+				bytes.resize(s, 0);
+				instream.read_exact(&mut(bytes[3..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
+				do_import(bytes);
+			}
+		}
+		DataFormat::Hex => { 
+			for line in BufReader::new(instream).lines() {
+				let s = line.unwrap_or_else(|_| die!("Error reading from the file/stream."));
+				let s = if first_read > 0 {str::from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
+				first_read = 0;
+				let bytes = FromHex::from_hex(&(s[..])).unwrap_or_else(|_| die!("Invalid hex in file/stream."));
+				do_import(bytes);
+			}
+		}
+	}
+	client.flush_queue();
 }
 
 fn execute_account_cli(conf: Configuration) {

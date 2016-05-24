@@ -65,6 +65,32 @@ impl PayloadInfo {
 
 	/// Total size of the RLP.
 	pub fn total(&self) -> usize { self.header_len + self.value_len }
+
+	/// Create a new object from the given bytes RLP. The bytes
+	pub fn from(header_bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
+		Ok(match header_bytes.first().cloned() {
+			None => return Err(DecoderError::RlpIsTooShort),
+			Some(0...0x7f) => PayloadInfo::new(0, 1),
+			Some(l @ 0x80...0xb7) => PayloadInfo::new(1, l as usize - 0x80),
+			Some(l @ 0xb8...0xbf) => {
+				let len_of_len = l as usize - 0xb7;
+				let header_len = 1 + len_of_len;
+				if header_bytes[1] == 0 { return Err(DecoderError::RlpDataLenWithZeroPrefix); }
+				let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
+				PayloadInfo::new(header_len, value_len)
+			}
+			Some(l @ 0xc0...0xf7) => PayloadInfo::new(1, l as usize - 0xc0),
+			Some(l @ 0xf8...0xff) => {
+				let len_of_len = l as usize - 0xf7;
+				let header_len = 1 + len_of_len;
+				let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
+				if header_bytes[1] == 0 { return Err(DecoderError::RlpListLenWithZeroPrefix); }
+				PayloadInfo::new(header_len, value_len)
+			},
+			// we cant reach this place, but rust requires _ to be implemented
+			_ => { unreachable!(); }
+		})
+	}
 }
 
 /// Data-oriented view onto rlp-slice.
@@ -305,31 +331,9 @@ impl<'a> BasicDecoder<'a> {
 		}
 	}
 
-	/// Return first item info
+	/// Return first item info.
 	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
-		let item = match bytes.first().cloned() {
-			None => return Err(DecoderError::RlpIsTooShort),
-			Some(0...0x7f) => PayloadInfo::new(0, 1),
-			Some(l @ 0x80...0xb7) => PayloadInfo::new(1, l as usize - 0x80),
-			Some(l @ 0xb8...0xbf) => {
-				let len_of_len = l as usize - 0xb7;
-				let header_len = 1 + len_of_len;
-				if bytes[1] == 0 { return Err(DecoderError::RlpDataLenWithZeroPrefix); }
-				let value_len = try!(usize::from_bytes(&bytes[1..header_len]));
-				PayloadInfo::new(header_len, value_len)
-			}
-			Some(l @ 0xc0...0xf7) => PayloadInfo::new(1, l as usize - 0xc0),
-			Some(l @ 0xf8...0xff) => {
-				let len_of_len = l as usize - 0xf7;
-				let header_len = 1 + len_of_len;
-				let value_len = try!(usize::from_bytes(&bytes[1..header_len]));
-				if bytes[1] == 0 { return Err(DecoderError::RlpListLenWithZeroPrefix); }
-				PayloadInfo::new(header_len, value_len)
-			},
-			// we cant reach this place, but rust requires _ to be implemented
-			_ => { unreachable!(); }
-		};
-
+		let item = try!(PayloadInfo::from(bytes));
 		match item.header_len + item.value_len <= bytes.len() {
 			true => Ok(item),
 			false => Err(DecoderError::RlpIsTooShort),
