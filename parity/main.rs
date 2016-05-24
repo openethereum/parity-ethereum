@@ -65,8 +65,9 @@ mod configuration;
 
 use ctrlc::CtrlC;
 use util::*;
+use std::time::Duration;
 use std::fs::File;
-use std::thread::yield_now;
+use std::thread::sleep;
 use std::io::{BufReader, BufRead};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient};
@@ -373,7 +374,7 @@ fn execute_import(conf: Configuration) {
 	let informant = Informant::default();
 
 	let do_import = |bytes| {
-		while client.queue_info().is_full() { yield_now(); }
+		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(bytes) {
 			Ok(_) => {}
 			Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
