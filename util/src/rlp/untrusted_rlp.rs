@@ -306,8 +306,8 @@ impl<'a> BasicDecoder<'a> {
 	}
 
 	/// Return first item info
-	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
-		let item = match bytes.first().cloned() {
+	pub fn dumb_payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
+		Ok(match bytes.first().cloned() {
 			None => return Err(DecoderError::RlpIsTooShort),
 			Some(0...0x7f) => PayloadInfo::new(0, 1),
 			Some(l @ 0x80...0xb7) => PayloadInfo::new(1, l as usize - 0x80),
@@ -328,8 +328,11 @@ impl<'a> BasicDecoder<'a> {
 			},
 			// we cant reach this place, but rust requires _ to be implemented
 			_ => { unreachable!(); }
-		};
+		})
+	}
 
+	pub fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
+		let item = try!(Self::dumb_payload_info(bytes));
 		match item.header_len + item.value_len <= bytes.len() {
 			true => Ok(item),
 			false => Err(DecoderError::RlpIsTooShort),
