@@ -134,6 +134,7 @@ pub mod vector;
 pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
+pub mod migration;
 pub mod overlaydb;
 pub mod journaldb;
 pub mod kvdb;
