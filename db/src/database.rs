@@ -115,6 +115,21 @@ impl DatabaseService for Database {
 		Ok(())
 	}
 
+	fn write_client(&self, transaction: DBClientTransaction) -> Result<(), Error> {
+		let db_lock = self.db.read().unwrap();
+		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+
+		let batch = WriteBatch::new();
+		for kv in transaction.writes {
+			try!(batch.put(&kv.key, &kv.value))
+		}
+		for k in transaction.removes {
+			try!(batch.delete(&k));
+		}
+		try!(db.write(batch));
+		Ok(())
+	}
+
 	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
@@ -169,6 +184,19 @@ impl DatabaseService for Database {
 			})
 		})
 	}
+
+	fn dispose_iter(&self, handle: IteratorHandle) -> Result<(), Error> {
+		let mut iterators = self.iterators.write().unwrap();
+		iterators.remove(&handle);
+		Ok(())
+	}
+
+	fn dispose_transaction(&self, handle: TransactionHandle) -> Result<(), Error> {
+		let mut transactions = self.transactions.write().unwrap();
+		transactions.remove(&handle);
+		Ok(())
+	}
+
 
 	fn transaction_put(&self, transaction: TransactionHandle, key: &[u8], value: &[u8]) -> Result<(), Error>
 	{
@@ -242,6 +270,12 @@ impl Iterator for DatabaseIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
 		self.client.iter_next(self.handle).and_then(|kv| Some((kv.key, kv.value)))
+	}
+}
+
+impl Drop for DatabaseIterator {
+	fn drop(&mut self) {
+		self.client.dispose_iter(self.handle).unwrap();
 	}
 }
 
