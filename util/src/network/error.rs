@@ -17,6 +17,7 @@
 use io::IoError;
 use crypto::CryptoError;
 use rlp::*;
+use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisconnectReason
@@ -56,6 +57,30 @@ impl DisconnectReason {
 	}
 }
 
+impl fmt::Display for DisconnectReason {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::DisconnectReason::*;
+
+		let msg = match *self {
+			DisconnectRequested => "disconnect requested",
+			TCPError => "TCP error",
+			BadProtocol => "bad protocol",
+			UselessPeer => "useless peer",
+			TooManyPeers => "too many peers",
+			DuplicatePeer => "duplicate peer",
+			IncompatibleProtocol => "incompatible protocol",
+			NullIdentity => "null identity",
+			ClientQuit => "client quit",
+			UnexpectedIdentity => "unexpected identity",
+			LocalIdentity => "local identity",
+			PingTimeout => "ping timeout",
+			Unknown => "unknown",
+		};
+
+		f.write_str(msg)
+	}
+}
+
 #[derive(Debug)]
 /// Network error.
 pub enum NetworkError {
@@ -71,6 +96,23 @@ pub enum NetworkError {
 	Disconnect(DisconnectReason),
 	/// Socket IO error.
 	Io(IoError),
+}
+
+impl fmt::Display for NetworkError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::NetworkError::*;
+
+		let msg = match *self {
+			Auth => "Authentication failure".into(),
+			BadProtocol => "Bad protocol".into(),
+			Expired => "Expired message".into(),
+			PeerNotFound => "Peer not found".into(),
+			Disconnect(ref reason) => format!("Peer disconnected: {}", reason),
+			Io(ref err) => format!("Socket I/O error: {}", err),
+		};
+
+		f.write_fmt(format_args!("Network error ({})", msg))
+	}
 }
 
 impl From<DecoderError> for NetworkError {

@@ -21,6 +21,7 @@ use bytes::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 use sha3::Hashable;
+use std::fmt;
 
 /// Secret key for secp256k1 EC operations. 256 bit generic "hash" data.
 pub type Secret = H256;
@@ -67,6 +68,20 @@ pub enum CryptoError {
 	InvalidMessage,
 	/// IO Error
 	Io(::std::io::Error),
+}
+
+impl fmt::Display for CryptoError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let msg = match *self {
+			CryptoError::InvalidSecret => "Invalid secret key".into(),
+			CryptoError::InvalidPublic => "Invalid public key".into(),
+			CryptoError::InvalidSignature => "Invalid EC signature".into(),
+			CryptoError::InvalidMessage => "Invalid AES message".into(),
+			CryptoError::Io(ref err) => format!("I/O error: {}", err),
+		};
+
+		f.write_fmt(format_args!("Crypto error ({})", msg))
+	}
 }
 
 impl From<::secp256k1::Error> for CryptoError {

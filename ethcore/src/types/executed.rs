@@ -21,6 +21,7 @@ use util::Bytes;
 use trace::Trace;
 use types::log_entry::LogEntry;
 use ipc::binary::BinaryConvertError;
+use std::fmt;
 use std::mem;
 use std::collections::VecDeque;
 
@@ -104,6 +105,28 @@ pub enum ExecutionError {
 	TransactionMalformed(String),
 }
 
+impl fmt::Display for ExecutionError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::ExecutionError::*;
+
+		let msg = match *self {
+			NotEnoughBaseGas { required, got } =>
+				format!("Not enough base gas. {} is required, but only {} paid", required, got),
+			BlockGasLimitReached { gas_limit, gas_used, gas } =>
+				format!("Block gas limit reached. The limit is {}, {} has \
+					already been used, and {} more is required", gas_limit, gas_used, gas),
+			InvalidNonce { expected, got } =>
+				format!("Invalid transaction nonce: expected {}, found {}", expected, got),
+			NotEnoughCash { required, got } =>
+				format!("Cost of transaction exceeds sender balance. {} is required \
+					but the sender only has {}", required, got),
+			Internal => "Internal evm error".into(),
+			TransactionMalformed(ref err) => format!("Malformed transaction: {}", err),
+		};
+
+		f.write_fmt(format_args!("Transaction execution error ({}).", msg))
+	}
+}
 
 /// Transaction execution result.
 pub type ExecutionResult = Result<Executed, ExecutionError>;
