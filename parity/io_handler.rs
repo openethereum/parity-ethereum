@@ -39,12 +39,11 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
 		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
 		io.register_timer(ACCOUNT_TICK_TIMER, ACCOUNT_TICK_MS).expect("Error registering account timer");
-
 	}
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
 		match timer {
-			INFO_TIMER => { self.info.tick(&self.client, &self.sync); }
+			INFO_TIMER => { self.info.tick(&self.client, Some(&self.sync)); }
 			ACCOUNT_TICK_TIMER => { self.accounts.tick(); },
 			_ => {}
 		}

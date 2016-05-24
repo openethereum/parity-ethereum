@@ -22,7 +22,6 @@
 #![cfg_attr(feature="dev", allow(useless_format))]
 
 extern crate docopt;
-extern crate ansi_term;
 extern crate num_cpus;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -76,6 +75,7 @@ use ethcore::service::ClientService;
 use ethsync::EthSync;
 use ethminer::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
+use informant::Informant;
 
 use die::*;
 use cli::print_version;
@@ -370,13 +370,16 @@ fn execute_import(conf: Configuration) {
 		}
 	};
 
+	let informant = Informant::default();
+
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { yield_now(); }
 		match client.import_block(bytes) {
-			Ok(_) => { println!("Block imported ok"); }
+			Ok(_) => {}
 			Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
+		informant.tick(client.deref(), None);
 	};
 
 	match format {
