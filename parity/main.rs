@@ -219,7 +219,7 @@ fn execute_client(conf: Configuration) {
 	// Register IO handler
 	let io_handler  = Arc::new(ClientIoHandler {
 		client: service.client(),
-		info: Default::default(),
+		info: Informant::new(!conf.args.flag_no_color),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
 	});
@@ -371,7 +371,7 @@ fn execute_import(conf: Configuration) {
 		}
 	};
 
-	let informant = Informant::default();
+	let informant = Informant::new(!conf.args.flag_no_color);
 
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
