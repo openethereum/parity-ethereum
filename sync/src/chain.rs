@@ -1225,7 +1225,7 @@ impl ChainSync {
 			return 0;
 		}
 
-		let mut transactions = self.miner.pending_transactions();
+		let mut transactions = self.miner.all_transactions();
 		if transactions.is_empty() {
 			return 0;
 		}
