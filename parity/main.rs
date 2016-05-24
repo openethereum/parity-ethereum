@@ -261,21 +261,21 @@ fn execute_export(conf: Configuration) {
 	let client = service.client();
 
 	// we have a client!
-	let parse_block_id = |s: &str| -> u64 {
+	let parse_block_id = |s: &str, arg: &str| -> u64 {
 		if s == "latest" {
 			client.chain_info().best_block_number
 		} else if let Ok(n) = s.parse::<u64>() {
 			n
 		} else if let Ok(h) = H256::from_str(s) {
 			client.block_number(BlockID::Hash(h)).unwrap_or_else(|| {
-				die!("Unknown block hash passed to --to parameter: {:?}", s);
+				die!("Unknown block hash passed to {} parameter: {:?}", arg, s);
 			})
 		} else {
-			die!("Invalid block ID parameter given: {:?}", s);
+			die!("Invalid {} parameter given: {:?}", arg, s);
 		}
 	};
-	let from = parse_block_id(&conf.args.flag_from);
-	let to = parse_block_id(&conf.args.flag_to);
+	let from = parse_block_id(&conf.args.flag_from, "--from");
+	let to = parse_block_id(&conf.args.flag_to, "--to");
 	let format = match conf.args.flag_format.deref() {
 		"binary" | "bin" => DataFormat::Binary,
 		"hex" => DataFormat::Hex,
