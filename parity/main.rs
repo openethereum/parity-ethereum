@@ -132,13 +132,10 @@ fn execute_upgrades(conf: &Configuration) {
 		_ => {},
 	}
 
-	println!("Preparing migration!");
 	let result = migrate(&Path::new("/Users/marek/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent").to_path_buf());
 	if let Err(err) = result {
 		die_with_message(&format!("{}", err));
 	}
-	println!("Migration finished!");
-
 }
 
 fn execute_client(conf: Configuration) {

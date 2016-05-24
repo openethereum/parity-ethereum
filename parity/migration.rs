@@ -21,11 +21,12 @@ use std::path::PathBuf;
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, MigrationIterator};
 use util::kvdb::Database;
+use ethcore::migrations;
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 5;
+const CURRENT_VERSION: u32 = 6;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -129,7 +130,8 @@ fn blocks_database_migrations() -> Result<MigrationManager, Error> {
 
 /// Migrations on extras database.
 fn extras_database_migrations() -> Result<MigrationManager, Error> {
-	let manager = MigrationManager::new(default_migration_settings());
+	let mut manager = MigrationManager::new(default_migration_settings());
+	try!(manager.add_migration(migrations::extras::ToV6).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
@@ -140,8 +142,12 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 		return Ok(())
 	}
 
+	println!("Migrating database {} from version {} to version {}", path.to_string_lossy(), version, CURRENT_VERSION);
+
 	// get temp path
 	let temp_path = temp_database_path();
+	// remote the dir if it exists
+	let _ = fs::remove_dir_all(&temp_path);
 
 	{
 		// open old database
@@ -157,6 +163,9 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 	// replace the old database with the new one
 	try!(fs::remove_dir_all(&path));
 	try!(fs::rename(&temp_path, &path));
+
+	println!("Migration finished");
+
 	Ok(())
 }
 
@@ -166,8 +175,10 @@ pub fn migrate(path: &PathBuf) -> Result<(), Error> {
 	let version = try!(current_version(path));
 
 	// migrate the databases.
-	try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
-	try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
+	if version != CURRENT_VERSION {
+		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
+		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
+	}
 
 	// update version file.
 	update_version(path)

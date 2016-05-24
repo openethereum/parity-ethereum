@@ -63,9 +63,10 @@ impl Key<H256> for BlockNumber {
 	fn key(&self) -> Self::Target {
 		let mut result = [0u8; 5];
 		result[0] = ExtrasIndex::BlockHash as u8;
-		unsafe {
-			ptr::copy(&[*self as u32] as *const u32 as *const u8, result.as_mut_ptr().offset(1), 4);
-		}
+		result[1] = (self >> 24) as u8;
+		result[2] = (self >> 16) as u8;
+		result[3] = (self >> 8) as u8;
+		result[4] = *self as u8;
 		BlockNumberKey(result)
 	}
 }
@@ -110,9 +111,10 @@ impl Key<BloomGroup> for LogGroupPosition {
 		let mut result = [0u8; 6];
 		result[0] = ExtrasIndex::BlocksBlooms as u8;
 		result[1] = self.0.level;
-		unsafe {
-			ptr::copy(&[self.0.index] as *const u32 as *const u8, result.as_mut_ptr().offset(2), 4);
-		}
+		result[2] = (self.0.index >> 24) as u8;
+		result[3] = (self.0.index >> 16) as u8;
+		result[4] = (self.0.index >> 8) as u8;
+		result[5] = self.0.index as u8;
 		LogGroupKey(result)
 	}
 }

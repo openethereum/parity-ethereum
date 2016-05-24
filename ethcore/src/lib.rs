@@ -108,6 +108,7 @@ pub mod spec;
 pub mod views;
 pub mod pod_state;
 pub mod engine;
+pub mod migrations;
 
 mod blooms;
 mod db;
@@ -130,7 +131,6 @@ mod externalities;
 mod verification;
 mod blockchain;
 mod types;
-mod migrations;
 
 #[cfg(test)]
 mod tests;

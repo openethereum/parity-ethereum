@@ -2,9 +2,9 @@ use std::ptr;
 use util::migration::Migration;
 
 /// This migration reduces the sizes of keys and moves `ExtrasIndex` byte from back to the front.
-pub struct Migrate6;
+pub struct ToV6;
 
-impl Migrate6 {
+impl ToV6 {
 	fn migrate_old_key(&self, old_key: Vec<u8>, index: u8, len: usize) -> Vec<u8> {
 		let mut result = vec![];
 		result.reserve(len);
@@ -17,7 +17,7 @@ impl Migrate6 {
 	}
 }
 
-impl Migration for Migrate6 {
+impl Migration for ToV6 {
 	fn version(&self) -> u32 {
 		6
 	}
@@ -60,12 +60,13 @@ impl Migration for Migrate6 {
 				let mut result = [0u8; 6];
 				// new extras index is 3
 				result[0] = 3;
-				// 8th bytes was the level. Not it's second.
-				result[1] = reverse[8];
-				unsafe {
-					// position at given level. we assume, that bytes were left padded.
-					ptr::copy(reverse.as_ptr().offset(4), result.as_mut_ptr().offset(2), 4);
-				}
+				// 9th (+ prefix) byte was the level. Now it's second.
+				result[1] = reverse[9];
+				result[2] = reverse[4];
+				result[3] = reverse[3];
+				result[4] = reverse[2];
+				result[5] = reverse[1];
+
 				return Some((result.to_vec(), value));
 			}
 

@@ -1,3 +1,5 @@
+//! Extras database migrations.
+
 mod v6;
 
-pub use self::v6::Migrate6;
+pub use self::v6::ToV6;
