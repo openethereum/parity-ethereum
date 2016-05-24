@@ -2,9 +2,9 @@ use std::ptr;
 use util::migration::Migration;
 
 /// This migration reduces the sizes of keys and moves `ExtrasIndex` byte from back to the front.
-pub struct Migrate53Into60;
+pub struct Migrate6;
 
-impl Migrate53Into60 {
+impl Migrate6 {
 	fn migrate_old_key(&self, old_key: Vec<u8>, index: u8, len: usize) -> Vec<u8> {
 		let mut result = vec![];
 		result.reserve(len);
@@ -17,13 +17,9 @@ impl Migrate53Into60 {
 	}
 }
 
-impl Migration for Migrate53Into60 {
-	fn from_version(&self) -> &'static str {
-		"5.3"
-	}
-
-	fn to_version(&self) -> &'static str {
-		"6.0"
+impl Migration for Migrate6 {
+	fn version(&self) -> u32 {
+		6
 	}
 
 	fn simple_migrate(&self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {

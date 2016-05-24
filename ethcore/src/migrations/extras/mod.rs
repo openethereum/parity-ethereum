@@ -1,3 +1,3 @@
-mod v53_v60;
+mod v6;
 
-pub use self::v53_v60::Migrate53Into60;
+pub use self::v6::Migrate6;
