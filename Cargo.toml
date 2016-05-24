@@ -38,6 +38,7 @@ json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ethcore-db = { path = "db" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 crossbeam = "0.2"
+ansi_term = "0.7"
 
 [dependencies.hyper]
 version = "0.8"

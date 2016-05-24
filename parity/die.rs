@@ -31,11 +31,16 @@ pub fn die_with_error(module: &'static str, e: ethcore::error::Error) -> ! {
 	match e {
 		Error::Util(UtilError::StdIo(e)) => die_with_io_error(module, e),
 		Error::Client(ClientError::Trace(e)) => die_with_message(&format!("{}", e)),
-		_ => die!("{}: {:?}", module, e),
+		_ => {
+			trace!(target: module, "{:?}", e);
+			die!("{}: {}", module, e);
+		}
 	}
 }
 
 pub fn die_with_io_error(module: &'static str, e: std::io::Error) -> ! {
+	trace!(target: module, "{:?}", e);
+
 	match e.kind() {
 		std::io::ErrorKind::PermissionDenied => {
 			die!("{}: No permissions to bind to specified port.", module)
@@ -46,7 +51,7 @@ pub fn die_with_io_error(module: &'static str, e: std::io::Error) -> ! {
 		std::io::ErrorKind::AddrNotAvailable => {
 			die!("{}: Could not use specified interface or given address is invalid.", module)
 		},
-		_ => die!("{}: {:?}", module, e),
+		_ => die!("{}: {}", module, e),
 	}
 }
 

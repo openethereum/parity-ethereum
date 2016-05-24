@@ -24,6 +24,8 @@ Parity. Ethereum Client.
 Usage:
   parity daemon <pid-file> [options]
   parity account (new | list) [options]
+  parity import [ <file> ] [options]
+  parity export [ <file> ] [options]
   parity [options]
 
 Protocol Options:
@@ -42,9 +44,9 @@ Account Options:
                            ACCOUNTS is a comma-delimited list of addresses.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
-  --keys-iterations NUM    Specify the number of iterations to use when deriving key
-                           from the password (bigger is more secure)
-                           [default: 10240].
+  --keys-iterations NUM    Specify the number of iterations to use when
+                           deriving key from the password (bigger is more
+                           secure) [default: 10240].
   --no-import-keys         Do not import keys from legacy clients.
 
 Networking Options:
@@ -142,6 +144,14 @@ Footprint Options:
                            the entire system, overrides other cache and queue
                            options.
 
+Import/Export Options:
+  --from BLOCK             Export from block BLOCK, which may be an index or
+                           hash [default: 1].
+  --to BLOCK               Export to (including) block BLOCK, which may be an
+                           index, hash or 'latest' [default: latest].
+  --format FORMAT          For import/export in given format. FORMAT must be
+                           one of 'hex' and 'binary'.
+
 Virtual Machine Options:
   --jitvm                  Enable the JIT VM.
 
@@ -186,7 +196,10 @@ pub struct Args {
 	pub cmd_account: bool,
 	pub cmd_new: bool,
 	pub cmd_list: bool,
+	pub cmd_export: bool,
+	pub cmd_import: bool,
 	pub arg_pid_file: String,
+	pub arg_file: Option<String>,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
@@ -230,6 +243,9 @@ pub struct Args {
 	pub flag_tx_limit: usize,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
+	pub flag_from: String,
+	pub flag_to: String,
+	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	// legacy...
 	pub flag_geth: bool,

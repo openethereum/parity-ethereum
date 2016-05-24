@@ -14,9 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate ansi_term;
+
 use std::sync::RwLock;
 use std::ops::{Deref, DerefMut};
+use ansi_term::Colour::*;
 use ethsync::{EthSync, SyncProvider};
+use util::Uint;
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 
@@ -61,23 +65,25 @@ impl Informant {
 			self.cache_info.read().unwrap().deref(),
 			write_report.deref()
 		) {
-			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} db, {} chain, {} queue, {} sync ]",
-				chain_info.best_block_number,
-				chain_info.best_block_hash,
-				(report.blocks_imported - last_report.blocks_imported) / dur,
-				(report.transactions_applied - last_report.transactions_applied) / dur,
-				(report.gas_processed - last_report.gas_processed) / From::from(dur),
+			println!("#{} {}   {} blk/s {} tx/s {} Kgas/s   {}/{} peers   #{} {}+{} Qed   {} db {} chain {} queue {} sync",
+				White.bold().paint(format!("{:<7}", chain_info.best_block_number)),
+				White.bold().paint(format!("{}", chain_info.best_block_hash)),
 
-				sync_info.num_active_peers,
-				sync_info.num_peers,
-				sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number),
-				queue_info.unverified_queue_size,
-				queue_info.verified_queue_size,
+				Yellow.bold().paint(format!("{:3}", (report.blocks_imported - last_report.blocks_imported) / dur)),
+				Yellow.bold().paint(format!("{:3}", (report.transactions_applied - last_report.transactions_applied) / dur)),
+				Yellow.bold().paint(format!("{:4}", ((report.gas_processed - last_report.gas_processed) / From::from(dur * 1000)).low_u64())),
 
-				Informant::format_bytes(report.state_db_mem),
-				Informant::format_bytes(cache_info.total()),
-				Informant::format_bytes(queue_info.mem_used),
-				Informant::format_bytes(sync_info.mem_used),
+				Green.bold().paint(format!("{:2}", sync_info.num_active_peers)),
+				Green.bold().paint(format!("{:2}", sync_info.num_peers)),
+
+				Cyan.bold().paint(format!("{:<7}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number))),
+				Blue.bold().paint(format!("{:4}", queue_info.unverified_queue_size)),
+				Blue.bold().paint(format!("{:4}", queue_info.verified_queue_size)),
+
+				Purple.bold().paint(format!("{:>8}", Informant::format_bytes(report.state_db_mem))),
+				Purple.bold().paint(format!("{:>8}", Informant::format_bytes(cache_info.total()))),
+				Purple.bold().paint(format!("{:>8}", Informant::format_bytes(queue_info.mem_used))),
+				Purple.bold().paint(format!("{:>8}", Informant::format_bytes(sync_info.mem_used))),
 			);
 		}
 
