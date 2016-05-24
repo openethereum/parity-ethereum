@@ -146,11 +146,11 @@ Footprint Options:
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
-                           hash [default: 0].
-  --to BLOCK               Export to (including) block NUMBER, which may be an
+                           hash [default: 1].
+  --to BLOCK               Export to (including) block BLOCK, which may be an
                            index, hash or 'latest' [default: latest].
-  --format FORMAT          Export in given format. FORMAT must be one of 'hex'
-                           and 'binary' [default: hex].
+  --format FORMAT          For import/export in given format. FORMAT must be
+                           one of 'hex' and 'binary'.
 
 Virtual Machine Options:
   --jitvm                  Enable the JIT VM.
@@ -245,7 +245,7 @@ pub struct Args {
 	pub flag_version: bool,
 	pub flag_from: String,
 	pub flag_to: String,
-	pub flag_format: String,
+	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	// legacy...
 	pub flag_geth: bool,
