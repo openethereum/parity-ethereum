@@ -171,6 +171,8 @@ impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 				_ => 128,
 			});
 
+		if buffer.len() == 0 { return Ok(result); }
+
 		loop {
 			let next_size = match T::len_params() {
 				0 => mem::size_of::<T>(),

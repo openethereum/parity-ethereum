@@ -43,10 +43,16 @@ pub enum EnumWithStruct {
 	Right { how_much: u64 },
 }
 
-#[derive(Binary)]
+#[derive(Binary, PartialEq, Debug)]
 pub struct TwoVec {
-	v1: Vec<u8>,
-	v2: Vec<u8>,
+	pub v1: Vec<u8>,
+	pub v2: Vec<u8>,
+}
+
+#[derive(Binary, PartialEq, Debug)]
+pub struct VecWithVec {
+	pub inner: Vec<Vec<u8>>,
+	pub scoped: Vec<TwoVec>,
 }
 
 #[test]
@@ -55,4 +61,18 @@ fn opt_two_vec() {
 
 	let serialized = ::ipc::binary::serialize(&example).unwrap();
 	assert_eq!(serialized, vec![0u8; 16]);
+}
+
+#[test]
+fn vec_in_vec() {
+	let mut example = VecWithVec { inner: Vec::new(), scoped: Vec::new() };
+	example.inner.push(vec![4]);
+	example.inner.push(vec![16, 8]);
+	example.scoped.push(TwoVec { v1: vec![99, 66, 33], v2: vec![77, 44, 22, 11] });
+
+	let serialized = ::ipc::binary::serialize(&example).unwrap();
+
+	let deserialized: VecWithVec = ::ipc::binary::deserialize(&serialized).unwrap();
+
+	assert_eq!(example, deserialized);
 }

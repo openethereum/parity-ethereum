@@ -470,4 +470,28 @@ mod client_tests {
 			stop.store(true, Ordering::Relaxed);
 		});
 	}
+
+	#[test]
+	fn can_commit_client_transaction() {
+		let url = "ipc:///tmp/parity-db-ipc-test-60.ipc";
+		let path = RandomTempPath::create_dir();
+
+		crossbeam::scope(move |scope| {
+			let stop = Arc::new(AtomicBool::new(false));
+			run_worker(scope, stop.clone(), url);
+			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+			client.open_default(path.as_str().to_owned()).unwrap();
+
+			let mut transaction = DBClientTransaction::new();
+			transaction.put("xxx".as_bytes(), "1".as_bytes());
+			client.write_client(transaction).unwrap();
+
+			client.close().unwrap();
+
+			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+			assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
+
+			stop.store(true, Ordering::Relaxed);
+		});
+	}
 }

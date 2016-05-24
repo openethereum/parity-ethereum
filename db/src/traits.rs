@@ -88,18 +88,18 @@ pub struct DBClientTransaction {
 }
 
 impl DBClientTransaction {
-	fn new() -> DBClientTransaction {
+	pub fn new() -> DBClientTransaction {
 		DBClientTransaction {
 			writes: Vec::new(),
 			removes: Vec::new(),
 		}
 	}
 
-	fn put(&mut self, key: &[u8], value: &[u8]) {
+	pub fn put(&mut self, key: &[u8], value: &[u8]) {
 		self.writes.push(KeyValue { key: key.to_vec(), value: value.to_vec() });
 	}
 
-	fn delete(&mut self, key: &[u8]) {
+	pub fn delete(&mut self, key: &[u8]) {
 		self.removes.push(key.to_vec());
 	}
 }
