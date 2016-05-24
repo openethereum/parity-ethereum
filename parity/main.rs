@@ -62,16 +62,23 @@ mod informant;
 mod io_handler;
 mod cli;
 mod configuration;
+mod migration;
 
-use ctrlc::CtrlC;
-use util::*;
+use std::io::Write;
+use std::ops::Deref;
+use std::sync::{Arc, Mutex, Condvar};
+use std::path::Path;
 use std::fs::File;
+use std::str::FromStr;
+use ctrlc::CtrlC;
+use util::{H256, ToPretty, NetworkConfiguration};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient};
 use ethcore::service::ClientService;
 use ethsync::EthSync;
 use ethminer::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
+use migration::migrate;
 
 use die::*;
 use cli::print_version;
@@ -124,6 +131,14 @@ fn execute_upgrades(conf: &Configuration) {
 		},
 		_ => {},
 	}
+
+	println!("Preparing migration!");
+	let result = migrate(&Path::new("/Users/marek/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent").to_path_buf());
+	if let Err(err) = result {
+		die_with_message(&format!("{}", err));
+	}
+	println!("Migration finished!");
+
 }
 
 fn execute_client(conf: Configuration) {
