@@ -167,6 +167,12 @@ impl Writable for ethcore_db::DBTransaction {
 	}
 }
 
+impl Writable for ethcore_db::DBClientTransaction {
+	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
+		self.put(&key.key(), &encode(value));
+	}
+}
+
 pub type DBClient = ethcore_db::DatabaseClient<::nanomsg::Socket>;
 
 impl Readable for DBClient {

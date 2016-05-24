@@ -120,11 +120,11 @@ impl DatabaseService for Database {
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
 		let batch = WriteBatch::new();
-		for kv in transaction.writes {
+		for ref kv in transaction.writes.borrow().iter() {
 			try!(batch.put(&kv.key, &kv.value))
 		}
-		for k in transaction.removes {
-			try!(batch.delete(&k));
+		for ref k in transaction.removes.borrow().iter() {
+			try!(batch.delete(k));
 		}
 		try!(db.write(batch));
 		Ok(())
@@ -482,7 +482,7 @@ mod client_tests {
 			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
 			client.open_default(path.as_str().to_owned()).unwrap();
 
-			let mut transaction = DBClientTransaction::new();
+			let transaction = DBClientTransaction::new();
 			transaction.put("xxx".as_bytes(), "1".as_bytes());
 			client.write_client(transaction).unwrap();
 

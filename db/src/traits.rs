@@ -4,6 +4,7 @@ use ipc::BinaryConvertable;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
+use std::cell::RefCell;
 
 pub type TransactionHandle = u32;
 pub type IteratorHandle = u32;
@@ -83,23 +84,25 @@ pub trait DatabaseService {
 
 #[derive(Binary)]
 pub struct DBClientTransaction {
-	pub writes: Vec<KeyValue>,
-	pub removes: Vec<Vec<u8>>,
+	pub writes: RefCell<Vec<KeyValue>>,
+	pub removes: RefCell<Vec<Vec<u8>>>,
 }
 
 impl DBClientTransaction {
 	pub fn new() -> DBClientTransaction {
 		DBClientTransaction {
-			writes: Vec::new(),
-			removes: Vec::new(),
+			writes: RefCell::new(Vec::new()),
+			removes: RefCell::new(Vec::new()),
 		}
 	}
 
-	pub fn put(&mut self, key: &[u8], value: &[u8]) {
-		self.writes.push(KeyValue { key: key.to_vec(), value: value.to_vec() });
+	pub fn put(&self, key: &[u8], value: &[u8]) {
+		let mut brw = self.writes.borrow_mut();
+		brw.push(KeyValue { key: key.to_vec(), value: value.to_vec() });
 	}
 
-	pub fn delete(&mut self, key: &[u8]) {
-		self.removes.push(key.to_vec());
+	pub fn delete(&self, key: &[u8]) {
+		let mut brw = self.removes.borrow_mut();
+		brw.push(key.to_vec());
 	}
 }
