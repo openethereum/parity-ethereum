@@ -374,21 +374,22 @@ impl<V> Client<V> where V: Verifier {
 		self.chain.configure_cache(pref_cache_size, max_cache_size);
 	}
 
+	/// Look up the block number for the given block ID.
+	pub fn block_number(&self, id: BlockID) -> Option<BlockNumber> {
+		match id {
+			BlockID::Number(number) => Some(number),
+			BlockID::Hash(ref hash) => self.chain.block_number(hash),
+			BlockID::Earliest => Some(0),
+			BlockID::Latest => Some(self.chain.best_block_number())
+		}
+	}
+
 	fn block_hash(chain: &BlockChain, id: BlockID) -> Option<H256> {
 		match id {
 			BlockID::Hash(hash) => Some(hash),
 			BlockID::Number(number) => chain.block_hash(number),
 			BlockID::Earliest => chain.block_hash(0),
 			BlockID::Latest => Some(chain.best_block_hash())
-		}
-	}
-
-	fn block_number(&self, id: BlockID) -> Option<BlockNumber> {
-		match id {
-			BlockID::Number(number) => Some(number),
-			BlockID::Hash(ref hash) => self.chain.block_number(hash),
-			BlockID::Earliest => Some(0),
-			BlockID::Latest => Some(self.chain.best_block_number())
 		}
 	}
 

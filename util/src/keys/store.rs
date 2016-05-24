@@ -58,13 +58,15 @@ pub enum EncryptedHashMapError {
 	InvalidValueFormat(FromBytesError),
 }
 
-/// Error retrieving value from encrypted hashmap
+/// Error while signing a message
 #[derive(Debug)]
 pub enum SigningError {
 	/// Account passed does not exist
 	NoAccount,
 	/// Account passed is not unlocked
 	AccountNotUnlocked,
+	/// Invalid passphrase
+	InvalidPassword,
 	/// Invalid secret in store
 	InvalidSecret
 }
@@ -96,6 +98,8 @@ pub trait AccountProvider : Send + Sync {
 	fn new_account(&self, pass: &str) -> Result<Address, ::std::io::Error>;
 	/// Returns secret for unlocked `account`.
 	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError>;
+	/// Returns secret for locked account given passphrase.
+	fn locked_account_secret(&self, account: &Address, pass: &str) -> Result<crypto::Secret, SigningError>;
 	/// Returns signature when unlocked `account` signs `message`.
 	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
 		self.account_secret(account).and_then(|s| crypto::ec::sign(&s, message).map_err(|_| SigningError::InvalidSecret))
@@ -127,7 +131,11 @@ impl AccountProvider for AccountService {
 	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError> {
 		self.secret_store.read().unwrap().account_secret(account)
 	}
-	/// Returns secret for unlocked account
+	/// Returns secret for locked account given passphrase.
+	fn locked_account_secret(&self, account: &Address, pass: &str) -> Result<crypto::Secret, SigningError> {
+		self.secret_store.read().unwrap().locked_account_secret(account, pass)
+	}
+	/// Signs a message using key of given unlocked account address.
 	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
 		self.secret_store.read().unwrap().sign(account, message)
 	}
@@ -315,6 +323,16 @@ impl SecretStore {
 			self.unlocks.write().unwrap().remove(account);
 		}
 		ret
+	}
+
+	/// Returns secret for unlocked account.
+	pub fn locked_account_secret(&self, account: &Address, pass: &str) -> Result<crypto::Secret, SigningError> {
+		let secret_id = try!(self.account(&account).ok_or(SigningError::NoAccount));
+		self.get(&secret_id, pass).or_else(|e| Err(match e {
+			EncryptedHashMapError::InvalidPassword => SigningError::InvalidPassword,
+			EncryptedHashMapError::UnknownIdentifier => SigningError::NoAccount,
+			EncryptedHashMapError::InvalidValueFormat(_) => SigningError::InvalidSecret,
+		}))
 	}
 
 	/// Makes account unlocks expire and removes unused key files from memory
@@ -678,6 +696,29 @@ mod tests {
 		let kp = KeyPair::from_secret(secret).unwrap();
 		assert_eq!(Address::from(kp.public().sha3()), addr);
 	}
+
+
+	#[test]
+	fn secret_for_locked_account() {
+		// given
+		let temp = RandomTempPath::create_dir();
+		let mut sstore = SecretStore::new_test(&temp);
+		let addr = sstore.new_account("test-pass").unwrap();
+
+		// when
+		// Invalid pass
+		let secret1 = sstore.locked_account_secret(&addr, "test-pass123");
+		// Valid pass
+		let secret2 = sstore.locked_account_secret(&addr, "test-pass");
+		// Account not unlocked
+		let secret3 = sstore.account_secret(&addr);
+
+
+		assert!(secret1.is_err(), "Invalid password should not return secret.");
+		assert!(secret2.is_ok(), "Should return secret provided valid passphrase.");
+		assert!(secret3.is_err(), "Account should still be locked.");
+	}
+
 
 	#[test]
 	fn can_create_service() {

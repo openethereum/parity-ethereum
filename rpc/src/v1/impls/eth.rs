@@ -41,12 +41,13 @@ use util::keys::store::AccountProvider;
 use serde;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, A, M, EM>
-	where C: BlockChainClient,
-		  S: SyncProvider,
-		  A: AccountProvider,
-		  M: MinerService,
-		  EM: ExternalMinerService {
+pub struct EthClient<C, S, A, M, EM> where
+	C: BlockChainClient,
+	S: SyncProvider,
+	A: AccountProvider,
+	M: MinerService,
+	EM: ExternalMinerService {
+
 	client: Weak<C>,
 	sync: Weak<S>,
 	accounts: Weak<A>,
@@ -55,12 +56,12 @@ pub struct EthClient<C, S, A, M, EM>
 	seed_compute: Mutex<SeedHashCompute>,
 }
 
-impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
-	where C: BlockChainClient,
-		  S: SyncProvider,
-		  A: AccountProvider,
-		  M: MinerService,
-		  EM: ExternalMinerService {
+impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
+	C: BlockChainClient,
+	S: SyncProvider,
+	A: AccountProvider,
+	M: MinerService,
+	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
 	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: &Arc<EM>)
@@ -152,6 +153,27 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		}
 	}
 
+	fn sign_and_dispatch(&self, request: TransactionRequest, secret: H256) -> Result<Value, Error> {
+		let signed_transaction = {
+			let client = take_weak!(self.client);
+			let miner = take_weak!(self.miner);
+			EthTransaction {
+				nonce: request.nonce
+					.or_else(|| miner
+							 .last_nonce(&request.from)
+							 .map(|nonce| nonce + U256::one()))
+					.unwrap_or_else(|| client.nonce(&request.from)),
+					action: request.to.map_or(Action::Create, Action::Call),
+					gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
+					gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+					value: request.value.unwrap_or_else(U256::zero),
+					data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
+			}.sign(&secret)
+		};
+		trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
+		self.dispatch_transaction(signed_transaction)
+	}
+
 	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
@@ -214,12 +236,12 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 	}
 }
 
-impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
-	where C: BlockChainClient + 'static,
-		  S: SyncProvider + 'static,
-		  A: AccountProvider + 'static,
-		  M: MinerService + 'static,
-		  EM: ExternalMinerService + 'static {
+impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
+	C: BlockChainClient + 'static,
+	S: SyncProvider + 'static,
+	A: AccountProvider + 'static,
+	M: MinerService + 'static,
+	EM: ExternalMinerService + 'static {
 
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
@@ -252,7 +274,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		}
 	}
 
-	// TODO: do not hardcode author.
 	fn author(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&take_weak!(self.miner).author()),
@@ -260,7 +281,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		}
 	}
 
-	// TODO: return real value of mining once it's implemented.
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&self.external_miner.is_mining()),
@@ -268,7 +288,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		}
 	}
 
-	// TODO: return real hashrate once we have mining
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&self.external_miner.hashrate()),
@@ -485,27 +504,19 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			.and_then(|(request, )| {
 				let accounts = take_weak!(self.accounts);
 				match accounts.account_secret(&request.from) {
-					Ok(secret) => {
-						let signed_transaction = {
-							let client = take_weak!(self.client);
-							let miner = take_weak!(self.miner);
-							EthTransaction {
-								nonce: request.nonce
-									.or_else(|| miner
-											 .last_nonce(&request.from)
-											 .map(|nonce| nonce + U256::one()))
-									.unwrap_or_else(|| client.nonce(&request.from)),
-								action: request.to.map_or(Action::Create, Action::Call),
-								gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
-								gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
-								value: request.value.unwrap_or_else(U256::zero),
-								data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
-							}.sign(&secret)
-						};
-						trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
-						self.dispatch_transaction(signed_transaction)
-					},
-					Err(_) => { to_value(&H256::zero()) }
+					Ok(secret) => self.sign_and_dispatch(request, secret),
+					Err(_) => to_value(&H256::zero())
+				}
+		})
+	}
+
+	fn sign_and_send_transaction(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, String)>(params)
+			.and_then(|(request, password)| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.locked_account_secret(&request.from, &password) {
+					Ok(secret) => self.sign_and_dispatch(request, secret),
+					Err(_) => to_value(&H256::zero()),
 				}
 		})
 	}
@@ -550,18 +561,18 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 }
 
 /// Eth filter rpc implementation.
-pub struct EthFilterClient<C, M>
-	where C: BlockChainClient,
-		  M: MinerService {
+pub struct EthFilterClient<C, M> where
+	C: BlockChainClient,
+	M: MinerService {
 
 	client: Weak<C>,
 	miner: Weak<M>,
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
-impl<C, M> EthFilterClient<C, M>
-	where C: BlockChainClient,
-		  M: MinerService {
+impl<C, M> EthFilterClient<C, M> where
+	C: BlockChainClient,
+	M: MinerService {
 
 	/// Creates new Eth filter client.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
@@ -573,9 +584,9 @@ impl<C, M> EthFilterClient<C, M>
 	}
 }
 
-impl<C, M> EthFilter for EthFilterClient<C, M>
-	where C: BlockChainClient + 'static,
-		  M: MinerService + 'static {
+impl<C, M> EthFilter for EthFilterClient<C, M> where
+	C: BlockChainClient + 'static,
+	M: MinerService + 'static {
 
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Filter,)>(params)
