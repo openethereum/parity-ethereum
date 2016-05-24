@@ -5,4 +5,4 @@ pub mod helpers;
 #[cfg(test)]
 mod mocked;
 #[cfg(test)]
-mod eth;
+mod integration;

@@ -29,6 +29,10 @@ json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 serde_codegen = { version = "0.7.0", optional = true }
 syntex = "^0.32.0"
 
+[dev-dependencies]
+ethjson = { path = "../json" }
+ethcore-devtools = { path = "../devtools" }
+
 [features]
 default = ["serde_codegen"]
 nightly = ["serde_macros"]
