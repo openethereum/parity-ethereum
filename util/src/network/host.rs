@@ -16,7 +16,6 @@
 
 use std::net::{SocketAddr};
 use std::collections::{HashMap};
-use std::hash::{Hasher};
 use std::str::{FromStr};
 use std::sync::*;
 use std::ops::*;
@@ -897,7 +896,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn timeout(&self, io: &IoContext<NetworkIoMessage<Message>>, token: TimerToken) {
 		match token {
 			IDLE => self.maintain_network(io),
-			INIT_PUBLIC => self.init_public_interface(io).unwrap_or_else(|e| 
+			INIT_PUBLIC => self.init_public_interface(io).unwrap_or_else(|e|
 				warn!("Error initializing public interface: {:?}", e)),
 			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.connection_timeout(token, io),

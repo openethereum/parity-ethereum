@@ -512,7 +512,6 @@ mod tests {
 	use crypto::KeyPair;
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
-	use rlp::*;
 
 	#[test]
 	fn find_node() {
