@@ -22,6 +22,7 @@
 #![cfg_attr(feature="dev", allow(useless_format))]
 
 extern crate docopt;
+extern crate ansi_term;
 extern crate num_cpus;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
