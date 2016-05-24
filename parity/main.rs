@@ -369,11 +369,18 @@ fn execute_import(conf: Configuration) {
 		}
 	};
 
+	let do_import = |bytes| {
+		while client.queue_info().is_full() { yield_now(); }
+		match client.import_block(bytes) {
+			Ok(_) => { println!("Block imported ok"); }
+			Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
+			Err(e) => die!("Cannot import block: {:?}", e)
+		}
+	};
+
 	match format {
 		DataFormat::Binary => {
 			loop {
-				while client.queue_info().is_full() { yield_now(); }
-
 				let mut bytes: Bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; 3]};
 				let n = if first_read > 0 {first_read} else {instream.read(&mut(bytes[..])).unwrap_or_else(|_| die!("Error reading from the file/stream."))};
 				if n == 0 { break; }
@@ -381,31 +388,20 @@ fn execute_import(conf: Configuration) {
 				let s = PayloadInfo::from(&(bytes[..])).unwrap_or_else(|e| die!("Invalid RLP in the file/stream: {:?}", e)).total();
 				bytes.resize(s, 0);
 				instream.read_exact(&mut(bytes[3..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
-
-				match client.import_block(bytes) {
-					Ok(_) => { println!("Block imported ok"); }
-					Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
-					Err(e) => die!("Cannot import block: {:?}", e)
-				}
+				do_import(bytes);
 			}
 		}
 		DataFormat::Hex => { 
 			for line in BufReader::new(instream).lines() {
-				while client.queue_info().is_full() { yield_now(); }
-
 				let s = line.unwrap_or_else(|_| die!("Error reading from the file/stream."));
 				let s = if first_read > 0 {str::from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
 				first_read = 0;
 				let bytes = FromHex::from_hex(&(s[..])).unwrap_or_else(|_| die!("Invalid hex in file/stream."));
-
-				match client.import_block(bytes) {
-					Ok(_) => { println!("Block imported ok"); }
-					Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
-					Err(e) => die!("Cannot import block: {:?}", e)
-				}
+				do_import(bytes);
 			}
 		}
 	}
+	client.flush_queue();
 }
 
 fn execute_account_cli(conf: Configuration) {
