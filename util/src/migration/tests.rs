@@ -27,12 +27,8 @@ impl Destination for BTreeMap<Vec<u8>, Vec<u8>> {
 struct Migration0;
 
 impl Migration for Migration0 {
-	fn from_version(&self) -> &'static str {
-		"0"
-	}
-
-	fn to_version(&self) -> &'static str {
-		"1"
+	fn version(&self) -> u32 {
+		1
 	}
 
 	fn simple_migrate(&self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
@@ -47,12 +43,8 @@ impl Migration for Migration0 {
 struct Migration1;
 
 impl Migration for Migration1 {
-	fn from_version(&self) -> &'static str {
-		"1"
-	}
-
-	fn to_version(&self) -> &'static str {
-		"3"
+	fn version(&self) -> u32 {
+		2
 	}
 
 	fn simple_migrate(&self, key: Vec<u8>, _value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
@@ -73,7 +65,7 @@ fn one_simple_migration() {
 
 	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
-	manager.execute(db, "0", &mut result).unwrap();
+	manager.execute(db, 0, &mut result).unwrap();
 	assert_eq!(expected_db, result);
 }
 
@@ -86,7 +78,7 @@ fn no_migration_needed() {
 
 	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
-	manager.execute(db, "1", &mut result).unwrap();
+	manager.execute(db, 1, &mut result).unwrap();
 	assert!(result.is_empty());
 }
 
@@ -104,7 +96,7 @@ fn multiple_migrations() {
 	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
 	manager.add_migration(Migration1).unwrap();
-	manager.execute(db, "0", &mut result).unwrap();
+	manager.execute(db, 0, &mut result).unwrap();
 	assert_eq!(expected_db, result);
 }
 
@@ -122,6 +114,6 @@ fn second_migration() {
 	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
 	manager.add_migration(Migration1).unwrap();
-	manager.execute(db, "1", &mut result).unwrap();
+	manager.execute(db, 1, &mut result).unwrap();
 	assert_eq!(expected_db, result);
 }
