@@ -22,7 +22,7 @@ use std::sync::{Arc, Weak};
 use std::ops::Deref;
 use std::collections::BTreeMap;
 use jsonrpc_core::*;
-use ethminer::{MinerService};
+use ethminer::MinerService;
 use v1::traits::Ethcore;
 use v1::types::Bytes;
 
