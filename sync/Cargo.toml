@@ -10,7 +10,7 @@ authors = ["Ethcore <admin@ethcore.io"]
 [dependencies]
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
-clippy = { version = "0.0.67", optional = true}
+clippy = { version = "0.0.69", optional = true}
 ethminer = { path = "../miner" }
 log = "0.3"
 env_logger = "0.3"
