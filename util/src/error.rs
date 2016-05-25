@@ -30,6 +30,16 @@ pub enum BaseDataError {
 	NegativelyReferencedHash(H256),
 }
 
+impl fmt::Display for BaseDataError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			BaseDataError::NegativelyReferencedHash(hash) =>
+				f.write_fmt(format_args!("Entry {} removed from database more times \
+					than it was added.", hash)),
+		}
+	}
+}
+
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum UtilError {
@@ -57,6 +67,24 @@ pub enum UtilError {
 	BadSize,
 }
 
+impl fmt::Display for UtilError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			UtilError::Crypto(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::StdIo(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::Io(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::AddressParse(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::AddressResolve(Some(ref err)) => f.write_fmt(format_args!("{}", err)),
+			UtilError::AddressResolve(_) => f.write_str("Failed to resolve network address."),
+			UtilError::FromHex(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::BaseData(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::Network(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::Decoder(ref err) => f.write_fmt(format_args!("{}", err)),
+			UtilError::SimpleString(ref msg) => f.write_str(&msg),
+			UtilError::BadSize => f.write_str("Bad input size."),
+		}
+	}
+}
 
 #[derive(Debug, PartialEq, Eq)]
 /// Error indicating an expected value was not found.
@@ -65,6 +93,12 @@ pub struct Mismatch<T: fmt::Debug> {
 	pub expected: T,
 	/// Value found.
 	pub found: T,
+}
+
+impl<T: fmt::Debug + fmt::Display> fmt::Display for Mismatch<T> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.write_fmt(format_args!("Expected {}, found {}", self.expected, self.found))
+	}
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -76,6 +110,19 @@ pub struct OutOfBounds<T: fmt::Debug> {
 	pub max: Option<T>,
 	/// Value found.
 	pub found: T,
+}
+
+impl<T: fmt::Debug + fmt::Display> fmt::Display for OutOfBounds<T> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let msg = match (self.min.as_ref(), self.max.as_ref()) {
+			(Some(min), Some(max)) => format!("Min={}, Max={}", min, max),
+			(Some(min), _) => format!("Min={}", min),
+			(_, Some(max)) => format!("Max={}", max),
+			(None, None) => "".into(),
+		};
+
+		f.write_fmt(format_args!("Value {} out of bounds. {}", self.found, msg))
+	}
 }
 
 impl From<FromHexError> for UtilError {

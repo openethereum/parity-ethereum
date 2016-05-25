@@ -41,7 +41,6 @@ impl Iterator for MigrationIterator {
 	}
 }
 
-
 impl Destination for Database {
 	fn commit(&mut self, batch: BTreeMap<Vec<u8>, Vec<u8>>) -> Result<(), Error> {
 		let transaction = DBTransaction::new();

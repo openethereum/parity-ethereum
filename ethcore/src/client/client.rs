@@ -622,6 +622,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		}
 	}
 
+	fn find_uncles(&self, hash: &H256) -> Option<Vec<H256>> {
+		self.chain.find_uncle_hashes(hash, self.engine.maximum_uncle_age())
+	}
+
 	fn state_data(&self, hash: &H256) -> Option<Bytes> {
 		self.state_db.lock().unwrap().state(hash)
 	}

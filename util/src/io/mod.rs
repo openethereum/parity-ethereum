@@ -56,12 +56,23 @@ mod service;
 mod worker;
 
 use mio::{EventLoop, Token};
+use std::fmt;
 
 #[derive(Debug)]
 /// IO Error
 pub enum IoError {
 	/// Low level error from mio crate
 	Mio(::std::io::Error),
+}
+
+impl fmt::Display for IoError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		// just defer to the std implementation for now.
+		// we can refine the formatting when more variants are added.
+		match *self {
+			IoError::Mio(ref std_err) => std_err.fmt(f)
+		}
+	}
 }
 
 impl<Message> From<::mio::NotifyError<service::IoMessage<Message>>> for IoError where Message: Send + Clone {
