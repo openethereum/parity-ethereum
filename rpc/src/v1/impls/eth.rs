@@ -26,9 +26,9 @@ use ethminer::{MinerService, AccountDetails, ExternalMinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
-use util::bytes::{ToPretty};
+use util::bytes::ToPretty;
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
+use ethcore::client::{self, BlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -257,6 +257,17 @@ fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: Miner
 	result
 }
 
+// must be in range [-32099, -32000]
+const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
+
+fn make_unsupported_err() -> Error {
+	Error {
+			code: ErrorCode::ServerError(UNSUPPORTED_REQUEST_CODE),
+			message: "Unsupported request.".into(),
+			data: None
+	}
+}
+
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 	C: BlockChainClient + 'static,
 	S: SyncProvider + 'static,
@@ -343,7 +354,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(address, block_number,)| match block_number {
 				BlockNumber::Latest => to_value(&take_weak!(self.client).balance(&address)),
 				BlockNumber::Pending => to_value(&take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address)),
-				_ => Err(Error::invalid_params()),
+				id => to_value(&try!(take_weak!(self.client).balance_at_id(&address, id.into()).ok_or_else(make_unsupported_err))),
 			})
 	}
 

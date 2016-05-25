@@ -74,8 +74,20 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get address code.
 	fn code(&self, address: &Address) -> Option<Bytes>;
 
-	/// Get address balance.
+	/// Get address balance at latest state.
 	fn balance(&self, address: &Address) -> U256;
+
+	/// Account balance at a specific block ID.
+	///
+	/// Will fail if the block is not valid or the block's root hash has been
+	/// pruned from the DB.
+	fn balance_at_id(&self, address: &Address, id: BlockID) -> Option<U256> {
+		if let BlockID::Latest = id {
+			Some(self.balance(address))
+		} else {
+			None
+		}
+	}
 
 	/// Get value of the storage at given position.
 	fn storage_at(&self, address: &Address, position: &H256) -> H256;
