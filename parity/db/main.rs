@@ -23,6 +23,7 @@ extern crate docopt;
 extern crate ethcore_ipc_hypervisor as hypervisor;
 extern crate ctrlc;
 extern crate ethcore_devtools as devtools;
+#[macro_use] extern crate log;
 
 use db::database::Database;
 use docopt::Docopt;
@@ -54,7 +55,7 @@ fn main() {
 							.and_then(|d| d.decode())
 							.unwrap_or_else(|e| e.exit());
 
-	println!("Database: {}", args.arg_path);
+	info!("Database: {}", args.arg_path);
 
 	let blocks_url = db::blocks_service_url(&args.arg_path).unwrap();
 	let extras_url = db::extras_service_url(&args.arg_path).unwrap();

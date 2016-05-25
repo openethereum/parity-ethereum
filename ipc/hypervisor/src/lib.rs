@@ -23,6 +23,7 @@
 extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate semver;
+#[macro_use] extern crate log;
 
 pub mod service;
 
@@ -133,7 +134,7 @@ impl Hypervisor {
 
 		let mut childs = self.processes.write().unwrap();
 		for (ref mut binary, ref mut child) in childs.iter_mut() {
-			println!("Stopping {}", binary);
+			trace!("Stopping {}", binary);
 			child.kill().unwrap();
 		}
 	}
