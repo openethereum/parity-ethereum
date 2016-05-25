@@ -186,6 +186,7 @@ Legacy Options:
 Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
                            format as RUST_LOG.
+  --no-color               Don't use terminal color codes in output.
   -v --version             Show information about version.
   -h --help                Show this screen.
 "#;
@@ -247,6 +248,7 @@ pub struct Args {
 	pub flag_to: String,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
+	pub flag_no_color: bool,
 	// legacy...
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,

@@ -93,6 +93,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// See `BlockChain::tree_route`.
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute>;
 
+	/// Get all possible uncle hashes for a block.
+	fn find_uncles(&self, hash: &H256) -> Option<Vec<H256>>;
+
 	/// Get latest state node
 	fn state_data(&self, hash: &H256) -> Option<Bytes>;
 
