@@ -12,6 +12,7 @@ build = "build.rs"
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 ethcore-ipc-nano = { path = "../nano" }
 semver = "0.2"
+log = "0.3"
 
 [build-dependencies]
 syntex = "*"
