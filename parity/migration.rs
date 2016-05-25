@@ -142,7 +142,7 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 		return Ok(())
 	}
 
-	println!("Migrating database {} from version {} to version {}", path.to_string_lossy(), version, CURRENT_VERSION);
+	println!("Migrating database {} from version {} to {}", path.to_string_lossy(), version, CURRENT_VERSION);
 
 	// get temp path
 	let temp_path = temp_database_path();

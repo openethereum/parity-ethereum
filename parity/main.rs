@@ -73,8 +73,9 @@ use std::str::FromStr;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, NetworkConfiguration};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
 use ethcore::service::ClientService;
+use ethcore::spec::Spec;
 use ethsync::EthSync;
 use ethminer::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
@@ -98,7 +99,10 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
-	execute_upgrades(&conf);
+	let spec = conf.spec();
+	let client_config = conf.client_config(&spec);
+
+	execute_upgrades(&conf, &spec, &client_config);
 
 	if conf.args.cmd_daemon {
 		Daemonize::new()
@@ -118,10 +122,10 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
-	execute_client(conf);
+	execute_client(conf, spec, client_config);
 }
 
-fn execute_upgrades(conf: &Configuration) {
+fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) {
 	match ::upgrade::upgrade(Some(&conf.path())) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			println!("Executed {} upgrade scripts - ok", upgrades_applied);
@@ -132,13 +136,14 @@ fn execute_upgrades(conf: &Configuration) {
 		_ => {},
 	}
 
-	let result = migrate(&Path::new("/Users/marek/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent").to_path_buf());
+	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
+	let result = migrate(&db_path);
 	if let Err(err) = result {
 		die_with_message(&format!("{}", err));
 	}
 }
 
-fn execute_client(conf: Configuration) {
+fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -147,10 +152,8 @@ fn execute_client(conf: Configuration) {
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	let spec = conf.spec();
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
-	let client_config = conf.client_config(&spec);
 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
