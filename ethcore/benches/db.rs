@@ -73,7 +73,6 @@ pub fn run_block_push(dir: &RandomTempPath, block_number: u32) {
 
 #[bench]
 fn block_write(bencher: &mut Bencher) {
-
 	bencher.iter(|| {
 		let temp = devtools::RandomTempPath::create_dir();
 		let db_path = get_db_path(
@@ -89,5 +88,4 @@ fn block_write(bencher: &mut Bencher) {
 			run_block_push(&temp, 10);
 		});
 	});
-
 }
