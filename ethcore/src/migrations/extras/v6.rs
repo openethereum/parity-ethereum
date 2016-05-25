@@ -1,4 +1,3 @@
-use std::ptr;
 use util::migration::Migration;
 
 /// This migration reduces the sizes of keys and moves `ExtrasIndex` byte from back to the front.
@@ -10,9 +9,10 @@ impl ToV6 {
 		result.reserve(len);
 		unsafe {
 			result.set_len(len);
-			result[0] = index;
-			ptr::copy(old_key.as_ptr().offset(33 - len as isize), result.as_mut_ptr().offset(1), len - 1);
 		}
+		result[0] = index;
+		let old_key_start = 33 - len;
+		result[1..].clone_from_slice(&old_key[old_key_start..32]);
 		result
 	}
 }
