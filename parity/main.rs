@@ -22,7 +22,6 @@
 #![cfg_attr(feature="dev", allow(useless_format))]
 
 extern crate docopt;
-extern crate ansi_term;
 extern crate num_cpus;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -66,8 +65,9 @@ mod configuration;
 
 use ctrlc::CtrlC;
 use util::*;
+use std::time::Duration;
 use std::fs::File;
-use std::thread::yield_now;
+use std::thread::sleep;
 use std::io::{BufReader, BufRead};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient};
@@ -76,6 +76,7 @@ use ethcore::service::ClientService;
 use ethsync::EthSync;
 use ethminer::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
+use informant::Informant;
 
 use die::*;
 use cli::print_version;
@@ -218,7 +219,7 @@ fn execute_client(conf: Configuration) {
 	// Register IO handler
 	let io_handler  = Arc::new(ClientIoHandler {
 		client: service.client(),
-		info: Default::default(),
+		info: Informant::new(!conf.args.flag_no_color),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
 	});
@@ -370,13 +371,16 @@ fn execute_import(conf: Configuration) {
 		}
 	};
 
+	let informant = Informant::new(!conf.args.flag_no_color);
+
 	let do_import = |bytes| {
-		while client.queue_info().is_full() { yield_now(); }
+		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(bytes) {
-			Ok(_) => { println!("Block imported ok"); }
+			Ok(_) => {}
 			Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
+		informant.tick(client.deref(), None);
 	};
 
 	match format {
