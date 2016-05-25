@@ -26,7 +26,11 @@ pub struct RandomTempPath {
 }
 
 pub fn random_filename() -> String {
-	(0..8).map(|_| ((random::<f32>() * 26.0) as u8 + 97) as char).collect()
+	random_str(8)
+}
+
+pub fn random_str(len: usize) -> String {
+	(0..len).map(|_| ((random::<f32>() * 26.0) as u8 + 97) as char).collect()
 }
 
 impl RandomTempPath {
