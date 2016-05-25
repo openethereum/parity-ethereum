@@ -115,12 +115,18 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, _fetch_account: T) ->
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
 
+		for transaction in &transactions {
+			if let Ok(ref sender) = transaction.sender() {
+				let nonce = self.last_nonce(sender).unwrap_or(fetch_account(sender).nonce);
+				self.last_nonces.write().unwrap().insert(sender.clone(), nonce + U256::from(1));
+			}
+		}
 		transactions
 			.iter()
 			.map(|_| Ok(TransactionImportResult::Current))
@@ -128,9 +134,16 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction<T>(&self, _chain: &BlockChainClient, transaction: SignedTransaction, _fetch_account: T) ->
+	fn import_own_transaction<T>(&self, chain: &BlockChainClient, transaction: SignedTransaction, _fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails {
+
+		// keep the pending nonces up to date
+		if let Ok(ref sender) = transaction.sender() {
+			let nonce = self.last_nonce(sender).unwrap_or(chain.latest_nonce(sender));
+			self.last_nonces.write().unwrap().insert(sender.clone(), nonce + U256::from(1));
+		}
+
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().push(transaction);
 
@@ -200,7 +213,9 @@ impl MinerService for TestMinerService {
 	}
 
 	fn nonce(&self, _chain: &BlockChainClient, address: &Address) -> U256 {
-		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.nonce(address).clone())
+		// we assume all transactions are in a pending block, ignoring the
+		// reality of gas limits.
+		self.last_nonce(address).unwrap_or(U256::zero())
 	}
 
 	fn code(&self, _chain: &BlockChainClient, address: &Address) -> Option<Bytes> {
