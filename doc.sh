@@ -7,6 +7,6 @@ cargo doc --no-deps --verbose \
 	-p ethcore \
 	-p ethsync \
 	-p ethcore-rpc \
-	-p ethcore-webapp \
+	-p ethcore-dapps \
 	-p parity \
 	-p ethminer

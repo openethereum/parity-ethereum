@@ -17,10 +17,10 @@
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
 use proxypac::ProxyPac;
-use parity_webapp::WebApp;
+use parity_dapps::WebApp;
 
-extern crate parity_status;
-extern crate parity_idmanager;
+extern crate parity_dapps_status;
+extern crate parity_dapps_builtins;
 
 
 pub const DAPPS_DOMAIN : &'static str = ".parity";
@@ -33,16 +33,16 @@ pub fn main_page() -> &'static str {
 }
 
 pub fn utils() -> Box<Endpoint> {
-	Box::new(PageEndpoint::with_prefix(parity_idmanager::App::default(), UTILS_PATH.to_owned()))
+	Box::new(PageEndpoint::with_prefix(parity_dapps_builtins::App::default(), UTILS_PATH.to_owned()))
 }
 
 pub fn all_endpoints() -> Endpoints {
 	let mut pages = Endpoints::new();
 	pages.insert("proxy".to_owned(), ProxyPac::boxed());
 
-	insert::<parity_status::App>(&mut pages, "status");
-	insert::<parity_status::App>(&mut pages, "parity");
-	insert::<parity_idmanager::App>(&mut pages, "home");
+	insert::<parity_dapps_status::App>(&mut pages, "status");
+	insert::<parity_dapps_status::App>(&mut pages, "parity");
+	insert::<parity_dapps_builtins::App>(&mut pages, "home");
 
 	wallet_page(&mut pages);
 	daodapp_page(&mut pages);
@@ -50,28 +50,28 @@ pub fn all_endpoints() -> Endpoints {
 	pages
 }
 
-#[cfg(feature = "parity-wallet")]
+#[cfg(feature = "parity-dapps-wallet")]
 fn wallet_page(pages: &mut Endpoints) {
-	extern crate parity_wallet;
-	insert::<parity_wallet::App>(pages, "wallet");
+	extern crate parity_dapps_wallet;
+	insert::<parity_dapps_wallet::App>(pages, "wallet");
 }
-#[cfg(not(feature = "parity-wallet"))]
+#[cfg(not(feature = "parity-dapps-wallet"))]
 fn wallet_page(_pages: &mut Endpoints) {}
 
-#[cfg(feature = "parity-daodapp")]
+#[cfg(feature = "parity-dapps-daodapp")]
 fn daodapp_page(pages: &mut Endpoints) {
-	extern crate parity_daodapp;
-	insert::<parity_daodapp::App>(pages, "dao");
+	extern crate parity_dapps_daodapp;
+	insert::<parity_dapps_daodapp::App>(pages, "dao");
 }
-#[cfg(not(feature = "parity-daodapp"))]
+#[cfg(not(feature = "parity-dapps-daodapp"))]
 fn daodapp_page(_pages: &mut Endpoints) {}
 
-#[cfg(feature = "parity-makerotc")]
+#[cfg(feature = "parity-dapps-makerotc")]
 fn makerotc_page(pages: &mut Endpoints) {
-	extern crate parity_makerotc;
-	insert::<parity_makerotc::App>(pages, "makerotc");
+	extern crate parity_dapps_makerotc;
+	insert::<parity_dapps_makerotc::App>(pages, "makerotc");
 }
-#[cfg(not(feature = "parity-makerotc"))]
+#[cfg(not(feature = "parity-dapps-makerotc"))]
 fn makerotc_page(_pages: &mut Endpoints) {}
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
