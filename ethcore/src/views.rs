@@ -320,7 +320,6 @@ impl<'a> Hashable for HeaderView<'a> {
 #[cfg(test)]
 mod tests {
 	use rustc_serialize::hex::FromHex;
-	use util::rlp::View;
 	use super::BlockView;
 
 	#[test]
