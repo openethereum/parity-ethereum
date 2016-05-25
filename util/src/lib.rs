@@ -32,6 +32,7 @@
 // TODO [todr] a lot of warnings to be fixed
 #![cfg_attr(feature="dev", allow(needless_borrow))]
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
+#![cfg_attr(feature="dev", allow(unnecessary_operation))]
 
 
 //! Ethcore-util library
