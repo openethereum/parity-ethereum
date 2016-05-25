@@ -22,7 +22,7 @@ ethcore-util = { path = "../util" }
 evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
 num_cpus = "0.2"
-clippy = { version = "0.0.67", optional = true}
+clippy = { version = "0.0.69", optional = true}
 crossbeam = "0.2.9"
 lazy_static = "0.1"
 ethcore-devtools = { path = "../devtools" }
