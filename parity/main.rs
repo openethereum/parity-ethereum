@@ -137,15 +137,19 @@ fn execute_upgrades(conf: &Configuration) {
 	}
 }
 
-fn execute_client(conf: Configuration) {
+fn start_hypervisor(conf: &Configuration) -> hypervisor::Hypervisor {
 	let db_path = ethcore::client::get_db_path(
 		Path::new(&conf.path()),
 		conf.client_config(&conf.spec()).pruning,
 		conf.spec().genesis_header().hash()).to_str().unwrap().to_owned();
-
 	let hypervisor = hypervisor::Hypervisor::new(&db_path);
 	hypervisor.start();
 	hypervisor.wait_for_startup();
+	hypervisor
+}
+
+fn execute_client(conf: Configuration) {
+	let _ = start_hypervisor(&conf);
 
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
@@ -249,6 +253,8 @@ enum DataFormat {
 }
 
 fn execute_export(conf: Configuration) {
+	let _ = start_hypervisor(&conf);
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -320,6 +326,8 @@ fn execute_export(conf: Configuration) {
 }
 
 fn execute_import(conf: Configuration) {
+	let _ = start_hypervisor(&conf);
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
