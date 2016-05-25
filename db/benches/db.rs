@@ -22,7 +22,7 @@ extern crate crossbeam;
 extern crate ethcore_db;
 extern crate ethcore_ipc_nano as nanoipc;
 
-use ethcore_db::{DatabaseClient, DatabaseService};
+use ethcore_db::{DatabaseClient, Database, DatabaseService};
 use test::{Bencher};
 
 #[bench]
@@ -40,5 +40,18 @@ fn key_write_ipc(bencher: &mut Bencher) {
 			client.put(devtools::random_str(2048).as_bytes(), devtools::random_str(256).as_bytes()).unwrap();
 			client.put(devtools::random_str(2048).as_bytes(), devtools::random_str(2048).as_bytes()).unwrap();
 		});
+	});
+}
+
+#[bench]
+fn key_write_direct(bencher: &mut Bencher) {
+	let temp = devtools::RandomTempPath::create_dir();
+	let client = Database::new();
+	client.open_default(temp.as_str().to_owned()).unwrap();
+	bencher.iter(|| {
+		client.put(devtools::random_str(256).as_bytes(), devtools::random_str(256).as_bytes()).unwrap();
+		client.put(devtools::random_str(256).as_bytes(), devtools::random_str(2048).as_bytes()).unwrap();
+		client.put(devtools::random_str(2048).as_bytes(), devtools::random_str(256).as_bytes()).unwrap();
+		client.put(devtools::random_str(2048).as_bytes(), devtools::random_str(2048).as_bytes()).unwrap();
 	});
 }
