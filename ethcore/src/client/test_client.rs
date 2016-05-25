@@ -348,6 +348,10 @@ impl BlockChainClient for TestBlockChainClient {
 		})
 	}
 
+	fn find_uncles(&self, _hash: &H256) -> Option<Vec<H256>> {
+		None
+	}
+
 	// TODO: returns just hashes instead of node state rlp(?)
 	fn state_data(&self, hash: &H256) -> Option<Bytes> {
 		// starts with 'f' ?
