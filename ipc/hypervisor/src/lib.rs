@@ -133,7 +133,7 @@ impl Hypervisor {
 
 		let mut childs = self.processes.write().unwrap();
 		for (ref mut binary, ref mut child) in childs.iter_mut() {
-			println!("Stopping {}", binary);
+			println!("HYPERVISOR: Stopping process module: {}", binary);
 			child.kill().unwrap();
 		}
 	}

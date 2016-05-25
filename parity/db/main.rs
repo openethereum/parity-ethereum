@@ -54,7 +54,7 @@ fn main() {
 							.and_then(|d| d.decode())
 							.unwrap_or_else(|e| e.exit());
 
-	println!("Database: {}", args.arg_path);
+//	println!("Database: {}", args.arg_path);
 
 	let blocks_url = db::blocks_service_url(&args.arg_path).unwrap();
 	let extras_url = db::extras_service_url(&args.arg_path).unwrap();

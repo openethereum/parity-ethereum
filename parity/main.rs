@@ -144,12 +144,12 @@ fn start_hypervisor(conf: &Configuration) -> hypervisor::Hypervisor {
 		conf.spec().genesis_header().hash()).to_str().unwrap().to_owned();
 	let hypervisor = hypervisor::Hypervisor::new(&db_path);
 	hypervisor.start();
-	hypervisor.wait_for_startup();
 	hypervisor
 }
 
 fn execute_client(conf: Configuration) {
-	let _ = start_hypervisor(&conf);
+	let hypervisor = start_hypervisor(&conf);
+	hypervisor.wait_for_startup();
 
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
@@ -253,7 +253,8 @@ enum DataFormat {
 }
 
 fn execute_export(conf: Configuration) {
-	let _ = start_hypervisor(&conf);
+	let hypervisor = start_hypervisor(&conf);
+	hypervisor.wait_for_startup();
 
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
@@ -326,7 +327,8 @@ fn execute_export(conf: Configuration) {
 }
 
 fn execute_import(conf: Configuration) {
-	let _ = start_hypervisor(&conf);
+	let hypervisor = start_hypervisor(&conf);
+	hypervisor.wait_for_startup();
 
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
