@@ -819,6 +819,7 @@ impl ChainSync {
 	}
 
 	/// Request headers from a peer by block hash
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn request_headers_by_hash(&mut self, sync: &mut SyncIo, peer_id: PeerId, h: &H256, count: usize, skip: usize, reverse: bool, asking: PeerAsking) {
 		trace!(target: "sync", "{} <- GetBlockHeaders: {} entries starting from {}", peer_id, count, h);
 		let mut rlp = RlpStream::new_list(4);
