@@ -361,9 +361,9 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 	fn storage_at(&self, params: Params) -> Result<Value, Error> {
 		from_params_default_third::<Address, U256>(params)
 			.and_then(|(address, position, block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(take_weak!(self.client).deref(), &address, &H256::from(position)))),
+				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)))),
 				BlockNumber::Latest => to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))),
-				_ => Err(Error::invalid_params()),
+				id => to_value(&try!(take_weak!(self.client).storage_at_id(&address, &H256::from(position), id.into()).ok_or_else(make_unsupported_err))),
 			})
 	}
 

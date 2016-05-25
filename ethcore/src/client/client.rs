@@ -578,6 +578,13 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		self.state().storage_at(address, position)
 	}
 
+	fn storage_at_id(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
+		match id {
+			BlockID::Latest => Some(self.storage_at(address, position)),
+			id => self.state_at_id(id).map(|s| s.storage_at(address, position)),
+		}
+	}
+
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction> {
 		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
 	}

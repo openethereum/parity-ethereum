@@ -79,6 +79,7 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Account balance at a specific block ID.
 	///
+	/// Must not fail if `id` is `BlockID::Latest`.
 	/// Will fail if the block is not valid or the block's root hash has been
 	/// pruned from the DB.
 	fn balance_at_id(&self, address: &Address, id: BlockID) -> Option<U256> {
@@ -89,8 +90,17 @@ pub trait BlockChainClient : Sync + Send {
 		}
 	}
 
-	/// Get value of the storage at given position.
+	/// Get value of the storage at given position from the latest state.
 	fn storage_at(&self, address: &Address, position: &H256) -> H256;
+
+	/// Get value of the storage at given position form the latest state.
+	fn storage_at_id(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
+		if let BlockID::Latest = id {
+			Some(self.storage_at(address, position))
+		} else {
+			None
+		}
+	}
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
