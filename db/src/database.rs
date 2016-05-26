@@ -25,7 +25,7 @@ use std::convert::From;
 use ipc::IpcConfig;
 use std::mem;
 use ipc::binary::BinaryConvertError;
-use std::collections::{VecDeque, HashMap};
+use std::collections::{VecDeque, HashMap, HashSet};
 
 impl From<String> for Error {
 	fn from(s: String) -> Error {
@@ -33,9 +33,19 @@ impl From<String> for Error {
 	}
 }
 
+enum LogEntryKind {
+	Write,
+	Remove,
+}
+
+struct WriteLogEntry {
+	kind: LogEntryKind,
+	key: Vec<u8>,
+}
+
 pub struct WriteQue {
 	cache: HashMap<Vec<u8>, Vec<u8>>,
-	write_log: VecDeque<Vec<u8>>,
+	write_log: VecDeque<WriteLogEntry>,
 	cache_len: usize,
 }
 
@@ -52,12 +62,12 @@ impl WriteQue {
 
 	fn write(&mut self, key: Vec<u8>, val: Vec<u8>) {
 		self.cache.insert(key.clone(), val);
-		self.write_log.push_back(key);
+		self.write_log.push_back(WriteLogEntry { key: key, kind: LogEntryKind::Write });
 	}
 
 	fn remove(&mut self, key: Vec<u8>) {
 		self.cache.remove(&key);
-		self.write_log.push_back(key);
+		self.write_log.push_back(WriteLogEntry { key: key, kind: LogEntryKind::Remove });
 	}
 
 	fn get(&self, key: &Vec<u8>) -> Option<Vec<u8>> {
@@ -67,32 +77,63 @@ impl WriteQue {
 	fn flush(&mut self, db: &DB, keys: usize) -> Result<(), Error> {
 		let mut so_far = 0;
 		let batch = WriteBatch::new();
+		let mut effective_removes: HashSet<Vec<u8>> = HashSet::new();
+		let mut effective_writes: HashSet<Vec<u8>> = HashSet::new();
 		loop {
 			if so_far == keys { break; }
 			let next = self.write_log.pop_front();
 			if next.is_none() { break; }
 			let next = next.unwrap();
-			if self.cache.len() > self.cache_len {
-				let key_cache_removed = self.cache.remove(&next);
-				if key_cache_removed.is_some() {
-					try!(batch.put(&next, &key_cache_removed.unwrap()));
-				}
-				else {
-					try!(batch.delete(&next));
-				}
-			}
-			else {
-				let key_persisted = self.cache.get(&next);
-				if key_persisted.is_some() {
-					try!(batch.put(&next, &key_persisted.unwrap()));
-				}
-				else {
-					try!(batch.delete(&next));
+
+			match next.kind {
+				LogEntryKind::Write => {
+					effective_removes.remove(&next.key);
+					effective_writes.insert(next.key);
+				},
+				LogEntryKind::Remove => {
+					effective_writes.remove(&next.key);
+					effective_removes.insert(next.key);
 				}
 			}
+
+//			if self.cache.len() > self.cache_len {
+//				let key_cache_removed = self.cache.remove(&next);
+//				if key_cache_removed.is_some() {
+//					try!(batch.put(&next, &key_cache_removed.unwrap()));
+//				}
+//				else {
+//					try!(batch.delete(&next));
+//				}
+//			}
+//			else {
+//				let key_persisted = self.cache.get(&next);
+//				if key_persisted.is_some() {
+//					try!(batch.put(&next, &key_persisted.unwrap()));
+//				}
+//				else {
+//					try!(batch.delete(&next));
+//				}
+//			}
 			so_far = so_far + 1;
 		}
-		db.write(batch);
+
+		for key in effective_writes.drain() {
+			if self.cache.len() > self.cache_len {
+				let key_cache_removed = self.cache.remove(&key);
+				try!(batch.put(&key, &key_cache_removed.unwrap()));
+			}
+			else {
+				let key_persisted = self.cache.get(&key);
+				try!(batch.put(&key, &key_persisted.unwrap()));
+			}
+		}
+
+		for key in effective_removes.drain() {
+			self.cache.remove(&key);
+			try!(batch.delete(&key));
+		}
+
+		try!(db.write(batch));
 		Ok(())
 	}
 
@@ -173,7 +214,7 @@ impl DatabaseService for Database {
 	}
 
 	fn close(&self) -> Result<(), Error> {
-		self.flush_all();
+		try!(self.flush_all());
 
 		let mut db = self.db.write().unwrap();
 		if db.is_none() { return Err(Error::IsClosed); }
@@ -333,7 +374,7 @@ mod test {
 		db.open_default(path.as_str().to_owned()).unwrap();
 
 		db.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
-		db.flush_all();
+		db.flush_all().unwrap();
 		assert!(!db.is_empty().unwrap());
 	}
 
