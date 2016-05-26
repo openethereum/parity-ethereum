@@ -197,7 +197,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
 
-			miner.import_own_transaction(client.deref(), signed_transaction, |a: &Address| {
+			miner.import_own_transaction(&*client, signed_transaction, |a: &Address| {
 				AccountDetails {
 					nonce: client.latest_nonce(&a),
 					balance: client.latest_balance(&a),
@@ -546,17 +546,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 				match accounts.account_secret(&request.from) {
 					Ok(secret) => self.sign_and_dispatch(request, secret),
 					Err(_) => to_value(&H256::zero())
-				}
-		})
-	}
-
-	fn sign_and_send_transaction(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(TransactionRequest, String)>(params)
-			.and_then(|(request, password)| {
-				let accounts = take_weak!(self.accounts);
-				match accounts.locked_account_secret(&request.from, &password) {
-					Ok(secret) => self.sign_and_dispatch(request, secret),
-					Err(_) => to_value(&H256::zero()),
 				}
 		})
 	}
