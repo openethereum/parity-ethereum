@@ -122,7 +122,6 @@ struct CacheManager {
 
 impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
-
 		let position = LogGroupPosition::from(position.clone());
 		self.note_used(CacheID::BlocksBlooms(position.clone()));
 		self.extras_db.read_with_cache(&self.blocks_blooms, &position).map(Into::into)
