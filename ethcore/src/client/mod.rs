@@ -70,7 +70,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256>;
 
 	/// Get address nonce at the latest block's state.
-	fn nonce_latest(&self, address: &Address) -> U256 {
+	fn latest_nonce(&self, address: &Address) -> U256 {
 		self.nonce(address, BlockID::Latest)
 			.expect("nonce will return Some when given BlockID::Latest. nonce was given BlockID::Latest. \
 			Therefore nonce has returned Some; qed")
@@ -89,7 +89,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn balance(&self, address: &Address, id: BlockID) -> Option<U256>;
 
 	/// Get address balance at the latest block's state.
-	fn balance_latest(&self, address: &Address) -> U256 {
+	fn latest_balance(&self, address: &Address) -> U256 {
 		self.balance(address, BlockID::Latest)
 			.expect("balance will return Some if given BlockID::Latest. balance was given BlockID::Latest \
 			Therefore balance has returned Some; qed")
@@ -102,7 +102,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256>;
 
 	/// Get value of the storage at given position at the latest block's state.
-	fn storage_at_latest(&self, address: &Address, position: &H256) -> H256 {
+	fn latest_storage_at(&self, address: &Address, position: &H256) -> H256 {
 		self.storage_at(address, position, BlockID::Latest)
 			.expect("storage_at will return Some if given BlockID::Latest. storage_at was given BlockID::Latest. \
 			Therefore storage_at has returned Some; qed")

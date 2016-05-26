@@ -167,8 +167,8 @@ impl Miner {
 		};
 		let mut queue = self.transaction_queue.lock().unwrap();
 		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.nonce_latest(a),
-			balance: chain.balance_latest(a),
+			nonce: chain.latest_nonce(a),
+			balance: chain.latest_balance(a),
 		};
 		for hash in invalid_transactions.into_iter() {
 			queue.remove_invalid(&hash, &fetch_account);
@@ -291,7 +291,7 @@ impl MinerService for Miner {
 	fn balance(&self, chain: &BlockChainClient, address: &Address) -> U256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		sealing_work.peek_last_ref().map_or_else(
-			|| chain.balance_latest(address),
+			|| chain.latest_balance(address),
 			|b| b.block().fields().state.balance(address)
 		)
 	}
@@ -299,14 +299,14 @@ impl MinerService for Miner {
 	fn storage_at(&self, chain: &BlockChainClient, address: &Address, position: &H256) -> H256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		sealing_work.peek_last_ref().map_or_else(
-			|| chain.storage_at_latest(address, position),
+			|| chain.latest_storage_at(address, position),
 			|b| b.block().fields().state.storage_at(address, position)
 		)
 	}
 
 	fn nonce(&self, chain: &BlockChainClient, address: &Address) -> U256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
-		sealing_work.peek_last_ref().map_or_else(|| chain.nonce_latest(address), |b| b.block().fields().state.nonce(address))
+		sealing_work.peek_last_ref().map_or_else(|| chain.latest_nonce(address), |b| b.block().fields().state.nonce(address))
 	}
 
 	fn code(&self, chain: &BlockChainClient, address: &Address) -> Option<Bytes> {
@@ -551,8 +551,8 @@ impl MinerService for Miner {
 					let _sender = tx.sender();
 				}
 				let _ = self.import_transactions(txs, |a| AccountDetails {
-					nonce: chain.nonce_latest(a),
-					balance: chain.balance_latest(a),
+					nonce: chain.latest_nonce(a),
+					balance: chain.latest_balance(a),
 				});
 			});
 		}
@@ -572,7 +572,7 @@ impl MinerService for Miner {
 						})
 						.collect::<HashSet<Address>>();
 				for sender in to_remove.into_iter() {
-					transaction_queue.remove_all(sender, chain.nonce_latest(&sender));
+					transaction_queue.remove_all(sender, chain.latest_nonce(&sender));
 				}
 			});
 		}
