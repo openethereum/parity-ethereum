@@ -51,7 +51,9 @@ impl DBTransaction {
 /// Database configuration
 pub struct DatabaseConfig {
 	/// Optional prefix size in bytes. Allows lookup by partial key.
-	pub prefix_size: Option<usize>
+	pub prefix_size: Option<usize>,
+	/// Max number of open files.
+	pub max_open_files: i32,
 }
 
 /// Database iterator
@@ -75,13 +77,13 @@ pub struct Database {
 impl Database {
 	/// Open database with default settings.
 	pub fn open_default(path: &str) -> Result<Database, String> {
-		Database::open(&DatabaseConfig { prefix_size: None }, path)
+		Database::open(&DatabaseConfig { prefix_size: None, max_open_files: 256 }, path)
 	}
 
 	/// Open database file. Creates if it does not exist.
 	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
 		let mut opts = Options::new();
-		opts.set_max_open_files(256);
+		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
 		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
