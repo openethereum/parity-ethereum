@@ -318,10 +318,13 @@ impl Configuration {
 			self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
-		let keys_path = Configuration::replace_home(match self.args.flag_testnet {
-			true => "$HOME/.parity/testnet_keys",
-			false => &self.args.flag_keys_path,
-		});
+		let keys_path = Configuration::replace_home(
+			if self.args.flag_testnet {
+				"$HOME/.parity/testnet_keys"
+			} else {
+				&self.args.flag_keys_path
+			}
+		);
 		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
 		Directories {
