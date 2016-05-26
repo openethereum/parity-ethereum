@@ -1,6 +1,5 @@
 //! Ethcore database trait
 
-use ipc::BinaryConvertable;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;

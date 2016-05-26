@@ -39,6 +39,8 @@ pub struct WriteQue {
 	cache_len: usize,
 }
 
+const FLUSH_BATCH_SIZE: usize = 1048;
+
 impl WriteQue {
 	fn new(cache_len: usize) -> WriteQue {
 		WriteQue {
@@ -58,7 +60,7 @@ impl WriteQue {
 		self.write_log.push_back(key);
 	}
 
-	fn flush(&mut self, db: &mut DB, keys: usize) {
+	fn flush(&mut self, db: &DB, keys: usize) -> Result<(), Error> {
 		let mut so_far = 0;
 		loop {
 			if so_far == keys { break; }
@@ -68,23 +70,24 @@ impl WriteQue {
 			if self.cache.len() > self.cache_len {
 				let key_cache_removed = self.cache.remove(&next);
 				if key_cache_removed.is_some() {
-					db.put(&next, &key_cache_removed.unwrap());
+					try!(db.put(&next, &key_cache_removed.unwrap()));
 				}
 				else {
-					db.delete(&next);
+					try!(db.delete(&next));
 				}
 			}
 			else {
 				let key_persisted = self.cache.get(&next);
 				if key_persisted.is_some() {
-					db.put(&next, &key_persisted.unwrap());
+					try!(db.put(&next, &key_persisted.unwrap()));
 				}
 				else {
-					db.delete(&next);
+					try!(db.delete(&next));
 				}
 			}
 			so_far = so_far + 1;
 		}
+		Ok(())
 	}
 }
 
@@ -103,6 +106,22 @@ impl Database {
 			iterators: RwLock::new(BTreeMap::new()),
 			write_que: RwLock::new(WriteQue::new(DEFAULT_CACHE_LEN)),
 		}
+	}
+
+	pub fn flush(&self) -> Result<(), Error> {
+		let mut que = self.write_que.write().unwrap();
+		let db_lock = self.db.read().unwrap();
+		if db_lock.is_none() { return Ok(()); }
+		let db = db_lock.as_ref().unwrap();
+
+		try!(que.flush(&db, FLUSH_BATCH_SIZE));
+		Ok(())
+	}
+}
+
+impl Drop for Database {
+	fn drop(&mut self) {
+		self.flush().unwrap();
 	}
 }
 
@@ -353,7 +372,7 @@ mod test {
 	fn can_be_open_empty() {
 		let db = Database::new();
 		let path = RandomTempPath::create_dir();
-		db.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+		db.open_default(path.as_str().to_owned()).unwrap();
 
 		assert!(db.is_empty().is_ok());
 	}
@@ -362,7 +381,7 @@ mod test {
 	fn can_store_key() {
 		let db = Database::new();
 		let path = RandomTempPath::create_dir();
-		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned()).unwrap();
+		db.open_default(path.as_str().to_owned()).unwrap();
 
 		db.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
 		assert!(!db.is_empty().unwrap());
@@ -372,11 +391,11 @@ mod test {
 	fn can_retrieve() {
 		let db = Database::new();
 		let path = RandomTempPath::create_dir();
-		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned()).unwrap();
+		db.open_default(path.as_str().to_owned()).unwrap();
 		db.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
 		db.close().unwrap();
 
-		db.open(DatabaseConfig { prefix_size: None }, path.as_str().to_owned()).unwrap();
+		db.open_default(path.as_str().to_owned()).unwrap();
 		assert_eq!(db.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 	}
 }
@@ -444,7 +463,7 @@ mod client_tests {
 		while !worker_is_ready.load(Ordering::Relaxed) { }
 		let client = nanoipc::init_duplex_client::<DatabaseClient<_>>(url).unwrap();
 
-		client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+		client.open_default(path.as_str().to_owned()).unwrap();
 		assert!(client.is_empty().unwrap());
 		worker_should_exit.store(true, Ordering::Relaxed);
 	}
@@ -480,7 +499,7 @@ mod client_tests {
 			client.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
 			client.close().unwrap();
 
-			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+			client.open_default(path.as_str().to_owned()).unwrap();
 			assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 
 			stop.store(true, Ordering::Relaxed);
@@ -497,7 +516,7 @@ mod client_tests {
 			run_worker(scope, stop.clone(), url);
 			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
 
-			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+			client.open_default(path.as_str().to_owned()).unwrap();
 			assert!(client.get("xxx".as_bytes()).unwrap().is_none());
 
 			stop.store(true, Ordering::Relaxed);
@@ -521,7 +540,7 @@ mod client_tests {
 
 			client.close().unwrap();
 
-			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+			client.open_default(path.as_str().to_owned()).unwrap();
 			assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 
 			stop.store(true, Ordering::Relaxed);
@@ -545,7 +564,7 @@ mod client_tests {
 
 			client.close().unwrap();
 
-			client.open(DatabaseConfig { prefix_size: Some(8) }, path.as_str().to_owned()).unwrap();
+			client.open_default(path.as_str().to_owned()).unwrap();
 			assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 
 			stop.store(true, Ordering::Relaxed);
