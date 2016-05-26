@@ -109,10 +109,17 @@ fn extras_database_path(path: &PathBuf) -> PathBuf {
 }
 
 /// Temporary database path used for migration.
-fn temp_database_path() -> PathBuf {
-	let mut dir = env::temp_dir();
-	dir.push("parity_migration");
-	dir
+fn temp_database_path(path: &PathBuf) -> PathBuf {
+	let mut temp_path = path.clone();
+	temp_path.push("../temp_migration");
+	temp_path
+}
+
+/// Database backup
+fn backup_database_path(path: &PathBuf) -> PathBuf {
+	let mut backup_path = path.clone();
+	backup_path.push("../temp_backup");
+	backup_path
 }
 
 /// Default migration settings.
@@ -144,8 +151,8 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 
 	println!("Migrating database {} from version {} to {}", path.to_string_lossy(), version, CURRENT_VERSION);
 
-	// get temp path
-	let temp_path = temp_database_path();
+	let temp_path = temp_database_path(&path);
+	let backup_path = temp_backup_path(&path);
 	// remote the dir if it exists
 	let _ = fs::remove_dir_all(&temp_path);
 
@@ -160,10 +167,18 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 		try!(migrations.execute(MigrationIterator::from(old.iter()), version, &mut temp).map_err(|_| Error::MigrationFailed));
 	}
 
-	// replace the old database with the new one
-	try!(fs::remove_dir_all(&path));
-	try!(fs::rename(&temp_path, &path));
+	// create backup
+	try!(fs::rename(&path, &backup_path));
 
+	// replace the old database with the new one
+	if let Err(err) = fs::rename(&temp_path, &path) {
+		// if something went wrong, bring back backup
+		try!(fs::rename(&backup_path, path));
+		return Err(err);
+	}
+
+	// remove backup
+	try!(fs::remove_dir_all(&backup_path));
 	println!("Migration finished");
 
 	Ok(())
