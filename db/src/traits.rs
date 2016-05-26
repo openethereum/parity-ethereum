@@ -5,7 +5,6 @@ use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
 use std::cell::RefCell;
 
-pub type TransactionHandle = u32;
 pub type IteratorHandle = u32;
 
 pub const DEFAULT_CACHE_LEN: usize = 20480;
@@ -69,18 +68,6 @@ pub trait DatabaseService {
 	/// Delete value by key.
 	fn delete(&self, key: &[u8]) -> Result<(), Error>;
 
-	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
-	fn transaction_put(&self, transaction: TransactionHandle, key: &[u8], value: &[u8]) -> Result<(), Error>;
-
-	/// Delete value by key using transaction
-	fn transaction_delete(&self, transaction: TransactionHandle, key: &[u8]) -> Result<(), Error>;
-
-	/// Commit transaction to database.
-	fn write(&self, tr: TransactionHandle) -> Result<(), Error>;
-
-	/// Initiate new transaction on database
-	fn new_transaction(&self) -> TransactionHandle;
-
 	/// Get value by key.
 	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error>;
 
@@ -96,22 +83,22 @@ pub trait DatabaseService {
 	/// Next key-value for the the given iterator
 	fn iter_next(&self, iterator: IteratorHandle) -> Option<KeyValue>;
 
+	/// Dispose iteration that is no longer needed
 	fn dispose_iter(&self, handle: IteratorHandle) -> Result<(), Error>;
 
-	fn dispose_transaction(&self, handle: TransactionHandle) -> Result<(), Error>;
-
-	fn write_client(&self, transaction: DBClientTransaction) -> Result<(), Error>;
+	/// Write client transaction
+	fn write(&self, transaction: DBTransaction) -> Result<(), Error>;
 }
 
 #[derive(Binary)]
-pub struct DBClientTransaction {
+pub struct DBTransaction {
 	pub writes: RefCell<Vec<KeyValue>>,
 	pub removes: RefCell<Vec<Vec<u8>>>,
 }
 
-impl DBClientTransaction {
-	pub fn new() -> DBClientTransaction {
-		DBClientTransaction {
+impl DBTransaction {
+	pub fn new() -> DBTransaction {
+		DBTransaction {
 			writes: RefCell::new(Vec::new()),
 			removes: RefCell::new(Vec::new()),
 		}

@@ -60,8 +60,13 @@ impl WriteQue {
 		self.write_log.push_back(key);
 	}
 
+	fn get(&self, key: &Vec<u8>) -> Option<Vec<u8>> {
+		self.cache.get(key).and_then(|vec_ref| Some(vec_ref.clone()))
+	}
+
 	fn flush(&mut self, db: &DB, keys: usize) -> Result<(), Error> {
 		let mut so_far = 0;
+		let batch = WriteBatch::new();
 		loop {
 			if so_far == keys { break; }
 			let next = self.write_log.pop_front();
@@ -70,30 +75,34 @@ impl WriteQue {
 			if self.cache.len() > self.cache_len {
 				let key_cache_removed = self.cache.remove(&next);
 				if key_cache_removed.is_some() {
-					try!(db.put(&next, &key_cache_removed.unwrap()));
+					try!(batch.put(&next, &key_cache_removed.unwrap()));
 				}
 				else {
-					try!(db.delete(&next));
+					try!(batch.delete(&next));
 				}
 			}
 			else {
 				let key_persisted = self.cache.get(&next);
 				if key_persisted.is_some() {
-					try!(db.put(&next, &key_persisted.unwrap()));
+					try!(batch.put(&next, &key_persisted.unwrap()));
 				}
 				else {
-					try!(db.delete(&next));
+					try!(batch.delete(&next));
 				}
 			}
 			so_far = so_far + 1;
 		}
+		db.write(batch);
 		Ok(())
+	}
+
+	fn is_empty(&self) -> bool {
+		self.write_log.is_empty()
 	}
 }
 
 pub struct Database {
 	db: RwLock<Option<DB>>,
-	transactions: RwLock<BTreeMap<TransactionHandle, WriteBatch>>,
 	iterators: RwLock<BTreeMap<IteratorHandle, DBIterator>>,
 	write_que: RwLock<WriteQue>,
 }
@@ -102,7 +111,6 @@ impl Database {
 	pub fn new() -> Database {
 		Database {
 			db: RwLock::new(None),
-			transactions: RwLock::new(BTreeMap::new()),
 			iterators: RwLock::new(BTreeMap::new()),
 			write_que: RwLock::new(WriteQue::new(DEFAULT_CACHE_LEN)),
 		}
@@ -115,6 +123,18 @@ impl Database {
 		let db = db_lock.as_ref().unwrap();
 
 		try!(que.flush(&db, FLUSH_BATCH_SIZE));
+		Ok(())
+	}
+
+	pub fn flush_all(&self) -> Result<(), Error> {
+		let mut que = self.write_que.write().unwrap();
+		let db_lock = self.db.read().unwrap();
+		if db_lock.is_none() { return Ok(()); }
+		let db = db_lock.as_ref().unwrap();
+
+		while !que.is_empty() {
+			try!(que.flush(&db, FLUSH_BATCH_SIZE));
+		}
 		Ok(())
 	}
 }
@@ -153,45 +173,28 @@ impl DatabaseService for Database {
 	}
 
 	fn close(&self) -> Result<(), Error> {
+		self.flush_all();
+
 		let mut db = self.db.write().unwrap();
 		if db.is_none() { return Err(Error::IsClosed); }
-
-		// TODO: wait for transactions to expire/close here?
-		if self.transactions.read().unwrap().len() > 0 { return Err(Error::UncommitedTransactions); }
 
 		*db = None;
 		Ok(())
 	}
 
 	fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
-		let db_lock = self.db.read().unwrap();
-		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
-
-		try!(db.put(key, value));
+		let mut que_lock = self.write_que.write().unwrap();
+		que_lock.write(key.to_vec(), value.to_vec());
 		Ok(())
 	}
 
 	fn delete(&self, key: &[u8]) -> Result<(), Error> {
-		let db_lock = self.db.read().unwrap();
-		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
-
-		try!(db.delete(key));
+		let mut que_lock = self.write_que.write().unwrap();
+		que_lock.remove(key.to_vec());
 		Ok(())
 	}
 
-	fn write(&self, handle: TransactionHandle) -> Result<(), Error> {
-		let db_lock = self.db.read().unwrap();
-		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
-
-		let mut transactions = self.transactions.write().unwrap();
-		let batch = try!(
-			transactions.remove(&handle).ok_or(Error::TransactionUnknown)
-		);
-		try!(db.write(batch));
-		Ok(())
-	}
-
-	fn write_client(&self, transaction: DBClientTransaction) -> Result<(), Error> {
+	fn write(&self, transaction: DBTransaction) -> Result<(), Error> {
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
@@ -207,11 +210,21 @@ impl DatabaseService for Database {
 	}
 
 	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
+		{
+			let key_vec = key.to_vec();
+			let cache_hit = self.write_que.read().unwrap().get(&key_vec);
+
+			if cache_hit.is_some() {
+				return Ok(Some(cache_hit.unwrap()))
+			}
+		}
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
 		match try!(db.get(key)) {
-			Some(db_vec) => Ok(Some(db_vec.to_vec())),
+			Some(db_vec) => {
+				Ok(Some(db_vec.to_vec()))
+			},
 			None => Ok(None),
 		}
 	}
@@ -266,74 +279,10 @@ impl DatabaseService for Database {
 		iterators.remove(&handle);
 		Ok(())
 	}
-
-	fn dispose_transaction(&self, handle: TransactionHandle) -> Result<(), Error> {
-		let mut transactions = self.transactions.write().unwrap();
-		transactions.remove(&handle);
-		Ok(())
-	}
-
-
-	fn transaction_put(&self, transaction: TransactionHandle, key: &[u8], value: &[u8]) -> Result<(), Error>
-	{
-		let mut transactions = self.transactions.write().unwrap();
-		let batch = try!(
-			transactions.get_mut(&transaction).ok_or(Error::TransactionUnknown)
-		);
-		try!(batch.put(&key, &value));
-		Ok(())
-	}
-
-	fn transaction_delete(&self, transaction: TransactionHandle, key: &[u8]) -> Result<(), Error> {
-		let mut transactions = self.transactions.write().unwrap();
-		let batch = try!(
-			transactions.get_mut(&transaction).ok_or(Error::TransactionUnknown)
-		);
-		try!(batch.delete(&key));
-		Ok(())
-	}
-
-	fn new_transaction(&self) -> TransactionHandle {
-		let mut transactions = self.transactions.write().unwrap();
-		let next_transaction = transactions.keys().last().unwrap_or(&0) + 1;
-		transactions.insert(next_transaction, WriteBatch::new());
-
-		next_transaction
-	}
 }
 
 // TODO : put proper at compile-time
 impl IpcConfig for Database {}
-
-/// Write transaction. Batches a sequence of put/delete operations for efficiency.
-pub struct DBTransaction {
-	client: Arc<DatabaseClient<::nanomsg::Socket>>,
-	handle: TransactionHandle,
-}
-
-impl DBTransaction {
-	/// Create new transaction.
-	pub fn new(client: &Arc<DatabaseClient<::nanomsg::Socket>>) -> Result<DBTransaction, Error> {
-		let client_ref = client.clone();
-		let new_handle = client_ref.new_transaction();
-		Ok(DBTransaction { client: client_ref, handle: new_handle })
-	}
-
-	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
-	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
-		self.client.transaction_put(self.handle, key, value)
-	}
-
-	/// Delete value by key.
-	pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
-		self.client.transaction_delete(self.handle, key)
-	}
-
-	/// Commits transaction
-	pub fn commit(self) -> Result<(), Error> {
-		self.client.write(self.handle)
-	}
-}
 
 /// Database iterator
 pub struct DatabaseIterator {
@@ -384,6 +333,7 @@ mod test {
 		db.open_default(path.as_str().to_owned()).unwrap();
 
 		db.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
+		db.flush_all();
 		assert!(!db.is_empty().unwrap());
 	}
 
@@ -402,7 +352,7 @@ mod test {
 
 #[cfg(test)]
 mod client_tests {
-	use super::{DatabaseClient, Database, DBTransaction};
+	use super::{DatabaseClient, Database};
 	use traits::*;
 	use devtools::*;
 	use nanoipc;
@@ -523,29 +473,6 @@ mod client_tests {
 		});
 	}
 
-	#[test]
-	fn can_create_transaction() {
-		let url = "ipc:///tmp/parity-db-ipc-test-50.ipc";
-		let path = RandomTempPath::create_dir();
-
-		crossbeam::scope(move |scope| {
-			let stop = Arc::new(AtomicBool::new(false));
-			run_worker(scope, stop.clone(), url);
-			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
-			client.open_default(path.as_str().to_owned()).unwrap();
-
-			let transaction = DBTransaction::new(&client.service()).unwrap();
-			transaction.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
-			transaction.commit().unwrap();
-
-			client.close().unwrap();
-
-			client.open_default(path.as_str().to_owned()).unwrap();
-			assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
-
-			stop.store(true, Ordering::Relaxed);
-		});
-	}
 
 	#[test]
 	fn can_commit_client_transaction() {
@@ -558,9 +485,9 @@ mod client_tests {
 			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
 			client.open_default(path.as_str().to_owned()).unwrap();
 
-			let transaction = DBClientTransaction::new();
+			let transaction = DBTransaction::new();
 			transaction.put("xxx".as_bytes(), "1".as_bytes());
-			client.write_client(transaction).unwrap();
+			client.write(transaction).unwrap();
 
 			client.close().unwrap();
 
@@ -568,6 +495,38 @@ mod client_tests {
 			assert_eq!(client.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 
 			stop.store(true, Ordering::Relaxed);
+		});
+	}
+
+	#[test]
+	fn key_write_read_ipc() {
+		let url = "ipc:///tmp/parity-db-ipc-test-70.ipc";
+		let path = RandomTempPath::create_dir();
+
+		crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			run_worker(&scope, stop.share(), url);
+
+			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+
+			client.open_default(path.as_str().to_owned()).unwrap();
+			let mut batch = Vec::new();
+			for _ in 0..100 {
+				batch.push((random_str(256).as_bytes().to_vec(), random_str(256).as_bytes().to_vec()));
+				batch.push((random_str(256).as_bytes().to_vec(), random_str(2048).as_bytes().to_vec()));
+				batch.push((random_str(2048).as_bytes().to_vec(), random_str(2048).as_bytes().to_vec()));
+				batch.push((random_str(2048).as_bytes().to_vec(), random_str(256).as_bytes().to_vec()));
+			}
+
+			for &(ref k, ref v) in batch.iter() {
+				client.put(k, v).unwrap();
+			}
+			client.close().unwrap();
+
+			client.open_default(path.as_str().to_owned()).unwrap();
+			for &(ref k, ref v) in batch.iter() {
+				assert_eq!(v, &client.get(k).unwrap().unwrap());
+			}
 		});
 	}
 }

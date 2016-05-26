@@ -55,3 +55,32 @@ fn key_write_direct(bencher: &mut Bencher) {
 		client.put(devtools::random_str(2048).as_bytes(), devtools::random_str(2048).as_bytes()).unwrap();
 	});
 }
+
+#[bench]
+fn key_write_read_ipc(bencher: &mut Bencher) {
+	crossbeam::scope(|scope| {
+		let stop = devtools::StopGuard::new();
+		let temp = devtools::RandomTempPath::create_dir();
+		let ipc_url = ethcore_db::extras_service_url(temp.as_str()).unwrap();
+		ethcore_db::run_worker(&scope, stop.share(), &ipc_url);
+		let client = nanoipc::init_client::<DatabaseClient<_>>(&ipc_url).unwrap();
+		client.open_default(temp.as_str().to_owned()).unwrap();
+		bencher.iter(|| {
+			let mut batch = Vec::new();
+			for _ in 0..100 {
+				batch.push((devtools::random_str(256).as_bytes().to_vec(), devtools::random_str(256).as_bytes().to_vec()));
+				batch.push((devtools::random_str(256).as_bytes().to_vec(), devtools::random_str(2048).as_bytes().to_vec()));
+				batch.push((devtools::random_str(2048).as_bytes().to_vec(), devtools::random_str(2048).as_bytes().to_vec()));
+				batch.push((devtools::random_str(2048).as_bytes().to_vec(), devtools::random_str(256).as_bytes().to_vec()));
+			}
+
+			for &(ref k, ref v) in batch.iter() {
+				client.put(k, v).unwrap();
+			}
+
+			for &(ref k, ref v) in batch.iter() {
+				assert_eq!(v, &client.get(k).unwrap().unwrap());
+			}
+		});
+	});
+}
