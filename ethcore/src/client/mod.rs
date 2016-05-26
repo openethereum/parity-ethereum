@@ -65,8 +65,15 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block total difficulty.
 	fn block_total_difficulty(&self, id: BlockID) -> Option<U256>;
 
-	/// Get address nonce.
-	fn nonce(&self, address: &Address) -> U256;
+	/// Attempt to get address nonce at given block.
+	/// May not fail on BlockID::Latest.
+	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256>;
+
+	fn nonce_latest(&self, address: &Address) -> U256 {
+		self.nonce(address, BlockID::Latest)
+			.expect("nonce will return Some when given BlockID::Latest. nonce was given BlockID::Latest. \
+			Therefore nonce has returned Some; qed")
+	}
 
 	/// Get block hash.
 	fn block_hash(&self, id: BlockID) -> Option<H256>;

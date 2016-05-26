@@ -245,8 +245,11 @@ impl BlockChainClient for TestBlockChainClient {
 		Self::block_hash(self, id)
 	}
 
-	fn nonce(&self, address: &Address) -> U256 {
-		self.nonces.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero)
+	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
+		match id {
+			BlockID::Latest => Some(self.nonces.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero)),
+			_ => None,
+		}
 	}
 
 	fn code(&self, address: &Address) -> Option<Bytes> {

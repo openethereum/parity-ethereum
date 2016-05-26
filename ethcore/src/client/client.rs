@@ -348,7 +348,8 @@ impl<V> Client<V> where V: Verifier {
 
 	/// Attempt to get a copy of a specific block's state.
 	///
-	/// This can fail (but may not) if the DB prunes state.
+	/// This will not fail if given BlockID::Latest.
+	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at(&self, id: BlockID) -> Option<State> {
 		// fast path for latest state.
 		if let BlockID::Latest = id.clone() {
@@ -556,9 +557,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
-	fn nonce(&self, address: &Address) -> U256 {
-		self.state().nonce(address)
+	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
+		self.state_at(id).map(|s| s.nonce(address))
 	}
+
 
 	fn block_hash(&self, id: BlockID) -> Option<H256> {
 		Self::block_hash(&self.chain, id)
