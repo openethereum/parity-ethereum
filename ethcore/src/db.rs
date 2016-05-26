@@ -160,15 +160,6 @@ impl Readable for Database {
 
 impl Writable for ethcore_db::DBTransaction {
 	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
-		let result = self.put(&key.key(), &encode(value));
-		if let Err(err) = result {
-			panic!("db put failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
-		}
-	}
-}
-
-impl Writable for ethcore_db::DBClientTransaction {
-	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
 		self.put(&key.key(), &encode(value));
 	}
 }
