@@ -16,7 +16,7 @@
 
 //! Trace database.
 use std::ptr;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::collections::HashMap;
 use std::sync::{RwLock, Arc};
 use std::path::Path;
@@ -27,7 +27,7 @@ use header::BlockNumber;
 use trace::{BlockTraces, LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest,
 DatabaseExtras, Error};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
-use super::bloom::{TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup};
+use blooms;
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 
 const TRACE_DB_VER: &'static [u8] = b"1.0";
@@ -38,7 +38,7 @@ enum TraceDBIndex {
 	/// Block traces index.
 	BlockTraces = 0,
 	/// Trace bloom group index.
-	BlockTracesBloomGroups = 1,
+	BloomGroups = 1,
 }
 
 impl Key<BlockTraces> for H256 {
@@ -54,6 +54,17 @@ impl Key<BlockTraces> for H256 {
 	}
 }
 
+/// Wrapper around blooms::GroupPosition so it could be
+/// uniquely identified in the database.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+struct TraceGroupPosition(blooms::GroupPosition);
+
+impl From<GroupPosition> for TraceGroupPosition {
+	fn from(position: GroupPosition) -> Self {
+		TraceGroupPosition(From::from(position))
+	}
+}
+
 /// Helper data structure created cause [u8; 6] does not implement Deref to &[u8].
 pub struct TraceGroupKey([u8; 6]);
 
@@ -65,16 +76,17 @@ impl Deref for TraceGroupKey {
 	}
 }
 
-impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
+impl Key<blooms::BloomGroup> for TraceGroupPosition {
 	type Target = TraceGroupKey;
 
 	fn key(&self) -> Self::Target {
 		let mut result = [0u8; 6];
-		result[0] = TraceDBIndex::BlockTracesBloomGroups as u8;
-		result[1] = self.level;
-		unsafe {
-			ptr::copy(&[self.index] as *const u32 as *const u8, result.as_mut_ptr().offset(2), 4);
-		}
+		result[0] = TraceDBIndex::BloomGroups as u8;
+		result[1] = self.0.level;
+		result[2] = self.0.index as u8;
+		result[3] = (self.0.index << 8) as u8;
+		result[4] = (self.0.index << 16) as u8;
+		result[5] = (self.0.index << 24) as u8;
 		TraceGroupKey(result)
 	}
 }
@@ -83,7 +95,7 @@ impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
 pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, BlockTraces>>,
-	blooms: RwLock<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>,
+	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
 	// db
 	tracesdb: Database,
 	// config,
@@ -218,7 +230,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let mut traces = self.traces.write().unwrap();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			batch.write_with_cache(&mut traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+			batch.write_with_cache(traces.deref_mut(), request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
 		}
 
 		// now let's rebuild the blooms
@@ -233,7 +245,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				// traces database is corrupted or incomplete.
 				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
 				.map(|block_traces| block_traces.bloom())
-				.map(BlockTracesBloom::from)
+				.map(blooms::Bloom::from)
 				.map(Into::into)
 				.collect();
 
@@ -241,10 +253,10 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
 			let blooms_to_insert = trace_blooms.into_iter()
 				.map(|p| (From::from(p.0), From::from(p.1)))
-				.collect::<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>();
+				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
 
 			let mut blooms = self.blooms.write().unwrap();
-			batch.extend_with_cache(&mut blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
 		}
 
 		self.tracesdb.write(batch).unwrap();

@@ -47,8 +47,8 @@ extern crate json_ipc_server as jsonipc;
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
 
-#[cfg(feature = "webapp")]
-extern crate ethcore_webapp;
+#[cfg(feature = "dapps")]
+extern crate ethcore_dapps;
 
 #[macro_use]
 mod die;
@@ -57,31 +57,39 @@ mod upgrade;
 mod hypervisor;
 mod setup_log;
 mod rpc;
-mod webapp;
+mod dapps;
 mod informant;
 mod io_handler;
 mod cli;
 mod configuration;
+mod migration;
 
-use ctrlc::CtrlC;
-use util::*;
-use std::time::Duration;
+use std::io::{Write, Read, BufReader, BufRead};
+use std::ops::Deref;
+use std::sync::{Arc, Mutex, Condvar};
+use std::path::Path;
 use std::fs::File;
+use std::str::{FromStr, from_utf8};
 use std::thread::sleep;
-use std::io::{BufReader, BufRead};
+use std::time::Duration;
+use rustc_serialize::hex::FromHex;
+use ctrlc::CtrlC;
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
 use ethcore::error::{Error, ImportError};
 use ethcore::service::ClientService;
+use ethcore::spec::Spec;
 use ethsync::EthSync;
 use ethminer::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
+use migration::migrate;
 use informant::Informant;
 
 use die::*;
 use cli::print_version;
 use rpc::RpcServer;
-use webapp::WebappServer;
+use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::Configuration;
 
@@ -96,7 +104,10 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
-	execute_upgrades(&conf);
+	let spec = conf.spec();
+	let client_config = conf.client_config(&spec);
+
+	execute_upgrades(&conf, &spec, &client_config);
 
 	if conf.args.cmd_daemon {
 		Daemonize::new()
@@ -121,10 +132,10 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
-	execute_client(conf);
+	execute_client(conf, spec, client_config);
 }
 
-fn execute_upgrades(conf: &Configuration) {
+fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) {
 	match ::upgrade::upgrade(Some(&conf.path())) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			println!("Executed {} upgrade scripts - ok", upgrades_applied);
@@ -134,9 +145,15 @@ fn execute_upgrades(conf: &Configuration) {
 		},
 		_ => {},
 	}
+
+	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
+	let result = migrate(&db_path);
+	if let Err(err) = result {
+		die_with_message(&format!("{}", err));
+	}
 }
 
-fn execute_client(conf: Configuration) {
+fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -145,10 +162,8 @@ fn execute_client(conf: Configuration) {
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	let spec = conf.spec();
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
-	let client_config = conf.client_config(&spec);
 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
@@ -198,14 +213,14 @@ fn execute_client(conf: Configuration) {
 	// setup ipc rpc
 	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
 
-	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Web app server is now on by default. Ignoring."); }
-	let webapp_server = webapp::new(webapp::Configuration {
-		enabled: !conf.args.flag_webapp_off,
-		interface: conf.args.flag_webapp_interface.clone(),
-		port: conf.args.flag_webapp_port,
-		user: conf.args.flag_webapp_user.clone(),
-		pass: conf.args.flag_webapp_pass.clone(),
-	}, webapp::Dependencies {
+	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
+	let dapps_server = dapps::new(dapps::Configuration {
+		enabled: !conf.args.flag_dapps_off,
+		interface: conf.args.flag_dapps_interface.clone(),
+		port: conf.args.flag_dapps_port,
+		user: conf.args.flag_dapps_user.clone(),
+		pass: conf.args.flag_dapps_pass.clone(),
+	}, dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
 		client: client.clone(),
 		sync: sync.clone(),
@@ -226,7 +241,7 @@ fn execute_client(conf: Configuration) {
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	// Handle exit
-	wait_for_exit(panic_handler, rpc_server, webapp_server);
+	wait_for_exit(panic_handler, rpc_server, dapps_server);
 }
 
 fn flush_stdout() {
@@ -396,10 +411,10 @@ fn execute_import(conf: Configuration) {
 				do_import(bytes);
 			}
 		}
-		DataFormat::Hex => { 
+		DataFormat::Hex => {
 			for line in BufReader::new(instream).lines() {
 				let s = line.unwrap_or_else(|_| die!("Error reading from the file/stream."));
-				let s = if first_read > 0 {str::from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
+				let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
 				first_read = 0;
 				let bytes = FromHex::from_hex(&(s[..])).unwrap_or_else(|_| die!("Invalid hex in file/stream."));
 				do_import(bytes);
@@ -438,7 +453,7 @@ fn execute_account_cli(conf: Configuration) {
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _webapp_server: Option<WebappServer>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _dapps_server: Option<WebappServer>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits

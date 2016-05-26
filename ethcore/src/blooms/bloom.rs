@@ -14,45 +14,49 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use bloomchain as bc;
 use util::rlp::*;
+use util::HeapSizeOf;
 use basic_types::LogBloom;
-use super::Trace;
 
-/// Traces created by transactions from the same block.
+/// Helper structure representing bloom of the trace.
 #[derive(Clone)]
-pub struct BlockTraces(Vec<Trace>);
+pub struct Bloom(LogBloom);
 
-impl From<Vec<Trace>> for BlockTraces {
-	fn from(traces: Vec<Trace>) -> Self {
-		BlockTraces(traces)
+impl From<LogBloom> for Bloom {
+	fn from(bloom: LogBloom) -> Self {
+		Bloom(bloom)
 	}
 }
 
-impl Into<Vec<Trace>> for BlockTraces {
-	fn into(self) -> Vec<Trace> {
-		self.0
+impl From<bc::Bloom> for Bloom {
+	fn from(bloom: bc::Bloom) -> Self {
+		let bytes: [u8; 256] = bloom.into();
+		Bloom(LogBloom::from(bytes))
 	}
 }
 
-impl Decodable for BlockTraces {
+impl Into<bc::Bloom> for Bloom {
+	fn into(self) -> bc::Bloom {
+		let log = self.0;
+		bc::Bloom::from(log.0)
+	}
+}
+
+impl Decodable for Bloom {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let traces = try!(Decodable::decode(decoder));
-		let block_traces = BlockTraces(traces);
-		Ok(block_traces)
+		Decodable::decode(decoder).map(Bloom)
 	}
 }
 
-impl Encodable for BlockTraces {
+impl Encodable for Bloom {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		Encodable::rlp_append(&self.0, s)
 	}
 }
 
-impl BlockTraces {
-	/// Returns bloom of all traces in given block.
-	pub fn bloom(&self) -> LogBloom {
-		self.0.iter()
-			.fold(LogBloom::default(), |acc, trace| acc | trace.bloom())
+impl HeapSizeOf for Bloom {
+	fn heap_size_of_children(&self) -> usize {
+		0
 	}
 }
-
