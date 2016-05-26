@@ -99,6 +99,7 @@ fn eth_transaction_count() {
 	let chain = extract_chain!("BlockchainTests/bcRPC_API_Test");
 	chain_harness(chain, |tester| {
 		let address = tester.accounts.new_account("123").unwrap();
+		let secret = tester.accounts.account_secret(&address).unwrap();
 
 		let req_before = r#"{
 			"jsonrpc": "2.0",
@@ -119,7 +120,7 @@ fn eth_transaction_count() {
 			action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 			value: U256::from(0x9184e72au64),
 			data: vec![]
-		}.fake_sign(address.clone());
+		}.sign(&secret);
 
 		let req_send_trans = r#"{
 			"jsonrpc": "2.0",
@@ -134,8 +135,10 @@ fn eth_transaction_count() {
 			"id": 16
 		}"#;
 
+		let res_send_trans = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":16}"#;
+
 		// dispatch the transaction.
-		tester.handler.handle_request(&req_send_trans).unwrap();
+		assert_eq!(tester.handler.handle_request(&req_send_trans).unwrap(), res_send_trans);
 
 		// we have submitted the transaction -- but this shouldn't be reflected in a "latest" query.
 		let req_after_latest = r#"{
