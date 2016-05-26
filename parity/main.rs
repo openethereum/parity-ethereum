@@ -47,8 +47,8 @@ extern crate json_ipc_server as jsonipc;
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
 
-#[cfg(feature = "webapp")]
-extern crate ethcore_webapp;
+#[cfg(feature = "dapps")]
+extern crate ethcore_dapps;
 
 #[macro_use]
 mod die;
@@ -57,7 +57,7 @@ mod upgrade;
 mod hypervisor;
 mod setup_log;
 mod rpc;
-mod webapp;
+mod dapps;
 mod informant;
 mod io_handler;
 mod cli;
@@ -81,7 +81,7 @@ use informant::Informant;
 use die::*;
 use cli::print_version;
 use rpc::RpcServer;
-use webapp::WebappServer;
+use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::Configuration;
 
@@ -198,14 +198,14 @@ fn execute_client(conf: Configuration) {
 	// setup ipc rpc
 	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
 
-	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Web app server is now on by default. Ignoring."); }
-	let webapp_server = webapp::new(webapp::Configuration {
-		enabled: !conf.args.flag_webapp_off,
-		interface: conf.args.flag_webapp_interface.clone(),
-		port: conf.args.flag_webapp_port,
-		user: conf.args.flag_webapp_user.clone(),
-		pass: conf.args.flag_webapp_pass.clone(),
-	}, webapp::Dependencies {
+	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
+	let dapps_server = dapps::new(dapps::Configuration {
+		enabled: !conf.args.flag_dapps_off,
+		interface: conf.args.flag_dapps_interface.clone(),
+		port: conf.args.flag_dapps_port,
+		user: conf.args.flag_dapps_user.clone(),
+		pass: conf.args.flag_dapps_pass.clone(),
+	}, dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
 		client: client.clone(),
 		sync: sync.clone(),
@@ -226,7 +226,7 @@ fn execute_client(conf: Configuration) {
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	// Handle exit
-	wait_for_exit(panic_handler, rpc_server, webapp_server);
+	wait_for_exit(panic_handler, rpc_server, dapps_server);
 }
 
 fn flush_stdout() {
@@ -396,7 +396,7 @@ fn execute_import(conf: Configuration) {
 				do_import(bytes);
 			}
 		}
-		DataFormat::Hex => { 
+		DataFormat::Hex => {
 			for line in BufReader::new(instream).lines() {
 				let s = line.unwrap_or_else(|_| die!("Error reading from the file/stream."));
 				let s = if first_read > 0 {str::from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
@@ -438,7 +438,7 @@ fn execute_account_cli(conf: Configuration) {
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _webapp_server: Option<WebappServer>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _dapps_server: Option<WebappServer>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
