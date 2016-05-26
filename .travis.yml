@@ -33,7 +33,7 @@ env:
   global:
   # GH_TOKEN
   - secure: bumJASbZSU8bxJ0EyPUJmu16AiV9EXOpyOj86Jlq/Ty9CfwGqsSXt96uDyE+OUJf34RUFQMsw0nk37/zC4lcn6kqk2wpuH3N/o85Zo/cVZY/NusBWLQqtT5VbYWsV+u2Ua4Tmmsw8yVYQhYwU2ZOejNpflL+Cs9XGgORp1L+/gMRMC2y5Se6ZhwnKPQlRJ8LGsG1dzjQULxzADIt3/zuspNBS8a2urJwlHfGMkvHDoUWCviP/GXoSqw3TZR7FmKyxE19I8n9+iSvm9+oZZquvcgfUxMHn8Gq/b44UbPvjtFOg2yam4xdWXF/RyWCHdc/R9EHorSABeCbefIsm+zcUF3/YQxwpSxM4IZEeH2rTiC7dcrsKw3XsO16xFQz5YI5Bay+CT/wTdMmJd7DdYz7Dyf+pOvcM9WOf/zorxYWSBOMYy0uzbusU2iyIghQ82s7E/Ahg+WARtPgkuTLSB5aL1oCTBKHqQscMr7lo5Ti6RpWLxEdTQMBznc+bMr+6dEtkEcG9zqc6cE9XX+ox3wTU6+HVMfQ1ltCntJ4UKcw3A6INEbw9wgocQa812CIASQ2fE+SCAbz6JxBjIAlFUnD1lUB7S8PdMPwn9plfQgKQ2A5YZqg6FnBdf0rQXIJYxQWKHXj/rBHSUCT0tHACDlzTA+EwWggvkP5AGIxRxm8jhw=
-  - TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethminer -p ethjson -p ethcore-dapps"
+  - TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethminer -p ethjson -p ethcore-dapps -p ethcore-signer"
   - ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
   - KCOV_FEATURES=""
   - KCOV_CMD="./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov"
@@ -71,6 +71,7 @@ after_success: |
   $KCOV_CMD target/debug/deps/ethsync-* &&
   $KCOV_CMD target/debug/deps/ethcore_rpc-* &&
   $KCOV_CMD target/debug/deps/ethcore_dapps-* &&
+  $KCOV_CMD target/debug/deps/ethcore_signer-* &&
   $KCOV_CMD target/debug/deps/ethminer-* &&
   $KCOV_CMD target/debug/deps/ethjson-* &&
   $KCOV_CMD target/debug/parity-* &&
