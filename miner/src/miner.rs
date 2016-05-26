@@ -103,6 +103,7 @@ impl Miner {
 
 	/// Prepares new block for sealing including top transactions from queue.
 	#[cfg_attr(feature="dev", allow(match_same_arms))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();

@@ -35,6 +35,7 @@ struct HeaderId {
 /// A collection of blocks and subchain pointers being downloaded. This keeps track of
 /// which headers/bodies need to be downloaded, which are being downloaded and also holds
 /// the downloaded blocks.
+#[derive(Default)]
 pub struct BlockCollection {
 	/// Heads of subchains to download
 	heads: Vec<H256>,
@@ -130,7 +131,7 @@ impl BlockCollection {
 		let mut download = None;
 		{
 			for h in &self.heads {
-				if ignore_downloading || !self.downloading_headers.contains(&h) {
+				if ignore_downloading || !self.downloading_headers.contains(h) {
 					self.downloading_headers.insert(h.clone());
 					download = Some(h.clone());
 					break;
@@ -178,7 +179,7 @@ impl BlockCollection {
 			for block in blocks.drain(..) {
 				let mut block_rlp = RlpStream::new_list(3);
 				block_rlp.append_raw(&block.header, 1);
-				let body = Rlp::new(&block.body.as_ref().unwrap()); // incomplete blocks are filtered out in the loop above
+				let body = Rlp::new(block.body.as_ref().unwrap()); // incomplete blocks are filtered out in the loop above
 				block_rlp.append_raw(body.at(0).as_raw(), 1);
 				block_rlp.append_raw(body.at(1).as_raw(), 1);
 				drained.push(block_rlp.out());
@@ -194,8 +195,7 @@ impl BlockCollection {
 	/// Check if the collection is empty. We consider the syncing round complete once
 	/// there is no block data left and only a single or none head pointer remains.
 	pub fn is_empty(&self) -> bool {
-		return self.heads.len() == 0 ||
-			(self.heads.len() == 1 && self.head.map_or(false, |h| h == self.heads[0]))
+		self.heads.len() == 0 || (self.heads.len() == 1 && self.head.map_or(false, |h| h == self.heads[0]))
 	}
 
 	/// Chech is collection contains a block header.
@@ -281,7 +281,7 @@ impl BlockCollection {
 	// update subchain headers
 	fn update_heads(&mut self) {
 		let mut new_heads = Vec::new();
-		let old_subchains: HashSet<_> = { self.heads.iter().map(Clone::clone).collect() };
+		let old_subchains: HashSet<_> = { self.heads.iter().cloned().collect() };
 		for s in self.heads.drain(..) {
 			let mut h = s.clone();
 			loop {
