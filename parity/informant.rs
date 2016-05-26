@@ -75,6 +75,7 @@ impl Informant {
 		}
 	}
 
+	#[cfg_attr(feature="dev", allow(match_bool))]
 	pub fn tick(&self, client: &Client, maybe_sync: Option<&EthSync>) {
 		let elapsed = self.last_tick.read().unwrap().elapsed();
 		if elapsed < Duration::from_secs(5) {

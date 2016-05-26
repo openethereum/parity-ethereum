@@ -420,7 +420,7 @@ impl MinerService for Miner {
 
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
-			(true, Some(pending)) => pending.transactions().iter().find(|t| &t.hash() == hash).map(|t| t.clone()),
+			(true, Some(pending)) => pending.transactions().iter().find(|t| &t.hash() == hash).cloned(),
 			_ => {
 				let queue = self.transaction_queue.lock().unwrap();
 				queue.find(hash)
