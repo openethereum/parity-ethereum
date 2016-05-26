@@ -22,11 +22,10 @@ use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, AccountDetails, ExternalMinerService};
+use ethminer::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
-use util::bytes::ToPretty;
 use util::rlp::{encode, decode, UntrustedRlp, View};
 use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
@@ -39,6 +38,7 @@ use self::ethash::SeedHashCompute;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::helpers::{PollFilter, PollManager};
+use v1::impls::{dispatch_transaction, sign_and_dispatch};
 use util::keys::store::AccountProvider;
 use serde;
 
@@ -155,27 +155,6 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 		}
 	}
 
-	fn sign_and_dispatch(&self, request: TransactionRequest, secret: H256) -> Result<Value, Error> {
-		let signed_transaction = {
-			let client = take_weak!(self.client);
-			let miner = take_weak!(self.miner);
-			EthTransaction {
-				nonce: request.nonce
-					.or_else(|| miner
-							 .last_nonce(&request.from)
-							 .map(|nonce| nonce + U256::one()))
-					.unwrap_or_else(|| client.latest_nonce(&request.from)),
-					action: request.to.map_or(Action::Create, Action::Call),
-					gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
-					gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
-					value: request.value.unwrap_or_else(U256::zero),
-					data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
-			}.sign(&secret)
-		};
-		trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
-		self.dispatch_transaction(signed_transaction)
-	}
-
 	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
@@ -188,30 +167,6 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
-	}
-
-	fn dispatch_transaction(&self, signed_transaction: SignedTransaction) -> Result<Value, Error> {
-		let hash = signed_transaction.hash();
-
-		let import = {
-			let client = take_weak!(self.client);
-			let miner = take_weak!(self.miner);
-
-			miner.import_own_transaction(&*client, signed_transaction, |a: &Address| {
-				AccountDetails {
-					nonce: client.latest_nonce(&a),
-					balance: client.latest_balance(&a),
-				}
-			})
-		};
-
-		match import {
-			Ok(_) => to_value(&hash),
-			Err(e) => {
-				warn!("Error sending transaction: {:?}", e);
-				to_value(&H256::zero())
-			}
-		}
 	}
 }
 
@@ -544,7 +499,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(request, )| {
 				let accounts = take_weak!(self.accounts);
 				match accounts.account_secret(&request.from) {
-					Ok(secret) => self.sign_and_dispatch(request, secret),
+					Ok(secret) => sign_and_dispatch(&self.client, &self.miner, request, secret),
 					Err(_) => to_value(&H256::zero())
 				}
 		})
@@ -555,7 +510,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(raw_transaction, )| {
 				let raw_transaction = raw_transaction.to_vec();
 				match UntrustedRlp::new(&raw_transaction).as_val() {
-					Ok(signed_transaction) => self.dispatch_transaction(signed_transaction),
+					Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction),
 					Err(_) => to_value(&H256::zero()),
 				}
 		})
