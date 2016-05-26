@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! kvdb::Database as migration::Destination
+//! `kvdb::Database` as `migration::Destination`
 
 use std::collections::BTreeMap;
 use kvdb::{Database, DBTransaction};
