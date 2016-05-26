@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 pub use block_queue::BlockQueueConfig;
-pub use blockchain::BlockChainConfig;
+pub use blockchain::Config as BlockChainConfig;
 pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
 use util::journaldb;

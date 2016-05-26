@@ -14,22 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Multilevel blockchain bloom filter.
+//! Blockchain configuration.
 
-mod bloomindex;
-mod chainfilter;
-mod indexer;
+/// Blockchain configuration.
+#[derive(Debug)]
+pub struct Config {
+	/// Preferred cache size in bytes.
+	pub pref_cache_size: usize,
+	/// Maximum cache size in bytes.
+	pub max_cache_size: usize,
+}
 
-#[cfg(test)]
-mod tests;
-
-pub use self::bloomindex::BloomIndex;
-pub use self::chainfilter::ChainFilter;
-use util::hash::H2048;
-
-/// Types implementing this trait provide read access for bloom filters database.
-pub trait FilterDataSource {
-	/// returns reference to log at given position if it exists
-	fn bloom_at_index(&self, index: &BloomIndex) -> Option<H2048>;
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			pref_cache_size: 1 << 14,
+			max_cache_size: 1 << 20,
+		}
+	}
 }
 
