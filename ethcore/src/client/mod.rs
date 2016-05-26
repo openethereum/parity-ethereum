@@ -69,6 +69,7 @@ pub trait BlockChainClient : Sync + Send {
 	/// May not fail on BlockID::Latest.
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256>;
 
+	/// Get address nonce at the latest block's state.
 	fn nonce_latest(&self, address: &Address) -> U256 {
 		self.nonce(address, BlockID::Latest)
 			.expect("nonce will return Some when given BlockID::Latest. nonce was given BlockID::Latest. \
