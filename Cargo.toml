@@ -30,6 +30,7 @@ ethsync = { path = "sync" }
 ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
+ethcore-signer = { path = "signer", optional = true }
 ethcore-webapp = { path = "webapp", optional = true }
 semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
@@ -42,11 +43,11 @@ version = "0.8"
 default-features = false
 
 [features]
-default = ["rpc", "webapp"]
+default = ["rpc", "webapp", "ethcore-signer"]
 rpc = ["ethcore-rpc"]
 webapp = ["ethcore-webapp"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev",
-"ethcore-webapp/dev"]
+"ethcore-webapp/dev", "ethcore-signer/dev"]
 travis-beta = ["ethcore/json-tests"]
 travis-nightly = ["ethcore/json-tests", "dev"]
 

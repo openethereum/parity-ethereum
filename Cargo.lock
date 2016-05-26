@@ -14,6 +14,7 @@ dependencies = [
  "ethcore-ipc-codegen 1.2.0",
  "ethcore-ipc-nano 1.2.0",
  "ethcore-rpc 1.2.0",
+ "ethcore-signer 1.2.0",
  "ethcore-util 1.2.0",
  "ethcore-webapp 1.2.0",
  "ethminer 1.2.0",
@@ -313,6 +314,17 @@ dependencies = [
  "serde_json 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-signer"
+version = "1.2.0"
+dependencies = [
+ "clippy 0.0.69 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-util 1.2.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -8,5 +8,6 @@ cargo doc --no-deps --verbose \
 	-p ethsync \
 	-p ethcore-rpc \
 	-p ethcore-webapp \
+	-p ethcore-signer \
 	-p parity \
 	-p ethminer
