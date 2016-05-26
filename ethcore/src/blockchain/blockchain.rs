@@ -32,6 +32,9 @@ use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{Writable, Readable, CacheUpdatePolicy};
 
+const LOG_BLOOMS_LEVELS: usize = 3;
+const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
+
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
 	/// Returns true if the given block is known
@@ -263,7 +266,10 @@ impl BlockChain {
 		let bc = BlockChain {
 			pref_cache_size: AtomicUsize::new(config.pref_cache_size),
 			max_cache_size: AtomicUsize::new(config.max_cache_size),
-			blooms_config: config.log_blooms,
+			blooms_config: bc::Config {
+				levels: LOG_BLOOMS_LEVELS,
+				elements_per_index: LOG_BLOOMS_ELEMENTS_PER_INDEX,
+			},
 			best_block: RwLock::new(BestBlock::default()),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: RwLock::new(HashMap::new()),
