@@ -85,7 +85,7 @@ API and Console Options:
                            IPC [default: web3,eth,net,personal,ethcore].
 
   --dapps-off              Disable the Dapps server (e.g. status page).
-  --dapps-port PORT		   Specify the port portion of the Dapps server
+  --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
                            server, IP should be an interface's IP address, or
@@ -167,7 +167,7 @@ Legacy Options:
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   -j --jsonrpc             Does nothing; JSON-RPC is on by default now.
-  -d --dapps               Does nothing; dapps server is on by default now.
+  -w --webapp              Does nothing; dapps server is on by default now.
   --rpc                    Does nothing; JSON-RPC is on by default now.
   --rpcaddr IP             Equivalent to --jsonrpc-interface IP.
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
