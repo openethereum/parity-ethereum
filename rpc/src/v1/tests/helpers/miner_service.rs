@@ -121,11 +121,9 @@ impl MinerService for TestMinerService {
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
 
-		for transaction in &transactions {
-			if let Ok(ref sender) = transaction.sender() {
-				let nonce = self.last_nonce(sender).unwrap_or(fetch_account(sender).nonce);
-				self.last_nonces.write().unwrap().insert(sender.clone(), nonce + U256::from(1));
-			}
+		for sender in transactions.iter().filter_map(|t| t.sender().ok()) {
+			let nonce = self.last_nonce(&sender).unwrap_or(fetch_account(&sender).nonce);
+			self.last_nonces.write().unwrap().insert(sender, nonce + U256::from(1));
 		}
 		transactions
 			.iter()
