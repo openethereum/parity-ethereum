@@ -14,39 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
-
-use rustc_version::{version_meta, Channel};
-
-fn main() {
-	serde::main();
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
-	}
-}
+#[cfg(feature = "serde_macros")]
+include!("mod.rs.in");
 
 #[cfg(not(feature = "serde_macros"))]
-mod serde {
-    extern crate syntex;
-    extern crate serde_codegen;
-
-    use std::env;
-    use std::path::Path;
-
-    pub fn main() {
-        let out_dir = env::var_os("OUT_DIR").unwrap();
-
-        let src = Path::new("src/types/mod.rs.in");
-        let dst = Path::new(&out_dir).join("mod.rs");
-
-        let mut registry = syntex::Registry::new();
-
-        serde_codegen::register(&mut registry);
-        registry.expand("", &src, &dst).unwrap();
-    }
-}
-
-#[cfg(feature = "serde_macros")]
-mod serde {
-    pub fn main() {}
-}
+include!(concat!(env!("OUT_DIR"), "/mod.rs"));

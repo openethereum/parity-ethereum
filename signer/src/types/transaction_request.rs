@@ -16,9 +16,9 @@
 
 use util::hash::Address;
 use util::numbers::U256;
-use v1::types::Bytes;
+use types::bytes::Bytes;
 
-#[derive(Debug, Default, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize)]
 pub struct TransactionRequest {
 	pub from: Address,
 	pub to: Option<Address>,
@@ -37,7 +37,7 @@ mod tests {
 	use serde_json;
 	use util::numbers::{U256};
 	use util::hash::Address;
-	use v1::types::Bytes;
+	use types::bytes::Bytes;
 	use super::*;
 
 	#[test]
@@ -126,3 +126,4 @@ mod tests {
 		});
 	}
 }
+

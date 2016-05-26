@@ -19,6 +19,7 @@ ethcore = { path = "../ethcore" }
 ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }
 ethminer = { path = "../miner" }
+ethcore-signer = { path = "../signer" }
 rustc-serialize = "0.3"
 transient-hashmap = "0.1"
 serde_macros = { version = "0.7.0", optional = true }

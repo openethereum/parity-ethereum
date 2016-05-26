@@ -34,6 +34,15 @@
 extern crate log;
 extern crate env_logger;
 
+extern crate serde;
+extern crate serde_json;
+extern crate rustc_serialize;
+
+extern crate ethcore_util as util;
+
+mod signing_queue;
+pub mod types;
+
 #[cfg(test)]
 mod tests {
 	#[test]

@@ -9,13 +9,20 @@ build = "build.rs"
 
 [build-dependencies]
 rustc_version = "0.1"
+serde_codegen = { version = "0.7.0", optional = true }
+syntex = "^0.32.0"
 
 [dependencies]
+serde = "0.7.0"
+serde_json = "0.7.0"
+serde_macros = { version = "0.7.0", optional = true }
+rustc-serialize = "0.3"
 ethcore-util = { path = "../util" }
 log = "0.3"
 env_logger = "0.3"
 clippy = { version = "0.0.69", optional = true}
 
 [features]
-default = []
+default = ["serde_codegen"]
+nightly = ["serde_macros"]
 dev = ["clippy"]
