@@ -25,66 +25,66 @@
 /// Split the chain into ranges of N blocks each. Download ranges sequentially. Split each range into subchains of M blocks. Download subchains in parallel.
 /// State.
 /// Sync state consists of the following data:
-/// - s: State enum which can be one of the following values: ChainHead, Blocks, Idle
+/// - s: State enum which can be one of the following values: `ChainHead`, `Blocks`, `Idle`
 /// - H: A set of downloaded block headers
 /// - B: A set of downloaded block bodies
 /// - S: Set of block subchain start block hashes to download.
 /// - l: Last imported / common block hash
 /// - P: A set of connected peers. For each peer we maintain its last known total difficulty and starting block hash being requested if any.
 /// General behaviour.
-/// We start with all sets empty, l is set to the best block in the block chain, s is set to ChainHead.
-/// If at any moment a bad block is reported by the block queue, we set s to ChainHead, reset l to the best block in the block chain and clear H, B and S.
-/// If at any moment P becomes empty, we set s to ChainHead, and clear H, B and S.
+/// We start with all sets empty, l is set to the best block in the block chain, s is set to `ChainHead`.
+/// If at any moment a bad block is reported by the block queue, we set s to `ChainHead`, reset l to the best block in the block chain and clear H, B and S.
+/// If at any moment P becomes empty, we set s to `ChainHead`, and clear H, B and S.
 ///
-/// Workflow for ChainHead state.
-/// In this state we try to get subchain headers with a single GetBlockHeaders request.
-/// On NewPeer / On Restart:
+/// Workflow for `ChainHead` state.
+/// In this state we try to get subchain headers with a single `GetBlockHeaders` request.
+/// On `NewPeer` / On `Restart`:
 /// 	If peer's total difficulty is higher, request N/M headers with interval M+1 starting from l
-/// On BlockHeaders(R):
+/// On `BlockHeaders(R)`:
 /// 	If R is empty:
 /// If l is equal to genesis block hash or l is more than 1000 blocks behind our best hash:
 /// Remove current peer from P. set l to the best block in the block chain. Select peer with maximum total difficulty from P and restart.
 /// Else
 /// 	Set l to l’s parent and restart.
 /// Else if we already have all the headers in the block chain or the block queue:
-/// 	Set s to Idle,
+/// 	Set s to `Idle`,
 /// Else
-/// 	Set S to R, set s to Blocks.
+/// 	Set S to R, set s to `Blocks`.
 ///
 ///
 /// All other messages are ignored.
-/// Workflow for Blocks state.
+/// Workflow for `Blocks` state.
 /// In this state we download block headers and bodies from multiple peers.
-/// On NewPeer / On Restart:
+/// On `NewPeer` / On `Restart`:
 /// 	For all idle peers:
 /// Find a set of 256 or less block hashes in H which are not in B and not being downloaded by other peers. If the set is not empty:
 ///  	Request block bodies for the hashes in the set.
 /// Else
 /// 	Find an element in S which is  not being downloaded by other peers. If found: Request M headers starting from the element.
 ///
-/// On BlockHeaders(R):
+/// On `BlockHeaders(R)`:
 /// If R is empty remove current peer from P and restart.
 /// 	Validate received headers. For each header find a parent in H or R or the blockchain. Restart if there is a block with unknown parent.
-/// Go to CollectBlocks.
+/// Go to `CollectBlocks`.
 ///
-/// On BlockBodies(R):
+/// On `BlockBodies(R)`:
 /// If R is empty remove current peer from P and restart.
 /// 	Add bodies with a matching header in H to B.
-/// 	Go to CollectBlocks.
+/// 	Go to `CollectBlocks`.
 ///
-/// CollectBlocks:
+/// `CollectBlocks`:
 /// Find a chain of blocks C in H starting from h where h’s parent equals to l. The chain ends with the first block which does not have a body in B.
 /// Add all blocks from the chain to the block queue. Remove them from H and B. Set l to the hash of the last block from C.
 /// Update and merge subchain heads in S. For each h in S find a chain of blocks in B starting from h. Remove h from S. if the chain does not include an element from S add the end of the chain to S.
-/// If H is empty and S contains a single element set s to ChainHead.
+/// If H is empty and S contains a single element set s to `ChainHead`.
 /// Restart.
 ///
 /// All other messages are ignored.
 /// Workflow for Idle state.
-/// On NewBlock:
-/// 	Import the block. If the block is unknown set s to ChainHead and restart.
-/// On NewHashes:
-/// 	Set s to ChainHead and restart.
+/// On `NewBlock`:
+/// 	Import the block. If the block is unknown set s to `ChainHead` and restart.
+/// On `NewHashes`:
+/// 	Set s to `ChainHead` and restart.
 ///
 /// All other messages are ignored.
 ///
@@ -749,12 +749,12 @@ impl ChainSync {
 		match peer.asking {
 			PeerAsking::BlockHeaders | PeerAsking::Heads => {
 				for b in &peer.asking_blocks {
-					self.blocks.clear_header_download(&b);
+					self.blocks.clear_header_download(b);
 				}
 			},
 			PeerAsking::BlockBodies => {
 				for b in &peer.asking_blocks {
-					self.blocks.clear_body_download(&b);
+					self.blocks.clear_body_download(b);
 				}
 			},
 			_ => (),
@@ -819,6 +819,7 @@ impl ChainSync {
 	}
 
 	/// Request headers from a peer by block hash
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn request_headers_by_hash(&mut self, sync: &mut SyncIo, peer_id: PeerId, h: &H256, count: usize, skip: usize, reverse: bool, asking: PeerAsking) {
 		trace!(target: "sync", "{} <- GetBlockHeaders: {} entries starting from {}", peer_id, count, h);
 		let mut rlp = RlpStream::new_list(4);

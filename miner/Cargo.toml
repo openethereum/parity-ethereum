@@ -17,7 +17,7 @@ log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
 rayon = "0.3.1"
-clippy = { version = "0.0.67", optional = true}
+clippy = { version = "0.0.69", optional = true}
 
 [features]
 default = []

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! TraceDB errors.
+//! `TraceDB` errors.
 
 use std::fmt::{Display, Formatter, Error as FmtError};
 
@@ -26,7 +26,7 @@ To do this, remove or move away your current database and restart parity. e.g.:
 > mv ~/.parity/906a34e69aec8c0d /tmp
 > parity";
 
-/// TraceDB errors.
+/// `TraceDB` errors.
 #[derive(Debug)]
 pub enum Error {
 	/// Returned when tracing is enabled,

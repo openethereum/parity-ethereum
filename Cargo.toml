@@ -23,7 +23,7 @@ daemonize = "0.2"
 num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
-clippy = { version = "0.0.67", optional = true}
+clippy = { version = "0.0.69", optional = true}
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }

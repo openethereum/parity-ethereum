@@ -10,7 +10,7 @@ rustc-serialize = "0.3"
 serde = "0.7.0"
 serde_json = "0.7.0"
 serde_macros = { version = "0.7.0", optional = true }
-clippy = { version = "0.0.67", optional = true}
+clippy = { version = "0.0.69", optional = true}
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
