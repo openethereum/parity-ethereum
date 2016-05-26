@@ -258,7 +258,7 @@ pub struct Args {
 	pub flag_etherbase: Option<String>,
 	pub flag_gasprice: Option<String>,
 	pub flag_jsonrpc: bool,
-	pub flag_dapps: bool,
+	pub flag_webapp: bool,
 	pub flag_rpc: bool,
 	pub flag_rpcaddr: Option<String>,
 	pub flag_rpcport: Option<u16>,

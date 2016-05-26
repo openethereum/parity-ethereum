@@ -198,7 +198,7 @@ fn execute_client(conf: Configuration) {
 	// setup ipc rpc
 	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
 
-	if conf.args.flag_dapps { println!("WARNING: Flag -d/--dapps is deprecated. Dapps server is now on by default. Ignoring."); }
+	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {
 		enabled: !conf.args.flag_dapps_off,
 		interface: conf.args.flag_dapps_interface.clone(),
