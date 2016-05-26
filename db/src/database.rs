@@ -95,25 +95,6 @@ impl WriteQue {
 					effective_removes.insert(next.key);
 				}
 			}
-
-//			if self.cache.len() > self.cache_len {
-//				let key_cache_removed = self.cache.remove(&next);
-//				if key_cache_removed.is_some() {
-//					try!(batch.put(&next, &key_cache_removed.unwrap()));
-//				}
-//				else {
-//					try!(batch.delete(&next));
-//				}
-//			}
-//			else {
-//				let key_persisted = self.cache.get(&next);
-//				if key_persisted.is_some() {
-//					try!(batch.put(&next, &key_persisted.unwrap()));
-//				}
-//				else {
-//					try!(batch.delete(&next));
-//				}
-//			}
 			so_far = so_far + 1;
 		}
 
