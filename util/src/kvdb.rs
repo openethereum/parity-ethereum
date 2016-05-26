@@ -205,10 +205,10 @@ mod tests {
 		let path = RandomTempPath::create_dir();
 		let smoke = Database::open_default(path.as_path().to_str().unwrap()).unwrap();
 		assert!(smoke.is_empty());
-		test_db(&DatabaseConfig { prefix_size: None });
-		test_db(&DatabaseConfig { prefix_size: Some(1) });
-		test_db(&DatabaseConfig { prefix_size: Some(8) });
-		test_db(&DatabaseConfig { prefix_size: Some(32) });
+		test_db(&DatabaseConfig { prefix_size: None, max_open_files: 256 });
+		test_db(&DatabaseConfig { prefix_size: Some(1), max_open_files: 256 });
+		test_db(&DatabaseConfig { prefix_size: Some(8), max_open_files: 256 });
+		test_db(&DatabaseConfig { prefix_size: Some(32), max_open_files: 256 });
 	}
 }
 
