@@ -674,14 +674,18 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 						PollFilter::PendingTransaction(ref mut previous_hashes) => {
 							// get hashes of pending transactions
 							let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
-							let previous_hashes_set = previous_hashes.into_iter().map(|h| h.clone()).collect::<HashSet<H256>>();
 
-							//	find all new hashes
-							let new_hashes = current_hashes
-								.iter()
-								.filter(|hash| !previous_hashes_set.contains(&hash))
-								.cloned()
-								.collect::<Vec<H256>>();
+							let new_hashes =
+							{
+								let previous_hashes_set = previous_hashes.iter().collect::<HashSet<_>>();
+
+								//	find all new hashes
+								current_hashes
+									.iter()
+									.filter(|hash| !previous_hashes_set.contains(hash))
+									.cloned()
+									.collect::<Vec<H256>>()
+							};
 
 							// save all hashes of pending transactions
 							*previous_hashes = current_hashes;
