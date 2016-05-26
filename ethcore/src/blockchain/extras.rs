@@ -16,10 +16,12 @@
 
 //! Blockchain DB extras.
 
+use bloomchain;
 use util::*;
 use header::BlockNumber;
 use receipt::Receipt;
 use db::Key;
+use blooms::{GroupPosition, BloomGroup};
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -30,65 +32,40 @@ pub enum ExtrasIndex {
 	BlockHash = 1,
 	/// Transaction address index
 	TransactionAddress = 2,
-	/// Block log blooms index
-	BlockLogBlooms = 3,
 	/// Block blooms index
-	BlocksBlooms = 4,
+	BlocksBlooms = 3,
 	/// Block receipts index
-	BlockReceipts = 5,
+	BlockReceipts = 4,
 }
 
 fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
-	let mut slice = H264::from_slice(hash);
-	slice[32] = i as u8;
-	slice
+	let mut result = H264::default();
+	result[0] = i as u8;
+	result.deref_mut()[1..].clone_from_slice(hash);
+	result
 }
 
-pub trait ExtrasIndexable {
-	fn index() -> ExtrasIndex;
-}
+pub struct BlockNumberKey([u8; 5]);
 
-impl ExtrasIndexable for H256 {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlockHash
-	}
-}
+impl Deref for BlockNumberKey {
+	type Target = [u8];
 
-impl ExtrasIndexable for BlockDetails {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlockDetails
-	}
-}
-
-impl ExtrasIndexable for TransactionAddress {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::TransactionAddress
-	}
-}
-
-impl ExtrasIndexable for BlockLogBlooms {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlockLogBlooms
-	}
-}
-
-impl ExtrasIndexable for BlocksBlooms {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlocksBlooms
-	}
-}
-
-impl ExtrasIndexable for BlockReceipts {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlockReceipts
+	fn deref(&self) -> &Self::Target {
+		&self.0
 	}
 }
 
 impl Key<H256> for BlockNumber {
-	type Target = H264;
+	type Target = BlockNumberKey;
 
-	fn key(&self) -> H264 {
-		with_index(&H256::from(*self), ExtrasIndex::BlockHash)
+	fn key(&self) -> Self::Target {
+		let mut result = [0u8; 5];
+		result[0] = ExtrasIndex::BlockHash as u8;
+		result[1] = (self >> 24) as u8;
+		result[2] = (self >> 16) as u8;
+		result[3] = (self >> 8) as u8;
+		result[4] = *self as u8;
+		BlockNumberKey(result)
 	}
 }
 
@@ -100,27 +77,51 @@ impl Key<BlockDetails> for H256 {
 	}
 }
 
+pub struct LogGroupKey([u8; 6]);
+
+impl Deref for LogGroupKey {
+	type Target = [u8];
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct LogGroupPosition(GroupPosition);
+
+impl From<bloomchain::group::GroupPosition> for LogGroupPosition {
+	fn from(position: bloomchain::group::GroupPosition) -> Self {
+		LogGroupPosition(From::from(position))
+	}
+}
+
+impl HeapSizeOf for LogGroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		self.0.heap_size_of_children()
+	}
+}
+
+impl Key<BloomGroup> for LogGroupPosition {
+	type Target = LogGroupKey;
+
+	fn key(&self) -> Self::Target {
+		let mut result = [0u8; 6];
+		result[0] = ExtrasIndex::BlocksBlooms as u8;
+		result[1] = self.0.level;
+		result[2] = (self.0.index >> 24) as u8;
+		result[3] = (self.0.index >> 16) as u8;
+		result[4] = (self.0.index >> 8) as u8;
+		result[5] = self.0.index as u8;
+		LogGroupKey(result)
+	}
+}
+
 impl Key<TransactionAddress> for H256 {
 	type Target = H264;
 
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::TransactionAddress)
-	}
-}
-
-impl Key<BlockLogBlooms> for H256 {
-	type Target = H264;
-
-	fn key(&self) -> H264 {
-		with_index(self, ExtrasIndex::BlockLogBlooms)
-	}
-}
-
-impl Key<BlocksBlooms> for H256 {
-	type Target = H264;
-
-	fn key(&self) -> H264 {
-		with_index(self, ExtrasIndex::BlocksBlooms)
 	}
 }
 
@@ -171,88 +172,6 @@ impl Encodable for BlockDetails {
 		s.append(&self.total_difficulty);
 		s.append(&self.parent);
 		s.append(&self.children);
-	}
-}
-
-/// Log blooms of certain block
-#[derive(Clone)]
-pub struct BlockLogBlooms {
-	/// List of log blooms for the block
-	pub blooms: Vec<H2048>
-}
-
-impl HeapSizeOf for BlockLogBlooms {
-	fn heap_size_of_children(&self) -> usize {
-		self.blooms.heap_size_of_children()
-	}
-}
-
-impl Decodable for BlockLogBlooms {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let block_blooms = BlockLogBlooms {
-			blooms: try!(Decodable::decode(decoder))
-		};
-
-		Ok(block_blooms)
-	}
-}
-
-impl Encodable for BlockLogBlooms {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.blooms);
-	}
-}
-
-/// Neighboring log blooms on certain level
-pub struct BlocksBlooms {
-	/// List of block blooms.
-	pub blooms: [H2048; 16],
-}
-
-impl Default for BlocksBlooms {
-	fn default() -> Self {
-		BlocksBlooms::new()
-	}
-}
-
-impl BlocksBlooms {
-	pub fn new() -> Self {
-		BlocksBlooms { blooms: unsafe { ::std::mem::zeroed() }}
-	}
-}
-
-impl HeapSizeOf for BlocksBlooms {
-	fn heap_size_of_children(&self) -> usize { 0 }
-}
-
-impl Clone for BlocksBlooms {
-	fn clone(&self) -> Self {
-		let mut blooms: [H2048; 16] = unsafe { ::std::mem::uninitialized() };
-
-		for i in 0..self.blooms.len() {
-			blooms[i] = self.blooms[i].clone();
-		}
-
-		BlocksBlooms {
-			blooms: blooms
-		}
-	}
-}
-
-impl Decodable for BlocksBlooms {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let blocks_blooms = BlocksBlooms {
-			blooms: try!(Decodable::decode(decoder))
-		};
-
-		Ok(blocks_blooms)
-	}
-}
-
-impl Encodable for BlocksBlooms {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		let blooms_ref: &[H2048] = &self.blooms;
-		s.append(&blooms_ref);
 	}
 }
 

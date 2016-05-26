@@ -45,11 +45,11 @@ impl RestApi {
 		self.endpoints.iter().filter_map(|(ref k, ref e)| {
 			e.info().map(|ref info| App {
 				id: k.to_owned().clone(),
-				name: info.name.clone(),
-				description: info.description.clone(),
-				version: info.version.clone(),
-				author: info.author.clone(),
-				icon_url: info.icon_url.clone(),
+				name: info.name.to_owned(),
+				description: info.description.to_owned(),
+				version: info.version.to_owned(),
+				author: info.author.to_owned(),
+				icon_url: info.icon_url.to_owned(),
 			})
 		}).collect()
 	}

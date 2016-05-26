@@ -14,27 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Represents bloom index in cache
+//! Bridge between bloomchain crate types and ethcore.
 
-/// Represents bloom index in cache
-/// 
-/// On cache level 0, every block bloom is represented by different index.
-/// On higher cache levels, multiple block blooms are represented by one
-/// index. Their `BloomIndex` can be created from block number and given level.
-#[derive(Eq, PartialEq, Hash, Clone, Debug)]
-pub struct BloomIndex {
-	/// Bloom level
-	pub level: u8,
-	///  Filter Index
-	pub index: usize,
-}
+mod bloom;
+mod bloom_group;
+mod group_position;
 
-impl BloomIndex {
-	/// Default constructor for `BloomIndex`
-	pub fn new(level: u8, index: usize) -> BloomIndex {
-		BloomIndex {
-			level: level,
-			index: index,
-		}
-	}
-}
+pub use self::bloom::Bloom;
+pub use self::bloom_group::BloomGroup;
+pub use self::group_position::GroupPosition;

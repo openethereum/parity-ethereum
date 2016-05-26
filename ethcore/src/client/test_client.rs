@@ -25,7 +25,7 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
-use extras::BlockReceipts;
+use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::Factory as EvmFactory;
 

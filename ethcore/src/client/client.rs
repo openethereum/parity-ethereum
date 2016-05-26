@@ -32,7 +32,7 @@ use env_info::LastHashes;
 use verification::*;
 use block::*;
 use transaction::{LocalizedTransaction, SignedTransaction, Action};
-use extras::TransactionAddress;
+use blockchain::extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};

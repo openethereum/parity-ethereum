@@ -23,7 +23,7 @@ cargo test \
 	-p ethcore-rpc \
 	-p parity \
 	-p ethminer \
-	-p ethcore-webapp \
+	-p ethcore-dapps \
 	--no-run || exit $?
 rm -rf target/coverage
 mkdir -p target/coverage
@@ -34,6 +34,6 @@ kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage t
 kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore_util-*
 kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethsync-*
 kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore_rpc-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore_webapp-*
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore_dapps-*
 kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethminer-*
 xdg-open target/coverage/index.html

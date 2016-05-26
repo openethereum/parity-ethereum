@@ -228,7 +228,7 @@ mod tests {
 	use util::*;
 	use header::*;
 	use verification::*;
-	use extras::*;
+	use blockchain::extras::*;
 	use error::*;
 	use error::BlockError::*;
 	use views::*;
