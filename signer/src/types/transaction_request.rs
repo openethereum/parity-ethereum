@@ -14,19 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! `TransactionRequest` type
+
 use util::hash::Address;
 use util::numbers::U256;
 use types::bytes::Bytes;
 
+/// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize)]
 pub struct TransactionRequest {
+	/// Sender
 	pub from: Address,
+	/// Recipient
 	pub to: Option<Address>,
+	/// Gas Price
 	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
+	/// Gas
 	pub gas: Option<U256>,
+	/// Value of transaction in wei
 	pub value: Option<U256>,
+	/// Additional data sent with transaction
 	pub data: Option<Bytes>,
+	/// Transaction's nonce
 	pub nonce: Option<U256>,
 }
 
