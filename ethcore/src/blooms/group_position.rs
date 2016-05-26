@@ -14,22 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+use bloomchain::group as bc;
+use util::HeapSizeOf;
 
-mod best_block;
-mod block_info;
-pub mod blockchain;
-mod cache;
-mod config;
-pub mod extras;
-mod import_route;
-mod update;
+/// Represents BloomGroup position in database.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub struct GroupPosition {
+	/// Bloom level.
+	pub level: u8,
+	/// Group index.
+	pub index: u32,
+}
 
-#[cfg(test)]
-mod generator;
+impl From<bc::GroupPosition> for GroupPosition {
+	fn from(p: bc::GroupPosition) -> Self {
+		GroupPosition {
+			level: p.level as u8,
+			index: p.index as u32,
+		}
+	}
+}
 
-pub use self::blockchain::{BlockProvider, BlockChain};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use types::tree_route::TreeRoute;
-pub use self::import_route::ImportRoute;
+impl HeapSizeOf for GroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		0
+	}
+}

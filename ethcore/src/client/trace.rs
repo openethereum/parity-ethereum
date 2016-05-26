@@ -6,7 +6,7 @@ use util::{Address, H256};
 use header::BlockNumber;
 use trace::DatabaseExtras as TraceDatabaseExtras;
 use blockchain::{BlockChain, BlockProvider};
-use extras::TransactionAddress;
+use blockchain::extras::TransactionAddress;
 use super::BlockID;
 
 impl TraceDatabaseExtras for BlockChain {
