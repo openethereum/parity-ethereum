@@ -164,7 +164,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 					.or_else(|| miner
 							 .last_nonce(&request.from)
 							 .map(|nonce| nonce + U256::one()))
-					.unwrap_or_else(|| client.nonce(&request.from)),
+					.unwrap_or_else(|| client.nonce_latest(&request.from)),
 					action: request.to.map_or(Action::Create, Action::Call),
 					gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 					gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
@@ -181,7 +181,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 		let miner = take_weak!(self.miner);
 		let from = request.from.unwrap_or(Address::zero());
 		Ok(EthTransaction {
-			nonce: request.nonce.unwrap_or_else(|| client.nonce(&from)),
+			nonce: request.nonce.unwrap_or_else(|| client.nonce_latest(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
 			gas: request.gas.unwrap_or(U256::from(50_000_000)),
 			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
@@ -199,8 +199,8 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 
 			miner.import_own_transaction(client.deref(), signed_transaction, |a: &Address| {
 				AccountDetails {
-					nonce: client.nonce(&a),
-					balance: client.balance(&a, BlockID::Latest).unwrap(),
+					nonce: client.nonce_latest(&a),
+					balance: client.balance_latest(&a),
 				}
 			})
 		};
@@ -372,8 +372,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| match block_number {
 				BlockNumber::Pending => to_value(&take_weak!(self.miner).nonce(take_weak!(self.client).deref(), &address)),
-				BlockNumber::Latest => to_value(&take_weak!(self.client).nonce(&address)),
-				_ => Err(Error::invalid_params()),
+				id => to_value(&take_weak!(self.client).nonce(&address, id.into())),
 			})
 	}
 
