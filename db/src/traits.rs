@@ -9,6 +9,8 @@ use std::cell::RefCell;
 pub type TransactionHandle = u32;
 pub type IteratorHandle = u32;
 
+pub const DEFAULT_CACHE_LEN: usize = 20480;
+
 #[derive(Binary)]
 pub struct KeyValue {
 	pub key: Vec<u8>,
@@ -29,7 +31,27 @@ pub enum Error {
 #[derive(Binary)]
 pub struct DatabaseConfig {
 	/// Optional prefix size in bytes. Allows lookup by partial key.
-	pub prefix_size: Option<usize>
+	pub prefix_size: Option<usize>,
+	/// write cache length
+	pub cache: usize,
+}
+
+impl Default for DatabaseConfig {
+	fn default() -> DatabaseConfig {
+		DatabaseConfig {
+			prefix_size: None,
+			cache: DEFAULT_CACHE_LEN,
+		}
+	}
+}
+
+impl DatabaseConfig {
+	fn with_prefix(prefix: usize) -> DatabaseConfig {
+		DatabaseConfig {
+			prefix_size: Some(prefix),
+			cache: DEFAULT_CACHE_LEN,
+		}
+	}
 }
 
 pub trait DatabaseService {

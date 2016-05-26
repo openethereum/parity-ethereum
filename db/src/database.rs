@@ -25,7 +25,7 @@ use std::convert::From;
 use ipc::IpcConfig;
 use std::mem;
 use ipc::binary::BinaryConvertError;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, HashMap};
 
 impl From<String> for Error {
 	fn from(s: String) -> Error {
@@ -33,10 +33,66 @@ impl From<String> for Error {
 	}
 }
 
+pub struct WriteQue {
+	cache: HashMap<Vec<u8>, Vec<u8>>,
+	write_log: VecDeque<Vec<u8>>,
+	cache_len: usize,
+}
+
+impl WriteQue {
+	fn new(cache_len: usize) -> WriteQue {
+		WriteQue {
+			cache: HashMap::new(),
+			write_log: VecDeque::new(),
+			cache_len: cache_len,
+		}
+	}
+
+	fn write(&mut self, key: Vec<u8>, val: Vec<u8>) {
+		self.cache.insert(key.clone(), val);
+		self.write_log.push_back(key);
+	}
+
+	fn remove(&mut self, key: Vec<u8>) {
+		self.cache.remove(&key);
+		self.write_log.push_back(key);
+	}
+
+	fn flush(&mut self, db: &mut DB, keys: usize) {
+		let mut so_far = 0;
+		loop {
+			if so_far == keys { break; }
+			let next = self.write_log.pop_front();
+			if next.is_none() { break; }
+			let next = next.unwrap();
+			if self.cache.len() > self.cache_len {
+				let key_cache_removed = self.cache.remove(&next);
+				if key_cache_removed.is_some() {
+					db.put(&next, &key_cache_removed.unwrap());
+				}
+				else {
+					db.delete(&next);
+				}
+			}
+			else {
+				let key_persisted = self.cache.get(&next);
+				if key_persisted.is_some() {
+					db.put(&next, &key_persisted.unwrap());
+				}
+				else {
+					db.delete(&next);
+				}
+			}
+			so_far = so_far + 1;
+		}
+	}
+}
+
 pub struct Database {
 	db: RwLock<Option<DB>>,
 	transactions: RwLock<BTreeMap<TransactionHandle, WriteBatch>>,
 	iterators: RwLock<BTreeMap<IteratorHandle, DBIterator>>,
+	write_que: RwLock<WriteQue>,
 }
 
 impl Database {
@@ -45,6 +101,7 @@ impl Database {
 			db: RwLock::new(None),
 			transactions: RwLock::new(BTreeMap::new()),
 			iterators: RwLock::new(BTreeMap::new()),
+			write_que: RwLock::new(WriteQue::new(DEFAULT_CACHE_LEN)),
 		}
 	}
 }
@@ -73,7 +130,7 @@ impl DatabaseService for Database {
 
 	/// Opens database in the specified path with the default config
 	fn open_default(&self, path: String) -> Result<(), Error> {
-		self.open(DatabaseConfig { prefix_size: None }, path)
+		self.open(DatabaseConfig::default(), path)
 	}
 
 	fn close(&self) -> Result<(), Error> {
