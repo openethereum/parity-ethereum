@@ -900,8 +900,8 @@ impl ChainSync {
 		}
 		let chain = io.chain();
 		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.nonce(a),
-			balance: chain.balance(a, BlockID::Latest).unwrap(),
+			nonce: chain.nonce_latest(a),
+			balance: chain.balance_latest(a),
 		};
 		let _ = self.miner.import_transactions(transactions, fetch_account);
 		Ok(())
