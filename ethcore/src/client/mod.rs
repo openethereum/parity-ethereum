@@ -83,13 +83,29 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get address balance at the given block's state.
 	///
+	/// May not return None if given BlockID::Latest.
 	/// Returns None if and only if the block's root hash has been pruned from the DB.
 	fn balance(&self, address: &Address, id: BlockID) -> Option<U256>;
 
-	/// Get value of the storage at given position at the given block.
+	/// Get address balance at the latest block's state.
+	fn balance_latest(&self, address: &Address) -> U256 {
+		self.balance(address, BlockID::Latest)
+			.expect("balance will return Some if given BlockID::Latest. balance was given BlockID::Latest \
+			Therefore balance has returned Some; qed")
+	}
+
+	/// Get value of the storage at given position at the given block's state.
 	///
+	/// May not return None if given BlockID::Latest.
 	/// Returns None if and only if the block's root hash has been pruned from the DB.
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256>;
+
+	/// Get value of the storage at given position at the latest block's state.
+	fn storage_at_latest(&self, address: &Address, position: &H256) -> H256 {
+		self.storage_at(address, position, BlockID::Latest)
+			.expect("storage_at will return Some if given BlockID::Latest. storage_at was given BlockID::Latest. \
+			Therefore storage_at has returned Some; qed")
+	}
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
