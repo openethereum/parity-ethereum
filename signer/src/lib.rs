@@ -23,7 +23,7 @@
 //! This module manages your private keys and accounts/identities
 //! that can be used within Dapps.
 //!
-//! It exposes API (over WebSockets) accessed by System UIs.
+//! It exposes API (over `WebSockets`) accessed by System UIs.
 //! Each transaction sent by Dapp is broadcasted to System UIs
 //! and their responsibility is to confirm (or confirm and sign)
 //! the transaction for you.
