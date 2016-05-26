@@ -168,7 +168,7 @@ impl Miner {
 		let mut queue = self.transaction_queue.lock().unwrap();
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: chain.nonce(a),
-			balance: chain.balance(a),
+			balance: chain.balance(a, BlockID::Latest).unwrap(),
 		};
 		for hash in invalid_transactions.into_iter() {
 			queue.remove_invalid(&hash, &fetch_account);
@@ -290,12 +290,18 @@ impl MinerService for Miner {
 
 	fn balance(&self, chain: &BlockChainClient, address: &Address) -> U256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
-		sealing_work.peek_last_ref().map_or_else(|| chain.balance(address), |b| b.block().fields().state.balance(address))
+		sealing_work.peek_last_ref().map_or_else(
+			|| chain.balance(address, BlockID::Latest).unwrap(),
+			|b| b.block().fields().state.balance(address)
+		)
 	}
 
 	fn storage_at(&self, chain: &BlockChainClient, address: &Address, position: &H256) -> H256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
-		sealing_work.peek_last_ref().map_or_else(|| chain.storage_at(address, position), |b| b.block().fields().state.storage_at(address, position))
+		sealing_work.peek_last_ref().map_or_else(
+			|| chain.storage_at(address, position, BlockID::Latest).unwrap(),
+			|b| b.block().fields().state.storage_at(address, position)
+		)
 	}
 
 	fn nonce(&self, chain: &BlockChainClient, address: &Address) -> U256 {
@@ -546,7 +552,7 @@ impl MinerService for Miner {
 				}
 				let _ = self.import_transactions(txs, |a| AccountDetails {
 					nonce: chain.nonce(a),
-					balance: chain.balance(a),
+					balance: chain.balance(a, BlockID::Latest).unwrap(),
 				});
 			});
 		}

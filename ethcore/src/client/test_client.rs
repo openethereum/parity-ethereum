@@ -253,12 +253,20 @@ impl BlockChainClient for TestBlockChainClient {
 		self.code.read().unwrap().get(address).cloned()
 	}
 
-	fn balance(&self, address: &Address) -> U256 {
-		self.balances.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero)
+	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {
+		if let BlockID::Latest = id {
+			Some(self.balances.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero))
+		} else {
+			None
+		}
 	}
 
-	fn storage_at(&self, address: &Address, position: &H256) -> H256 {
-		self.storage.read().unwrap().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)
+	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
+		if let BlockID::Latest = id {
+			Some(self.storage.read().unwrap().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new))
+		} else {
+			None
+		}
 	}
 
 	fn transaction(&self, _id: TransactionID) -> Option<LocalizedTransaction> {

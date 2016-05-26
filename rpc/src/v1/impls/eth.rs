@@ -28,7 +28,7 @@ use util::numbers::*;
 use util::sha3::*;
 use util::bytes::ToPretty;
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use ethcore::client::{self, BlockChainClient, BlockID, TransactionID, UncleID};
+use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -200,7 +200,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 			miner.import_own_transaction(client.deref(), signed_transaction, |a: &Address| {
 				AccountDetails {
 					nonce: client.nonce(&a),
-					balance: client.balance(&a),
+					balance: client.balance(&a, BlockID::Latest).unwrap(),
 				}
 			})
 		};
@@ -352,9 +352,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 	fn balance(&self, params: Params) -> Result<Value, Error> {
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| match block_number {
-				BlockNumber::Latest => to_value(&take_weak!(self.client).balance(&address)),
 				BlockNumber::Pending => to_value(&take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address)),
-				id => to_value(&try!(take_weak!(self.client).balance_at_id(&address, id.into()).ok_or_else(make_unsupported_err))),
+				id => to_value(&try!(take_weak!(self.client).balance(&address, id.into()).ok_or_else(make_unsupported_err))),
 			})
 	}
 
@@ -362,8 +361,10 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 		from_params_default_third::<Address, U256>(params)
 			.and_then(|(address, position, block_number,)| match block_number {
 				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)))),
-				BlockNumber::Latest => to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))),
-				id => to_value(&try!(take_weak!(self.client).storage_at_id(&address, &H256::from(position), id.into()).ok_or_else(make_unsupported_err))),
+				id => match take_weak!(self.client).storage_at(&address, &H256::from(position), id.into()) {
+						Some(s) => to_value(&U256::from(s)),
+						None => Err(make_unsupported_err()), // None is only returned on unsupported requests.
+				}
 			})
 	}
 

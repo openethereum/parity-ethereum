@@ -349,7 +349,12 @@ impl<V> Client<V> where V: Verifier {
 	/// Attempt to get a copy of a specific block's state.
 	///
 	/// This can fail (but may not) if the DB prunes state.
-	pub fn state_at_id(&self, id: BlockID) -> Option<State> {
+	pub fn state_at(&self, id: BlockID) -> Option<State> {
+		// fast path for latest state.
+		if let BlockID::Latest = id.clone() {
+			return Some(self.state())
+		}
+
 		self.block_header(id).map(|header| {
 			let db = self.state_db.lock().unwrap().boxed_clone();
 			State::from_existing(db, HeaderView::new(&header).state_root(), self.engine.account_start_nonce())
@@ -563,26 +568,12 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		self.state().code(address)
 	}
 
-	fn balance(&self, address: &Address) -> U256 {
-		self.state().balance(address)
+	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {
+		self.state_at(id).map(|s| s.balance(address))
 	}
 
-	fn balance_at_id(&self, address: &Address, id: BlockID) -> Option<U256> {
-		match id {
-			BlockID::Latest => Some(self.balance(address)),
-			id => self.state_at_id(id).map(|s| s.balance(address)),
-		}
-	}
-
-	fn storage_at(&self, address: &Address, position: &H256) -> H256 {
-		self.state().storage_at(address, position)
-	}
-
-	fn storage_at_id(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
-		match id {
-			BlockID::Latest => Some(self.storage_at(address, position)),
-			id => self.state_at_id(id).map(|s| s.storage_at(address, position)),
-		}
+	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
+		self.state_at(id).map(|s| s.storage_at(address, position))
 	}
 
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction> {
