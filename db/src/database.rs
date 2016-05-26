@@ -195,17 +195,17 @@ impl DatabaseService for Database {
 	}
 
 	fn write(&self, transaction: DBTransaction) -> Result<(), Error> {
-		let db_lock = self.db.read().unwrap();
-		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+		let mut que_lock = self.write_que.write().unwrap();
 
-		let batch = WriteBatch::new();
-		for ref kv in transaction.writes.borrow().iter() {
-			try!(batch.put(&kv.key, &kv.value))
+		let mut writes = transaction.writes.borrow_mut();
+		for kv in writes.drain(..) {
+			que_lock.write(kv.key, kv.value);
 		}
-		for ref k in transaction.removes.borrow().iter() {
-			try!(batch.delete(k));
+
+		let mut removes = transaction.removes.borrow_mut();
+		for k in removes.drain(..) {
+			que_lock.remove(k);
 		}
-		try!(db.write(batch));
 		Ok(())
 	}
 
