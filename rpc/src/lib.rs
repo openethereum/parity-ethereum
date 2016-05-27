@@ -27,7 +27,6 @@ extern crate serde_json;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate ethcore_util as util;
-extern crate ethcore_signer as signer;
 extern crate ethcore;
 extern crate ethsync;
 extern crate ethminer;

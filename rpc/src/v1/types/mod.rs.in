@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+mod bytes;
 mod block;
 mod block_number;
 mod filter;
@@ -22,13 +23,13 @@ mod log;
 mod optionals;
 mod sync;
 mod transaction;
+mod transaction_request;
 mod call_request;
 mod receipt;
 mod trace;
 mod trace_filter;
 
-pub use signer::types::bytes::Bytes;
-pub use signer::types::transaction_request::TransactionRequest;
+pub use self::bytes::Bytes;
 pub use self::block::{Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
 pub use self::filter::Filter;
@@ -37,6 +38,7 @@ pub use self::log::Log;
 pub use self::optionals::OptionalValue;
 pub use self::sync::{SyncStatus, SyncInfo};
 pub use self::transaction::Transaction;
+pub use self::transaction_request::TransactionRequest;
 pub use self::call_request::CallRequest;
 pub use self::receipt::Receipt;
 pub use self::trace::Trace;

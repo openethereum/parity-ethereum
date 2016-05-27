@@ -18,7 +18,7 @@
 
 use util::hash::Address;
 use util::numbers::U256;
-use types::bytes::Bytes;
+use v1::types::bytes::Bytes;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize)]

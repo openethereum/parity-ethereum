@@ -49,11 +49,11 @@ extern crate serde_json;
 extern crate rustc_serialize;
 
 extern crate ethcore_util as util;
+extern crate ethcore_rpc as rpc;
 extern crate ws;
 
 mod signing_queue;
 mod ws_server;
-pub mod types;
 
 pub use ws_server::*;
 

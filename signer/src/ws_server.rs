@@ -31,14 +31,14 @@ pub enum ServerError {
 	/// Wrapped `std::io::Error`
 	IoError(std::io::Error),
 	/// Other `ws-rs` error
-	Other(ws::Error)
+	WebSocket(ws::Error)
 }
 
 impl From<ws::Error> for ServerError {
 	fn from(err: ws::Error) -> Self {
 		match err.kind {
 			ws::ErrorKind::Io(e) => ServerError::IoError(e),
-			_ => ServerError::Other(err),
+			_ => ServerError::WebSocket(err),
 		}
 	}
 }

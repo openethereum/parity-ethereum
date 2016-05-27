@@ -18,21 +18,31 @@ use util::numbers::*;
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use v1::types::Bytes;
 
+/// Log
 #[derive(Debug, Serialize, PartialEq, Eq, Hash, Clone)]
 pub struct Log {
+	/// Address
 	pub address: Address,
+	/// Topics
 	pub topics: Vec<H256>,
+	/// Data
 	pub data: Bytes,
+	/// Block Hash
 	#[serde(rename="blockHash")]
 	pub block_hash: Option<H256>,
+	/// Block Number
 	#[serde(rename="blockNumber")]
 	pub block_number: Option<U256>,
+	/// Transaction Hash
 	#[serde(rename="transactionHash")]
 	pub transaction_hash: Option<H256>,
+	/// Transaction Index
 	#[serde(rename="transactionIndex")]
 	pub transaction_index: Option<U256>,
+	/// Log Index
 	#[serde(rename="logIndex")]
 	pub log_index: Option<U256>,
+	/// Log Type
 	#[serde(rename="type")]
 	pub log_type: String,
 }
