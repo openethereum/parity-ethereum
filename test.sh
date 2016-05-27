@@ -7,6 +7,7 @@ cargo test --features ethcore/json-tests $1 \
 	-p ethcore \
 	-p ethsync \
 	-p ethcore-rpc \
+	-p ethcore-signer \
 	-p ethcore-dapps \
 	-p parity \
 	-p ethminer \

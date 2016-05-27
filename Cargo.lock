@@ -15,6 +15,7 @@ dependencies = [
  "ethcore-ipc-codegen 1.2.0",
  "ethcore-ipc-nano 1.2.0",
  "ethcore-rpc 1.2.0",
+ "ethcore-signer 1.2.0",
  "ethcore-util 1.2.0",
  "ethminer 1.2.0",
  "ethsync 1.2.0",
@@ -338,6 +339,17 @@ dependencies = [
  "serde_json 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-signer"
+version = "1.2.0"
+dependencies = [
+ "clippy 0.0.69 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-util 1.2.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -902,7 +914,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-wallet"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#37b1691d74ad9bdabc64f58684d9d0a6d1aeef66"
+source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#25402ce0a02ae49eb66c9e3852b392267a027ea3"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
