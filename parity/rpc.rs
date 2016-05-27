@@ -24,7 +24,7 @@ use ethsync::EthSync;
 use ethminer::{Miner, ExternalMiner};
 use util::RotatingLogger;
 use util::panics::PanicHandler;
-use util::keys::store::{AccountService};
+use util::keys::store::AccountService;
 use util::network_settings::NetworkSettings;
 use die::*;
 use jsonipc;
@@ -106,7 +106,7 @@ fn setup_rpc_server(apis: Vec<&str>, deps: &Arc<Dependencies>) -> Server {
 			},
 			"personal" => {
 				modules.insert("personal".to_owned(), "1.0".to_owned());
-				server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate())
+				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner).to_delegate())
 			},
 			"ethcore" => {
 				modules.insert("ethcore".to_owned(), "1.0".to_owned());

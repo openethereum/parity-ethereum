@@ -28,7 +28,7 @@ impl Bytes {
 	pub fn new(bytes: Vec<u8>) -> Bytes {
 		Bytes(bytes)
 	}
-	pub fn to_vec(self) -> Vec<u8> { let Bytes(x) = self; x }
+	pub fn to_vec(self) -> Vec<u8> { self.0 }
 }
 
 impl Serialize for Bytes {

@@ -18,24 +18,35 @@
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::Personal;
+use v1::types::TransactionRequest;
+use v1::impls::sign_and_dispatch;
 use util::keys::store::*;
-use util::Address;
+use util::numbers::*;
+use ethcore::client::BlockChainClient;
+use ethminer::MinerService;
 
 /// Account management (personal) rpc implementation.
-pub struct PersonalClient<A> where A: AccountProvider {
+pub struct PersonalClient<A, C, M>
+	where A: AccountProvider, C: BlockChainClient, M: MinerService {
 	accounts: Weak<A>,
+	client: Weak<C>,
+	miner: Weak<M>,
 }
 
-impl<A> PersonalClient<A> where A: AccountProvider {
+impl<A, C, M> PersonalClient<A, C, M>
+	where A: AccountProvider, C: BlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<A>) -> Self {
+	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
+			client: Arc::downgrade(client),
+			miner: Arc::downgrade(miner),
 		}
 	}
 }
 
-impl<A> Personal for PersonalClient<A> where A: AccountProvider + 'static {
+impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
+	where A: AccountProvider, C: BlockChainClient, M: MinerService {
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
 		match store.accounts() {
@@ -65,5 +76,16 @@ impl<A> Personal for PersonalClient<A> where A: AccountProvider + 'static {
 					Err(_) => Ok(Value::Bool(false)),
 				}
 			})
+	}
+
+	fn sign_and_send_transaction(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, String)>(params)
+			.and_then(|(request, password)| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.locked_account_secret(&request.from, &password) {
+					Ok(secret) => sign_and_dispatch(&self.client, &self.miner, request, secret),
+					Err(_) => to_value(&H256::zero()),
+				}
+		})
 	}
 }
