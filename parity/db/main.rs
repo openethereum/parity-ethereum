@@ -92,9 +92,16 @@ fn main() {
 	hypervisor_client.handshake().unwrap();
 	hypervisor_client.module_ready(BLOCKCHAIN_MODULE_ID);
 
+
+	let blocks_service_term = blocks_service.clone();
+	let extras_service_term = extras_service.clone();
 	CtrlC::set_handler(move || {
 		std::thread::sleep(std::time::Duration::new(1, 0));
 		stop.store(true, Ordering::Relaxed);
+		println!("flushing writes...");
+
+		blocks_service_term.flush().unwrap();
+		extras_service_term.flush().unwrap();
 	});
 
 	let mut thread_pool = Pool::new(3);

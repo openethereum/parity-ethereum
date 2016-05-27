@@ -19,7 +19,6 @@
 use traits::*;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
-use std::collections::BTreeMap;
 use std::sync::{RwLock, Arc};
 use std::convert::From;
 use ipc::IpcConfig;
@@ -74,13 +73,11 @@ impl WriteQue {
 		self.cache.get(key).and_then(|vec_ref| Some(vec_ref.clone()))
 	}
 
-	fn flush(&mut self, db: &DB, keys: usize) -> Result<(), Error> {
-		let mut so_far = 0;
+	fn flush(&mut self, db: &DB) -> Result<(), Error> {
 		let batch = WriteBatch::new();
 		let mut effective_removes: HashSet<Vec<u8>> = HashSet::new();
 		let mut effective_writes: HashSet<Vec<u8>> = HashSet::new();
 		loop {
-			if so_far == keys { break; }
 			let next = self.write_log.pop_front();
 			if next.is_none() { break; }
 			let next = next.unwrap();
@@ -95,12 +92,15 @@ impl WriteQue {
 					effective_removes.insert(next.key);
 				},
 			}
-			so_far = so_far + 1;
 		}
 
 		for key in effective_writes.drain() {
 			if self.cache.len() > self.cache_len {
 				let key_cache_removed = self.cache.remove(&key);
+
+				// it was already updated with the most recent value
+				if key_cache_removed.is_none() { continue; }
+
 				try!(batch.put(&key, &key_cache_removed.unwrap()));
 			}
 			else {
@@ -148,19 +148,7 @@ impl Database {
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().unwrap();
 
-		try!(que.flush(&db, FLUSH_BATCH_SIZE));
-		Ok(())
-	}
-
-	pub fn flush_all(&self) -> Result<(), Error> {
-		let mut que = self.write_que.write().unwrap();
-		let db_lock = self.db.read().unwrap();
-		if db_lock.is_none() { return Ok(()); }
-		let db = db_lock.as_ref().unwrap();
-
-		while !que.is_empty() {
-			try!(que.flush(&db, FLUSH_BATCH_SIZE));
-		}
+		try!(que.flush(&db));
 		Ok(())
 	}
 }
@@ -199,7 +187,7 @@ impl DatabaseService for Database {
 	}
 
 	fn close(&self) -> Result<(), Error> {
-		try!(self.flush_all());
+		try!(self.flush());
 
 		let mut db = self.db.write().unwrap();
 		if db.is_none() { return Err(Error::IsClosed); }
@@ -359,7 +347,7 @@ mod test {
 		db.open_default(path.as_str().to_owned()).unwrap();
 
 		db.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
-		db.flush_all().unwrap();
+		db.flush().unwrap();
 		assert!(!db.is_empty().unwrap());
 	}
 
@@ -374,6 +362,28 @@ mod test {
 		db.open_default(path.as_str().to_owned()).unwrap();
 		assert_eq!(db.get("xxx".as_bytes()).unwrap().unwrap(), "1".as_bytes().to_vec());
 	}
+}
+
+#[cfg(test)]
+mod write_que_tests {
+	use super::Database;
+	use traits::*;
+	use devtools::*;
+
+	#[test]
+	fn que_write_flush() {
+		let db = Database::new();
+		let path = RandomTempPath::create_dir();
+
+		db.open_default(path.as_str().to_owned()).unwrap();
+		db.put("100500".as_bytes(), "1".as_bytes()).unwrap();
+		db.delete("100500".as_bytes()).unwrap();
+		db.flush().unwrap();
+
+		let val = db.get("100500".as_bytes()).unwrap();
+		assert!(val.is_none());
+	}
+
 }
 
 #[cfg(test)]
