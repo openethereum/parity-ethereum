@@ -30,12 +30,16 @@ pub trait Personal: Sized + Send + Sync + 'static {
 	/// Unlocks specified account for use (can only be one unlocked account at one moment)
 	fn unlock_account(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Sends transaction and signs it in single call. The account is not unlocked in such case.
+	fn sign_and_send_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("personal_listAccounts", Personal::accounts);
 		delegate.add_method("personal_newAccount", Personal::new_account);
 		delegate.add_method("personal_unlockAccount", Personal::unlock_account);
+		delegate.add_method("personal_signAndSendTransaction", Personal::sign_and_send_transaction);
 		delegate
 	}
 }
