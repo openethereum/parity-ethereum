@@ -24,7 +24,7 @@ use std::convert::From;
 use ipc::IpcConfig;
 use std::mem;
 use ipc::binary::BinaryConvertError;
-use std::collections::{VecDeque, HashMap, HashSet};
+use std::collections::{VecDeque, HashMap};
 
 impl From<String> for Error {
 	fn from(s: String) -> Error {
@@ -37,16 +37,16 @@ enum WriteCacheEntry {
 	Write(Vec<u8>),
 }
 
-pub struct WriteQue {
+pub struct WriteQueue {
 	cache: HashMap<Vec<u8>, WriteCacheEntry>,
 	preferred_len: usize,
 }
 
 const FLUSH_BATCH_SIZE: usize = 1048;
 
-impl WriteQue {
-	fn new(cache_len: usize) -> WriteQue {
-		WriteQue {
+impl WriteQueue {
+	fn new(cache_len: usize) -> WriteQueue {
+		WriteQueue {
 			cache: HashMap::new(),
 			preferred_len: cache_len,
 		}
@@ -118,7 +118,7 @@ pub struct Database {
 	db: RwLock<Option<DB>>,
 	/// Iterators - dont't use between threads!
 	iterators: RwLock<HashMap<IteratorHandle, DBIterator>>,
-	write_que: RwLock<WriteQue>,
+	write_queue: RwLock<WriteQueue>,
 }
 
 unsafe impl Send for Database {}
@@ -129,27 +129,27 @@ impl Database {
 		Database {
 			db: RwLock::new(None),
 			iterators: RwLock::new(HashMap::new()),
-			write_que: RwLock::new(WriteQue::new(DEFAULT_CACHE_LEN)),
+			write_queue: RwLock::new(WriteQueue::new(DEFAULT_CACHE_LEN)),
 		}
 	}
 
 	pub fn flush(&self) -> Result<(), Error> {
-		let mut que = self.write_que.write().unwrap();
+		let mut queue = self.write_queue.write().unwrap();
 		let db_lock = self.db.read().unwrap();
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().unwrap();
 
-		try!(que.try_shrink(&db));
+		try!(queue.try_shrink(&db));
 		Ok(())
 	}
 
 	pub fn flush_all(&self) -> Result<(), Error> {
-		let mut que = self.write_que.write().unwrap();
+		let mut queue = self.write_queue.write().unwrap();
 		let db_lock = self.db.read().unwrap();
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().unwrap();
 
-		try!(que.flush_all(&db));
+		try!(queue.flush_all(&db));
 		Ok(())
 
 	}
@@ -189,7 +189,7 @@ impl DatabaseService for Database {
 	}
 
 	fn close(&self) -> Result<(), Error> {
-		try!(self.flush());
+		try!(self.flush_all());
 
 		let mut db = self.db.write().unwrap();
 		if db.is_none() { return Err(Error::IsClosed); }
@@ -199,28 +199,28 @@ impl DatabaseService for Database {
 	}
 
 	fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
-		let mut que_lock = self.write_que.write().unwrap();
-		que_lock.write(key.to_vec(), value.to_vec());
+		let mut queue_lock = self.write_queue.write().unwrap();
+		queue_lock.write(key.to_vec(), value.to_vec());
 		Ok(())
 	}
 
 	fn delete(&self, key: &[u8]) -> Result<(), Error> {
-		let mut que_lock = self.write_que.write().unwrap();
-		que_lock.remove(key.to_vec());
+		let mut queue_lock = self.write_queue.write().unwrap();
+		queue_lock.remove(key.to_vec());
 		Ok(())
 	}
 
 	fn write(&self, transaction: DBTransaction) -> Result<(), Error> {
-		let mut que_lock = self.write_que.write().unwrap();
+		let mut queue_lock = self.write_queue.write().unwrap();
 
 		let mut writes = transaction.writes.borrow_mut();
 		for kv in writes.drain(..) {
-			que_lock.write(kv.key, kv.value);
+			queue_lock.write(kv.key, kv.value);
 		}
 
 		let mut removes = transaction.removes.borrow_mut();
 		for k in removes.drain(..) {
-			que_lock.remove(k);
+			queue_lock.remove(k);
 		}
 		Ok(())
 	}
@@ -228,7 +228,7 @@ impl DatabaseService for Database {
 	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		{
 			let key_vec = key.to_vec();
-			let cache_hit = self.write_que.read().unwrap().get(&key_vec);
+			let cache_hit = self.write_queue.read().unwrap().get(&key_vec);
 
 			if cache_hit.is_some() {
 				return Ok(Some(cache_hit.unwrap()))
