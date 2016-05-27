@@ -32,7 +32,7 @@ impl Bytes {
 	}
 	/// Convert back to vector
 	pub fn to_vec(self) -> Vec<u8> {
-		let Bytes(x) = self; x
+		self.0
 	}
 }
 
