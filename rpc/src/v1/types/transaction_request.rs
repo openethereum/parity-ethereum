@@ -47,7 +47,7 @@ mod tests {
 	use serde_json;
 	use util::numbers::{U256};
 	use util::hash::Address;
-	use types::bytes::Bytes;
+	use v1::types::bytes::Bytes;
 	use super::*;
 
 	#[test]

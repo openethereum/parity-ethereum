@@ -45,7 +45,7 @@ mod test {
 	use std::collections::HashSet;
 	use util::hash::Address;
 	use util::numbers::U256;
-	use rpc::v1::types::transaction_request::TransactionRequest;
+	use rpc::v1::types::TransactionRequest;
 	use super::*;
 
 	#[test]

@@ -50,6 +50,7 @@ extern crate rustc_serialize;
 
 extern crate ethcore_util as util;
 extern crate ethcore_rpc as rpc;
+extern crate jsonrpc_core;
 extern crate ws;
 
 mod signing_queue;
