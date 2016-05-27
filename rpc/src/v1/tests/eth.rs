@@ -110,7 +110,6 @@ fn eth_transaction_count() {
 
 		let res_before = r#"{"jsonrpc":"2.0","result":"0x00","id":15}"#;
 
-
 		assert_eq!(tester.handler.handle_request(&req_before).unwrap(), res_before);
 
 		let t = Transaction {

@@ -20,4 +20,4 @@ mod sync_provider;
 mod miner_service;
 
 pub use self::sync_provider::{Config, TestSyncProvider};
-pub use self::miner_service::{TestMinerService};
+pub use self::miner_service::TestMinerService;
