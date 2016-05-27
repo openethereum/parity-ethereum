@@ -39,6 +39,8 @@ ethcore-db = { path = "db" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 crossbeam = "0.2"
 ansi_term = "0.7"
+schedule_recv = "0.1"
+scoped_threadpool = "0.1"
 
 [dependencies.hyper]
 version = "0.8"

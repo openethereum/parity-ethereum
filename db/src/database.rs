@@ -93,7 +93,7 @@ impl WriteQue {
 				LogEntryKind::Remove => {
 					effective_writes.remove(&next.key);
 					effective_removes.insert(next.key);
-				}
+				},
 			}
 			so_far = so_far + 1;
 		}
@@ -125,15 +125,19 @@ impl WriteQue {
 
 pub struct Database {
 	db: RwLock<Option<DB>>,
-	iterators: RwLock<BTreeMap<IteratorHandle, DBIterator>>,
+	/// Iterators - dont't use between threads!
+	iterators: RwLock<HashMap<IteratorHandle, DBIterator>>,
 	write_que: RwLock<WriteQue>,
 }
+
+unsafe impl Send for Database {}
+unsafe impl Sync for Database {}
 
 impl Database {
 	pub fn new() -> Database {
 		Database {
 			db: RwLock::new(None),
-			iterators: RwLock::new(BTreeMap::new()),
+			iterators: RwLock::new(HashMap::new()),
 			write_que: RwLock::new(WriteQue::new(DEFAULT_CACHE_LEN)),
 		}
 	}
