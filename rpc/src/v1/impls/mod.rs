@@ -41,3 +41,59 @@ pub use self::ethcore::EthcoreClient;
 pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
+use v1::types::TransactionRequest;
+use std::sync::Weak;
+use ethminer::{AccountDetails, MinerService};
+use ethcore::client::BlockChainClient;
+use ethcore::transaction::{Action, SignedTransaction, Transaction};
+use util::numbers::*;
+use util::rlp::encode;
+use util::bytes::ToPretty;
+use jsonrpc_core::{Error, to_value, Value};
+
+fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
+	where C: BlockChainClient, M: MinerService {
+	let hash = signed_transaction.hash();
+
+	let import = {
+		miner.import_own_transaction(client, signed_transaction, |a: &Address| {
+			AccountDetails {
+				nonce: client.latest_nonce(&a),
+				balance: client.latest_balance(&a),
+			}
+		})
+	};
+
+	match import {
+		Ok(_) => to_value(&hash),
+		Err(e) => {
+			warn!("Error sending transaction: {:?}", e);
+			to_value(&H256::zero())
+		}
+	}
+}
+
+fn sign_and_dispatch<C, M>(client: &Weak<C>, miner: &Weak<M>, request: TransactionRequest, secret: H256) -> Result<Value, Error>
+	where C: BlockChainClient, M: MinerService {
+	let client = take_weak!(client);
+	let miner = take_weak!(miner);
+
+	let signed_transaction = {
+		Transaction {
+			nonce: request.nonce
+				.or_else(|| miner
+						 .last_nonce(&request.from)
+						 .map(|nonce| nonce + U256::one()))
+				.unwrap_or_else(|| client.latest_nonce(&request.from)),
+
+			action: request.to.map_or(Action::Create, Action::Call),
+			gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
+			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+			value: request.value.unwrap_or_else(U256::zero),
+			data: request.data.map_or_else(Vec::new, |b| b.to_vec()),
+		}.sign(&secret)
+	};
+
+	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
+	dispatch_transaction(&*client, &*miner, signed_transaction)
+}

@@ -63,8 +63,8 @@ pub use external::{ExternalMiner, ExternalMinerService};
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
 use ethcore::client::{BlockChainClient, Executed};
-use ethcore::block::{ClosedBlock};
-use ethcore::receipt::{Receipt};
+use ethcore::block::ClosedBlock;
+use ethcore::receipt::Receipt;
 use ethcore::error::{Error, ExecutionError};
 use ethcore::transaction::SignedTransaction;
 
@@ -154,7 +154,7 @@ pub trait MinerService : Send + Sync {
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
 
-	/// Account balance
+	/// Latest account balance in pending state.
 	fn balance(&self, chain: &BlockChainClient, address: &Address) -> U256;
 
 	/// Call into contract code using pending state.
