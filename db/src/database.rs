@@ -32,20 +32,14 @@ impl From<String> for Error {
 	}
 }
 
-enum LogEntryKind {
-	Write,
+enum WriteCacheEntry {
 	Remove,
-}
-
-struct WriteLogEntry {
-	kind: LogEntryKind,
-	key: Vec<u8>,
+	Write(Vec<u8>),
 }
 
 pub struct WriteQue {
-	cache: HashMap<Vec<u8>, Vec<u8>>,
-	write_log: VecDeque<WriteLogEntry>,
-	cache_len: usize,
+	cache: HashMap<Vec<u8>, WriteCacheEntry>,
+	preferred_len: usize,
 }
 
 const FLUSH_BATCH_SIZE: usize = 1048;
@@ -54,72 +48,69 @@ impl WriteQue {
 	fn new(cache_len: usize) -> WriteQue {
 		WriteQue {
 			cache: HashMap::new(),
-			write_log: VecDeque::new(),
-			cache_len: cache_len,
+			preferred_len: cache_len,
 		}
 	}
 
 	fn write(&mut self, key: Vec<u8>, val: Vec<u8>) {
-		self.cache.insert(key.clone(), val);
-		self.write_log.push_back(WriteLogEntry { key: key, kind: LogEntryKind::Write });
+		self.cache.entry(key).or_insert(WriteCacheEntry::Write(val));
 	}
 
 	fn remove(&mut self, key: Vec<u8>) {
-		self.cache.remove(&key);
-		self.write_log.push_back(WriteLogEntry { key: key, kind: LogEntryKind::Remove });
+		self.cache.entry(key).or_insert(WriteCacheEntry::Remove);
 	}
 
 	fn get(&self, key: &Vec<u8>) -> Option<Vec<u8>> {
-		self.cache.get(key).and_then(|vec_ref| Some(vec_ref.clone()))
+		self.cache.get(key).and_then(
+			|vec_ref| match vec_ref {
+				&WriteCacheEntry::Write(ref val) => Some(val.clone()),
+				&WriteCacheEntry::Remove => None
+			})
 	}
 
-	fn flush(&mut self, db: &DB) -> Result<(), Error> {
+	/// WriteQue should be locked for this
+	fn flush(&mut self, db: &DB, amount: usize) -> Result<(), Error> {
 		let batch = WriteBatch::new();
-		let mut effective_removes: HashSet<Vec<u8>> = HashSet::new();
-		let mut effective_writes: HashSet<Vec<u8>> = HashSet::new();
-		loop {
-			let next = self.write_log.pop_front();
-			if next.is_none() { break; }
-			let next = next.unwrap();
+		let mut removed_so_far = 0;
+		while removed_so_far < amount {
+			if self.cache.len() == 0 { break; }
+			let removed_key = {
+				let (key, cache_entry) = self.cache.iter().nth(0).unwrap();
 
-			match next.kind {
-				LogEntryKind::Write => {
-					effective_removes.remove(&next.key);
-					effective_writes.insert(next.key);
-				},
-				LogEntryKind::Remove => {
-					effective_writes.remove(&next.key);
-					effective_removes.insert(next.key);
-				},
-			}
+				match *cache_entry {
+					WriteCacheEntry::Write(ref val) => {
+						try!(batch.put(&key, val));
+					},
+					WriteCacheEntry::Remove => {
+						try!(batch.delete(&key));
+					},
+				}
+				key.clone()
+			};
+
+			self.cache.remove(&removed_key);
+
+			removed_so_far = removed_so_far + 1;
 		}
+		if removed_so_far > 0 { try!(db.write(batch)); }
+		Ok(())
+	}
 
-		for key in effective_writes.drain() {
-			if self.cache.len() > self.cache_len {
-				let key_cache_removed = self.cache.remove(&key);
-
-				// it was already updated with the most recent value
-				if key_cache_removed.is_none() { continue; }
-
-				try!(batch.put(&key, &key_cache_removed.unwrap()));
-			}
-			else {
-				let key_persisted = self.cache.get(&key);
-				try!(batch.put(&key, &key_persisted.unwrap()));
-			}
-		}
-
-		for key in effective_removes.drain() {
-			self.cache.remove(&key);
-			try!(batch.delete(&key));
-		}
-
-		try!(db.write(batch));
+	/// flushes until que is empty
+	fn flush_all(&mut self, db: &DB) -> Result<(), Error> {
+		while !self.is_empty() { try!(self.flush(db, FLUSH_BATCH_SIZE)); }
 		Ok(())
 	}
 
 	fn is_empty(&self) -> bool {
-		self.write_log.is_empty()
+		self.cache.is_empty()
+	}
+
+	fn try_shrink(&mut self, db: &DB) -> Result<(), Error> {
+		if self.cache.len() > self.preferred_len {
+			try!(self.flush(db, FLUSH_BATCH_SIZE));
+		}
+		Ok(())
 	}
 }
 
@@ -148,8 +139,19 @@ impl Database {
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().unwrap();
 
-		try!(que.flush(&db));
+		try!(que.try_shrink(&db));
 		Ok(())
+	}
+
+	pub fn flush_all(&self) -> Result<(), Error> {
+		let mut que = self.write_que.write().unwrap();
+		let db_lock = self.db.read().unwrap();
+		if db_lock.is_none() { return Ok(()); }
+		let db = db_lock.as_ref().unwrap();
+
+		try!(que.flush_all(&db));
+		Ok(())
+
 	}
 }
 

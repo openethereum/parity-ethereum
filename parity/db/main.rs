@@ -98,16 +98,15 @@ fn main() {
 	CtrlC::set_handler(move || {
 		std::thread::sleep(std::time::Duration::new(1, 0));
 		stop.store(true, Ordering::Relaxed);
-		println!("flushing writes...");
+		info!("Flushing writes...");
 
-		blocks_service_term.flush().unwrap();
-		extras_service_term.flush().unwrap();
+		blocks_service_term.flush_all().unwrap();
+		extras_service_term.flush_all().unwrap();
 	});
 
 	let mut thread_pool = Pool::new(3);
 	let tick = periodic(Duration::from_millis(3000));
 	loop {
-//		std	::thread::sleep(std::time::Duration::from_millis(5000));
 		tick.recv().unwrap();
 		thread_pool.scoped(|scope| {
 			let blocks_service_ref = blocks_service.clone();
@@ -119,6 +118,5 @@ fn main() {
 				extras_service_ref.flush().unwrap();
 			})
 		});
-		println!("tick");
 	}
 }
