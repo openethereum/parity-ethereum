@@ -26,7 +26,7 @@ use ethminer::{MinerService, AccountDetails, ExternalMinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
-use util::bytes::{ToPretty};
+use util::bytes::ToPretty;
 use util::rlp::{encode, decode, UntrustedRlp, View};
 use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
@@ -164,7 +164,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 					.or_else(|| miner
 							 .last_nonce(&request.from)
 							 .map(|nonce| nonce + U256::one()))
-					.unwrap_or_else(|| client.nonce(&request.from)),
+					.unwrap_or_else(|| client.latest_nonce(&request.from)),
 					action: request.to.map_or(Action::Create, Action::Call),
 					gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 					gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
@@ -181,7 +181,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 		let miner = take_weak!(self.miner);
 		let from = request.from.unwrap_or(Address::zero());
 		Ok(EthTransaction {
-			nonce: request.nonce.unwrap_or_else(|| client.nonce(&from)),
+			nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
 			gas: request.gas.unwrap_or(U256::from(50_000_000)),
 			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
@@ -199,8 +199,8 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 
 			miner.import_own_transaction(client.deref(), signed_transaction, |a: &Address| {
 				AccountDetails {
-					nonce: client.nonce(&a),
-					balance: client.balance(&a),
+					nonce: client.latest_nonce(&a),
+					balance: client.latest_balance(&a),
 				}
 			})
 		};
@@ -255,6 +255,17 @@ fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: Miner
 		.collect();
 
 	result
+}
+
+// must be in range [-32099, -32000]
+const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
+
+fn make_unsupported_err() -> Error {
+	Error {
+		code: ErrorCode::ServerError(UNSUPPORTED_REQUEST_CODE),
+		message: "Unsupported request.".into(),
+		data: None
+	}
 }
 
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
@@ -341,18 +352,19 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 	fn balance(&self, params: Params) -> Result<Value, Error> {
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| match block_number {
-				BlockNumber::Latest => to_value(&take_weak!(self.client).balance(&address)),
 				BlockNumber::Pending => to_value(&take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address)),
-				_ => Err(Error::invalid_params()),
+				id => to_value(&try!(take_weak!(self.client).balance(&address, id.into()).ok_or_else(make_unsupported_err))),
 			})
 	}
 
 	fn storage_at(&self, params: Params) -> Result<Value, Error> {
 		from_params_default_third::<Address, U256>(params)
 			.and_then(|(address, position, block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(take_weak!(self.client).deref(), &address, &H256::from(position)))),
-				BlockNumber::Latest => to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))),
-				_ => Err(Error::invalid_params()),
+				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)))),
+				id => match take_weak!(self.client).storage_at(&address, &H256::from(position), id.into()) {
+					Some(s) => to_value(&U256::from(s)),
+					None => Err(make_unsupported_err()), // None is only returned on unsupported requests.
+				}
 			})
 	}
 
@@ -360,8 +372,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| match block_number {
 				BlockNumber::Pending => to_value(&take_weak!(self.miner).nonce(take_weak!(self.client).deref(), &address)),
-				BlockNumber::Latest => to_value(&take_weak!(self.client).nonce(&address)),
-				_ => Err(Error::invalid_params()),
+				id => to_value(&take_weak!(self.client).nonce(&address, id.into())),
 			})
 	}
 
