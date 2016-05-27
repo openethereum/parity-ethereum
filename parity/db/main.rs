@@ -96,12 +96,12 @@ fn main() {
 	let blocks_service_term = blocks_service.clone();
 	let extras_service_term = extras_service.clone();
 	CtrlC::set_handler(move || {
-		std::thread::sleep(std::time::Duration::new(1, 0));
-		stop.store(true, Ordering::Relaxed);
 		info!("Flushing writes...");
-
 		blocks_service_term.flush_all().unwrap();
 		extras_service_term.flush_all().unwrap();
+
+		std::thread::sleep(std::time::Duration::new(1, 0));
+		stop.store(true, Ordering::Relaxed);
 	});
 
 	let mut thread_pool = Pool::new(3);

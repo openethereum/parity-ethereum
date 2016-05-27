@@ -42,7 +42,7 @@ pub struct WriteQueue {
 	preferred_len: usize,
 }
 
-const FLUSH_BATCH_SIZE: usize = 1048;
+const FLUSH_BATCH_SIZE: usize = 4096;
 
 impl WriteQueue {
 	fn new(cache_len: usize) -> WriteQueue {
@@ -53,11 +53,11 @@ impl WriteQueue {
 	}
 
 	fn write(&mut self, key: Vec<u8>, val: Vec<u8>) {
-		self.cache.entry(key).or_insert(WriteCacheEntry::Write(val));
+		self.cache.insert(key, WriteCacheEntry::Write(val));
 	}
 
 	fn remove(&mut self, key: Vec<u8>) {
-		self.cache.entry(key).or_insert(WriteCacheEntry::Remove);
+		self.cache.insert(key, WriteCacheEntry::Remove);
 	}
 
 	fn get(&self, key: &Vec<u8>) -> Option<Vec<u8>> {
@@ -92,7 +92,9 @@ impl WriteQueue {
 
 			removed_so_far = removed_so_far + 1;
 		}
-		if removed_so_far > 0 { try!(db.write(batch)); }
+		if removed_so_far > 0 {
+			try!(db.write(batch));
+		}
 		Ok(())
 	}
 
@@ -349,7 +351,7 @@ mod test {
 		db.open_default(path.as_str().to_owned()).unwrap();
 
 		db.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
-		db.flush().unwrap();
+		db.flush_all().unwrap();
 		assert!(!db.is_empty().unwrap());
 	}
 
@@ -380,7 +382,7 @@ mod write_que_tests {
 		db.open_default(path.as_str().to_owned()).unwrap();
 		db.put("100500".as_bytes(), "1".as_bytes()).unwrap();
 		db.delete("100500".as_bytes()).unwrap();
-		db.flush().unwrap();
+		db.flush_all().unwrap();
 
 		let val = db.get("100500".as_bytes()).unwrap();
 		assert!(val.is_none());

@@ -7,7 +7,7 @@ use std::cell::RefCell;
 
 pub type IteratorHandle = u32;
 
-pub const DEFAULT_CACHE_LEN: usize = 20480;
+pub const DEFAULT_CACHE_LEN: usize = 12288;
 
 #[derive(Binary)]
 pub struct KeyValue {
