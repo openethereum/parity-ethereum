@@ -54,7 +54,7 @@ impl Key<BlockTraces> for H256 {
 	}
 }
 
-/// Wrapper around blooms::GroupPosition so it could be
+/// Wrapper around `blooms::GroupPosition` so it could be
 /// uniquely identified in the database.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct TraceGroupPosition(blooms::GroupPosition);
