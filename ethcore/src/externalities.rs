@@ -19,7 +19,7 @@ use common::*;
 use state::*;
 use engine::*;
 use executive::*;
-use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
+use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory, VMTraceFunctionBox};
 use substate::*;
 use trace::Tracer;
 
@@ -66,10 +66,10 @@ pub struct Externalities<'a, T> where T: 'a + Tracer {
 	schedule: Schedule,
 	output: OutputPolicy<'a, 'a>,
 	tracer: &'a mut T,
+	vm_tracer: Option<VMTraceFunctionBox>,
 }
 
 impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
-
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Basic `Externalities` constructor.
 	pub fn new(state: &'a mut State,
@@ -93,6 +93,35 @@ impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
 			schedule: engine.schedule(env_info),
 			output: output,
 			tracer: tracer,
+			vm_tracer: None,
+		}
+	}
+
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
+	/// Basic `Externalities` constructor.
+	pub fn with_vm_tracer(state: &'a mut State,
+		env_info: &'a EnvInfo,
+		engine: &'a Engine,
+		vm_factory: &'a Factory,
+		depth: usize,
+		origin_info: OriginInfo,
+		substate: &'a mut Substate,
+		output: OutputPolicy<'a, 'a>,
+		tracer: &'a mut T,
+		vm_tracer: VMTraceFunctionBox,
+	) -> Self {
+		Externalities {
+			state: state,
+			env_info: env_info,
+			engine: engine,
+			vm_factory: vm_factory,
+			depth: depth,
+			origin_info: origin_info,
+			substate: substate,
+			schedule: engine.schedule(env_info),
+			output: output,
+			tracer: tracer,
+			vm_tracer: Some(vm_tracer),
 		}
 	}
 }
@@ -286,6 +315,8 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 	fn inc_sstore_clears(&mut self) {
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
 	}
+
+	fn vm_tracer(&mut self) -> Option<&mut VMTraceFunctionBox> { self.vm_tracer.as_mut() }
 }
 
 #[cfg(test)]

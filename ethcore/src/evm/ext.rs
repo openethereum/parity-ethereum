@@ -40,6 +40,9 @@ pub enum MessageCallResult {
 	Failed
 }
 
+/// The trace function callback for VM tracing (*not* transaction tracing - that's different).
+pub type VMTraceFunctionBox = Box<FnMut(usize, u8, U256, U256) + Send>;
+
 /// Externalities interface for EVMs
 pub trait Ext {
 	/// Returns a value for given key.
@@ -105,4 +108,7 @@ pub trait Ext {
 
 	/// Increments sstore refunds count by 1.
 	fn inc_sstore_clears(&mut self);
+
+	/// Provide a tracer for VM tracing if the VM implementation supports it.
+	fn vm_tracer(&mut self) -> Option<&mut VMTraceFunctionBox>;
 }

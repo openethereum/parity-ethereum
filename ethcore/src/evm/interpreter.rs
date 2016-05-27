@@ -311,6 +311,12 @@ impl evm::Evm for Interpreter {
 				);
 			});
 
+			// Call trace
+			// TODO: allow to be disabled at build time for max speed
+			if let Some(ref mut trace_instruction) = ext.vm_tracer() {
+				(*trace_instruction.deref_mut())(reader.position, instruction, gas_cost, current_gas);
+			}
+
 			// Execute instruction
 			let result = try!(self.exec_instruction(
 					current_gas, &params, ext, instruction, &mut reader, &mut mem, &mut stack
@@ -833,10 +839,12 @@ impl Interpreter {
 		}
 	}
 
-	fn verify_instructions_requirements(&self,
-										info: &instructions::InstructionInfo,
-										stack_limit: usize,
-										stack: &Stack<U256>) -> Result<(), evm::Error> {
+	fn verify_instructions_requirements(
+		&self,
+		info: &instructions::InstructionInfo,
+		stack_limit: usize,
+		stack: &Stack<U256>
+	) -> Result<(), evm::Error> {
 		if !stack.has(info.args) {
 			Err(evm::Error::StackUnderflow {
 				instruction: info.name,
