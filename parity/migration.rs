@@ -73,7 +73,7 @@ fn version_file_path(path: &PathBuf) -> PathBuf {
 }
 
 /// Reads current database version from the file at given path.
-/// If the file does not exist returns DEFAULT_VERSION.
+/// If the file does not exist returns `DEFAULT_VERSION`.
 fn current_version(path: &PathBuf) -> Result<u32, Error> {
 	match File::open(version_file_path(path)) {
 		Err(ref err) if err.kind() == ErrorKind::NotFound => Ok(DEFAULT_VERSION),
