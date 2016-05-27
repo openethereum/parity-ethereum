@@ -103,6 +103,7 @@ fn setup_rpc_server(apis: Vec<&str>, deps: &Arc<Dependencies>) -> Server {
 				modules.insert("eth".to_owned(), "1.0".to_owned());
 				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
+				server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 			},
 			"personal" => {
 				modules.insert("personal".to_owned(), "1.0".to_owned());

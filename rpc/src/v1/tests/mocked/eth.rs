@@ -26,7 +26,7 @@ use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
 use ethminer::ExternalMiner;
-use v1::{Eth, EthClient};
+use v1::{Eth, EthClient, EthSigning, EthSigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
@@ -70,8 +70,11 @@ impl Default for EthTester {
 		let hashrates = Arc::new(RwLock::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner).to_delegate();
+		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
+		io.add_delegate(sign);
+
 		EthTester {
 			client: client,
 			sync: sync,

@@ -35,7 +35,7 @@ use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Act
 use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
-use v1::traits::{Eth, EthFilter};
+use v1::traits::{Eth, EthFilter, EthSigning};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::helpers::{PollFilter, PollManager};
 use v1::impls::{dispatch_transaction, sign_and_dispatch};
@@ -494,17 +494,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 		})
 	}
 
-	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(request, )| {
-				let accounts = take_weak!(self.accounts);
-				match accounts.account_secret(&request.from) {
-					Ok(secret) => sign_and_dispatch(&self.client, &self.miner, request, secret),
-					Err(_) => to_value(&H256::zero())
-				}
-		})
-	}
-
 	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Bytes, )>(params)
 			.and_then(|(raw_transaction, )| {
@@ -725,4 +714,49 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 				to_value(&true)
 			})
 	}
+}
+
+
+/// Implementation of functions that require signing when no trusted signer is used.
+pub struct EthSigningUnsafeClient<C, A, M> where
+	C: BlockChainClient,
+	A: AccountProvider,
+	M: MinerService {
+	client: Weak<C>,
+	accounts: Weak<A>,
+	miner: Weak<M>,
+}
+
+impl<C, A, M> EthSigningUnsafeClient<C, A, M> where
+	C: BlockChainClient,
+	A: AccountProvider,
+	M: MinerService {
+
+	/// Creates new EthClient.
+	pub fn new(client: &Arc<C>, accounts: &Arc<A>, miner: &Arc<M>)
+		-> Self {
+		EthSigningUnsafeClient {
+			client: Arc::downgrade(client),
+			miner: Arc::downgrade(miner),
+			accounts: Arc::downgrade(accounts),
+		}
+	}
+}
+
+impl<C, A, M> EthSigning for EthSigningUnsafeClient<C, A, M> where
+	C: BlockChainClient + 'static,
+	A: AccountProvider + 'static,
+	M: MinerService + 'static {
+
+	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, )>(params)
+			.and_then(|(request, )| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.account_secret(&request.from) {
+					Ok(secret) => sign_and_dispatch(&self.client, &self.miner, request, secret),
+					Err(_) => to_value(&H256::zero())
+				}
+		})
+	}
+
 }

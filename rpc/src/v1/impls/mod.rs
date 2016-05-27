@@ -34,7 +34,7 @@ mod traces;
 mod rpc;
 
 pub use self::web3::Web3Client;
-pub use self::eth::{EthClient, EthFilterClient};
+pub use self::eth::{EthClient, EthFilterClient, EthSigningUnsafeClient};
 pub use self::net::NetClient;
 pub use self::personal::PersonalClient;
 pub use self::ethcore::EthcoreClient;
