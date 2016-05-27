@@ -1255,15 +1255,15 @@ impl ChainSync {
 	}
 
 	fn propagate_latest_blocks(&mut self, io: &mut SyncIo) {
-		self.propagate_new_transactions(io);
 		let chain_info = io.chain().chain_info();
 		if (((chain_info.best_block_number as i64) - (self.last_sent_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let blocks = self.propagate_blocks(&chain_info, io);
 			let hashes = self.propagate_new_hashes(&chain_info, io);
+			let blocks = self.propagate_blocks(&chain_info, io);
 			if blocks != 0 || hashes != 0 {
 				trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
 			}
 		}
+		self.propagate_new_transactions(io);
 		self.last_sent_block_number = chain_info.best_block_number;
 	}
 
