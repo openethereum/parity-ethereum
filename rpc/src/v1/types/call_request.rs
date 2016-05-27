@@ -18,15 +18,23 @@ use util::hash::Address;
 use util::numbers::U256;
 use v1::types::Bytes;
 
+/// Call request
 #[derive(Debug, Default, PartialEq, Deserialize)]
 pub struct CallRequest {
+	/// From
 	pub from: Option<Address>,
+	/// To
 	pub to: Option<Address>,
+	/// Gas Price
 	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
+	/// Gas
 	pub gas: Option<U256>,
+	/// Value
 	pub value: Option<U256>,
+	/// Data
 	pub data: Option<Bytes>,
+	/// Nonce
 	pub nonce: Option<U256>,
 }
 

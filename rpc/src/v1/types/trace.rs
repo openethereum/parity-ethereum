@@ -19,11 +19,16 @@ use ethcore::trace::trace;
 use ethcore::trace::LocalizedTrace;
 use v1::types::Bytes;
 
+/// Create response
 #[derive(Debug, Serialize)]
 pub struct Create {
+	/// Sender
 	from: Address,
+	/// Value
 	value: U256,
+	/// Gas
 	gas: U256,
+	/// Initialization code
 	init: Bytes,
 }
 
@@ -38,12 +43,18 @@ impl From<trace::Create> for Create {
 	}
 }
 
+/// Call response
 #[derive(Debug, Serialize)]
 pub struct Call {
+	/// Sender
 	from: Address,
+	/// Recipient
 	to: Address,
+	/// Transfered Value
 	value: U256,
+	/// Gas
 	gas: U256,
+	/// Input data
 	input: Bytes,
 }
 
@@ -59,10 +70,13 @@ impl From<trace::Call> for Call {
 	}
 }
 
+/// Action
 #[derive(Debug, Serialize)]
 pub enum Action {
+	/// Call
 	#[serde(rename="call")]
 	Call(Call),
+	/// Create
 	#[serde(rename="create")]
 	Create(Create),
 }
@@ -76,10 +90,13 @@ impl From<trace::Action> for Action {
 	}
 }
 
+/// Call Result
 #[derive(Debug, Serialize)]
 pub struct CallResult {
+	/// Gas used
 	#[serde(rename="gasUsed")]
 	gas_used: U256,
+	/// Output bytes
 	output: Bytes,
 }
 
@@ -92,11 +109,15 @@ impl From<trace::CallResult> for CallResult {
 	}
 }
 
+/// Craete Result
 #[derive(Debug, Serialize)]
 pub struct CreateResult {
+	/// Gas used
 	#[serde(rename="gasUsed")]
 	gas_used: U256,
+	/// Code
 	code: Bytes,
+	/// Assigned address
 	address: Address,
 }
 
@@ -110,14 +131,19 @@ impl From<trace::CreateResult> for CreateResult {
 	}
 }
 
+/// Response
 #[derive(Debug, Serialize)]
 pub enum Res {
+	/// Call
 	#[serde(rename="call")]
 	Call(CallResult),
+	/// Create
 	#[serde(rename="create")]
 	Create(CreateResult),
+	/// Call failure
 	#[serde(rename="failedCall")]
 	FailedCall,
+	/// Creation failure
 	#[serde(rename="failedCreate")]
 	FailedCreate,
 }
@@ -133,19 +159,28 @@ impl From<trace::Res> for Res {
 	}
 }
 
+/// Trace
 #[derive(Debug, Serialize)]
 pub struct Trace {
+	/// Action
 	action: Action,
+	/// Result
 	result: Res,
+	/// Trace address
 	#[serde(rename="traceAddress")]
 	trace_address: Vec<U256>,
+	/// Subtraces
 	subtraces: U256,
+	/// Transaction position
 	#[serde(rename="transactionPosition")]
 	transaction_position: U256,
+	/// Transaction hash
 	#[serde(rename="transactionHash")]
 	transaction_hash: H256,
+	/// Block Number
 	#[serde(rename="blockNumber")]
 	block_number: U256,
+	/// Block Hash
 	#[serde(rename="blockHash")]
 	block_hash: H256,
 }

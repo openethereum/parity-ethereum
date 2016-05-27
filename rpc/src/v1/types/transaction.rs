@@ -18,22 +18,34 @@ use util::numbers::*;
 use ethcore::transaction::{LocalizedTransaction, Action, SignedTransaction};
 use v1::types::{Bytes, OptionalValue};
 
+/// Transaction
 #[derive(Debug, Default, Serialize)]
 pub struct Transaction {
+	/// Hash
 	pub hash: H256,
+	/// Nonce
 	pub nonce: U256,
+	/// Block hash
 	#[serde(rename="blockHash")]
 	pub block_hash: OptionalValue<H256>,
+	/// Block number
 	#[serde(rename="blockNumber")]
 	pub block_number: OptionalValue<U256>,
+	/// Transaction Index
 	#[serde(rename="transactionIndex")]
 	pub transaction_index: OptionalValue<U256>,
+	/// Sender
 	pub from: Address,
+	/// Recipient
 	pub to: OptionalValue<Address>,
+	/// Transfered value
 	pub value: U256,
+	/// Gas Price
 	#[serde(rename="gasPrice")]
 	pub gas_price: U256,
+	/// Gas
 	pub gas: U256,
+	/// Data
 	pub input: Bytes
 }
 

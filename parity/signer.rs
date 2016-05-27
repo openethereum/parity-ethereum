@@ -54,7 +54,7 @@ pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
 }
 
 #[cfg(not(feature = "ethcore-signer"))]
-pub fn start(conf: Configuration) -> !{
+pub fn start(conf: Configuration) -> Option<SignerServer> {
 	if !conf.enabled {
 		return None;
 	}

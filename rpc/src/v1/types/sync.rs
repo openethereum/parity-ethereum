@@ -17,19 +17,26 @@
 use serde::{Serialize, Serializer};
 use util::numbers::*;
 
+/// Sync info
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct SyncInfo {
+	/// Starting block
 	#[serde(rename="startingBlock")]
 	pub starting_block: U256,
+	/// Current block
 	#[serde(rename="currentBlock")]
 	pub current_block: U256,
+	/// Highest block seen so far
 	#[serde(rename="highestBlock")]
 	pub highest_block: U256,
 }
 
+/// Sync status
 #[derive(Debug, PartialEq)]
 pub enum SyncStatus {
+	/// Info when syncing
 	Info(SyncInfo),
+	/// Not syncing
 	None
 }
 

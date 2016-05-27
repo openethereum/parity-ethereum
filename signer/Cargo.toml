@@ -16,10 +16,11 @@ syntex = "^0.32.0"
 serde = "0.7.0"
 serde_json = "0.7.0"
 rustc-serialize = "0.3"
-ethcore-util = { path = "../util" }
 log = "0.3"
 env_logger = "0.3"
 ws = "0.4.7"
+ethcore-util = { path = "../util" }
+ethcore-rpc = { path = "../rpc" }
 
 serde_macros = { version = "0.7.0", optional = true }
 clippy = { version = "0.0.69", optional = true}

@@ -22,10 +22,14 @@ use v1::types::BlockNumber;
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockID;
 
+/// Variadic value
 #[derive(Debug, PartialEq, Clone)]
 pub enum VariadicValue<T> where T: Deserialize {
+	/// Single
 	Single(T),
+	/// List
 	Multiple(Vec<T>),
+	/// None
 	Null,
 }
 
@@ -44,17 +48,24 @@ impl<T> Deserialize for VariadicValue<T> where T: Deserialize {
 	}
 }
 
+/// Filter Address
 pub type FilterAddress = VariadicValue<Address>;
+/// Topic
 pub type Topic = VariadicValue<H256>;
 
+/// Filter
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Filter {
+	/// From Block
 	#[serde(rename="fromBlock")]
 	pub from_block: Option<BlockNumber>,
+	/// To Block
 	#[serde(rename="toBlock")]
 	pub to_block: Option<BlockNumber>,
+	/// Address
 	pub address: Option<FilterAddress>,
+	/// Topics
 	pub topics: Option<Vec<Topic>>,
 }
 
