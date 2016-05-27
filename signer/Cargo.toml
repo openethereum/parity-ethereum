@@ -15,11 +15,13 @@ syntex = "^0.32.0"
 [dependencies]
 serde = "0.7.0"
 serde_json = "0.7.0"
-serde_macros = { version = "0.7.0", optional = true }
 rustc-serialize = "0.3"
 ethcore-util = { path = "../util" }
 log = "0.3"
 env_logger = "0.3"
+ws = "0.4.7"
+
+serde_macros = { version = "0.7.0", optional = true }
 clippy = { version = "0.0.69", optional = true}
 
 [features]

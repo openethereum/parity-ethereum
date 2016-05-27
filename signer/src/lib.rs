@@ -30,7 +30,15 @@
 //! and their responsibility is to confirm (or confirm and sign)
 //! the transaction for you.
 //!
+//! ```
+//! extern crate ethcore_signer;
 //!
+//! use ethcore_signer::Server;
+//!
+//!	fn main() {
+//!	 let _server = Server::start("127.0.0.1:8084".parse().unwrap());
+//!	}
+//! ```
 
 #[macro_use]
 extern crate log;
@@ -41,9 +49,13 @@ extern crate serde_json;
 extern crate rustc_serialize;
 
 extern crate ethcore_util as util;
+extern crate ws;
 
 mod signing_queue;
+mod ws_server;
 pub mod types;
+
+pub use ws_server::*;
 
 #[cfg(test)]
 mod tests {

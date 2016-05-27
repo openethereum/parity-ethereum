@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Serializable wrapper around vector of bytes
+
 use rustc_serialize::hex::ToHex;
 use serde::{Serialize, Serializer, Deserialize, Deserializer, Error};
 use serde::de::Visitor;
 use util::common::FromHex;
-
-///! Serializable wrapper around vector of bytes
 
 /// Wrapper structure around vector of bytes.
 #[derive(Debug, PartialEq, Eq, Default, Hash, Clone)]
