@@ -115,7 +115,7 @@ fn can_collect_garbage() {
 fn can_handle_long_fork() {
 	let client_result = generate_dummy_client(1200);
 	let client = client_result.reference();
-	for _ in 0..10 {
+	for _ in 0..20 {
 		client.import_verified_blocks(&IoChannel::disconnected());
 	}
 	assert_eq!(1200, client.chain_info().best_block_number);
@@ -124,7 +124,7 @@ fn can_handle_long_fork() {
 	push_blocks_to_client(client, 49, 1201, 800);
 	push_blocks_to_client(client, 53, 1201, 600);
 
-	for _ in 0..20 {
+	for _ in 0..40 {
 		client.import_verified_blocks(&IoChannel::disconnected());
 	}
 	assert_eq!(2000, client.chain_info().best_block_number);
