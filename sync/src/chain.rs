@@ -133,7 +133,7 @@ const NODE_DATA_PACKET: u8 = 0x0e;
 const GET_RECEIPTS_PACKET: u8 = 0x0f;
 const RECEIPTS_PACKET: u8 = 0x10;
 
-const CONNECTION_TIMEOUT_SEC: f64 = 10f64;
+const CONNECTION_TIMEOUT_SEC: f64 = 15f64;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
