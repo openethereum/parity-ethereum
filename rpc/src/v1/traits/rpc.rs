@@ -23,10 +23,10 @@ use jsonrpc_core::*;
 pub trait Rpc: Sized + Send + Sync + 'static {
 
 	/// Returns supported modules for Geth 1.3.6
-	fn modules(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn modules(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns supported modules for Geth 1.4.0
-	fn rpc_modules(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn rpc_modules(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
