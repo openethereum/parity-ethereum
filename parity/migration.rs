@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{fs, env};
+use std::fs;
 use std::fs::File;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::PathBuf;
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, MigrationIterator};
-use util::kvdb::Database;
+use util::kvdb::{Database, DatabaseConfig};
 use ethcore::migrations;
 
 /// Database is assumed to be at default version, when no version file is found.
@@ -109,10 +109,19 @@ fn extras_database_path(path: &PathBuf) -> PathBuf {
 }
 
 /// Temporary database path used for migration.
-fn temp_database_path() -> PathBuf {
-	let mut dir = env::temp_dir();
-	dir.push("parity_migration");
-	dir
+fn temp_database_path(path: &PathBuf) -> PathBuf {
+	let mut temp_path = path.clone();
+	temp_path.pop();
+	temp_path.push("temp_migration");
+	temp_path
+}
+
+/// Database backup
+fn backup_database_path(path: &PathBuf) -> PathBuf {
+	let mut backup_path = path.clone();
+	backup_path.pop();
+	backup_path.push("temp_backup");
+	backup_path
 }
 
 /// Default migration settings.
@@ -144,26 +153,40 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 
 	println!("Migrating database {} from version {} to {}", path.to_string_lossy(), version, CURRENT_VERSION);
 
-	// get temp path
-	let temp_path = temp_database_path();
+	let temp_path = temp_database_path(&path);
+	let backup_path = backup_database_path(&path);
 	// remote the dir if it exists
 	let _ = fs::remove_dir_all(&temp_path);
+	let _ = fs::remove_dir_all(&backup_path);
 
 	{
+		let db_config = DatabaseConfig {
+			prefix_size: None,
+			max_open_files: 64,
+		};
+
 		// open old database
-		let old = try!(Database::open_default(path.to_str().unwrap()).map_err(|_| Error::MigrationFailed));
+		let old = try!(Database::open(&db_config, path.to_str().unwrap()).map_err(|_| Error::MigrationFailed));
 
 		// create new database
-		let mut temp = try!(Database::open_default(temp_path.to_str().unwrap()).map_err(|_| Error::MigrationFailed));
+		let mut temp = try!(Database::open(&db_config, temp_path.to_str().unwrap()).map_err(|_| Error::MigrationFailed));
 
 		// migrate old database to the new one
 		try!(migrations.execute(MigrationIterator::from(old.iter()), version, &mut temp).map_err(|_| Error::MigrationFailed));
 	}
 
-	// replace the old database with the new one
-	try!(fs::remove_dir_all(&path));
-	try!(fs::rename(&temp_path, &path));
+	// create backup
+	try!(fs::rename(&path, &backup_path));
 
+	// replace the old database with the new one
+	if let Err(err) = fs::rename(&temp_path, &path) {
+		// if something went wrong, bring back backup
+		try!(fs::rename(&backup_path, path));
+		return Err(From::from(err));
+	}
+
+	// remove backup
+	try!(fs::remove_dir_all(&backup_path));
 	println!("Migration finished");
 
 	Ok(())

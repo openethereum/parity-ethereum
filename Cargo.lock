@@ -920,7 +920,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-wallet"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#37b1691d74ad9bdabc64f58684d9d0a6d1aeef66"
+source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#25402ce0a02ae49eb66c9e3852b392267a027ea3"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
