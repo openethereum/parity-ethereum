@@ -862,16 +862,12 @@ impl ChainSync {
 				warn!(target:"sync", "Asking {:?} while requesting {:?}", peer.asking, asking);
 			}
 		}
-		match sync.send(peer_id, packet_id, packet) {
-			Err(e) => {
-				debug!(target:"sync", "Error sending request: {:?}", e);
-				sync.disable_peer(peer_id);
-			}
-			Ok(_) => {
-				let mut peer = self.peers.get_mut(&peer_id).unwrap();
-				peer.asking = asking;
-				peer.ask_time = time::precise_time_s();
-			}
+		let mut peer = self.peers.get_mut(&peer_id).unwrap();
+		peer.asking = asking;
+		peer.ask_time = time::precise_time_s();
+		if let Err(e) = sync.send(peer_id, packet_id, packet) {
+			debug!(target:"sync", "Error sending request: {:?}", e);
+			sync.disable_peer(peer_id);
 		}
 	}
 
