@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use util::numbers::H256;
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
-use extras::{BlockDetails, BlockReceipts, TransactionAddress, BlocksBlooms};
+use blooms::BloomGroup;
+use super::extras::{BlockDetails, BlockReceipts, TransactionAddress, LogGroupPosition};
 
 /// Block extras update info.
 pub struct ExtrasUpdate {
@@ -17,5 +18,5 @@ pub struct ExtrasUpdate {
 	/// Modified transaction addresses.
 	pub transactions_addresses: HashMap<H256, TransactionAddress>,
 	/// Modified blocks blooms.
-	pub blocks_blooms: HashMap<H256, BlocksBlooms>,
+	pub blocks_blooms: HashMap<LogGroupPosition, BloomGroup>,
 }

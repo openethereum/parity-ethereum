@@ -16,17 +16,20 @@
 
 //! Blockchain database.
 
-pub mod blockchain;
 mod best_block;
 mod block_info;
-mod bloom_indexer;
+pub mod blockchain;
 mod cache;
-mod update;
+mod config;
+pub mod extras;
 mod import_route;
+mod update;
+
 #[cfg(test)]
 mod generator;
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
+pub use self::blockchain::{BlockProvider, BlockChain};
 pub use self::cache::CacheSize;
+pub use self::config::Config;
 pub use types::tree_route::TreeRoute;
 pub use self::import_route::ImportRoute;

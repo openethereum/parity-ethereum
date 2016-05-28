@@ -47,7 +47,9 @@ impl ArchiveDB {
 	/// Create a new instance from file
 	pub fn new(path: &str) -> ArchiveDB {
 		let opts = DatabaseConfig {
-			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
+			//use 12 bytes as prefix, this must match account_db prefix
+			prefix_size: Some(12),
+			max_open_files: 256,
 		};
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);

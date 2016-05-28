@@ -14,27 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Represents bloom index in cache
+use bloomchain::group as bc;
+use util::HeapSizeOf;
 
-/// Represents bloom index in cache
-/// 
-/// On cache level 0, every block bloom is represented by different index.
-/// On higher cache levels, multiple block blooms are represented by one
-/// index. Their `BloomIndex` can be created from block number and given level.
-#[derive(Eq, PartialEq, Hash, Clone, Debug)]
-pub struct BloomIndex {
-	/// Bloom level
+/// Represents `BloomGroup` position in database.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub struct GroupPosition {
+	/// Bloom level.
 	pub level: u8,
-	///  Filter Index
-	pub index: usize,
+	/// Group index.
+	pub index: u32,
 }
 
-impl BloomIndex {
-	/// Default constructor for `BloomIndex`
-	pub fn new(level: u8, index: usize) -> BloomIndex {
-		BloomIndex {
-			level: level,
-			index: index,
+impl From<bc::GroupPosition> for GroupPosition {
+	fn from(p: bc::GroupPosition) -> Self {
+		GroupPosition {
+			level: p.level as u8,
+			index: p.index as u32,
 		}
+	}
+}
+
+impl HeapSizeOf for GroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		0
 	}
 }

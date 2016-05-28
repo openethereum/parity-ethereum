@@ -14,11 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! kvdb::Database as migration::Destination
+//! `kvdb::Database` as `migration::Destination`
 
 use std::collections::BTreeMap;
-use kvdb::{Database, DBTransaction};
+use kvdb::{Database, DatabaseIterator, DBTransaction};
 use migration::{Destination, Error};
+
+/// Database iterator with `Item` complient with migration `Manager` interface.
+pub struct MigrationIterator {
+	iter: DatabaseIterator,
+}
+
+impl From<DatabaseIterator> for MigrationIterator {
+	fn from(iter: DatabaseIterator) -> Self {
+		MigrationIterator {
+			iter: iter
+		}
+	}
+}
+
+impl Iterator for MigrationIterator {
+	type Item = (Vec<u8>, Vec<u8>);
+
+	fn next(&mut self) -> Option<Self::Item> {
+		self.iter.next().map(|(k, v)| (k.to_vec(), v.to_vec()))
+	}
+}
 
 impl Destination for Database {
 	fn commit(&mut self, batch: BTreeMap<Vec<u8>, Vec<u8>>) -> Result<(), Error> {

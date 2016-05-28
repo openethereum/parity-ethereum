@@ -41,7 +41,7 @@ impl<'db> SecTrieDB<'db> {
 	}
 
 	/// Get a mutable reference to the underlying raw `TrieDB` struct.
-	pub fn raw_mut(&mut self) -> &TrieDB {
+	pub fn raw_mut(&mut self) -> &mut TrieDB<'db> {
 		&mut self.raw
 	}
 }

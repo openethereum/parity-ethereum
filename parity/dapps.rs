@@ -22,13 +22,13 @@ use ethsync::EthSync;
 use ethminer::{Miner, ExternalMiner};
 use util::RotatingLogger;
 use util::panics::PanicHandler;
-use util::keys::store::{AccountService};
+use util::keys::store::AccountService;
 use util::network_settings::NetworkSettings;
 use die::*;
 
-#[cfg(feature = "webapp")]
-pub use ethcore_webapp::Server as WebappServer;
-#[cfg(not(feature = "webapp"))]
+#[cfg(feature = "dapps")]
+pub use ethcore_dapps::Server as WebappServer;
+#[cfg(not(feature = "dapps"))]
 pub struct WebappServer;
 
 pub struct Configuration {
@@ -74,11 +74,11 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappSer
 		(username.to_owned(), password)
 	});
 
-	Some(setup_webapp_server(deps, &addr, auth))
+	Some(setup_dapps_server(deps, &addr, auth))
 }
 
-#[cfg(not(feature = "webapp"))]
-pub fn setup_webapp_server(
+#[cfg(not(feature = "dapps"))]
+pub fn setup_dapps_server(
 	_deps: Dependencies,
 	_url: &SocketAddr,
 	_auth: Option<(String, String)>,
@@ -86,21 +86,21 @@ pub fn setup_webapp_server(
 	die!("Your Parity version has been compiled without WebApps support.")
 }
 
-#[cfg(feature = "webapp")]
-pub fn setup_webapp_server(
+#[cfg(feature = "dapps")]
+pub fn setup_dapps_server(
 	deps: Dependencies,
 	url: &SocketAddr,
 	auth: Option<(String, String)>
 ) -> WebappServer {
 	use ethcore_rpc::v1::*;
-	use ethcore_webapp as webapp;
+	use ethcore_dapps as dapps;
 
-	let server = webapp::ServerBuilder::new();
+	let server = dapps::ServerBuilder::new();
 	server.add_delegate(Web3Client::new().to_delegate());
 	server.add_delegate(NetClient::new(&deps.sync).to_delegate());
 	server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
 	server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
-	server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate());
+	server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner).to_delegate());
 	server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate());
 
 	let start_result = match auth {
@@ -113,7 +113,7 @@ pub fn setup_webapp_server(
 	};
 
 	match start_result {
-		Err(webapp::ServerError::IoError(err)) => die_with_io_error("WebApps", err),
+		Err(dapps::ServerError::IoError(err)) => die_with_io_error("WebApps", err),
 		Err(e) => die!("WebApps: {:?}", e),
 		Ok(server) => {
 			server.set_panic_handler(move || {

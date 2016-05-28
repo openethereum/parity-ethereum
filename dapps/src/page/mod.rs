@@ -23,7 +23,7 @@ use hyper::status::StatusCode;
 use hyper::net::HttpStream;
 use hyper::{Decoder, Encoder, Next};
 use endpoint::{Endpoint, EndpointInfo, EndpointPath};
-use parity_webapp::{WebApp, Info};
+use parity_dapps::{WebApp, Info};
 
 pub struct PageEndpoint<T : WebApp + 'static> {
 	/// Content of the files
@@ -159,7 +159,7 @@ impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 
 
 #[cfg(test)]
-use parity_webapp::File;
+use parity_dapps::File;
 
 #[cfg(test)]
 #[derive(Default)]

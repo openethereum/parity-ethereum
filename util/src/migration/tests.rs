@@ -70,6 +70,7 @@ fn one_simple_migration() {
 }
 
 #[test]
+#[should_panic]
 fn no_migration_needed() {
 	let mut manager = Manager::new(Config::default());
 	let keys = vec![vec![], vec![1u8]];
@@ -79,7 +80,6 @@ fn no_migration_needed() {
 	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
 	manager.execute(db, 1, &mut result).unwrap();
-	assert!(result.is_empty());
 }
 
 #[test]
@@ -116,4 +116,15 @@ fn second_migration() {
 	manager.add_migration(Migration1).unwrap();
 	manager.execute(db, 1, &mut result).unwrap();
 	assert_eq!(expected_db, result);
+}
+
+#[test]
+fn is_migration_needed() {
+	let mut manager = Manager::new(Config::default());
+	manager.add_migration(Migration0).unwrap();
+	manager.add_migration(Migration1).unwrap();
+
+	assert!(manager.is_needed(0));
+	assert!(manager.is_needed(1));
+	assert!(!manager.is_needed(2));
 }

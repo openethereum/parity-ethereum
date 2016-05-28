@@ -84,19 +84,18 @@ API and Console Options:
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
                            IPC [default: web3,eth,net,personal,ethcore].
 
-  --webapp-off             Disable the web applications server (e.g. status
-                           page).
-  --webapp-port PORT       Specify the port portion of the WebApps server
+  --dapps-off              Disable the Dapps server (e.g. status page).
+  --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
-  --webapp-interface IP    Specify the hostname portion of the WebApps
+  --dapps-interface IP     Specify the hostname portion of the Dapps
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
-  --webapp-user USERNAME   Specify username for WebApps server. It will be
+  --dapps-user USERNAME    Specify username for Dapps server. It will be
                            used in HTTP Basic Authentication Scheme.
-                           If --webapp-pass is not specified you will be
+                           If --dapps-pass is not specified you will be
                            asked for password on startup.
-  --webapp-pass PASSWORD   Specify password for WebApps server. Use only in
-                           conjunction with --webapp-user.
+  --dapps-pass PASSWORD    Specify password for Dapps server. Use only in
+                           conjunction with --dapps-user.
 
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
@@ -168,7 +167,7 @@ Legacy Options:
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   -j --jsonrpc             Does nothing; JSON-RPC is on by default now.
-  -w --webapp              Does nothing; web app server is on by default now.
+  -w --webapp              Does nothing; dapps server is on by default now.
   --rpc                    Does nothing; JSON-RPC is on by default now.
   --rpcaddr IP             Equivalent to --jsonrpc-interface IP.
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
@@ -230,11 +229,11 @@ pub struct Args {
 	pub flag_ipc_off: bool,
 	pub flag_ipc_path: String,
 	pub flag_ipc_apis: String,
-	pub flag_webapp_off: bool,
-	pub flag_webapp_port: u16,
-	pub flag_webapp_interface: String,
-	pub flag_webapp_user: Option<String>,
-	pub flag_webapp_pass: Option<String>,
+	pub flag_dapps_off: bool,
+	pub flag_dapps_port: u16,
+	pub flag_dapps_interface: String,
+	pub flag_dapps_user: Option<String>,
+	pub flag_dapps_pass: Option<String>,
 	pub flag_force_sealing: bool,
 	pub flag_author: String,
 	pub flag_usd_per_tx: String,

@@ -17,11 +17,11 @@
 //! Ethcore Webapplications for Parity
 //! ```
 //! extern crate jsonrpc_core;
-//! extern crate ethcore_webapp;
+//! extern crate ethcore_dapps;
 //!
 //! use std::sync::Arc;
 //! use jsonrpc_core::IoHandler;
-//! use ethcore_webapp::*;
+//! use ethcore_dapps::*;
 //!
 //! struct SayHello;
 //! impl MethodCommand for SayHello {
@@ -51,7 +51,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
-extern crate parity_webapp;
+extern crate parity_dapps;
 
 mod endpoint;
 mod apps;
@@ -75,7 +75,7 @@ pub struct ServerBuilder {
 }
 
 impl ServerBuilder {
-	/// Construct new webapps
+	/// Construct new dapps server
 	pub fn new() -> Self {
 		ServerBuilder {
 			handler: Arc::new(IoHandler::new())

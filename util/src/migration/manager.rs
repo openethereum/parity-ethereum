@@ -76,10 +76,6 @@ impl Manager {
 	pub fn execute<D>(&self, db_iter: D, version: u32, destination: &mut Destination) -> Result<(), Error> where
 		D: Iterator<Item = (Vec<u8>, Vec<u8>)> {
 
-		if self.is_latest_version(version) {
-			return Ok(());
-		}
-
 		let migrations = try!(self.migrations_from(version).ok_or(Error::MigrationImpossible));
 
 		let mut batch: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
@@ -104,11 +100,11 @@ impl Manager {
 		Ok(())
 	}
 
-	/// Returns true if given string is equal to latest known version.
-	pub fn is_latest_version(&self, version: u32) -> bool {
+	/// Returns true if migration is needed.
+	pub fn is_needed(&self, version: u32) -> bool {
 		match self.migrations.last() {
-			Some(last) => version == last.version(),
-			None => true
+			Some(last) => version < last.version(),
+			None => false,
 		}
 	}
 

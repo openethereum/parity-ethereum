@@ -1,0 +1,21 @@
+[package]
+description = "Ethcore Trusted Signer"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "ethcore-signer"
+version = "1.2.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
+
+[build-dependencies]
+rustc_version = "0.1"
+
+[dependencies]
+ethcore-util = { path = "../util" }
+log = "0.3"
+env_logger = "0.3"
+clippy = { version = "0.0.69", optional = true}
+
+[features]
+default = []
+dev = ["clippy"]

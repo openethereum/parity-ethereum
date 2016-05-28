@@ -32,11 +32,11 @@ pub struct EndpointPath {
 
 #[derive(Debug, PartialEq)]
 pub struct EndpointInfo {
-	pub name: String,
-	pub description: String,
-	pub version: String,
-	pub author: String,
-	pub icon_url: String,
+	pub name: &'static str,
+	pub description: &'static str,
+	pub version: &'static str,
+	pub author: &'static str,
+	pub icon_url: &'static str,
 }
 
 pub trait Endpoint : Send + Sync {

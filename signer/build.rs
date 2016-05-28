@@ -14,22 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Multilevel blockchain bloom filter.
+extern crate rustc_version;
 
-mod bloomindex;
-mod chainfilter;
-mod indexer;
+use rustc_version::{version_meta, Channel};
 
-#[cfg(test)]
-mod tests;
-
-pub use self::bloomindex::BloomIndex;
-pub use self::chainfilter::ChainFilter;
-use util::hash::H2048;
-
-/// Types implementing this trait provide read access for bloom filters database.
-pub trait FilterDataSource {
-	/// returns reference to log at given position if it exists
-	fn bloom_at_index(&self, index: &BloomIndex) -> Option<H2048>;
+fn main() {
+	if let Channel::Nightly = version_meta().channel {
+		println!("cargo:rustc-cfg=nightly");
+	}
 }
-

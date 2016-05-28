@@ -23,6 +23,7 @@ mod manager;
 mod tests;
 
 pub use self::manager::{Error, Config, Manager};
+pub use self::db_impl::MigrationIterator;
 use std::collections::BTreeMap;
 
 /// Single migration.
