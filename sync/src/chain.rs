@@ -1165,24 +1165,23 @@ impl ChainSync {
 			.collect::<Vec<_>>()
 	}
 
+
+	fn select_lagging_peers(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo) -> Vec<(PeerId, BlockNumber)> {
+		use rand::Rng;
+		let mut lagging_peers = self.get_lagging_peers(chain_info, io);
+		// take sqrt(x) peers
+		let mut count = (self.peers.len() as f64).powf(0.5).round() as usize;
+		count = min(count, MAX_PEERS_PROPAGATION);
+		count = max(count, MIN_PEERS_PROPAGATION);
+		::rand::thread_rng().shuffle(&mut lagging_peers);
+		lagging_peers.into_iter().take(count).collect::<Vec<_>>()
+	}
+
 	/// propagates latest block to lagging peers
 	fn propagate_blocks(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo) -> usize {
-		let updated_peers = {
-			let lagging_peers = self.get_lagging_peers(chain_info, io);
-
-			// sqrt(x)/x scaled to max u32
-			let fraction = (self.peers.len() as f64).powf(-0.5).mul(u32::max_value() as f64).round() as u32;
-			let lucky_peers = match lagging_peers.len() {
-				0 ... MIN_PEERS_PROPAGATION => lagging_peers,
-				_ => lagging_peers.into_iter().filter(|_| ::rand::random::<u32>() < fraction).collect::<Vec<_>>()
-			};
-
-			// taking at max of MAX_PEERS_PROPAGATION
-			lucky_peers.iter().map(|&(id, _)| id.clone()).take(min(lucky_peers.len(), MAX_PEERS_PROPAGATION)).collect::<Vec<PeerId>>()
-		};
-
+		let lucky_peers = self.select_lagging_peers(chain_info, io);
 		let mut sent = 0;
-		for peer_id in updated_peers {
+		for (peer_id, _) in lucky_peers {
 			let rlp = ChainSync::create_latest_block_rlp(io.chain());
 			self.send_packet(io, peer_id, NEW_BLOCK_PACKET, rlp);
 			self.peers.get_mut(&peer_id).unwrap().latest_hash = chain_info.best_block_hash.clone();
@@ -1194,12 +1193,12 @@ impl ChainSync {
 
 	/// propagates new known hashes to all peers
 	fn propagate_new_hashes(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo) -> usize {
-		let updated_peers = self.get_lagging_peers(chain_info, io);
+		let lucky_peers = self.select_lagging_peers(chain_info, io);
 		let mut sent = 0;
 		let last_parent = HeaderView::new(&io.chain().block_header(BlockID::Hash(chain_info.best_block_hash.clone())).unwrap()).parent_hash();
-		for (peer_id, peer_number) in updated_peers {
+		for (peer_id, peer_number) in lucky_peers {
 			let mut peer_best = self.peers.get(&peer_id).unwrap().latest_hash.clone();
-			if chain_info.best_block_number - peer_number > MAX_PEERS_PROPAGATION as BlockNumber {
+			if chain_info.best_block_number - peer_number > MAX_PEER_LAG_PROPAGATION as BlockNumber {
 				// If we think peer is too far behind just send one latest hash
 				peer_best = last_parent.clone();
 			}
