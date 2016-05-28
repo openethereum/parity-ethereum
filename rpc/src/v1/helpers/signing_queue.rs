@@ -15,41 +15,57 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Mutex;
-use std::collections::HashSet;
-use v1::types::TransactionRequest;
+use std::collections::HashMap;
+use v1::types::{TransactionRequest, TransactionConfirmation};
+use util::U256;
 
 /// A queue of transactions awaiting to be confirmed and signed.
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
-	fn add_request(&self, transaction: TransactionRequest);
+	fn add_request(&self, transaction: TransactionRequest) -> U256;
 
 	/// Remove request from the queue.
-	fn remove_request(&self, id: TransactionRequest);
+	fn remove_request(&self, id: U256) -> Option<TransactionConfirmation>;
 
 	/// Return copy of all the requests in the queue.
-	fn requests(&self) -> HashSet<TransactionRequest>;
+	fn requests(&self) -> Vec<TransactionConfirmation>;
 }
 
-impl SigningQueue for Mutex<HashSet<TransactionRequest>> {
-	fn add_request(&self, transaction: TransactionRequest) {
-		self.lock().unwrap().insert(transaction);
+#[derive(Default)]
+pub struct ConfirmationsQueue {
+	id: Mutex<U256>,
+	queue: Mutex<HashMap<U256, TransactionConfirmation>>,
+}
+
+impl SigningQueue for  ConfirmationsQueue {
+	fn add_request(&self, transaction: TransactionRequest) -> U256 {
+		// Increment id
+		let id = {
+			let mut last_id = self.id.lock().unwrap();
+			*last_id = *last_id + U256::from(1);
+			*last_id
+		};
+		let mut queue = self.queue.lock().unwrap();
+		queue.insert(id, TransactionConfirmation {
+			id: id,
+			transaction: transaction,
+		});
+		id
 	}
 
-	fn remove_request(&self, id: TransactionRequest) {
-		self.lock().unwrap().remove(&id);
+	fn remove_request(&self, id: U256) -> Option<TransactionConfirmation> {
+		self.queue.lock().unwrap().remove(&id)
 	}
 
-	fn requests(&self) -> HashSet<TransactionRequest> {
-		let queue = self.lock().unwrap();
-		queue.clone()
+	fn requests(&self) -> Vec<TransactionConfirmation> {
+		let queue = self.queue.lock().unwrap();
+		queue.values().cloned().collect()
 	}
 }
 
 
 #[cfg(test)]
 mod test {
-	use std::sync::Mutex;
-	use std::collections::HashSet;
 	use util::hash::Address;
 	use util::numbers::U256;
 	use v1::types::TransactionRequest;
@@ -58,7 +74,7 @@ mod test {
 	#[test]
 	fn should_work_for_hashset() {
 		// given
-		let queue = Mutex::new(HashSet::new());
+		let queue = ConfirmationsQueue::default();
 
 		let request = TransactionRequest {
 			from: Address::from(1),
@@ -76,6 +92,8 @@ mod test {
 
 		// then
 		assert_eq!(all.len(), 1);
-		assert!(all.contains(&request));
+		let el = all.get(0).unwrap();
+		assert_eq!(el.id, U256::from(1));
+		assert_eq!(el.transaction, request);
 	}
 }

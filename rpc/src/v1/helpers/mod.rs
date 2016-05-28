@@ -20,4 +20,4 @@ mod signing_queue;
 
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::PollFilter;
-pub use self::signing_queue::SigningQueue;
+pub use self::signing_queue::{ConfirmationsQueue, SigningQueue};

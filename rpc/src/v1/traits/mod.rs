@@ -31,7 +31,7 @@ pub mod rpc;
 pub use self::web3::Web3;
 pub use self::eth::{Eth, EthFilter, EthSigning};
 pub use self::net::Net;
-pub use self::personal::{Personal, SignerPersonal};
+pub use self::personal::{Personal, PersonalSigner};
 pub use self::ethcore::Ethcore;
 pub use self::traces::Traces;
 pub use self::rpc::Rpc;

@@ -18,8 +18,8 @@
 
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
-use v1::traits::SignerPersonal;
-use v1::types::TransactionRequest;
+use v1::traits::PersonalSigner;
+use v1::types::TransactionModification;
 use v1::impls::sign_and_dispatch;
 use v1::helpers::SigningQueue;
 use util::keys::store::AccountProvider;
@@ -50,20 +50,44 @@ impl<A: 'static, C: 'static, M: 'static> SignerClient<A, C, M>
 	}
 }
 
-impl<A: 'static, C: 'static, M: 'static> SignerPersonal for SignerClient<A, C, M>
+impl<A: 'static, C: 'static, M: 'static> PersonalSigner for SignerClient<A, C, M>
 	where A: AccountProvider, C: BlockChainClient, M: MinerService {
 
-	fn transactions_to_confirm(&self, params: Params) -> Result<Value, Error> {
+	fn transactions_to_confirm(&self, _params: Params) -> Result<Value, Error> {
 		let queue = take_weak!(self.queue);
 		to_value(&queue.requests())
 	}
 
 	fn confirm_transaction(&self, params: Params) -> Result<Value, Error> {
-		Err(Error::internal_error())
+		from_params::<(U256, TransactionModification, String)>(params).and_then(
+			|(id, modification, pass)| {
+				let accounts = take_weak!(self.accounts);
+				let queue = take_weak!(self.queue);
+				queue.remove_request(id)
+					.and_then(|confirmation| {
+						let mut request = confirmation.transaction;
+						// apply modification
+						if let Some(gas_price) = modification.gas_price {
+							request.gas_price = Some(gas_price);
+						}
+						match accounts.locked_account_secret(&request.from, &pass) {
+							Ok(secret) => Some(sign_and_dispatch(&self.client, &self.miner, request, secret)),
+							Err(_) => None
+						}
+					})
+					.unwrap_or_else(|| to_value(&H256::zero()))
+			}
+		)
 	}
 
 	fn reject_transaction(&self, params: Params) -> Result<Value, Error> {
-		Err(Error::internal_error())
+		from_params::<(U256, )>(params).and_then(
+			|(id, )| {
+				let queue = take_weak!(self.queue);
+				let res = queue.remove_request(id);
+				to_value(&res.is_some())
+			}
+		)
 	}
 }
 
