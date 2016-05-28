@@ -58,7 +58,7 @@ mod test {
 	#[test]
 	fn should_work_for_hashset() {
 		// given
-		let mut queue = Mutex::new(HashSet::new());
+		let queue = Mutex::new(HashSet::new());
 
 		let request = TransactionRequest {
 			from: Address::from(1),
