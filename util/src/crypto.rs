@@ -253,21 +253,26 @@ pub mod ec {
 /// ECDH functions
 #[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecdh {
-	use crypto::*;
-	use crypto::{self};
+	use hash::FixedHash;
+	use crypto::{self, Secret, Public, CryptoError};
 
 	/// Agree on a shared secret
 	pub fn agree(secret: &Secret, public: &Public) -> Result<Secret, CryptoError> {
-		use secp256k1::*;
+		use secp256k1::{ecdh, key};
+
 		let context = &crypto::SECP256K1;
-		let mut pdata: [u8; 65] = [4u8; 65];
-		let ptr = pdata[1..].as_mut_ptr();
-		let src = public.as_ptr();
-		unsafe { ::std::ptr::copy_nonoverlapping(src, ptr, 64) };
+		let pdata = {
+			let mut temp = [4u8; 65];
+			(&mut temp[1..65]).copy_from_slice(&public[0..64]);
+			temp
+		};
+
 		let publ = try!(key::PublicKey::from_slice(context, &pdata));
 		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
 		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
-		let s: Secret = unsafe { ::std::mem::transmute(shared) };
+
+		let mut s = crypto::Secret::new();
+		s.copy_from_slice(&shared[0..32]);
 		Ok(s)
 	}
 }
