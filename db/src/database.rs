@@ -24,7 +24,7 @@ use std::convert::From;
 use ipc::IpcConfig;
 use std::mem;
 use ipc::binary::BinaryConvertError;
-use std::collections::{VecDeque, HashMap};
+use std::collections::{VecDeque, HashMap, BTreeMap};
 
 impl From<String> for Error {
 	fn from(s: String) -> Error {
@@ -75,7 +75,8 @@ impl WriteCache {
 		while removed_so_far < amount {
 			if self.entries.len() == 0 { break; }
 			let removed_key = {
-				let (key, cache_entry) = self.entries.iter().nth(0).unwrap();
+				let (key, cache_entry) = self.entries.iter().nth(0)
+					.expect("if entries.len == 0, we should have break in the loop, still we got here somehow");
 
 				match *cache_entry {
 					WriteCacheEntry::Write(ref val) => {
@@ -119,7 +120,7 @@ impl WriteCache {
 pub struct Database {
 	db: RwLock<Option<DB>>,
 	/// Iterators - dont't use between threads!
-	iterators: RwLock<HashMap<IteratorHandle, DBIterator>>,
+	iterators: RwLock<BTreeMap<IteratorHandle, DBIterator>>,
 	write_cache: RwLock<WriteCache>,
 }
 
@@ -130,7 +131,7 @@ impl Database {
 	pub fn new() -> Database {
 		Database {
 			db: RwLock::new(None),
-			iterators: RwLock::new(HashMap::new()),
+			iterators: RwLock::new(BTreeMap::new()),
 			write_cache: RwLock::new(WriteCache::new(DEFAULT_CACHE_LEN)),
 		}
 	}
@@ -149,7 +150,7 @@ impl Database {
 		let mut cache_lock = self.write_cache.write().unwrap();
 		let db_lock = self.db.read().unwrap();
 		if db_lock.is_none() { return Ok(()); }
-		let db = db_lock.as_ref().unwrap();
+		let db = db_lock.as_ref().expect("we should have exited with Ok(()) on the previous step");
 
 		try!(cache_lock.flush_all(&db));
 		Ok(())
@@ -233,7 +234,7 @@ impl DatabaseService for Database {
 			let cache_hit = self.write_cache.read().unwrap().get(&key_vec);
 
 			if cache_hit.is_some() {
-				return Ok(Some(cache_hit.unwrap()))
+				return Ok(Some(cache_hit.expect("cache_hit.is_some() = true, still there is none somehow here")))
 			}
 		}
 		let db_lock = self.db.read().unwrap();
