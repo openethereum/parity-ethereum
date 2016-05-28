@@ -37,45 +37,45 @@ enum WriteCacheEntry {
 	Write(Vec<u8>),
 }
 
-pub struct WriteQueue {
-	cache: HashMap<Vec<u8>, WriteCacheEntry>,
+pub struct WriteCache {
+	entries: HashMap<Vec<u8>, WriteCacheEntry>,
 	preferred_len: usize,
 }
 
 const FLUSH_BATCH_SIZE: usize = 4096;
 
-impl WriteQueue {
-	fn new(cache_len: usize) -> WriteQueue {
-		WriteQueue {
-			cache: HashMap::new(),
+impl WriteCache {
+	fn new(cache_len: usize) -> WriteCache {
+		WriteCache {
+			entries: HashMap::new(),
 			preferred_len: cache_len,
 		}
 	}
 
 	fn write(&mut self, key: Vec<u8>, val: Vec<u8>) {
-		self.cache.insert(key, WriteCacheEntry::Write(val));
+		self.entries.insert(key, WriteCacheEntry::Write(val));
 	}
 
 	fn remove(&mut self, key: Vec<u8>) {
-		self.cache.insert(key, WriteCacheEntry::Remove);
+		self.entries.insert(key, WriteCacheEntry::Remove);
 	}
 
 	fn get(&self, key: &Vec<u8>) -> Option<Vec<u8>> {
-		self.cache.get(key).and_then(
+		self.entries.get(key).and_then(
 			|vec_ref| match vec_ref {
 				&WriteCacheEntry::Write(ref val) => Some(val.clone()),
 				&WriteCacheEntry::Remove => None
 			})
 	}
 
-	/// WriteQue should be locked for this
+	/// WriteCache should be locked for this
 	fn flush(&mut self, db: &DB, amount: usize) -> Result<(), Error> {
 		let batch = WriteBatch::new();
 		let mut removed_so_far = 0;
 		while removed_so_far < amount {
-			if self.cache.len() == 0 { break; }
+			if self.entries.len() == 0 { break; }
 			let removed_key = {
-				let (key, cache_entry) = self.cache.iter().nth(0).unwrap();
+				let (key, cache_entry) = self.entries.iter().nth(0).unwrap();
 
 				match *cache_entry {
 					WriteCacheEntry::Write(ref val) => {
@@ -88,7 +88,7 @@ impl WriteQueue {
 				key.clone()
 			};
 
-			self.cache.remove(&removed_key);
+			self.entries.remove(&removed_key);
 
 			removed_so_far = removed_so_far + 1;
 		}
@@ -98,18 +98,18 @@ impl WriteQueue {
 		Ok(())
 	}
 
-	/// flushes until que is empty
+	/// flushes until cache is empty
 	fn flush_all(&mut self, db: &DB) -> Result<(), Error> {
 		while !self.is_empty() { try!(self.flush(db, FLUSH_BATCH_SIZE)); }
 		Ok(())
 	}
 
 	fn is_empty(&self) -> bool {
-		self.cache.is_empty()
+		self.entries.is_empty()
 	}
 
 	fn try_shrink(&mut self, db: &DB) -> Result<(), Error> {
-		if self.cache.len() > self.preferred_len {
+		if self.entries.len() > self.preferred_len {
 			try!(self.flush(db, FLUSH_BATCH_SIZE));
 		}
 		Ok(())
@@ -120,7 +120,7 @@ pub struct Database {
 	db: RwLock<Option<DB>>,
 	/// Iterators - dont't use between threads!
 	iterators: RwLock<HashMap<IteratorHandle, DBIterator>>,
-	write_queue: RwLock<WriteQueue>,
+	write_cache: RwLock<WriteCache>,
 }
 
 unsafe impl Send for Database {}
@@ -131,27 +131,27 @@ impl Database {
 		Database {
 			db: RwLock::new(None),
 			iterators: RwLock::new(HashMap::new()),
-			write_queue: RwLock::new(WriteQueue::new(DEFAULT_CACHE_LEN)),
+			write_cache: RwLock::new(WriteCache::new(DEFAULT_CACHE_LEN)),
 		}
 	}
 
 	pub fn flush(&self) -> Result<(), Error> {
-		let mut queue = self.write_queue.write().unwrap();
+		let mut cache_lock = self.write_cache.write().unwrap();
 		let db_lock = self.db.read().unwrap();
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().unwrap();
 
-		try!(queue.try_shrink(&db));
+		try!(cache_lock.try_shrink(&db));
 		Ok(())
 	}
 
 	pub fn flush_all(&self) -> Result<(), Error> {
-		let mut queue = self.write_queue.write().unwrap();
+		let mut cache_lock = self.write_cache.write().unwrap();
 		let db_lock = self.db.read().unwrap();
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().unwrap();
 
-		try!(queue.flush_all(&db));
+		try!(cache_lock.flush_all(&db));
 		Ok(())
 
 	}
@@ -201,28 +201,28 @@ impl DatabaseService for Database {
 	}
 
 	fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
-		let mut queue_lock = self.write_queue.write().unwrap();
-		queue_lock.write(key.to_vec(), value.to_vec());
+		let mut cache_lock = self.write_cache.write().unwrap();
+		cache_lock.write(key.to_vec(), value.to_vec());
 		Ok(())
 	}
 
 	fn delete(&self, key: &[u8]) -> Result<(), Error> {
-		let mut queue_lock = self.write_queue.write().unwrap();
-		queue_lock.remove(key.to_vec());
+		let mut cache_lock = self.write_cache.write().unwrap();
+		cache_lock.remove(key.to_vec());
 		Ok(())
 	}
 
 	fn write(&self, transaction: DBTransaction) -> Result<(), Error> {
-		let mut queue_lock = self.write_queue.write().unwrap();
+		let mut cache_lock = self.write_cache.write().unwrap();
 
 		let mut writes = transaction.writes.borrow_mut();
 		for kv in writes.drain(..) {
-			queue_lock.write(kv.key, kv.value);
+			cache_lock.write(kv.key, kv.value);
 		}
 
 		let mut removes = transaction.removes.borrow_mut();
 		for k in removes.drain(..) {
-			queue_lock.remove(k);
+			cache_lock.remove(k);
 		}
 		Ok(())
 	}
@@ -230,7 +230,7 @@ impl DatabaseService for Database {
 	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		{
 			let key_vec = key.to_vec();
-			let cache_hit = self.write_queue.read().unwrap().get(&key_vec);
+			let cache_hit = self.write_cache.read().unwrap().get(&key_vec);
 
 			if cache_hit.is_some() {
 				return Ok(Some(cache_hit.unwrap()))
@@ -369,13 +369,13 @@ mod test {
 }
 
 #[cfg(test)]
-mod write_que_tests {
+mod write_cache_tests {
 	use super::Database;
 	use traits::*;
 	use devtools::*;
 
 	#[test]
-	fn que_write_flush() {
+	fn cache_write_flush() {
 		let db = Database::new();
 		let path = RandomTempPath::create_dir();
 

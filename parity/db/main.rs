@@ -101,21 +101,27 @@ fn main() {
 		extras_service_term.flush_all().unwrap();
 
 		std::thread::sleep(std::time::Duration::new(1, 0));
+
+		// second flush to be sure that every that input from every client during the shutdown
+		// is not lost
+		blocks_service_term.flush_all().unwrap();
+		extras_service_term.flush_all().unwrap();
+
 		stop.store(true, Ordering::Relaxed);
 	});
 
-	let mut thread_pool = Pool::new(3);
-	let tick = periodic(Duration::from_millis(3000));
+	let mut thread_pool = Pool::new(4);
+	let tick = periodic(Duration::from_millis(100));
 	loop {
 		tick.recv().unwrap();
 		thread_pool.scoped(|scope| {
 			let blocks_service_ref = blocks_service.clone();
 			let extras_service_ref = extras_service.clone();
 			scope.execute(move || {
-				blocks_service_ref.flush().unwrap();
+				blocks_service_ref.flush_all().unwrap();
 			});
 			scope.execute(move || {
-				extras_service_ref.flush().unwrap();
+				extras_service_ref.flush_all().unwrap();
 			})
 		});
 	}
