@@ -794,6 +794,13 @@ impl BlockChain {
 	}
 }
 
+impl Drop for BlockChain {
+	fn drop(&mut self) {
+		self.blocks_db.close();
+		self.extras_db.close();
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
