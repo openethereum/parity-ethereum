@@ -193,12 +193,13 @@ pub mod ec {
 	/// Returns siganture of message hash.
 	pub fn sign(secret: &Secret, message: &H256) -> Result<Signature, CryptoError> {
 		// TODO: allow creation of only low-s signatures.
-		use secp256k1::*;
+		use secp256k1::{Message, key};
+
 		let context = &crypto::SECP256K1;
 		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
 		let s = try!(context.sign_recoverable(&try!(Message::from_slice(&message)), sec));
 		let (rec_id, data) = s.serialize_compact(context);
-		let mut signature: crypto::Signature = unsafe { ::std::mem::uninitialized() };
+		let mut signature = crypto::Signature::new();
 		signature.clone_from_slice(&data);
 		signature[64] = rec_id.to_i32() as u8;
 
@@ -256,7 +257,7 @@ pub mod ecdh {
 	use crypto::{self};
 
 	/// Agree on a shared secret
-	pub fn agree(secret: &Secret, public: &Public, ) -> Result<Secret, CryptoError> {
+	pub fn agree(secret: &Secret, public: &Public) -> Result<Secret, CryptoError> {
 		use secp256k1::*;
 		let context = &crypto::SECP256K1;
 		let mut pdata: [u8; 65] = [4u8; 65];
