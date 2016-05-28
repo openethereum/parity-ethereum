@@ -75,7 +75,7 @@ pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Option<jsonipc::S
 fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Server {
 	let apis = rpc_apis::from_str(apis);
 	let server = Server::new();
-	rpc_apis::setup_rpc(server, deps.apis.clone(), Some(apis))
+	rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::List(apis))
 }
 
 #[cfg(not(feature = "rpc"))]

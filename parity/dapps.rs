@@ -84,8 +84,7 @@ pub fn setup_dapps_server(
 	use ethcore_dapps as dapps;
 
 	let server = dapps::ServerBuilder::new();
-	// TODO [ToDr] Specify apis
-	let server = rpc_apis::setup_rpc(server, deps.apis.clone(), None);
+	let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 	let start_result = match auth {
 		None => {
 			server.start_unsecure_http(url)

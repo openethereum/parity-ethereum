@@ -35,9 +35,6 @@ pub struct ConfirmationsQueue;
 #[cfg(feature="rpc")]
 use ethcore_rpc::Extendable;
 
-
-
-
 pub enum Api {
 	Web3,
 	Net,
@@ -47,8 +44,15 @@ pub enum Api {
 	Traces,
 	Rpc,
 }
+
 pub enum ApiError {
 	UnknownApi(String)
+}
+
+pub enum ApiSet {
+	SafeContext,
+	UnsafeContext,
+	List(Vec<Api>),
 }
 
 impl FromStr for Api {
@@ -108,14 +112,22 @@ pub fn from_str(apis: Vec<&str>) -> Vec<Api> {
 		})
 }
 
-pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: Option<Vec<Api>>) -> T {
+fn list_apis(apis: ApiSet, signer_enabled: bool) -> Vec<Api> {
+	match apis {
+		ApiSet::List(apis) => apis,
+		ApiSet::UnsafeContext if signer_enabled => {
+			vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc]
+		}
+		_ => {
+			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+		}
+	}
+}
+
+pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
 	use ethcore_rpc::v1::*;
 
-	let apis = match apis {
-		Some(api) => api,
-		None => vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc],
-	};
-
+	let apis = list_apis(apis, deps.signer_enabled);
 	for api in &apis {
 		match *api {
 			Api::Web3 => {
