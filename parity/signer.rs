@@ -64,7 +64,7 @@ fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 		server.add_delegate(NetClient::new(&deps.sync).to_delegate());
 		server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
 		server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
-		server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate());
+		server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner).to_delegate());
 		server.start(addr)
 	};
 
