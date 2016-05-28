@@ -22,13 +22,13 @@ use v1::helpers::{ConfirmationsQueue, SigningQueue};
 use util::keys::TestAccount;
 
 struct EthSigningTester {
-	pub queue: Arc<SigningQueue>,
+	pub queue: Arc<ConfirmationsQueue>,
 	pub io: IoHandler,
 }
 
 impl Default for EthSigningTester {
 	fn default() -> Self {
-		let queue: Arc<SigningQueue> = Arc::new(ConfirmationsQueue::default());
+		let queue = Arc::new(ConfirmationsQueue::default());
 		let io = IoHandler::new();
 		io.add_delegate(EthSigningQueueClient::new(&queue).to_delegate());
 

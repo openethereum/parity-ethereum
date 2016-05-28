@@ -29,7 +29,7 @@ use v1::types::TransactionRequest;
 
 
 struct PersonalSignerTester {
-	queue: Arc<SigningQueue>,
+	queue: Arc<ConfirmationsQueue>,
 	accounts: Arc<TestAccountProvider>,
 	io: IoHandler,
 	miner: Arc<TestMinerService>,
@@ -54,7 +54,7 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> PersonalSignerTester {
-	let queue: Arc<SigningQueue> = Arc::new(ConfirmationsQueue::default());
+	let queue = Arc::new(ConfirmationsQueue::default());
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();

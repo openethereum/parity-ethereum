@@ -21,7 +21,7 @@ use jsonrpc_core::*;
 use v1::traits::PersonalSigner;
 use v1::types::TransactionModification;
 use v1::impls::sign_and_dispatch;
-use v1::helpers::SigningQueue;
+use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use util::keys::store::AccountProvider;
 use util::numbers::*;
 use ethcore::client::BlockChainClient;
@@ -30,7 +30,7 @@ use ethminer::MinerService;
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<A, C, M>
 	where A: AccountProvider, C: BlockChainClient, M: MinerService {
-	queue: Weak<SigningQueue>,
+	queue: Weak<ConfirmationsQueue>,
 	accounts: Weak<A>,
 	client: Weak<C>,
 	miner: Weak<M>,
@@ -40,7 +40,7 @@ impl<A: 'static, C: 'static, M: 'static> SignerClient<A, C, M>
 	where A: AccountProvider, C: BlockChainClient, M: MinerService {
 
 	/// Create new instance of signer client.
-	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>, queue: &Arc<SigningQueue>) -> Self {
+	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>, queue: &Arc<ConfirmationsQueue>) -> Self {
 		SignerClient {
 			queue: Arc::downgrade(queue),
 			accounts: Arc::downgrade(store),

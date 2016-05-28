@@ -79,7 +79,6 @@ use std::fs::File;
 use std::str::{FromStr, from_utf8};
 use std::thread::sleep;
 use std::time::Duration;
-use std::collections::HashSet;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes};
@@ -201,7 +200,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_enabled: conf.args.flag_signer,
-		signer_queue: Arc::new(Mutex::new(HashSet::new())),
+		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
 		client: client.clone(),
 		sync: sync.clone(),
 		secret_store: account_service.clone(),

@@ -22,7 +22,7 @@ use ethminer::MinerService;
 use ethcore::client::BlockChainClient;
 use util::numbers::*;
 use util::keys::store::AccountProvider;
-use v1::helpers::SigningQueue;
+use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use v1::traits::EthSigning;
 use v1::types::TransactionRequest;
 use v1::impls::sign_and_dispatch;
@@ -30,12 +30,12 @@ use v1::impls::sign_and_dispatch;
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct EthSigningQueueClient {
-	queue: Weak<SigningQueue>,
+	queue: Weak<ConfirmationsQueue>,
 }
 
 impl EthSigningQueueClient {
 	/// Creates a new signing queue client given shared signing queue.
-	pub fn new(queue: &Arc<SigningQueue>) -> Self {
+	pub fn new(queue: &Arc<ConfirmationsQueue>) -> Self {
 		EthSigningQueueClient {
 			queue: Arc::downgrade(queue),
 		}

@@ -31,6 +31,7 @@ pub trait SigningQueue: Send + Sync {
 	fn requests(&self) -> Vec<TransactionConfirmation>;
 }
 
+/// Queue for all unconfirmed transactions.
 #[derive(Default)]
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
