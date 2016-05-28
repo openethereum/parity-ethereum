@@ -196,7 +196,7 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop(), vm_tracer.drain())))
+		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop(), vm_tracer.drain().and_then(|mut i| i.subs.pop()))))
 	}
 
 	fn exec_vm<T, V>(

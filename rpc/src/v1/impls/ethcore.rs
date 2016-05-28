@@ -24,7 +24,9 @@ use std::collections::BTreeMap;
 use jsonrpc_core::*;
 use ethminer::{MinerService};
 use ethcore::client::{BlockChainClient};
+use ethcore::trace::VMTrace;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use ethcore::get_info;
 use v1::traits::Ethcore;
 use v1::types::{Bytes, CallRequest};
 
@@ -64,6 +66,34 @@ impl<C, M> EthcoreClient<C, M> where C: BlockChainClient, M: MinerService {
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
 	}
+}
+
+fn vm_trace_to_object(t: &VMTrace) -> Value {
+	let mut ret = BTreeMap::new();
+	ret.insert("code".to_owned(), to_value(&t.code).unwrap());
+
+	let mut subs = t.subs.iter();
+	let mut next_sub = subs.next();
+
+	let ops = t.operations
+		.iter()
+		.enumerate()
+		.map(|(i, op)| {
+			let mut m = map![
+				"pc".to_owned() => to_value(&op.pc).unwrap(),
+				"inst".to_owned() => to_value(&get_info(op.instruction).name).unwrap(),
+				"gas_cost".to_owned() => to_value(&op.gas_cost).unwrap(),
+				"stack".to_owned() => to_value(&op.stack).unwrap()
+			];
+			if next_sub.is_some() && next_sub.unwrap().parent_step == i {
+				m.insert("sub".to_owned(), vm_trace_to_object(next_sub.unwrap()));
+				next_sub = subs.next();
+			}
+			Value::Object(m)
+		})
+		.collect::<Vec<_>>();
+	ret.insert("ops".to_owned(), Value::Array(ops));
+	Value::Object(ret)
 }
 
 impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
@@ -162,11 +192,14 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, 
 		from_params(params)
 			.and_then(|(request,)| {
 				let signed = try!(self.sign_call(request));
-				let _ = take_weak!(self.client).call(&signed, true);
-				// TODO: construct JSON trace from _.vm_trace.
-				let mut ret = Vec::new();
-				ret.push(Value::Object(map!["foo".to_owned() => Value::String("var".to_owned())]));
-				Ok(Value::Array(ret))
+				let r = take_weak!(self.client).call(&signed, true);
+				trace!(target: "jsonrpc", "returned {:?}", r);
+				if let Ok(executed) = r {
+					if let Some(vm_trace) = executed.vm_trace {
+						return Ok(vm_trace_to_object(&vm_trace));
+					}
+				}
+				Ok(Value::Null)
 			})
 	}
 }
