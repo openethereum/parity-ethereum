@@ -22,6 +22,7 @@ use serde::de::Visitor;
 pub struct Index(usize);
 
 impl Index {
+	/// Convert to usize
 	pub fn value(&self) -> usize {
 		self.0
 	}

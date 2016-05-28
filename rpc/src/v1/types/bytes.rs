@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Serializable wrapper around vector of bytes
+
 use rustc_serialize::hex::ToHex;
 use serde::{Serialize, Serializer, Deserialize, Deserializer, Error};
 use serde::de::Visitor;
@@ -28,7 +30,10 @@ impl Bytes {
 	pub fn new(bytes: Vec<u8>) -> Bytes {
 		Bytes(bytes)
 	}
-	pub fn to_vec(self) -> Vec<u8> { self.0 }
+	/// Convert back to vector
+	pub fn to_vec(self) -> Vec<u8> {
+		self.0
+	}
 }
 
 impl Serialize for Bytes {
@@ -79,5 +84,4 @@ mod tests {
 		assert_eq!(serialized, r#""0x0123456789abcdef""#);
 	}
 }
-
 

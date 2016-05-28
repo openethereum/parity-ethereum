@@ -14,16 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc v1.
-//!
-//! Compliant with ethereum rpc.
 
-mod impls;
-mod helpers;
 
-pub mod traits;
-pub mod tests;
-pub mod types;
 
-pub use self::traits::{Web3, Eth, EthFilter, Personal, Net, Ethcore, Traces, Rpc};
-pub use self::impls::*;
+
+
+
+
+
+// TODO [ToDr] Types are empty for now. But they are about to come.

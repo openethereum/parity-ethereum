@@ -50,6 +50,9 @@ extern crate ethcore_rpc;
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
+#[cfg(feature = "ethcore-signer")]
+extern crate ethcore_signer;
+
 #[macro_use]
 mod die;
 mod price_info;
@@ -63,6 +66,7 @@ mod io_handler;
 mod cli;
 mod configuration;
 mod migration;
+mod signer;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
@@ -89,6 +93,7 @@ use informant::Informant;
 use die::*;
 use cli::print_version;
 use rpc::RpcServer;
+use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::Configuration;
@@ -231,6 +236,14 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		settings: network_settings.clone(),
 	});
 
+	// Set up a signer
+	let signer_server = signer::start(signer::Configuration {
+		enabled: conf.args.flag_signer,
+		port: conf.args.flag_signer_port,
+	}, signer::Dependencies {
+		panic_handler: panic_handler.clone(),
+	});
+
 	// Register IO handler
 	let io_handler  = Arc::new(ClientIoHandler {
 		client: service.client(),
@@ -241,7 +254,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	// Handle exit
-	wait_for_exit(panic_handler, rpc_server, dapps_server);
+	wait_for_exit(panic_handler, rpc_server, dapps_server, signer_server);
 }
 
 fn flush_stdout() {
@@ -453,7 +466,12 @@ fn execute_account_cli(conf: Configuration) {
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _dapps_server: Option<WebappServer>) {
+fn wait_for_exit(
+	panic_handler: Arc<PanicHandler>,
+	_rpc_server: Option<RpcServer>,
+	_dapps_server: Option<WebappServer>,
+	_signer_server: Option<SignerServer>
+	) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits

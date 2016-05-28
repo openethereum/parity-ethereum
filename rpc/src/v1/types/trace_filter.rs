@@ -21,14 +21,19 @@ use ethcore::client::BlockID;
 use ethcore::client;
 use super::BlockNumber;
 
+/// Trace filter
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct TraceFilter {
+	/// From block
 	#[serde(rename="fromBlock")]
 	pub from_block: Option<BlockNumber>,
+	/// To block
 	#[serde(rename="toBlock")]
 	pub to_block: Option<BlockNumber>,
+	/// From address
 	#[serde(rename="fromAddress")]
 	pub from_address: Option<Vec<Address>>,
+	/// To address
 	#[serde(rename="toAddress")]
 	pub to_address: Option<Vec<Address>>,
 }
