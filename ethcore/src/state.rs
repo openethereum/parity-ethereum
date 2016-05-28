@@ -222,7 +222,7 @@ impl State {
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, vm_factory: &EvmFactory, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
-		let options = TransactOptions { tracing: tracing, check_nonce: true };
+		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.

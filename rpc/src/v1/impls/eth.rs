@@ -522,8 +522,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(request, block_number,)| {
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
-					BlockNumber::Latest => take_weak!(self.client).call(&signed),
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, false),
+					BlockNumber::Latest => take_weak!(self.client).call(&signed, false),
 					_ => panic!("{:?}", block_number),
 				};
 				to_value(&r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
@@ -535,8 +535,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(request, block_number,)| {
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
-					BlockNumber::Latest => take_weak!(self.client).call(&signed),
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, false),
+					BlockNumber::Latest => take_weak!(self.client).call(&signed, false),
 					_ => return Err(Error::invalid_params()),
 				};
 				to_value(&r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0)))

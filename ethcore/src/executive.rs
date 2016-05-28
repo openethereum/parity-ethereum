@@ -43,6 +43,8 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 pub struct TransactOptions {
 	/// Enable call tracing.
 	pub tracing: bool,
+	/// Enable VM tracing.
+	pub vm_tracing: bool,
 	/// Check transaction nonce before execution.
 	pub check_nonce: bool,
 }
@@ -394,6 +396,7 @@ impl<'a> Executive<'a> {
 					contracts_created: vec![],
 					output: output,
 					trace: trace,
+					vm_trace: None,
 				})
 			},
 			_ => {
@@ -406,6 +409,7 @@ impl<'a> Executive<'a> {
 					contracts_created: substate.contracts_created,
 					output: output,
 					trace: trace,
+					vm_trace: None,
 				})
 			},
 		}
@@ -913,7 +917,7 @@ mod tests {
 
 		let executed = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts).unwrap()
 		};
 
@@ -947,7 +951,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts)
 		};
 
@@ -979,7 +983,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts)
 		};
 
@@ -1013,7 +1017,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts)
 		};
 
@@ -1047,7 +1051,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts)
 		};
 

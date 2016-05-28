@@ -191,7 +191,7 @@ impl MinerService for TestMinerService {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
 	}
 
-	fn call(&self, _chain: &BlockChainClient, _t: &SignedTransaction) -> Result<Executed, ExecutionError> {
+	fn call(&self, _chain: &BlockChainClient, _t: &SignedTransaction, _vm_tracing: bool) -> Result<Executed, ExecutionError> {
 		unimplemented!();
 	}
 

@@ -31,7 +31,7 @@ pub use self::block::BlockTraces;
 pub use self::config::{Config, Switch};
 pub use self::db::TraceDB;
 pub use self::error::Error;
-pub use types::trace_types::trace::Trace;
+pub use types::trace_types::trace::{Trace, VMTrace};
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;
 pub use types::trace_types::filter::{Filter, AddressesFilter};

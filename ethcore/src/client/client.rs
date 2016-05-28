@@ -421,7 +421,7 @@ impl<V> Client<V> where V: Verifier {
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
-	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError> {
+	fn call(&self, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
 		let view = HeaderView::new(&header);
 		let last_hashes = self.build_last_hashes(view.hash());
@@ -444,7 +444,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		// give the sender max balance
 		state.sub_balance(&sender, &balance);
 		state.add_balance(&sender, &U256::max_value());
-		let options = TransactOptions { tracing: false, check_nonce: false };
+		let options = TransactOptions { tracing: false, vm_tracing: vm_tracing, check_nonce: false };
 		Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options)
 	}
 

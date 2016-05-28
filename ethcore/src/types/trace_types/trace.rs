@@ -349,6 +349,94 @@ impl Trace {
 	}
 }
 
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A record of the execution of a single VM operation.
+pub struct VMOperation {
+	/// The program counter.
+	pub pc: usize,
+	/// The instruction executed.
+	pub instruction: u8,
+	/// The gas cost for this instruction.
+	pub gas_cost: U256,
+	/// The total gas used.
+	pub gas_used: U256,
+	/// The stack.
+	pub stack: Vec<U256>,
+	/// Altered storage value. TODO: should be option.
+//	pub storage_diff: Option<(U256, U256)>,
+	/// If altered, the new memory image.
+	pub new_memory: Bytes,
+}
+
+impl Encodable for VMOperation {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(6);
+		s.append(&self.pc);
+		s.append(&self.instruction);
+		s.append(&self.gas_cost);
+		s.append(&self.gas_used);
+		s.append(&self.stack);
+//		s.append(&self.storage_diff);
+		s.append(&self.new_memory);
+	}
+}
+
+impl Decodable for VMOperation {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = VMOperation {
+			pc: try!(d.val_at(0)),
+			instruction: try!(d.val_at(1)),
+			gas_cost: try!(d.val_at(2)),
+			gas_used: try!(d.val_at(3)),
+			stack: try!(d.val_at(4)),
+//			storage_diff: try!(d.val_at(5)),
+			new_memory: try!(d.val_at(6)),
+		};
+
+		Ok(res)
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A record of a full VM trace for a CALL/CREATE.
+pub struct VMTrace {
+	/// The number of EVM execution environments active when this action happened; 0 if it's
+	/// the outer action of the transaction.
+	pub depth: usize,
+	/// The code to be executed.
+	pub code: Bytes,
+	/// The operations executed.
+	pub operations: Vec<VMOperation>,
+	/// The sub traces for each interior action performed as part of this call/create.
+	/// Thre is a 1:1 correspondance between these and a CALL/CREATE/CALLCODE/DELEGATECALL instruction.
+	pub subs: Vec<VMTrace>,
+}
+
+impl Encodable for VMTrace {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
+		s.append(&self.depth);
+		s.append(&self.code);
+		s.append(&self.operations);
+		s.append(&self.subs);
+	}
+}
+
+impl Decodable for VMTrace {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = VMTrace {
+			depth: try!(d.val_at(0)),
+			code: try!(d.val_at(1)),
+			operations: try!(d.val_at(2)),
+			subs: try!(d.val_at(3)),
+		};
+
+		Ok(res)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use util::{Address, U256, FixedHash};

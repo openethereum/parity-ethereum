@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use util::{U256, Address, RotatingLogger};
+use util::{U256, Address, RotatingLogger, FixedHash, Uint};
 use util::network_settings::NetworkSettings;
 use util::misc::version_data;
 use std::sync::{Arc, Weak};
@@ -23,29 +23,50 @@ use std::ops::Deref;
 use std::collections::BTreeMap;
 use jsonrpc_core::*;
 use ethminer::{MinerService};
+use ethcore::client::{BlockChainClient};
+use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Ethcore;
-use v1::types::Bytes;
+use v1::types::{Bytes, CallRequest};
 
 /// Ethcore implementation.
-pub struct EthcoreClient<M>
-	where M: MinerService {
+pub struct EthcoreClient<C, M> where
+	C: BlockChainClient,
+	M: MinerService {
+
+	client: Weak<C>,
 	miner: Weak<M>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 }
 
-impl<M> EthcoreClient<M> where M: MinerService {
+impl<C, M> EthcoreClient<C, M> where C: BlockChainClient, M: MinerService {
 	/// Creates new `EthcoreClient`.
-	pub fn new(miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>) -> Self {
 		EthcoreClient {
+			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			logger: logger,
 			settings: settings,
 		}
 	}
+
+	// TODO: share with eth.rs
+	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
+		let client = take_weak!(self.client);
+		let miner = take_weak!(self.miner);
+		let from = request.from.unwrap_or(Address::zero());
+		Ok(EthTransaction {
+			nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
+			action: request.to.map_or(Action::Create, Action::Call),
+			gas: request.gas.unwrap_or(U256::from(50_000_000)),
+			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+			value: request.value.unwrap_or_else(U256::zero),
+			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
+		}.fake_sign(from))
+	}
 }
 
-impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
+impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 
 	fn set_min_gas_price(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(U256,)>(params).and_then(|(gas_price,)| {
@@ -134,5 +155,20 @@ impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
 	fn default_extra_data(&self, _params: Params) -> Result<Value, Error> {
 		let version = version_data();
 		to_value(&Bytes::new(version))
+	}
+
+	//pub type VMTraceFunctionBox = Box<FnMut(usize, u8, U256, U256) + Send>;
+
+	fn vm_trace_call(&self, params: Params) -> Result<Value, Error> {
+		trace!(target: "jsonrpc", "vm_trace_call: {:?}", params);
+		from_params(params)
+			.and_then(|(request,)| {
+				let signed = try!(self.sign_call(request));
+				let _ = take_weak!(self.client).call(&signed, true);
+				// TODO: construct JSON trace from _.vm_trace.
+				let mut ret = Vec::new();
+				ret.push(Value::Object(map!["foo".to_owned() => Value::String("var".to_owned())]));
+				Ok(Value::Array(ret))
+			})
 	}
 }

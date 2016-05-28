@@ -110,7 +110,7 @@ fn setup_rpc_server(apis: Vec<&str>, deps: &Arc<Dependencies>) -> Server {
 			},
 			"ethcore" => {
 				modules.insert("ethcore".to_owned(), "1.0".to_owned());
-				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
 			},
 			"traces" => {
 				modules.insert("traces".to_owned(), "1.0".to_owned());
