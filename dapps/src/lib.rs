@@ -52,6 +52,7 @@ extern crate serde_json;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate parity_dapps;
+extern crate ethcore_rpc;
 
 mod endpoint;
 mod apps;
@@ -66,6 +67,7 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
+use ethcore_rpc::Extendable;
 
 static DAPPS_DOMAIN : &'static str = ".parity";
 
@@ -74,17 +76,18 @@ pub struct ServerBuilder {
 	handler: Arc<IoHandler>,
 }
 
+impl Extendable for ServerBuilder {
+	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
+		self.handler.add_delegate(delegate);
+	}
+}
+
 impl ServerBuilder {
 	/// Construct new dapps server
 	pub fn new() -> Self {
 		ServerBuilder {
 			handler: Arc::new(IoHandler::new())
 		}
-	}
-
-	/// Add io delegate.
-	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
-		self.handler.add_delegate(delegate);
 	}
 
 	/// Asynchronously start server with no authentication,
