@@ -53,8 +53,6 @@ extern crate ethcore_dapps;
 #[cfg(feature = "ethcore-signer")]
 extern crate ethcore_signer;
 
-
-
 #[macro_use]
 mod die;
 mod price_info;
