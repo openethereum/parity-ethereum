@@ -38,13 +38,10 @@ lazy_static! {
 impl Signature {
 	/// Create a new signature from the R, S and V componenets.
 	pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Signature {
-		use std::ptr;
 		let mut ret: Signature = Signature::new();
-		unsafe {
-			let retslice: &mut [u8] = &mut ret;
-			ptr::copy(r.as_ptr(), retslice.as_mut_ptr(), 32);
-			ptr::copy(s.as_ptr(), retslice.as_mut_ptr().offset(32), 32);
-		}
+		(&mut ret[0..32]).copy_from_slice(r);
+		(&mut ret[32..64]).copy_from_slice(s);
+
 		ret[64] = v;
 		ret
 	}
@@ -145,7 +142,10 @@ impl KeyPair {
 		let (sec, publ) = try!(context.generate_keypair(&mut rng));
 		let serialized = publ.serialize_vec(context, false);
 		let p: Public = Public::from_slice(&serialized[1..65]);
-		let s: Secret = unsafe { ::std::mem::transmute(sec) };
+
+		let mut s = Secret::new();
+		s.copy_from_slice(&sec[0..32]);
+
 		Ok(KeyPair {
 			secret: s,
 			public: p,
@@ -196,6 +196,7 @@ pub mod ec {
 		use secp256k1::{Message, key};
 
 		let context = &crypto::SECP256K1;
+		// no way to create from raw byte array.
 		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
 		let s = try!(context.sign_recoverable(&try!(Message::from_slice(&message)), sec));
 		let (rec_id, data) = s.serialize_compact(context);
@@ -218,10 +219,12 @@ pub mod ec {
 		let rsig = try!(RecoverableSignature::from_compact(context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
 		let sig = rsig.to_standard(context);
 
-		let mut pdata: [u8; 65] = [4u8; 65];
-		let ptr = pdata[1..].as_mut_ptr();
-		let src = public.as_ptr();
-		unsafe { ::std::ptr::copy_nonoverlapping(src, ptr, 64) };
+		let pdata: [u8; 65] = {
+			let mut temp = [4u8; 65];
+			(&mut temp[1..65]).copy_from_slice(public);
+			temp
+		};
+
 		let publ = try!(key::PublicKey::from_slice(context, &pdata));
 		match context.verify(&try!(Message::from_slice(&message)), &sig, &publ) {
 			Ok(_) => Ok(true),
@@ -268,6 +271,7 @@ pub mod ecdh {
 		};
 
 		let publ = try!(key::PublicKey::from_slice(context, &pdata));
+		// no way to create SecretKey from raw byte array.
 		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
 		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
 
