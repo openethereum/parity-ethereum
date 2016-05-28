@@ -37,6 +37,7 @@ pub struct GuardedTempResult<T> {
 }
 
 impl<T> GuardedTempResult<T> {
+	#[allow(dead_code)]
     pub fn reference(&self) -> &T {
         self.result.as_ref().unwrap()
     }
@@ -136,9 +137,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTrans
 	rlp.out()
 }
 
-pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
-	let dir = RandomTempPath::new();
-
+pub fn generate_dummy_client_in(dir: &RandomTempPath, block_number: u32) -> Arc<Client> {
 	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
@@ -168,10 +167,7 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
 
-	GuardedTempResult::<Arc<Client>> {
-		_temp: dir,
-		result: Some(client)
-	}
+	client
 }
 
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
@@ -203,9 +199,9 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 	}
 }
 
-pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
-	let dir = RandomTempPath::new();
+pub fn get_test_client_with_blocks_in(dir: &RandomTempPath, blocks: Vec<Bytes>) -> Arc<Client> {
 	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");
@@ -213,47 +209,23 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	}
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
-
-	GuardedTempResult::<Arc<Client>> {
-		_temp: dir,
-		result: Some(client)
-	}
+	client
 }
 
-pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
-	let temp = RandomTempPath::new();
+pub fn generate_dummy_blockchain_in(temp: &RandomTempPath, block_number: u32) -> BlockChain {
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
 		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
 	}
-
-	GuardedTempResult::<BlockChain> {
-		_temp: temp,
-		result: Some(bc)
-	}
+	bc
 }
 
-pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
-	let temp = RandomTempPath::new();
+pub fn generate_dummy_blockchain_with_extra_in(temp: &RandomTempPath, block_number: u32) -> BlockChain {
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
 		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
 	}
-
-	GuardedTempResult::<BlockChain> {
-		_temp: temp,
-		result: Some(bc)
-	}
-}
-
-pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
-	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
-
-	GuardedTempResult::<BlockChain> {
-		_temp: temp,
-		result: Some(bc)
-	}
+	bc
 }
 
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {

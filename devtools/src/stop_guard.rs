@@ -14,12 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+//! Random path
 
-use rustc_version::{version_meta, Channel};
+use std::sync::Arc;
+use std::sync::atomic::*;
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
+pub struct StopGuard {
+	flag: Arc<AtomicBool>,
+}
+
+impl StopGuard {
+	pub fn new() -> StopGuard {
+		StopGuard {
+			flag: Arc::new(AtomicBool::new(false))
+		}
+	}
+
+	pub fn share(&self) -> Arc<AtomicBool> {
+		self.flag.clone()
+	}
+}
+
+impl Drop for StopGuard {
+	fn drop(&mut self) {
+		self.flag.store(true, Ordering::Relaxed)
 	}
 }

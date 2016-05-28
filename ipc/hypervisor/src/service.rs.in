@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{RwLock,Arc};
-use std::ops::*;
 use ipc::IpcConfig;
 use std::collections::HashMap;
 use std::mem;
@@ -44,7 +43,7 @@ impl HypervisorService {
 impl HypervisorService {
 	/// New service with the default list of modules
 	pub fn new() -> Arc<HypervisorService> {
-		HypervisorService::with_modules(vec![])
+		HypervisorService::with_modules(vec![BLOCKCHAIN_MODULE_ID])
 	}
 
 	/// New service with list of modules that will report for being ready

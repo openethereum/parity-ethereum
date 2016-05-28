@@ -141,12 +141,29 @@ mod tests {
 	use util::network::*;
 	use devtools::*;
 	use client::ClientConfig;
+	use std::sync::atomic::{AtomicBool, Ordering as SyncOrdering};
+	use ethcore_db;
+	use std::sync::Arc;
+	use client;
 
 	#[test]
 	fn it_can_be_started() {
-		let spec = get_test_spec();
-		let temp_path = RandomTempPath::new();
-		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path());
-		assert!(service.is_ok());
+		let dir = RandomTempPath::new();
+		let db_path = client::get_db_path(
+			dir.as_path(),
+			ClientConfig::default().pruning,
+			get_test_spec().genesis_header().hash()).to_str().unwrap().to_owned();
+
+		::crossbeam::scope(|scope| {
+			let stop = Arc::new(AtomicBool::new(false));
+			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::extras_service_url(&db_path).unwrap());
+			ethcore_db::run_worker(scope, stop.clone(), &ethcore_db::blocks_service_url(&db_path).unwrap());
+
+			let spec = get_test_spec();
+			let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &dir.as_path());
+			assert!(service.is_ok());
+
+			stop.store(true, SyncOrdering::Relaxed);
+		});
 	}
 }

@@ -29,8 +29,10 @@ use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainD
 use blockchain::best_block::BestBlock;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
+use db::{Writable, Readable, Key, CacheUpdatePolicy};
+use ethcore_db;
+use ethcore_db::{DatabaseConnection, DatabaseService};
 use blockchain::{CacheSize, ImportRoute, Config};
-use db::{Writable, Readable, CacheUpdatePolicy};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -152,8 +154,8 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	extras_db: Database,
-	blocks_db: Database,
+	extras_db: DatabaseConnection,
+	blocks_db: DatabaseConnection,
 
 	cache_man: RwLock<CacheManager>,
 
@@ -253,12 +255,18 @@ impl BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
-		let extras_db = Database::open_default(extras_path.to_str().unwrap()).unwrap();
+		let extras_db = ethcore_db::extras_client(path.to_str().unwrap()).unwrap();
+		extras_db.open_default(extras_path.to_str().unwrap().to_owned()).unwrap();
 
 		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
-		let blocks_db = Database::open_default(blocks_path.to_str().unwrap()).unwrap();
+		let blocks_db = ethcore_db::blocks_client(path.to_str().unwrap()).unwrap();
+		match blocks_db.open_default(blocks_path.to_str().unwrap().to_owned()) {
+			Err(ethcore_db::Error::AlreadyOpen) => {},
+			Ok(_) => {},
+			Err(e) => panic!("error opening blocks_db: {:?}", e),
+		}
 
 		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
@@ -302,12 +310,12 @@ impl BlockChain {
 
 				bc.blocks_db.put(&hash, genesis).unwrap();
 
-				let batch = DBTransaction::new();
+				let batch = ethcore_db::DBTransaction::new();
 				batch.write(&hash, &details);
 				batch.write(&header.number(), &hash);
-				batch.put(b"best", &hash).unwrap();
-				bc.extras_db.write(batch).unwrap();
+				batch.put(b"best", &hash);
 
+				bc.extras_db.write(batch).unwrap();
 				hash
 			}
 		};
@@ -450,8 +458,8 @@ impl BlockChain {
 
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
-		let batch = DBTransaction::new();
-		batch.put(b"best", &update.info.hash).unwrap();
+		let batch = ethcore_db::DBTransaction::new();
+		batch.put(b"best", &update.info.hash);
 
 		{
 			for hash in update.block_details.keys().cloned() {
@@ -798,9 +806,11 @@ mod tests {
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 	use views::BlockView;
+	use ethcore_db;
 
 	#[test]
 	fn basic_blockchain_insert() {
+
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
@@ -809,24 +819,30 @@ mod tests {
 		let first_hash = BlockView::new(&first).header_view().sha3();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
-		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
-		assert_eq!(bc.best_block_number(), 0);
-		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
-		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
-		assert_eq!(bc.block_hash(1), None);
-		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 
-		bc.insert_block(&first, vec![]);
+			assert_eq!(bc.genesis_hash(), genesis_hash.clone());
+			assert_eq!(bc.best_block_number(), 0);
+			assert_eq!(bc.best_block_hash(), genesis_hash.clone());
+			assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
+			assert_eq!(bc.block_hash(1), None);
+			assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
 
-		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
-		assert_eq!(bc.best_block_number(), 1);
-		assert_eq!(bc.best_block_hash(), first_hash.clone());
-		assert_eq!(bc.block_hash(1), Some(first_hash.clone()));
-		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
-		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
-		assert_eq!(bc.block_hash(2), None);
+			bc.insert_block(&first, vec![]);
+
+			assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
+			assert_eq!(bc.best_block_number(), 1);
+			assert_eq!(bc.best_block_hash(), first_hash.clone());
+			assert_eq!(bc.block_hash(1), Some(first_hash.clone()));
+			assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
+			assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
+			assert_eq!(bc.block_hash(2), None);
+		});
 	}
 
 	#[test]
@@ -837,18 +853,24 @@ mod tests {
 		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
-		let mut block_hashes = vec![genesis_hash.clone()];
-		for _ in 0..10 {
-			let block = canon_chain.generate(&mut finalizer).unwrap();
-			block_hashes.push(BlockView::new(&block).header_view().sha3());
-			bc.insert_block(&block, vec![]);
-		}
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 
-		block_hashes.reverse();
+			let mut block_hashes = vec![genesis_hash.clone()];
+			for _ in 0..10 {
+				let block = canon_chain.generate(&mut finalizer).unwrap();
+				block_hashes.push(BlockView::new(&block).header_view().sha3());
+				bc.insert_block(&block, vec![]);
+			}
 
-		assert_eq!(bc.ancestry_iter(block_hashes[0].clone()).unwrap().collect::<Vec<_>>(), block_hashes)
+			block_hashes.reverse();
+
+			assert_eq!(bc.ancestry_iter(block_hashes[0].clone()).unwrap().collect::<Vec<_>>(), block_hashes);
+		});
 	}
 
 	#[test]
@@ -869,23 +891,28 @@ mod tests {
 		let b5a = canon_chain.generate(&mut finalizer).unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
-		bc.insert_block(&b1a, vec![]);
-		bc.insert_block(&b1b, vec![]);
-		bc.insert_block(&b2a, vec![]);
-		bc.insert_block(&b2b, vec![]);
-		bc.insert_block(&b3a, vec![]);
-		bc.insert_block(&b3b, vec![]);
-		bc.insert_block(&b4a, vec![]);
-		bc.insert_block(&b4b, vec![]);
-		bc.insert_block(&b5a, vec![]);
-		bc.insert_block(&b5b, vec![]);
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
-		assert_eq!(
-			[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
-			bc.find_uncle_headers(&BlockView::new(&b4a).header_view().sha3(), 3).unwrap()
-		);
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+			bc.insert_block(&b1a, vec![]);
+			bc.insert_block(&b1b, vec![]);
+			bc.insert_block(&b2a, vec![]);
+			bc.insert_block(&b2b, vec![]);
+			bc.insert_block(&b3a, vec![]);
+			bc.insert_block(&b3b, vec![]);
+			bc.insert_block(&b4a, vec![]);
+			bc.insert_block(&b4b, vec![]);
+			bc.insert_block(&b5a, vec![]);
+			bc.insert_block(&b5b, vec![]);
 
+			assert_eq!(
+				[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
+				bc.find_uncle_headers(&BlockView::new(&b4a).header_view().sha3(), 3).unwrap()
+			);
+		});
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
 	}
 
@@ -910,98 +937,104 @@ mod tests {
 		let best_block_hash = b3a_hash.clone();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
-		let ir1 = bc.insert_block(&b1, vec![]);
-		let ir2 = bc.insert_block(&b2, vec![]);
-		let ir3b = bc.insert_block(&b3b, vec![]);
-		let ir3a = bc.insert_block(&b3a, vec![]);
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
-		assert_eq!(ir1, ImportRoute {
-			enacted: vec![b1_hash],
-			retracted: vec![],
-			omitted: vec![],
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+			let ir1 = bc.insert_block(&b1, vec![]);
+			let ir2 = bc.insert_block(&b2, vec![]);
+			let ir3b = bc.insert_block(&b3b, vec![]);
+			let ir3a = bc.insert_block(&b3a, vec![]);
+
+			assert_eq!(ir1, ImportRoute {
+				enacted: vec![b1_hash],
+				retracted: vec![],
+				omitted: vec![],
+			});
+
+			assert_eq!(ir2, ImportRoute {
+				enacted: vec![b2_hash],
+				retracted: vec![],
+				omitted: vec![],
+			});
+
+			assert_eq!(ir3b, ImportRoute {
+				enacted: vec![b3b_hash],
+				retracted: vec![],
+				omitted: vec![],
+			});
+
+			assert_eq!(ir3a, ImportRoute {
+				enacted: vec![b3a_hash],
+				retracted: vec![b3b_hash],
+				omitted: vec![],
+			});
+
+			assert_eq!(bc.best_block_hash(), best_block_hash);
+			assert_eq!(bc.block_number(&genesis_hash).unwrap(), 0);
+			assert_eq!(bc.block_number(&b1_hash).unwrap(), 1);
+			assert_eq!(bc.block_number(&b2_hash).unwrap(), 2);
+			assert_eq!(bc.block_number(&b3a_hash).unwrap(), 3);
+			assert_eq!(bc.block_number(&b3b_hash).unwrap(), 3);
+
+			assert_eq!(bc.block_hash(0).unwrap(), genesis_hash);
+			assert_eq!(bc.block_hash(1).unwrap(), b1_hash);
+			assert_eq!(bc.block_hash(2).unwrap(), b2_hash);
+			assert_eq!(bc.block_hash(3).unwrap(), b3a_hash);
+
+			// test trie route
+			let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone());
+			assert_eq!(r0_1.ancestor, genesis_hash);
+			assert_eq!(r0_1.blocks, [b1_hash.clone()]);
+			assert_eq!(r0_1.index, 0);
+
+			let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());
+			assert_eq!(r0_2.ancestor, genesis_hash);
+			assert_eq!(r0_2.blocks, [b1_hash.clone(), b2_hash.clone()]);
+			assert_eq!(r0_2.index, 0);
+
+			let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());
+			assert_eq!(r1_3a.ancestor, b1_hash);
+			assert_eq!(r1_3a.blocks, [b2_hash.clone(), b3a_hash.clone()]);
+			assert_eq!(r1_3a.index, 0);
+
+			let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());
+			assert_eq!(r1_3b.ancestor, b1_hash);
+			assert_eq!(r1_3b.blocks, [b2_hash.clone(), b3b_hash.clone()]);
+			assert_eq!(r1_3b.index, 0);
+
+			let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());
+			assert_eq!(r3a_3b.ancestor, b2_hash);
+			assert_eq!(r3a_3b.blocks, [b3a_hash.clone(), b3b_hash.clone()]);
+			assert_eq!(r3a_3b.index, 1);
+
+			let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone());
+			assert_eq!(r1_0.ancestor, genesis_hash);
+			assert_eq!(r1_0.blocks, [b1_hash.clone()]);
+			assert_eq!(r1_0.index, 1);
+
+			let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone());
+			assert_eq!(r2_0.ancestor, genesis_hash);
+			assert_eq!(r2_0.blocks, [b2_hash.clone(), b1_hash.clone()]);
+			assert_eq!(r2_0.index, 2);
+
+			let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone());
+			assert_eq!(r3a_1.ancestor, b1_hash);
+			assert_eq!(r3a_1.blocks, [b3a_hash.clone(), b2_hash.clone()]);
+			assert_eq!(r3a_1.index, 2);
+
+			let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone());
+			assert_eq!(r3b_1.ancestor, b1_hash);
+			assert_eq!(r3b_1.blocks, [b3b_hash.clone(), b2_hash.clone()]);
+			assert_eq!(r3b_1.index, 2);
+
+			let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone());
+			assert_eq!(r3b_3a.ancestor, b2_hash);
+			assert_eq!(r3b_3a.blocks, [b3b_hash.clone(), b3a_hash.clone()]);
+			assert_eq!(r3b_3a.index, 1);
 		});
-
-		assert_eq!(ir2, ImportRoute {
-			enacted: vec![b2_hash],
-			retracted: vec![],
-			omitted: vec![],
-		});
-
-		assert_eq!(ir3b, ImportRoute {
-			enacted: vec![b3b_hash],
-			retracted: vec![],
-			omitted: vec![],
-		});
-
-		assert_eq!(ir3a, ImportRoute {
-			enacted: vec![b3a_hash],
-			retracted: vec![b3b_hash],
-			omitted: vec![],
-		});
-
-		assert_eq!(bc.best_block_hash(), best_block_hash);
-		assert_eq!(bc.block_number(&genesis_hash).unwrap(), 0);
-		assert_eq!(bc.block_number(&b1_hash).unwrap(), 1);
-		assert_eq!(bc.block_number(&b2_hash).unwrap(), 2);
-		assert_eq!(bc.block_number(&b3a_hash).unwrap(), 3);
-		assert_eq!(bc.block_number(&b3b_hash).unwrap(), 3);
-
-		assert_eq!(bc.block_hash(0).unwrap(), genesis_hash);
-		assert_eq!(bc.block_hash(1).unwrap(), b1_hash);
-		assert_eq!(bc.block_hash(2).unwrap(), b2_hash);
-		assert_eq!(bc.block_hash(3).unwrap(), b3a_hash);
-
-		// test trie route
-		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone());
-		assert_eq!(r0_1.ancestor, genesis_hash);
-		assert_eq!(r0_1.blocks, [b1_hash.clone()]);
-		assert_eq!(r0_1.index, 0);
-
-		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());
-		assert_eq!(r0_2.ancestor, genesis_hash);
-		assert_eq!(r0_2.blocks, [b1_hash.clone(), b2_hash.clone()]);
-		assert_eq!(r0_2.index, 0);
-
-		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());
-		assert_eq!(r1_3a.ancestor, b1_hash);
-		assert_eq!(r1_3a.blocks, [b2_hash.clone(), b3a_hash.clone()]);
-		assert_eq!(r1_3a.index, 0);
-
-		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());
-		assert_eq!(r1_3b.ancestor, b1_hash);
-		assert_eq!(r1_3b.blocks, [b2_hash.clone(), b3b_hash.clone()]);
-		assert_eq!(r1_3b.index, 0);
-
-		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());
-		assert_eq!(r3a_3b.ancestor, b2_hash);
-		assert_eq!(r3a_3b.blocks, [b3a_hash.clone(), b3b_hash.clone()]);
-		assert_eq!(r3a_3b.index, 1);
-
-		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone());
-		assert_eq!(r1_0.ancestor, genesis_hash);
-		assert_eq!(r1_0.blocks, [b1_hash.clone()]);
-		assert_eq!(r1_0.index, 1);
-
-		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone());
-		assert_eq!(r2_0.ancestor, genesis_hash);
-		assert_eq!(r2_0.blocks, [b2_hash.clone(), b1_hash.clone()]);
-		assert_eq!(r2_0.index, 2);
-
-		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone());
-		assert_eq!(r3a_1.ancestor, b1_hash);
-		assert_eq!(r3a_1.blocks, [b3a_hash.clone(), b2_hash.clone()]);
-		assert_eq!(r3a_1.index, 2);
-
-		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone());
-		assert_eq!(r3b_1.ancestor, b1_hash);
-		assert_eq!(r3b_1.blocks, [b3b_hash.clone(), b2_hash.clone()]);
-		assert_eq!(r3b_1.index, 2);
-
-		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone());
-		assert_eq!(r3b_3a.ancestor, b2_hash);
-		assert_eq!(r3b_3a.blocks, [b3b_hash.clone(), b3a_hash.clone()]);
-		assert_eq!(r3b_3a.index, 1);
 	}
 
 	#[test]
@@ -1014,58 +1047,77 @@ mod tests {
 		let first_hash = BlockView::new(&first).header_view().sha3();
 
 		let temp = RandomTempPath::new();
-		{
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			bc.insert_block(&first, vec![]);
 			assert_eq!(bc.best_block_hash(), first_hash);
-		}
+		});
 
-		{
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+
 			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), first_hash);
-		}
+		});
 	}
 
 	#[test]
 	fn can_contain_arbitrary_block_sequence() {
-		let bc_result = generate_dummy_blockchain(50);
-		let bc = bc_result.reference();
-		assert_eq!(bc.best_block_number(), 49);
+		let temp = RandomTempPath::new();
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
+
+			let bc = generate_dummy_blockchain_in(&temp, 500);
+			assert_eq!(bc.best_block_number(), 499);
+		});
 	}
 
 	#[test]
-	fn can_collect_garbage() {
-		let bc_result = generate_dummy_blockchain(3000);
-		let bc = bc_result.reference();
+	fn bc_can_collect_garbage() {
+		let temp = RandomTempPath::new();
 
-		assert_eq!(bc.best_block_number(), 2999);
-		let best_hash = bc.best_block_hash();
-		let mut block_header = bc.block_header(&best_hash);
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
-		while !block_header.is_none() {
-			block_header = bc.block_header(&block_header.unwrap().parent_hash);
-		}
-		assert!(bc.cache_size().blocks > 1024 * 1024);
+			let bc = generate_dummy_blockchain_in(&temp, 3000);
+			assert_eq!(bc.best_block_number(), 2999);
+			let best_hash = bc.best_block_hash();
+			let mut block_header = bc.block_header(&best_hash);
 
-		for _ in 0..2 {
-			bc.collect_garbage();
-		}
-		assert!(bc.cache_size().blocks < 1024 * 1024);
+			while !block_header.is_none() {
+				block_header = bc.block_header(&block_header.unwrap().parent_hash);
+			}
+			assert!(bc.cache_size().blocks > 1024 * 1024);
+
+			for _ in 0..2 {
+				bc.collect_garbage();
+			}
+			assert!(bc.cache_size().blocks < 1024 * 1024);
+		});
 	}
 
 	#[test]
 	fn can_contain_arbitrary_block_sequence_with_extra() {
-		let bc_result = generate_dummy_blockchain_with_extra(25);
-		let bc = bc_result.reference();
-		assert_eq!(bc.best_block_number(), 24);
-	}
+		let temp = RandomTempPath::new();
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
-	#[test]
-	fn can_contain_only_genesis_block() {
-		let bc_result = generate_dummy_empty_blockchain();
-		let bc = bc_result.reference();
-		assert_eq!(bc.best_block_number(), 0);
+			let bc = generate_dummy_blockchain_with_extra_in(&temp, 25);
+			assert_eq!(bc.best_block_number(), 24);
+		});
 	}
 
 	#[test]
@@ -1075,14 +1127,20 @@ mod tests {
 		let b1_hash = H256::from_str("f53f268d23a71e85c7d6d83a9504298712b84c1a2ba220441c86eeda0bf0b6e3").unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
-		bc.insert_block(&b1, vec![]);
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
-		let transactions = bc.transactions(&b1_hash).unwrap();
-		assert_eq!(transactions.len(), 7);
-		for t in transactions {
-			assert_eq!(bc.transaction(&bc.transaction_address(&t.hash()).unwrap()).unwrap(), t);
-		}
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+			bc.insert_block(&b1, vec![]);
+
+			let transactions = bc.transactions(&b1_hash).unwrap();
+			assert_eq!(transactions.len(), 7);
+			for t in transactions {
+				assert_eq!(bc.transaction(&bc.transaction_address(&t.hash()).unwrap()).unwrap(), t);
+			}
+		});
 	}
 
 	#[test]
@@ -1106,50 +1164,56 @@ mod tests {
 		let b2a = canon_chain.with_bloom(bloom_ba.clone()).generate(&mut finalizer).unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		::crossbeam::scope(|scope| {
+			let stop = StopGuard::new();
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::extras_service_url(temp.as_str()).unwrap());
+			ethcore_db::run_worker(scope, stop.share(), &ethcore_db::blocks_service_url(temp.as_str()).unwrap());
 
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		assert_eq!(blocks_b1, vec![]);
-		assert_eq!(blocks_b2, vec![]);
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 
-		bc.insert_block(&b1, vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		assert_eq!(blocks_b1, vec![1]);
-		assert_eq!(blocks_b2, vec![]);
+			let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+			let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+			assert_eq!(blocks_b1, vec![]);
+			assert_eq!(blocks_b2, vec![]);
 
-		bc.insert_block(&b2, vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		assert_eq!(blocks_b1, vec![1]);
-		assert_eq!(blocks_b2, vec![2]);
+			bc.insert_block(&b1, vec![]);
+			let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+			let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+			assert_eq!(blocks_b1, vec![1]);
+			assert_eq!(blocks_b2, vec![]);
 
-		// hasn't been forked yet
-		bc.insert_block(&b1a, vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
-		assert_eq!(blocks_b1, vec![1]);
-		assert_eq!(blocks_b2, vec![2]);
-		assert_eq!(blocks_ba, vec![]);
+			bc.insert_block(&b2, vec![]);
+			let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+			let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+			assert_eq!(blocks_b1, vec![1]);
+			assert_eq!(blocks_b2, vec![2]);
 
-		// fork has happend
-		bc.insert_block(&b2a, vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
-		assert_eq!(blocks_b1, vec![]);
-		assert_eq!(blocks_b2, vec![]);
-		assert_eq!(blocks_ba, vec![1, 2]);
+			// hasn't been forked yet
+			bc.insert_block(&b1a, vec![]);
+			let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+			let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+			let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+			assert_eq!(blocks_b1, vec![1]);
+			assert_eq!(blocks_b2, vec![2]);
+			assert_eq!(blocks_ba, vec![]);
 
-		// fork back
-		bc.insert_block(&b3, vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
-		assert_eq!(blocks_b1, vec![1]);
-		assert_eq!(blocks_b2, vec![2]);
-		assert_eq!(blocks_ba, vec![3]);
+			// fork has happend
+			bc.insert_block(&b2a, vec![]);
+			let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+			let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+			let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+			assert_eq!(blocks_b1, vec![]);
+			assert_eq!(blocks_b2, vec![]);
+			assert_eq!(blocks_ba, vec![1, 2]);
+
+			// fork back
+			bc.insert_block(&b3, vec![]);
+			let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+			let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+			let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+			assert_eq!(blocks_b1, vec![1]);
+			assert_eq!(blocks_b2, vec![2]);
+			assert_eq!(blocks_ba, vec![3]);
+		});
 	}
 }

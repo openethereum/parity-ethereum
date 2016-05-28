@@ -22,6 +22,8 @@ use std::sync::RwLock;
 use std::collections::HashMap;
 use util::{DBTransaction, Database};
 use util::rlp::{encode, Encodable, decode, Decodable};
+use ethcore_db;
+use ethcore_db::DatabaseService;
 
 #[derive(Clone, Copy)]
 pub enum CacheUpdatePolicy {
@@ -157,6 +159,38 @@ impl Writable for DBTransaction {
 }
 
 impl Readable for Database {
+	fn read<T, R>(&self, key: &Key<T, Target = R>) -> Option<T> where T: Decodable, R: Deref<Target = [u8]> {
+		let result = self.get(&key.key());
+
+		match result {
+			Ok(option) => option.map(|v| decode(&v)),
+			Err(err) => {
+				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
+			}
+		}
+	}
+
+	fn exists<T, R>(&self, key: &Key<T, Target = R>) -> bool where R: Deref<Target = [u8]> {
+		let result = self.get(&key.key());
+
+		match result {
+			Ok(v) => v.is_some(),
+			Err(err) => {
+				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
+			}
+		}
+	}
+}
+
+impl Writable for ethcore_db::DBTransaction {
+	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
+		self.put(&key.key(), &encode(value));
+	}
+}
+
+pub type DBClient = ethcore_db::DatabaseClient<::nanomsg::Socket>;
+
+impl Readable for DBClient {
 	fn read<T, R>(&self, key: &Key<T, Target = R>) -> Option<T> where T: Decodable, R: Deref<Target = [u8]> {
 		let result = self.get(&key.key());
 

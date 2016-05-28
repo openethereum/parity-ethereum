@@ -43,6 +43,8 @@ extern crate ethcore_ipc_nano as nanoipc;
 #[macro_use]
 extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
+extern crate ethcore_ipc_hypervisor as hypervisor;
+extern crate crossbeam;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
@@ -54,7 +56,6 @@ extern crate ethcore_dapps;
 mod die;
 mod price_info;
 mod upgrade;
-mod hypervisor;
 mod setup_log;
 mod rpc;
 mod dapps;
@@ -153,7 +154,20 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 	}
 }
 
+fn start_hypervisor(conf: &Configuration) -> hypervisor::Hypervisor {
+	let db_path = ethcore::client::get_db_path(
+		Path::new(&conf.path()),
+		conf.client_config(&conf.spec()).pruning,
+		conf.spec().genesis_header().hash()).to_str().unwrap().to_owned();
+	let hypervisor = hypervisor::Hypervisor::new(&db_path);
+	hypervisor.start();
+	hypervisor
+}
+
 fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) {
+	let hypervisor = start_hypervisor(&conf);
+	hypervisor.wait_for_startup();
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -254,6 +268,9 @@ enum DataFormat {
 }
 
 fn execute_export(conf: Configuration) {
+	let hypervisor = start_hypervisor(&conf);
+	hypervisor.wait_for_startup();
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -325,6 +342,9 @@ fn execute_export(conf: Configuration) {
 }
 
 fn execute_import(conf: Configuration) {
+	let hypervisor = start_hypervisor(&conf);
+	hypervisor.wait_for_startup();
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -453,12 +473,19 @@ fn execute_account_cli(conf: Configuration) {
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _dapps_server: Option<WebappServer>) {
+fn wait_for_exit(
+	panic_handler: Arc<PanicHandler>,
+	_rpc_server: Option<RpcServer>,
+	_webapp_server: Option<WebappServer>,)
+
+{
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
 	let e = exit.clone();
-	CtrlC::set_handler(move || { e.notify_all(); });
+	CtrlC::set_handler(move || {
+		e.notify_all();
+	});
 
 	// Handle panics
 	let e = exit.clone();
