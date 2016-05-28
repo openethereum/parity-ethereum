@@ -14,44 +14,51 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Mutex;
 use std::collections::HashSet;
-use rpc::v1::types::TransactionRequest;
+use v1::types::TransactionRequest;
 
-pub trait SigningQueue {
-	fn add_request(&mut self, transaction: TransactionRequest);
+/// A queue of transactions awaiting to be confirmed and signed.
+pub trait SigningQueue: Send + Sync {
+	/// Add new request to the queue.
+	fn add_request(&self, transaction: TransactionRequest);
 
-	fn remove_request(&mut self, id: TransactionRequest);
+	/// Remove request from the queue.
+	fn remove_request(&self, id: TransactionRequest);
 
-	fn requests(&self) -> &HashSet<TransactionRequest>;
+	/// Return copy of all the requests in the queue.
+	fn requests(&self) -> HashSet<TransactionRequest>;
 }
 
-impl SigningQueue for HashSet<TransactionRequest> {
-	fn add_request(&mut self, transaction: TransactionRequest) {
-		self.insert(transaction);
+impl SigningQueue for Mutex<HashSet<TransactionRequest>> {
+	fn add_request(&self, transaction: TransactionRequest) {
+		self.lock().unwrap().insert(transaction);
 	}
 
-	fn remove_request(&mut self, id: TransactionRequest) {
-		self.remove(&id);
+	fn remove_request(&self, id: TransactionRequest) {
+		self.lock().unwrap().remove(&id);
 	}
 
-	fn requests(&self) -> &HashSet<TransactionRequest> {
-		self
+	fn requests(&self) -> HashSet<TransactionRequest> {
+		let queue = self.lock().unwrap();
+		queue.clone()
 	}
 }
 
 
 #[cfg(test)]
 mod test {
+	use std::sync::Mutex;
 	use std::collections::HashSet;
 	use util::hash::Address;
 	use util::numbers::U256;
-	use rpc::v1::types::TransactionRequest;
+	use v1::types::TransactionRequest;
 	use super::*;
 
 	#[test]
 	fn should_work_for_hashset() {
 		// given
-		let mut queue = HashSet::new();
+		let mut queue = Mutex::new(HashSet::new());
 
 		let request = TransactionRequest {
 			from: Address::from(1),

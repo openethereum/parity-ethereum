@@ -27,3 +27,4 @@ pub mod types;
 
 pub use self::traits::{Web3, Eth, EthFilter, EthSigning, Personal, Net, Ethcore, Traces, Rpc};
 pub use self::impls::*;
+pub use self::helpers::SigningQueue;

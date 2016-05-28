@@ -16,6 +16,8 @@
 
 mod poll_manager;
 mod poll_filter;
+mod signing_queue;
 
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::PollFilter;
+pub use self::signing_queue::SigningQueue;

@@ -20,7 +20,7 @@ use jsonrpc_core::*;
 use v1::traits::Personal;
 use v1::types::TransactionRequest;
 use v1::impls::sign_and_dispatch;
-use util::keys::store::*;
+use util::keys::store::AccountProvider;
 use util::numbers::*;
 use ethcore::client::BlockChainClient;
 use ethminer::MinerService;

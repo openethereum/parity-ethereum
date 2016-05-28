@@ -14,26 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interfaces.
-
-macro_rules! rpc_unimplemented {
-	() => (Err(Error::internal_error()))
-}
-
-pub mod web3;
-pub mod eth;
-pub mod net;
-pub mod personal;
-pub mod ethcore;
-pub mod traces;
-pub mod rpc;
-
-pub use self::web3::Web3;
-pub use self::eth::{Eth, EthFilter, EthSigning};
-pub use self::net::Net;
-pub use self::personal::{Personal, SignerPersonal};
-pub use self::ethcore::Ethcore;
-pub use self::traces::Traces;
-pub use self::rpc::Rpc;
-
 

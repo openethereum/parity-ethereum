@@ -53,9 +53,7 @@ extern crate ethcore_rpc as rpc;
 extern crate jsonrpc_core;
 extern crate ws;
 
-mod signing_queue;
 mod ws_server;
-
 pub use ws_server::*;
 
 #[cfg(test)]

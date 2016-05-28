@@ -26,7 +26,7 @@ use util::RotatingLogger;
 use util::keys::store::AccountService;
 use util::network_settings::NetworkSettings;
 
-use ethcore_rpc::Extendable;
+use ethcore_rpc::{SigningQueue, Extendable};
 
 pub enum Api {
 	Web3,
@@ -61,6 +61,8 @@ impl FromStr for Api {
 }
 
 pub struct Dependencies {
+	pub signer_enabled: bool,
+	pub signer_queue: Arc<SigningQueue>,
 	pub client: Arc<Client>,
 	pub sync: Arc<EthSync>,
 	pub secret_store: Arc<AccountService>,
@@ -115,7 +117,12 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: Option
 			Api::Eth => {
 				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
-				server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
+
+				if deps.signer_enabled {
+					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue).to_delegate());
+				} else {
+					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
+				}
 			},
 			Api::Personal => {
 				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner).to_delegate())

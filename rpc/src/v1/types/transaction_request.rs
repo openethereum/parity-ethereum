@@ -21,7 +21,7 @@ use util::numbers::U256;
 use v1::types::bytes::Bytes;
 
 /// Transaction request coming from RPC
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct TransactionRequest {
 	/// Sender
 	pub from: Address,
