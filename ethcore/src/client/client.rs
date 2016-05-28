@@ -48,6 +48,7 @@ use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
+use ethcore_db::{DatabaseConnection, DatabaseService, DatabaseNanoClient};
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -79,9 +80,9 @@ impl ClientReport {
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
-pub struct Client<V = CanonVerifier> where V: Verifier {
-	chain: Arc<BlockChain>,
-	tracedb: Arc<TraceDB<BlockChain>>,
+pub struct Client<D: DatabaseService, V = CanonVerifier> where V: Verifier {
+	chain: Arc<BlockChain<D>>,
+	tracedb: Arc<TraceDB<BlockChain<D>>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -100,10 +101,12 @@ const HISTORY: u64 = 1200;
 // of which you actually want force an upgrade.
 const CLIENT_DB_VER_STR: &'static str = "5.3";
 
-impl Client<CanonVerifier> {
+impl<D: DatabaseService + Send + Sync> Client<D, CanonVerifier> {
 	/// Create a new client with given spec and DB path.
-	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
-		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
+	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage>)
+		-> Result<Arc<Client<DatabaseNanoClient, CanonVerifier>>, ClientError>
+	{
+		Client::<D, CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
 	}
 }
 
@@ -124,12 +127,18 @@ pub fn append_path(path: &Path, item: &str) -> String {
 	p.to_str().unwrap().to_owned()
 }
 
-impl<V> Client<V> where V: Verifier {
+impl<D: DatabaseService + Send + Sync, V: Verifier> Client<D, V> {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, ClientError> {
+	pub fn new_with_verifier(
+		config: ClientConfig,
+		spec: Spec,
+		path: &Path,
+		message_channel: IoChannel<NetSyncMessage>
+		) -> Result<Arc<Client<DatabaseNanoClient, V>>, ClientError>
+	{
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
-		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
+		let chain = Arc::new(BlockChain::<DatabaseNanoClient>::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
@@ -400,7 +409,7 @@ impl<V> Client<V> where V: Verifier {
 		}
 	}
 
-	fn block_hash(chain: &BlockChain, id: BlockID) -> Option<H256> {
+	fn block_hash(chain: &BlockChain<D>, id: BlockID) -> Option<H256> {
 		match id {
 			BlockID::Hash(hash) => Some(hash),
 			BlockID::Number(number) => chain.block_hash(number),
@@ -420,7 +429,7 @@ impl<V> Client<V> where V: Verifier {
 	}
 }
 
-impl<V> BlockChainClient for Client<V> where V: Verifier {
+impl<D: DatabaseService + Send + Sync, V: Verifier> BlockChainClient for Client<D, V> {
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
 		let view = HeaderView::new(&header);
@@ -776,7 +785,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 }
 
-impl MayPanic for Client {
+impl<D: DatabaseService> MayPanic for Client<D> {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}

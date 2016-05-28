@@ -32,7 +32,8 @@ use std::sync::Arc;
 use std::sync::atomic::*;
 use std::path::PathBuf;
 
-pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>;
+pub type DatabaseNanoClient = DatabaseClient<::nanomsg::Socket>;
+pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseNanoClient>;
 
 #[derive(Debug)]
 pub enum ServiceError {

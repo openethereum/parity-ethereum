@@ -8,8 +8,9 @@ use trace::DatabaseExtras as TraceDatabaseExtras;
 use blockchain::{BlockChain, BlockProvider};
 use blockchain::extras::TransactionAddress;
 use super::BlockID;
+use ethcore_db::DatabaseService;
 
-impl TraceDatabaseExtras for BlockChain {
+impl<D: DatabaseService> TraceDatabaseExtras for BlockChain<D> {
 	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
 		(self as &BlockProvider).block_hash(block_number)
 	}

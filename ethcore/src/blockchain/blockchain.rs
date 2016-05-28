@@ -31,7 +31,7 @@ use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use db::{Writable, Readable, Key, CacheUpdatePolicy};
 use ethcore_db;
-use ethcore_db::{DatabaseConnection, DatabaseService};
+use ethcore_db::{DatabaseConnection, DatabaseService, DatabaseNanoClient};
 use blockchain::{CacheSize, ImportRoute, Config};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
@@ -125,7 +125,7 @@ struct CacheManager {
 	in_use: HashSet<CacheID>,
 }
 
-impl bc::group::BloomGroupDatabase for BlockChain {
+impl<D: DatabaseService> bc::group::BloomGroupDatabase for BlockChain<D> {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
 		self.note_used(CacheID::BlocksBlooms(position.clone()));
@@ -136,7 +136,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 /// Structure providing fast access to blockchain data.
 ///
 /// **Does not do input data verification.**
-pub struct BlockChain {
+pub struct BlockChain<D: DatabaseService> {
 	// All locks must be captured in the order declared here.
 	pref_cache_size: AtomicUsize,
 	max_cache_size: AtomicUsize,
@@ -154,15 +154,15 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	extras_db: DatabaseConnection,
-	blocks_db: DatabaseConnection,
+	extras_db: D,
+	blocks_db: D,
 
 	cache_man: RwLock<CacheManager>,
 
 	insert_lock: Mutex<()>
 }
 
-impl BlockProvider for BlockChain {
+impl<D: DatabaseService> BlockProvider for BlockChain<D> {
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool {
@@ -231,12 +231,12 @@ impl BlockProvider for BlockChain {
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
 
-pub struct AncestryIter<'a> {
+pub struct AncestryIter<'a, D: 'a + DatabaseService> {
 	current: H256,
-	chain: &'a BlockChain,
+	chain: &'a BlockChain<D>,
 }
 
-impl<'a> Iterator for AncestryIter<'a> {
+impl<'a, D: DatabaseService> Iterator for AncestryIter<'a, D> {
 	type Item = H256;
 	fn next(&mut self) -> Option<H256> {
 		if self.current.is_zero() {
@@ -249,9 +249,9 @@ impl<'a> Iterator for AncestryIter<'a> {
 	}
 }
 
-impl BlockChain {
+impl<D: DatabaseService> BlockChain<D> {
 	/// Create new instance of blockchain from given Genesis
-	pub fn new(config: Config, genesis: &[u8], path: &Path) -> BlockChain {
+	pub fn new(config: Config, genesis: &[u8], path: &Path) -> BlockChain<DatabaseNanoClient> {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
@@ -507,7 +507,7 @@ impl BlockChain {
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
-	pub fn ancestry_iter(&self, first: H256) -> Option<AncestryIter> {
+	pub fn ancestry_iter<'a>(&self, first: H256) -> Option<AncestryIter<'a, D>> {
 		if self.is_known(&first) {
 			Some(AncestryIter {
 				current: first,

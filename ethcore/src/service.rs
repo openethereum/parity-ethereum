@@ -21,6 +21,7 @@ use util::panics::*;
 use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig};
+use ethcore_db::{DatabaseService, DatabaseConnection, DatabaseNanoClient};
 
 /// Message type for external and internal events
 #[derive(Clone)]
@@ -46,22 +47,24 @@ pub enum SyncMessage {
 pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
-pub struct ClientService {
+pub struct ClientService<D: DatabaseService> {
 	net_service: NetworkService<SyncMessage>,
-	client: Arc<Client>,
+	client: Arc<Client<D>>,
 	panic_handler: Arc<PanicHandler>
 }
 
-impl ClientService {
+impl<D: DatabaseService> ClientService<D> {
 	/// Start the service in a separate thread.
-	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path) -> Result<ClientService, Error> {
+	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path)
+		-> Result<ClientService<DatabaseNanoClient>, Error>
+	{
 		let panic_handler = PanicHandler::new_in_arc();
 		let mut net_service = try!(NetworkService::start(net_config));
 		panic_handler.forward_from(&net_service);
 
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {:?} engine", spec.name, spec.engine.name());
-		let client = try!(Client::new(config, spec, db_path, net_service.io().channel()));
+		let client = try!(Client::<DatabaseNanoClient>::new(config, spec, db_path, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
@@ -86,7 +89,7 @@ impl ClientService {
 	}
 
 	/// Get client interface
-	pub fn client(&self) -> Arc<Client> {
+	pub fn client(&self) -> Arc<Client<D>> {
 		self.client.clone()
 	}
 
@@ -96,21 +99,21 @@ impl ClientService {
 	}
 }
 
-impl MayPanic for ClientService {
+impl<D: DatabaseService> MayPanic for ClientService<D> {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
 }
 
 /// IO interface for the Client handler
-struct ClientIoHandler {
-	client: Arc<Client>
+struct ClientIoHandler<D: DatabaseService> {
+	client: Arc<Client<D>>
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
 const CLIENT_TICK_MS: u64 = 5000;
 
-impl IoHandler<NetSyncMessage> for ClientIoHandler {
+impl<D: DatabaseService + Send + Sync> IoHandler<NetSyncMessage> for ClientIoHandler<D> {
 	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
 	}
