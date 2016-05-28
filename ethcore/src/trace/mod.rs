@@ -81,11 +81,23 @@ pub trait Tracer: Send {
 	/// Stores failed create trace.
 	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>);
 
-	/// Spawn subracer which will be used to trace deeper levels of execution.
+	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;
 
 	/// Consumes self and returns all traces.
 	fn traces(self) -> Vec<Trace>;
+}
+
+/// Used by executive to build VM traces.
+pub trait VMTracer: Send {
+	/// Trace the preparation to execute a single instruction.
+	fn trace_prepare_execute(pc: usize, instruction: u8, gas_cost: &U256, stack: &Vec<U256>);
+
+	/// Spawn subtracer which will be used to trace deeper levels of execution.
+	fn subtracer(&self) -> Self where Self: Sized;
+
+	/// Consumes self and returns all VM traces.
+	fn traces(self) -> Vec<VMTrace>;
 }
 
 /// `DbExtras` provides an interface to query extra data which is not stored in tracesdb,

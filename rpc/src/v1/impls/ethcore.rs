@@ -157,8 +157,6 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, 
 		to_value(&Bytes::new(version))
 	}
 
-	//pub type VMTraceFunctionBox = Box<FnMut(usize, u8, U256, U256) + Send>;
-
 	fn vm_trace_call(&self, params: Params) -> Result<Value, Error> {
 		trace!(target: "jsonrpc", "vm_trace_call: {:?}", params);
 		from_params(params)

@@ -349,6 +349,17 @@ impl Trace {
 	}
 }
 
+/*pub struct VMExecutedOperation {
+	/// The total gas used.
+	pub gas_used: U256,
+	/// Altered storage value.
+	pub storage_diff: Option<(U256, U256)>,
+	/// If altered, the new memory image.
+	pub new_memory: Option<Bytes>,
+}*/
+	/// Information concerning the execution of the operation.
+//	pub executed: Option<VMExecutedOperation>,
+
 #[derive(Debug, Clone, PartialEq, Binary)]
 /// A record of the execution of a single VM operation.
 pub struct VMOperation {
@@ -358,26 +369,17 @@ pub struct VMOperation {
 	pub instruction: u8,
 	/// The gas cost for this instruction.
 	pub gas_cost: U256,
-	/// The total gas used.
-	pub gas_used: U256,
 	/// The stack.
 	pub stack: Vec<U256>,
-	/// Altered storage value. TODO: should be option.
-//	pub storage_diff: Option<(U256, U256)>,
-	/// If altered, the new memory image.
-	pub new_memory: Bytes,
 }
 
 impl Encodable for VMOperation {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(6);
+		s.begin_list(4);
 		s.append(&self.pc);
 		s.append(&self.instruction);
 		s.append(&self.gas_cost);
-		s.append(&self.gas_used);
 		s.append(&self.stack);
-//		s.append(&self.storage_diff);
-		s.append(&self.new_memory);
 	}
 }
 
@@ -388,10 +390,7 @@ impl Decodable for VMOperation {
 			pc: try!(d.val_at(0)),
 			instruction: try!(d.val_at(1)),
 			gas_cost: try!(d.val_at(2)),
-			gas_used: try!(d.val_at(3)),
-			stack: try!(d.val_at(4)),
-//			storage_diff: try!(d.val_at(5)),
-			new_memory: try!(d.val_at(6)),
+			stack: try!(d.val_at(3)),
 		};
 
 		Ok(res)

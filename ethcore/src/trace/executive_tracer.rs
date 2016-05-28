@@ -40,8 +40,7 @@ impl Tracer for ExecutiveTracer {
 		Some(vec![])
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs:
-				  Vec<Trace>, delegate_call: bool) {
+	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
 		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
 			return;
