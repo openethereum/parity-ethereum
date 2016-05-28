@@ -32,8 +32,8 @@ pub use self::config::{Config, Switch};
 pub use self::db::TraceDB;
 pub use self::error::Error;
 pub use types::trace_types::trace::{Trace, VMTrace};
-pub use self::noop_tracer::NoopTracer;
-pub use self::executive_tracer::ExecutiveTracer;
+pub use self::noop_tracer::{NoopTracer, NoopVMTracer};
+pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
 pub use types::trace_types::filter::{Filter, AddressesFilter};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
@@ -91,13 +91,16 @@ pub trait Tracer: Send {
 /// Used by executive to build VM traces.
 pub trait VMTracer: Send {
 	/// Trace the preparation to execute a single instruction.
-	fn trace_prepare_execute(pc: usize, instruction: u8, gas_cost: &U256, stack: &Vec<U256>);
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256, stack: &[U256]);
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
-	fn subtracer(&self) -> Self where Self: Sized;
+	fn prepare_subtrace(&self, code: &Bytes) -> Self where Self: Sized;
 
-	/// Consumes self and returns all VM traces.
-	fn traces(self) -> Vec<VMTrace>;
+	/// Spawn subtracer which will be used to trace deeper levels of execution.
+	fn done_subtrace(&mut self, sub: Self) where Self: Sized;
+
+	/// Consumes self and returns the VM trace.
+	fn drain(self) -> Option<VMTrace>;
 }
 
 /// `DbExtras` provides an interface to query extra data which is not stored in tracesdb,

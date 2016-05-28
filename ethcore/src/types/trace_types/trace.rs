@@ -397,12 +397,11 @@ impl Decodable for VMOperation {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq, Binary, Default)]
 /// A record of a full VM trace for a CALL/CREATE.
 pub struct VMTrace {
-	/// The number of EVM execution environments active when this action happened; 0 if it's
-	/// the outer action of the transaction.
-	pub depth: usize,
+	/// The step (i.e. index into operations) at which this trace corresponds.
+	pub parent_step: usize,
 	/// The code to be executed.
 	pub code: Bytes,
 	/// The operations executed.
@@ -415,7 +414,7 @@ pub struct VMTrace {
 impl Encodable for VMTrace {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(4);
-		s.append(&self.depth);
+		s.append(&self.parent_step);
 		s.append(&self.code);
 		s.append(&self.operations);
 		s.append(&self.subs);
@@ -426,7 +425,7 @@ impl Decodable for VMTrace {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = VMTrace {
-			depth: try!(d.val_at(0)),
+			parent_step: try!(d.val_at(0)),
 			code: try!(d.val_at(1)),
 			operations: try!(d.val_at(2)),
 			subs: try!(d.val_at(3)),

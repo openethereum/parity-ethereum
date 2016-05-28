@@ -19,9 +19,9 @@ use common::*;
 use state::*;
 use engine::*;
 use executive::*;
-use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory, VMTraceFunctionBox};
+use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
 use substate::*;
-use trace::Tracer;
+use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
 pub enum OutputPolicy<'a, 'b> {
@@ -55,7 +55,7 @@ impl OriginInfo {
 }
 
 /// Implementation of evm Externalities.
-pub struct Externalities<'a, T> where T: 'a + Tracer {
+pub struct Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	state: &'a mut State,
 	env_info: &'a EnvInfo,
 	engine: &'a Engine,
@@ -66,10 +66,10 @@ pub struct Externalities<'a, T> where T: 'a + Tracer {
 	schedule: Schedule,
 	output: OutputPolicy<'a, 'a>,
 	tracer: &'a mut T,
-	vm_tracer: Option<VMTraceFunctionBox>,
+	vm_tracer: &'a mut V,
 }
 
-impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
+impl<'a, T, V> Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Basic `Externalities` constructor.
 	pub fn new(state: &'a mut State,
@@ -81,6 +81,7 @@ impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
 		substate: &'a mut Substate,
 		output: OutputPolicy<'a, 'a>,
 		tracer: &'a mut T,
+		vm_tracer: &'a mut V,
 	) -> Self {
 		Externalities {
 			state: state,
@@ -93,40 +94,12 @@ impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
 			schedule: engine.schedule(env_info),
 			output: output,
 			tracer: tracer,
-			vm_tracer: None,
-		}
-	}
-
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
-	/// Basic `Externalities` constructor.
-	pub fn with_vm_tracer(state: &'a mut State,
-		env_info: &'a EnvInfo,
-		engine: &'a Engine,
-		vm_factory: &'a Factory,
-		depth: usize,
-		origin_info: OriginInfo,
-		substate: &'a mut Substate,
-		output: OutputPolicy<'a, 'a>,
-		tracer: &'a mut T,
-		vm_tracer: VMTraceFunctionBox,
-	) -> Self {
-		Externalities {
-			state: state,
-			env_info: env_info,
-			engine: engine,
-			vm_factory: vm_factory,
-			depth: depth,
-			origin_info: origin_info,
-			substate: substate,
-			schedule: engine.schedule(env_info),
-			output: output,
-			tracer: tracer,
-			vm_tracer: Some(vm_tracer),
+			vm_tracer: vm_tracer,
 		}
 	}
 }
 
-impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
+impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	fn storage_at(&self, key: &H256) -> H256 {
 		self.state.storage_at(&self.origin_info.address, key)
 	}
@@ -181,7 +154,7 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.vm_factory, self.depth);
 
 		// TODO: handle internal error separately
-		match ex.create(params, self.substate, self.tracer) {
+		match ex.create(params, self.substate, self.tracer, self.vm_tracer) {
 			Ok(gas_left) => {
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)
@@ -219,7 +192,7 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.vm_factory, self.depth);
 
-		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer) {
+		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer, self.vm_tracer) {
 			Ok(gas_left) => MessageCallResult::Success(gas_left),
 			_ => MessageCallResult::Failed
 		}
@@ -316,7 +289,9 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
 	}
 
-	fn vm_tracer(&mut self) -> Option<&mut VMTraceFunctionBox> { self.vm_tracer.as_mut() }
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256, stack: &[U256]) {
+		self.vm_tracer.trace_prepare_execute(pc, instruction, gas_cost, stack);
+	}
 }
 
 #[cfg(test)]

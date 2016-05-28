@@ -18,13 +18,13 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult};
-use trace::Tracer;
+use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation};
+use trace::{Tracer, VMTracer};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]
 pub struct ExecutiveTracer {
-	traces: Vec<Trace>
+	traces: Vec<Trace>,
 }
 
 impl Tracer for ExecutiveTracer {
@@ -104,4 +104,36 @@ impl Tracer for ExecutiveTracer {
 	fn traces(self) -> Vec<Trace> {
 		self.traces
 	}
+}
+
+/// Simple VM tracer. Traces all operations. Ignores delegatecalls.
+#[derive(Default)]
+pub struct ExecutiveVMTracer {
+	data: VMTrace,
+}
+
+impl VMTracer for ExecutiveVMTracer {
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256, stack: &[U256]) {
+		self.data.operations.push(VMOperation {
+			pc: pc,
+			instruction: instruction,
+			gas_cost: gas_cost.clone(),
+			stack: stack.iter().cloned().collect(),
+		})
+	}
+
+	fn prepare_subtrace(&self, code: &Bytes) -> Self {
+		ExecutiveVMTracer { data: VMTrace {
+			parent_step: self.data.operations.len(),
+			code: code.clone(),
+			operations: vec![],
+			subs: vec![],
+		}}
+	}
+
+	fn done_subtrace(&mut self, sub: Self) {
+		self.data.subs.push(sub.data);
+	}
+
+	fn drain(self) -> Option<VMTrace> { Some(self.data) }
 }

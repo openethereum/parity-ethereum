@@ -21,7 +21,7 @@ use engine::*;
 use evm::{self, Ext, Factory};
 use externalities::*;
 use substate::*;
-use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
+use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use crossbeam;
 
 pub use types::executed::{Executed, ExecutionResult};
@@ -82,21 +82,40 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn as_externalities<'_, T>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_, '_>, tracer: &'_ mut T) -> Externalities<'_, T> where T: Tracer {
-		Externalities::new(self.state, self.info, self.engine, self.vm_factory, self.depth, origin_info, substate, output, tracer)
+	pub fn as_externalities<'_, T, V>(
+		&'_ mut self,
+		origin_info: OriginInfo,
+		substate: &'_ mut Substate,
+		output: OutputPolicy<'_, '_>,
+		tracer: &'_ mut T,
+		vm_tracer: &'_ mut V
+	) -> Externalities<'_, T, V> where T: Tracer, V: VMTracer {
+		Externalities::new(self.state, self.info, self.engine, self.vm_factory, self.depth, origin_info, substate, output, tracer, vm_tracer)
 	}
 
 	/// This function should be used to execute transaction.
 	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
 		let check = options.check_nonce;
 		match options.tracing {
-			true => self.transact_with_tracer(t, check, ExecutiveTracer::default()),
-			false => self.transact_with_tracer(t, check, NoopTracer),
+			true => match options.vm_tracing {
+				true => self.transact_with_tracer(t, check, ExecutiveTracer::default(), ExecutiveVMTracer::default()),
+				false => self.transact_with_tracer(t, check, ExecutiveTracer::default(), NoopVMTracer),
+			},
+			false => match options.vm_tracing {
+				true => self.transact_with_tracer(t, check, NoopTracer, ExecutiveVMTracer::default()),
+				false => self.transact_with_tracer(t, check, NoopTracer, NoopVMTracer),
+			},
 		}
 	}
 
 	/// Execute transaction/call with tracing enabled
-	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, ExecutionError> where T: Tracer {
+	pub fn transact_with_tracer<T, V>(
+		&'a mut self,
+		t: &SignedTransaction,
+		check_nonce: bool,
+		mut tracer: T,
+		mut vm_tracer: V
+	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
 		let sender = try!(t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
@@ -156,7 +175,7 @@ impl<'a> Executive<'a> {
 					code: Some(t.data.clone()),
 					data: None,
 				};
-				(self.create(params, &mut substate, &mut tracer), vec![])
+				(self.create(params, &mut substate, &mut tracer, &mut vm_tracer), vec![])
 			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
@@ -172,20 +191,26 @@ impl<'a> Executive<'a> {
 				};
 				// TODO: move output upstream
 				let mut out = vec![];
-				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer), out)
+				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
 			}
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop())))
+		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop(), vm_tracer.drain())))
 	}
 
-	fn exec_vm<T>(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy, tracer: &mut T)
-		-> evm::Result where T: Tracer {
+	fn exec_vm<T, V>(
+		&mut self,
+		params: ActionParams,
+		unconfirmed_substate: &mut Substate,
+		output_policy: OutputPolicy,
+		tracer: &mut T,
+		vm_tracer: &mut V
+	) -> evm::Result where T: Tracer, V: VMTracer {
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
 			let vm_factory = self.vm_factory;
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
 			return vm_factory.create().exec(params, &mut ext);
 		}
@@ -195,7 +220,7 @@ impl<'a> Executive<'a> {
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
 			let vm_factory = self.vm_factory;
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 
 			scope.spawn(move || {
 				vm_factory.create().exec(params, &mut ext)
@@ -207,8 +232,14 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
-	pub fn call<T>(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef, tracer: &mut T)
-		-> evm::Result where T: Tracer {
+	pub fn call<T, V>(
+		&mut self,
+		params: ActionParams,
+		substate: &mut Substate,
+		mut output: BytesRef,
+		tracer: &mut T,
+		vm_tracer: &mut V
+	) -> evm::Result where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
@@ -266,15 +297,21 @@ impl<'a> Executive<'a> {
 			let trace_info = tracer.prepare_trace_call(&params);
 			let mut trace_output = tracer.prepare_trace_output();
 			let mut subtracer = tracer.subtracer();
+
 			let gas = params.gas;
 
 			if params.code.is_some() {
 				// part of substate that may be reverted
 				let mut unconfirmed_substate = Substate::new();
 
+				// TODO: make ActionParams pass by ref then avoid copy altogether.
+				let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("scope is protected by params.code.is_some condition"));
+
 				let res = {
-					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer)
+					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 				};
+
+				vm_tracer.done_subtrace(subvmtracer);
 
 				trace!(target: "executive", "res={:?}", res);
 
@@ -309,8 +346,13 @@ impl<'a> Executive<'a> {
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
-	pub fn create<T>(&mut self, params: ActionParams, substate: &mut Substate, tracer: &mut T) -> evm::Result where T:
-		Tracer {
+	pub fn create<T, V>(
+		&mut self,
+		params: ActionParams,
+		substate: &mut Substate,
+		tracer: &mut T,
+		vm_tracer: &mut V
+	) -> evm::Result where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
@@ -332,9 +374,13 @@ impl<'a> Executive<'a> {
 		let gas = params.gas;
 		let created = params.address.clone();
 
+		let mut subvmtracer = vm_tracer.prepare_subtrace(&params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
+
 		let res = {
-			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer)
+			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 		};
+
+		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
 			Ok(gas_left) => tracer.trace_create(
@@ -353,7 +399,15 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result, output: Bytes, trace: Option<Trace>) -> ExecutionResult {
+	fn finalize(
+		&mut self,
+		t: &SignedTransaction,
+		substate: Substate,
+		result: evm::Result,
+		output: Bytes,
+		trace: Option<Trace>,
+		vm_trace: Option<VMTrace>
+	) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
@@ -396,7 +450,7 @@ impl<'a> Executive<'a> {
 					contracts_created: vec![],
 					output: output,
 					trace: trace,
-					vm_trace: None,
+					vm_trace: vm_trace,
 				})
 			},
 			_ => {
@@ -409,7 +463,7 @@ impl<'a> Executive<'a> {
 					contracts_created: substate.contracts_created,
 					output: output,
 					trace: trace,
-					vm_trace: None,
+					vm_trace: vm_trace,
 				})
 			},
 		}

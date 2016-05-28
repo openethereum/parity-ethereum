@@ -17,6 +17,7 @@
 ///! Rust VM implementation
 
 use common::*;
+use trace::VMTracer;
 use super::instructions as instructions;
 use super::instructions::Instruction;
 use std::marker::Copy;
@@ -69,6 +70,8 @@ trait Stack<T> {
 	fn push(&mut self, elem: T);
 	/// Get number of elements on Stack
 	fn size(&self) -> usize;
+	/// Returns all data on stack.
+	fn peek_all(&mut self) -> &[T];
 }
 
 struct VecStack<S> {
@@ -130,6 +133,10 @@ impl<S : fmt::Display> Stack<S> for VecStack<S> {
 
 	fn size(&self) -> usize {
 		self.stack.len()
+	}
+
+	fn peek_all(&mut self) -> &[S] {
+		&self.stack
 	}
 }
 
@@ -297,6 +304,10 @@ impl evm::Evm for Interpreter {
 
 			// Calculate gas cost
 			let (gas_cost, mem_size) = try!(self.get_gas_cost_mem(ext, instruction, &mut mem, &stack));
+
+			// TODO: make compile-time removable if too much of a performance hit.
+			ext.trace_prepare_execute(reader.position, instruction, &gas_cost, stack.peek_all());
+
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			mem.expand(mem_size);
 			current_gas = current_gas - gas_cost; //TODO: use operator -=
@@ -310,12 +321,6 @@ impl evm::Evm for Interpreter {
 					current_gas + gas_cost
 				);
 			});
-
-			// Call trace
-			// TODO: allow to be disabled at build time for max speed
-			if let Some(ref mut trace_instruction) = ext.vm_tracer() {
-				(*trace_instruction.deref_mut())(reader.position, instruction, gas_cost, current_gas);
-			}
 
 			// Execute instruction
 			let result = try!(self.exec_instruction(
