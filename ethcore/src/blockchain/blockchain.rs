@@ -316,12 +316,12 @@ impl BlockChain {
 
 				bc.blocks_db.put(&hash, genesis).unwrap();
 
-				let batch = ethcore_db::DBTransaction::new(&bc.extras_db.service()).unwrap();
+				let batch = ethcore_db::DBTransaction::new();
 				batch.write(&hash, &details);
 				batch.write(&header.number(), &hash);
-				batch.put(b"best", &hash).unwrap();
-				batch.commit().unwrap();
+				batch.put(b"best", &hash);
 
+				bc.extras_db.write(batch).unwrap();
 				hash
 			}
 		};
@@ -464,7 +464,7 @@ impl BlockChain {
 
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
-		let batch = ethcore_db::DBClientTransaction::new();
+		let batch = ethcore_db::DBTransaction::new();
 		batch.put(b"best", &update.info.hash);
 
 		{
@@ -508,7 +508,7 @@ impl BlockChain {
 			batch.extend_with_cache(&mut write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
 
 			// update extras database
-			self.extras_db.write_client(batch).unwrap();
+			self.extras_db.write(batch).unwrap();
 		}
 	}
 

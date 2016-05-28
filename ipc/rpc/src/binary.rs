@@ -319,8 +319,8 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
 			let mut payload = Vec::new();
 			try!(r.read_to_end(&mut payload).map_err(|_| BinaryConvertError));
 
-			let mut length_stack = VecDeque::<usize>::new();
 			let stack_len = try!(u64::from_bytes(&payload[0..8], &mut fake_stack)) as usize;
+			let mut length_stack = VecDeque::<usize>::with_capacity(stack_len);
 
 			if stack_len > 0 {
 				for idx in 0..stack_len {
