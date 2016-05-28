@@ -18,7 +18,6 @@
 
 extern crate ethash;
 
-use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
@@ -35,9 +34,8 @@ use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Act
 use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
-use v1::traits::{Eth, EthFilter, EthSigning};
+use v1::traits::{Eth, EthSigning};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::helpers::{PollFilter, PollManager};
 use v1::impls::{dispatch_transaction, sign_and_dispatch};
 use util::keys::store::AccountProvider;
 use serde;
@@ -170,6 +168,25 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 	}
 }
 
+pub fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
+	let receipts = miner.pending_receipts();
+
+	let pending_logs = receipts.into_iter()
+		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
+		.collect::<Vec<(H256, LogEntry)>>();
+
+	let result = pending_logs.into_iter()
+		.filter(|pair| filter.matches(&pair.1))
+		.map(|pair| {
+			let mut log = Log::from(pair.1);
+			log.transaction_hash = Some(pair.0);
+			log
+		})
+		.collect();
+
+	result
+}
+
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 fn params_len(params: &Params) -> usize {
@@ -191,25 +208,6 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
 		_ => from_params::<(F1, F2, BlockNumber)>(params)
 	}
-}
-
-fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
-	let receipts = miner.pending_receipts();
-
-	let pending_logs = receipts.into_iter()
-		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
-		.collect::<Vec<(H256, LogEntry)>>();
-
-	let result = pending_logs.into_iter()
-		.filter(|pair| filter.matches(&pair.1))
-		.map(|pair| {
-			let mut log = Log::from(pair.1);
-			log.transaction_hash = Some(pair.0);
-			log
-		})
-		.collect();
-
-	result
 }
 
 // must be in range [-32099, -32000]
@@ -533,188 +531,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 	}
 }
 
-/// Eth filter rpc implementation.
-pub struct EthFilterClient<C, M> where
-	C: BlockChainClient,
-	M: MinerService {
-
-	client: Weak<C>,
-	miner: Weak<M>,
-	polls: Mutex<PollManager<PollFilter>>,
-}
-
-impl<C, M> EthFilterClient<C, M> where
-	C: BlockChainClient,
-	M: MinerService {
-
-	/// Creates new Eth filter client.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
-		EthFilterClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
-			polls: Mutex::new(PollManager::new()),
-		}
-	}
-}
-
-impl<C, M> EthFilter for EthFilterClient<C, M> where
-	C: BlockChainClient + 'static,
-	M: MinerService + 'static {
-
-	fn new_filter(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Filter,)>(params)
-			.and_then(|(filter,)| {
-				let mut polls = self.polls.lock().unwrap();
-				let block_number = take_weak!(self.client).chain_info().best_block_number;
-				let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
-				to_value(&U256::from(id))
-			})
-	}
-
-	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => {
-				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
-				to_value(&U256::from(id))
-			},
-			_ => Err(Error::invalid_params())
-		}
-	}
-
-	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => {
-				let mut polls = self.polls.lock().unwrap();
-				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
-				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
-
-				to_value(&U256::from(id))
-			},
-			_ => Err(Error::invalid_params())
-		}
-	}
-
-	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
-		let client = take_weak!(self.client);
-		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
-				let mut polls = self.polls.lock().unwrap();
-				match polls.poll_mut(&index.value()) {
-					None => Ok(Value::Array(vec![] as Vec<Value>)),
-					Some(filter) => match *filter {
-						PollFilter::Block(ref mut block_number) => {
-							// + 1, cause we want to return hashes including current block hash.
-							let current_number = client.chain_info().best_block_number + 1;
-							let hashes = (*block_number..current_number).into_iter()
-								.map(BlockID::Number)
-								.filter_map(|id| client.block_hash(id))
-								.collect::<Vec<H256>>();
-
-							*block_number = current_number;
-
-							to_value(&hashes)
-						},
-						PollFilter::PendingTransaction(ref mut previous_hashes) => {
-							// get hashes of pending transactions
-							let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
-
-							let new_hashes =
-							{
-								let previous_hashes_set = previous_hashes.iter().collect::<HashSet<_>>();
-
-								//	find all new hashes
-								current_hashes
-									.iter()
-									.filter(|hash| !previous_hashes_set.contains(hash))
-									.cloned()
-									.collect::<Vec<H256>>()
-							};
-
-							// save all hashes of pending transactions
-							*previous_hashes = current_hashes;
-
-							// return new hashes
-							to_value(&new_hashes)
-						},
-						PollFilter::Logs(ref mut block_number, ref mut previous_logs, ref filter) => {
-							// retrive the current block number
-							let current_number = client.chain_info().best_block_number;
-
-							// check if we need to check pending hashes
-							let include_pending = filter.to_block == Some(BlockNumber::Pending);
-
-							// build appropriate filter
-							let mut filter: EthcoreFilter = filter.clone().into();
-							filter.from_block = BlockID::Number(*block_number);
-							filter.to_block = BlockID::Latest;
-
-							// retrieve logs in range from_block..min(BlockID::Latest..to_block)
-							let mut logs = client.logs(filter.clone())
-								.into_iter()
-								.map(From::from)
-								.collect::<Vec<Log>>();
-
-							// additionally retrieve pending logs
-							if include_pending {
-								let pending_logs = pending_logs(take_weak!(self.miner).deref(), &filter);
-
-								// remove logs about which client was already notified about
-								let new_pending_logs: Vec<_> = pending_logs.iter()
-									.filter(|p| !previous_logs.contains(p))
-									.cloned()
-									.collect();
-
-								// save all logs retrieved by client
-								*previous_logs = pending_logs.into_iter().collect();
-
-								// append logs array with new pending logs
-								logs.extend(new_pending_logs);
-							}
-
-							// save current block number as next from block number
-							*block_number = current_number;
-
-							to_value(&logs)
-						}
-					}
-				}
-			})
-	}
-
-	fn filter_logs(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
-				let mut polls = self.polls.lock().unwrap();
-				match polls.poll(&index.value()) {
-					Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
-						let include_pending = filter.to_block == Some(BlockNumber::Pending);
-						let filter: EthcoreFilter = filter.clone().into();
-						let mut logs = take_weak!(self.client).logs(filter.clone())
-							.into_iter()
-							.map(From::from)
-							.collect::<Vec<Log>>();
-
-						if include_pending {
-							logs.extend(pending_logs(take_weak!(self.miner).deref(), &filter));
-						}
-
-						to_value(&logs)
-					},
-					// just empty array
-					_ => Ok(Value::Array(vec![] as Vec<Value>)),
-				}
-			})
-	}
-
-	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
-				self.polls.lock().unwrap().remove_poll(&index.value());
-				to_value(&true)
-			})
-	}
-}
 
 
 /// Implementation of functions that require signing when no trusted signer is used.
