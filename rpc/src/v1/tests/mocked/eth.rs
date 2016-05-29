@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
 use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
-use util::keys::{TestAccount, TestAccountProvider};
+use util::keys::{AccountProvider, TestAccount, TestAccountProvider};
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
@@ -127,6 +127,28 @@ fn rpc_eth_submit_hashrate() {
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 	assert_eq!(tester.hashrates.read().unwrap().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned(),
 		Some(U256::from(0x500_000)));
+}
+
+#[test]
+fn rpc_eth_sign() {
+	let tester = EthTester::default();
+
+	let account = tester.accounts_provider.new_account("abcd").unwrap();
+	let message = H256::from("0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f");
+	let signed = tester.accounts_provider.sign(&account, &message).unwrap();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sign",
+		"params": [
+			""#.to_owned() + &format!("0x{:?}", account) + r#"",
+			"0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f"
+		],
+		"id": 1
+	}"#;
+	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", signed) + r#"","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(&req), Some(res));
 }
 
 #[test]
@@ -524,12 +546,6 @@ fn rpc_eth_send_transaction() {
 #[test]
 #[ignore]
 fn rpc_eth_send_raw_transaction() {
-	unimplemented!()
-}
-
-#[test]
-#[ignore]
-fn rpc_eth_sign() {
 	unimplemented!()
 }
 
