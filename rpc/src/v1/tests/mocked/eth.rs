@@ -28,6 +28,7 @@ use ethcore::transaction::{Transaction, Action};
 use ethminer::ExternalMiner;
 use v1::{Eth, EthClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
+use rustc_serialize::hex::ToHex;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -215,18 +216,22 @@ fn rpc_eth_balance() {
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
-#[ignore] //TODO: propert test
 #[test]
 fn rpc_eth_balance_pending() {
 	let tester = EthTester::default();
+	tester.client.set_balance(Address::from(1), U256::from(5));
 
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getBalance",
-		"params": ["0x0000000000000000000000000000000000000001", "latest"],
+		"params": ["0x0000000000000000000000000000000000000001", "pending"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x","id":1}"#;
+
+	// the TestMinerService doesn't communicate with the the TestBlockChainClient in any way.
+	// if this returns zero, we know that the "pending" call is being properly forwarded to the
+	// miner.
+	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
 
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
@@ -525,7 +530,7 @@ fn rpc_eth_send_transaction() {
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+	assert_eq!(tester.io.handle_request(&request), Some(response));
 
 	tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
 
@@ -540,13 +545,38 @@ fn rpc_eth_send_transaction() {
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+	assert_eq!(tester.io.handle_request(&request), Some(response));
 }
 
 #[test]
-#[ignore]
 fn rpc_eth_send_raw_transaction() {
-	unimplemented!()
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account("abcd").unwrap();
+	let secret = tester.accounts_provider.account_secret(&address).unwrap();
+
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	}.sign(&secret);
+
+	let rlp = ::util::rlp::encode(&t).to_vec().to_hex();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendRawTransaction",
+		"params": [
+			"0x"#.to_owned() + &rlp + r#""
+		],
+		"id": 1
+	}"#;
+
+	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", t.hash()) + r#"","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(&req), Some(res));
 }
 
 #[test]

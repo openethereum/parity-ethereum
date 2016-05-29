@@ -59,22 +59,14 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 	where C: BlockChainClient, M: MinerService {
 	let hash = signed_transaction.hash();
 
-	let import = {
-		miner.import_own_transaction(client, signed_transaction, |a: &Address| {
-			AccountDetails {
-				nonce: client.latest_nonce(&a),
-				balance: client.latest_balance(&a),
-			}
-		})
-	};
-
-	match import {
-		Ok(_) => to_value(&hash),
-		Err(e) => {
-			warn!("Error sending transaction: {:?}", e);
-			to_value(&H256::zero())
+	let import = miner.import_own_transaction(client, signed_transaction, |a: &Address| {
+		AccountDetails {
+			nonce: client.latest_nonce(&a),
+			balance: client.latest_balance(&a),
 		}
-	}
+	});
+
+	to_value(&import.map(|_| hash).unwrap_or(H256::zero()))
 }
 
 fn sign_and_dispatch<C, M>(client: &Weak<C>, miner: &Weak<M>, request: TransactionRequest, secret: H256) -> Result<Value, Error>
