@@ -33,10 +33,11 @@
 //! ```
 //! extern crate ethcore_signer;
 //!
-//! use ethcore_signer::Server;
+//! use ethcore_signer::ServerBuilder;
 //!
 //!	fn main() {
-//!	 let _server = Server::start("127.0.0.1:8084".parse().unwrap());
+//!	 let builder = ServerBuilder::new();
+//!	 let _server = builder.start("127.0.0.1:8084".parse().unwrap()).unwrap();
 //!	}
 //! ```
 
