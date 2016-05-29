@@ -496,6 +496,7 @@ mod tests {
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
+	use trace::{VMTrace, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 
 	#[test]
 	fn test_contract_address() {
@@ -524,7 +525,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
@@ -583,7 +584,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -640,7 +641,7 @@ mod tests {
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
-			ex.call(params, &mut substate, output, &mut tracer).unwrap()
+			ex.call(params, &mut substate, output, &mut tracer, &mut NoopVMTracer).unwrap()
 		};
 
 		let expected_trace = vec![ Trace {
@@ -711,7 +712,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params.clone(), &mut substate, &mut tracer).unwrap()
+			ex.create(params.clone(), &mut substate, &mut tracer, &mut NoopVMTracer).unwrap()
 		};
 
 		let expected_trace = vec![Trace {
@@ -780,7 +781,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -832,7 +833,7 @@ mod tests {
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer).unwrap();
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
 		assert_eq!(substate.contracts_created.len(), 1);
@@ -893,7 +894,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer).unwrap()
+			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(73_237));
@@ -938,7 +939,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer).unwrap()
+			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(59_870));
@@ -1140,7 +1141,7 @@ mod tests {
 
 		let result = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer)
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer)
 		};
 
 		match result {

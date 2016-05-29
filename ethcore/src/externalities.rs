@@ -303,7 +303,7 @@ mod tests {
 	use substate::*;
 	use tests::helpers::*;
 	use super::*;
-	use trace::{NoopTracer};
+	use trace::{NoopTracer, NoopVMTracer};
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
@@ -355,9 +355,10 @@ mod tests {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
+		let mut vm_tracer = NoopVMTracer;
 
 		let vm_factory = Default::default();
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
 
 		assert_eq!(ext.env_info().number, 100);
 	}
@@ -367,9 +368,10 @@ mod tests {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
+		let mut vm_tracer = NoopVMTracer;
 
 		let vm_factory = Default::default();
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -389,9 +391,10 @@ mod tests {
 		}
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
+		let mut vm_tracer = NoopVMTracer;
 
 		let vm_factory = Default::default();
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -404,9 +407,10 @@ mod tests {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
+		let mut vm_tracer = NoopVMTracer;
 
 		let vm_factory = Default::default();
-		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
 
 		let mut output = vec![];
 
@@ -429,10 +433,11 @@ mod tests {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
+		let mut vm_tracer = NoopVMTracer;
 
 		{
 			let vm_factory = Default::default();
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
 			ext.log(log_topics, &log_data);
 		}
 
@@ -446,10 +451,11 @@ mod tests {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;
+		let mut vm_tracer = NoopVMTracer;
 
 		{
 			let vm_factory = Default::default();
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
 			ext.suicide(&refund_account);
 		}
 
