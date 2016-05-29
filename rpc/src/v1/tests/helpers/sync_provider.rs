@@ -16,9 +16,9 @@
 
 //! Test implementation of SyncProvider.
 
-use util::{U256};
+use util::U256;
 use ethsync::{SyncProvider, SyncStatus, SyncState};
-use std::sync::{RwLock};
+use std::sync::RwLock;
 
 /// TestSyncProvider config.
 pub struct Config {

@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Test rpc services.
+//! Reusable types with JSON Serialization.
 
-mod sync_provider;
-mod miner_service;
+#[cfg(feature = "serde_macros")]
+include!("mod.rs.in");
 
-pub use self::sync_provider::{Config, TestSyncProvider};
-pub use self::miner_service::TestMinerService;
+#[cfg(not(feature = "serde_macros"))]
+include!(concat!(env!("OUT_DIR"), "/mod.rs"));

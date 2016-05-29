@@ -21,4 +21,5 @@ pub mod store;
 mod geth_import;
 mod test_account_provider;
 
+pub use self::store::AccountProvider;
 pub use self::test_account_provider::{TestAccount, TestAccountProvider};

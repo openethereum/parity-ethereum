@@ -34,6 +34,11 @@ extern crate ethminer;
 extern crate transient_hashmap;
 extern crate json_ipc_server as ipc;
 
+#[cfg(test)]
+extern crate ethjson;
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;
+
 use std::sync::Arc;
 use std::net::SocketAddr;
 use self::jsonrpc_core::{IoHandler, IoDelegate};

@@ -107,12 +107,12 @@ pub trait MinerService : Send + Sync {
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
-		where T: Fn(&Address) -> AccountDetails;
+		where T: Fn(&Address) -> AccountDetails, Self: Sized;
 
 	/// Imports own (node owner) transaction to queue.
 	fn import_own_transaction<T>(&self, chain: &BlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
 		Result<TransactionImportResult, Error>
-		where T: Fn(&Address) -> AccountDetails;
+		where T: Fn(&Address) -> AccountDetails, Self: Sized;
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256>;
@@ -131,7 +131,8 @@ pub trait MinerService : Send + Sync {
 	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 
 	/// Get the sealing work package and if `Some`, apply some transform.
-	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T;
+	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T>
+		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
 
 	/// Query pending transactions for hash.
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction>;

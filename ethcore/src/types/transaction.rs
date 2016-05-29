@@ -36,6 +36,7 @@ pub enum Action {
 	/// Create creates new contract.
 	Create,
 	/// Calls contract at given address.
+	/// In the case of a transfer, this is the receiver's address.'
 	Call(Address),
 }
 

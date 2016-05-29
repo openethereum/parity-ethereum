@@ -21,9 +21,13 @@ use ethcore::client::BlockID;
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq, Clone)]
 pub enum BlockNumber {
+	/// Number
 	Num(u64),
+	/// Latest block
 	Latest,
+	/// Earliest block (genesis)
 	Earliest,
+	/// Pending block (being mined)
 	Pending
 }
 

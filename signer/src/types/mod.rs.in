@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Test rpc services.
 
-mod sync_provider;
-mod miner_service;
 
-pub use self::sync_provider::{Config, TestSyncProvider};
-pub use self::miner_service::TestMinerService;
+
+
+
+
+
+
+// TODO [ToDr] Types are empty for now. But they are about to come.

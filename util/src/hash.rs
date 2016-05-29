@@ -75,6 +75,7 @@ pub fn clean_0x(s: &str) -> &str {
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
+		#[repr(C)]
 		/// Unformatted binary data of fixed length.
 		pub struct $from (pub [u8; $size]);
 

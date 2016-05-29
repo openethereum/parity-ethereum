@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+mod bytes;
 mod block;
 mod block_number;
-mod bytes;
 mod filter;
 mod index;
 mod log;
@@ -29,9 +29,9 @@ mod receipt;
 mod trace;
 mod trace_filter;
 
+pub use self::bytes::Bytes;
 pub use self::block::{Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
-pub use self::bytes::Bytes;
 pub use self::filter::Filter;
 pub use self::index::Index;
 pub use self::log::Log;

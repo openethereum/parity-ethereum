@@ -97,6 +97,11 @@ API and Console Options:
   --dapps-pass PASSWORD    Specify password for Dapps server. Use only in
                            conjunction with --dapps-user.
 
+  --signer                 Enable Trusted Signer WebSocket endpoint used by
+                           System UIs.
+  --signer-port PORT       Specify the port of Trusted Signer server
+                           [default: 8180].
+
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
@@ -234,6 +239,8 @@ pub struct Args {
 	pub flag_dapps_interface: String,
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
+	pub flag_signer: bool,
+	pub flag_signer_port: u16,
 	pub flag_force_sealing: bool,
 	pub flag_author: String,
 	pub flag_usd_per_tx: String,
