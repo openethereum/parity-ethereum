@@ -25,6 +25,10 @@ macro_rules! take_weak {
 	}
 }
 
+macro_rules! rpc_unimplemented {
+	() => (Err(Error::internal_error()))
+}
+
 mod web3;
 mod eth;
 mod net;
