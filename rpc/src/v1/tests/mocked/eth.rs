@@ -25,7 +25,7 @@ use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, Transaction
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
-use ethminer::ExternalMiner;
+use ethminer::{ExternalMiner, MinerService};
 use v1::{Eth, EthClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use rustc_serialize::hex::ToHex;
@@ -153,9 +153,25 @@ fn rpc_eth_sign() {
 }
 
 #[test]
-#[ignore]
 fn rpc_eth_author() {
-	unimplemented!()
+	let make_res = |addr| r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", addr) + r#"","id":1}"#;
+	let tester = EthTester::default();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_coinbase",
+		"params": [],
+		"id": 1
+	}"#;
+
+	assert_eq!(tester.io.handle_request(req), Some(make_res(Address::zero())));
+
+	for i in 0..20 {
+		let addr = tester.accounts_provider.new_account(&format!("{}", i)).unwrap();
+		tester.miner.set_author(addr.clone());
+
+		assert_eq!(tester.io.handle_request(req), Some(make_res(addr)));
+	}
 }
 
 #[test]
