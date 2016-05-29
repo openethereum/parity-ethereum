@@ -196,7 +196,7 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop(), vm_tracer.drain().and_then(|mut i| i.subs.pop()))))
+		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop(), vm_tracer.drain())))
 	}
 
 	fn exec_vm<T, V>(
@@ -496,7 +496,7 @@ mod tests {
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
-	use trace::{VMTrace, VMTracer, NoopVMTracer, ExecutiveVMTracer};
+	use trace::{VMTrace, VMOperation, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 
 	#[test]
 	fn test_contract_address() {
@@ -601,7 +601,7 @@ mod tests {
 		// 52
 		// 60 1d - push 29
 		// 60 03 - push 3
-		// 60 17 - push 17
+		// 60 17 - push 23
 		// f0 - create
 		// 60 00 - push 0
 		// 55 sstore
@@ -637,12 +637,15 @@ mod tests {
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::default();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
-			ex.call(params, &mut substate, output, &mut tracer, &mut NoopVMTracer).unwrap()
+			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
 		};
+
+		assert_eq!(gas_left, U256::from(44_752));
 
 		let expected_trace = vec![ Trace {
 			depth: 0,
@@ -674,7 +677,39 @@ mod tests {
 			}]
 		}];
 		assert_eq!(tracer.traces(), expected_trace);
-		assert_eq!(gas_left, U256::from(44_752));
+
+		let expected_vm_trace = VMTrace {
+			parent_step: 0,
+			code: vec![124, 96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85, 96, 0, 82, 96, 29, 96, 3, 96, 23, 240, 96, 0, 85],
+			operations: vec![
+				VMOperation { pc: 1, instruction: 124, gas_cost: x!(3), stack: vecx![] },
+				VMOperation { pc: 31, instruction: 96, gas_cost: x!(3), stack: vecx![U256::from_dec_str("2589892687202724018173567190521546555304938078595079151649957320078677").unwrap()] },
+				VMOperation { pc: 33, instruction: 82, gas_cost: x!(6), stack: vecx![U256::from_dec_str("2589892687202724018173567190521546555304938078595079151649957320078677").unwrap(), 0] },
+				VMOperation { pc: 34, instruction: 96, gas_cost: x!(3), stack: vecx![] },
+				VMOperation { pc: 36, instruction: 96, gas_cost: x!(3), stack: vecx![29] },
+				VMOperation { pc: 38, instruction: 96, gas_cost: x!(3), stack: vecx![29, 3] },
+				VMOperation { pc: 40, instruction: 240, gas_cost: x!(32000), stack: vecx![29, 3, 23] },
+				VMOperation { pc: 41, instruction: 96, gas_cost: x!(3), stack: vecx![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap()] },
+				VMOperation { pc: 43, instruction: 85, gas_cost: x!(20000), stack: vecx![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap(), 0] }
+			],
+			subs: vec![
+				VMTrace {
+					parent_step: 7,
+					code: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+					operations: vec![
+						VMOperation { pc: 1, instruction: 96, gas_cost: x!(3), stack: vecx![] },
+						VMOperation { pc: 3, instruction: 128, gas_cost: x!(3), stack: vecx![16] },
+						VMOperation { pc: 4, instruction: 96, gas_cost: x!(3), stack: vecx![16, 16] },
+						VMOperation { pc: 6, instruction: 96, gas_cost: x!(3), stack: vecx![16, 16, 12] },
+						VMOperation { pc: 8, instruction: 57, gas_cost: x!(9), stack: vecx![16, 16, 12, 0] },
+						VMOperation { pc: 9, instruction: 96, gas_cost: x!(3), stack: vecx![16] },
+						VMOperation { pc: 11, instruction: 243, gas_cost: x!(0), stack: vecx![16, 0] }
+					],
+					subs: vec![]
+				}
+			]
+		};
+		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
 	}
 
 	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
@@ -709,11 +744,14 @@ mod tests {
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::default();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params.clone(), &mut substate, &mut tracer, &mut NoopVMTracer).unwrap()
+			ex.create(params.clone(), &mut substate, &mut tracer, &mut vm_tracer).unwrap()
 		};
+
+		assert_eq!(gas_left, U256::from(96_776));
 
 		let expected_trace = vec![Trace {
 			depth: 0,
@@ -730,9 +768,23 @@ mod tests {
 			}),
 			subs: vec![]
 		}];
-
 		assert_eq!(tracer.traces(), expected_trace);
-		assert_eq!(gas_left, U256::from(96_776));
+		
+		let expected_vm_trace = VMTrace {
+			parent_step: 0,
+			code: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+			operations: vec![
+				VMOperation { pc: 1, instruction: 96, gas_cost: x!(3), stack: vecx![] },
+				VMOperation { pc: 3, instruction: 128, gas_cost: x!(3), stack: vecx![16] },
+				VMOperation { pc: 4, instruction: 96, gas_cost: x!(3), stack: vecx![16, 16] },
+				VMOperation { pc: 6, instruction: 96, gas_cost: x!(3), stack: vecx![16, 16, 12] },
+				VMOperation { pc: 8, instruction: 57, gas_cost: x!(9), stack: vecx![16, 16, 12, 0] },
+				VMOperation { pc: 9, instruction: 96, gas_cost: x!(3), stack: vecx![16] },
+				VMOperation { pc: 11, instruction: 243, gas_cost: x!(0), stack: vecx![16, 0] }
+			],
+			subs: vec![]
+		};
+		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
 	}
 
 	evm_test!{test_create_contract_value_too_high: test_create_contract_value_too_high_jit, test_create_contract_value_too_high_int}

@@ -53,6 +53,13 @@ macro_rules! mapx {
 }
 
 #[macro_export]
+macro_rules! vecx {
+	( $( $x:expr ),* ) => {
+		vec![ $( From::from($x) ),* ]
+	}
+}
+
+#[macro_export]
 macro_rules! x {
 	( $x:expr ) => {
 		From::from($x)

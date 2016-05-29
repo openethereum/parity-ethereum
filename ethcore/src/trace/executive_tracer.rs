@@ -117,7 +117,7 @@ impl VMTracer for ExecutiveVMTracer {
 		self.data.operations.push(VMOperation {
 			pc: pc,
 			instruction: instruction,
-			gas_cost: gas_cost.clone(),
+			gas_cost: gas_cost.clone(),	
 			stack: stack.iter().cloned().collect(),
 		})
 	}
@@ -135,5 +135,5 @@ impl VMTracer for ExecutiveVMTracer {
 		self.data.subs.push(sub.data);
 	}
 
-	fn drain(self) -> Option<VMTrace> { Some(self.data) }
+	fn drain(mut self) -> Option<VMTrace> { self.data.subs.pop() }
 }
