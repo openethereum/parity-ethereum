@@ -19,12 +19,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
-use ethcore::client::{BlockChainClient, Client, ClientConfig};
-use ethcore::spec::Genesis;
+use ethcore::client::{Client, BlockChainClient, ClientConfig};
+use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::ethereum;
-use ethcore::transaction::{Transaction, Action};
-use ethminer::{MinerService, ExternalMiner};
+use ethminer::{Miner, MinerService, ExternalMiner};
 use devtools::RandomTempPath;
 use util::io::IoChannel;
 use util::hash::Address;
@@ -35,135 +34,7 @@ use ethjson::blockchain::BlockChain;
 
 use v1::traits::eth::Eth;
 use v1::impls::EthClient;
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
-
-struct EthTester {
-	_client: Arc<BlockChainClient>,
-	_miner: Arc<MinerService>,
-	accounts: Arc<TestAccountProvider>,
-	handler: IoHandler,
-}
-
-#[test]
-fn harness_works() {
-	let chain: BlockChain = extract_chain!("BlockchainTests/bcUncleTest");
-	chain_harness(chain, |_| {});
-}
-
-#[test]
-fn eth_get_balance() {
-	let chain = extract_chain!("BlockchainTests/bcWalletTest", "wallet2outOf3txs");
-	chain_harness(chain, |tester| {
-		// final account state
-		let req_latest = r#"{
-			"jsonrpc": "2.0",
-			"method": "eth_getBalance",
-			"params": ["0xaaaf5374fce5edbc8e2a8697c15331677e6ebaaa", "latest"],
-			"id": 1
-		}"#;
-		let res_latest = r#"{"jsonrpc":"2.0","result":"0x09","id":1}"#.to_owned();
-		assert_eq!(tester.handler.handle_request(req_latest).unwrap(), res_latest);
-
-		// non-existant account
-		let req_new_acc = r#"{
-			"jsonrpc": "2.0",
-			"method": "eth_getBalance",
-			"params": ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
-			"id": 3
-		}"#;
-
-		let res_new_acc = r#"{"jsonrpc":"2.0","result":"0x00","id":3}"#.to_owned();
-		assert_eq!(tester.handler.handle_request(req_new_acc).unwrap(), res_new_acc);
-	});
-}
-
-#[test]
-fn eth_block_number() {
-	let chain = extract_chain!("BlockchainTests/bcRPC_API_Test");
-	chain_harness(chain, |tester| {
-		let req_number = r#"{
-			"jsonrpc": "2.0",
-			"method": "eth_blockNumber",
-			"params": [],
-			"id": 1
-		}"#;
-
-		let res_number = r#"{"jsonrpc":"2.0","result":"0x20","id":1}"#.to_owned();
-		assert_eq!(tester.handler.handle_request(req_number).unwrap(), res_number);
-	});
-}
-
-#[cfg(test)]
-#[test]
-fn eth_transaction_count() {
-	let chain = extract_chain!("BlockchainTests/bcRPC_API_Test");
-	chain_harness(chain, |tester| {
-		let address = tester.accounts.new_account("123").unwrap();
-		let secret = tester.accounts.account_secret(&address).unwrap();
-
-		let req_before = r#"{
-			"jsonrpc": "2.0",
-			"method": "eth_getTransactionCount",
-			"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
-			"id": 15
-		}"#;
-
-		let res_before = r#"{"jsonrpc":"2.0","result":"0x00","id":15}"#;
-
-		assert_eq!(tester.handler.handle_request(&req_before).unwrap(), res_before);
-
-		let t = Transaction {
-			nonce: U256::zero(),
-			gas_price: U256::from(0x9184e72a000u64),
-			gas: U256::from(0x76c0),
-			action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-			value: U256::from(0x9184e72au64),
-			data: vec![]
-		}.sign(&secret);
-
-		let req_send_trans = r#"{
-			"jsonrpc": "2.0",
-			"method": "eth_sendTransaction",
-			"params": [{
-				"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
-				"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
-				"gas": "0x76c0",
-				"gasPrice": "0x9184e72a000",
-				"value": "0x9184e72a"
-			}],
-			"id": 16
-		}"#;
-
-		let res_send_trans = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":16}"#;
-
-		// dispatch the transaction.
-		assert_eq!(tester.handler.handle_request(&req_send_trans).unwrap(), res_send_trans);
-
-		// we have submitted the transaction -- but this shouldn't be reflected in a "latest" query.
-		let req_after_latest = r#"{
-			"jsonrpc": "2.0",
-			"method": "eth_getTransactionCount",
-			"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
-			"id": 17
-		}"#;
-
-		let res_after_latest = r#"{"jsonrpc":"2.0","result":"0x00","id":17}"#;
-
-		assert_eq!(&tester.handler.handle_request(&req_after_latest).unwrap(), res_after_latest);
-
-		// the pending transactions should have been updated.
-		let req_after_pending = r#"{
-			"jsonrpc": "2.0",
-			"method": "eth_getTransactionCount",
-			"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "pending"],
-			"id": 18
-		}"#;
-
-		let res_after_pending = r#"{"jsonrpc":"2.0","result":"0x01","id":18}"#;
-
-		assert_eq!(&tester.handler.handle_request(&req_after_pending).unwrap(), res_after_pending);
-	});
-}
+use v1::tests::helpers::{TestSyncProvider, Config};
 
 fn account_provider() -> Arc<TestAccountProvider> {
 	let mut accounts = HashMap::new();
@@ -179,51 +50,225 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 	}))
 }
 
-fn miner_service() -> Arc<TestMinerService> {
-	Arc::new(TestMinerService::default())
+fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
+	Miner::with_accounts(true, spec, accounts)
 }
 
-// given a blockchain, this harness will create an EthClient wrapping it
-// which tests can pass specially crafted requests to.
-fn chain_harness<F, U>(chain: BlockChain, mut cb: F) -> U
-	where F: FnMut(&EthTester) -> U {
+fn make_spec(chain: &BlockChain) -> Spec {
 	let genesis = Genesis::from(chain.genesis());
 	let mut spec = ethereum::new_frontier_test();
 	let state = chain.pre_state.clone().into();
 	spec.set_genesis_state(state);
 	spec.overwrite_genesis_params(genesis);
 	assert!(spec.is_state_root_valid());
+	spec
+}
 
-	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), spec, dir.as_path(), IoChannel::disconnected()).unwrap();
-	let sync_provider = sync_provider();
-	let miner_service = miner_service();
-	let account_provider = account_provider();
-	let external_miner = Arc::new(ExternalMiner::default());
+struct EthTester {
+	_miner: Arc<MinerService>,
+	client: Arc<Client>,
+	accounts: Arc<TestAccountProvider>,
+	handler: IoHandler,
+}
 
-	for b in &chain.blocks_rlp() {
-		if Block::is_good(&b) {
-			let _ = client.import_block(b.clone());
-			client.flush_queue();
-			client.import_verified_blocks(&IoChannel::disconnected());
+impl EthTester {
+	fn from_chain(chain: BlockChain) -> Self {
+		let tester = Self::from_spec_provider(|| make_spec(&chain));
+
+		for b in &chain.blocks_rlp() {
+			if Block::is_good(&b) {
+				let _ = tester.client.import_block(b.clone());
+				tester.client.flush_queue();
+				tester.client.import_verified_blocks(&IoChannel::disconnected());
+			}
 		}
+
+		assert!(tester.client.chain_info().best_block_hash == chain.best_block.into());
+		tester
 	}
 
-	assert!(client.chain_info().best_block_hash == chain.best_block.into());
+	fn from_spec_provider<F>(spec_provider: F) -> Self
+		where F: Fn() -> Spec {
 
-	let eth_client = EthClient::new(&client, &sync_provider, &account_provider,
-		&miner_service, &external_miner);
+		let dir = RandomTempPath::new();
+		let client = Client::new(ClientConfig::default(), spec_provider(), dir.as_path(), IoChannel::disconnected()).unwrap();
+		let sync_provider = sync_provider();
+		let account_provider = account_provider();
+		let miner_service = miner_service(spec_provider(), account_provider.clone());
+		let external_miner = Arc::new(ExternalMiner::default());
 
-	let handler = IoHandler::new();
-	let delegate = eth_client.to_delegate();
-	handler.add_delegate(delegate);
+		let eth_client = EthClient::new(&client, &sync_provider, &account_provider,
+			&miner_service, &external_miner);
 
-	let tester = EthTester {
-		_miner: miner_service,
-		_client: client,
-		accounts: account_provider,
-		handler: handler,
-	};
+		let handler = IoHandler::new();
+		let delegate = eth_client.to_delegate();
+		handler.add_delegate(delegate);
 
-	cb(&tester)
+		EthTester {
+			_miner: miner_service,
+			client: client,
+			accounts: account_provider,
+			handler: handler,
+		}
+	}
+}
+
+#[test]
+fn harness_works() {
+	let chain: BlockChain = extract_chain!("BlockchainTests/bcUncleTest");
+	let _ = EthTester::from_chain(chain);
+}
+
+#[test]
+fn eth_get_balance() {
+	let chain = extract_chain!("BlockchainTests/bcWalletTest", "wallet2outOf3txs");
+	let tester = EthTester::from_chain(chain);
+	// final account state
+	let req_latest = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getBalance",
+		"params": ["0xaaaf5374fce5edbc8e2a8697c15331677e6ebaaa", "latest"],
+		"id": 1
+	}"#;
+	let res_latest = r#"{"jsonrpc":"2.0","result":"0x09","id":1}"#.to_owned();
+	assert_eq!(tester.handler.handle_request(req_latest).unwrap(), res_latest);
+
+	// non-existant account
+	let req_new_acc = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getBalance",
+		"params": ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+		"id": 3
+	}"#;
+
+	let res_new_acc = r#"{"jsonrpc":"2.0","result":"0x00","id":3}"#.to_owned();
+	assert_eq!(tester.handler.handle_request(req_new_acc).unwrap(), res_new_acc);
+}
+
+#[test]
+fn eth_block_number() {
+	let chain = extract_chain!("BlockchainTests/bcRPC_API_Test");
+	let tester = EthTester::from_chain(chain);
+	let req_number = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_blockNumber",
+		"params": [],
+		"id": 1
+	}"#;
+
+	let res_number = r#"{"jsonrpc":"2.0","result":"0x20","id":1}"#.to_owned();
+	assert_eq!(tester.handler.handle_request(req_number).unwrap(), res_number);
+}
+
+// a frontier-like test with an expanded gas limit and balance on known account.
+const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
+	"name": "Frontier (Test)",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000",
+				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
+				"frontierCompatibilityModeLimit": "0xffffffffffffffff"
+			}
+		}
+	},
+	"params": {
+		"accountStartNonce": "0x00",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x50000",
+		"networkID" : "0x1"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x0000000000000042",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x400000000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa",
+		"gasLimit": "0x50000"
+	},
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"faa34835af5c2ea724333018a515fbb7d5bc0b33": { "balance": "10000000000000", "nonce": "0" }
+	}
+}
+"#;
+
+#[cfg(test)]
+#[test]
+fn eth_transaction_count() {
+	use util::crypto::Secret;
+
+	let address = Address::from_str("faa34835af5c2ea724333018a515fbb7d5bc0b33").unwrap();
+	let secret = Secret::from_str("8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2").unwrap();
+
+	let tester = EthTester::from_spec_provider(|| Spec::load(TRANSACTION_COUNT_SPEC));
+	tester.accounts.accounts.write().unwrap().insert(address, TestAccount {
+		unlocked: false,
+		password: "123".into(),
+		secret: secret
+	});
+
+	let req_before = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
+		"id": 15
+	}"#;
+
+	let res_before = r#"{"jsonrpc":"2.0","result":"0x00","id":15}"#;
+
+	assert_eq!(tester.handler.handle_request(&req_before).unwrap(), res_before);
+
+	let req_send_trans = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x30000",
+			"gasPrice": "0x01",
+			"value": "0x9184e72a"
+		}],
+		"id": 16
+	}"#;
+
+	// dispatch the transaction.
+	tester.handler.handle_request(&req_send_trans).unwrap();
+
+	// we have submitted the transaction -- but this shouldn't be reflected in a "latest" query.
+	let req_after_latest = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
+		"id": 17
+	}"#;
+
+	let res_after_latest = r#"{"jsonrpc":"2.0","result":"0x00","id":17}"#;
+
+	assert_eq!(&tester.handler.handle_request(&req_after_latest).unwrap(), res_after_latest);
+
+	// the pending transactions should have been updated.
+	let req_after_pending = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "pending"],
+		"id": 18
+	}"#;
+
+	let res_after_pending = r#"{"jsonrpc":"2.0","result":"0x01","id":18}"#;
+
+	assert_eq!(&tester.handler.handle_request(&req_after_pending).unwrap(), res_after_pending);
 }
