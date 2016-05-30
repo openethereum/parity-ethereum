@@ -25,41 +25,6 @@ use util::rlp::{encode, Encodable, decode, Decodable};
 use ethcore_db;
 use ethcore_db::DatabaseService;
 
-#[derive(Clone, Copy)]
-pub enum CacheUpdatePolicy {
-	Overwrite,
-	Remove,
-}
-
-pub trait Cache<K, V> {
-	fn insert(&mut self, k: K, v: V) -> Option<V>;
-
-	fn remove(&mut self, k: &K) -> Option<V>;
-
-	fn get(&self, k: &K) -> Option<&V>;
-}
-
-impl<K, V> Cache<K, V> for HashMap<K, V> where K: Hash + Eq {
-	fn insert(&mut self, k: K, v: V) -> Option<V> {
-		HashMap::insert(self, k, v)
-	}
-
-	fn remove(&mut self, k: &K) -> Option<V> {
-		HashMap::remove(self, k)
-	}
-
-	fn get(&self, k: &K) -> Option<&V> {
-		HashMap::get(self, k)
-	}
-}
-
-/// Should be used to get database key associated with given value.
-pub trait Key<T> {
-	type Target: Deref<Target = [u8]>;
-
-	/// Returns db key.
-	fn key(&self) -> Self::Target;
-}
 
 /// Should be used to write value into database.
 pub trait Writable {
@@ -104,50 +69,6 @@ pub trait Writable {
 	}
 }
 
-/// Should be used to read values from database.
-pub trait Readable {
-	/// Returns value for given key.
-	fn read<T, R>(&self, key: &Key<T, Target = R>) -> Option<T> where
-	T: Decodable,
-	R: Deref<Target = [u8]>;
-
-	/// Returns value for given key either in cache or in database.
-	fn read_with_cache<K, T, C>(&self, cache: &RwLock<C>, key: &K) -> Option<T> where
-		K: Key<T> + Eq + Hash + Clone,
-		T: Clone + Decodable,
-		C: Cache<K, T> {
-		{
-			let read = cache.read().unwrap();
-			if let Some(v) = read.get(key) {
-				return Some(v.clone());
-			}
-		}
-
-		self.read(key).map(|value: T|{
-			let mut write = cache.write().unwrap();
-			write.insert(key.clone(), value.clone());
-			value
-		})
-	}
-
-	/// Returns true if given value exists.
-	fn exists<T, R>(&self, key: &Key<T, Target = R>) -> bool where R: Deref<Target= [u8]>;
-
-	/// Returns true if given value exists either in cache or in database.
-	fn exists_with_cache<K, T, R, C>(&self, cache: &RwLock<C>, key: &K) -> bool where
-	K: Eq + Hash + Key<T, Target = R>,
-	R: Deref<Target = [u8]>,
-	C: Cache<K, T> {
-		{
-			let read = cache.read().unwrap();
-			if read.get(key).is_some() {
-				return true;
-			}
-		}
-
-		self.exists::<T, R>(key)
-	}
-}
 
 impl Writable for DBTransaction {
 	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
@@ -158,58 +79,9 @@ impl Writable for DBTransaction {
 	}
 }
 
-impl Readable for Database {
-	fn read<T, R>(&self, key: &Key<T, Target = R>) -> Option<T> where T: Decodable, R: Deref<Target = [u8]> {
-		let result = self.get(&key.key());
-
-		match result {
-			Ok(option) => option.map(|v| decode(&v)),
-			Err(err) => {
-				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
-			}
-		}
-	}
-
-	fn exists<T, R>(&self, key: &Key<T, Target = R>) -> bool where R: Deref<Target = [u8]> {
-		let result = self.get(&key.key());
-
-		match result {
-			Ok(v) => v.is_some(),
-			Err(err) => {
-				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
-			}
-		}
-	}
-}
 
 impl Writable for ethcore_db::DBTransaction {
 	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
 		self.put(&key.key(), &encode(value));
-	}
-}
-
-pub type DBClient = ethcore_db::DatabaseClient<::nanomsg::Socket>;
-
-impl Readable for DBClient {
-	fn read<T, R>(&self, key: &Key<T, Target = R>) -> Option<T> where T: Decodable, R: Deref<Target = [u8]> {
-		let result = self.get(&key.key());
-
-		match result {
-			Ok(option) => option.map(|v| decode(&v)),
-			Err(err) => {
-				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
-			}
-		}
-	}
-
-	fn exists<T, R>(&self, key: &Key<T, Target = R>) -> bool where R: Deref<Target = [u8]> {
-		let result = self.get(&key.key());
-
-		match result {
-			Ok(v) => v.is_some(),
-			Err(err) => {
-				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
-			}
-		}
 	}
 }

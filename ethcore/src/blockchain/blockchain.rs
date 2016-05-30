@@ -154,8 +154,8 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	extras_db: DatabaseConnection,
-	blocks_db: DatabaseConnection,
+	extras_db: Arc<DatabaseService + Send + Sync>,
+	blocks_db: Arc<DatabaseService + Send + Sync>,
 
 	cache_man: RwLock<CacheManager>,
 
