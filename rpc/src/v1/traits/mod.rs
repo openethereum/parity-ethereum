@@ -16,10 +16,6 @@
 
 //! Ethereum rpc interfaces.
 
-macro_rules! rpc_unimplemented {
-	() => (Err(Error::internal_error()))
-}
-
 pub mod web3;
 pub mod eth;
 pub mod net;

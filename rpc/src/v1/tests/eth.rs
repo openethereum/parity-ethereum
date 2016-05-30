@@ -27,7 +27,7 @@ use ethcore::transaction::{Transaction, Action};
 use ethminer::{MinerService, ExternalMiner};
 use devtools::RandomTempPath;
 use util::io::IoChannel;
-use util::hash::{Address, FixedHash};
+use util::hash::Address;
 use util::numbers::{Uint, U256};
 use util::keys::{AccountProvider, TestAccount, TestAccountProvider};
 use jsonrpc_core::IoHandler;
