@@ -10,7 +10,7 @@ use blockchain::extras::TransactionAddress;
 use super::BlockID;
 use db::DatabaseService;
 
-impl<D: Deref> TraceDatabaseExtras for BlockChain<D> where D::Target: DatabaseService + Sized {
+impl<D: Deref> TraceDatabaseExtras for BlockChain<D> where D::Target: DatabaseService {
 	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
 		(self as &BlockProvider).block_hash(block_number)
 	}

@@ -124,7 +124,7 @@ struct CacheManager {
 	in_use: HashSet<CacheID>,
 }
 
-impl<D: Deref> bc::group::BloomGroupDatabase for BlockChain<D> where D::Target : DatabaseService + Sized {
+impl<D: Deref> bc::group::BloomGroupDatabase for BlockChain<D> where D::Target : DatabaseService {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
 		self.note_used(CacheID::BlocksBlooms(position.clone()));
@@ -135,7 +135,7 @@ impl<D: Deref> bc::group::BloomGroupDatabase for BlockChain<D> where D::Target :
 /// Structure providing fast access to blockchain data.
 ///
 /// **Does not do input data verification.**
-pub struct BlockChain<D: Deref> where D::Target: DatabaseService + Sized {
+pub struct BlockChain<D: Deref> where D::Target: DatabaseService {
 	// All locks must be captured in the order declared here.
 	pref_cache_size: AtomicUsize,
 	max_cache_size: AtomicUsize,
@@ -161,7 +161,7 @@ pub struct BlockChain<D: Deref> where D::Target: DatabaseService + Sized {
 	insert_lock: Mutex<()>
 }
 
-impl<D: Deref> BlockProvider for BlockChain<D> where D::Target: DatabaseService + Sized {
+impl<D: Deref> BlockProvider for BlockChain<D> where D::Target: DatabaseService {
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool {
@@ -230,12 +230,12 @@ impl<D: Deref> BlockProvider for BlockChain<D> where D::Target: DatabaseService 
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
 
-pub struct AncestryIter<'a, D: 'a + Deref> where D::Target: DatabaseService + Sized {
+pub struct AncestryIter<'a, D: 'a + Deref> where D::Target: DatabaseService {
 	current: H256,
 	chain: &'a BlockChain<D>,
 }
 
-impl<'a, D: 'a + Deref> Iterator for AncestryIter<'a, D> where D::Target: DatabaseService + Sized {
+impl<'a, D: 'a + Deref> Iterator for AncestryIter<'a, D> where D::Target: DatabaseService {
 	type Item = H256;
 	fn next(&mut self) -> Option<H256> {
 		if self.current.is_zero() {
@@ -248,7 +248,7 @@ impl<'a, D: 'a + Deref> Iterator for AncestryIter<'a, D> where D::Target: Databa
 	}
 }
 
-impl<D: Deref> BlockChain<D> where D::Target: DatabaseService + Sized {
+impl<D: Deref> BlockChain<D> where D::Target: DatabaseService {
 	/// Create new instance of blockchain from given Genesis
 	pub fn new(config: Config, genesis: &[u8], path: &Path) -> BlockChain<DatabaseConnection> {
 		// open extras db

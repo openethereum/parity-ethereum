@@ -47,13 +47,13 @@ pub enum SyncMessage {
 pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
-pub struct ClientService<D: Deref + Send + Sync> where D::Target: DatabaseService + Sized {
+pub struct ClientService<D: Deref + Send + Sync> where D::Target: DatabaseService {
 	net_service: NetworkService<SyncMessage>,
 	client: Arc<Client<D>>,
 	panic_handler: Arc<PanicHandler>
 }
 
-impl<D: Deref + Send + Sync> ClientService<D> where D::Target: DatabaseService + Sized {
+impl<D: Deref + Send + Sync> ClientService<D> where D::Target: DatabaseService {
 	/// Start the service in a separate thread.
 	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path)
 		-> Result<ClientService<DatabaseConnection>, Error>
@@ -99,21 +99,21 @@ impl<D: Deref + Send + Sync> ClientService<D> where D::Target: DatabaseService +
 	}
 }
 
-impl<D: Deref + Send + Sync> MayPanic for ClientService<D> where D::Target: DatabaseService + Sized {
+impl<D: Deref + Send + Sync> MayPanic for ClientService<D> where D::Target: DatabaseService {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
 }
 
 /// IO interface for the Client handler
-struct ClientIoHandler<D: Deref + Send + Sync> where D::Target: DatabaseService + Sized {
+struct ClientIoHandler<D: Deref + Send + Sync> where D::Target: DatabaseService {
 	client: Arc<Client<D>>
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
 const CLIENT_TICK_MS: u64 = 5000;
 
-impl<D: Deref + Send + Sync> IoHandler<NetSyncMessage> for ClientIoHandler<D> where D::Target: DatabaseService + Sized {
+impl<D: Deref + Send + Sync> IoHandler<NetSyncMessage> for ClientIoHandler<D> where D::Target: DatabaseService {
 	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
 	}

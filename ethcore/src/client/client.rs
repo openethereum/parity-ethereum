@@ -86,7 +86,7 @@ pub type EthClient = Client<Database>;
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
-pub struct Client<D: Deref + Send + Sync, V = CanonVerifier> where D::Target: DatabaseService + Sized, V: Verifier {
+pub struct Client<D: Deref + Send + Sync, V = CanonVerifier> where D::Target: DatabaseService, V: Verifier {
 	chain: Arc<BlockChain<D>>,
 	tracedb: Arc<TraceDB<BlockChain<D>>>,
 	engine: Arc<Box<Engine>>,
@@ -107,7 +107,7 @@ const HISTORY: u64 = 1200;
 // of which you actually want force an upgrade.
 const CLIENT_DB_VER_STR: &'static str = "5.3";
 
-impl<D: Deref + Send + Sync> Client<D, CanonVerifier> where D::Target: DatabaseService + Sized {
+impl<D: Deref + Send + Sync> Client<D, CanonVerifier> where D::Target: DatabaseService {
 	/// Create a new client with given spec and DB path.
 	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage>)
 		-> Result<Arc<Client<DatabaseConnection, CanonVerifier>>, ClientError>
@@ -133,7 +133,7 @@ pub fn append_path(path: &Path, item: &str) -> String {
 	p.to_str().unwrap().to_owned()
 }
 
-impl<D: Deref + Send + Sync, V: Verifier> Client<D, V> where D::Target: DatabaseService + Sized {
+impl<D: Deref + Send + Sync, V: Verifier> Client<D, V> where D::Target: DatabaseService {
 	///  Create a new client with given spec and DB path and custom verifier.
 	pub fn new_with_verifier(
 		config: ClientConfig,
@@ -435,7 +435,7 @@ impl<D: Deref + Send + Sync, V: Verifier> Client<D, V> where D::Target: Database
 	}
 }
 
-impl<D: Deref + Send + Sync, V: Verifier> BlockChainClient for Client<D, V> where D::Target: DatabaseService + Sized {
+impl<D: Deref + Send + Sync, V: Verifier> BlockChainClient for Client<D, V> where D::Target: DatabaseService {
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
 		let view = HeaderView::new(&header);
@@ -791,7 +791,7 @@ impl<D: Deref + Send + Sync, V: Verifier> BlockChainClient for Client<D, V> wher
 	}
 }
 
-impl<D: Deref + Send + Sync> MayPanic for Client<D> where D::Target: DatabaseService + Sized {
+impl<D: Deref + Send + Sync> MayPanic for Client<D> where D::Target: DatabaseService {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
