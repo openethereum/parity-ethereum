@@ -22,55 +22,55 @@ use jsonrpc_core::*;
 pub trait Ethcore: Sized + Send + Sync + 'static {
 
 	/// Sets new minimal gas price for mined blocks.
-	fn set_min_gas_price(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn set_min_gas_price(&self, _: Params) -> Result<Value, Error>;
 
 	/// Sets new gas floor target for mined blocks.
-	fn set_gas_floor_target(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn set_gas_floor_target(&self, _: Params) -> Result<Value, Error>;
 
 	/// Sets new extra data for mined blocks.
-	fn set_extra_data(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn set_extra_data(&self, _: Params) -> Result<Value, Error>;
 
 	/// Sets new author for mined block.
-	fn set_author(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn set_author(&self, _: Params) -> Result<Value, Error>;
 
 	/// Sets the limits for transaction queue.
-	fn set_transactions_limit(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn set_transactions_limit(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns current transactions limit.
-	fn transactions_limit(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn transactions_limit(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns mining extra data.
-	fn extra_data(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn extra_data(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns mining gas floor target.
-	fn gas_floor_target(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn gas_floor_target(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns minimal gas price for transaction to be included in queue.
-	fn min_gas_price(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn min_gas_price(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns latest logs
-	fn dev_logs(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn dev_logs(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns logs levels
-	fn dev_logs_levels(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn dev_logs_levels(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns chain name
-	fn net_chain(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn net_chain(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns max peers
-	fn net_max_peers(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn net_max_peers(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns network port
-	fn net_port(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn net_port(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns rpc settings
-	fn rpc_settings(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn rpc_settings(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns node name
-	fn node_name(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn node_name(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns default extra data
-	fn default_extra_data(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn default_extra_data(&self, _: Params) -> Result<Value, Error>;
 
 
 	/// Should be used to convert object to io delegate.

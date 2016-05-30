@@ -25,6 +25,10 @@ macro_rules! take_weak {
 	}
 }
 
+macro_rules! rpc_unimplemented {
+	() => (Err(Error::internal_error()))
+}
+
 mod web3;
 mod eth;
 mod eth_filter;
@@ -59,22 +63,14 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 	where C: BlockChainClient, M: MinerService {
 	let hash = signed_transaction.hash();
 
-	let import = {
-		miner.import_own_transaction(client, signed_transaction, |a: &Address| {
-			AccountDetails {
-				nonce: client.latest_nonce(&a),
-				balance: client.latest_balance(&a),
-			}
-		})
-	};
-
-	match import {
-		Ok(_) => hash,
-		Err(e) => {
-			warn!("Error sending transaction: {:?}", e);
-			H256::zero()
+	let import = miner.import_own_transaction(client, signed_transaction, |a: &Address| {
+		AccountDetails {
+			nonce: client.latest_nonce(&a),
+			balance: client.latest_balance(&a),
 		}
-	}
+	});
+
+	import.map(|_| hash).unwrap_or(H256::zero())
 }
 
 fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, secret: H256) -> H256

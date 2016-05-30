@@ -26,6 +26,7 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
+use util::keys::store::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
@@ -37,7 +38,6 @@ use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::impls::dispatch_transaction;
-use util::keys::store::AccountProvider;
 use serde;
 
 /// Eth rpc implementation.
@@ -528,5 +528,17 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 				};
 				to_value(&r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0)))
 			})
+	}
+
+	fn compile_lll(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
+
+	fn compile_serpent(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
+
+	fn compile_solidity(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
 	}
 }
