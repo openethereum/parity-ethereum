@@ -506,7 +506,7 @@ impl<D: Deref> BlockChain<D> where D::Target: DatabaseService + Sized {
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
-	pub fn ancestry_iter<'a>(&'a self, first: H256) -> Option<AncestryIter<'a, D>> {
+	pub fn ancestry_iter(&self, first: H256) -> Option<AncestryIter<D>> {
 		if self.is_known(&first) {
 			Some(AncestryIter {
 				current: first,
