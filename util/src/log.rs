@@ -25,7 +25,7 @@ use arrayvec::ArrayVec;
 lazy_static! {
 	static ref LOG_DUMMY: bool = {
 		let mut builder = LogBuilder::new();
-		builder.filter(None, LogLevelFilter::Info);
+		builder.filter(None, LogLevelFilter::Trace);
 
 		if let Ok(log) = env::var("RUST_LOG") {
 			builder.parse(&log);
