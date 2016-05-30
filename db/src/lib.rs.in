@@ -31,6 +31,9 @@ pub mod writable;
 
 pub use traits::{DatabaseService, DBTransaction, Error};
 pub use database::{Database, DatabaseClient, DatabaseIterator};
+pub use readable::{Readable};
+pub use writable::{Writable};
+pub use cache::{Key, Cache, CacheUpdatePolicy};
 
 use std::sync::Arc;
 use std::sync::atomic::*;
