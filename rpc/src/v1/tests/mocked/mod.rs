@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC serialization tests.
+//! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
+//! method calls properly.
 
 mod eth;
 mod eth_signing;

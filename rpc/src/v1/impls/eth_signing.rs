@@ -43,6 +43,12 @@ impl EthSigningQueueClient {
 }
 
 impl EthSigning for EthSigningQueueClient  {
+
+	fn sign(&self, _params: Params) -> Result<Value, Error> {
+		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
+		rpc_unimplemented!()
+	}
+
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
@@ -84,6 +90,12 @@ impl<C, A, M> EthSigning for EthSigningUnsafeClient<C, A, M> where
 	C: BlockChainClient + 'static,
 	A: AccountProvider + 'static,
 	M: MinerService + 'static {
+
+	fn sign(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Address, H256)>(params).and_then(|(addr, msg)| {
+			to_value(&take_weak!(self.accounts).sign(&addr, &msg).unwrap_or(H520::zero()))
+		})
+	}
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
