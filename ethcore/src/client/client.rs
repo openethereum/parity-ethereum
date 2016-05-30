@@ -441,9 +441,9 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			ExecutionError::TransactionMalformed(message)
 		}));
 		let balance = state.balance(&sender);
-		// give the sender max balance
+		// give the sender a decent balance
 		state.sub_balance(&sender, &balance);
-		state.add_balance(&sender, &U256::max_value());
+		state.add_balance(&sender, &(U256::from(1) << 200));
 		let options = TransactOptions { tracing: false, vm_tracing: vm_tracing, check_nonce: false };
 		Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options)
 	}

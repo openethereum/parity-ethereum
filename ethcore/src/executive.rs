@@ -23,7 +23,6 @@ use externalities::*;
 use substate::*;
 use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use crossbeam;
-
 pub use types::executed::{Executed, ExecutionResult};
 
 /// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)

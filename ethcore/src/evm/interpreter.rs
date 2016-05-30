@@ -301,13 +301,14 @@ impl evm::Evm for Interpreter {
 
 		while reader.position < code.len() {
 			let instruction = code[reader.position];
-			reader.position += 1;
 
 			// Calculate gas cost
 			let (gas_cost, mem_size) = try!(self.get_gas_cost_mem(ext, instruction, &mut mem, &stack));
 
 			// TODO: make compile-time removable if too much of a performance hit.
 			let trace_executed = ext.trace_prepare_execute(reader.position, instruction, &gas_cost);
+
+			reader.position += 1;
 
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			mem.expand(mem_size);

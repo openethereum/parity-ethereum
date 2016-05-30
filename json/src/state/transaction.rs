@@ -40,7 +40,7 @@ pub struct Transaction {
 	/// To.
 	pub to: MaybeEmpty<Address>,
 	/// Value.
-	pub value: Uint
+	pub value: Uint,
 }
 
 #[cfg(test)]

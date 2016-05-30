@@ -102,7 +102,7 @@ fn vm_trace_to_object(t: &VMTrace) -> Value {
 						"val".to_owned() => to_value(&sd.value).unwrap()
 					]));
 				}
-				m.insert("executed".to_owned(), Value::Object(em));
+				m.insert("ex".to_owned(), Value::Object(em));
 			}
 			if next_sub.is_some() && next_sub.unwrap().parent_step == i {
 				m.insert("sub".to_owned(), vm_trace_to_object(next_sub.unwrap()));
