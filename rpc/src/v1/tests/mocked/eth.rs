@@ -26,6 +26,7 @@ use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
 use ethminer::{ExternalMiner, MinerService};
+use ethsync::SyncState;
 use v1::{Eth, EthClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use rustc_serialize::hex::ToHex;
@@ -93,9 +94,28 @@ fn rpc_eth_protocol_version() {
 }
 
 #[test]
-#[ignore]
 fn rpc_eth_syncing() {
-	unimplemented!()
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id": 1}"#;
+
+	let tester = EthTester::default();
+
+	let false_res = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+	assert_eq!(tester.io.handle_request(request), Some(false_res.to_owned()));
+
+	{
+		let mut status = tester.sync.status.write().unwrap();
+		status.state = SyncState::Blocks;
+		status.highest_block_number = Some(2500);
+
+		// causes TestBlockChainClient to return 1000 for its best block number.
+		let mut blocks = tester.client.blocks.write().unwrap();
+		for i in 0..1000 {
+			blocks.insert(H256::from(i), Vec::new());
+		}
+	}
+
+	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x03e8","highestBlock":"0x09c4","startingBlock":"0x00"},"id":1}"#;
+	assert_eq!(tester.io.handle_request(request), Some(true_res.to_owned()));
 }
 
 #[test]
