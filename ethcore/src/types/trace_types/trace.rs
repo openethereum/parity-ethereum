@@ -349,16 +349,94 @@ impl Trace {
 	}
 }
 
-/*pub struct VMExecutedOperation {
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A diff of some chunk of memory.
+pub struct MemoryDiff {
+	/// Offset into memory the change begins.
+	pub offset: usize,
+	/// The changed data.
+	pub data: Bytes,
+}
+
+impl Encodable for MemoryDiff {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.offset);
+		s.append(&self.data);
+	}
+}
+
+impl Decodable for MemoryDiff {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		Ok(MemoryDiff {
+			offset: try!(d.val_at(0)),
+			data: try!(d.val_at(1)),
+		})
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A diff of some storage value.
+pub struct StorageDiff {
+	/// Which key in storage is changed.
+	pub location: U256,
+	/// What the value has been changed to.
+	pub value: U256,
+}
+
+impl Encodable for StorageDiff {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.location);
+		s.append(&self.value);
+	}
+}
+
+impl Decodable for StorageDiff {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		Ok(StorageDiff {
+			location: try!(d.val_at(0)),
+			value: try!(d.val_at(1)),
+		})
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A record of an executed VM operation.
+pub struct VMExecutedOperation {
 	/// The total gas used.
 	pub gas_used: U256,
-	/// Altered storage value.
-	pub storage_diff: Option<(U256, U256)>,
-	/// If altered, the new memory image.
-	pub new_memory: Option<Bytes>,
-}*/
-	/// Information concerning the execution of the operation.
-//	pub executed: Option<VMExecutedOperation>,
+	/// The stack item placed, if any.
+	pub stack_push: Vec<U256>,
+	/// If altered, the memory delta, given as (offset, new bytes).
+	pub mem_diff: Option<MemoryDiff>,
+	/// The altered storage value.
+	pub store_diff: Option<StorageDiff>,
+}
+
+impl Encodable for VMExecutedOperation {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
+		s.append(&self.gas_used);
+		s.append(&self.stack_push);
+		s.append(&self.mem_diff);
+		s.append(&self.store_diff);
+	}
+}
+
+impl Decodable for VMExecutedOperation {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		Ok(VMExecutedOperation {
+			gas_used: try!(d.val_at(0)),
+			stack_push: try!(d.val_at(1)),
+			mem_diff: try!(d.val_at(2)),
+			store_diff: try!(d.val_at(3)),
+		})
+	}
+}
 
 #[derive(Debug, Clone, PartialEq, Binary)]
 /// A record of the execution of a single VM operation.
@@ -369,8 +447,8 @@ pub struct VMOperation {
 	pub instruction: u8,
 	/// The gas cost for this instruction.
 	pub gas_cost: U256,
-	/// The stack.
-	pub stack: Vec<U256>,
+	/// Information concerning the execution of the operation.
+	pub executed: Option<VMExecutedOperation>,
 }
 
 impl Encodable for VMOperation {
@@ -379,7 +457,7 @@ impl Encodable for VMOperation {
 		s.append(&self.pc);
 		s.append(&self.instruction);
 		s.append(&self.gas_cost);
-		s.append(&self.stack);
+		s.append(&self.executed);
 	}
 }
 
@@ -390,7 +468,7 @@ impl Decodable for VMOperation {
 			pc: try!(d.val_at(0)),
 			instruction: try!(d.val_at(1)),
 			gas_cost: try!(d.val_at(2)),
-			stack: try!(d.val_at(3)),
+			executed: try!(d.val_at(3)),
 		};
 
 		Ok(res)

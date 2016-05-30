@@ -289,8 +289,12 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
 	}
 
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256, stack: &[U256]) {
-		self.vm_tracer.trace_prepare_execute(pc, instruction, gas_cost, stack);
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256) -> bool {
+		self.vm_tracer.trace_prepare_execute(pc, instruction, gas_cost)
+	}
+
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
+		self.vm_tracer.trace_executed(gas_used, stack_push, mem_diff, store_diff)
 	}
 }
 

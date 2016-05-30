@@ -19,7 +19,7 @@
 use common::*;
 use trace::VMTracer;
 use super::instructions as instructions;
-use super::instructions::Instruction;
+use super::instructions::{Instruction, get_info};
 use std::marker::Copy;
 use evm::{self, MessageCallResult, ContractCreateResult};
 
@@ -71,7 +71,7 @@ trait Stack<T> {
 	/// Get number of elements on Stack
 	fn size(&self) -> usize;
 	/// Returns all data on stack.
-	fn peek_all(&mut self) -> &[T];
+	fn peek_top(&mut self, no_of_elems: usize) -> &[T];
 }
 
 struct VecStack<S> {
@@ -135,8 +135,9 @@ impl<S : fmt::Display> Stack<S> for VecStack<S> {
 		self.stack.len()
 	}
 
-	fn peek_all(&mut self) -> &[S] {
-		&self.stack
+	fn peek_top(&mut self, no_from_top: usize) -> &[S] {
+		assert!(self.stack.len() >= no_from_top, "peek_top asked for more items than exist.");
+		&self.stack[self.stack.len() - no_from_top .. self.stack.len()]
 	}
 }
 
@@ -306,7 +307,7 @@ impl evm::Evm for Interpreter {
 			let (gas_cost, mem_size) = try!(self.get_gas_cost_mem(ext, instruction, &mut mem, &stack));
 
 			// TODO: make compile-time removable if too much of a performance hit.
-			ext.trace_prepare_execute(reader.position, instruction, &gas_cost, stack.peek_all());
+			let trace_executed = ext.trace_prepare_execute(reader.position, instruction, &gas_cost);
 
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			mem.expand(mem_size);
@@ -322,10 +323,19 @@ impl evm::Evm for Interpreter {
 				);
 			});
 
+			let (mem_written, store_written) = match trace_executed {
+				true => (Self::mem_written(instruction, &stack), Self::store_written(instruction, &stack)),
+				false => (None, None),
+			};
+
 			// Execute instruction
 			let result = try!(self.exec_instruction(
 					current_gas, &params, ext, instruction, &mut reader, &mut mem, &mut stack
-					));
+			));
+
+			if trace_executed {
+				ext.trace_executed(current_gas, stack.peek_top(get_info(instruction).ret), mem_written.map(|(o, s)| (o, &(mem[o..(o + s)]))), store_written);
+			}
 
 			// Advance
 			match result {
@@ -493,6 +503,31 @@ impl Interpreter {
 				let gas = overflowing!(gas.overflowing_add(mem_gas));
 				Ok((gas, new_mem_size))
 			}
+		}
+	}
+
+	fn mem_written(
+		instruction: Instruction,
+		stack: &Stack<U256>
+	) -> Option<(usize, usize)> {
+		match instruction {
+			instructions::MSTORE | instructions::MLOAD => Some((stack.peek(0).low_u64() as usize, 32)),
+			instructions::MSTORE8 => Some((stack.peek(0).low_u64() as usize, 1)),
+			instructions::CALLDATACOPY | instructions::CODECOPY => Some((stack.peek(0).low_u64() as usize, stack.peek(2).low_u64() as usize)),
+			instructions::EXTCODECOPY => Some((stack.peek(1).low_u64() as usize, stack.peek(3).low_u64() as usize)),
+			instructions::CALL | instructions::CALLCODE => Some((stack.peek(5).low_u64() as usize, stack.peek(6).low_u64() as usize)),
+			instructions::DELEGATECALL => Some((stack.peek(4).low_u64() as usize, stack.peek(5).low_u64() as usize)),
+			_ => None,
+		}
+	}
+
+	fn store_written(
+		instruction: Instruction,
+		stack: &Stack<U256>
+	) -> Option<(U256, U256)> {
+		match instruction {
+			instructions::SSTORE => Some((stack.peek(0).clone(), stack.peek(1).clone())),
+			_ => None,
 		}
 	}
 

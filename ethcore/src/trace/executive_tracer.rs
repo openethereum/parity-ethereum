@@ -18,7 +18,7 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation};
+use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
 use trace::{Tracer, VMTracer};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
@@ -113,13 +113,24 @@ pub struct ExecutiveVMTracer {
 }
 
 impl VMTracer for ExecutiveVMTracer {
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256, stack: &[U256]) {
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256) -> bool {
 		self.data.operations.push(VMOperation {
 			pc: pc,
 			instruction: instruction,
 			gas_cost: gas_cost.clone(),	
-			stack: stack.iter().cloned().collect(),
-		})
+			executed: None,
+		});
+		true
+	}
+
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
+		let ex = VMExecutedOperation {
+			gas_used: gas_used,
+			stack_push: stack_push.iter().cloned().collect(),
+			mem_diff: mem_diff.map(|(s, r)| MemoryDiff{ offset: s, data: r.iter().cloned().collect() }),
+			store_diff: store_diff.map(|(l, v)| StorageDiff{ location: l, value: v }),
+		};
+		self.data.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute").executed = Some(ex);
 	}
 
 	fn prepare_subtrace(&self, code: &Bytes) -> Self {

@@ -80,9 +80,30 @@ fn vm_trace_to_object(t: &VMTrace) -> Value {
 		.map(|(i, op)| {
 			let mut m = map![
 				"pc".to_owned() => to_value(&op.pc).unwrap(),
-				"cost".to_owned() => to_value(&op.gas_cost).unwrap(),
-				"stack".to_owned() => to_value(&op.stack).unwrap()
+				"cost".to_owned() => match op.gas_cost <= U256::from(!0u64) {
+					true => to_value(&op.gas_cost.low_u64()),
+					false => to_value(&op.gas_cost),
+				}.unwrap()
 			];
+			if let Some(ref ex) = op.executed {
+				let mut em = map![
+					"used".to_owned() => to_value(&ex.gas_used.low_u64()).unwrap(),
+					"push".to_owned() => to_value(&ex.stack_push).unwrap()
+				];
+				if let Some(ref md) = ex.mem_diff {
+					em.insert("mem".to_owned(), Value::Object(map![
+						"off".to_owned() => to_value(&md.offset).unwrap(),
+						"data".to_owned() => to_value(&md.data).unwrap()
+					]));
+				}
+				if let Some(ref sd) = ex.store_diff {
+					em.insert("store".to_owned(), Value::Object(map![
+						"key".to_owned() => to_value(&sd.location).unwrap(),
+						"val".to_owned() => to_value(&sd.value).unwrap()
+					]));
+				}
+				m.insert("executed".to_owned(), Value::Object(em));
+			}
 			if next_sub.is_some() && next_sub.unwrap().parent_step == i {
 				m.insert("sub".to_owned(), vm_trace_to_object(next_sub.unwrap()));
 				next_sub = subs.next();
@@ -191,7 +212,6 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, 
 			.and_then(|(request,)| {
 				let signed = try!(self.sign_call(request));
 				let r = take_weak!(self.client).call(&signed, true);
-				trace!(target: "jsonrpc", "returned {:?}", r);
 				if let Ok(executed) = r {
 					if let Some(vm_trace) = executed.vm_trace {
 						return Ok(vm_trace_to_object(&vm_trace));
