@@ -3,14 +3,14 @@ use util::numbers::H256;
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
 use blooms::BloomGroup;
-use super::extras::{BlockDetails, BlockReceipts, TransactionAddress, LogGroupPosition};
+use super::extras::{BlockNumberIndex, BlockDetails, BlockReceipts, TransactionAddress, LogGroupPosition};
 
 /// Block extras update info.
 pub struct ExtrasUpdate {
 	/// Block info.
 	pub info: BlockInfo,
 	/// Modified block hashes.
-	pub block_hashes: HashMap<BlockNumber, H256>,
+	pub block_hashes: HashMap<BlockNumberIndex, H256>,
 	/// Modified block details.
 	pub block_details: HashMap<H256, BlockDetails>,
 	/// Modified block receipts.

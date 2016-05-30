@@ -1,15 +1,16 @@
 
 //! Bridge between Tracedb and Blockchain.
 
-use std::ops::Range;
+use std::ops::{Range, Deref};
 use util::{Address, H256};
 use header::BlockNumber;
 use trace::DatabaseExtras as TraceDatabaseExtras;
 use blockchain::{BlockChain, BlockProvider};
 use blockchain::extras::TransactionAddress;
 use super::BlockID;
+use db::DatabaseService;
 
-impl TraceDatabaseExtras for BlockChain {
+impl<D: Deref> TraceDatabaseExtras for BlockChain<D> where D::Target: DatabaseService + Sized {
 	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
 		(self as &BlockProvider).block_hash(block_number)
 	}

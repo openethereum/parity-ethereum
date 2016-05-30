@@ -45,6 +45,15 @@ fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
 	result
 }
 
+#[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
+pub struct BlockNumberIndex(u64);
+
+impl From<BlockNumber> for BlockNumberIndex {
+	fn from(b: BlockNumber) -> BlockNumberIndex {
+		BlockNumberIndex(b)
+	}
+}
+
 pub struct BlockNumberKey([u8; 5]);
 
 impl Deref for BlockNumberKey {
@@ -55,16 +64,16 @@ impl Deref for BlockNumberKey {
 	}
 }
 
-impl Key<H256> for BlockNumber {
+impl Key<H256> for BlockNumberIndex {
 	type Target = BlockNumberKey;
 
 	fn key(&self) -> Self::Target {
 		let mut result = [0u8; 5];
 		result[0] = ExtrasIndex::BlockHash as u8;
-		result[1] = (self >> 24) as u8;
-		result[2] = (self >> 16) as u8;
-		result[3] = (self >> 8) as u8;
-		result[4] = *self as u8;
+		result[1] = (self.0 >> 24) as u8;
+		result[2] = (self.0 >> 16) as u8;
+		result[3] = (self.0 >> 8) as u8;
+		result[4] = self.0 as u8;
 		BlockNumberKey(result)
 	}
 }
