@@ -353,6 +353,7 @@ fn rpc_eth_call() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
 	});
 
 	let request = r#"{
@@ -386,6 +387,7 @@ fn rpc_eth_call_default_block() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
 	});
 
 	let request = r#"{
@@ -418,6 +420,7 @@ fn rpc_eth_estimate_gas() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
 	});
 
 	let request = r#"{
@@ -451,6 +454,7 @@ fn rpc_eth_estimate_gas_default_block() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
 	});
 
 	let request = r#"{

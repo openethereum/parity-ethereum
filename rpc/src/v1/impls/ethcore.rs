@@ -26,7 +26,6 @@ use ethminer::MinerService;
 use ethcore::client::BlockChainClient;
 use ethcore::trace::VMTrace;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
-use ethcore::get_info;
 use v1::traits::Ethcore;
 use v1::types::{Bytes, CallRequest};
 
@@ -81,8 +80,7 @@ fn vm_trace_to_object(t: &VMTrace) -> Value {
 		.map(|(i, op)| {
 			let mut m = map![
 				"pc".to_owned() => to_value(&op.pc).unwrap(),
-				"inst".to_owned() => to_value(&get_info(op.instruction).name).unwrap(),
-				"gas_cost".to_owned() => to_value(&op.gas_cost).unwrap(),
+				"cost".to_owned() => to_value(&op.gas_cost).unwrap(),
 				"stack".to_owned() => to_value(&op.stack).unwrap()
 			];
 			if next_sub.is_some() && next_sub.unwrap().parent_step == i {

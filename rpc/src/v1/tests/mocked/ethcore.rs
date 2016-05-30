@@ -19,16 +19,22 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use v1::{Ethcore, EthcoreClient};
 use ethminer::MinerService;
+use ethcore::client::{TestBlockChainClient};
 use v1::tests::helpers::TestMinerService;
 use util::numbers::*;
 use rustc_serialize::hex::FromHex;
 use util::log::RotatingLogger;
 use util::network_settings::NetworkSettings;
 
+fn blockchain_client() -> Arc<TestBlockChainClient> {
+	let client = TestBlockChainClient::new();
+	Arc::new(client)
+}
 
 fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
 }
+
 fn logger() -> Arc<RotatingLogger> {
 	Arc::new(RotatingLogger::new("rpc=trace".to_owned()))
 }
@@ -45,14 +51,15 @@ fn settings() -> Arc<NetworkSettings> {
 	})
 }
 
-fn ethcore_client(miner: &Arc<TestMinerService>) -> EthcoreClient<TestMinerService> {
-	EthcoreClient::new(&miner, logger(), settings())
+fn ethcore_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>) -> EthcoreClient<TestBlockChainClient, TestMinerService> {
+	EthcoreClient::new(&client, &miner, logger(), settings())
 }
 
 #[test]
 fn rpc_ethcore_extra_data() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -68,7 +75,8 @@ fn rpc_ethcore_default_extra_data() {
 	use util::ToPretty;
 
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -81,7 +89,8 @@ fn rpc_ethcore_default_extra_data() {
 #[test]
 fn rpc_ethcore_gas_floor_target() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -94,7 +103,8 @@ fn rpc_ethcore_gas_floor_target() {
 #[test]
 fn rpc_ethcore_min_gas_price() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -107,7 +117,8 @@ fn rpc_ethcore_min_gas_price() {
 #[test]
 fn rpc_ethcore_set_min_gas_price() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -121,7 +132,8 @@ fn rpc_ethcore_set_min_gas_price() {
 #[test]
 fn rpc_ethcore_set_gas_floor_target() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -135,7 +147,8 @@ fn rpc_ethcore_set_gas_floor_target() {
 #[test]
 fn rpc_ethcore_set_extra_data() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -149,7 +162,8 @@ fn rpc_ethcore_set_extra_data() {
 #[test]
 fn rpc_ethcore_set_author() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -163,10 +177,11 @@ fn rpc_ethcore_set_author() {
 #[test]
 fn rpc_ethcore_dev_logs() {
 	let miner = miner_service();
+	let client = blockchain_client();
 	let logger = logger();
 	logger.append("a".to_owned());
 	logger.append("b".to_owned());
-	let ethcore = EthcoreClient::new(&miner, logger.clone(), settings()).to_delegate();
+	let ethcore = EthcoreClient::new(&client, &miner, logger.clone(), settings()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -179,7 +194,8 @@ fn rpc_ethcore_dev_logs() {
 #[test]
 fn rpc_ethcore_dev_logs_levels() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -191,7 +207,8 @@ fn rpc_ethcore_dev_logs_levels() {
 #[test]
 fn rpc_ethcore_set_transactions_limit() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -205,7 +222,8 @@ fn rpc_ethcore_set_transactions_limit() {
 #[test]
 fn rpc_ethcore_transactions_limit() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -218,7 +236,8 @@ fn rpc_ethcore_transactions_limit() {
 #[test]
 fn rpc_ethcore_net_chain() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -231,7 +250,8 @@ fn rpc_ethcore_net_chain() {
 #[test]
 fn rpc_ethcore_net_max_peers() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -244,7 +264,8 @@ fn rpc_ethcore_net_max_peers() {
 #[test]
 fn rpc_ethcore_net_port() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -257,7 +278,8 @@ fn rpc_ethcore_net_port() {
 #[test]
 fn rpc_ethcore_rpc_settings() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -270,7 +292,8 @@ fn rpc_ethcore_rpc_settings() {
 #[test]
 fn rpc_ethcore_node_name() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
+	let client = blockchain_client();
+	let ethcore = ethcore_client(&client, &miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
