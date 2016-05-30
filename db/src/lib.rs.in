@@ -21,18 +21,26 @@ extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate nanomsg;
 extern crate crossbeam;
+extern crate ethcore_util as util;
 
 pub mod database;
 pub mod traits;
+pub mod readable;
+pub mod cache;
+pub mod writable;
 
 pub use traits::{DatabaseService, DBTransaction, Error};
 pub use database::{Database, DatabaseClient, DatabaseIterator};
+pub use readable::{Readable};
+pub use writable::{Writable};
+pub use cache::{Key, Cache, CacheUpdatePolicy};
 
 use std::sync::Arc;
 use std::sync::atomic::*;
 use std::path::PathBuf;
 
-pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseClient<::nanomsg::Socket>>;
+pub type DatabaseNanoClient = DatabaseClient<::nanomsg::Socket>;
+pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseNanoClient>;
 
 #[derive(Debug)]
 pub enum ServiceError {

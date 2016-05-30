@@ -29,9 +29,8 @@ use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainD
 use blockchain::best_block::BestBlock;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
-use db::{Writable, Readable, Key, CacheUpdatePolicy};
-use ethcore_db;
-use ethcore_db::{DatabaseConnection, DatabaseService};
+use db::{Writable, Readable, Key, CacheUpdatePolicy, DatabaseService, DatabaseConnection};
+use db;
 use blockchain::{CacheSize, ImportRoute, Config};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
@@ -125,7 +124,7 @@ struct CacheManager {
 	in_use: HashSet<CacheID>,
 }
 
-impl bc::group::BloomGroupDatabase for BlockChain {
+impl<D: Deref> bc::group::BloomGroupDatabase for BlockChain<D> where D::Target : DatabaseService {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
 		self.note_used(CacheID::BlocksBlooms(position.clone()));
@@ -136,7 +135,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 /// Structure providing fast access to blockchain data.
 ///
 /// **Does not do input data verification.**
-pub struct BlockChain {
+pub struct BlockChain<D: Deref> where D::Target: DatabaseService {
 	// All locks must be captured in the order declared here.
 	pref_cache_size: AtomicUsize,
 	max_cache_size: AtomicUsize,
@@ -149,24 +148,24 @@ pub struct BlockChain {
 
 	// extra caches
 	block_details: RwLock<HashMap<H256, BlockDetails>>,
-	block_hashes: RwLock<HashMap<BlockNumber, H256>>,
+	block_hashes: RwLock<HashMap<BlockNumberIndex, H256>>,
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	extras_db: DatabaseConnection,
-	blocks_db: DatabaseConnection,
+	extras_db: D,
+	blocks_db: D,
 
 	cache_man: RwLock<CacheManager>,
 
 	insert_lock: Mutex<()>
 }
 
-impl BlockProvider for BlockChain {
+impl<D: Deref> BlockProvider for BlockChain<D> where D::Target: DatabaseService {
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool {
-		self.extras_db.exists_with_cache(&self.block_details, hash)
+		self.extras_db.deref().exists_with_cache(&self.block_details, hash)
 	}
 
 	/// Get raw block data
@@ -203,7 +202,7 @@ impl BlockProvider for BlockChain {
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
 		self.note_used(CacheID::BlockHashes(index));
-		self.extras_db.read_with_cache(&self.block_hashes, &index)
+		self.extras_db.read_with_cache(&self.block_hashes, &BlockNumberIndex::from(index))
 	}
 
 	/// Get the address of transaction with given hash.
@@ -231,12 +230,12 @@ impl BlockProvider for BlockChain {
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
 
-pub struct AncestryIter<'a> {
+pub struct AncestryIter<'a, D: 'a + Deref> where D::Target: DatabaseService {
 	current: H256,
-	chain: &'a BlockChain,
+	chain: &'a BlockChain<D>,
 }
 
-impl<'a> Iterator for AncestryIter<'a> {
+impl<'a, D: 'a + Deref> Iterator for AncestryIter<'a, D> where D::Target: DatabaseService {
 	type Item = H256;
 	fn next(&mut self) -> Option<H256> {
 		if self.current.is_zero() {
@@ -249,21 +248,21 @@ impl<'a> Iterator for AncestryIter<'a> {
 	}
 }
 
-impl BlockChain {
+impl<D: Deref> BlockChain<D> where D::Target: DatabaseService {
 	/// Create new instance of blockchain from given Genesis
-	pub fn new(config: Config, genesis: &[u8], path: &Path) -> BlockChain {
+	pub fn new(config: Config, genesis: &[u8], path: &Path) -> BlockChain<DatabaseConnection> {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
-		let extras_db = ethcore_db::extras_client(path.to_str().unwrap()).unwrap();
+		let extras_db = db::extras_client(path.to_str().unwrap()).unwrap();
 		extras_db.open_default(extras_path.to_str().unwrap().to_owned()).unwrap();
 
 		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
-		let blocks_db = ethcore_db::blocks_client(path.to_str().unwrap()).unwrap();
+		let blocks_db = db::blocks_client(path.to_str().unwrap()).unwrap();
 		match blocks_db.open_default(blocks_path.to_str().unwrap().to_owned()) {
-			Err(ethcore_db::Error::AlreadyOpen) => {},
+			Err(db::Error::AlreadyOpen) => {},
 			Ok(_) => {},
 			Err(e) => panic!("error opening blocks_db: {:?}", e),
 		}
@@ -310,9 +309,9 @@ impl BlockChain {
 
 				bc.blocks_db.put(&hash, genesis).unwrap();
 
-				let batch = ethcore_db::DBTransaction::new();
+				let batch = db::DBTransaction::new();
 				batch.write(&hash, &details);
-				batch.write(&header.number(), &hash);
+				batch.write(&BlockNumberIndex::from(header.number()), &hash);
 				batch.put(b"best", &hash);
 
 				bc.extras_db.write(batch).unwrap();
@@ -458,7 +457,7 @@ impl BlockChain {
 
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
-		let batch = ethcore_db::DBTransaction::new();
+		let batch = db::DBTransaction::new();
 		batch.put(b"best", &update.info.hash);
 
 		{
@@ -507,7 +506,7 @@ impl BlockChain {
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
-	pub fn ancestry_iter(&self, first: H256) -> Option<AncestryIter> {
+	pub fn ancestry_iter(&self, first: H256) -> Option<AncestryIter<D>> {
 		if self.is_known(&first) {
 			Some(AncestryIter {
 				current: first,
@@ -585,7 +584,7 @@ impl BlockChain {
 	}
 
 	/// This function returns modified block hashes.
-	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<BlockNumber, H256> {
+	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<BlockNumberIndex, H256> {
 		let mut block_hashes = HashMap::new();
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
@@ -594,17 +593,17 @@ impl BlockChain {
 		match info.location {
 			BlockLocation::Branch => (),
 			BlockLocation::CanonChain => {
-				block_hashes.insert(number, info.hash.clone());
+				block_hashes.insert(BlockNumberIndex::from(number), info.hash.clone());
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let ancestor_number = self.block_number(&data.ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
 				for (index, hash) in data.enacted.iter().cloned().enumerate() {
-					block_hashes.insert(start_number + index as BlockNumber, hash);
+					block_hashes.insert(BlockNumberIndex::from(start_number + index as BlockNumber), hash);
 				}
 
-				block_hashes.insert(number, info.hash.clone());
+				block_hashes.insert(BlockNumberIndex::from(number), info.hash.clone());
 			}
 		}
 
@@ -769,7 +768,7 @@ impl BlockChain {
 					match id {
 						CacheID::Block(h) => { blocks.remove(&h); },
 						CacheID::BlockDetails(h) => { block_details.remove(&h); }
-						CacheID::BlockHashes(h) => { block_hashes.remove(&h); }
+						CacheID::BlockHashes(h) => { block_hashes.remove(&BlockNumberIndex::from(h)); }
 						CacheID::TransactionAddresses(h) => { transaction_addresses.remove(&h); }
 						CacheID::BlocksBlooms(h) => { blocks_blooms.remove(&h); }
 						CacheID::BlockReceipts(h) => { block_receipts.remove(&h); }
@@ -806,7 +805,7 @@ mod tests {
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 	use views::BlockView;
-	use ethcore_db;
+	use db;
 
 	#[test]
 	fn basic_blockchain_insert() {

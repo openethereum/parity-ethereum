@@ -37,17 +37,19 @@ extern crate time;
 extern crate rand;
 #[macro_use]
 extern crate heapsize;
+extern crate ethcore_db as db;
 
 use std::ops::*;
 use std::sync::*;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
 use util::TimerToken;
 use util::{U256, ONE_U256};
-use ethcore::client::Client;
+use ethcore::client::EthClient;
 use ethcore::service::SyncMessage;
 use ethminer::Miner;
 use io::NetSyncIo;
 use chain::ChainSync;
+use db::DatabaseService;
 
 mod chain;
 mod blocks;
@@ -82,7 +84,7 @@ pub trait SyncProvider: Send + Sync {
 /// Ethereum network protocol handler
 pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
-	chain: Arc<Client>,
+	chain: Arc<EthClient>,
 	/// Sync strategy
 	sync: RwLock<ChainSync>
 }
@@ -91,7 +93,7 @@ pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>, miner: Arc<Miner>) -> Arc<EthSync> {
+	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<EthClient>, miner: Arc<Miner>) -> Arc<EthSync> {
 		let sync = ChainSync::new(config, miner, chain.deref());
 		let sync = Arc::new(EthSync {
 			chain: chain,

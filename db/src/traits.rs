@@ -52,7 +52,7 @@ impl DatabaseConfig {
 	}
 }
 
-pub trait DatabaseService {
+pub trait DatabaseService : Sized {
 	/// Opens database in the specified path
 	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error>;
 
