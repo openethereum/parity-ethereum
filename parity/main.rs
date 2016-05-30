@@ -45,6 +45,7 @@ extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
 extern crate ethcore_ipc_hypervisor as hypervisor;
 extern crate crossbeam;
+extern crate ethcore_db as db;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
@@ -86,6 +87,7 @@ use ethminer::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
 use migration::migrate;
 use informant::Informant;
+use db::DatabaseConnection;
 
 use die::*;
 use cli::print_version;
@@ -183,7 +185,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let account_service = Arc::new(conf.account_service());
 
 	// Build client
-	let mut service = ClientService::start(
+	let mut service = ClientService::<DatabaseConnection>::start(
 		client_config, spec, net_settings, Path::new(&conf.path())
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
@@ -293,7 +295,7 @@ fn execute_export(conf: Configuration) {
 	let client_config = conf.client_config(&spec);
 
 	// Build client
-	let service = ClientService::start(
+	let service = ClientService::<DatabaseConnection>::start(
 		client_config, spec, net_settings, Path::new(&conf.path())
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
@@ -367,7 +369,7 @@ fn execute_import(conf: Configuration) {
 	let client_config = conf.client_config(&spec);
 
 	// Build client
-	let service = ClientService::start(
+	let service = ClientService::<DatabaseConnection>::start(
 		client_config, spec, net_settings, Path::new(&conf.path())
 	).unwrap_or_else(|e| die_with_error("Client", e));
 

@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::net::SocketAddr;
-use ethcore::client::Client;
+use ethcore::client::EthClient;
 use ethsync::EthSync;
 use ethminer::{Miner, ExternalMiner};
 use util::RotatingLogger;
@@ -52,7 +52,7 @@ pub struct IpcConfiguration {
 
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
-	pub client: Arc<Client>,
+	pub client: Arc<EthClient>,
 	pub sync: Arc<EthSync>,
 	pub secret_store: Arc<AccountService>,
 	pub miner: Arc<Miner>,

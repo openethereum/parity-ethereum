@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::client::Client;
+use ethcore::client::EthClient;
 use ethcore::service::NetSyncMessage;
 use ethsync::EthSync;
 use util::keys::store::AccountService;
@@ -29,7 +29,7 @@ const ACCOUNT_TICK_TIMER: TimerToken = 10;
 const ACCOUNT_TICK_MS: u64 = 60000;
 
 pub struct ClientIoHandler {
-	pub client: Arc<Client>,
+	pub client: Arc<EthClient>,
 	pub sync: Arc<EthSync>,
 	pub accounts: Arc<AccountService>,
 	pub info: Informant,

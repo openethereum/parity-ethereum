@@ -78,6 +78,12 @@ impl ClientReport {
 	}
 }
 
+#[cfg(not(feature = "ipc-disable"))]
+pub type EthClient = Client<DatabaseConnection>;
+
+#[cfg(feature = "ipc-disable")]
+pub type EthClient = Client<Database>;
+
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<D: Deref + Send + Sync, V = CanonVerifier> where D::Target: DatabaseService + Sized, V: Verifier {
