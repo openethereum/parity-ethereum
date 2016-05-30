@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use util::panics::{PanicHandler, OnPanicListener, MayPanic};
 use jsonrpc_core::{IoHandler, IoDelegate};
-use rpc::Extendable;
+use rpc::{Extendable, ConfirmationsQueue};
 
 mod session;
 
@@ -49,13 +49,8 @@ impl From<ws::Error> for ServerError {
 
 /// Builder for `WebSockets` server
 pub struct ServerBuilder {
+	queue: Arc<ConfirmationsQueue>,
 	handler: Arc<IoHandler>,
-}
-
-impl Default for ServerBuilder {
-	fn default() -> Self {
-		ServerBuilder::new()
-	}
 }
 
 impl Extendable for ServerBuilder {
@@ -66,30 +61,40 @@ impl Extendable for ServerBuilder {
 
 impl ServerBuilder {
 	/// Creates new `ServerBuilder`
-	pub fn new() -> Self {
+	pub fn new(queue: Arc<ConfirmationsQueue>) -> Self {
 		ServerBuilder {
-			handler: Arc::new(IoHandler::new())
+			queue: queue,
+			handler: Arc::new(IoHandler::new()),
 		}
 	}
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
 	pub fn start(self, addr: SocketAddr) -> Result<Server, ServerError> {
-		Server::start(addr, self.handler)
+		Server::start(addr, self.handler).and_then(|(server, broadcaster)| {
+			// Fire up queue notifications broadcasting
+			let queue = self.queue.clone();
+			thread::spawn(move || {
+				queue.start_listening(|_message| {
+					broadcaster.send("new_message").unwrap();
+				}).expect("It's the only place we are running start_listening. It shouldn't fail.");
+			}).expect("We should be able to create the thread");
+
+			Ok(server)
+		})
 	}
 }
 
 /// `WebSockets` server implementation.
 pub struct Server {
 	handle: Option<thread::JoinHandle<ws::WebSocket<session::Factory>>>,
-	broadcaster: ws::Sender,
 	panic_handler: Arc<PanicHandler>,
 }
 
 impl Server {
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	pub fn start(addr: SocketAddr, handler: Arc<IoHandler>) -> Result<Server, ServerError> {
+	fn start(addr: SocketAddr, handler: Arc<IoHandler>) -> Result<(Server, ws::Sender), ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
 			config.max_connections = 5;
@@ -111,11 +116,10 @@ impl Server {
 		});
 
 		// Return a handle
-		Ok(Server {
+		Ok((Server {
 			handle: Some(handle),
-			broadcaster: broadcaster,
 			panic_handler: panic_handler,
-		})
+		}, broadcaster))
 	}
 }
 
@@ -127,7 +131,6 @@ impl MayPanic for Server {
 
 impl Drop for Server {
 	fn drop(&mut self) {
-		self.broadcaster.shutdown().expect("WsServer should close nicely.");
 		self.handle.take().unwrap().join().unwrap();
 	}
 }
