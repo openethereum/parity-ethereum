@@ -242,6 +242,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		port: conf.args.flag_signer_port,
 	}, signer::Dependencies {
 		panic_handler: panic_handler.clone(),
+		client: client.clone(),
+		sync: sync.clone(),
+		secret_store: account_service.clone(),
+		miner: miner.clone(),
+		external_miner: external_miner.clone(),
 	});
 
 	// Register IO handler
