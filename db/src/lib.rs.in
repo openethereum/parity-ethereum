@@ -27,6 +27,7 @@ pub mod database;
 pub mod traits;
 pub mod readable;
 pub mod cache;
+pub mod writable;
 
 pub use traits::{DatabaseService, DBTransaction, Error};
 pub use database::{Database, DatabaseClient, DatabaseIterator};

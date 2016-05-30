@@ -19,9 +19,8 @@
 use std::ops::Deref;
 use std::hash::Hash;
 use std::sync::RwLock;
-use std::collections::HashMap;
 use util;
-use util::rlp::{encode, Encodable, decode, Decodable};
+use util::rlp::{decode, Decodable};
 use traits::{DatabaseService};
 use cache::{Key, Cache};
 
