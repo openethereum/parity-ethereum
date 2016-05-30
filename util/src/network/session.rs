@@ -16,15 +16,19 @@
 
 use std::net::SocketAddr;
 use std::io;
+use std::sync::*;
 use mio::*;
+use mio::tcp::*;
 use rlp::*;
-use network::connection::{EncryptedConnection, Packet};
+use hash::*;
+use network::connection::{EncryptedConnection, Packet, Connection};
 use network::handshake::Handshake;
 use error::*;
 use io::{IoContext, StreamToken};
 use network::error::{NetworkError, DisconnectReason};
 use network::host::*;
 use network::node_table::NodeId;
+use network::stats::NetworkStats;
 use time;
 
 const PING_TIMEOUT_SEC: u64 = 30;
@@ -36,14 +40,18 @@ const PING_INTERVAL_SEC: u64 = 30;
 pub struct Session {
 	/// Shared session information
 	pub info: SessionInfo,
-	/// Underlying connection
-	connection: EncryptedConnection,
 	/// Session ready flag. Set after successfull Hello packet exchange
 	had_hello: bool,
 	/// Session is no longer active flag.
 	expired: bool,
 	ping_time_ns: u64,
 	pong_time_ns: Option<u64>,
+	state: State,
+}
+
+enum State {
+	Handshake(Handshake),
+	Session(EncryptedConnection),
 }
 
 /// Structure used to report various session events.
@@ -65,7 +73,7 @@ pub enum SessionData {
 /// Shared session information
 pub struct SessionInfo {
 	/// Peer public key
-	pub id: NodeId,
+	pub id: Option<NodeId>,
 	/// Peer client ID
 	pub client_version: String,
 	/// Peer RLPx protocol version
@@ -74,6 +82,8 @@ pub struct SessionInfo {
 	capabilities: Vec<SessionCapabilityInfo>,
 	/// Peer ping delay in milliseconds
 	pub ping_ms: Option<u64>,
+	/// True if this session was originated by us.
+	pub originated: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -112,31 +122,52 @@ const PACKET_LAST: u8 = 0x7f;
 impl Session {
 	/// Create a new session out of comepleted handshake. This clones the handshake connection object
 	/// and leaves the handhsake in limbo to be deregistered from the event loop.
-	pub fn new(h: &mut Handshake, host: &HostInfo) -> Result<Session, UtilError> {
-		let id = h.id.clone();
-		let connection = try!(EncryptedConnection::new(h));
-		let mut session = Session {
-			connection: connection,
+	pub fn new<Message>(io: &IoContext<Message>, socket: TcpStream, token: StreamToken, id: Option<&NodeId>,
+		nonce: &H256, stats: Arc<NetworkStats>, host: &HostInfo) -> Result<Session, UtilError>
+		where Message: Send + Clone {
+		let originated = id.is_some();
+		let mut handshake = Handshake::new(token, id, socket, &nonce, stats).expect("Can't create handshake");
+		try!(handshake.start(io, host, originated));
+		Ok(Session {
+			state: State::Handshake(handshake),
 			had_hello: false,
 			info: SessionInfo {
-				id: id,
+				id: id.cloned(),
 				client_version: String::new(),
 				protocol_version: 0,
 				capabilities: Vec::new(),
 				ping_ms: None,
+				originated: originated,
 			},
 			ping_time_ns: 0,
 			pong_time_ns: None,
 			expired: false,
+		})
+	}
+
+	fn complete_handshake(&mut self, host: &HostInfo) -> Result<(), UtilError> {
+		let connection = if let State::Handshake(ref mut h) = self.state {
+			self.info.id = Some(h.id.clone());
+			try!(EncryptedConnection::new(h))
+		} else {
+			panic!("Unexpected state");
 		};
-		try!(session.write_hello(host));
-		try!(session.send_ping());
-		Ok(session)
+		self.state = State::Session(connection);
+		try!(self.write_hello(host));
+		try!(self.send_ping());
+		Ok(())
+	}
+
+	fn connection(&self) -> &Connection {
+		match self.state {
+			State::Handshake(ref h) => &h.connection,
+			State::Session(ref s) => &s.connection,
+		}
 	}
 
 	/// Get id of the remote peer
-	pub fn id(&self) -> &NodeId {
-		&self.info.id
+	pub fn id(&self) -> Option<&NodeId> {
+		self.info.id.as_ref()
 	}
 
 	/// Check if session is ready to send/receive data
@@ -151,21 +182,20 @@ impl Session {
 
 	/// Check if this session is expired.
 	pub fn expired(&self) -> bool {
-		self.expired
+		match self.state {
+			State::Handshake(ref h) => h.expired(),
+			_ => self.expired,
+		}
 	}
 
 	/// Check if this session is over and there is nothing to be sent.
 	pub fn done(&self) -> bool {
-		self.expired() && !self.connection.is_sending()
-	}
-	/// Replace socket token
-	pub fn set_token(&mut self, token: StreamToken) {
-		self.connection.set_token(token);
+		self.expired() && !self.connection().is_sending()
 	}
 
 	/// Get remote peer address
 	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
-		self.connection.remote_addr()
+		self.connection().remote_addr()
 	}
 
 	/// Readable IO handler. Returns packet data if available.
@@ -173,15 +203,37 @@ impl Session {
 		if self.expired() {
 			return Ok(SessionData::None)
 		}
-		match try!(self.connection.readable(io)) {
-			Some(data) => Ok(try!(self.read_packet(data, host))),
-			None => Ok(SessionData::None)
+		let mut create_session = false;
+		let mut packet_data = None;
+		match self.state {
+			State::Handshake(ref mut h) => {
+				try!(h.readable(io, host));
+				if h.done() {
+					create_session = true;
+				}
+			}
+			State::Session(ref mut c) => {
+				match try!(c.readable(io)) {
+					data @ Some(_) => packet_data = data,
+					None => return Ok(SessionData::None)
+				}
+			}
 		}
+		if let Some(data) = packet_data {
+			return Ok(try!(self.read_packet(data, host)));
+		}
+		if create_session {
+			try!(self.complete_handshake(host));
+		}
+		Ok(SessionData::None)
 	}
 
 	/// Writable IO handler. Sends pending packets.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Sync + Clone {
-		self.connection.writable(io)
+		match self.state {
+			State::Handshake(ref mut h) => h.writable(io),
+			State::Session(ref mut s) => s.writable(io),
+		}
 	}
 
 	/// Checks if peer supports given capability
@@ -194,18 +246,20 @@ impl Session {
 		if self.expired() {
 			return Ok(());
 		}
-		try!(self.connection.register_socket(reg, event_loop));
+		try!(self.connection().register_socket(reg, event_loop));
 		Ok(())
 	}
 
 	/// Update registration with the event loop. Should be called at the end of the IO handler.
 	pub fn update_socket<Host:Handler>(&self, reg:Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		self.connection.update_socket(reg, event_loop)
+		try!(self.connection().update_socket(reg, event_loop));
+		Ok(())
 	}
 
 	/// Delete registration
 	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		self.connection.deregister_socket(event_loop)
+		try!(self.connection().deregister_socket(event_loop));
+		Ok(())
 	}
 
 	/// Send a protocol packet to peer.
@@ -221,7 +275,7 @@ impl Session {
 		while protocol != self.info.capabilities[i].protocol {
 			i += 1;
 			if i == self.info.capabilities.len() {
-				debug!(target: "net", "Unknown protocol: {:?}", protocol);
+				debug!(target: "network", "Unknown protocol: {:?}", protocol);
 				return Ok(())
 			}
 		}
@@ -229,11 +283,14 @@ impl Session {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(pid as u32));
 		rlp.append_raw(data, 1);
-		self.connection.send_packet(&rlp.out())
+		self.send(rlp)
 	}
 
 	/// Keep this session alive. Returns false if ping timeout happened
 	pub fn keep_alive<Message>(&mut self, io: &IoContext<Message>) -> bool where Message: Send + Sync + Clone {
+		if let State::Handshake(_) = self.state {
+			return true;
+		}
 		let timed_out = if let Some(pong) = self.pong_time_ns {
 			pong - self.ping_time_ns > PING_TIMEOUT_SEC * 1000_000_000
 		} else {
@@ -244,13 +301,13 @@ impl Session {
 			if let Err(e) = self.send_ping() {
 				debug!("Error sending ping message: {:?}", e);
 			}
-			io.update_registration(self.token()).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
+			io.update_registration(self.token()).unwrap_or_else(|e| debug!(target: "network", "Session registration error: {:?}", e));
 		}
 		!timed_out
 	}
 
 	pub fn token(&self) -> StreamToken {
-		self.connection.token()
+		self.connection().token()
 	}
 
 	fn read_packet(&mut self, packet: Packet, host: &HostInfo) -> Result<SessionData, UtilError> {
@@ -288,7 +345,7 @@ impl Session {
 				while packet_id < self.info.capabilities[i].id_offset {
 					i += 1;
 					if i == self.info.capabilities.len() {
-						debug!(target: "net", "Unknown packet: {:?}", packet_id);
+						debug!(target: "network", "Unknown packet: {:?}", packet_id);
 						return Ok(SessionData::None)
 					}
 				}
@@ -299,7 +356,7 @@ impl Session {
 				Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
 			},
 			_ => {
-				debug!(target: "net", "Unknown packet: {:?}", packet_id);
+				debug!(target: "network", "Unknown packet: {:?}", packet_id);
 				Ok(SessionData::None)
 			}
 		}
@@ -314,7 +371,7 @@ impl Session {
 			.append(&host.capabilities)
 			.append(&host.local_endpoint.address.port())
 			.append(host.id());
-		self.connection.send_packet(&rlp.out())
+		self.send(rlp)
 	}
 
 	fn read_hello(&mut self, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), UtilError> {
@@ -384,11 +441,13 @@ impl Session {
 
 	/// Disconnect this session
 	pub fn disconnect(&mut self, reason: DisconnectReason) -> NetworkError {
-		let mut rlp = RlpStream::new();
-		rlp.append(&(PACKET_DISCONNECT as u32));
-		rlp.begin_list(1);
-		rlp.append(&(reason as u32));
-		self.connection.send_packet(&rlp.out()).ok();
+		if let State::Session(_) = self.state {
+			let mut rlp = RlpStream::new();
+			rlp.append(&(PACKET_DISCONNECT as u32));
+			rlp.begin_list(1);
+			rlp.append(&(reason as u32));
+			self.send(rlp).ok();
+		}
 		NetworkError::Disconnect(reason)
 	}
 
@@ -400,7 +459,15 @@ impl Session {
 	}
 
 	fn send(&mut self, rlp: RlpStream) -> Result<(), UtilError> {
-		self.connection.send_packet(&rlp.out())
+		match self.state {
+			State::Handshake(_) => {
+				warn!(target:"network", "Unexpected send request");
+			},
+			State::Session(ref mut s) => {
+				try!(s.send_packet(&rlp.out()))
+			},
+		}
+		Ok(())
 	}
 }
 
