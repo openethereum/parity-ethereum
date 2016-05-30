@@ -29,9 +29,8 @@ use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainD
 use blockchain::best_block::BestBlock;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
-use db::{Writable, Readable, Key, CacheUpdatePolicy};
-use ethcore_db;
-use ethcore_db::{DatabaseConnection, DatabaseService};
+use db::{Writable, Readable, Key, CacheUpdatePolicy, DatabaseService};
+use db;
 use blockchain::{CacheSize, ImportRoute, Config};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
@@ -255,15 +254,15 @@ impl BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
-		let extras_db = ethcore_db::extras_client(path.to_str().unwrap()).unwrap();
+		let extras_db = db::extras_client(path.to_str().unwrap()).unwrap();
 		extras_db.open_default(extras_path.to_str().unwrap().to_owned()).unwrap();
 
 		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
-		let blocks_db = ethcore_db::blocks_client(path.to_str().unwrap()).unwrap();
+		let blocks_db = db::blocks_client(path.to_str().unwrap()).unwrap();
 		match blocks_db.open_default(blocks_path.to_str().unwrap().to_owned()) {
-			Err(ethcore_db::Error::AlreadyOpen) => {},
+			Err(db::Error::AlreadyOpen) => {},
 			Ok(_) => {},
 			Err(e) => panic!("error opening blocks_db: {:?}", e),
 		}
@@ -310,7 +309,7 @@ impl BlockChain {
 
 				bc.blocks_db.put(&hash, genesis).unwrap();
 
-				let batch = ethcore_db::DBTransaction::new();
+				let batch = db::DBTransaction::new();
 				batch.write(&hash, &details);
 				batch.write(&header.number(), &hash);
 				batch.put(b"best", &hash);
@@ -458,7 +457,7 @@ impl BlockChain {
 
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
-		let batch = ethcore_db::DBTransaction::new();
+		let batch = db::DBTransaction::new();
 		batch.put(b"best", &update.info.hash);
 
 		{
@@ -806,7 +805,7 @@ mod tests {
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 	use views::BlockView;
-	use ethcore_db;
+	use db;
 
 	#[test]
 	fn basic_blockchain_insert() {
