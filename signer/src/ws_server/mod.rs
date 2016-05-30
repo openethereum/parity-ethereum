@@ -116,7 +116,8 @@ impl Server {
 				q.start_listening(|_message| {
 					// TODO [ToDr] Some better structure here for messages.
 					broadcaster.send("new_message").unwrap();
-				}).expect("It's the only place we are running start_listening. It shouldn't fail.")
+				}).expect("It's the only place we are running start_listening. It shouldn't fail.");
+				broadcaster.shutdown().expect("Broadcaster should close gently.")
 			}).unwrap()
 		});
 
