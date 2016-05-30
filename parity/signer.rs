@@ -51,7 +51,7 @@ fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 	});
 
 	let start_result = {
-		let server = signer::ServerBuilder::new(daps.apis.signer_queue.clone());
+		let server = signer::ServerBuilder::new(deps.apis.signer_queue.clone());
 		let server = rpc_apis::setup_rpc(server, deps.apis, rpc_apis::ApiSet::SafeContext);
 		server.start(addr)
 	};

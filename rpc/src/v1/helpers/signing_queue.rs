@@ -166,6 +166,7 @@ impl SigningQueue for  ConfirmationsQueue {
 				id: id,
 				transaction: transaction,
 			});
+			debug!(target: "own_tx", "Signer: New transaction ({:?}) in confirmation queue.", id);
 		}
 		// Notify listeners
 		self.notify(QueueMessage::NewRequest(id));
@@ -177,12 +178,14 @@ impl SigningQueue for  ConfirmationsQueue {
 	}
 
 	fn request_rejected(&self, id: U256) -> Option<TransactionConfirmation> {
+		debug!(target: "own_tx", "Signer: Transaction rejected ({:?}).", id);
 		let o = self.remove(id);
 		self.update_status(id, QueueStatus::Rejected);
 		o
 	}
 
 	fn request_confirmed(&self, id: U256, hash: H256) -> Option<TransactionConfirmation> {
+		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", id);
 		let o = self.remove(id);
 		self.update_status(id, QueueStatus::Confirmed(hash));
 		o
@@ -213,6 +216,7 @@ impl SigningQueue for  ConfirmationsQueue {
 			}
 		}
 
+		info!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", id);
 		// Now wait for a response
 		let deadline = Instant::now() + Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC);
 		while Instant::now() < deadline {
@@ -233,7 +237,9 @@ impl SigningQueue for  ConfirmationsQueue {
 				},
 			}
 		}
-		// We reached the timeout. Just return `None`
+		// We reached the timeout. Just return `None` and make sure to remove waiting.
+		trace!(target: "own_tx", "Signer: Confirmation timeout reached... ({:?}).", id);
+		self.waiters.write().unwrap().remove(&id);
 		None
 	}
 }

@@ -71,30 +71,22 @@ impl ServerBuilder {
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
 	pub fn start(self, addr: SocketAddr) -> Result<Server, ServerError> {
-		Server::start(addr, self.handler).and_then(|(server, broadcaster)| {
-			// Fire up queue notifications broadcasting
-			let queue = self.queue.clone();
-			thread::spawn(move || {
-				queue.start_listening(|_message| {
-					broadcaster.send("new_message").unwrap();
-				}).expect("It's the only place we are running start_listening. It shouldn't fail.");
-			}).expect("We should be able to create the thread");
-
-			Ok(server)
-		})
+		Server::start(addr, self.handler, self.queue)
 	}
 }
 
 /// `WebSockets` server implementation.
 pub struct Server {
 	handle: Option<thread::JoinHandle<ws::WebSocket<session::Factory>>>,
+	broadcaster_handle: Option<thread::JoinHandle<()>>,
+	queue: Arc<ConfirmationsQueue>,
 	panic_handler: Arc<PanicHandler>,
 }
 
 impl Server {
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	fn start(addr: SocketAddr, handler: Arc<IoHandler>) -> Result<(Server, ws::Sender), ServerError> {
+	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
 			config.max_connections = 5;
@@ -108,6 +100,7 @@ impl Server {
 		let panic_handler = PanicHandler::new_in_arc();
 		let ph = panic_handler.clone();
 		let broadcaster = ws.broadcaster();
+
 		// Spawn a thread with event loop
 		let handle = thread::spawn(move || {
 			ph.catch_panic(move || {
@@ -115,11 +108,25 @@ impl Server {
 			}).unwrap()
 		});
 
+		// Spawn a thread for broadcasting
+		let ph = panic_handler.clone();
+		let q = queue.clone();
+		let broadcaster_handle = thread::spawn(move || {
+			ph.catch_panic(move || {
+				q.start_listening(|_message| {
+					// TODO [ToDr] Some better structure here for messages.
+					broadcaster.send("new_message").unwrap();
+				}).expect("It's the only place we are running start_listening. It shouldn't fail.")
+			}).unwrap()
+		});
+
 		// Return a handle
-		Ok((Server {
+		Ok(Server {
 			handle: Some(handle),
+			broadcaster_handle: Some(broadcaster_handle),
+			queue: queue,
 			panic_handler: panic_handler,
-		}, broadcaster))
+		})
 	}
 }
 
@@ -131,6 +138,8 @@ impl MayPanic for Server {
 
 impl Drop for Server {
 	fn drop(&mut self) {
+		self.queue.finish();
+		self.broadcaster_handle.take().unwrap().join().unwrap();
 		self.handle.take().unwrap().join().unwrap();
 	}
 }

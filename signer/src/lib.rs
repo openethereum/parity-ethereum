@@ -30,11 +30,15 @@
 //!
 //! ```
 //! extern crate ethcore_signer;
+//! extern crate ethcore_rpc;
 //!
-//! use ethcore_signer::Server;
+//! use std::sync::Arc;
+//! use ethcore_signer::ServerBuilder;
+//! use ethcore_rpc::ConfirmationsQueue;
 //!
 //!	fn main() {
-//!	 let _server = Server::start("127.0.0.1:8084".parse().unwrap());
+//!	 let queue = Arc::new(ConfirmationsQueue::default());
+//!	 let _server = ServerBuilder::new(queue).start("127.0.0.1:8084".parse().unwrap());
 //!	}
 //! ```
 
