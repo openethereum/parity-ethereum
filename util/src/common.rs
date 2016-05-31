@@ -36,7 +36,7 @@ macro_rules! hash_map {
 }
 
 #[macro_export]
-macro_rules! hash_mapx {
+macro_rules! hash_map_into {
 	( $( $x:expr => $y:expr ),* ) => {{
 		let mut x = HashMap::new();
 		$(
@@ -58,7 +58,7 @@ macro_rules! map {
 }
 
 #[macro_export]
-macro_rules! mapx {
+macro_rules! map_into {
 	( $( $x:expr => $y:expr ),* ) => {{
 		let mut x = BTreeMap::new();
 		$(

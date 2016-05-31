@@ -154,13 +154,13 @@ mod test {
 			balance: 0.into(),
 			nonce: 0.into(),
 			code: vec![],
-			storage: mapx![1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 0, 6 => 0, 7 => 0]
+			storage: map_into![1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 0, 6 => 0, 7 => 0]
 		};
 		let b = PodAccount {
 			balance: 0.into(),
 			nonce: 0.into(),
 			code: vec![],
-			storage: mapx![1 => 1, 2 => 3, 3 => 0, 5 => 0, 7 => 7, 8 => 0, 9 => 9]
+			storage: map_into![1 => 1, 2 => 3, 3 => 0, 5 => 0, 7 => 7, 8 => 0, 9 => 9]
 		};
 		assert_eq!(AccountDiff::diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Same,
