@@ -299,7 +299,7 @@ version = "1.2.0"
 dependencies = [
  "ethcore-devtools 1.2.0",
  "ethcore-util 1.2.0",
- "nanomsg 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -321,7 +321,7 @@ dependencies = [
  "ethcore-ipc 1.2.0",
  "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
 ]
 
 [[package]]
@@ -356,6 +356,7 @@ dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-rpc 1.2.0",
  "ethcore-util 1.2.0",
+ "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -389,7 +390,7 @@ dependencies = [
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb 0.4.3 (git+https://github.com/ethcore/rust-rocksdb)",
+ "rocksdb 0.4.5 (git+https://github.com/ethcore/rust-rocksdb)",
  "rust-crypto 0.2.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -578,7 +579,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "json-ipc-server"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/json-ipc-server.git#fdcba83d00b127c7419fe21406a5b81998f686eb"
+source = "git+https://github.com/ethcore/json-ipc-server.git#4f9226c4f84dcce2385a188374e3b5fc66b63e68"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -660,14 +661,6 @@ version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "librocksdb-sys"
-version = "0.2.3"
-source = "git+https://github.com/ethcore/rust-rocksdb#6b6ce93e2828182691e00da57fdfb2926226f1f1"
-dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "log"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -742,8 +735,8 @@ dependencies = [
 
 [[package]]
 name = "nanomsg"
-version = "0.5.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#9c81fb3b0f71714b173d0abf14bfd30addf8c7b1"
+version = "0.5.1"
+source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
 dependencies = [
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
@@ -752,7 +745,7 @@ dependencies = [
 [[package]]
 name = "nanomsg-sys"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#9c81fb3b0f71714b173d0abf14bfd30addf8c7b1"
+source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
 dependencies = [
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1073,11 +1066,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rocksdb"
-version = "0.4.3"
-source = "git+https://github.com/ethcore/rust-rocksdb#6b6ce93e2828182691e00da57fdfb2926226f1f1"
+version = "0.4.5"
+source = "git+https://github.com/ethcore/rust-rocksdb#9140e37ce0fdb748097f85653c01b0f7e3736ea9"
 dependencies = [
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "librocksdb-sys 0.2.3 (git+https://github.com/ethcore/rust-rocksdb)",
+ "rocksdb-sys 0.3.0 (git+https://github.com/ethcore/rust-rocksdb)",
+]
+
+[[package]]
+name = "rocksdb-sys"
+version = "0.3.0"
+source = "git+https://github.com/ethcore/rust-rocksdb#9140e37ce0fdb748097f85653c01b0f7e3736ea9"
+dependencies = [
+ "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

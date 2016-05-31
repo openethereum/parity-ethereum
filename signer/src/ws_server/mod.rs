@@ -19,11 +19,14 @@
 use ws;
 use std;
 use std::thread;
+use std::default::Default;
 use std::ops::Drop;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::net::SocketAddr;
 use util::panics::{PanicHandler, OnPanicListener, MayPanic};
+use jsonrpc_core::{IoHandler, IoDelegate};
+
+mod session;
 
 /// Signer startup error
 #[derive(Debug)]
@@ -43,9 +46,40 @@ impl From<ws::Error> for ServerError {
 	}
 }
 
+/// Builder for `WebSockets` server
+pub struct ServerBuilder {
+	handler: Arc<IoHandler>,
+}
+
+impl Default for ServerBuilder {
+	fn default() -> Self {
+		ServerBuilder::new()
+	}
+}
+
+impl ServerBuilder {
+	/// Creates new `ServerBuilder`
+	pub fn new() -> Self {
+		ServerBuilder {
+			handler: Arc::new(IoHandler::new())
+		}
+	}
+
+	/// Adds rpc delegate
+	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
+		self.handler.add_delegate(delegate);
+	}
+
+	/// Starts a new `WebSocket` server in separate thread.
+	/// Returns a `Server` handle which closes the server when droped.
+	pub fn start(self, addr: SocketAddr) -> Result<Server, ServerError> {
+		Server::start(addr, self.handler)
+	}
+}
+
 /// `WebSockets` server implementation.
 pub struct Server {
-	handle: Option<thread::JoinHandle<ws::WebSocket<Factory>>>,
+	handle: Option<thread::JoinHandle<ws::WebSocket<session::Factory>>>,
 	broadcaster: ws::Sender,
 	panic_handler: Arc<PanicHandler>,
 }
@@ -53,7 +87,7 @@ pub struct Server {
 impl Server {
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	pub fn start(addr: SocketAddr) -> Result<Server, ServerError> {
+	pub fn start(addr: SocketAddr, handler: Arc<IoHandler>) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
 			config.max_connections = 5;
@@ -62,10 +96,7 @@ impl Server {
 		};
 
 		// Create WebSocket
-		let session_id = Arc::new(AtomicUsize::new(1));
-		let ws = try!(ws::Builder::new().with_settings(config).build(Factory {
-			session_id: session_id,
-		}));
+		let ws = try!(ws::Builder::new().with_settings(config).build(session::Factory::new(handler)));
 
 		let panic_handler = PanicHandler::new_in_arc();
 		let ph = panic_handler.clone();
@@ -96,33 +127,5 @@ impl Drop for Server {
 	fn drop(&mut self) {
 		self.broadcaster.shutdown().expect("WsServer should close nicely.");
 		self.handle.take().unwrap().join().unwrap();
-	}
-}
-
-struct Session {
-	id: usize,
-	out: ws::Sender,
-}
-
-impl ws::Handler for Session {
-	fn on_open(&mut self, _shake: ws::Handshake) -> ws::Result<()> {
-		try!(self.out.send(format!("Hello client no: {}. We are not implemented yet.", self.id)));
-		try!(self.out.close(ws::CloseCode::Normal));
-		Ok(())
-	}
-}
-
-struct Factory {
-	session_id: Arc<AtomicUsize>,
-}
-
-impl ws::Factory for Factory {
-	type Handler = Session;
-
-	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
-		Session {
-			id: self.session_id.fetch_add(1, Ordering::SeqCst),
-			out: sender,
-		}
 	}
 }

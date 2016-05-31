@@ -159,7 +159,7 @@ fn propagate_hashes() {
 
 #[test]
 fn propagate_blocks() {
-	let mut net = TestNet::new(2);
+	let mut net = TestNet::new(20);
 	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
 	net.sync();
 
@@ -169,7 +169,8 @@ fn propagate_blocks() {
 
 	assert!(!net.peer(0).queue.is_empty());
 	// NEW_BLOCK_PACKET
-	assert_eq!(0x07, net.peer(0).queue[0].packet_id);
+	let blocks = net.peer(0).queue.iter().filter(|p| p.packet_id == 0x7).count();
+	assert!(blocks > 0);
 }
 
 #[test]

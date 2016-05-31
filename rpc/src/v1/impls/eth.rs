@@ -27,6 +27,7 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
+use util::keys::store::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
@@ -39,7 +40,6 @@ use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::helpers::{PollFilter, PollManager};
 use v1::impls::{dispatch_transaction, sign_and_dispatch};
-use util::keys::store::AccountProvider;
 use serde;
 
 /// Eth rpc implementation.
@@ -244,12 +244,14 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 				let res = match status.state {
 					SyncState::Idle => SyncStatus::None,
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => {
+						let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
+
 						let info = SyncInfo {
 							starting_block: U256::from(status.start_block_number),
-							current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
+							current_block: current_block,
 							highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
 						};
-						match info.highest_block > info.starting_block + U256::from(6) {
+						match info.highest_block > info.current_block + U256::from(6) {
 							true => SyncStatus::Info(info),
 							false => SyncStatus::None,
 						}
@@ -494,6 +496,12 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 		})
 	}
 
+	fn sign(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Address, H256)>(params).and_then(|(addr, msg)| {
+			to_value(&take_weak!(self.accounts).sign(&addr, &msg).unwrap_or(H520::zero()))
+		})
+	}
+
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
@@ -541,6 +549,18 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 				};
 				to_value(&r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0)))
 			})
+	}
+
+	fn compile_lll(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
+
+	fn compile_serpent(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
+
+	fn compile_solidity(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
 	}
 }
 

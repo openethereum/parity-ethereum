@@ -15,6 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use ethcore::client::Client;
+use ethsync::EthSync;
+use ethminer::{Miner, ExternalMiner};
+use util::keys::store::AccountService;
 use util::panics::{PanicHandler, ForwardPanic};
 use die::*;
 
@@ -32,36 +36,51 @@ pub struct Configuration {
 
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
+	pub client: Arc<Client>,
+	pub sync: Arc<EthSync>,
+	pub secret_store: Arc<AccountService>,
+	pub miner: Arc<Miner>,
+	pub external_miner: Arc<ExternalMiner>,
+}
+
+pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
+	if !conf.enabled {
+		None
+	} else {
+		Some(do_start(conf, deps))
+	}
 }
 
 #[cfg(feature = "ethcore-signer")]
-pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
-	if !conf.enabled {
-		return None;
-	}
+fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
+	let addr = format!("127.0.0.1:{}", conf.port).parse().unwrap_or_else(|_| {
+		die!("Invalid port specified: {}", conf.port)
+	});
 
-	let addr = format!("127.0.0.1:{}", conf.port).parse().unwrap_or_else(|_| die!("Invalid port specified: {}", conf.port));
-	let start_result = signer::Server::start(addr);
+	let start_result = {
+		use ethcore_rpc::v1::*;
+		let server = signer::ServerBuilder::new();
+		server.add_delegate(Web3Client::new().to_delegate());
+		server.add_delegate(NetClient::new(&deps.sync).to_delegate());
+		server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
+		server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
+		server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner).to_delegate());
+		server.start(addr)
+	};
 
 	match start_result {
 		Err(signer::ServerError::IoError(err)) => die_with_io_error("Trusted Signer", err),
 		Err(e) => die!("Trusted Signer: {:?}", e),
 		Ok(server) => {
 			deps.panic_handler.forward_from(&server);
-			Some(server)
+			server
 		},
 	}
 }
 
 #[cfg(not(feature = "ethcore-signer"))]
-pub fn start(conf: Configuration) -> Option<SignerServer> {
-	if !conf.enabled {
-		return None;
-	}
-
+fn do_start(conf: Configuration) -> ! {
 	die!("Your Parity version has been compiled without Trusted Signer support.")
 }
-
-
 
 

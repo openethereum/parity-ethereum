@@ -396,6 +396,7 @@ impl MinerService for Miner {
 				Err(ref e) => {
 					trace!(target: "own_tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
 					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
+					warn!(target: "own_tx", "Error importing transaction: {:?}", e);
 				},
 			}
 			import
