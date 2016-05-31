@@ -29,7 +29,6 @@ extern crate jsonrpc_http_server;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
-extern crate ethminer;
 extern crate transient_hashmap;
 extern crate json_ipc_server as ipc;
 

@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use ethcore::client::Client;
 use ethsync::EthSync;
-use ethminer::{Miner, ExternalMiner};
+use ethcore::miner::{Miner, ExternalMiner};
 use util::RotatingLogger;
 use util::panics::PanicHandler;
 use util::keys::store::AccountService;

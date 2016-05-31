@@ -1470,7 +1470,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default(), Miner::new(false, Spec::new_test()), client);
+		let mut sync = ChainSync::new(SyncConfig::default(), client);
 		sync.peers.insert(0,
 			PeerInfo {
 				protocol_version: 0,

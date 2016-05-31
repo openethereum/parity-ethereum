@@ -22,13 +22,13 @@ use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, ExternalMinerService};
+use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
 use util::keys::store::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
+use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -44,7 +44,7 @@ use serde;
 
 /// Eth rpc implementation.
 pub struct EthClient<C, S, A, M, EM> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	S: SyncProvider,
 	A: AccountProvider,
 	M: MinerService,
@@ -59,7 +59,7 @@ pub struct EthClient<C, S, A, M, EM> where
 }
 
 impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	S: SyncProvider,
 	A: AccountProvider,
 	M: MinerService,
@@ -224,7 +224,7 @@ fn make_unsupported_err() -> Error {
 }
 
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
-	C: BlockChainClient + 'static,
+	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	A: AccountProvider + 'static,
 	M: MinerService + 'static,
@@ -566,7 +566,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient<C, M> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	M: MinerService {
 
 	client: Weak<C>,
@@ -575,7 +575,7 @@ pub struct EthFilterClient<C, M> where
 }
 
 impl<C, M> EthFilterClient<C, M> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	M: MinerService {
 
 	/// Creates new Eth filter client.
@@ -589,7 +589,7 @@ impl<C, M> EthFilterClient<C, M> where
 }
 
 impl<C, M> EthFilter for EthFilterClient<C, M> where
-	C: BlockChainClient + 'static,
+	C: MiningBlockChainClient + 'static,
 	M: MinerService + 'static {
 
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {

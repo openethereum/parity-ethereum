@@ -92,7 +92,7 @@ impl TestNet {
 		};
 		for _ in 0..n {
 			let chain = TestBlockChainClient::new();
-			let sync = ChainSync::new(SyncConfig::default(), Miner::new(false, Spec::new_test()), &chain);
+			let sync = ChainSync::new(SyncConfig::default(), &chain);
 			net.peers.push(TestPeer {
 				sync: sync,
 				chain: chain,

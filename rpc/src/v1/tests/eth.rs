@@ -19,12 +19,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
-use ethcore::client::{BlockChainClient, Client, ClientConfig};
+use ethcore::client::{MiningBlockChainClient, Client, ClientConfig};
 use ethcore::spec::Genesis;
 use ethcore::block::Block;
 use ethcore::ethereum;
 use ethcore::transaction::{Transaction, Action};
-use ethminer::{MinerService, ExternalMiner};
+use ethcore::miner::{MinerService, ExternalMiner};
 use devtools::RandomTempPath;
 use util::io::IoChannel;
 use util::hash::Address;
@@ -38,7 +38,7 @@ use v1::impls::EthClient;
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 
 struct EthTester {
-	_client: Arc<BlockChainClient>,
+	_client: Arc<MiningBlockChainClient>,
 	_miner: Arc<MinerService>,
 	accounts: Arc<TestAccountProvider>,
 	handler: IoHandler,

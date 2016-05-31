@@ -25,7 +25,7 @@ use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, Transaction
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
-use ethminer::{ExternalMiner, MinerService};
+use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
 use v1::{Eth, EthClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};

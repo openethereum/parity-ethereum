@@ -22,19 +22,19 @@ use v1::types::TransactionRequest;
 use v1::impls::sign_and_dispatch;
 use util::keys::store::*;
 use util::numbers::*;
-use ethcore::client::BlockChainClient;
-use ethminer::MinerService;
+use ethcore::client::MiningBlockChainClient;
+use ethcore::miner::MinerService;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<A, C, M>
-	where A: AccountProvider, C: BlockChainClient, M: MinerService {
+	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
 	accounts: Weak<A>,
 	client: Weak<C>,
 	miner: Weak<M>,
 }
 
 impl<A, C, M> PersonalClient<A, C, M>
-	where A: AccountProvider, C: BlockChainClient, M: MinerService {
+	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
 	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>) -> Self {
 		PersonalClient {
@@ -46,7 +46,7 @@ impl<A, C, M> PersonalClient<A, C, M>
 }
 
 impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
-	where A: AccountProvider, C: BlockChainClient, M: MinerService {
+	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
 		match store.accounts() {

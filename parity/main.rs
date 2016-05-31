@@ -85,7 +85,7 @@ use ethcore::error::{Error, ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
-use ethminer::{Miner, MinerService, ExternalMiner};
+use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
 use migration::migrate;
 use informant::Informant;
