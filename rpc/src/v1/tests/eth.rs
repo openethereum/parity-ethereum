@@ -33,8 +33,8 @@ use util::keys::{AccountProvider, TestAccount, TestAccountProvider};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
-use v1::traits::eth::Eth;
-use v1::impls::EthClient;
+use v1::traits::eth::{Eth, EthSigning};
+use v1::impls::{EthClient, EthSigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 
 struct EthTester {
@@ -213,10 +213,11 @@ fn chain_harness<F, U>(chain: BlockChain, mut cb: F) -> U
 
 	let eth_client = EthClient::new(&client, &sync_provider, &account_provider,
 		&miner_service, &external_miner);
+	let eth_sign = EthSigningUnsafeClient::new(&client, &account_provider, &miner_service);
 
 	let handler = IoHandler::new();
-	let delegate = eth_client.to_delegate();
-	handler.add_delegate(delegate);
+	handler.add_delegate(eth_client.to_delegate());
+	handler.add_delegate(eth_sign.to_delegate());
 
 	let tester = EthTester {
 		_miner: miner_service,
