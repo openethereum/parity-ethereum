@@ -72,7 +72,6 @@ after_success: |
   $KCOV_CMD target/debug/deps/ethcore_rpc-* &&
   $KCOV_CMD target/debug/deps/ethcore_dapps-* &&
   $KCOV_CMD target/debug/deps/ethcore_signer-* &&
-  $KCOV_CMD target/debug/deps/ethminer-* &&
   $KCOV_CMD target/debug/deps/ethjson-* &&
   $KCOV_CMD target/debug/parity-* &&
   [ $TRAVIS_BRANCH = master ] &&
