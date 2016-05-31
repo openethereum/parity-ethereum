@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockID, TransactionID, UncleID, TraceId, TraceFilter, LastHashes};
+use client::{BlockChainClient, ExtendedBlockChainClient, BlockChainInfo, BlockStatus, BlockID, TransactionID, UncleID, TraceId, TraceFilter, LastHashes};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -232,6 +232,17 @@ impl TestBlockChainClient {
 	}
 }
 
+impl ExtendedBlockChainClient for TestBlockChainClient {
+	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
+		Err(block)
+	}
+
+
+	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> (Option<ClosedBlock>, HashSet<H256>) {
+		(None, HashSet::new())
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		Ok(self.execution_result.read().unwrap().clone().unwrap())
@@ -294,14 +305,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn last_hashes(&self) -> LastHashes {
 		unimplemented!();
-	}
-
-	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> (Option<ClosedBlock>, HashSet<H256>) {
-		(None, HashSet::new())
-	}
-
-	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
-		Err(block)
 	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
