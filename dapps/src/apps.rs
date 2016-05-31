@@ -38,11 +38,13 @@ pub fn utils() -> Box<Endpoint> {
 
 pub fn all_endpoints() -> Endpoints {
 	let mut pages = Endpoints::new();
-	pages.insert("proxy".to_owned(), ProxyPac::boxed());
+	pages.insert("proxy".into(), ProxyPac::boxed());
 
+	pages.insert("home".into(), Box::new(
+		PageEndpoint::new_safe_to_embed(parity_dapps_builtins::App::default())
+	));
 	insert::<parity_dapps_status::App>(&mut pages, "status");
 	insert::<parity_dapps_status::App>(&mut pages, "parity");
-	insert::<parity_dapps_builtins::App>(&mut pages, "home");
 
 	wallet_page(&mut pages);
 	daodapp_page(&mut pages);
