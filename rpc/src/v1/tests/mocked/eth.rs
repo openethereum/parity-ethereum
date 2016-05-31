@@ -107,6 +107,7 @@ fn rpc_eth_syncing() {
 		status.state = SyncState::Blocks;
 		status.highest_block_number = Some(2500);
 
+		// "sync" to 1000 blocks.
 		// causes TestBlockChainClient to return 1000 for its best block number.
 		let mut blocks = tester.client.blocks.write().unwrap();
 		for i in 0..1000 {
@@ -116,6 +117,16 @@ fn rpc_eth_syncing() {
 
 	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x03e8","highestBlock":"0x09c4","startingBlock":"0x00"},"id":1}"#;
 	assert_eq!(tester.io.handle_request(request), Some(true_res.to_owned()));
+
+	{
+		// finish "syncing"
+		let mut blocks = tester.client.blocks.write().unwrap();
+		for i in 0..1500 {
+			blocks.insert(H256::from(i + 1000), Vec::new());
+		}
+	}
+
+	assert_eq!(tester.io.handle_request(request), Some(false_res.to_owned()));
 }
 
 #[test]
