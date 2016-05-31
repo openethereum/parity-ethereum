@@ -26,6 +26,7 @@ pub use sha3::*;
 
 #[macro_export]
 macro_rules! hash_map {
+	() => { HashMap::new() };
 	( $( $x:expr => $y:expr ),* ) => {{
 		let mut x = HashMap::new();
 		$(
@@ -37,6 +38,7 @@ macro_rules! hash_map {
 
 #[macro_export]
 macro_rules! hash_map_into {
+	() => { HashMap::new() };
 	( $( $x:expr => $y:expr ),* ) => {{
 		let mut x = HashMap::new();
 		$(
@@ -48,6 +50,7 @@ macro_rules! hash_map_into {
 
 #[macro_export]
 macro_rules! map {
+	() => { BTreeMap::new() };
 	( $( $x:expr => $y:expr ),* ) => {{
 		let mut x = BTreeMap::new();
 		$(
@@ -59,6 +62,7 @@ macro_rules! map {
 
 #[macro_export]
 macro_rules! map_into {
+	() => { BTreeMap::new() };
 	( $( $x:expr => $y:expr ),* ) => {{
 		let mut x = BTreeMap::new();
 		$(
