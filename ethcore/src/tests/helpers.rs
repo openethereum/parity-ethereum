@@ -99,7 +99,7 @@ pub fn create_test_block(header: &Header) -> Bytes {
 fn create_unverifiable_block_header(order: u32, parent_hash: H256) -> Header {
 	let mut header = Header::new();
 	header.gas_limit = 0.into();
-	header.difficulty = order * 100.into();
+	header.difficulty = (order * 100).into();
 	header.timestamp = (order * 10) as u64;
 	header.number = order as u64;
 	header.parent_hash = parent_hash;

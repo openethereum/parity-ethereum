@@ -83,7 +83,7 @@ mod test {
 		let a = PodState::from(map![ 1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]) ]);
 		let b = PodState::from(map![
 			1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]),
-			2.into() => PodAccount::new(69.into(), 0.into(),, vec![], map![])
+			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
 		]);
 		assert_eq!(StateDiff::diff_pod(&a, &b), StateDiff(map![
 			2.into() => AccountDiff{
@@ -107,11 +107,11 @@ mod test {
 	fn change_with_unchanged() {
 		let a = PodState::from(map![
 			1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]),
-			2.into() => PodAccount::new(69.into(), 0.into(),, vec![], map![])
+			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
 		]);
 		let b = PodState::from(map![
-			1.into() => PodAccount::new(69.into(), 1.into(),, vec![], map![]),
-			2.into() => PodAccount::new(69.into(), 0.into(),, vec![], map![])
+			1.into() => PodAccount::new(69.into(), 1.into(), vec![], map![]),
+			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
 		]);
 		assert_eq!(StateDiff::diff_pod(&a, &b), StateDiff(map![
 			1.into() => AccountDiff{
