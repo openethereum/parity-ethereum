@@ -154,15 +154,6 @@ pub trait BlockChainClient : Sync + Send {
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
-	// TODO [todr] Should be moved to miner crate eventually.
-	/// Returns ClosedBlock prepared for sealing.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> (Option<ClosedBlock>, HashSet<H256>);
-
-	// TODO [todr] Should be moved to miner crate eventually.
-	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
-	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
-
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
 
@@ -185,3 +176,14 @@ pub trait BlockChainClient : Sync + Send {
 	fn last_hashes(&self) -> LastHashes;
 }
 
+/// Extended client interface used for mining
+pub trait ExtendedBlockChainClient : BlockChainClient {
+	// TODO [todr] Should be moved to miner crate eventually.
+	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
+	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
+
+	// TODO [todr] Should be moved to miner crate eventually.
+	/// Returns ClosedBlock prepared for sealing.
+	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
+		-> (Option<ClosedBlock>, HashSet<H256>);
+}
