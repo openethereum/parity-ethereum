@@ -55,7 +55,6 @@ extern crate log;
 #[macro_use]
 extern crate ethcore_util as util;
 extern crate ethcore;
-extern crate ethminer;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
@@ -69,7 +68,6 @@ use util::TimerToken;
 use util::{U256, ONE_U256};
 use ethcore::client::Client;
 use ethcore::service::SyncMessage;
-use ethminer::Miner;
 use io::NetSyncIo;
 use chain::ChainSync;
 
@@ -115,8 +113,8 @@ pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>, miner: Arc<Miner>) -> Arc<EthSync> {
-		let sync = ChainSync::new(config, miner, chain.deref());
+	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
+		let sync = ChainSync::new(config, chain.deref());
 		let sync = Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(sync),

@@ -97,11 +97,11 @@ use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
-use ethminer::{Miner, MinerService, AccountDetails};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
 use blocks::BlockCollection;
+use ethcore::miner::{AccountDetails, TransactionImportResult};
 
 known_heap_size!(0, PeerInfo);
 
@@ -241,15 +241,13 @@ pub struct ChainSync {
 	imported_this_round: Option<usize>,
 	/// Network ID
 	network_id: U256,
-	/// Miner
-	miner: Arc<Miner>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig, miner: Arc<Miner>, chain: &BlockChainClient) -> ChainSync {
+	pub fn new(config: SyncConfig, chain: &BlockChainClient) -> ChainSync {
 		let chain = chain.chain_info();
 		let mut sync = ChainSync {
 			state: SyncState::ChainHead,
@@ -265,7 +263,6 @@ impl ChainSync {
 			imported_this_round: None,
 			_max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
-			miner: miner,
 		};
 		sync.reset();
 		sync
@@ -903,7 +900,7 @@ impl ChainSync {
 			nonce: chain.latest_nonce(a),
 			balance: chain.latest_balance(a),
 		};
-		let _ = io.chain().import_transactions(transactions, fetch_account);
+		let _ = io.chain().import_transactions(transactions);
 		Ok(())
 	}
 
@@ -1288,7 +1285,6 @@ mod tests {
 	use ethcore::header::*;
 	use ethcore::client::*;
 	use ethcore::spec::Spec;
-	use ethminer::{Miner, MinerService};
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();

@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::client::MiningClient;
 use util::{NetworkContext, PeerId, PacketId,};
 use util::error::UtilError;
 use ethcore::service::SyncMessage;
+use ethcore::client::BlockChainClient;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -32,7 +32,7 @@ pub trait SyncIo {
 	/// Send a packet to a peer.
 	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
 	/// Get the blockchain
-	fn chain(&self) -> &MiningClient;
+	fn chain(&self) -> &BlockChainClient;
 	/// Returns peer client identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
@@ -46,12 +46,12 @@ pub trait SyncIo {
 /// Wraps `NetworkContext` and the blockchain client
 pub struct NetSyncIo<'s, 'h> where 'h: 's {
 	network: &'s NetworkContext<'h, SyncMessage>,
-	chain: &'s MiningClient
+	chain: &'s BlockChainClient
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext<'h, SyncMessage>, chain: &'s MiningClient) -> NetSyncIo<'s, 'h> {
+	pub fn new(network: &'s NetworkContext<'h, SyncMessage>, chain: &'s BlockChainClient) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
 			chain: chain,

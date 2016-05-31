@@ -19,7 +19,6 @@ use ethcore::client::{TestBlockChainClient, BlockChainClient};
 use ethcore::spec::Spec;
 use io::SyncIo;
 use chain::ChainSync;
-use ethminer::Miner;
 use ::SyncConfig;
 
 pub struct TestIo<'p> {
