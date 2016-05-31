@@ -319,6 +319,7 @@ impl ChainSync {
 
 	/// Remove peer from active peer set
 	fn deactivate_peer(&mut self, io: &mut SyncIo, peer_id: PeerId) {
+		trace!(target: "sync", "Deactivating peer {}", peer_id);
 		self.active_peers.remove(&peer_id);
 		if self.active_peers.is_empty() {
 			trace!(target: "sync", "No more active peers");
@@ -456,6 +457,9 @@ impl ChainSync {
 				}
 			},
 			SyncState::Blocks | SyncState::NewBlocks | SyncState::Waiting => {
+				if headers.len() == 0 {
+					self.deactivate_peer(io, peer_id); // disable the peer for this syncing round if it gives invalid chain
+				}
 				trace!(target: "sync", "Inserted {} headers", headers.len());
 				self.blocks.insert_headers(headers);
 			},
