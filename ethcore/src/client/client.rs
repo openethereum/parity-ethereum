@@ -338,7 +338,17 @@ impl<V> Client<V> where V: Verifier {
 		{
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
 				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
-				self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
+
+				if self.queue_info().is_empty() {
+					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
+				}
+
+				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
+					imported: imported_blocks,
+					invalid: invalid_blocks,
+					enacted: enacted,
+					retracted: retracted,
+				})).unwrap();
 			}
 		}
 
