@@ -27,7 +27,6 @@ extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
-extern crate ethminer;
 #[macro_use]
 extern crate log as rlog;
 extern crate env_logger;
@@ -173,14 +172,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
 
-	// Build client
-	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path())
-	).unwrap_or_else(|e| die_with_error("Client", e));
-
-	panic_handler.forward_from(&service);
-	let client = service.client();
-
 	// Miner
 	let miner = Miner::with_accounts(conf.args.flag_force_sealing, conf.spec(), account_service.clone());
 	miner.set_author(conf.author());
@@ -189,11 +180,19 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	miner.set_minimal_gas_price(conf.gas_price());
 	miner.set_transactions_limit(conf.args.flag_tx_limit);
 
+	// Build client
+	let mut service = ClientService::start(
+		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone()
+	).unwrap_or_else(|e| die_with_error("Client", e));
+
+	panic_handler.forward_from(&service);
+	let client = service.client();
+
 	let external_miner = Arc::new(ExternalMiner::default());
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
+	let sync = EthSync::register(service.network(), sync_config, client.clone());
 
 	let dependencies = Arc::new(rpc::Dependencies {
 		panic_handler: panic_handler.clone(),
@@ -295,7 +294,7 @@ fn execute_export(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path())
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -366,7 +365,7 @@ fn execute_import(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path())
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
