@@ -46,7 +46,7 @@ impl Default for ConfirmationsQueue {
 	}
 }
 
-impl SigningQueue for  ConfirmationsQueue {
+impl SigningQueue for ConfirmationsQueue {
 	fn add_request(&self, transaction: TransactionRequest) -> U256 {
 		// Increment id
 		let id = {
