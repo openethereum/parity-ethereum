@@ -667,7 +667,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 							}
 						}
 					}
-					self.num_sessions.fetch_add(1, AtomicOrdering::Relaxed);
+					self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 					for (p, _) in self.handlers.read().unwrap().iter() {
 						if s.have_capability(p)  {
 							ready_data.push(p);
@@ -722,7 +722,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						if s.is_ready() {
 							for (p, _) in self.handlers.read().unwrap().iter() {
 								if s.have_capability(p)  {
-									self.num_sessions.fetch_sub(1, AtomicOrdering::Relaxed);
+									self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
 									to_disconnect.push(p);
 								}
 							}
