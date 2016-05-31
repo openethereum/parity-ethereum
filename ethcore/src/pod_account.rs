@@ -114,11 +114,11 @@ mod test {
 
 	#[test]
 	fn existence() {
-		let a = PodAccount{balance: x!(69), nonce: x!(0), code: vec![], storage: map![]};
+		let a = PodAccount{balance: 69.into(), nonce: 0.into(), code: vec![], storage: map![]};
 		assert_eq!(AccountDiff::diff_pod(Some(&a), Some(&a)), None);
 		assert_eq!(AccountDiff::diff_pod(None, Some(&a)), Some(AccountDiff{
-			balance: Diff::Born(x!(69)),
-			nonce: Diff::Born(x!(0)),
+			balance: Diff::Born(69.into()),
+			nonce: Diff::Born(0.into()),
 			code: Diff::Born(vec![]),
 			storage: map![],
 		}));
@@ -126,11 +126,11 @@ mod test {
 
 	#[test]
 	fn basic() {
-		let a = PodAccount{balance: x!(69), nonce: x!(0), code: vec![], storage: map![]};
-		let b = PodAccount{balance: x!(42), nonce: x!(1), code: vec![], storage: map![]};
+		let a = PodAccount{balance: 69.into(), nonce: 0.into(), code: vec![], storage: map![]};
+		let b = PodAccount{balance: 42.into(), nonce: 1.into(), code: vec![], storage: map![]};
 		assert_eq!(AccountDiff::diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
-			balance: Diff::Changed(x!(69), x!(42)),
-			nonce: Diff::Changed(x!(0), x!(1)),
+			balance: Diff::Changed(69.into(), 42.into()),
+			nonce: Diff::Changed(0.into(), 1.into()),
 			code: Diff::Same,
 			storage: map![],
 		}));
@@ -138,11 +138,11 @@ mod test {
 
 	#[test]
 	fn code() {
-		let a = PodAccount{balance: x!(0), nonce: x!(0), code: vec![], storage: map![]};
-		let b = PodAccount{balance: x!(0), nonce: x!(1), code: vec![0], storage: map![]};
+		let a = PodAccount{balance: 0.into(), nonce: 0.into(), code: vec![], storage: map![]};
+		let b = PodAccount{balance: 0.into(), nonce: 1.into(), code: vec![0], storage: map![]};
 		assert_eq!(AccountDiff::diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Same,
-			nonce: Diff::Changed(x!(0), x!(1)),
+			nonce: Diff::Changed(0.into(), 1.into()),
 			code: Diff::Changed(vec![], vec![0]),
 			storage: map![],
 		}));
@@ -151,14 +151,14 @@ mod test {
 	#[test]
 	fn storage() {
 		let a = PodAccount {
-			balance: x!(0),
-			nonce: x!(0),
+			balance: 0.into(),
+			nonce: 0.into(),
 			code: vec![],
 			storage: mapx![1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 0, 6 => 0, 7 => 0]
 		};
 		let b = PodAccount {
-			balance: x!(0),
-			nonce: x!(0),
+			balance: 0.into(),
+			nonce: 0.into(),
 			code: vec![],
 			storage: mapx![1 => 1, 2 => 3, 3 => 0, 5 => 0, 7 => 7, 8 => 0, 9 => 9]
 		};
@@ -167,11 +167,11 @@ mod test {
 			nonce: Diff::Same,
 			code: Diff::Same,
 			storage: map![
-				x!(2) => Diff::new(x!(2), x!(3)),
-				x!(3) => Diff::new(x!(3), x!(0)),
-				x!(4) => Diff::new(x!(4), x!(0)),
-				x!(7) => Diff::new(x!(0), x!(7)),
-				x!(9) => Diff::new(x!(0), x!(9))
+				2.into() => Diff::new(2.into(), 3.into()),
+				3.into() => Diff::new(3.into(), 0.into()),
+				4.into() => Diff::new(4.into(), 0.into()),
+				7.into() => Diff::new(0.into(), 7.into()),
+				9.into() => Diff::new(0.into(), 9.into()),
 			],
 		}));
 	}
