@@ -627,7 +627,7 @@ mod tests {
 			sstore.sign(&address, &H256::random()).unwrap()
 		};
 
-		assert!(signature != x!(0));
+		assert!(signature != 0.into());
 	}
 
 	#[test]

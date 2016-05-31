@@ -69,20 +69,6 @@ macro_rules! mapx {
 }
 
 #[macro_export]
-macro_rules! x {
-	( $x:expr ) => {
-		From::from($x)
-	}
-}
-
-#[macro_export]
-macro_rules! xx {
-	( $x:expr ) => {
-		From::from(From::from($x))
-	}
-}
-
-#[macro_export]
 macro_rules! flush {
 	($($arg:tt)*) => ($crate::flush(format!("{}", format_args!($($arg)*))));
 }

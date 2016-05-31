@@ -150,10 +150,10 @@ pub trait MinerService : Send + Sync {
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
 	/// Suggested gas price.
-	fn sensible_gas_price(&self) -> U256 { x!(20000000000u64) }
+	fn sensible_gas_price(&self) -> U256 { 20000000000u64.into() }
 
 	/// Suggested gas limit.
-	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
+	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
 
 	/// Latest account balance in pending state.
 	fn balance(&self, chain: &BlockChainClient, address: &Address) -> U256;
