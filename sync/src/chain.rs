@@ -1272,6 +1272,18 @@ impl ChainSync {
 	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
 		self.check_resume(io);
 	}
+
+		/// called when block is imported to chain, updates transactions queue and propagates the blocks
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
+		if io.is_chain_queue_empty() {
+			// Propagate latests blocks
+			self.propagate_latest_blocks(io);
+		}
+		if !invalid.is_empty() {
+			trace!(target: "sync", "Bad blocks in the queue, restarting");
+			self.restart_on_bad_block(io);
+		}
+	}
 }
 
 #[cfg(test)]
