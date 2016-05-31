@@ -13,11 +13,15 @@ pub mod helpers;
 //     extract the chain with that name. This will panic if no chain by that name
 //     is found.
 macro_rules! extract_chain {
-	($file:expr, $name:expr) => {{
+	(iter $file:expr) => {{
 		const RAW_DATA: &'static [u8] =
 			include_bytes!(concat!("../../../../ethcore/res/ethereum/tests/", $file, ".json"));
+		::ethjson::blockchain::Test::load(RAW_DATA).unwrap().into_iter()
+	}};
+
+	($file:expr, $name:expr) => {{
 		let mut chain = None;
-		for (name, c) in ::ethjson::blockchain::Test::load(RAW_DATA).unwrap() {
+		for (name, c) in extract_chain!(iter $file) {
 			if name == $name {
 				chain = Some(c);
 				break;
@@ -27,12 +31,19 @@ macro_rules! extract_chain {
 	}};
 
 	($file:expr) => {{
-		const RAW_DATA: &'static [u8] =
-			include_bytes!(concat!("../../../../ethcore/res/ethereum/tests/", $file, ".json"));
-
-		::ethjson::blockchain::Test::load(RAW_DATA)
-			.unwrap().into_iter().next().unwrap().1
+		extract_chain!(iter $file).next().unwrap().1
 	}};
+}
+
+macro_rules! register_test {
+	($name:ident, $cb:expr, $file:expr) => {
+		#[test]
+		fn $name() {
+			for (name, chain) in extract_chain!(iter $file) {
+				$cb(name, chain);
+			}
+		}
+	}
 }
 
 #[cfg(test)]

@@ -19,15 +19,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
+use ethcore::ids::BlockID;
 use ethcore::client::{Client, BlockChainClient, ClientConfig};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
+use ethcore::views::BlockView;
 use ethcore::ethereum;
 use ethminer::{Miner, MinerService, ExternalMiner};
 use devtools::RandomTempPath;
+use util::Hashable;
 use util::io::IoChannel;
-use util::hash::Address;
-use util::numbers::{Uint, U256};
+use util::hash::{Address, H256};
+use util::numbers::U256;
 use util::keys::{AccountProvider, TestAccount, TestAccountProvider};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
@@ -72,8 +75,8 @@ struct EthTester {
 }
 
 impl EthTester {
-	fn from_chain(chain: BlockChain) -> Self {
-		let tester = Self::from_spec_provider(|| make_spec(&chain));
+	fn from_chain(chain: &BlockChain) -> Self {
+		let tester = Self::from_spec_provider(|| make_spec(chain));
 
 		for b in &chain.blocks_rlp() {
 			if Block::is_good(&b) {
@@ -83,7 +86,9 @@ impl EthTester {
 			}
 		}
 
-		assert!(tester.client.chain_info().best_block_hash == chain.best_block.into());
+		tester.client.flush_queue();
+
+		assert!(tester.client.chain_info().best_block_hash == chain.best_block.clone().into());
 		tester
 	}
 
@@ -116,13 +121,13 @@ impl EthTester {
 #[test]
 fn harness_works() {
 	let chain: BlockChain = extract_chain!("BlockchainTests/bcUncleTest");
-	let _ = EthTester::from_chain(chain);
+	let _ = EthTester::from_chain(&chain);
 }
 
 #[test]
 fn eth_get_balance() {
 	let chain = extract_chain!("BlockchainTests/bcWalletTest", "wallet2outOf3txs");
-	let tester = EthTester::from_chain(chain);
+	let tester = EthTester::from_chain(&chain);
 	// final account state
 	let req_latest = r#"{
 		"jsonrpc": "2.0",
@@ -148,7 +153,7 @@ fn eth_get_balance() {
 #[test]
 fn eth_block_number() {
 	let chain = extract_chain!("BlockchainTests/bcRPC_API_Test");
-	let tester = EthTester::from_chain(chain);
+	let tester = EthTester::from_chain(&chain);
 	let req_number = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_blockNumber",
@@ -206,7 +211,6 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 }
 "#;
 
-#[cfg(test)]
 #[test]
 fn eth_transaction_count() {
 	use util::crypto::Secret;
@@ -272,3 +276,75 @@ fn eth_transaction_count() {
 
 	assert_eq!(&tester.handler.handle_request(&req_after_pending).unwrap(), res_after_pending);
 }
+
+fn verify_transaction_counts(name: String, chain: BlockChain) {
+	struct PanicHandler(String);
+	impl Drop for PanicHandler {
+		fn drop(&mut self) {
+			if ::std::thread::panicking() {
+				println!("Test failed: {}", self.0);
+			}
+		}
+	}
+
+	let _panic = PanicHandler(name);
+
+	fn by_hash(hash: H256, count: usize, id: &mut usize) -> (String, String) {
+		let req = r#"{
+			"jsonrpc": "2.0",
+			"method": "eth_getBlockTransactionCountByHash",
+			"params": [
+				""#.to_owned() + format!("0x{:?}", hash).as_ref() + r#""
+			],
+			"id": "# + format!("{}", *id).as_ref() + r#"
+		}"#;
+
+		let res = r#"{"jsonrpc":"2.0","result":""#.to_owned()
+			+ format!("0x{:02x}", count).as_ref()
+			+ r#"","id":"#
+			+ format!("{}", *id).as_ref() + r#"}"#;
+		*id += 1;
+		(req, res)
+	}
+
+	fn by_number(num: u64, count: usize, id: &mut usize) -> (String, String) {
+		let req = r#"{
+			"jsonrpc": "2.0",
+			"method": "eth_getBlockTransactionCountByNumber",
+			"params": [
+				"#.to_owned() + &::serde_json::to_string(&U256::from(num)).unwrap() + r#"
+			],
+			"id": "# + format!("{}", *id).as_ref() + r#"
+		}"#;
+
+		let res = r#"{"jsonrpc":"2.0","result":""#.to_owned()
+			+ format!("0x{:02x}", count).as_ref()
+			+ r#"","id":"#
+			+ format!("{}", *id).as_ref() + r#"}"#;
+		*id += 1;
+		(req, res)
+	}
+
+	let tester = EthTester::from_chain(&chain);
+
+	let mut id = 1;
+	for b in chain.blocks_rlp().iter().filter(|b| Block::is_good(b)).map(|b| BlockView::new(b)) {
+		let count = b.transactions_count();
+
+		let hash = b.sha3();
+		let number = b.header_view().number();
+
+		let (req, res) = by_hash(hash, count, &mut id);
+		assert_eq!(tester.handler.handle_request(&req), Some(res));
+
+		// uncles can share block numbers, so skip them.
+		if tester.client.block_hash(BlockID::Number(number)) == Some(hash) {
+			let (req, res) = by_number(number, count, &mut id);
+			assert_eq!(tester.handler.handle_request(&req), Some(res));
+		}
+	}
+}
+
+register_test!(eth_transaction_count_1, verify_transaction_counts, "BlockchainTests/bcWalletTest");
+register_test!(eth_transaction_count_2, verify_transaction_counts, "BlockchainTests/bcTotalDifficultyTest");
+register_test!(eth_transaction_count_3, verify_transaction_counts, "BlockchainTests/bcGasPricerTest");
