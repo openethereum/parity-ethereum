@@ -43,7 +43,27 @@ macro_rules! register_test {
 				$cb(name, chain);
 			}
 		}
-	}
+	};
+
+	(heavy $name:ident, $cb:expr, $file:expr) => {
+		#[test]
+		#[cfg(feature = "test-heavy")]
+		fn $name() {
+			for (name, chain) in extract_chain!(iter $file) {
+				$cb(name, chain);
+			}
+		}
+	};
+
+	(ignore $name:ident, $cb:expr, $file:expr) => {
+		#[test]
+		#[ignore]
+		fn $name() {
+			for (name, chain) in extract_chain!(iter $file) {
+				$cb(name, chain);
+			}
+		}
+	};
 }
 
 #[cfg(test)]
