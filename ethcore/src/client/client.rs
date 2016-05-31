@@ -254,7 +254,7 @@ impl<V> Client<V> where V: Verifier {
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
-		let max_blocks_to_import = 128;
+		let max_blocks_to_import = 64;
 
 		let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 		let mut invalid_blocks = HashSet::new();
