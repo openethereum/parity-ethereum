@@ -35,18 +35,22 @@ impl ws::Handler for Session {
 
 		// Otherwise try to serve a page.
 		sysui::handle(req.resource())
-			.map(|f| {
-				let content_len = format!("{}", f.content.as_bytes().len());
-				let mut res = ws::Response::ok(f.content.into());
-				{
-					let mut headers = res.headers_mut();
-					headers.push(("Server".into(), "Parity/SystemUI".as_bytes().to_vec()));
-					headers.push(("Connection".into(), "Closed".as_bytes().to_vec()));
-					headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
-					headers.push(("Content-Type".into(), f.mime.as_bytes().to_vec()));
-				}
-				Ok(res)
-			}).unwrap_or_else(|| ws::Response::from_request(req))
+			.map_or_else(
+				// return error
+				|| ws::Response::from_request(req),
+				// or serve the file
+				|f| {
+					let content_len = format!("{}", f.content.as_bytes().len());
+					let mut res = ws::Response::ok(f.content.into());
+					{
+						let mut headers = res.headers_mut();
+						headers.push(("Server".into(), b"Parity/SystemUI".to_vec()));
+						headers.push(("Connection".into(), b"Closed".to_vec()));
+						headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
+						headers.push(("Content-Type".into(), f.mime.as_bytes().to_vec()));
+					}
+					Ok(res)
+				})
 	}
 
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
