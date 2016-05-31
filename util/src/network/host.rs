@@ -474,7 +474,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().info.id.eq(&Some(id.clone())))
+		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().info.id == Some(id.clone()))
 	}
 
 	fn session_count(&self) -> usize {
@@ -482,7 +482,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
-		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().id().eq(&Some(id)))
+		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().id() == Some(id))
 	}
 
 	fn handshake_count(&self) -> usize {
