@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{TestBlockChainClient, BlockChainClient};
+use ethcore::client::{TestBlockChainClient, MiningBlockChainClient, BlockChainClient};
 use ethcore::spec::Spec;
 use io::SyncIo;
 use chain::ChainSync;
@@ -62,7 +62,7 @@ impl<'p> SyncIo for TestIo<'p> {
 		Ok(())
 	}
 
-	fn chain(&self) -> &MiningClient {
+	fn chain(&self) -> &BlockChainClient {
 		self.chain
 	}
 }

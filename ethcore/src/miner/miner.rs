@@ -585,11 +585,11 @@ impl MinerService for Miner {
 #[cfg(test)]
 mod tests {
 
-	use MinerService;
-	use super::{Miner};
+	use super::super::MinerService;
+	use super::Miner;
 	use util::*;
-	use ethcore::client::{TestBlockChainClient, EachBlockWith};
-	use ethcore::block::*;
+	use client::{TestBlockChainClient, EachBlockWith};
+	use block::*;
 
 	// TODO [ToDr] To uncomment` when TestBlockChainClient can actually return a ClosedBlock.
 	#[ignore]

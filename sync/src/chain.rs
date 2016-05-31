@@ -101,7 +101,7 @@ use io::SyncIo;
 use time;
 use super::SyncConfig;
 use blocks::BlockCollection;
-use ethcore::miner::{AccountDetails, TransactionImportResult};
+use ethcore::miner::{AccountDetails, TransactionImportResult, MinerService};
 
 known_heap_size!(0, PeerInfo);
 
@@ -1297,6 +1297,7 @@ mod tests {
 	use ethcore::header::*;
 	use ethcore::client::*;
 	use ethcore::spec::Spec;
+	use ethcore::miner::MinerService;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -1702,8 +1703,8 @@ mod tests {
 			let mut queue = VecDeque::new();
 			let mut io = TestIo::new(&mut client, &mut queue, None);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
-			assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
-			assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
+			assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
+			assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 1);
 		}
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
@@ -1718,7 +1719,7 @@ mod tests {
 		}
 
 		// then
-		let status = sync.miner.status();
+		let status = client.miner.status();
 		assert_eq!(status.transactions_in_pending_queue, 1);
 		assert_eq!(status.transactions_in_future_queue, 0);
 	}
@@ -1740,12 +1741,12 @@ mod tests {
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
-		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
-		assert_eq!(sync.miner.status().transactions_in_pending_queue, 0);
+		assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
+		assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 0);
 		sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks);
 
 		// then
-		let status = sync.miner.status();
+		let status = io.chain.miner.status();
 		assert_eq!(status.transactions_in_pending_queue, 0);
 		assert_eq!(status.transactions_in_future_queue, 0);
 	}

@@ -19,12 +19,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
-use ethcore::client::{MiningBlockChainClient, Client, ClientConfig};
+use ethcore::client::{MiningBlockChainClient, BlockChainClient, Client, ClientConfig};
 use ethcore::spec::Genesis;
 use ethcore::block::Block;
 use ethcore::ethereum;
 use ethcore::transaction::{Transaction, Action};
-use ethcore::miner::{MinerService, ExternalMiner};
+use ethcore::miner::{MinerService, ExternalMiner, Miner};
 use devtools::RandomTempPath;
 use util::io::IoChannel;
 use util::hash::Address;
@@ -195,7 +195,7 @@ fn chain_harness<F, U>(chain: BlockChain, mut cb: F) -> U
 	assert!(spec.is_state_root_valid());
 
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), spec, dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), spec, dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
 	let sync_provider = sync_provider();
 	let miner_service = miner_service();
 	let account_provider = account_provider();

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{MiningClient, BlockID, EachBlockWith};
+use ethcore::client::{BlockChainClient, BlockID, EachBlockWith};
 use chain::{SyncState};
 use super::helpers::*;
 

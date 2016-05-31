@@ -28,6 +28,7 @@ use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::Factory as EvmFactory;
+use miner::Miner;
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
@@ -64,6 +65,8 @@ pub struct TestBlockChainClient {
 	pub receipts: RwLock<HashMap<TransactionID, LocalizedReceipt>>,
 	/// Block queue size.
 	pub queue_size: AtomicUsize,
+	/// Miner
+	pub miner: Arc<Miner>,
 }
 
 #[derive(Clone)]
@@ -102,6 +105,7 @@ impl TestBlockChainClient {
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
 			queue_size: AtomicUsize::new(0),
+			miner: Arc::new(Miner::default()),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();

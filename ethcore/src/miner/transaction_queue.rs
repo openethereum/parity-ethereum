@@ -778,8 +778,8 @@ mod test {
 	extern crate rustc_serialize;
 	use util::table::*;
 	use util::*;
-	use ethcore::transaction::*;
-	use ethcore::error::{Error, TransactionError};
+	use transaction::*;
+	use error::{Error, TransactionError};
 	use super::*;
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
 
