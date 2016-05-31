@@ -271,7 +271,6 @@ enum InstructionResult {
 	GasLeft(U256),
 	UnusedGas(U256),
 	JumpToPosition(U256),
-	StopExecutionWithGasLeft(U256),
 	StopExecutionNeedsReturn(U256, Vec<u8>),
 	StopExecution,
 }
@@ -333,8 +332,6 @@ impl evm::Evm for Interpreter {
 					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
 					reader.position = pos;
 				},
-				InstructionResult::StopExecutionWithGasLeft(gas_left) =>
-					return Ok(GasLeft::Known(gas_left)),
 				InstructionResult::StopExecutionNeedsReturn(gas, return_code) =>
 					return Ok(GasLeft::NeedsReturn(gas, return_code)),
 				InstructionResult::StopExecution => break,

@@ -18,7 +18,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Ext, Factory, GasLeft};
+use evm::{self, Ext, Factory};
 use externalities::*;
 use substate::*;
 use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
