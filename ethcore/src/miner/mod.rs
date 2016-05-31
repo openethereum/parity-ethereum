@@ -52,7 +52,7 @@ pub use self::external::{ExternalMiner, ExternalMinerService};
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
-use client::{ExtendedBlockChainClient, Executed};
+use client::{MiningBlockChainClient, Executed};
 use block::ClosedBlock;
 use receipt::Receipt;
 use error::{Error, ExecutionError};
@@ -100,7 +100,7 @@ pub trait MinerService : Send + Sync {
 		where T: Fn(&Address) -> AccountDetails, Self: Sized;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction<T>(&self, chain: &ExtendedBlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
+	fn import_own_transaction<T>(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails, Self: Sized;
 
@@ -108,20 +108,20 @@ pub trait MinerService : Send + Sync {
 	fn pending_transactions_hashes(&self) -> Vec<H256>;
 
 	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, chain: &ExtendedBlockChainClient);
+	fn clear_and_reset(&self, chain: &MiningBlockChainClient);
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, chain: &ExtendedBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
+	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, chain: &ExtendedBlockChainClient);
+	fn update_sealing(&self, chain: &MiningBlockChainClient);
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, chain: &ExtendedBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
+	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 
 	/// Get the sealing work package and if `Some`, apply some transform.
-	fn map_sealing_work<F, T>(&self, chain: &ExtendedBlockChainClient, f: F) -> Option<T>
+	fn map_sealing_work<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T>
 		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
 
 	/// Query pending transactions for hash.
@@ -146,19 +146,19 @@ pub trait MinerService : Send + Sync {
 	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
 
 	/// Latest account balance in pending state.
-	fn balance(&self, chain: &ExtendedBlockChainClient, address: &Address) -> U256;
+	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
 
 	/// Call into contract code using pending state.
-	fn call(&self, chain: &ExtendedBlockChainClient, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
+	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
 
 	/// Get storage value in pending state.
-	fn storage_at(&self, chain: &ExtendedBlockChainClient, address: &Address, position: &H256) -> H256;
+	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256;
 
 	/// Get account nonce in pending state.
-	fn nonce(&self, chain: &ExtendedBlockChainClient, address: &Address) -> U256;
+	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
 
 	/// Get contract code in pending state.
-	fn code(&self, chain: &ExtendedBlockChainClient, address: &Address) -> Option<Bytes>;
+	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes>;
 }
 
 /// Mining status

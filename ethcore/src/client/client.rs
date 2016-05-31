@@ -37,7 +37,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, ExtendedBlockChainClient, TraceFilter};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -722,7 +722,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 }
 
-impl<V> ExtendedBlockChainClient for Client<V> where V: Verifier {
+impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
 		-> (Option<ClosedBlock>, HashSet<H256>) {
 		let engine = self.engine.deref().deref();

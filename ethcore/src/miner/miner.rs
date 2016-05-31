@@ -20,7 +20,7 @@ use std::sync::atomic::AtomicBool;
 use util::*;
 use util::keys::store::{AccountService, AccountProvider};
 use views::{BlockView, HeaderView};
-use client::{ExtendedBlockChainClient, BlockID};
+use client::{MiningBlockChainClient, BlockID};
 use block::{ClosedBlock, IsBlock};
 use error::*;
 use client::{Executive, Executed, EnvInfo, TransactOptions};
@@ -104,7 +104,7 @@ impl Miner {
 	/// Prepares new block for sealing including top transactions from queue.
 	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
-	fn prepare_sealing(&self, chain: &ExtendedBlockChainClient) {
+	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
 		let mut sealing_work = self.sealing_work.lock().unwrap();
@@ -206,14 +206,14 @@ impl Miner {
 		trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
 	}
 
-	fn update_gas_limit(&self, chain: &ExtendedBlockChainClient) {
+	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
 		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
 		let mut queue = self.transaction_queue.lock().unwrap();
 		queue.set_gas_limit(gas_limit);
 	}
 
 	/// Returns true if we had to prepare new pending block
-	fn enable_and_prepare_sealing(&self, chain: &ExtendedBlockChainClient) -> bool {
+	fn enable_and_prepare_sealing(&self, chain: &MiningBlockChainClient) -> bool {
 		trace!(target: "miner", "enable_and_prepare_sealing: entering");
 		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_some();
 		trace!(target: "miner", "enable_and_prepare_sealing: have_work={}", have_work);
@@ -237,7 +237,7 @@ const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
 
 impl MinerService for Miner {
 
-	fn clear_and_reset(&self, chain: &ExtendedBlockChainClient) {
+	fn clear_and_reset(&self, chain: &MiningBlockChainClient) {
 		self.transaction_queue.lock().unwrap().clear();
 		self.update_sealing(chain);
 	}
@@ -252,7 +252,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, chain: &ExtendedBlockChainClient, t: &SignedTransaction) -> Result<Executed, ExecutionError> {
+	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction) -> Result<Executed, ExecutionError> {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		match sealing_work.peek_last_ref() {
 			Some(work) => {
@@ -288,7 +288,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn balance(&self, chain: &ExtendedBlockChainClient, address: &Address) -> U256 {
+	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> U256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		sealing_work.peek_last_ref().map_or_else(
 			|| chain.latest_balance(address),
@@ -296,7 +296,7 @@ impl MinerService for Miner {
 		)
 	}
 
-	fn storage_at(&self, chain: &ExtendedBlockChainClient, address: &Address, position: &H256) -> H256 {
+	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		sealing_work.peek_last_ref().map_or_else(
 			|| chain.latest_storage_at(address, position),
@@ -304,12 +304,12 @@ impl MinerService for Miner {
 		)
 	}
 
-	fn nonce(&self, chain: &ExtendedBlockChainClient, address: &Address) -> U256 {
+	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		sealing_work.peek_last_ref().map_or_else(|| chain.latest_nonce(address), |b| b.block().fields().state.nonce(address))
 	}
 
-	fn code(&self, chain: &ExtendedBlockChainClient, address: &Address) -> Option<Bytes> {
+	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes> {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		sealing_work.peek_last_ref().map_or_else(|| chain.code(address), |b| b.block().fields().state.code(address))
 	}
@@ -376,7 +376,7 @@ impl MinerService for Miner {
 			.collect()
 	}
 
-	fn import_own_transaction<T>(&self, chain: &ExtendedBlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
+	fn import_own_transaction<T>(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails {
 		let hash = transaction.hash();
@@ -470,7 +470,7 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().unwrap().last_nonce(address)
 	}
 
-	fn update_sealing(&self, chain: &ExtendedBlockChainClient) {
+	fn update_sealing(&self, chain: &MiningBlockChainClient) {
 		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			let current_no = chain.chain_info().best_block_number;
 			let has_local_transactions = self.transaction_queue.lock().unwrap().has_local_pending_transactions();
@@ -490,7 +490,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn map_sealing_work<F, T>(&self, chain: &ExtendedBlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+	fn map_sealing_work<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
 		trace!(target: "miner", "map_sealing_work: entering");
 		self.enable_and_prepare_sealing(chain);
 		trace!(target: "miner", "map_sealing_work: sealing prepared");
@@ -500,7 +500,7 @@ impl MinerService for Miner {
 		ret.map(f)
 	}
 
-	fn submit_seal(&self, chain: &ExtendedBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
 			match chain.try_seal(b.lock(), seal) {
 				Err(_) => {
@@ -523,8 +523,8 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn chain_new_blocks(&self, chain: &ExtendedBlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
-		fn fetch_transactions(chain: &ExtendedBlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
+	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+		fn fetch_transactions(chain: &MiningBlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockID::Hash(*hash))
 				// Client should send message after commit to db and inserting to chain.

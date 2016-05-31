@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, ExtendedBlockChainClient, BlockChainInfo, BlockStatus, BlockID, TransactionID, UncleID, TraceId, TraceFilter, LastHashes};
+use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID, TransactionID, UncleID, TraceId, TraceFilter, LastHashes};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -235,7 +235,7 @@ impl TestBlockChainClient {
 	}
 }
 
-impl ExtendedBlockChainClient for TestBlockChainClient {
+impl MiningBlockChainClient for TestBlockChainClient {
 	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
 		Err(block)
 	}

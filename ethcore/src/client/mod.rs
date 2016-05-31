@@ -185,7 +185,7 @@ pub trait BlockChainClient : Sync + Send {
 }
 
 /// Extended client interface used for mining
-pub trait ExtendedBlockChainClient : BlockChainClient {
+pub trait MiningBlockChainClient : BlockChainClient {
 	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
 	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
 
