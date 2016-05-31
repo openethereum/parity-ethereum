@@ -233,7 +233,6 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 				handle_copy(copy);
 
 				let mut code = vec![];
-				code.reserve(data.len());
 				code.extend_from_slice(data);
 
 				self.state.init_code(&self.origin_info.address, code);
