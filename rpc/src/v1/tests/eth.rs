@@ -102,8 +102,13 @@ impl EthTester {
 		let miner_service = miner_service(spec_provider(), account_provider.clone());
 		let external_miner = Arc::new(ExternalMiner::default());
 
-		let eth_client = EthClient::new(&client, &sync_provider, &account_provider,
-			&miner_service, &external_miner);
+		let eth_client = EthClient::new(
+			&client,
+			&sync_provider,
+			&account_provider,
+			&miner_service,
+			&external_miner
+		);
 
 		let handler = IoHandler::new();
 		let delegate = eth_client.to_delegate();
