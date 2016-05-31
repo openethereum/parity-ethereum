@@ -171,7 +171,7 @@ mod test {
 				3.into() => Diff::new(3.into(), 0.into()),
 				4.into() => Diff::new(4.into(), 0.into()),
 				7.into() => Diff::new(0.into(), 7.into()),
-				9.into() => Diff::new(0.into(), 9.into()),
+				9.into() => Diff::new(0.into(), 9.into())
 			],
 		}));
 	}
