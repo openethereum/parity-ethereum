@@ -410,9 +410,9 @@ pub struct VMExecutedOperation {
 	pub gas_used: U256,
 	/// The stack item placed, if any.
 	pub stack_push: Vec<U256>,
-	/// If altered, the memory delta, given as (offset, new bytes).
+	/// If altered, the memory delta.
 	pub mem_diff: Option<MemoryDiff>,
-	/// The altered storage value.
+	/// The altered storage value, if any.
 	pub store_diff: Option<StorageDiff>,
 }
 
