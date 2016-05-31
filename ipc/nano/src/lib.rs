@@ -69,7 +69,7 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 		SocketError::DuplexLink
 	}));
 
-	// 500 ms default timeout
+	// 2500 ms default timeout
 	socket.set_receive_timeout(2500).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {

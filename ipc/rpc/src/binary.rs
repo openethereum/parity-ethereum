@@ -112,7 +112,7 @@ impl<R: BinaryConvertable, E: BinaryConvertable> BinaryConvertable for Result<R,
 				else { Ok(()) }
 			},
 			Err(ref e) => {
-				buffer[1] = 1;
+				buffer[0] = 1;
 				if e.size() > 0 {
 					Ok(try!(e.to_bytes(&mut buffer[1..], length_stack)))
 				}
