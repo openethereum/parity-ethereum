@@ -90,6 +90,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	panic_handler: Arc<PanicHandler>,
 	verifier: PhantomData<V>,
 	vm_factory: Arc<EvmFactory>,
+	miner: Arc<MinerService>,
 }
 
 const HISTORY: u64 = 1200;
@@ -126,7 +127,13 @@ pub fn append_path(path: &Path, item: &str) -> String {
 
 impl<V> Client<V> where V: Verifier {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, ClientError> {
+	pub fn new_with_verifier(
+		config: ClientConfig,
+		spec: Spec,
+		path: &Path,
+		message_channel: IoChannel<NetSyncMessage>)
+		-> Result<Arc<Client<V>>, ClientError>
+	{
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
@@ -328,18 +335,13 @@ impl<V> Client<V> where V: Verifier {
 		{
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
 				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
-				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
-					imported: imported_blocks,
-					invalid: invalid_blocks,
-					enacted: enacted,
-					retracted: retracted,
-				})).unwrap();
+				self.miner.chain_new_blocks(imported_blocks, invalid_blocks, enacted, retracted);
 			}
 		}
 
 		{
 			if self.chain_info().best_block_hash != original_best {
-				io.send(NetworkIoMessage::User(SyncMessage::NewChainHead)).unwrap();
+				self.miner.update_sealing(&self);
 			}
 		}
 
@@ -775,6 +777,20 @@ impl<V> ExtendedBlockChainClient for Client<V> where V: Verifier {
 	// TODO [todr] Should be moved to miner crate eventually.
 	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)
+	}
+}
+
+impl MiningClient for Client {
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>> {
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: self.latest_nonce(a),
+			balance: self.latest_balance(a),
+		};
+		self.miner.import_transactions(transactions, fetch_account)
+	}
+
+	fn all_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.all_transactions()
 	}
 }
 

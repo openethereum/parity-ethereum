@@ -178,12 +178,19 @@ pub trait BlockChainClient : Sync + Send {
 
 /// Extended client interface used for mining
 pub trait ExtendedBlockChainClient : BlockChainClient {
-	// TODO [todr] Should be moved to miner crate eventually.
 	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
 	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
 
-	// TODO [todr] Should be moved to miner crate eventually.
 	/// Returns ClosedBlock prepared for sealing.
 	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
 		-> (Option<ClosedBlock>, HashSet<H256>);
+}
+
+/// Extended client interface that supports mining
+pub trait MiningClient : BlockChainClient {
+	/// import transactions from network/other 3rd party
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>>;
+
+	/// list all transactions
+	fn all_transactions(&self) -> Vec<SignedTransaction>;
 }

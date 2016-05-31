@@ -63,7 +63,7 @@ impl<'p> SyncIo for TestIo<'p> {
 		Ok(())
 	}
 
-	fn chain(&self) -> &BlockChainClient {
+	fn chain(&self) -> &MiningClient {
 		self.chain
 	}
 }
