@@ -212,6 +212,7 @@ fn should_extract_path_with_appid() {
 		},
 		file: None,
 		write_pos: 0,
+		safe_to_embed: true,
 	};
 
 	// when
