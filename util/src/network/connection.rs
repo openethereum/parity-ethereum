@@ -302,8 +302,10 @@ impl EncryptedConnection {
 		ingress_mac.update(&mac_material);
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
+		let old_connection = try!(handshake.connection.try_clone());
+		let connection = ::std::mem::replace(&mut handshake.connection, old_connection);
 		let mut enc = EncryptedConnection {
-			connection: try!(handshake.connection.try_clone()),
+			connection: connection,
 			encoder: encoder,
 			decoder: decoder,
 			mac_encoder: mac_encoder,
