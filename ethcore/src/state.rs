@@ -20,11 +20,7 @@ use executive::{Executive, TransactOptions};
 use evm::Factory as EvmFactory;
 use account_db::*;
 use trace::Trace;
-#[cfg(test)]
-#[cfg(feature = "json-tests")]
 use pod_account::*;
-#[cfg(test)]
-#[cfg(feature = "json-tests")]
 use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
@@ -275,8 +271,6 @@ impl State {
 		}
 	}
 
-	#[cfg(test)]
-	#[cfg(feature = "json-tests")]
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
 		assert!(self.snapshots.borrow().is_empty());

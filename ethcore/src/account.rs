@@ -51,8 +51,6 @@ impl Account {
 		}
 	}
 
-	#[cfg(test)]
-	#[cfg(feature = "json-tests")]
 	/// General constructor.
 	pub fn from_pod(pod: PodAccount) -> Account {
 		Account {
