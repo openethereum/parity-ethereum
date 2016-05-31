@@ -20,10 +20,9 @@ use std::sync::atomic::AtomicBool;
 use util::*;
 use util::keys::store::{AccountService, AccountProvider};
 use ethcore::views::{BlockView, HeaderView};
-use ethcore::client::{BlockChainClient, BlockID};
+use ethcore::client::{Executive, Executed, EnvInfo, TransactOptions, BlockChainClient, BlockID, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::*;
-use ethcore::client::{Executive, Executed, EnvInfo, TransactOptions};
 use ethcore::transaction::SignedTransaction;
 use ethcore::receipt::{Receipt};
 use ethcore::spec::Spec;
@@ -252,7 +251,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError> {
+	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		match sealing_work.peek_last_ref() {
 			Some(work) => {
@@ -278,13 +277,19 @@ impl MinerService for Miner {
 				// give the sender max balance
 				state.sub_balance(&sender, &balance);
 				state.add_balance(&sender, &U256::max_value());
-				let options = TransactOptions { tracing: false, vm_tracing: vm_tracing, check_nonce: false };
+				let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
 
-				// TODO: use vm_trace here.
-				Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options)
+				let mut ret = Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options);
+				// TODO gav move this into Executive.
+				if analytics.diffing {
+					if let Ok(ref mut x) = ret {
+						x.diff = Some(state.diff_from(block.state().clone()));
+					}
+				}
+				ret
 			},
 			None => {
-				chain.call(t, vm_tracing)
+				chain.call(t, analytics)
 			}
 		}
 	}

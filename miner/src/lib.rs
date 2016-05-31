@@ -62,7 +62,7 @@ pub use external::{ExternalMiner, ExternalMinerService};
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
-use ethcore::client::{BlockChainClient, Executed};
+use ethcore::client::{BlockChainClient, Executed, CallAnalytics};
 use ethcore::block::ClosedBlock;
 use ethcore::receipt::Receipt;
 use ethcore::error::{Error, ExecutionError};
@@ -159,7 +159,7 @@ pub trait MinerService : Send + Sync {
 	fn balance(&self, chain: &BlockChainClient, address: &Address) -> U256;
 
 	/// Call into contract code using pending state.
-	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError>;
+	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
 
 	/// Get storage value in pending state.
 	fn storage_at(&self, chain: &BlockChainClient, address: &Address, position: &H256) -> H256;

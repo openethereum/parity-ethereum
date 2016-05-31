@@ -18,6 +18,7 @@ use util::*;
 use account::*;
 use account_db::*;
 use ethjson;
+use types::account_diff::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// An account, expressed as Plain-Old-Data (hence the name).
@@ -106,17 +107,58 @@ impl fmt::Display for PodAccount {
 	}
 }
 
+/// Determine difference between two optionally existant `Account`s. Returns None
+/// if they are the same.
+pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
+	match (pre, post) {
+		(None, Some(x)) => Some(AccountDiff {
+			balance: Diff::Born(x.balance),
+			nonce: Diff::Born(x.nonce),
+			code: Diff::Born(x.code.clone()),
+			storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Born(v.clone()))).collect(),
+		}),
+		(Some(x), None) => Some(AccountDiff {
+			balance: Diff::Died(x.balance),
+			nonce: Diff::Died(x.nonce),
+			code: Diff::Died(x.code.clone()),
+			storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Died(v.clone()))).collect(),
+		}),
+		(Some(pre), Some(post)) => {
+			let storage: Vec<_> = pre.storage.keys().merge(post.storage.keys())
+				.filter(|k| pre.storage.get(k).unwrap_or(&H256::new()) != post.storage.get(k).unwrap_or(&H256::new()))
+				.collect();
+			let r = AccountDiff {
+				balance: Diff::new(pre.balance, post.balance),
+				nonce: Diff::new(pre.nonce, post.nonce),
+				code: Diff::new(pre.code.clone(), post.code.clone()),
+				storage: storage.into_iter().map(|k|
+					(k.clone(), Diff::new(
+						pre.storage.get(&k).cloned().unwrap_or_else(H256::new),
+						post.storage.get(&k).cloned().unwrap_or_else(H256::new)
+					))).collect(),
+			};
+			if r.balance.is_same() && r.nonce.is_same() && r.code.is_same() && r.storage.is_empty() {
+				None
+			} else {
+				Some(r)
+			}
+		},
+		_ => None,
+	}
+}
+
+
 #[cfg(test)]
 mod test {
 	use common::*;
-	use account_diff::*;
-	use super::*;
+	use types::account_diff::*;
+	use super::diff_pod;
 
 	#[test]
 	fn existence() {
 		let a = PodAccount{balance: x!(69), nonce: x!(0), code: vec![], storage: map![]};
-		assert_eq!(AccountDiff::diff_pod(Some(&a), Some(&a)), None);
-		assert_eq!(AccountDiff::diff_pod(None, Some(&a)), Some(AccountDiff{
+		assert_eq!(diff_pod(Some(&a), Some(&a)), None);
+		assert_eq!(diff_pod(None, Some(&a)), Some(AccountDiff{
 			balance: Diff::Born(x!(69)),
 			nonce: Diff::Born(x!(0)),
 			code: Diff::Born(vec![]),
@@ -128,7 +170,7 @@ mod test {
 	fn basic() {
 		let a = PodAccount{balance: x!(69), nonce: x!(0), code: vec![], storage: map![]};
 		let b = PodAccount{balance: x!(42), nonce: x!(1), code: vec![], storage: map![]};
-		assert_eq!(AccountDiff::diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
+		assert_eq!(diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Changed(x!(69), x!(42)),
 			nonce: Diff::Changed(x!(0), x!(1)),
 			code: Diff::Same,
@@ -140,7 +182,7 @@ mod test {
 	fn code() {
 		let a = PodAccount{balance: x!(0), nonce: x!(0), code: vec![], storage: map![]};
 		let b = PodAccount{balance: x!(0), nonce: x!(1), code: vec![0], storage: map![]};
-		assert_eq!(AccountDiff::diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
+		assert_eq!(diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Same,
 			nonce: Diff::Changed(x!(0), x!(1)),
 			code: Diff::Changed(vec![], vec![0]),
@@ -162,7 +204,7 @@ mod test {
 			code: vec![],
 			storage: mapx![1 => 1, 2 => 3, 3 => 0, 5 => 0, 7 => 7, 8 => 0, 9 => 9]
 		};
-		assert_eq!(AccountDiff::diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
+		assert_eq!(diff_pod(Some(&a), Some(&b)), Some(AccountDiff {
 			balance: Diff::Same,
 			nonce: Diff::Same,
 			code: Diff::Same,

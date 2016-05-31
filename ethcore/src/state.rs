@@ -21,8 +21,8 @@ use evm::Factory as EvmFactory;
 use account_db::*;
 use trace::Trace;
 use pod_account::*;
-use pod_state::PodState;
-//use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
+use pod_state::{self, PodState};
+use types::state_diff::StateDiff;
 
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome {
@@ -220,7 +220,7 @@ impl State {
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.
-//		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
+//		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 //		trace!("Transaction receipt: {:?}", receipt);
@@ -275,12 +275,32 @@ impl State {
 	pub fn to_pod(&self) -> PodState {
 		assert!(self.snapshots.borrow().is_empty());
 		// TODO: handle database rather than just the cache.
+		// will need fat db.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = *opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
 			m
 		}))
+	}
+
+	fn query_pod(&mut self, query: &PodState) {
+		query.get().iter().foreach(|(ref address, ref pod_account)| {
+			if self.get(address, true).is_some() {
+				pod_account.storage.iter().foreach(|(ref key, _)| {
+					self.storage_at(address, key);
+				});
+			}
+		});
+	}
+
+	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
+	/// Consumes self.
+	pub fn diff_from(&self, orig: State) -> StateDiff {
+		let pod_state_post = self.to_pod();
+		let mut state_pre = orig;
+		state_pre.query_pod(&pod_state_post);
+		pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post)
 	}
 
 	/// Pull account `a` in our cache from the trie DB and return it.
