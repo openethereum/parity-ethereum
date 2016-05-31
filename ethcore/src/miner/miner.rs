@@ -19,16 +19,16 @@ use std::sync::atomic::AtomicBool;
 
 use util::*;
 use util::keys::store::{AccountService, AccountProvider};
-use ethcore::views::{BlockView, HeaderView};
-use ethcore::client::{ExtendedBlockChainClient, BlockID};
-use ethcore::block::{ClosedBlock, IsBlock};
-use ethcore::error::*;
-use ethcore::client::{Executive, Executed, EnvInfo, TransactOptions};
-use ethcore::transaction::SignedTransaction;
-use ethcore::receipt::{Receipt};
-use ethcore::spec::Spec;
-use ethcore::engine::Engine;
-use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
+use views::{BlockView, HeaderView};
+use client::{ExtendedBlockChainClient, BlockID};
+use block::{ClosedBlock, IsBlock};
+use error::*;
+use client::{Executive, Executed, EnvInfo, TransactOptions};
+use transaction::SignedTransaction;
+use receipt::{Receipt};
+use spec::Spec;
+use engine::Engine;
+use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {

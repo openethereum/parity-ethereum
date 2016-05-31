@@ -46,6 +46,8 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
+use miner::{TransactionImportResult, AccountDetails};
+use error::Error as EthError;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -174,6 +176,12 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
+
+	/// import transactions from network/other 3rd party
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>>;
+
+	/// list all transactions
+	fn all_transactions(&self) -> Vec<SignedTransaction>;
 }
 
 /// Extended client interface used for mining
@@ -184,13 +192,4 @@ pub trait ExtendedBlockChainClient : BlockChainClient {
 	/// Returns ClosedBlock prepared for sealing.
 	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
 		-> (Option<ClosedBlock>, HashSet<H256>);
-}
-
-/// Extended client interface that supports mining
-pub trait MiningClient : BlockChainClient {
-	/// import transactions from network/other 3rd party
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>>;
-
-	/// list all transactions
-	fn all_transactions(&self) -> Vec<SignedTransaction>;
 }

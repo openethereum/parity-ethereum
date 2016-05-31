@@ -89,8 +89,8 @@ use std::collections::{HashMap, BTreeSet};
 use util::numbers::{Uint, U256};
 use util::hash::{Address, H256};
 use util::table::*;
-use ethcore::transaction::*;
-use ethcore::error::{Error, TransactionError};
+use transaction::*;
+use error::{Error, TransactionError};
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

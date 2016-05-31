@@ -35,6 +35,9 @@ use executive::Executed;
 use error::{ExecutionError};
 use trace::LocalizedTrace;
 
+use miner::{TransactionImportResult, AccountDetails};
+use error::Error as EthError;
+
 /// Test client.
 pub struct TestBlockChainClient {
 	/// Blocks.
@@ -477,6 +480,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn block_traces(&self, _trace: BlockID) -> Option<Vec<LocalizedTrace>> {
+		unimplemented!();
+	}
+
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>> {
+		unimplemented!();
+	}
+
+	fn all_transactions(&self) -> Vec<SignedTransaction> {
 		unimplemented!();
 	}
 }

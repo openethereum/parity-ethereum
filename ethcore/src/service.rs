@@ -21,6 +21,7 @@ use util::panics::*;
 use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig};
+use miner::Miner;
 
 /// Message type for external and internal events
 #[derive(Clone)]
@@ -54,14 +55,14 @@ pub struct ClientService {
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path) -> Result<ClientService, Error> {
+	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path, miner: Arc<Miner>) -> Result<ClientService, Error> {
 		let panic_handler = PanicHandler::new_in_arc();
 		let mut net_service = try!(NetworkService::start(net_config));
 		panic_handler.forward_from(&net_service);
 
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {:?} engine", spec.name, spec.engine.name());
-		let client = try!(Client::new(config, spec, db_path, net_service.io().channel()));
+		let client = try!(Client::new(config, spec, db_path, miner, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()

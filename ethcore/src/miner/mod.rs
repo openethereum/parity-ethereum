@@ -26,12 +26,11 @@
 //! ```rust
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
-//! extern crate ethminer;
 //! use std::env;
 //! use util::network::{NetworkService, NetworkConfiguration};
-//! use ethcore::client::{Client, ClientConfig};
-//! use ethcore::ethereum;
-//! use ethminer::{Miner, MinerService};
+//! use client::{Client, ClientConfig};
+//! use ethereum;
+//! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
 //!		let miner: Miner = Miner::default();
@@ -43,30 +42,21 @@
 //! }
 //! ```
 
-
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate ethcore_util as util;
-extern crate ethcore;
-extern crate env_logger;
-extern crate rayon;
-
 mod miner;
 mod external;
 mod transaction_queue;
 
-pub use transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
-pub use miner::{Miner};
-pub use external::{ExternalMiner, ExternalMinerService};
+pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
+pub use self::miner::{Miner};
+pub use self::external::{ExternalMiner, ExternalMinerService};
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
-use ethcore::client::{ExtendedBlockChainClient, Executed};
-use ethcore::block::ClosedBlock;
-use ethcore::receipt::Receipt;
-use ethcore::error::{Error, ExecutionError};
-use ethcore::transaction::SignedTransaction;
+use client::{ExtendedBlockChainClient, Executed};
+use block::ClosedBlock;
+use receipt::Receipt;
+use error::{Error, ExecutionError};
+use transaction::SignedTransaction;
 
 /// Miner client API
 pub trait MinerService : Send + Sync {

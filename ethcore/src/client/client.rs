@@ -48,6 +48,7 @@ use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
+use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -90,7 +91,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	panic_handler: Arc<PanicHandler>,
 	verifier: PhantomData<V>,
 	vm_factory: Arc<EvmFactory>,
-	miner: Arc<MinerService>,
+	miner: Arc<Miner>,
 }
 
 const HISTORY: u64 = 1200;
@@ -103,8 +104,8 @@ const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
-	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
-		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
+	pub fn new(config: ClientConfig, spec: Spec, path: &Path, miner: Arc<Miner>, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
+		Client::<CanonVerifier>::new_with_verifier(config, spec, path, miner, message_channel)
 	}
 }
 
@@ -131,6 +132,7 @@ impl<V> Client<V> where V: Verifier {
 		config: ClientConfig,
 		spec: Spec,
 		path: &Path,
+		miner: Arc<Miner>,
 		message_channel: IoChannel<NetSyncMessage>)
 		-> Result<Arc<Client<V>>, ClientError>
 	{
@@ -162,6 +164,7 @@ impl<V> Client<V> where V: Verifier {
 			panic_handler: panic_handler,
 			verifier: PhantomData,
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
+			miner: miner,
 		};
 
 		Ok(Arc::new(client))
@@ -335,13 +338,13 @@ impl<V> Client<V> where V: Verifier {
 		{
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
 				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
-				self.miner.chain_new_blocks(imported_blocks, invalid_blocks, enacted, retracted);
+				self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
 			}
 		}
 
 		{
 			if self.chain_info().best_block_hash != original_best {
-				self.miner.update_sealing(&self);
+				self.miner.update_sealing(self);
 			}
 		}
 
@@ -705,10 +708,21 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn last_hashes(&self) -> LastHashes {
 		self.build_last_hashes(self.chain.best_block_hash())
 	}
+
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>> {
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: self.latest_nonce(a),
+			balance: self.latest_balance(a),
+		};
+		self.miner.import_transactions(transactions, fetch_account)
+	}
+
+	fn all_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.all_transactions()
+	}
 }
 
 impl<V> ExtendedBlockChainClient for Client<V> where V: Verifier {
-		// TODO [todr] Should be moved to miner crate eventually.
 	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
 		-> (Option<ClosedBlock>, HashSet<H256>) {
 		let engine = self.engine.deref().deref();
@@ -774,23 +788,8 @@ impl<V> ExtendedBlockChainClient for Client<V> where V: Verifier {
 		(Some(b), invalid_transactions)
 	}
 
-	// TODO [todr] Should be moved to miner crate eventually.
 	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)
-	}
-}
-
-impl MiningClient for Client {
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>> {
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: self.latest_nonce(a),
-			balance: self.latest_balance(a),
-		};
-		self.miner.import_transactions(transactions, fetch_account)
-	}
-
-	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.all_transactions()
 	}
 }
 
