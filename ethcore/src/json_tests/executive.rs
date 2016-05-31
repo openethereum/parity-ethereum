@@ -129,7 +129,7 @@ impl<'a, T> Ext for TestExt<'a, T> where T: Tracer {
 		self.ext.log(topics, data)
 	}
 
-	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
+	fn ret(self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		self.ext.ret(gas, data)
 	}
 
