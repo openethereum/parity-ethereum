@@ -201,7 +201,8 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 	}
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
+	fn ret(mut self, gas: &U256, data: &[u8]) -> evm::Result<U256>
+		where Self: Sized {
 		let handle_copy = |to: &mut Option<&mut Bytes>| {
 			to.as_mut().map(|b| **b = data.to_owned());
 		};
@@ -210,20 +211,14 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 				handle_copy(copy);
 
 				let len = cmp::min(slice.len(), data.len());
-				unsafe {
-					ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
-				}
+				(&mut slice[..len]).copy_from_slice(&data[..len]);
 				Ok(*gas)
 			},
 			OutputPolicy::Return(BytesRef::Flexible(ref mut vec), ref mut copy) => {
 				handle_copy(copy);
 
 				vec.clear();
-				vec.reserve(data.len());
-				unsafe {
-					ptr::copy(data.as_ptr(), vec.as_mut_ptr(), data.len());
-					vec.set_len(data.len());
-				}
+				vec.extend_from_slice(data);
 				Ok(*gas)
 			},
 			OutputPolicy::InitContract(ref mut copy) => {
@@ -239,10 +234,8 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 
 				let mut code = vec![];
 				code.reserve(data.len());
-				unsafe {
-					ptr::copy(data.as_ptr(), code.as_mut_ptr(), data.len());
-					code.set_len(data.len());
-				}
+				code.extend_from_slice(data);
+
 				self.state.init_code(&self.origin_info.address, code);
 				Ok(*gas - return_cost)
 			}

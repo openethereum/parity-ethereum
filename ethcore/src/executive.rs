@@ -18,7 +18,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Ext, Factory};
+use evm::{self, Ext, Factory, GasLeft};
 use externalities::*;
 use substate::*;
 use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
@@ -179,26 +179,26 @@ impl<'a> Executive<'a> {
 	}
 
 	fn exec_vm<T>(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy, tracer: &mut T)
-		-> evm::Result where T: Tracer {
+		-> evm::Result<U256> where T: Tracer {
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
 			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return vm_factory.create().exec(params, &mut ext);
+			evm::finalize(vm_factory.create().exec(params, &mut ext), ext)
+		} else {
+			// Start in new thread to reset stack
+			// TODO [todr] No thread builder yet, so we need to reset once for a while
+			// https://github.com/aturon/crossbeam/issues/16
+			crossbeam::scope(|scope| {
+				let vm_factory = self.vm_factory;
+				let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
+
+				scope.spawn(move || {
+					evm::finalize(vm_factory.create().exec(params, &mut ext), ext)
+				})
+			}).join()
 		}
-
-		// Start in new thread to reset stack
-		// TODO [todr] No thread builder yet, so we need to reset once for a while
-		// https://github.com/aturon/crossbeam/issues/16
-		crossbeam::scope(|scope| {
-			let vm_factory = self.vm_factory;
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
-
-			scope.spawn(move || {
-				vm_factory.create().exec(params, &mut ext)
-			})
-		}).join()
 	}
 
 	/// Calls contract function with given contract params.
@@ -206,7 +206,7 @@ impl<'a> Executive<'a> {
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
 	pub fn call<T>(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef, tracer: &mut T)
-		-> evm::Result where T: Tracer {
+		-> evm::Result<U256> where T: Tracer {
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
@@ -307,7 +307,7 @@ impl<'a> Executive<'a> {
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
-	pub fn create<T>(&mut self, params: ActionParams, substate: &mut Substate, tracer: &mut T) -> evm::Result where T:
+	pub fn create<T>(&mut self, params: ActionParams, substate: &mut Substate, tracer: &mut T) -> evm::Result<U256> where T:
 		Tracer {
 		// backup used in case of running out of gas
 		self.state.snapshot();
@@ -351,7 +351,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result, output: Bytes, trace: Option<Trace>) -> ExecutionResult {
+	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result<U256>, output: Bytes, trace: Option<Trace>) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
@@ -411,7 +411,7 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate) {
+	fn enact_result(&mut self, result: &evm::Result<U256>, substate: &mut Substate, un_substate: Substate) {
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..})

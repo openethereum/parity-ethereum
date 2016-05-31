@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use common::*;
-use evm;
-use evm::{Ext, Schedule, Factory, VMType, ContractCreateResult, MessageCallResult};
+use evm::{self, Ext, Schedule, Factory, VMType, ContractCreateResult, MessageCallResult};
 use std::fmt::Debug;
 
 struct FakeLogEntry {
@@ -136,7 +135,7 @@ impl Ext for FakeExt {
 		});
 	}
 
-	fn ret(&mut self, _gas: &U256, _data: &[u8]) -> result::Result<U256, evm::Error> {
+	fn ret(self, _gas: &U256, _data: &[u8]) -> evm::Result<U256> {
 		unimplemented!();
 	}
 

@@ -20,7 +20,7 @@ use common::*;
 use super::instructions as instructions;
 use super::instructions::Instruction;
 use std::marker::Copy;
-use evm::{self, MessageCallResult, ContractCreateResult};
+use evm::{self, MessageCallResult, ContractCreateResult, GasLeft};
 
 #[cfg(not(feature = "evm-debug"))]
 macro_rules! evm_debug {
@@ -272,14 +272,15 @@ enum InstructionResult {
 	UnusedGas(U256),
 	JumpToPosition(U256),
 	StopExecutionWithGasLeft(U256),
-	StopExecution
+	StopExecutionNeedsReturn(U256, Vec<u8>),
+	StopExecution,
 }
 
 /// Intepreter EVM implementation
 pub struct Interpreter;
 
 impl evm::Evm for Interpreter {
-	fn exec(&self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result {
+	fn exec(&self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		let code = &params.code.as_ref().unwrap();
 		let valid_jump_destinations = self.find_jump_destinations(&code);
 
@@ -332,17 +333,15 @@ impl evm::Evm for Interpreter {
 					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
 					reader.position = pos;
 				},
-				InstructionResult::StopExecutionWithGasLeft(gas_left) => {
-					current_gas = gas_left;
-					reader.position = code.len();
-				},
-				InstructionResult::StopExecution => {
-					reader.position = code.len();
-				}
+				InstructionResult::StopExecutionWithGasLeft(gas_left) =>
+					return Ok(GasLeft::Known(gas_left)),
+				InstructionResult::StopExecutionNeedsReturn(gas, return_code) =>
+					return Ok(GasLeft::NeedsReturn(gas, return_code)),
+				InstructionResult::StopExecution => break,
 			}
 		}
 
-		Ok(current_gas)
+		Ok(GasLeft::Known(current_gas))
 	}
 }
 
@@ -354,7 +353,7 @@ impl Interpreter {
 		instruction: Instruction,
 		mem: &mut Memory,
 		stack: &Stack<U256>
-	) -> Result<(U256, usize), evm::Error> {
+	) -> evm::Result<(U256, usize)> {
 		let schedule = ext.schedule();
 		let info = instructions::get_info(instruction);
 
@@ -485,7 +484,7 @@ impl Interpreter {
 		}
 	}
 
-	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> Result<(U256, usize), evm::Error> {
+	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> evm::Result<(U256, usize)> {
 		let gas_for_mem = |mem_size: U256| {
 			let s = mem_size >> 5;
 			// s * memory_gas + s * s / quad_coeff_div
@@ -510,11 +509,11 @@ impl Interpreter {
 		}, req_mem_size_rounded.low_u64() as usize))
 	}
 
-	fn mem_needed_const(&self, mem: &U256, add: usize) -> Result<U256, evm::Error> {
+	fn mem_needed_const(&self, mem: &U256, add: usize) -> evm::Result<U256> {
 		Ok(overflowing!(mem.overflowing_add(U256::from(add))))
 	}
 
-	fn mem_needed(&self, offset: &U256, size: &U256) -> Result<U256, ::evm::Error> {
+	fn mem_needed(&self, offset: &U256, size: &U256) -> evm::Result<U256> {
 		if self.is_zero(size) {
 			return Ok(U256::zero());
 		}
@@ -532,7 +531,7 @@ impl Interpreter {
 		code: &mut CodeReader,
 		mem: &mut Memory,
 		stack: &mut Stack<U256>
-	) -> Result<InstructionResult, evm::Error> {
+	) -> evm::Result<InstructionResult> {
 		match instruction {
 			instructions::JUMP => {
 				let jump = stack.pop_back();
@@ -644,10 +643,8 @@ impl Interpreter {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 				let return_code = mem.read_slice(init_off, init_size);
-				let gas_left = try!(ext.ret(&gas, &return_code));
-				return Ok(InstructionResult::StopExecutionWithGasLeft(
-					gas_left
-				));
+
+				return Ok(InstructionResult::StopExecutionNeedsReturn(gas, return_code.to_owned()))
 			},
 			instructions::STOP => {
 				return Ok(InstructionResult::StopExecution);
@@ -836,7 +833,7 @@ impl Interpreter {
 	fn verify_instructions_requirements(&self,
 										info: &instructions::InstructionInfo,
 										stack_limit: usize,
-										stack: &Stack<U256>) -> Result<(), evm::Error> {
+										stack: &Stack<U256>) -> evm::Result<()> {
 		if !stack.has(info.args) {
 			Err(evm::Error::StackUnderflow {
 				instruction: info.name,
@@ -854,14 +851,14 @@ impl Interpreter {
 		}
 	}
 
-	fn verify_gas(&self, current_gas: &U256, gas_cost: &U256) -> Result<(), evm::Error> {
+	fn verify_gas(&self, current_gas: &U256, gas_cost: &U256) -> evm::Result<()> {
 		match current_gas < gas_cost {
 			true => Err(evm::Error::OutOfGas),
 			false => Ok(())
 		}
 	}
 
-	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &HashSet<usize>) -> Result<usize, evm::Error> {
+	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &HashSet<usize>) -> evm::Result<usize> {
 		let jump = jump_u.low_u64() as usize;
 
 		if valid_jump_destinations.contains(&jump) && jump_u < U256::from(!0 as usize) {
@@ -885,7 +882,7 @@ impl Interpreter {
 		}
 	}
 
-	fn exec_stack_instruction(&self, instruction: Instruction, stack: &mut Stack<U256>) -> Result<(), evm::Error> {
+	fn exec_stack_instruction(&self, instruction: Instruction, stack: &mut Stack<U256>) -> evm::Result<()> {
 		match instruction {
 			instructions::DUP1...instructions::DUP16 => {
 				let position = instructions::get_dup_position(instruction);
