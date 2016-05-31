@@ -32,10 +32,18 @@ pub trait SigningQueue: Send + Sync {
 }
 
 /// Queue for all unconfirmed transactions.
-#[derive(Default)]
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
 	queue: Mutex<HashMap<U256, TransactionConfirmation>>,
+}
+
+impl Default for ConfirmationsQueue {
+	fn default() -> Self {
+		ConfirmationsQueue {
+			id: Mutex::new(U256::from(0)),
+			queue: Mutex::new(HashMap::new()),
+		}
+	}
 }
 
 impl SigningQueue for  ConfirmationsQueue {
