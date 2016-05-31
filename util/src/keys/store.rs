@@ -554,7 +554,7 @@ mod tests {
 						H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
 						262144,
 						32));
-			key_file.account = Some(x!(i as u64));
+			key_file.account = Some((i as u64).into());
 			result.push(key_file.id.clone());
 			write_sstore.import_key(key_file).unwrap();
 		}
