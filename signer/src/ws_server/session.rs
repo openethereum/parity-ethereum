@@ -17,6 +17,7 @@
 //! Session handlers factory.
 
 use ws;
+use sysui;
 use std::sync::Arc;
 use jsonrpc_core::IoHandler;
 
@@ -26,6 +27,28 @@ pub struct Session {
 }
 
 impl ws::Handler for Session {
+	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
+		// Detect if it's a websocket request.
+		if req.header("sec-websocket-key").is_some() {
+			return ws::Response::from_request(req);
+		}
+
+		// Otherwise try to serve a page.
+		sysui::handle(req.resource())
+			.map(|f| {
+				let content_len = format!("{}", f.content.as_bytes().len());
+				let mut res = ws::Response::ok(f.content.into());
+				{
+					let mut headers = res.headers_mut();
+					headers.push(("Server".into(), "Parity/SystemUI".as_bytes().to_vec()));
+					headers.push(("Connection".into(), "Closed".as_bytes().to_vec()));
+					headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
+					headers.push(("Content-Type".into(), f.mime.as_bytes().to_vec()));
+				}
+				Ok(res)
+			}).unwrap_or_else(|| ws::Response::from_request(req))
+	}
+
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
 		let req = try!(msg.as_text());
 		match self.handler.handle_request(req) {

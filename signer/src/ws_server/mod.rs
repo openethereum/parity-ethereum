@@ -89,7 +89,7 @@ impl Server {
 	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
-			config.max_connections = 5;
+			config.max_connections = 10;
 			config.method_strict = true;
 			config
 		};
