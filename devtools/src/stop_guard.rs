@@ -14,22 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Random path
+//! Stop guard mod
 
 use std::sync::Arc;
 use std::sync::atomic::*;
 
+/// Stop guard that will set a stop flag on drop
 pub struct StopGuard {
 	flag: Arc<AtomicBool>,
 }
 
 impl StopGuard {
+	/// Create a stop guard
 	pub fn new() -> StopGuard {
 		StopGuard {
 			flag: Arc::new(AtomicBool::new(false))
 		}
 	}
 
+	/// Share stop guard between the threads
 	pub fn share(&self) -> Arc<AtomicBool> {
 		self.flag.clone()
 	}
