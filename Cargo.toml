@@ -9,7 +9,7 @@ build = "build.rs"
 [build-dependencies]
 rustc_version = "0.1"
 syntex = "*"
-"ethcore-ipc-codegen" = { path = "ipc/codegen" }
+ethcore-ipc-codegen = { path = "ipc/codegen" }
 
 [dependencies]
 log = "0.3"
@@ -35,7 +35,7 @@ ethcore-dapps = { path = "dapps", optional = true }
 semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
-json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
+json-ipc-server = { git = "https://github.com/tomusdrw/json-ipc-server.git" }
 ansi_term = "0.7"
 
 [dependencies.hyper]
