@@ -30,6 +30,8 @@ pub struct PageEndpoint<T : WebApp + 'static> {
 	pub app: Arc<T>,
 	/// Prefix to strip from the path (when `None` deducted from `app_id`)
 	pub prefix: Option<String>,
+	/// Safe to be loaded in frame by other origin. (use wisely!)
+	safe_to_embed: bool,
 }
 
 impl<T: WebApp + 'static> PageEndpoint<T> {
@@ -37,6 +39,7 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 		PageEndpoint {
 			app: Arc::new(app),
 			prefix: None,
+			safe_to_embed: false,
 		}
 	}
 
@@ -44,6 +47,18 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 		PageEndpoint {
 			app: Arc::new(app),
 			prefix: Some(prefix),
+			safe_to_embed: false,
+		}
+	}
+
+	/// Creates new `PageEndpoint` which can be safely used in iframe
+	/// even from different origin. It might be dangerous (clickjacking).
+	/// Use wisely!
+	pub fn new_safe_to_embed(app: T) -> Self {
+		PageEndpoint {
+			app: Arc::new(app),
+			prefix: None,
+			safe_to_embed: true,
 		}
 	}
 }
@@ -61,6 +76,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 			path: path,
 			file: None,
 			write_pos: 0,
+			safe_to_embed: self.safe_to_embed,
 		})
 	}
 }
@@ -83,6 +99,7 @@ struct PageHandler<T: WebApp + 'static> {
 	path: EndpointPath,
 	file: Option<String>,
 	write_pos: usize,
+	safe_to_embed: bool,
 }
 
 impl<T: WebApp + 'static> PageHandler<T> {
@@ -128,6 +145,9 @@ impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 		if let Some(f) = self.file.as_ref().and_then(|f| self.app.file(f)) {
 			res.set_status(StatusCode::Ok);
 			res.headers_mut().set(header::ContentType(f.content_type.parse().unwrap()));
+			if !self.safe_to_embed {
+				res.headers_mut().set_raw("X-Frame-Options", vec![b"SAMEORIGIN".to_vec()]);
+			}
 			Next::write()
 		} else {
 			res.set_status(StatusCode::NotFound);
@@ -192,6 +212,7 @@ fn should_extract_path_with_appid() {
 		},
 		file: None,
 		write_pos: 0,
+		safe_to_embed: true,
 	};
 
 	// when
