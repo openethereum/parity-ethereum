@@ -24,6 +24,10 @@ cutting-edge Rust programming language. Parity is licensed under the GPLv3, and 
 By default, Parity will run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number
 of RPC APIs.
 
+Parity also runs a server for running decentralized apps, or "Dapps", on `http://127.0.0.1:8080`.
+This includes a few useful Dapps, including Ethereum Wallet, Maker OTC, and a node status page.
+In a near-future release, it will be easy to install Dapps and use them through this web interface.
+
 If you run into an issue while using parity, feel free to file one in this repository
 or hop on our [gitter chat room]([gitter-url]) to ask a question. We are glad to help!
 
