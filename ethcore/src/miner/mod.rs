@@ -28,8 +28,7 @@
 //! extern crate ethcore;
 //! use std::env;
 //! use util::network::{NetworkService, NetworkConfiguration};
-//! use client::{Client, ClientConfig};
-//! use ethereum;
+//! use ethcore::client::{Client, ClientConfig};
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {

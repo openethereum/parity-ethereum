@@ -46,7 +46,7 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
-use miner::{TransactionImportResult, AccountDetails};
+use miner::{TransactionImportResult};
 use error::Error as EthError;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
