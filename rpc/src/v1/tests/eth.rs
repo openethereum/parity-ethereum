@@ -19,12 +19,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
-<<<<<<< HEAD
 use ethcore::client::{MiningBlockChainClient, BlockChainClient, Client, ClientConfig};
-use ethcore::spec::Genesis;
-=======
 use ethcore::ids::BlockID;
-use ethcore::client::{Client, BlockChainClient, ClientConfig};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
@@ -73,7 +69,7 @@ fn make_spec(chain: &BlockChain) -> Spec {
 }
 
 struct EthTester {
-	_client: Arc<MiningBlockChainClient>,
+	client: Arc<Client>,
 	_miner: Arc<MinerService>,
 	accounts: Arc<TestAccountProvider>,
 	handler: IoHandler,
@@ -101,10 +97,10 @@ impl EthTester {
 		where F: Fn() -> Spec {
 
 		let dir = RandomTempPath::new();
-		let client = Client::new(ClientConfig::default(), spec_provider(), dir.as_path(), IoChannel::disconnected()).unwrap();
-		let sync_provider = sync_provider();
 		let account_provider = account_provider();
 		let miner_service = miner_service(spec_provider(), account_provider.clone());
+		let client = Client::new(ClientConfig::default(), spec_provider(), dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
+		let sync_provider = sync_provider();
 		let external_miner = Arc::new(ExternalMiner::default());
 
 		let eth_client = EthClient::new(
@@ -347,25 +343,10 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 		let (req, res) = by_hash(hash, count, &mut id);
 		assert_eq!(tester.handler.handle_request(&req), Some(res));
 
-<<<<<<< HEAD
-	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), spec, dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
-	let sync_provider = sync_provider();
-	let miner_service = miner_service();
-	let account_provider = account_provider();
-	let external_miner = Arc::new(ExternalMiner::default());
-
-	for b in &chain.blocks_rlp() {
-		if Block::is_good(&b) {
-			let _ = client.import_block(b.clone());
-			client.flush_queue();
-			client.import_verified_blocks(&IoChannel::disconnected());
-=======
 		// uncles can share block numbers, so skip them.
 		if tester.client.block_hash(BlockID::Number(number)) == Some(hash) {
 			let (req, res) = by_number(number, count, &mut id);
 			assert_eq!(tester.handler.handle_request(&req), Some(res));
->>>>>>> master
 		}
 	}
 }
