@@ -18,14 +18,14 @@ use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
 
 use util::*;
-use util::keys::store::{AccountService, AccountProvider};
+use util::keys::store::AccountProvider;
 use ethcore::views::{BlockView, HeaderView};
 use ethcore::client::{BlockChainClient, BlockID};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::*;
 use ethcore::client::{Executive, Executed, EnvInfo, TransactOptions};
 use ethcore::transaction::SignedTransaction;
-use ethcore::receipt::{Receipt};
+use ethcore::receipt::Receipt;
 use ethcore::spec::Spec;
 use ethcore::engine::Engine;
 use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
@@ -44,7 +44,7 @@ pub struct Miner {
 	extra_data: RwLock<Bytes>,
 	spec: Spec,
 
-	accounts: RwLock<Option<Arc<AccountService>>>,		// TODO: this is horrible since AccountService already contains a single RwLock field. refactor.
+	accounts: Option<Arc<AccountProvider>>,
 }
 
 impl Default for Miner {
@@ -58,7 +58,7 @@ impl Default for Miner {
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
-			accounts: RwLock::new(None),
+			accounts: None,
 			spec: Spec::new_test(),
 		}
 	}
@@ -76,13 +76,13 @@ impl Miner {
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
-			accounts: RwLock::new(None),
+			accounts: None,
 			spec: spec,
 		})
 	}
 
 	/// Creates new instance of miner
-	pub fn with_accounts(force_sealing: bool, spec: Spec, accounts: Arc<AccountService>) -> Arc<Miner> {
+	pub fn with_accounts(force_sealing: bool, spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: force_sealing,
@@ -92,7 +92,7 @@ impl Miner {
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
-			accounts: RwLock::new(Some(accounts)),
+			accounts: Some(accounts),
 			spec: spec,
 		})
 	}
@@ -177,9 +177,8 @@ impl Miner {
 			if !block.transactions().is_empty() {
 				trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
 				// block with transactions - see if we can seal immediately.
-				let a = self.accounts.read().unwrap();
-				let s = self.engine().generate_seal(block.block(), match *a.deref() {
-					Some(ref x) => Some(x.deref() as &AccountProvider),
+				let s = self.engine().generate_seal(block.block(), match self.accounts {
+					Some(ref x) => Some(&**x),
 					None => None,
 				});
 				if let Some(seal) = s {

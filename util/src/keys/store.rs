@@ -87,7 +87,7 @@ struct AccountUnlock {
 }
 
 /// Basic account management trait
-pub trait AccountProvider : Send + Sync {
+pub trait AccountProvider: Send + Sync {
 	/// Lists all accounts
 	fn accounts(&self) -> Result<Vec<Address>, ::std::io::Error>;
 	/// Unlocks account with the password provided
@@ -325,7 +325,7 @@ impl SecretStore {
 		ret
 	}
 
-	/// Returns secret for unlocked account.
+	/// Returns secret for locked account.
 	pub fn locked_account_secret(&self, account: &Address, pass: &str) -> Result<crypto::Secret, SigningError> {
 		let secret_id = try!(self.account(&account).ok_or(SigningError::NoAccount));
 		self.get(&secret_id, pass).or_else(|e| Err(match e {
