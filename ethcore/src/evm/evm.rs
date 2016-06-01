@@ -76,12 +76,22 @@ pub enum GasLeft<'a> {
 	NeedsReturn(U256, &'a [u8]),
 }
 
-/// Consume the externalities, call return if necessary, and produce a final amount of gas left.
-pub fn finalize<E: Ext>(res: Result<GasLeft>, ext: E) -> Result<U256> {
-	match res {
-		Ok(GasLeft::Known(gas)) => Ok(gas),
-		Ok(GasLeft::NeedsReturn(gas, ret_code)) => ext.ret(&gas, ret_code),
-		Err(err) => Err(err),
+/// Types that can be "finalized" using an EVM.
+///
+/// In practice, this is just used to define an inherent impl on
+/// `Reult<GasLeft<'a>>`.
+pub trait Finalize {
+	/// Consume the externalities, call return if necessary, and produce a final amount of gas left.
+	fn finalize<E: Ext>(self, ext: E) -> Result<U256>;
+}
+
+impl<'a> Finalize for Result<GasLeft<'a>> {
+	fn finalize<E: Ext>(self, ext: E) -> Result<U256> {
+		match self {
+			Ok(GasLeft::Known(gas)) => Ok(gas),
+			Ok(GasLeft::NeedsReturn(gas, ret_code)) => ext.ret(&gas, ret_code),
+			Err(err) => Err(err),
+		}
 	}
 }
 

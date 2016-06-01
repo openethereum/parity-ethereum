@@ -18,7 +18,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Ext, Factory};
+use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use substate::*;
 use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
@@ -185,7 +185,7 @@ impl<'a> Executive<'a> {
 			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			evm::finalize(vm_factory.create().exec(params, &mut ext), ext)
+			vm_factory.create().exec(params, &mut ext).finalize(ext)
 		} else {
 			// Start in new thread to reset stack
 			// TODO [todr] No thread builder yet, so we need to reset once for a while
@@ -195,7 +195,7 @@ impl<'a> Executive<'a> {
 				let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
 
 				scope.spawn(move || {
-					evm::finalize(vm_factory.create().exec(params, &mut ext), ext)
+					vm_factory.create().exec(params, &mut ext).finalize(ext)
 				})
 			}).join()
 		}

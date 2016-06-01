@@ -19,7 +19,7 @@ use state::*;
 use executive::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory, VMType, ContractCreateResult, MessageCallResult};
+use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
 use externalities::*;
 use substate::*;
 use tests::helpers::*;
@@ -206,7 +206,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 			let res = evm.exec(params, &mut ex);
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
-			(evm::finalize(res, ex), callcreates)
+			(res.finalize(ex), callcreates)
 		};
 
 		match res {
