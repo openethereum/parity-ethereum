@@ -17,7 +17,6 @@ dependencies = [
  "ethcore-rpc 1.2.0",
  "ethcore-signer 1.2.0",
  "ethcore-util 1.2.0",
- "ethminer 1.2.0",
  "ethsync 1.2.0",
  "fdlimit 0.1.0",
  "hyper 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -255,6 +254,7 @@ dependencies = [
  "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rayon 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-crypto 0.2.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -334,7 +334,6 @@ dependencies = [
  "ethcore-devtools 1.2.0",
  "ethcore-util 1.2.0",
  "ethjson 0.1.0",
- "ethminer 1.2.0",
  "ethsync 1.2.0",
  "json-ipc-server 0.1.0 (git+https://github.com/ethcore/json-ipc-server.git)",
  "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -411,20 +410,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethminer"
-version = "1.2.0"
-dependencies = [
- "clippy 0.0.69 (registry+https://github.com/rust-lang/crates.io-index)",
- "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 1.2.0",
- "ethcore-util 1.2.0",
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "rayon 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "ethsync"
 version = "1.2.0"
 dependencies = [
@@ -432,7 +417,6 @@ dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.2.0",
  "ethcore-util 1.2.0",
- "ethminer 1.2.0",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",

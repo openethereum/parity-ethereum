@@ -21,13 +21,13 @@ extern crate ethash;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, ExternalMinerService};
+use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
 use util::keys::store::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
+use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -42,7 +42,7 @@ use serde;
 
 /// Eth rpc implementation.
 pub struct EthClient<C, S, A, M, EM> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	S: SyncProvider,
 	A: AccountProvider,
 	M: MinerService,
@@ -57,7 +57,7 @@ pub struct EthClient<C, S, A, M, EM> where
 }
 
 impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	S: SyncProvider,
 	A: AccountProvider,
 	M: MinerService,
@@ -222,7 +222,7 @@ fn make_unsupported_err() -> Error {
 }
 
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
-	C: BlockChainClient + 'static,
+	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	A: AccountProvider + 'static,
 	M: MinerService + 'static,

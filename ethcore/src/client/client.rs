@@ -37,7 +37,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, TraceFilter};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -48,6 +48,7 @@ use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
+use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -90,6 +91,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	panic_handler: Arc<PanicHandler>,
 	verifier: PhantomData<V>,
 	vm_factory: Arc<EvmFactory>,
+	miner: Arc<Miner>,
 }
 
 const HISTORY: u64 = 1200;
@@ -102,8 +104,8 @@ const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
-	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
-		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
+	pub fn new(config: ClientConfig, spec: Spec, path: &Path, miner: Arc<Miner>, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
+		Client::<CanonVerifier>::new_with_verifier(config, spec, path, miner, message_channel)
 	}
 }
 
@@ -126,7 +128,14 @@ pub fn append_path(path: &Path, item: &str) -> String {
 
 impl<V> Client<V> where V: Verifier {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, ClientError> {
+	pub fn new_with_verifier(
+		config: ClientConfig,
+		spec: Spec,
+		path: &Path,
+		miner: Arc<Miner>,
+		message_channel: IoChannel<NetSyncMessage>)
+		-> Result<Arc<Client<V>>, ClientError>
+	{
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
@@ -155,6 +164,7 @@ impl<V> Client<V> where V: Verifier {
 			panic_handler: panic_handler,
 			verifier: PhantomData,
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
+			miner: miner,
 		};
 
 		Ok(Arc::new(client))
@@ -328,6 +338,11 @@ impl<V> Client<V> where V: Verifier {
 		{
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
 				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
+
+				if self.queue_info().is_empty() {
+					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
+				}
+
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
 					imported: imported_blocks,
 					invalid: invalid_blocks,
@@ -339,7 +354,7 @@ impl<V> Client<V> where V: Verifier {
 
 		{
 			if self.chain_info().best_block_hash != original_best {
-				io.send(NetworkIoMessage::User(SyncMessage::NewChainHead)).unwrap();
+				self.miner.update_sealing(self);
 			}
 		}
 
@@ -448,79 +463,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options)
 	}
 
-	// TODO [todr] Should be moved to miner crate eventually.
-	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
-		block.try_seal(self.engine.deref().deref(), seal)
-	}
-
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.vm_factory
-	}
-
-	// TODO [todr] Should be moved to miner crate eventually.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> (Option<ClosedBlock>, HashSet<H256>) {
-		let engine = self.engine.deref().deref();
-		let h = self.chain.best_block_hash();
-		let mut invalid_transactions = HashSet::new();
-
-		let mut b = OpenBlock::new(
-			engine,
-			&self.vm_factory,
-			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
-			self.state_db.lock().unwrap().boxed_clone(),
-			match self.chain.block_header(&h) { Some(ref x) => x, None => { return (None, invalid_transactions) } },
-			self.build_last_hashes(h.clone()),
-			author,
-			gas_floor_target,
-			extra_data,
-		);
-
-		// Add uncles
-		self.chain
-			.find_uncle_headers(&h, engine.maximum_uncle_age())
-			.unwrap()
-			.into_iter()
-			.take(engine.maximum_uncle_count())
-			.foreach(|h| {
-				b.push_uncle(h).unwrap();
-			});
-
-		// Add transactions
-		let block_number = b.block().header().number();
-		let min_tx_gas = U256::from(self.engine.schedule(&b.env_info()).tx_gas);
-
-		for tx in transactions {
-			// Push transaction to block
-			let hash = tx.hash();
-			let import = b.push_transaction(tx, None);
-
-			match import {
-				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
-					// Exit early if gas left is smaller then min_tx_gas
-					if gas_limit - gas_used < min_tx_gas {
-						break;
-					}
-				},
-				Err(e) => {
-					invalid_transactions.insert(hash);
-					trace!(target: "miner",
-						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
-						   block_number, hash, e);
-				},
-				_ => {}
-			}
-		}
-
-		// And close
-		let b = b.close();
-		trace!(target: "miner", "Sealing: number={}, hash={}, diff={}",
-			   b.block().header().number(),
-			   b.hash(),
-			   b.block().header().difficulty()
-		);
-		(Some(b), invalid_transactions)
 	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
@@ -773,6 +717,89 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 	fn last_hashes(&self) -> LastHashes {
 		self.build_last_hashes(self.chain.best_block_hash())
+	}
+
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>> {
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: self.latest_nonce(a),
+			balance: self.latest_balance(a),
+		};
+		self.miner.import_transactions(transactions, fetch_account)
+	}
+
+	fn all_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.all_transactions()
+	}
+}
+
+impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
+	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
+		-> (Option<ClosedBlock>, HashSet<H256>) {
+		let engine = self.engine.deref().deref();
+		let h = self.chain.best_block_hash();
+		let mut invalid_transactions = HashSet::new();
+
+		let mut b = OpenBlock::new(
+			engine,
+			&self.vm_factory,
+			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
+			self.state_db.lock().unwrap().boxed_clone(),
+			match self.chain.block_header(&h) { Some(ref x) => x, None => { return (None, invalid_transactions) } },
+			self.build_last_hashes(h.clone()),
+			author,
+			gas_floor_target,
+			extra_data,
+		);
+
+		// Add uncles
+		self.chain
+			.find_uncle_headers(&h, engine.maximum_uncle_age())
+			.unwrap()
+			.into_iter()
+			.take(engine.maximum_uncle_count())
+			.foreach(|h| {
+				b.push_uncle(h).unwrap();
+			});
+
+		// Add transactions
+		let block_number = b.block().header().number();
+		let min_tx_gas = U256::from(self.engine.schedule(&b.env_info()).tx_gas);
+
+		for tx in transactions {
+			// Push transaction to block
+			let hash = tx.hash();
+			let import = b.push_transaction(tx, None);
+
+			match import {
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
+					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+					// Exit early if gas left is smaller then min_tx_gas
+					if gas_limit - gas_used < min_tx_gas {
+						break;
+					}
+				},
+				Err(e) => {
+					invalid_transactions.insert(hash);
+					trace!(target: "miner",
+						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
+						   block_number, hash, e);
+				},
+				_ => {}
+			}
+		}
+
+		// And close
+		let b = b.close();
+		trace!(target: "miner", "Sealing: number={}, hash={}, diff={}",
+			   b.block().header().number(),
+			   b.hash(),
+			   b.block().header().difficulty()
+		);
+		(Some(b), invalid_transactions)
+	}
+
+	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
+		block.try_seal(self.engine.deref().deref(), seal)
 	}
 }
 
