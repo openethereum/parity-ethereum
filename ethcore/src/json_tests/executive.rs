@@ -202,7 +202,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				params.address.clone(),
 				&mut tracer,
 			);
-			let evm = vm_factory.create();
+			let mut evm = vm_factory.create();
 			let res = evm.exec(params, &mut ex);
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();

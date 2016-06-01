@@ -300,10 +300,13 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 	}
 }
 
-pub struct JitEvm;
+#[derive(Default)]
+pub struct JitEvm {
+	ctxt: Option<evmjit::ContextHandle>,
+}
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
+	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, params.address.clone())) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
@@ -342,13 +345,14 @@ impl evm::Evm for JitEvm {
 		// don't really know why jit timestamp is int..
 		data.timestamp = ext.env_info().timestamp as i64;
 
-		let mut context = unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) };
+		self.context = Some(unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) });
+		let context = self.context.as_ref_mut().unwrap();
 		let res = context.exec();
 
 		match res {
 			evmjit::ReturnCode::Stop => Ok(GasLeft::Known(U256::from(context.gas_left()))),
 			evmjit::ReturnCode::Return =>
-				Ok(GasLeft::NeedsReturn(U256::from(context.gas_left()), context.output_data().to_owned())),
+				Ok(GasLeft::NeedsReturn(U256::from(context.gas_left()), context.output_data())),
 			evmjit::ReturnCode::Suicide => {
 				ext.suicide(&Address::from_jit(&context.suicide_refund_address()));
 				Ok(GasLeft::Known(U256::from(context.gas_left())))

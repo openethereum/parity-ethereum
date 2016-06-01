@@ -69,18 +69,18 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 /// Gas Left: either it is a known value, or it needs to be computed by processing
 /// a return instruction.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum GasLeft {
+pub enum GasLeft<'a> {
 	/// Known gas left
 	Known(U256),
 	/// Return instruction must be processed.
-	NeedsReturn(U256, Vec<u8>),
+	NeedsReturn(U256, &'a [u8]),
 }
 
 /// Consume the externalities, call return if necessary, and produce a final amount of gas left.
 pub fn finalize<E: Ext>(res: Result<GasLeft>, ext: E) -> Result<U256> {
 	match res {
 		Ok(GasLeft::Known(gas)) => Ok(gas),
-		Ok(GasLeft::NeedsReturn(gas, ret_code)) => ext.ret(&gas, &ret_code),
+		Ok(GasLeft::NeedsReturn(gas, ret_code)) => ext.ret(&gas, ret_code),
 		Err(err) => Err(err),
 	}
 }
@@ -91,5 +91,5 @@ pub trait Evm {
 	///
 	/// It returns either an error, a known amount of gas left, or parameters to be used
 	/// to compute the final gas left.
-	fn exec(&self, params: ActionParams, ext: &mut Ext) -> Result<GasLeft>;
+	fn exec(&mut self, params: ActionParams, ext: &mut Ext) -> Result<GasLeft>;
 }
