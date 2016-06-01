@@ -26,7 +26,7 @@ use tests::helpers::*;
 use ethjson;
 use trace::{Tracer, NoopTracer};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct CallCreate {
 	data: Bytes,
 	destination: Option<Address>,
@@ -204,7 +204,9 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 			);
 			let evm = vm_factory.create();
 			let res = evm.exec(params, &mut ex);
-			(res, ex.callcreates)
+			// a return in finalize will not alter callcreates
+			let callcreates = ex.callcreates.clone();
+			(evm::finalize(res, ex), callcreates)
 		};
 
 		match res {
