@@ -76,13 +76,13 @@ API and Console Options:
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
                            ethcore, traces.
-                           [default: web3,eth,net,personal,ethcore,traces].
+                           [default: web3,eth,net,personal,traces].
 
   --ipc-off                Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
-                           IPC [default: web3,eth,net,personal,ethcore].
+                           IPC [default: web3,eth,net,personal,traces].
 
   --dapps-off              Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
