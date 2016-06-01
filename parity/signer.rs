@@ -15,10 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::client::Client;
-use ethsync::EthSync;
-use ethcore::miner::{Miner, ExternalMiner};
-use util::keys::store::AccountService;
 use util::panics::{PanicHandler, ForwardPanic};
 use die::*;
 use rpc_apis;

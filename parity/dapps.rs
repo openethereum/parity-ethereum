@@ -17,10 +17,6 @@
 use std::sync::Arc;
 use std::str::FromStr;
 use std::net::SocketAddr;
-use ethcore::client::Client;
-use ethsync::EthSync;
-use ethcore::miner::{Miner, ExternalMiner};
-use util::RotatingLogger;
 use util::panics::PanicHandler;
 use die::*;
 use rpc_apis;
