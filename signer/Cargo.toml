@@ -11,7 +11,7 @@ build = "build.rs"
 rustc_version = "0.1"
 
 [dependencies]
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc-core.git" }
+jsonrpc-core = "2.0"
 log = "0.3"
 env_logger = "0.3"
 ws = "0.4.7"

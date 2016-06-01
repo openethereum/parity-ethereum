@@ -12,9 +12,8 @@ build = "build.rs"
 log = "0.3"
 serde = "0.7.0"
 serde_json = "0.7.0"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc-core.git" }
-# jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git", branch = "multiple_cors_domains" }
-jsonrpc-http-server = { path = "../../../workspace/jsonrpc-http-server" }
+jsonrpc-core = "2.0"
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethash = { path = "../ethash" }
