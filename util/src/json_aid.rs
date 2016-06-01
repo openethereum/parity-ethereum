@@ -48,7 +48,7 @@ impl FromJson for Bytes {
 impl FromJson for BTreeMap<H256, H256> {
 	fn from_json(json: &Json) -> Self {
 		match *json {
-			Json::Object(ref o) => o.iter().map(|(key, value)| (x!(&u256_from_str(key)), x!(&U256::from_json(value)))).collect(),
+			Json::Object(ref o) => o.iter().map(|(key, value)| (u256_from_str(key).into(), U256::from_json(value).into())).collect(),
 			_ => BTreeMap::new(),
 		}
 	}

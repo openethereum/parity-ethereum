@@ -137,7 +137,7 @@ impl Miner {
 						Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
 							trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
 							// Exit early if gas left is smaller then min_tx_gas
-							let min_tx_gas: U256 = x!(21000);	// TODO: figure this out properly.
+							let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
 							if gas_limit - gas_used < min_tx_gas {
 								break;
 							}
@@ -337,11 +337,11 @@ impl MinerService for Miner {
 
 	fn sensible_gas_price(&self) -> U256 {
 		// 10% above our minimum.
-		*self.transaction_queue.lock().unwrap().minimal_gas_price() * x!(110) / x!(100)
+		*self.transaction_queue.lock().unwrap().minimal_gas_price() * 110.into() / 100.into()
 	}
 
 	fn sensible_gas_limit(&self) -> U256 {
-		*self.gas_floor_target.read().unwrap() / x!(5)
+		*self.gas_floor_target.read().unwrap() / 5.into()
 	}
 
 	fn transactions_limit(&self) -> usize {

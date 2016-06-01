@@ -20,7 +20,7 @@ impl<'db> AccountDB<'db> {
 	pub fn new(db: &'db HashDB, address: &Address) -> AccountDB<'db> {
 		AccountDB {
 			db: db,
-			address: x!(address),
+			address: address.into(),
 		}
 	}
 }
@@ -67,7 +67,7 @@ impl<'db> AccountDBMut<'db> {
 	pub fn new(db: &'db mut HashDB, address: &Address) -> AccountDBMut<'db> {
 		AccountDBMut {
 			db: db,
-			address: x!(address),
+			address: address.into(),
 		}
 	}
 
