@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use die::*;
 use ethsync::EthSync;
-use ethminer::{Miner, ExternalMiner};
+use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use util::RotatingLogger;
 use util::keys::store::AccountService;
