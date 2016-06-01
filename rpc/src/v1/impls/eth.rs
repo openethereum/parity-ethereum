@@ -18,7 +18,6 @@
 
 extern crate ethash;
 
-use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
@@ -36,10 +35,9 @@ use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Act
 use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
-use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::helpers::{PollFilter, PollManager};
-use v1::impls::{dispatch_transaction, sign_and_dispatch};
+use v1::traits::Eth;
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
+use v1::impls::dispatch_transaction;
 use serde;
 
 /// Eth rpc implementation.
@@ -170,6 +168,25 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 	}
 }
 
+pub fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
+	let receipts = miner.pending_receipts();
+
+	let pending_logs = receipts.into_iter()
+		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
+		.collect::<Vec<(H256, LogEntry)>>();
+
+	let result = pending_logs.into_iter()
+		.filter(|pair| filter.matches(&pair.1))
+		.map(|pair| {
+			let mut log = Log::from(pair.1);
+			log.transaction_hash = Some(pair.0);
+			log
+		})
+		.collect();
+
+	result
+}
+
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 fn params_len(params: &Params) -> usize {
@@ -191,25 +208,6 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
 		_ => from_params::<(F1, F2, BlockNumber)>(params)
 	}
-}
-
-fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
-	let receipts = miner.pending_receipts();
-
-	let pending_logs = receipts.into_iter()
-		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
-		.collect::<Vec<(H256, LogEntry)>>();
-
-	let result = pending_logs.into_iter()
-		.filter(|pair| filter.matches(&pair.1))
-		.map(|pair| {
-			let mut log = Log::from(pair.1);
-			log.transaction_hash = Some(pair.0);
-			log
-		})
-		.collect();
-
-	result
 }
 
 // must be in range [-32099, -32000]
@@ -493,23 +491,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 		from_params::<(U256, H256)>(params).and_then(|(rate, id)| {
 			self.external_miner.submit_hashrate(rate, id);
 			to_value(&true)
-		})
-	}
-
-	fn sign(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address, H256)>(params).and_then(|(addr, msg)| {
-			to_value(&take_weak!(self.accounts).sign(&addr, &msg).unwrap_or(H520::zero()))
-		})
-	}
-
-	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(request, )| {
-				let accounts = take_weak!(self.accounts);
-				match accounts.account_secret(&request.from) {
-					Ok(secret) => sign_and_dispatch(&self.client, &self.miner, request, secret),
-					Err(_) => to_value(&H256::zero())
-				}
 		})
 	}
 

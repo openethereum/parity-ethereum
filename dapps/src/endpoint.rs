@@ -21,7 +21,7 @@ use hyper::{header, server, Decoder, Encoder, Next};
 use hyper::net::HttpStream;
 
 use std::io::Write;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct EndpointPath {
@@ -45,7 +45,7 @@ pub trait Endpoint : Send + Sync {
 	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<HttpStream>>;
 }
 
-pub type Endpoints = HashMap<String, Box<Endpoint>>;
+pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
 pub type Handler = server::Handler<HttpStream>;
 
 pub struct ContentHandler {

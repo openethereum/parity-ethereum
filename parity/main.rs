@@ -66,6 +66,7 @@ mod cli;
 mod configuration;
 mod migration;
 mod signer;
+mod rpc_apis;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
@@ -194,8 +195,9 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Sync
 	let sync = EthSync::register(service.network(), sync_config, client.clone());
 
-	let dependencies = Arc::new(rpc::Dependencies {
-		panic_handler: panic_handler.clone(),
+	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
+		signer_enabled: conf.args.flag_signer,
+		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
 		client: client.clone(),
 		sync: sync.clone(),
 		secret_store: account_service.clone(),
@@ -204,6 +206,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 	});
+
+	let dependencies = rpc::Dependencies {
+		panic_handler: panic_handler.clone(),
+		apis: deps_for_rpc_apis.clone(),
+	};
 
 	// Setup http rpc
 	let rpc_server = rpc::new_http(rpc::HttpConfiguration {
@@ -226,26 +233,16 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		pass: conf.args.flag_dapps_pass.clone(),
 	}, dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
-		client: client.clone(),
-		sync: sync.clone(),
-		secret_store: account_service.clone(),
-		miner: miner.clone(),
-		external_miner: external_miner.clone(),
-		logger: logger.clone(),
-		settings: network_settings.clone(),
+		apis: deps_for_rpc_apis.clone(),
 	});
 
 	// Set up a signer
 	let signer_server = signer::start(signer::Configuration {
-		enabled: conf.args.flag_signer,
+		enabled: deps_for_rpc_apis.signer_enabled,
 		port: conf.args.flag_signer_port,
 	}, signer::Dependencies {
 		panic_handler: panic_handler.clone(),
-		client: client.clone(),
-		sync: sync.clone(),
-		secret_store: account_service.clone(),
-		miner: miner.clone(),
-		external_miner: external_miner.clone(),
+		apis: deps_for_rpc_apis.clone(),
 	});
 
 	// Register IO handler

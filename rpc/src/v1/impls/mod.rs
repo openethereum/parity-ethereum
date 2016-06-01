@@ -31,16 +31,22 @@ macro_rules! rpc_unimplemented {
 
 mod web3;
 mod eth;
+mod eth_filter;
+mod eth_signing;
 mod net;
 mod personal;
+mod personal_signer;
 mod ethcore;
 mod traces;
 mod rpc;
 
 pub use self::web3::Web3Client;
-pub use self::eth::{EthClient, EthFilterClient};
+pub use self::eth::EthClient;
+pub use self::eth_filter::EthFilterClient;
+pub use self::eth_signing::{EthSigningUnsafeClient, EthSigningQueueClient};
 pub use self::net::NetClient;
 pub use self::personal::PersonalClient;
+pub use self::personal_signer::SignerClient;
 pub use self::ethcore::EthcoreClient;
 pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
