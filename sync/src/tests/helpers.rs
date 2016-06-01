@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{TestBlockChainClient, MiningBlockChainClient, BlockChainClient};
-use ethcore::spec::Spec;
+use ethcore::client::{TestBlockChainClient, BlockChainClient};
 use io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;

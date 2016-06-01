@@ -101,7 +101,6 @@ use io::SyncIo;
 use time;
 use super::SyncConfig;
 use blocks::BlockCollection;
-use ethcore::miner::{AccountDetails, TransactionImportResult, MinerService};
 
 known_heap_size!(0, PeerInfo);
 
@@ -895,11 +894,6 @@ impl ChainSync {
 			let tx: SignedTransaction = try!(r.val_at(i));
 			transactions.push(tx);
 		}
-		let chain = io.chain();
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.latest_nonce(a),
-			balance: chain.latest_balance(a),
-		};
 		let _ = io.chain().import_transactions(transactions);
 		Ok(())
 	}
@@ -1296,7 +1290,6 @@ mod tests {
 	use ethcore::views::BlockView;
 	use ethcore::header::*;
 	use ethcore::client::*;
-	use ethcore::spec::Spec;
 	use ethcore::miner::MinerService;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
@@ -1702,6 +1695,7 @@ mod tests {
 		{
 			let mut queue = VecDeque::new();
 			let mut io = TestIo::new(&mut client, &mut queue, None);
+			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
 			assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
 			assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 1);
@@ -1715,6 +1709,7 @@ mod tests {
 		{
 			let mut queue = VecDeque::new();
 			let mut io = TestIo::new(&mut client, &mut queue, None);
+			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks);
 			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks);
 		}
 

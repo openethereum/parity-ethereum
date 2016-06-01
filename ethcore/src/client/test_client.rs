@@ -28,7 +28,7 @@ use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::Factory as EvmFactory;
-use miner::Miner;
+use miner::{Miner, MinerService};
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
@@ -488,10 +488,17 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>> {
-		unimplemented!();
+		let nonces = self.nonces.read().unwrap();
+		let balances = self.balances.read().unwrap();
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: nonces[a],
+			balance: balances[a],
+		};
+
+		self.miner.import_transactions(transactions, &fetch_account)
 	}
 
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		unimplemented!();
+		self.miner.all_transactions()
 	}
 }
