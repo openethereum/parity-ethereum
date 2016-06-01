@@ -10,8 +10,8 @@ build = "build.rs"
 
 [dependencies]
 log = "0.3"
-jsonrpc-core = "2.0"
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc-core.git" }
+jsonrpc-http-server = { path = "../../../workspace/jsonrpc-http-server" }
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 url = "1.0"
 rustc-serialize = "0.3"
@@ -31,7 +31,7 @@ clippy = { version = "0.0.69", optional = true}
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
-syntex = "0.32.0"
+syntex = "*"
 
 [features]
 default = ["serde_codegen", "extra-dapps"]
