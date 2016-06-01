@@ -19,25 +19,29 @@ extern crate ethcore_ipc_codegen as codegen;
 
 use std::env;
 use std::path::Path;
+use std::hash::Hash;
 
 pub fn main() {
 	let out_dir = env::var_os("OUT_DIR").unwrap();
 
-	// ipc pass
-	{
-		let src = Path::new("src/lib.rs.in");
-		let dst = Path::new(&out_dir).join("lib.intermediate.rs.in");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
-	}
+	let rpc_codegen_entries = vec!["src/lib.rs.in", "src/lib.rs.in"];
 
-	// binary serialization pass
-	{
-		let src = Path::new(&out_dir).join("lib.intermediate.rs.in");
-		let dst = Path::new(&out_dir).join("lib.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
+	for entry in rpc_codegen_entries {
+		// rpc pass
+		if {
+			let src = Path::new(entry);
+			let dst = Path::new(&out_dir).join(enties);
+			let mut registry = syntex::Registry::new();
+			codegen::register(&mut registry);
+			registry.expand("", &src, &dst).ok()
+		}
+		// binary serialization pass
+		{
+			let src = Path::new(&out_dir).join("lib.intermediate.rs.in");
+			let dst = Path::new(&out_dir).join("lib.rs");
+			let mut registry = syntex::Registry::new();
+			codegen::register(&mut registry);
+			registry.expand("", &src, &dst).unwrap();
+		}
 	}
 }
