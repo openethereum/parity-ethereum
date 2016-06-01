@@ -37,7 +37,7 @@ use ethjson::blockchain::BlockChain;
 
 use v1::traits::eth::{Eth, EthSigning};
 use v1::impls::{EthClient, EthSigningUnsafeClient};
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
+use v1::tests::helpers::{TestSyncProvider, Config};
 
 fn account_provider() -> Arc<TestAccountProvider> {
 	let mut accounts = HashMap::new();
