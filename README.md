@@ -18,10 +18,10 @@
 
 ## About Parity
 
-Parity's goal is to be the fastest, lightest, and most secure Ethereum client available. We are developing Parity using the sophisticated,
+Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and
 cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
-By default, Parity will run a JSONRPC server on `127.0.0.1:8585`. This is fully configurable and supports a number
+By default, Parity will run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number
 of RPC APIs.
 
 If you run into an issue while using parity, feel free to file one in this repository
@@ -36,7 +36,7 @@ below to build from source.
 
 Parity is fully compatible with Stable Rust.
 
-We recommend installing Rust through multirust. If you don't already have multirust, you can install it like this:
+We recommend installing Rust through [multirust](https://github.com/brson/multirust). If you don't already have multirust, you can install it like this:
 
 - Linux:
 ```bash
@@ -61,6 +61,7 @@ $ cargo build --release
 ```
 
 This will produce an executable in the `target/release` subdirectory.
+Either run `cd target/release`, or copy `target/release/parity` to another location.
 
 To get started, just run
 ```bash
