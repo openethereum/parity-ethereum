@@ -21,6 +21,7 @@ ethcore-ipc-nano = { path = "../ipc/nano" }
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 crossbeam = "0.2"
 ethcore-util = { path = "../util" }
+scoped_threadpool = "0.1"
 
 [features]
 dev = ["clippy"]

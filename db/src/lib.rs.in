@@ -22,9 +22,11 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate nanomsg;
 extern crate crossbeam;
 extern crate ethcore_util as util;
+extern crate scoped_threadpool;
 
 pub mod database;
 pub mod traits;
+pub mod manager;
 
 pub use traits::{DatabaseService, DBTransaction, Error};
 pub use database::{Database, DatabaseClient, DatabaseIterator};
