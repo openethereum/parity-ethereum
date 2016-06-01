@@ -99,8 +99,8 @@ pub fn create_test_block(header: &Header) -> Bytes {
 
 fn create_unverifiable_block_header(order: u32, parent_hash: H256) -> Header {
 	let mut header = Header::new();
-	header.gas_limit = x!(0);
-	header.difficulty = x!(order * 100);
+	header.gas_limit = 0.into();
+	header.difficulty = (order * 100).into();
 	header.timestamp = (order * 10) as u64;
 	header.number = order as u64;
 	header.parent_hash = parent_hash;
@@ -336,7 +336,7 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	block_header.timestamp = 40;
 	block_header.number = 1;
 	block_header.parent_hash = test_spec.genesis_header().hash();
-	block_header.state_root = x!(0xbad);
+	block_header.state_root = 0xbad.into();
 
 	create_test_block(&block_header)
 }

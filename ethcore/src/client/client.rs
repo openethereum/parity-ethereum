@@ -599,10 +599,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		{
 			let header = BlockView::new(&bytes).header_view();
 			if self.chain.is_known(&header.sha3()) {
-				return Err(x!(ImportError::AlreadyInChain));
+				return Err(ImportError::AlreadyInChain.into());
 			}
 			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
-				return Err(x!(BlockError::UnknownParent(header.parent_hash())));
+				return Err(BlockError::UnknownParent(header.parent_hash()).into());
 			}
 		}
 		self.block_queue.import_block(bytes)
