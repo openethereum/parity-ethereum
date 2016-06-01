@@ -26,44 +26,50 @@ pub use sha3::*;
 
 #[macro_export]
 macro_rules! hash_map {
-	( $( $x:expr => $y:expr ),* ) => {
-		vec![ $( ($x, $y) ),* ].into_iter().collect::<HashMap<_, _>>()
-	}
+	() => { HashMap::new() };
+	( $( $x:expr => $y:expr ),* ) => {{
+		let mut x = HashMap::new();
+		$(
+			x.insert($x, $y);
+		)*
+		x
+	}}
 }
 
 #[macro_export]
-macro_rules! hash_mapx {
-	( $( $x:expr => $y:expr ),* ) => {
-		vec![ $( ( From::from($x), From::from($y) ) ),* ].into_iter().collect::<HashMap<_, _>>()
-	}
+macro_rules! hash_map_into {
+	() => { HashMap::new() };
+	( $( $x:expr => $y:expr ),* ) => {{
+		let mut x = HashMap::new();
+		$(
+			x.insert($x.into(), $y.into());
+		)*
+		x
+	}}
 }
 
 #[macro_export]
 macro_rules! map {
-	( $( $x:expr => $y:expr ),* ) => {
-		vec![ $( ($x, $y) ),* ].into_iter().collect::<BTreeMap<_, _>>()
-	}
+	() => { BTreeMap::new() };
+	( $( $x:expr => $y:expr ),* ) => {{
+		let mut x = BTreeMap::new();
+		$(
+			x.insert($x, $y);
+		)*
+		x
+	}}
 }
 
 #[macro_export]
-macro_rules! mapx {
-	( $( $x:expr => $y:expr ),* ) => {
-		vec![ $( ( From::from($x), From::from($y) ) ),* ].into_iter().collect::<BTreeMap<_, _>>()
-	}
-}
-
-#[macro_export]
-macro_rules! x {
-	( $x:expr ) => {
-		From::from($x)
-	}
-}
-
-#[macro_export]
-macro_rules! xx {
-	( $x:expr ) => {
-		From::from(From::from($x))
-	}
+macro_rules! map_into {
+	() => { BTreeMap::new() };
+	( $( $x:expr => $y:expr ),* ) => {{
+		let mut x = BTreeMap::new();
+		$(
+			x.insert($x.into(), $y.into());
+		)*
+		x
+	}}
 }
 
 #[macro_export]

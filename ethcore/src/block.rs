@@ -469,7 +469,7 @@ pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Head
 		}
 	}
 
-	let mut b = OpenBlock::new(engine, vm_factory, tracing, db, parent, last_hashes, header.author().clone(), x!(3141562), header.extra_data().clone());
+	let mut b = OpenBlock::new(engine, vm_factory, tracing, db, parent, last_hashes, header.author().clone(), 3141562.into(), header.extra_data().clone());
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -514,7 +514,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]);
 		let b = b.close_and_lock();
 		let _ = b.seal(engine.deref(), vec![]);
 	}
@@ -530,7 +530,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), x!(3141562), vec![]).close_and_lock().seal(engine.deref(), vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]).close_and_lock().seal(engine.deref(), vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 
@@ -557,7 +557,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let vm_factory = Default::default();
-		let mut open_block = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), x!(3141562), vec![]);
+		let mut open_block = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]);
 		let mut uncle1_header = Header::new();
 		uncle1_header.extra_data = b"uncle1".to_vec();
 		let mut uncle2_header = Header::new();

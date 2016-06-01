@@ -1310,8 +1310,8 @@ mod tests {
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
-		header.gas_limit = x!(0);
-		header.difficulty = x!(order * 100);
+		header.gas_limit = 0.into();
+		header.difficulty = (order * 100).into();
 		header.timestamp = (order * 10) as u64;
 		header.number = order as u64;
 		header.parent_hash = parent_hash;
@@ -1327,7 +1327,7 @@ mod tests {
 	fn get_dummy_blocks(order: u32, parent_hash: H256) -> Bytes {
 		let mut rlp = RlpStream::new_list(1);
 		rlp.append_raw(&get_dummy_block(order, parent_hash), 1);
-		let difficulty: U256 = x!(100 * order);
+		let difficulty: U256 = (100 * order).into();
 		rlp.append(&difficulty);
 		rlp.out()
 	}
