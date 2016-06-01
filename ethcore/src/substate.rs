@@ -74,7 +74,7 @@ mod tests {
 			topics: vec![],
 			data: vec![]
 		});
-		sub_state.sstore_clears_count = x!(5);
+		sub_state.sstore_clears_count = 5.into();
 		sub_state.suicides.insert(address_from_u64(10u64));
 
 		let mut sub_state_2 = Substate::new();
@@ -84,11 +84,11 @@ mod tests {
 			topics: vec![],
 			data: vec![]
 		});
-		sub_state_2.sstore_clears_count = x!(7);
+		sub_state_2.sstore_clears_count = 7.into();
 
 		sub_state.accrue(sub_state_2);
 		assert_eq!(sub_state.contracts_created.len(), 2);
-		assert_eq!(sub_state.sstore_clears_count, x!(12));
+		assert_eq!(sub_state.sstore_clears_count, 12.into());
 		assert_eq!(sub_state.suicides.len(), 1);
 	}
 }

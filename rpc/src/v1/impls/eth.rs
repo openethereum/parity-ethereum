@@ -242,12 +242,14 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 				let res = match status.state {
 					SyncState::Idle => SyncStatus::None,
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => {
+						let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
+
 						let info = SyncInfo {
 							starting_block: U256::from(status.start_block_number),
-							current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
+							current_block: current_block,
 							highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
 						};
-						match info.highest_block > info.starting_block + U256::from(6) {
+						match info.highest_block > info.current_block + U256::from(6) {
 							true => SyncStatus::Info(info),
 							false => SyncStatus::None,
 						}

@@ -254,7 +254,7 @@ impl<V> Client<V> where V: Verifier {
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
-		let max_blocks_to_import = 128;
+		let max_blocks_to_import = 64;
 
 		let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 		let mut invalid_blocks = HashSet::new();
@@ -655,10 +655,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		{
 			let header = BlockView::new(&bytes).header_view();
 			if self.chain.is_known(&header.sha3()) {
-				return Err(x!(ImportError::AlreadyInChain));
+				return Err(ImportError::AlreadyInChain.into());
 			}
 			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
-				return Err(x!(BlockError::UnknownParent(header.parent_hash())));
+				return Err(BlockError::UnknownParent(header.parent_hash()).into());
 			}
 		}
 		self.block_queue.import_block(bytes)
