@@ -11,7 +11,8 @@ build = "build.rs"
 [dependencies]
 log = "0.3"
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc-core.git" }
-jsonrpc-http-server = { path = "../../../workspace/jsonrpc-http-server" }
+# jsonrpc-http-server = { path = "../../../workspace/jsonrpc-http-server" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 url = "1.0"
 rustc-serialize = "0.3"

@@ -270,7 +270,7 @@ dependencies = [
  "ethcore-util 1.2.0",
  "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 2.0.4 (git+https://github.com/ethcore/jsonrpc-core.git)",
- "jsonrpc-http-server 5.1.0",
+ "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
  "parity-dapps-builtins 0.5.0 (git+https://github.com/ethcore/parity-dapps-builtins-rs.git)",
@@ -338,7 +338,7 @@ dependencies = [
  "ethsync 1.2.0",
  "json-ipc-server 0.1.0 (git+https://github.com/tomusdrw/json-ipc-server.git)",
  "jsonrpc-core 2.0.4 (git+https://github.com/ethcore/jsonrpc-core.git)",
- "jsonrpc-http-server 5.1.0",
+ "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -604,6 +604,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "5.1.0"
+source = "git+https://github.com/ethcore/jsonrpc-http-server.git#7a4f322a31834737c8f007b00e7d376f7dc07cdb"
 dependencies = [
  "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 2.0.4 (git+https://github.com/ethcore/jsonrpc-core.git)",
