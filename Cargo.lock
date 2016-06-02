@@ -593,17 +593,6 @@ dependencies = [
 [[package]]
 name = "jsonrpc-core"
 version = "2.0.5"
-source = "git+https://github.com/ethcore/jsonrpc-core.git#6717dd26b7a0fbac302fa4ea0fd195a22f3c85e5"
-dependencies = [
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_codegen 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "jsonrpc-core"
-version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -615,10 +604,10 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "5.1.0"
-source = "git+https://github.com/ethcore/jsonrpc-http-server.git#7a4f322a31834737c8f007b00e7d376f7dc07cdb"
+source = "git+https://github.com/ethcore/jsonrpc-http-server.git#77dcac785c02c3a7622d36aa635ee80d63d0b20c"
 dependencies = [
  "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
- "jsonrpc-core 2.0.5 (git+https://github.com/ethcore/jsonrpc-core.git)",
+ "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
