@@ -48,6 +48,9 @@ impl ws::Handler for Session {
 						headers.push(("Connection".into(), b"Closed".to_vec()));
 						headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
 						headers.push(("Content-Type".into(), f.mime.as_bytes().to_vec()));
+						if !f.safe_to_embed {
+							headers.push(("X-Frame-Options".into(), b"SAMEORIGIN".to_vec()));
+						}
 					}
 					Ok(res)
 				})

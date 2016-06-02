@@ -10,4 +10,3 @@ cargo doc --no-deps --verbose \
 	-p ethcore-signer \
 	-p ethcore-dapps \
 	-p parity \
-	-p ethminer
