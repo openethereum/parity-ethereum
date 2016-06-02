@@ -54,7 +54,7 @@ impl EthSigning for EthSigningQueueClient  {
 			.and_then(|(request, )| {
 				let queue = take_weak!(self.queue);
 				let id = queue.add_request(request);
-				let result = queue.wait_with_timeout(id);
+				let result = id.wait_with_timeout();
 				to_value(&result.unwrap_or_else(H256::new))
 		})
 	}
