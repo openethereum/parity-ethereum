@@ -122,7 +122,7 @@ mod tests {
 
 	#[test]
 	fn can_run_manager() {
-		let man = run_manager();
+		let (man, _) = run_manager();
 		{
 			let path = RandomTempPath::new();
 			let jdb = man.open(QueuedDatabase::JournalDB, path.as_str(), DatabaseConfig::default()).unwrap();

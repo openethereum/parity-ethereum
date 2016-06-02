@@ -30,6 +30,7 @@ use types::*;
 use traits::*;
 #[cfg(test)]
 use devtools::*;
+use manager;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -74,10 +75,12 @@ impl ArchiveDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	fn new_temp() -> ArchiveDB {
+	fn new_temp() -> (ArchiveDB, StopGuard) {
+		let (man, stop_guard) = manager::run_manager();
+
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap())
+		(Self::new(man, dir.to_str().unwrap()), stop_guard)
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
@@ -187,11 +190,13 @@ mod tests {
 	use super::*;
 	use util::hashdb::*;
 	use journaldb::traits::JournalDB;
+	use manager;
 
 	#[test]
 	fn insert_same_in_fork() {
+
 		// history is 1
-		let mut jdb = ArchiveDB::new_temp();
+		let (mut jdb, _) = ArchiveDB::new_temp();
 
 		let x = jdb.insert(b"X");
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
@@ -213,7 +218,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = ArchiveDB::new_temp();
+		let (mut jdb, _) = ArchiveDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.exists(&h));
@@ -230,7 +235,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = ArchiveDB::new_temp();
+		let (mut jdb, _) = ArchiveDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -262,7 +267,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = ArchiveDB::new_temp();
+		let (mut jdb, _) = ArchiveDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -288,7 +293,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = ArchiveDB::new_temp();
+		let (mut jdb, _) = ArchiveDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -307,7 +312,7 @@ mod tests {
 	#[test]
 	fn fork_same_key() {
 		// history is 1
-		let mut jdb = ArchiveDB::new_temp();
+		let (mut jdb, _) = ArchiveDB::new_temp();
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 
 		let foo = jdb.insert(b"foo");
@@ -323,12 +328,15 @@ mod tests {
 
 	#[test]
 	fn reopen() {
+
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+
+			let mut jdb = ArchiveDB::new(man, dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -337,13 +345,15 @@ mod tests {
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = ArchiveDB::new(man, dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		}
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = ArchiveDB::new(man, dir.to_str().unwrap());
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -356,7 +366,8 @@ mod tests {
 		dir.push(H32::random().hex());
 
 		let foo = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = ArchiveDB::new(man, dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -370,7 +381,8 @@ mod tests {
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = ArchiveDB::new(man, dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
@@ -385,7 +397,8 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, _, _) = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = ArchiveDB::new(man, dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -400,7 +413,8 @@ mod tests {
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = ArchiveDB::new(man, dir.to_str().unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
 		}
@@ -411,14 +425,16 @@ mod tests {
 		let temp = ::devtools::RandomTempPath::new();
 
 		let key = {
-			let mut jdb = ArchiveDB::new(temp.as_str());
+			let (man, _) = manager::run_manager();
+			let mut jdb = ArchiveDB::new(man, temp.as_str());
 			let key = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
 			key
 		};
 
 		{
-			let jdb = ArchiveDB::new(temp.as_str());
+			let (man, _) = manager::run_manager();
+			let jdb = ArchiveDB::new(man, temp.as_str());
 			let state = jdb.state(&key);
 			assert!(state.is_some());
 		}

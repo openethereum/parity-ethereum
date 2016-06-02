@@ -28,6 +28,11 @@ use manager::*;
 use types::*;
 use traits::*;
 
+#[cfg(test)]
+use devtools::StopGuard;
+#[cfg(test)]
+use manager;
+
 #[derive(Clone, PartialEq, Eq)]
 struct RefInfo {
 	queue_refs: usize,
@@ -104,10 +109,11 @@ impl EarlyMergeDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	fn new_temp() -> EarlyMergeDB {
+	fn new_temp() -> (EarlyMergeDB, StopGuard) {
+		let (man, stop_guard) = manager::run_manager();
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap())
+		(Self::new(man, dir.to_str().unwrap()), stop_guard)
 	}
 
 	fn morph_key(key: &H256, index: u8) -> Bytes {
@@ -541,7 +547,7 @@ mod tests {
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
 		let x = jdb.insert(b"X");
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
@@ -570,7 +576,8 @@ mod tests {
 
 	#[test]
 	fn insert_older_era() {
-		let mut jdb = EarlyMergeDB::new_temp();
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
+
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0a".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -591,7 +598,8 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = EarlyMergeDB::new_temp();
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
+
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -614,7 +622,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -657,7 +665,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -689,7 +697,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -711,10 +719,8 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_one() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -739,10 +745,8 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_other() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -767,10 +771,8 @@ mod tests {
 
 	#[test]
 	fn fork_ins_del_ins() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -808,7 +810,9 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
+
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -818,14 +822,18 @@ mod tests {
 		};
 
 		{
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
+
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
+
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -836,11 +844,7 @@ mod tests {
 
 	#[test]
 	fn insert_delete_insert_delete_insert_expunge() {
-		init_log();
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -865,11 +869,7 @@ mod tests {
 
 	#[test]
 	fn forked_insert_delete_insert_delete_insert_expunge() {
-		init_log();
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -915,10 +915,8 @@ mod tests {
 
 	#[test]
 	fn broken_assert() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		// history is 1
 		let foo = jdb.insert(b"foo");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
@@ -946,10 +944,8 @@ mod tests {
 
 	#[test]
 	fn reopen_test() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let (mut jdb, _) = EarlyMergeDB::new_temp();
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -989,7 +985,9 @@ mod tests {
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
+
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -1010,7 +1008,9 @@ mod tests {
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		}; {
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
 
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
@@ -1018,14 +1018,18 @@ mod tests {
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		}; {
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
 
 			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		}; {
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
 
 			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -1038,7 +1042,9 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
+
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -1056,7 +1062,9 @@ mod tests {
 		};
 
 		{
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			let (man, _) = manager::run_manager();
+			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());
+
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
