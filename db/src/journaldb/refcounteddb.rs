@@ -50,7 +50,7 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(man: DatabaseManager<QueuedDatabase>, path: &str) -> RefCountedDB {
+	pub fn new(man: Arc<DatabaseManager<QueuedDatabase>>, path: &str) -> RefCountedDB {
 		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(12)).unwrap_or_else(|e| {
 			panic!("Error opening state db: {:?}", e);
 		});

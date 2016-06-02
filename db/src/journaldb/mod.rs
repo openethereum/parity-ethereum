@@ -23,6 +23,7 @@ pub mod traits;
 mod archivedb;
 mod earlymergedb;
 mod overlayrecentdb;
+mod refcounteddb;
 
 use manager::{DatabaseManager, QueuedDatabase};
 
@@ -77,6 +78,6 @@ pub fn new(man: Arc<DatabaseManager<QueuedDatabase>>, path: &str, algorithm: Alg
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(man, path)),
 		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(man, path)),
 		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(man, path)),
-		Algorithm::RefCounted => Box::new(overlayrecentdb::OverlayRecentDB::new(man, path)),
+		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(man, path)),
 	}
 }

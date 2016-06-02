@@ -31,6 +31,7 @@ pub mod traits;
 pub mod manager;
 pub mod types;
 pub mod journaldb;
+pub mod overlaydb;
 
 pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DatabaseIterator};
