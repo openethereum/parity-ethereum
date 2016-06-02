@@ -311,17 +311,17 @@ impl BlockQueue {
 		let h = header.hash();
 		{
 			if self.processing.read().unwrap().contains(&h) {
-				return Err(x!(ImportError::AlreadyQueued));
+				return Err(ImportError::AlreadyQueued.into());
 			}
 
 			let mut bad = self.verification.bad.lock().unwrap();
 			if bad.contains(&h) {
-				return Err(x!(ImportError::KnownBad));
+				return Err(ImportError::KnownBad.into());
 			}
 
 			if bad.contains(&header.parent_hash) {
 				bad.insert(h.clone());
-				return Err(x!(ImportError::KnownBad));
+				return Err(ImportError::KnownBad.into());
 			}
 		}
 

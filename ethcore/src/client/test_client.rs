@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockID, TransactionID, UncleID, TraceId, TraceFilter, LastHashes};
+use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID, TransactionID, UncleID, TraceId, TraceFilter, LastHashes};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -28,12 +28,16 @@ use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::Factory as EvmFactory;
+use miner::{Miner, MinerService};
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
 use error::{ExecutionError};
 use trace::LocalizedTrace;
+
+use miner::{TransactionImportResult, AccountDetails};
+use error::Error as EthError;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -61,6 +65,8 @@ pub struct TestBlockChainClient {
 	pub receipts: RwLock<HashMap<TransactionID, LocalizedReceipt>>,
 	/// Block queue size.
 	pub queue_size: AtomicUsize,
+	/// Miner
+	pub miner: Arc<Miner>,
 }
 
 #[derive(Clone)]
@@ -99,6 +105,7 @@ impl TestBlockChainClient {
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
 			queue_size: AtomicUsize::new(0),
+			miner: Arc::new(Miner::default()),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
@@ -232,8 +239,19 @@ impl TestBlockChainClient {
 	}
 }
 
+impl MiningBlockChainClient for TestBlockChainClient {
+	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
+		Err(block)
+	}
+
+
+	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> (Option<ClosedBlock>, HashSet<H256>) {
+		(None, HashSet::new())
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction) -> Result<Executed, ExecutionError> {
+	fn call(&self, _t: &SignedTransaction, _vm_tracing: bool) -> Result<Executed, ExecutionError> {
 		Ok(self.execution_result.read().unwrap().clone().unwrap())
 	}
 
@@ -294,14 +312,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn last_hashes(&self) -> LastHashes {
 		unimplemented!();
-	}
-
-	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> (Option<ClosedBlock>, HashSet<H256>) {
-		(None, HashSet::new())
-	}
-
-	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
-		Err(block)
 	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
@@ -475,5 +485,20 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn block_traces(&self, _trace: BlockID) -> Option<Vec<LocalizedTrace>> {
 		unimplemented!();
+	}
+
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>> {
+		let nonces = self.nonces.read().unwrap();
+		let balances = self.balances.read().unwrap();
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: nonces[a],
+			balance: balances[a],
+		};
+
+		self.miner.import_transactions(transactions, &fetch_account)
+	}
+
+	fn all_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.all_transactions()
 	}
 }

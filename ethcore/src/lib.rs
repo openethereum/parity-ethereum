@@ -90,6 +90,7 @@ extern crate crossbeam;
 extern crate ethjson;
 extern crate bloomchain;
 #[macro_use] extern crate ethcore_ipc as ipc;
+extern crate rayon;
 
 #[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
@@ -109,6 +110,7 @@ pub mod views;
 pub mod pod_state;
 pub mod engine;
 pub mod migrations;
+pub mod miner;
 
 mod blooms;
 mod db;
@@ -139,3 +141,5 @@ mod tests;
 mod json_tests;
 
 pub use types::*;
+pub use evm::get_info;
+pub use executive::contract_address;

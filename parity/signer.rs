@@ -17,6 +17,7 @@
 use std::sync::Arc;
 use util::panics::{PanicHandler, ForwardPanic};
 use die::*;
+use rpc_apis;
 
 #[cfg(feature = "ethcore-signer")]
 use ethcore_signer as signer;
@@ -32,36 +33,42 @@ pub struct Configuration {
 
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
+	pub apis: Arc<rpc_apis::Dependencies>,
+}
+
+pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
+	if !conf.enabled {
+		None
+	} else {
+		Some(do_start(conf, deps))
+	}
 }
 
 #[cfg(feature = "ethcore-signer")]
-pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
-	if !conf.enabled {
-		return None;
-	}
+fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
+	let addr = format!("127.0.0.1:{}", conf.port).parse().unwrap_or_else(|_| {
+		die!("Invalid port specified: {}", conf.port)
+	});
 
-	let addr = format!("127.0.0.1:{}", conf.port).parse().unwrap_or_else(|_| die!("Invalid port specified: {}", conf.port));
-	let start_result = signer::Server::start(addr);
+	let start_result = {
+		let server = signer::ServerBuilder::new();
+		let server = rpc_apis::setup_rpc(server, deps.apis, rpc_apis::ApiSet::SafeContext);
+		server.start(addr)
+	};
 
 	match start_result {
 		Err(signer::ServerError::IoError(err)) => die_with_io_error("Trusted Signer", err),
 		Err(e) => die!("Trusted Signer: {:?}", e),
 		Ok(server) => {
 			deps.panic_handler.forward_from(&server);
-			Some(server)
+			server
 		},
 	}
 }
 
 #[cfg(not(feature = "ethcore-signer"))]
-pub fn start(conf: Configuration) -> Option<SignerServer> {
-	if !conf.enabled {
-		return None;
-	}
-
+fn do_start(conf: Configuration) -> ! {
 	die!("Your Parity version has been compiled without Trusted Signer support.")
 }
-
-
 
 

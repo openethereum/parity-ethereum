@@ -72,6 +72,8 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns default extra data
 	fn default_extra_data(&self, _: Params) -> Result<Value, Error>;
 
+	/// Executes the given call and returns the VM trace for it.
+	fn vm_trace_call(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
@@ -94,6 +96,8 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_rpcSettings", Ethcore::rpc_settings);
 		delegate.add_method("ethcore_nodeName", Ethcore::node_name);
 		delegate.add_method("ethcore_defaultExtraData", Ethcore::default_extra_data);
+
+		delegate.add_method("ethcore_vmTraceCall", Ethcore::vm_trace_call);
 
 		delegate
 	}

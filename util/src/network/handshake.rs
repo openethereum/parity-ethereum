@@ -16,7 +16,6 @@
 
 use std::sync::Arc;
 use rand::random;
-use mio::*;
 use mio::tcp::*;
 use hash::*;
 use rlp::*;
@@ -102,21 +101,6 @@ impl Handshake {
 		})
 	}
 
-	/// Get id of the remote node if known
-	pub fn id(&self) -> &NodeId {
-		&self.id
-	}
-
-	/// Get stream token id
-	pub fn token(&self) -> StreamToken {
-		self.connection.token()
-	}
-
-	/// Mark this handshake as inactive to be deleted lated.
-	pub fn set_expired(&mut self) {
-		self.expired = true;
-	}
-
 	/// Check if this handshake is expired.
 	pub fn expired(&self) -> bool {
 		self.expired
@@ -177,7 +161,7 @@ impl Handshake {
 	}
 
 	/// Writabe IO handler.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
 		if !self.expired() {
 			io.clear_timer(self.connection.token).unwrap();
 			try!(self.connection.writable());
@@ -185,28 +169,6 @@ impl Handshake {
 				io.update_registration(self.connection.token).unwrap();
 			}
 		}
-		Ok(())
-	}
-
-	/// Register the socket with the event loop
-	pub fn register_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		if !self.expired() {
-			try!(self.connection.register_socket(reg, event_loop));
-		}
-		Ok(())
-	}
-
-	/// Update socket registration with the event loop.
-	pub fn update_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		if !self.expired() {
-			try!(self.connection.update_socket(reg, event_loop));
-		}
-		Ok(())
-	}
-
-	/// Delete registration
-	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		try!(self.connection.deregister_socket(event_loop));
 		Ok(())
 	}
 
@@ -222,7 +184,7 @@ impl Handshake {
 
 	/// Parse, validate and confirm auth message
 	fn read_auth(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"network", "Received handshake auth from {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Received handshake auth from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_AUTH_PACKET_SIZE {
 			debug!(target:"net", "Wrong auth packet size");
 			return Err(From::from(NetworkError::BadProtocol));
@@ -253,7 +215,7 @@ impl Handshake {
 	}
 
 	fn read_auth_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.auth_cipher.extend_from_slice(data);
 		let auth = try!(ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..]));
 		let rlp = UntrustedRlp::new(&auth);
@@ -268,7 +230,7 @@ impl Handshake {
 
 	/// Parse and validate ack message
 	fn read_ack(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"network", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Received handshake auth to {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_ACK_PACKET_SIZE {
 			debug!(target:"net", "Wrong ack packet size");
 			return Err(From::from(NetworkError::BadProtocol));
@@ -296,7 +258,7 @@ impl Handshake {
 	}
 
 	fn read_ack_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.ack_cipher.extend_from_slice(data);
 		let ack = try!(ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..]));
 		let rlp = UntrustedRlp::new(&ack);
@@ -309,7 +271,7 @@ impl Handshake {
 
 	/// Sends auth message
 	fn write_auth(&mut self, secret: &Secret, public: &Public) -> Result<(), UtilError> {
-		trace!(target:"network", "Sending handshake auth to {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Sending handshake auth to {:?}", self.connection.remote_addr_str());
 		let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
 		let len = data.len();
 		{
@@ -336,7 +298,7 @@ impl Handshake {
 
 	/// Sends ack message
 	fn write_ack(&mut self) -> Result<(), UtilError> {
-		trace!(target:"network", "Sending handshake ack to {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Sending handshake ack to {:?}", self.connection.remote_addr_str());
 		let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
 		let len = data.len();
 		{
@@ -355,7 +317,7 @@ impl Handshake {
 
 	/// Sends EIP8 ack message
 	fn write_ack_eip8(&mut self) -> Result<(), UtilError> {
-		trace!(target:"network", "Sending EIP8 handshake ack to {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Sending EIP8 handshake ack to {:?}", self.connection.remote_addr_str());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(self.ecdhe.public());
 		rlp.append(&self.nonce);

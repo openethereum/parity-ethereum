@@ -31,24 +31,30 @@ macro_rules! rpc_unimplemented {
 
 mod web3;
 mod eth;
+mod eth_filter;
+mod eth_signing;
 mod net;
 mod personal;
+mod personal_signer;
 mod ethcore;
 mod traces;
 mod rpc;
 
 pub use self::web3::Web3Client;
-pub use self::eth::{EthClient, EthFilterClient};
+pub use self::eth::EthClient;
+pub use self::eth_filter::EthFilterClient;
+pub use self::eth_signing::{EthSigningUnsafeClient, EthSigningQueueClient};
 pub use self::net::NetClient;
 pub use self::personal::PersonalClient;
+pub use self::personal_signer::SignerClient;
 pub use self::ethcore::EthcoreClient;
 pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
 use v1::types::TransactionRequest;
 use std::sync::Weak;
-use ethminer::{AccountDetails, MinerService};
-use ethcore::client::BlockChainClient;
+use ethcore::miner::{AccountDetails, MinerService};
+use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use util::numbers::*;
 use util::rlp::encode;
@@ -56,7 +62,7 @@ use util::bytes::ToPretty;
 use jsonrpc_core::{Error, to_value, Value};
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
-	where C: BlockChainClient, M: MinerService {
+	where C: MiningBlockChainClient, M: MinerService {
 	let hash = signed_transaction.hash();
 
 	let import = miner.import_own_transaction(client, signed_transaction, |a: &Address| {
@@ -70,7 +76,7 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 }
 
 fn sign_and_dispatch<C, M>(client: &Weak<C>, miner: &Weak<M>, request: TransactionRequest, secret: H256) -> Result<Value, Error>
-	where C: BlockChainClient, M: MinerService {
+	where C: MiningBlockChainClient, M: MinerService {
 	let client = take_weak!(client);
 	let miner = take_weak!(miner);
 
