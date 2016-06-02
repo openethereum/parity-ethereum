@@ -21,13 +21,13 @@ extern crate ethash;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, ExternalMinerService};
+use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
 use util::keys::store::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
+use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -42,7 +42,7 @@ use serde;
 
 /// Eth rpc implementation.
 pub struct EthClient<C, S, A, M, EM> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	S: SyncProvider,
 	A: AccountProvider,
 	M: MinerService,
@@ -57,7 +57,7 @@ pub struct EthClient<C, S, A, M, EM> where
 }
 
 impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	S: SyncProvider,
 	A: AccountProvider,
 	M: MinerService,
@@ -222,7 +222,7 @@ fn make_unsupported_err() -> Error {
 }
 
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
-	C: BlockChainClient + 'static,
+	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	A: AccountProvider + 'static,
 	M: MinerService + 'static,
@@ -511,8 +511,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(request, block_number,)| {
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
-					BlockNumber::Latest => take_weak!(self.client).call(&signed),
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, false),
+					BlockNumber::Latest => take_weak!(self.client).call(&signed, false),
 					_ => panic!("{:?}", block_number),
 				};
 				to_value(&r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
@@ -524,8 +524,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(request, block_number,)| {
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
-					BlockNumber::Latest => take_weak!(self.client).call(&signed),
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, false),
+					BlockNumber::Latest => take_weak!(self.client).call(&signed, false),
 					_ => return Err(Error::invalid_params()),
 				};
 				to_value(&r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0)))

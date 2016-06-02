@@ -19,13 +19,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
+use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ids::BlockID;
-use ethcore::client::{Client, BlockChainClient, ClientConfig};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
-use ethminer::{Miner, MinerService, ExternalMiner};
+use ethcore::miner::{MinerService, ExternalMiner, Miner};
 use devtools::RandomTempPath;
 use util::Hashable;
 use util::io::IoChannel;
@@ -68,8 +68,8 @@ fn make_spec(chain: &BlockChain) -> Spec {
 }
 
 struct EthTester {
-	_miner: Arc<MinerService>,
 	client: Arc<Client>,
+	_miner: Arc<MinerService>,
 	accounts: Arc<TestAccountProvider>,
 	handler: IoHandler,
 }
@@ -96,10 +96,10 @@ impl EthTester {
 		where F: Fn() -> Spec {
 
 		let dir = RandomTempPath::new();
-		let client = Client::new(ClientConfig::default(), spec_provider(), dir.as_path(), IoChannel::disconnected()).unwrap();
-		let sync_provider = sync_provider();
 		let account_provider = account_provider();
 		let miner_service = miner_service(spec_provider(), account_provider.clone());
+		let client = Client::new(ClientConfig::default(), spec_provider(), dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
+		let sync_provider = sync_provider();
 		let external_miner = Arc::new(ExternalMiner::default());
 
 		let eth_client = EthClient::new(

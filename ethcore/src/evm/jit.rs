@@ -16,6 +16,7 @@
 
 //! Just in time compiler execution environment.
 use common::*;
+use trace::VMTracer;
 use evmjit;
 use evm;
 
