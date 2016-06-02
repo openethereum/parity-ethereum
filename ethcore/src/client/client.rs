@@ -461,7 +461,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			// give the sender a sufficient balance
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
-		let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
 		// TODO gav move this into Executive.
 		if analytics.state_diffing {

@@ -28,7 +28,7 @@ use ethcore::state_diff::StateDiff;
 use ethcore::account_diff::{Diff, Existance};
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Traces;
-use v1::types::{TraceFilter, Trace, BlockNumber, Index, CallRequest};
+use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest};
 
 /// Traces api implementation.
 pub struct TracesClient<C, M> where C: BlockChainClient, M: MinerService {
@@ -156,7 +156,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 			.and_then(|(filter, )| {
 				let client = take_weak!(self.client);
 				let traces = client.filter_traces(filter.into());
-				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(Trace::from).collect());
+				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
 				to_value(&traces)
 			})
 	}
@@ -166,7 +166,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 			.and_then(|(block_number,)| {
 				let client = take_weak!(self.client);
 				let traces = client.block_traces(block_number.into());
-				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(Trace::from).collect());
+				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
 				to_value(&traces)
 			})
 	}
@@ -176,7 +176,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 			.and_then(|(transaction_hash,)| {
 				let client = take_weak!(self.client);
 				let traces = client.transaction_traces(TransactionID::Hash(transaction_hash));
-				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(Trace::from).collect());
+				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
 				to_value(&traces)
 			})
 	}
@@ -190,8 +190,23 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 					address: address.into_iter().map(|i| i.value()).collect()
 				};
 				let trace = client.trace(id);
-				let trace = trace.map(Trace::from);
+				let trace = trace.map(LocalizedTrace::from);
 				to_value(&trace)
+			})
+	}
+
+	fn trace_call(&self, params: Params) -> Result<Value, Error> {
+		trace!(target: "jsonrpc", "trace_call: {:?}", params);
+		from_params(params)
+			.and_then(|(request,)| {
+				let signed = try!(self.sign_call(request));
+				let r = take_weak!(self.client).call(&signed, CallAnalytics{ transaction_tracing: true, vm_tracing: false, state_diffing: false });
+				if let Ok(executed) = r {
+					if let Some(trace) = executed.trace {
+						return to_value(&Trace::from(trace));
+					}
+				}
+				Ok(Value::Null)
 			})
 	}
 
@@ -200,7 +215,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		from_params(params)
 			.and_then(|(request,)| {
 				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, CallAnalytics{ vm_tracing: true, state_diffing: false });
+				let r = take_weak!(self.client).call(&signed, CallAnalytics{ transaction_tracing: false, vm_tracing: true, state_diffing: false });
 				if let Ok(executed) = r {
 					if let Some(vm_trace) = executed.vm_trace {
 						return Ok(vm_trace_to_object(&vm_trace));
@@ -215,7 +230,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		from_params(params)
 			.and_then(|(request,)| {
 				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, CallAnalytics{ vm_tracing: false, state_diffing: true });
+				let r = take_weak!(self.client).call(&signed, CallAnalytics{ transaction_tracing: false, vm_tracing: false, state_diffing: true });
 				if let Ok(executed) = r {
 					if let Some(state_diff) = executed.state_diff {
 						return Ok(state_diff_to_object(&state_diff));

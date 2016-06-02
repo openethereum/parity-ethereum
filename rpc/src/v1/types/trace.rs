@@ -16,7 +16,7 @@
 
 use util::{Address, U256, H256};
 use ethcore::trace::trace;
-use ethcore::trace::LocalizedTrace;
+use ethcore::trace::{Trace as EthTrace, LocalizedTrace as EthLocalizedTrace};
 use v1::types::Bytes;
 
 /// Create response
@@ -161,7 +161,7 @@ impl From<trace::Res> for Res {
 
 /// Trace
 #[derive(Debug, Serialize)]
-pub struct Trace {
+pub struct LocalizedTrace {
 	/// Action
 	action: Action,
 	/// Result
@@ -185,9 +185,9 @@ pub struct Trace {
 	block_hash: H256,
 }
 
-impl From<LocalizedTrace> for Trace {
-	fn from(t: LocalizedTrace) -> Self {
-		Trace {
+impl From<EthLocalizedTrace> for LocalizedTrace {
+	fn from(t: EthLocalizedTrace) -> Self {
+		LocalizedTrace {
 			action: From::from(t.action),
 			result: From::from(t.result),
 			trace_address: t.trace_address.into_iter().map(From::from).collect(),
@@ -196,6 +196,30 @@ impl From<LocalizedTrace> for Trace {
 			transaction_hash: t.transaction_hash,
 			block_number: From::from(t.block_number),
 			block_hash: t.block_hash,
+		}
+	}
+}
+
+/// Trace
+#[derive(Debug, Serialize)]
+pub struct Trace {
+	/// Depth within the call trace tree.
+	depth: usize,
+	/// Action
+	action: Action,
+	/// Result
+	result: Res,
+	/// Subtraces
+	subtraces: Vec<Trace>,
+}
+
+impl From<EthTrace> for Trace {
+	fn from(t: EthTrace) -> Self {
+		Trace {
+			depth: t.depth.into(),
+			action: t.action.into(),
+			result: t.result.into(),
+			subtraces: t.subs.into_iter().map(From::from).collect(),
 		}
 	}
 }
@@ -209,7 +233,7 @@ mod tests {
 
 	#[test]
 	fn test_trace_serialize() {
-		let t = Trace {
+		let t = LocalizedTrace {
 			action: Action::Call(Call {
 				from: Address::from(4),
 				to: Address::from(5),

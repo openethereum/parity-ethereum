@@ -276,7 +276,7 @@ impl MinerService for Miner {
 				// give the sender max balance
 				state.sub_balance(&sender, &balance);
 				state.add_balance(&sender, &U256::max_value());
-				let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
+				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 
 				let mut ret = Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options);
 				// TODO gav move this into Executive.
