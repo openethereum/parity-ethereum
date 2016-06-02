@@ -125,9 +125,13 @@ impl ConfirmationPromise {
 		let deadline = Instant::now() + timeout;
 
 		info!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", self.id);
-		while Instant::now() < deadline {
-			// Park thread
-			thread::park_timeout(timeout);
+		loop {
+			let now = Instant::now();
+			if now >= deadline {
+				break;
+			}
+			// Park thread (may wake up spuriously)
+			thread::park_timeout(deadline - now);
 			// Take confirmation result
 			let res = self.result.lock().unwrap();
 			// Check the result
@@ -137,7 +141,7 @@ impl ConfirmationPromise {
 				ConfirmationResult::Waiting => continue,
 			}
 		}
-		// We reached the timeout. Just return `None` and make sure to remove waiting.
+		// We reached the timeout. Just return `None`
 		trace!(target: "own_tx", "Signer: Confirmation timeout reached... ({:?}).", self.id);
 		None
 	}
