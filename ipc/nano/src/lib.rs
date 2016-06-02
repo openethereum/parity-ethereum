@@ -30,6 +30,7 @@ use nanomsg::{Socket, Protocol, Error, Endpoint, PollRequest, PollFd, PollInOut}
 use std::ops::Deref;
 
 const POLL_TIMEOUT: isize = 100;
+const CLIENT_CONNECTION_TIMEOUT: isize = 2500;
 
 /// Generic worker to handle service (binded) sockets
 pub struct Worker<S> where S: IpcInterface<S> {
@@ -70,7 +71,7 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 	}));
 
 	// 2500 ms default timeout
-	socket.set_receive_timeout(2500).unwrap();
+	socket.set_receive_timeout(CLIENT_CONNECTION_TIMEOUT).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
@@ -93,7 +94,7 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 	}));
 
 	// 2500 ms default timeout
-	socket.set_receive_timeout(2500).unwrap();
+	socket.set_receive_timeout(CLIENT_CONNECTION_TIMEOUT).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
