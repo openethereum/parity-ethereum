@@ -10,6 +10,7 @@ dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.2.0",
  "ethcore-dapps 1.2.0",
+ "ethcore-db 1.2.0",
  "ethcore-devtools 1.2.0",
  "ethcore-ipc 1.2.0",
  "ethcore-ipc-codegen 1.2.0",
