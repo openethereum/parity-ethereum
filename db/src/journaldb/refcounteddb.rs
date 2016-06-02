@@ -19,11 +19,14 @@
 use util::common::*;
 use util::rlp::*;
 use util::hashdb::*;
-use util::overlaydb::*;
 use super::traits::JournalDB;
-use util::kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
+use database::*;
+use manager::*;
+use types::*;
+use traits::*;
+use overlaydb::*;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -47,16 +50,11 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(path: &str) -> RefCountedDB {
-		let opts = DatabaseConfig {
-			//use 12 bytes as prefix, this must match account_db prefix
-			prefix_size: Some(12),
-			max_open_files: 256,
-		};
-		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
-			panic!("Error opening state db: {}", e);
+	pub fn new(man: DatabaseManager<QueuedDatabase>, path: &str) -> RefCountedDB {
+		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(12)).unwrap_or_else(|e| {
+			panic!("Error opening state db: {:?}", e);
 		});
-		if !backing.is_empty() {
+		if !backing.is_empty().unwrap() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
 				Ok(Some(DB_VERSION)) => {},
 				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
@@ -65,7 +63,6 @@ impl RefCountedDB {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
-		let backing = Arc::new(backing);
 		let latest_era = backing.get(&LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 
 		RefCountedDB {
@@ -116,7 +113,7 @@ impl JournalDB for RefCountedDB {
 
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
-	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, Error> {
 		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -150,7 +147,7 @@ impl JournalDB for RefCountedDB {
 			r.append(id);
 			r.append(&self.inserts);
 			r.append(&self.removes);
-			try!(batch.put(&last, r.as_raw()));
+			batch.put(&last, r.as_raw());
 
 			trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
 
@@ -158,7 +155,7 @@ impl JournalDB for RefCountedDB {
 			self.removes.clear();
 
 			if self.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+				batch.put(&LATEST_ERA_KEY, &encode(&now));
 				self.latest_era = Some(now);
 			}
 		}
@@ -185,14 +182,14 @@ impl JournalDB for RefCountedDB {
 				for i in &to_remove {
 					self.forward.remove(i);
 				}
-				try!(batch.delete(&last));
+				batch.delete(&last);
 				index += 1;
 			}
 		}
 
-		let r = try!(self.forward.commit_to_batch(&batch));
+		//let r = try!(self.forward.commit_to_batch(&batch));
 		try!(self.backing.write(batch));
-		Ok(r)
+		Ok(0)
 	}
 }
 

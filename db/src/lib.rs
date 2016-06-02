@@ -35,6 +35,7 @@ pub mod journaldb;
 pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DatabaseIterator};
 pub use types::{DBTransaction, Error};
+pub use manager::run_manager;
 
 use std::sync::Arc;
 use std::sync::atomic::*;

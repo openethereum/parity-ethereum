@@ -22,14 +22,21 @@ use std::sync::{Arc, RwLock};
 use std::hash::Hash;
 use database::Database;
 use traits::DatabaseService;
-use std::thread::park_timeout;
+use std::thread::{park_timeout, spawn};
 use std::time::Duration;
-use types::Error;
+use types::{Error, DatabaseConfig};
 
 pub struct DatabaseManager<K: Eq + Hash> {
 	databases: RwLock<HashMap<K, Arc<Database>>>,
 	thread_pool: RwLock<Pool>,
 }
+
+// thread_pool is not exposed and cannot be used across threads, safe otherwise
+unsafe impl<K: Eq + Hash> Send for DatabaseManager<K> {}
+unsafe impl<K: Eq + Hash> Sync for DatabaseManager<K> {}
+
+#[derive(Eq, PartialEq, Hash, Debug)]
+pub enum QueuedDatabase { JournalDB }
 
 impl<K: Eq + Hash> DatabaseManager<K> {
 	pub fn new(max_open: usize) -> DatabaseManager<K> {
@@ -39,14 +46,17 @@ impl<K: Eq + Hash> DatabaseManager<K> {
 		}
 	}
 
-	pub fn open(&self, key: K, path: &str) -> Result<Arc<Database>, Error> {
+	pub fn open(&self, key: K, path: &str, opts: DatabaseConfig) -> Result<Arc<Database>, Error> {
 		let new_db = Arc::new(Database::new());
-		try!(new_db.open_default(path.to_owned()));
+		try!(new_db.open(opts, path.to_owned()));
 		self.databases.write().unwrap().insert(key, new_db.clone());
 		Ok(new_db)
 	}
 
-	pub fn flush(&self) {
+	// flush is the only method that uses internal thread pool
+	// and is private so that self.thread_pool is not shared across threads
+	// and used only in `run_manager`
+	fn flush(&self) {
 		let mut thread_pool = self.thread_pool.write().unwrap();
 		let dbs = self.databases.read().unwrap().values().cloned().collect::<Vec<Arc<Database>>>();
 		thread_pool.scoped(|scope| {
@@ -60,10 +70,33 @@ impl<K: Eq + Hash> DatabaseManager<K> {
 	}
 }
 
+impl<K: Hash + Eq> Drop for DatabaseManager<K> {
+	fn drop(&mut self) {
+		self.flush();
+	}
+}
+
+pub fn run_manager() -> Arc<DatabaseManager<QueuedDatabase>> {
+	let manager = Arc::new(DatabaseManager::new(1));
+	let shared_manager = manager.clone();
+
+	spawn(move || {
+		loop {
+			park_timeout(Duration::from_millis(10));
+			shared_manager.flush();
+		}
+	});
+
+	manager
+}
+
 mod tests {
+	#![allow(unused_imports)]
 	use traits::DatabaseService;
-	use super::DatabaseManager;
+	use super::{DatabaseManager, QueuedDatabase};
 	use devtools::*;
+	use super::run_manager;
+	use types::DatabaseConfig;
 
 	#[test]
 	fn can_hold_arbitrary_tagged_dbs() {
@@ -71,17 +104,27 @@ mod tests {
 		enum Databases { Other, JournalDB };
 		{
 			let path = RandomTempPath::new();
-			let man = DatabaseManager::new(3);
-			let other_db = man.open(Databases::Other, path.as_str()).unwrap();
+			let man = DatabaseManager::new(1);
+			let other_db = man.open(Databases::Other, path.as_str(), DatabaseConfig::default()).unwrap();
 			assert!(other_db.put("111".as_bytes(), "x".as_bytes()).is_ok());
 			man.flush();
 		}
 
 		{
 			let path = RandomTempPath::new();
-			let man = DatabaseManager::new(3);
-			let jdb = man.open(Databases::JournalDB, path.as_str()).unwrap();
+			let man = DatabaseManager::new(1);
+			let jdb = man.open(Databases::JournalDB, path.as_str(), DatabaseConfig::default()).unwrap();
 			assert!(jdb.get("111".as_bytes()).unwrap().is_none())
+		}
+	}
+
+	#[test]
+	fn can_run_manager() {
+		let man = run_manager();
+		{
+			let path = RandomTempPath::new();
+			let jdb = man.open(QueuedDatabase::JournalDB, path.as_str(), DatabaseConfig::default()).unwrap();
+			assert!(jdb.put("111".as_bytes(), "x".as_bytes()).is_ok());
 		}
 	}
 }

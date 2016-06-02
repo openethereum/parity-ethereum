@@ -19,7 +19,6 @@ extern crate ethcore_ipc_codegen as codegen;
 
 use std::env;
 use std::path::Path;
-use std::hash::Hash;
 
 pub fn main() {
 	let out_dir = env::var_os("OUT_DIR").unwrap();

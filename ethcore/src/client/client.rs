@@ -50,6 +50,7 @@ pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
 use ethdb::journaldb::JournalDB;
 use ethdb::journaldb;
+use ethdb::manager::{DatabaseManager, QueuedDatabase};
 use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
 
 impl fmt::Display for BlockChainInfo {
@@ -106,8 +107,8 @@ const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
-	pub fn new(config: ClientConfig, spec: Spec, path: &Path, miner: Arc<Miner>, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
-		Client::<CanonVerifier>::new_with_verifier(config, spec, path, miner, message_channel)
+	pub fn new(config: ClientConfig, spec: Spec, man: Arc<DatabaseManager<QueuedDatabase>>, path: &Path, miner: Arc<Miner>, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
+		Client::<CanonVerifier>::new_with_verifier(config, spec, man, path, miner, message_channel)
 	}
 }
 
@@ -133,6 +134,7 @@ impl<V> Client<V> where V: Verifier {
 	pub fn new_with_verifier(
 		config: ClientConfig,
 		spec: Spec,
+		man: Arc<DatabaseManager<QueuedDatabase>>,
 		path: &Path,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<NetSyncMessage>)
@@ -143,7 +145,7 @@ impl<V> Client<V> where V: Verifier {
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
 
-		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
+		let mut state_db = journaldb::new(man, &append_path(&path, "state"), config.pruning);
 
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");

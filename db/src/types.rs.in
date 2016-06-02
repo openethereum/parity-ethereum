@@ -22,6 +22,7 @@ use std::cell::RefCell;
 pub type IteratorHandle = u32;
 
 pub const DEFAULT_CACHE_LEN: usize = 12288;
+pub const DEFAULT_MAX_FILES: usize = 256;
 
 #[derive(Binary)]
 pub struct KeyValue {
@@ -46,6 +47,8 @@ pub struct DatabaseConfig {
 	pub prefix_size: Option<usize>,
 	/// write cache length
 	pub cache: usize,
+	/// maximum open files
+	max_open_files: usize,
 }
 
 impl Default for DatabaseConfig {
@@ -53,15 +56,17 @@ impl Default for DatabaseConfig {
 		DatabaseConfig {
 			prefix_size: None,
 			cache: DEFAULT_CACHE_LEN,
+			max_open_files: DEFAULT_MAX_FILES,
 		}
 	}
 }
 
 impl DatabaseConfig {
-	fn with_prefix(prefix: usize) -> DatabaseConfig {
+	pub fn with_prefix(prefix: usize) -> DatabaseConfig {
 		DatabaseConfig {
 			prefix_size: Some(prefix),
 			cache: DEFAULT_CACHE_LEN,
+			max_open_files: DEFAULT_MAX_FILES,
 		}
 	}
 }
