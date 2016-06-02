@@ -37,9 +37,9 @@ pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_dapps_builtins::App::default(), UTILS_PATH.to_owned()))
 }
 
-pub fn all_endpoints() -> Endpoints {
+pub fn all_endpoints(dapps_path: String) -> Endpoints {
 	// fetch fs dapps at first to avoid overwriting builtins
-	let mut pages = fs::local_endpoints();
+	let mut pages = fs::local_endpoints(dapps_path);
 	// Home page needs to be safe embed
 	// because we use Cross-Origin LocalStorage.
 	// TODO [ToDr] Account naming should be moved to parity.

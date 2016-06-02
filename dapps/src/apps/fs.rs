@@ -29,12 +29,10 @@ struct LocalDapp {
 	info: EndpointInfo,
 }
 
-fn local_dapps() -> Vec<LocalDapp> {
-	// TODO [ToDr] don't hardcode
-	let path = "/home/tomusdrw/.parity/dapps";
-	let files = fs::read_dir(path);
+fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
+	let files = fs::read_dir(dapps_path.as_str());
 	if let Err(e) = files {
-		warn!(target: "dapps", "Unable to load local dapps from: {}. Reason: {:?}", path, e);
+		warn!(target: "dapps", "Unable to load local dapps from: {}. Reason: {:?}", dapps_path, e);
 		return vec![];
 	}
 
@@ -106,9 +104,9 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 		})
 }
 
-pub fn local_endpoints() -> Endpoints {
+pub fn local_endpoints(dapps_path: String) -> Endpoints {
 	let mut pages = Endpoints::new();
-	for dapp in local_dapps() {
+	for dapp in local_dapps(dapps_path) {
 		pages.insert(
 			dapp.id,
 			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info))
