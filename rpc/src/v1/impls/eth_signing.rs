@@ -53,9 +53,9 @@ impl EthSigning for EthSigningQueueClient  {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
 				let queue = take_weak!(self.queue);
-				queue.add_request(request);
-				// TODO [ToDr] Block and wait for confirmation?
-				to_value(&H256::zero())
+				let id = queue.add_request(request);
+				let result = id.wait_with_timeout();
+				to_value(&result.unwrap_or_else(H256::new))
 		})
 	}
 }
@@ -102,7 +102,7 @@ impl<C, A, M> EthSigning for EthSigningUnsafeClient<C, A, M> where
 			.and_then(|(request, )| {
 				let accounts = take_weak!(self.accounts);
 				match accounts.account_secret(&request.from) {
-					Ok(secret) => sign_and_dispatch(&self.client, &self.miner, request, secret),
+					Ok(secret) => to_value(&sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, secret)),
 					Err(_) => to_value(&H256::zero())
 				}
 		})

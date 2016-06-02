@@ -52,16 +52,14 @@ pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
 use v1::types::TransactionRequest;
-use std::sync::Weak;
 use ethcore::miner::{AccountDetails, MinerService};
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use util::numbers::*;
 use util::rlp::encode;
 use util::bytes::ToPretty;
-use jsonrpc_core::{Error, to_value, Value};
 
-fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
+fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> H256
 	where C: MiningBlockChainClient, M: MinerService {
 	let hash = signed_transaction.hash();
 
@@ -72,13 +70,11 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 		}
 	});
 
-	to_value(&import.map(|_| hash).unwrap_or(H256::zero()))
+	import.map(|_| hash).unwrap_or(H256::zero())
 }
 
-fn sign_and_dispatch<C, M>(client: &Weak<C>, miner: &Weak<M>, request: TransactionRequest, secret: H256) -> Result<Value, Error>
+fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, secret: H256) -> H256
 	where C: MiningBlockChainClient, M: MinerService {
-	let client = take_weak!(client);
-	let miner = take_weak!(miner);
 
 	let signed_transaction = {
 		Transaction {
