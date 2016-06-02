@@ -22,10 +22,10 @@ use std::sync::{Arc, Weak};
 use std::ops::Deref;
 use std::collections::BTreeMap;
 use jsonrpc_core::*;
-use ethminer::MinerService;
+use ethcore::miner::MinerService;
+use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use ethcore::client::BlockChainClient;
 use ethcore::trace::VMTrace;
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Ethcore;
 use v1::types::{Bytes, CallRequest};
 

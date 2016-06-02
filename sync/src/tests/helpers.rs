@@ -16,10 +16,8 @@
 
 use util::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient};
-use ethcore::spec::Spec;
 use io::SyncIo;
 use chain::ChainSync;
-use ethminer::Miner;
 use ::SyncConfig;
 
 pub struct TestIo<'p> {
@@ -93,7 +91,7 @@ impl TestNet {
 		};
 		for _ in 0..n {
 			let chain = TestBlockChainClient::new();
-			let sync = ChainSync::new(SyncConfig::default(), Miner::new(false, Spec::new_test()), &chain);
+			let sync = ChainSync::new(SyncConfig::default(), &chain);
 			net.peers.push(TestPeer {
 				sync: sync,
 				chain: chain,

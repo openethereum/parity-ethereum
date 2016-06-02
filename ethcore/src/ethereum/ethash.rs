@@ -111,9 +111,9 @@ impl Engine for Ethash {
 			let gas_limit = parent.gas_limit;
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - x!(1))
+				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1) + (header.gas_used * x!(6) / x!(5)) / bound_divisor)
+				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into() + (header.gas_used * 6.into() / 5.into()) / bound_divisor)
 			}
 		};
 		header.note_dirty();
@@ -255,12 +255,12 @@ impl Ethash {
 
 	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
 	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
-		U256::from((U512::one() << 256) / x!(U256::from(boundary.as_slice())))
+		U256::from((U512::one() << 256) / U256::from(boundary.as_slice()).into())
 	}
 
 	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
 	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-		x!(U256::from((U512::one() << 256) / x!(difficulty)))
+		U256::from((U512::one() << 256) / difficulty.into()).into()
 	}
 
 	fn to_ethash(hash: H256) -> EH256 {
@@ -308,7 +308,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]);
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -323,7 +323,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let mut b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
+		let mut b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]);
 		let mut uncle = Header::new();
 		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 		uncle.author = uncle_author.clone();
@@ -346,24 +346,24 @@ mod tests {
 		let engine = new_morden().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
-			author: x!(0),
+			author: 0.into(),
 			timestamp: 0,
-			difficulty: x!(0),
+			difficulty: 0.into(),
 			last_hashes: vec![],
-			gas_used: x!(0),
-			gas_limit: x!(0)
+			gas_used: 0.into(),
+			gas_limit: 0.into()
 		});
 
 		assert!(schedule.stack_limit > 0);
 
 		let schedule = engine.schedule(&EnvInfo {
 			number: 100,
-			author: x!(0),
+			author: 0.into(),
 			timestamp: 0,
-			difficulty: x!(0),
+			difficulty: 0.into(),
 			last_hashes: vec![],
-			gas_used: x!(0),
-			gas_limit: x!(0)
+			gas_used: 0.into(),
+			gas_limit: 0.into()
 		});
 
 		assert!(!schedule.have_delegate_call);

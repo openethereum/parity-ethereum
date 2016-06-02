@@ -86,9 +86,9 @@ impl Engine for BasicAuthority {
 			let gas_limit = parent.gas_limit;
 			let bound_divisor = self.our_params.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - x!(1))
+				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1))
+				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		};
 		header.note_dirty();
@@ -211,12 +211,12 @@ mod tests {
 		let engine = new_test_authority().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
-			author: x!(0),
+			author: 0.into(),
 			timestamp: 0,
-			difficulty: x!(0),
+			difficulty: 0.into(),
 			last_hashes: vec![],
-			gas_used: x!(0),
-			gas_limit: x!(0)
+			gas_used: 0.into(),
+			gas_limit: 0.into()
 		});
 
 		assert!(schedule.stack_limit > 0);
@@ -278,7 +278,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, addr.clone(), x!(3141562), vec![]);
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, addr.clone(), 3141562.into(), vec![]);
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 

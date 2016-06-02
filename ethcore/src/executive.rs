@@ -416,7 +416,7 @@ impl<'a> Executive<'a> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match result { Ok(x) => x, _ => x!(0) };
+		let gas_left_prerefund = match result { Ok(x) => x, _ => 0.into() };
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -649,10 +649,10 @@ mod tests {
 		let expected_trace = vec![ Trace {
 			depth: 0,
 			action: trace::Action::Call(trace::Call {
-				from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
-				to: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
-				value: x!(100),
-				gas: x!(100000),
+				from: "cd1722f3947def4cf144679da39c4c32bdc35681".into(),
+				to: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+				value: 100.into(),
+				gas: 100000.into(),
 				input: vec![],
 			}),
 			result: trace::Res::Call(trace::CallResult {
@@ -662,9 +662,9 @@ mod tests {
 			subs: vec![Trace {
 				depth: 1,
 				action: trace::Action::Create(trace::Create {
-					from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
-					value: x!(23),
-					gas: x!(67979),
+					from: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+					value: 23.into(),
+					gas: 67979.into(),
 					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
 				}),
 				result: trace::Res::Create(trace::CreateResult {
@@ -735,7 +735,7 @@ mod tests {
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		params.value = ActionValue::Transfer(x!(100));
+		params.value = ActionValue::Transfer(100.into());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
@@ -756,7 +756,7 @@ mod tests {
 			depth: 0,
 			action: trace::Action::Create(trace::Create {
 				from: params.sender,
-				value: x!(100),
+				value: 100.into(),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 			}),

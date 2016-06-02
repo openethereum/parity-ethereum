@@ -74,12 +74,6 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Returns the code at given address at given time (block number).
 	fn code_at(&self, _: Params) -> Result<Value, Error>;
 
-	/// Signs the data with given address signature.
-	fn sign(&self, _: Params) -> Result<Value, Error>;
-
-	/// Sends transaction.
-	fn send_transaction(&self, _: Params) -> Result<Value, Error>;
-
 	/// Sends signed transaction.
 	fn send_raw_transaction(&self, _: Params) -> Result<Value, Error>;
 
@@ -150,8 +144,6 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_getUncleCountByBlockHash", Eth::block_uncles_count_by_hash);
 		delegate.add_method("eth_getUncleCountByBlockNumber", Eth::block_uncles_count_by_number);
 		delegate.add_method("eth_getCode", Eth::code_at);
-		delegate.add_method("eth_sign", Eth::sign);
-		delegate.add_method("eth_sendTransaction", Eth::send_transaction);
 		delegate.add_method("eth_sendRawTransaction", Eth::send_raw_transaction);
 		delegate.add_method("eth_call", Eth::call);
 		delegate.add_method("eth_estimateGas", Eth::estimate_gas);
@@ -205,6 +197,23 @@ pub trait EthFilter: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_getFilterChanges", EthFilter::filter_changes);
 		delegate.add_method("eth_getFilterLogs", EthFilter::filter_logs);
 		delegate.add_method("eth_uninstallFilter", EthFilter::uninstall_filter);
+		delegate
+	}
+}
+
+/// Signing methods implementation relying on unlocked accounts.
+pub trait EthSigning: Sized + Send + Sync + 'static {
+	/// Signs the data with given address signature.
+	fn sign(&self, _: Params) -> Result<Value, Error>;
+
+	/// Sends transaction.
+	fn send_transaction(&self, _: Params) -> Result<Value, Error>;
+
+	/// Should be used to convert object to io delegate.
+	fn to_delegate(self) -> IoDelegate<Self> {
+		let mut delegate = IoDelegate::new(Arc::new(self));
+		delegate.add_method("eth_sign", EthSigning::sign);
+		delegate.add_method("eth_sendTransaction", EthSigning::send_transaction);
 		delegate
 	}
 }
