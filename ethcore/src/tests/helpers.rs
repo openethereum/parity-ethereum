@@ -23,6 +23,7 @@ use evm::Schedule;
 use engine::*;
 use ethereum;
 use devtools::*;
+use miner::Miner;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -98,8 +99,8 @@ pub fn create_test_block(header: &Header) -> Bytes {
 
 fn create_unverifiable_block_header(order: u32, parent_hash: H256) -> Header {
 	let mut header = Header::new();
-	header.gas_limit = x!(0);
-	header.difficulty = x!(order * 100);
+	header.gas_limit = 0.into();
+	header.difficulty = (order * 100).into();
 	header.timestamp = (order * 10) as u64;
 	header.number = order as u64;
 	header.parent_hash = parent_hash;
@@ -139,7 +140,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTrans
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
 	let state_root = test_spec.genesis_header().state_root;
@@ -205,7 +206,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");
@@ -335,7 +336,7 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	block_header.timestamp = 40;
 	block_header.number = 1;
 	block_header.parent_hash = test_spec.genesis_header().hash();
-	block_header.state_root = x!(0xbad);
+	block_header.state_root = 0xbad.into();
 
 	create_test_block(&block_header)
 }

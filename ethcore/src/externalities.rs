@@ -321,12 +321,12 @@ mod tests {
 	fn get_test_env_info() -> EnvInfo {
 		EnvInfo {
 			number: 100,
-			author: x!(0),
+			author: 0.into(),
 			timestamp: 0,
-			difficulty: x!(0),
+			difficulty: 0.into(),
 			last_hashes: vec![],
-			gas_used: x!(0),
-			gas_limit: x!(0)
+			gas_used: 0.into(),
+			gas_limit: 0.into()
 		}
 	}
 

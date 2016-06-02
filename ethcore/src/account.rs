@@ -259,7 +259,7 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		let rlp = {
-			let mut a = Account::new_contract(x!(69), x!(0));
+			let mut a = Account::new_contract(69.into(), 0.into());
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
 			a.commit_storage(&mut db);
 			a.init_code(vec![]);
@@ -279,7 +279,7 @@ mod tests {
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 
 		let rlp = {
-			let mut a = Account::new_contract(x!(69), x!(0));
+			let mut a = Account::new_contract(69.into(), 0.into());
 			a.init_code(vec![0x55, 0x44, 0xffu8]);
 			a.commit_code(&mut db);
 			a.rlp()
@@ -294,10 +294,10 @@ mod tests {
 
 	#[test]
 	fn commit_storage() {
-		let mut a = Account::new_contract(x!(69), x!(0));
+		let mut a = Account::new_contract(69.into(), 0.into());
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
-		a.set_storage(x!(0), x!(0x1234));
+		a.set_storage(0.into(), 0x1234.into());
 		assert_eq!(a.storage_root(), None);
 		a.commit_storage(&mut db);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
@@ -305,21 +305,21 @@ mod tests {
 
 	#[test]
 	fn commit_remove_commit_storage() {
-		let mut a = Account::new_contract(x!(69), x!(0));
+		let mut a = Account::new_contract(69.into(), 0.into());
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
-		a.set_storage(x!(0), x!(0x1234));
+		a.set_storage(0.into(), 0x1234.into());
 		a.commit_storage(&mut db);
-		a.set_storage(x!(1), x!(0x1234));
+		a.set_storage(1.into(), 0x1234.into());
 		a.commit_storage(&mut db);
-		a.set_storage(x!(1), x!(0));
+		a.set_storage(1.into(), 0.into());
 		a.commit_storage(&mut db);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 
 	#[test]
 	fn commit_code() {
-		let mut a = Account::new_contract(x!(69), x!(0));
+		let mut a = Account::new_contract(69.into(), 0.into());
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);

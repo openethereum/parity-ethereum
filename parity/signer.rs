@@ -15,12 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::client::Client;
-use ethsync::EthSync;
-use ethminer::{Miner, ExternalMiner};
-use util::keys::store::AccountService;
 use util::panics::{PanicHandler, ForwardPanic};
 use die::*;
+use rpc_apis;
 
 #[cfg(feature = "ethcore-signer")]
 use ethcore_signer as signer;
@@ -36,11 +33,7 @@ pub struct Configuration {
 
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
-	pub client: Arc<Client>,
-	pub sync: Arc<EthSync>,
-	pub secret_store: Arc<AccountService>,
-	pub miner: Arc<Miner>,
-	pub external_miner: Arc<ExternalMiner>,
+	pub apis: Arc<rpc_apis::Dependencies>,
 }
 
 pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
@@ -58,13 +51,8 @@ fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 	});
 
 	let start_result = {
-		use ethcore_rpc::v1::*;
 		let server = signer::ServerBuilder::new();
-		server.add_delegate(Web3Client::new().to_delegate());
-		server.add_delegate(NetClient::new(&deps.sync).to_delegate());
-		server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
-		server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
-		server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner).to_delegate());
+		let server = rpc_apis::setup_rpc(server, deps.apis, rpc_apis::ApiSet::SafeContext);
 		server.start(addr)
 	};
 

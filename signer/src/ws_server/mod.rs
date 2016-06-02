@@ -25,6 +25,7 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use util::panics::{PanicHandler, OnPanicListener, MayPanic};
 use jsonrpc_core::{IoHandler, IoDelegate};
+use rpc::Extendable;
 
 mod session;
 
@@ -57,17 +58,18 @@ impl Default for ServerBuilder {
 	}
 }
 
+impl Extendable for ServerBuilder {
+	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
+		self.handler.add_delegate(delegate);
+	}
+}
+
 impl ServerBuilder {
 	/// Creates new `ServerBuilder`
 	pub fn new() -> Self {
 		ServerBuilder {
 			handler: Arc::new(IoHandler::new())
 		}
-	}
-
-	/// Adds rpc delegate
-	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
-		self.handler.add_delegate(delegate);
 	}
 
 	/// Starts a new `WebSocket` server in separate thread.

@@ -23,12 +23,12 @@ use std::ops::Deref;
 use std::collections::BTreeMap;
 use jsonrpc_core::*;
 use serde;
-use ethminer::MinerService;
+use ethcore::miner::MinerService;
 use ethcore::state_diff::StateDiff;
 use ethcore::account_diff::{Diff, Existance};
+use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use ethcore::client::{BlockChainClient, CallAnalytics};
 use ethcore::trace::VMTrace;
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Ethcore;
 use v1::types::{Bytes, CallRequest};
 
