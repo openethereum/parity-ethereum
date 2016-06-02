@@ -26,6 +26,8 @@ use pod_account::*;
 #[cfg(test)]
 #[cfg(feature = "json-tests")]
 use pod_state::PodState;
+use ethdb::journaldb::JournalDB;
+
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
 /// Used to return information about an `State::apply` operation.

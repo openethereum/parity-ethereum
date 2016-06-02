@@ -23,6 +23,8 @@ use evm::Schedule;
 use engine::*;
 use ethereum;
 use devtools::*;
+use ethdb::journaldb;
+use ethdb::journaldb::JournalDB;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {

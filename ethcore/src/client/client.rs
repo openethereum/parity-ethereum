@@ -48,6 +48,8 @@ use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
+use ethdb::journaldb::JournalDB;
+use ethdb::journaldb;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
