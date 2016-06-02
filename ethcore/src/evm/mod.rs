@@ -33,3 +33,4 @@ pub use self::evm::{Evm, Error, Result};
 pub use self::ext::{Ext, ContractCreateResult, MessageCallResult};
 pub use self::factory::{Factory, VMType};
 pub use self::schedule::Schedule;
+pub use self::instructions::get_info;

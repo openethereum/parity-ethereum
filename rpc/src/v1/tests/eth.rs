@@ -19,13 +19,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
-use ethcore::client::{MiningBlockChainClient, BlockChainClient, Client, ClientConfig};
+use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ids::BlockID;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
-use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{MinerService, ExternalMiner, Miner};
 use devtools::RandomTempPath;
 use util::Hashable;

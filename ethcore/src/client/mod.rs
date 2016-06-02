@@ -157,7 +157,8 @@ pub trait BlockChainClient : Sync + Send {
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
+	// TODO: should be able to accept blockchain location for call.
+	fn call(&self, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError>;
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;

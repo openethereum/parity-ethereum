@@ -18,7 +18,7 @@
 
 use util::numbers::*;
 use util::Bytes;
-use trace::Trace;
+use trace::{Trace, VMTrace};
 use types::log_entry::LogEntry;
 use ipc::binary::BinaryConvertError;
 use std::fmt;
@@ -59,6 +59,8 @@ pub struct Executed {
 	pub output: Bytes,
 	/// The trace of this transaction.
 	pub trace: Option<Trace>,
+	/// The VM trace of this transaction.
+	pub vm_trace: Option<VMTrace>,
 }
 
 /// Result of executing the transaction.

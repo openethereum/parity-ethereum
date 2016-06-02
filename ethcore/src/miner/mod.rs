@@ -148,7 +148,7 @@ pub trait MinerService : Send + Sync {
 	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
 
 	/// Call into contract code using pending state.
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
+	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError>;
 
 	/// Get storage value in pending state.
 	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256;
