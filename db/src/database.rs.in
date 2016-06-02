@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rocksdb ipc service
-
 use traits::*;
-use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator,
-IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
+use types::*;
+use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator, IndexType,
+	Options, DBCompactionStyle, BlockBasedOptions, Direction};
 use std::sync::{RwLock, Arc};
 use std::convert::From;
 use ipc::IpcConfig;
@@ -395,6 +394,7 @@ mod write_cache_tests {
 mod client_tests {
 	use super::{DatabaseClient, Database};
 	use traits::*;
+	use types::*;
 	use devtools::*;
 	use nanoipc;
 	use std::sync::Arc;

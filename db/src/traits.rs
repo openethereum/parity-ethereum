@@ -16,6 +16,7 @@
 
 //! Ethcore database trait
 
+use types::*;
 
 pub trait DatabaseService : Sized {
 	/// Opens database in the specified path

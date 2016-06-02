@@ -27,9 +27,11 @@ extern crate scoped_threadpool;
 pub mod database;
 pub mod traits;
 pub mod manager;
+pub mod types;
 
-pub use traits::{DatabaseService, DBTransaction, Error};
+pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DatabaseIterator};
+pub use types::{DBTransaction, Error};
 
 use std::sync::Arc;
 use std::sync::atomic::*;

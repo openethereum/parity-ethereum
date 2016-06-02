@@ -24,24 +24,39 @@ use std::hash::Hash;
 pub fn main() {
 	let out_dir = env::var_os("OUT_DIR").unwrap();
 
-	let rpc_codegen_entries = vec!["src/lib.rs.in", "src/lib.rs.in"];
+	// rpc pass
+	{
+		let src = Path::new("src/database.rs.in");
+		let dst = Path::new(&out_dir).join("database.rpc.rs.in");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
 
-	for entry in rpc_codegen_entries {
-		// rpc pass
-		if {
-			let src = Path::new(entry);
-			let dst = Path::new(&out_dir).join(enties);
-			let mut registry = syntex::Registry::new();
-			codegen::register(&mut registry);
-			registry.expand("", &src, &dst).ok()
-		}
-		// binary serialization pass
-		{
-			let src = Path::new(&out_dir).join("lib.intermediate.rs.in");
-			let dst = Path::new(&out_dir).join("lib.rs");
-			let mut registry = syntex::Registry::new();
-			codegen::register(&mut registry);
-			registry.expand("", &src, &dst).unwrap();
-		}
+	// serialization pass
+	{
+		let src = Path::new(&out_dir).join("database.rpc.rs.in");
+		let dst = Path::new(&out_dir).join("database.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
+
+	// rpc pass
+	{
+		let src = Path::new("src/types.rs.in");
+		let dst = Path::new(&out_dir).join("types.rpc.rs.in");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
+
+	// serialization pass
+	{
+		let src = Path::new(&out_dir).join("types.rpc.rs.in");
+		let dst = Path::new(&out_dir).join("types.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
 	}
 }
