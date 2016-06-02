@@ -28,7 +28,7 @@ use ethcore::state_diff::StateDiff;
 use ethcore::account_diff::{Diff, Existance};
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Traces;
-use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest};
+use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest, Bytes};
 
 /// Traces api implementation.
 pub struct TracesClient<C, M> where C: BlockChainClient, M: MinerService {
@@ -195,46 +195,31 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 			})
 	}
 
-	fn trace_call(&self, params: Params) -> Result<Value, Error> {
-		trace!(target: "jsonrpc", "trace_call: {:?}", params);
+	fn call(&self, params: Params) -> Result<Value, Error> {
+		trace!(target: "jsonrpc", "call: {:?}", params);
 		from_params(params)
-			.and_then(|(request,)| {
+			.and_then(|(request, flags)| {
+				let flags: Vec<String> = flags;
+				let analytics = CallAnalytics {
+					transaction_tracing: flags.contains(&("trace".to_owned())),
+					vm_tracing: flags.contains(&("vmTrace".to_owned())),
+					state_diffing: flags.contains(&("stateDiff".to_owned())),
+				};
 				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, CallAnalytics{ transaction_tracing: true, vm_tracing: false, state_diffing: false });
+				let r = take_weak!(self.client).call(&signed, analytics);
 				if let Ok(executed) = r {
+					// TODO maybe add other stuff to this?
+					let mut ret = map!["output".to_owned() => to_value(&Bytes(executed.output)).unwrap()];
 					if let Some(trace) = executed.trace {
-						return to_value(&Trace::from(trace));
+						ret.insert("trace".to_owned(), to_value(&Trace::from(trace)).unwrap());
 					}
-				}
-				Ok(Value::Null)
-			})
-	}
-
-	fn vm_trace_call(&self, params: Params) -> Result<Value, Error> {
-		trace!(target: "jsonrpc", "vm_trace_call: {:?}", params);
-		from_params(params)
-			.and_then(|(request,)| {
-				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, CallAnalytics{ transaction_tracing: false, vm_tracing: true, state_diffing: false });
-				if let Ok(executed) = r {
 					if let Some(vm_trace) = executed.vm_trace {
-						return Ok(vm_trace_to_object(&vm_trace));
+						ret.insert("vmTrace".to_owned(), vm_trace_to_object(&vm_trace));
 					}
-				}
-				Ok(Value::Null)
-			})
-	}
-
-	fn state_diff_call(&self, params: Params) -> Result<Value, Error> {
-		trace!(target: "jsonrpc", "state_diff_call: {:?}", params);
-		from_params(params)
-			.and_then(|(request,)| {
-				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, CallAnalytics{ transaction_tracing: false, vm_tracing: false, state_diffing: true });
-				if let Ok(executed) = r {
 					if let Some(state_diff) = executed.state_diff {
-						return Ok(state_diff_to_object(&state_diff));
+						ret.insert("stateDiff".to_owned(), state_diff_to_object(&state_diff));
 					}
+					return Ok(Value::Object(ret))
 				}
 				Ok(Value::Null)
 			})
