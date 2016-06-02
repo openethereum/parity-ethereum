@@ -371,7 +371,8 @@ fn overlaydb_complex() {
 fn playpen() {
 	use std::fs;
 	{
-		let db: Database = Database::open_default("/tmp/test").unwrap();
+		let db = Database::new();
+		db.open_default("/tmp/test".to_owned()).unwrap();
 		db.put(b"test", b"test2").unwrap();
 		match db.get(b"test") {
 			Ok(Some(value)) => println!("Got value {:?}", value.deref()),

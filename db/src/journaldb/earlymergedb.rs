@@ -543,6 +543,7 @@ mod tests {
 	use super::super::traits::JournalDB;
 	use util::hashdb::*;
 	use util::log::init_log;
+	use manager;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -983,7 +984,6 @@ mod tests {
 		dir.push(H32::random().hex());
 
 		let foo = b"foo".sha3();
-
 		{
 			let (man, _) = manager::run_manager();
 			let mut jdb = EarlyMergeDB::new(man, dir.to_str().unwrap());

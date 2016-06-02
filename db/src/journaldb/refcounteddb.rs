@@ -28,6 +28,11 @@ use types::*;
 use traits::*;
 use overlaydb::*;
 
+#[cfg(test)]
+use manager;
+#[cfg(test)]
+use devtools::StopGuard;
+
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
 ///
@@ -76,10 +81,11 @@ impl RefCountedDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	fn new_temp() -> RefCountedDB {
+	fn new_temp() -> (RefCountedDB, StopGuard) {
+		let (man, stop_guard) = manager::run_manager();
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap())
+		(Self::new(man, dir.to_str().unwrap()), stop_guard)
 	}
 }
 
@@ -206,7 +212,8 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = RefCountedDB::new_temp();
+		let (mut jdb, _) = RefCountedDB::new_temp();
+
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.exists(&h));
@@ -224,7 +231,7 @@ mod tests {
 	#[test]
 	fn latest_era_should_work() {
 		// history is 3
-		let mut jdb = RefCountedDB::new_temp();
+		let (mut jdb, _) = RefCountedDB::new_temp();
 		assert_eq!(jdb.latest_era(), None);
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -243,7 +250,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = RefCountedDB::new_temp();
+		let (mut jdb, _) = RefCountedDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -281,7 +288,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = RefCountedDB::new_temp();
+		let (mut jdb, _) = RefCountedDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
