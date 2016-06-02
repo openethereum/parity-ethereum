@@ -251,7 +251,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction) -> Result<Executed, ExecutionError> {
+	fn call(&self, _t: &SignedTransaction, _vm_tracing: bool) -> Result<Executed, ExecutionError> {
 		Ok(self.execution_result.read().unwrap().clone().unwrap())
 	}
 

@@ -183,16 +183,14 @@ impl State {
 
 	/// Add `incr` to the balance of account `a`.
 	pub fn add_balance(&mut self, a: &Address, incr: &U256) {
-		let old = self.balance(a);
+		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a));
 		self.require(a, false).add_balance(incr);
-		trace!("state: add_balance({}, {}): {} -> {}\n", a, incr, old, self.balance(a));
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
 	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
-		let old = self.balance(a);
+		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a));
 		self.require(a, false).sub_balance(decr);
-		trace!("state: sub_balance({}, {}): {} -> {}\n", a, decr, old, self.balance(a));
 	}
 
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
@@ -222,7 +220,7 @@ impl State {
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, vm_factory: &EvmFactory, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
-		let options = TransactOptions { tracing: tracing, check_nonce: true };
+		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.
