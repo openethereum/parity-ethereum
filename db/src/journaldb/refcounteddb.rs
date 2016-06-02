@@ -16,12 +16,12 @@
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
-use common::*;
-use rlp::*;
-use hashdb::*;
-use overlaydb::*;
+use util::common::*;
+use util::rlp::*;
+use util::hashdb::*;
+use util::overlaydb::*;
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use util::kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
@@ -201,10 +201,10 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use common::*;
+	use util::common::*;
 	use super::*;
 	use super::super::traits::JournalDB;
-	use hashdb::*;
+	use util::hashdb::*;
 
 	#[test]
 	fn long_history() {

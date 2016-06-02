@@ -23,11 +23,14 @@ extern crate nanomsg;
 extern crate crossbeam;
 extern crate ethcore_util as util;
 extern crate scoped_threadpool;
+#[macro_use]
+extern crate log as rlog;
 
 pub mod database;
 pub mod traits;
 pub mod manager;
 pub mod types;
+pub mod journaldb;
 
 pub use traits::DatabaseService;
 pub use database::{Database, DatabaseClient, DatabaseIterator};

@@ -16,8 +16,8 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use common::*;
-use hashdb::*;
+use util::common::*;
+use util::hashdb::*;
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.

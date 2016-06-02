@@ -16,7 +16,7 @@
 
 //! `JournalDB` interface and implementation.
 
-use common::*;
+use util::common::*;
 
 /// Export the journaldb module.
 pub mod traits;

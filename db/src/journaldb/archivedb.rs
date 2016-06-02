@@ -16,12 +16,12 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use common::*;
-use rlp::*;
-use hashdb::*;
-use memorydb::*;
+use util::common::*;
+use util::rlp::*;
+use util::hashdb::*;
+use util::memorydb::*;
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use util::kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
@@ -182,9 +182,9 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use common::*;
+	use util::common::*;
 	use super::*;
-	use hashdb::*;
+	use util::hashdb::*;
 	use journaldb::traits::JournalDB;
 
 	#[test]
