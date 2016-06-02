@@ -25,6 +25,7 @@ transient-hashmap = "0.1"
 serde_macros = { version = "0.7.0", optional = true }
 clippy = { version = "0.0.69", optional = true}
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
+ethcore-db = { path = "../db" }
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }

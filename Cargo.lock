@@ -351,6 +351,7 @@ dependencies = [
  "clippy 0.0.69 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.2.0",
  "ethcore 1.2.0",
+ "ethcore-db 1.2.0",
  "ethcore-devtools 1.2.0",
  "ethcore-util 1.2.0",
  "ethjson 0.1.0",

@@ -357,460 +357,148 @@ impl Clone for State {
 #[cfg(test)]
 mod tests {
 
-use super::*;
-use util::common::*;
-use account::*;
-use tests::helpers::*;
-use devtools::*;
-use env_info::*;
-use spec::*;
-use transaction::*;
-use util::log::init_log;
-use trace::trace;
-use trace::trace::{Trace};
+	use super::*;
+	use util::common::*;
+	use account::*;
+	use tests::helpers::*;
+	use devtools::*;
+	use env_info::*;
+	use spec::*;
+	use transaction::*;
+	use util::log::init_log;
+	use trace::trace;
+	use trace::trace::{Trace};
 
-#[test]
-fn should_apply_create_transaction() {
-	init_log();
+	#[test]
+	fn should_apply_create_transaction() {
+		init_log();
 
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
 
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
 
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Create,
-		value: 100.into(),
-		data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
-	}.sign(&"".sha3());
-
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Create(trace::Create {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
 			value: 100.into(),
-			gas: 77412.into(),
-			init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-		}),
-		result: trace::Res::Create(trace::CreateResult {
-			gas_used: U256::from(3224),
-			address: Address::from_str("8988167e088c87cd314df6d3c2b83da5acb93ace").unwrap(),
-			code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
-		}),
-		subs: vec![]
-	});
+			data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
+		}.sign(&"".sha3());
 
-	assert_eq!(result.trace, expected_trace);
-}
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Create(trace::Create {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				value: 100.into(),
+				gas: 77412.into(),
+				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+			}),
+			result: trace::Res::Create(trace::CreateResult {
+				gas_used: U256::from(3224),
+				address: Address::from_str("8988167e088c87cd314df6d3c2b83da5acb93ace").unwrap(),
+				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
+			}),
+			subs: vec![]
+		});
 
-#[test]
-fn should_work_when_cloned() {
-	init_log();
+		assert_eq!(result.trace, expected_trace);
+	}
 
-	let a = Address::zero();
+	#[test]
+	fn should_work_when_cloned() {
+		init_log();
 
-	let temp = RandomTempPath::new();
-	let mut state = {
-		let mut state = get_temp_state_in(temp.as_path());
-		assert_eq!(state.exists(&a), false);
+		let a = Address::zero();
+
+		let temp = RandomTempPath::new();
+		let (mut state, man) = {
+			let (mut state, man) = get_temp_state_in(temp.as_path());
+			assert_eq!(state.exists(&a), false);
+			state.inc_nonce(&a);
+			state.commit();
+			(state.clone(), man)
+		};
+
 		state.inc_nonce(&a);
 		state.commit();
-		state.clone()
-	};
+	}
 
-	state.inc_nonce(&a);
-	state.commit();
-}
+	#[test]
+	fn should_trace_failed_create_transaction() {
+		init_log();
 
-#[test]
-fn should_trace_failed_create_transaction() {
-	init_log();
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
 
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
 
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Create,
-		value: 100.into(),
-		data: FromHex::from_hex("5b600056").unwrap(),
-	}.sign(&"".sha3());
-
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Create(trace::Create {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
 			value: 100.into(),
-			gas: 78792.into(),
-			init: vec![91, 96, 0, 86],
-		}),
-		result: trace::Res::FailedCreate,
-		subs: vec![]
-	});
+			data: FromHex::from_hex("5b600056").unwrap(),
+		}.sign(&"".sha3());
 
-	assert_eq!(result.trace, expected_trace);
-}
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Create(trace::Create {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				value: 100.into(),
+				gas: 78792.into(),
+				init: vec![91, 96, 0, 86],
+			}),
+			result: trace::Res::FailedCreate,
+			subs: vec![]
+		});
 
-#[test]
-fn should_trace_call_transaction() {
-	init_log();
+		assert_eq!(result.trace, expected_trace);
+	}
 
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
+	#[test]
+	fn should_trace_call_transaction() {
+		init_log();
 
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
 
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],
-	}.sign(&"".sha3());
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
 
-	state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
 			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(3),
-			output: vec![]
-		}),
-		subs: vec![]
-	});
+			data: vec![],
+		}.sign(&"".sha3());
 
-	assert_eq!(result.trace, expected_trace);
-}
-
-#[test]
-fn should_trace_basic_call_transaction() {
-	init_log();
-
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
-
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],
-	}.sign(&"".sha3());
-
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
-			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(0),
-			output: vec![]
-		}),
-		subs: vec![]
-	});
-
-	assert_eq!(result.trace, expected_trace);
-}
-
-#[test]
-fn should_trace_call_transaction_to_builtin() {
-	init_log();
-
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
-
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = Spec::new_test().engine;
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0x1.into()),
-		value: 0.into(),
-		data: vec![],
-	}.sign(&"".sha3());
-
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
-
-	assert_eq!(result.trace, Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: "0000000000000000000000000000000000000001".into(),
-			value: 0.into(),
-			gas: 79_000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(3000),
-			output: vec![]
-		}),
-		subs: vec![]
-	}));
-}
-
-#[test]
-fn should_not_trace_subcall_transaction_to_builtin() {
-	init_log();
-
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
-
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = Spec::new_test().engine;
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 0.into(),
-		data: vec![],
-	}.sign(&"".sha3());
-
-	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
-
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
-			value: 0.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(28_061),
-			output: vec![]
-		}),
-		subs: vec![]
-	});
-	assert_eq!(result.trace, expected_trace);
-}
-
-#[test]
-fn should_not_trace_callcode() {
-	init_log();
-
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
-
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = Spec::new_test().engine;
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 0.into(),
-		data: vec![],
-	}.sign(&"".sha3());
-
-	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
-	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
-
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
-			value: 0.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(64),
-			output: vec![]
-		}),
-		subs: vec![]
-	});
-	assert_eq!(result.trace, expected_trace);
-}
-
-#[test]
-fn should_not_trace_delegatecall() {
-	init_log();
-
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
-
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	info.number = 0x789b0;
-	let engine = Spec::new_test().engine;
-
-	println!("schedule.have_delegate_call: {:?}", engine.schedule(&info).have_delegate_call);
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 0.into(),
-		data: vec![],
-	}.sign(&"".sha3());
-
-	state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
-	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
-
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
-			value: 0.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(61),
-			output: vec![]
-		}),
-		subs: vec![]
-	});
-	assert_eq!(result.trace, expected_trace);
-}
-
-#[test]
-fn should_trace_failed_call_transaction() {
-	init_log();
-
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
-
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],
-	}.sign(&"".sha3());
-
-	state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
-			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::FailedCall,
-		subs: vec![]
-	});
-
-	println!("trace: {:?}", result.trace);
-
-	assert_eq!(result.trace, expected_trace);
-}
-
-#[test]
-fn should_trace_call_with_subcall_transaction() {
-	init_log();
-
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
-
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],
-	}.sign(&"".sha3());
-
-	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
-			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(69),
-			output: vec![]
-		}),
-		subs: vec![Trace {
-			depth: 1,
+		state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
 			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 0.into(),
-				gas: 78934.into(),
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
 				input: vec![],
 			}),
 			result: trace::Res::Call(trace::CallResult {
@@ -818,210 +506,298 @@ fn should_trace_call_with_subcall_transaction() {
 				output: vec![]
 			}),
 			subs: vec![]
-		}]
-	});
+		});
 
-	assert_eq!(result.trace, expected_trace);
-}
+		assert_eq!(result.trace, expected_trace);
+	}
 
-#[test]
-fn should_trace_call_with_basic_subcall_transaction() {
-	init_log();
+	#[test]
+	fn should_trace_basic_call_transaction() {
+		init_log();
 
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
 
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
 
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],
-	}.sign(&"".sha3());
-
-	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
 			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(31761),
-			output: vec![]
-		}),
-		subs: vec![Trace {
-			depth: 1,
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
 			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 69.into(),
-				gas: 2300.into(),
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
 				input: vec![],
 			}),
-			result: trace::Res::Call(trace::CallResult::default()),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(0),
+				output: vec![]
+			}),
 			subs: vec![]
-		}]
-	});
+		});
 
-	assert_eq!(result.trace, expected_trace);
-}
+		assert_eq!(result.trace, expected_trace);
+	}
 
-#[test]
-fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
-	init_log();
+	#[test]
+	fn should_trace_call_transaction_to_builtin() {
+		init_log();
 
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
 
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = Spec::new_test().engine;
 
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],
-	}.sign(&"".sha3());
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0x1.into()),
+			value: 0.into(),
+			data: vec![],
+		}.sign(&"".sha3());
 
-	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
-			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(31761),
-			output: vec![]
-		}),
-		subs: vec![]
-	});
+		let vm_factory = Default::default();
+		let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
-	assert_eq!(result.trace, expected_trace);
-}
-
-#[test]
-fn should_trace_failed_subcall_transaction() {
-	init_log();
-
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
-
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
-
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],//600480600b6000396000f35b600056
-	}.sign(&"".sha3());
-
-	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-	state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
-			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(79_000),
-			output: vec![]
-		}),
-		subs: vec![Trace {
-			depth: 1,
+		assert_eq!(result.trace, Some(Trace {
+			depth: 0,
 			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: "0000000000000000000000000000000000000001".into(),
 				value: 0.into(),
-				gas: 78934.into(),
+				gas: 79_000.into(),
+				input: vec![],
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(3000),
+				output: vec![]
+			}),
+			subs: vec![]
+		}));
+	}
+
+	#[test]
+	fn should_not_trace_subcall_transaction_to_builtin() {
+		init_log();
+
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
+
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = Spec::new_test().engine;
+
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
+			value: 0.into(),
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
+		let vm_factory = Default::default();
+		let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
+
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 0.into(),
+				gas: 79000.into(),
+				input: vec![],
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(28_061),
+				output: vec![]
+			}),
+			subs: vec![]
+		});
+		assert_eq!(result.trace, expected_trace);
+	}
+
+	#[test]
+	fn should_not_trace_callcode() {
+		init_log();
+
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
+
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = Spec::new_test().engine;
+
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
+			value: 0.into(),
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
+		let vm_factory = Default::default();
+		let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
+
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 0.into(),
+				gas: 79000.into(),
+				input: vec![],
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(64),
+				output: vec![]
+			}),
+			subs: vec![]
+		});
+		assert_eq!(result.trace, expected_trace);
+	}
+
+	#[test]
+	fn should_not_trace_delegatecall() {
+		init_log();
+
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
+
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		info.number = 0x789b0;
+		let engine = Spec::new_test().engine;
+
+		println!("schedule.have_delegate_call: {:?}", engine.schedule(&info).have_delegate_call);
+
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
+			value: 0.into(),
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
+		let vm_factory = Default::default();
+		let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
+
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 0.into(),
+				gas: 79000.into(),
+				input: vec![],
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(61),
+				output: vec![]
+			}),
+			subs: vec![]
+		});
+		assert_eq!(result.trace, expected_trace);
+	}
+
+	#[test]
+	fn should_trace_failed_call_transaction() {
+		init_log();
+
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
+
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
+
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
+			value: 100.into(),
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
 				input: vec![],
 			}),
 			result: trace::Res::FailedCall,
 			subs: vec![]
-		}]
-	});
+		});
 
-	assert_eq!(result.trace, expected_trace);
-}
+		println!("trace: {:?}", result.trace);
 
-#[test]
-fn should_trace_call_with_subcall_with_subcall_transaction() {
-	init_log();
+		assert_eq!(result.trace, expected_trace);
+	}
 
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
+	#[test]
+	fn should_trace_call_with_subcall_transaction() {
+		init_log();
 
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
 
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],
-	}.sign(&"".sha3());
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
 
-	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
-	state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
 			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(135),
-			output: vec![]
-		}),
-		subs: vec![Trace {
-			depth: 1,
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
 			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 0.into(),
-				gas: 78934.into(),
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
 				input: vec![],
 			}),
 			result: trace::Res::Call(trace::CallResult {
@@ -1029,12 +805,12 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 				output: vec![]
 			}),
 			subs: vec![Trace {
-				depth: 2,
+				depth: 1,
 				action: trace::Action::Call(trace::Call {
-					from: 0xb.into(),
-					to: 0xc.into(),
+					from: 0xa.into(),
+					to: 0xb.into(),
 					value: 0.into(),
-					gas: 78868.into(),
+					gas: 78934.into(),
 					input: vec![],
 				}),
 				result: trace::Res::Call(trace::CallResult {
@@ -1043,275 +819,503 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 				}),
 				subs: vec![]
 			}]
-		}]
-	});
+		});
 
-	assert_eq!(result.trace, expected_trace);
-}
+		assert_eq!(result.trace, expected_trace);
+	}
 
-#[test]
-fn should_trace_failed_subcall_with_subcall_transaction() {
-	init_log();
+	#[test]
+	fn should_trace_call_with_basic_subcall_transaction() {
+		init_log();
 
-	let temp = RandomTempPath::new();
-	let mut state = get_temp_state_in(temp.as_path());
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
 
-	let mut info = EnvInfo::default();
-	info.gas_limit = 1_000_000.into();
-	let engine = TestEngine::new(5);
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
 
-	let t = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 100_000.into(),
-		action: Action::Call(0xa.into()),
-		value: 100.into(),
-		data: vec![],//600480600b6000396000f35b600056
-	}.sign(&"".sha3());
-
-	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
-	state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
-		action: trace::Action::Call(trace::Call {
-			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-			to: 0xa.into(),
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
 			value: 100.into(),
-			gas: 79000.into(),
-			input: vec![],
-		}),
-		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(79_000),
-			output: vec![]
-		}),
-		subs: vec![Trace {
-			depth: 1,
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
 			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 0.into(),
-				gas: 78934.into(),
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
 				input: vec![],
 			}),
-			result: trace::Res::FailedCall,
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(31761),
+				output: vec![]
+			}),
 			subs: vec![Trace {
-				depth: 2,
+				depth: 1,
 				action: trace::Action::Call(trace::Call {
-				from: 0xb.into(),
-				to: 0xc.into(),
-				value: 0.into(),
-				gas: 78868.into(),
-				input: vec![],
+					from: 0xa.into(),
+					to: 0xb.into(),
+					value: 69.into(),
+					gas: 2300.into(),
+					input: vec![],
 				}),
-				result: trace::Res::Call(trace::CallResult {
-					gas_used: U256::from(3),
-					output: vec![]
-				}),
+				result: trace::Res::Call(trace::CallResult::default()),
 				subs: vec![]
 			}]
-		}]
-	});
+		});
 
-	assert_eq!(result.trace, expected_trace);
-}
+		assert_eq!(result.trace, expected_trace);
+	}
 
-#[test]
-fn code_from_database() {
-	let a = Address::zero();
-	let temp = RandomTempPath::new();
-	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
-		state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{});
-		state.init_code(&a, vec![1, 2, 3]);
+	#[test]
+	fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
+		init_log();
+
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
+
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
+
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
+			value: 100.into(),
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
+				input: vec![],
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(31761),
+				output: vec![]
+			}),
+			subs: vec![]
+		});
+
+		assert_eq!(result.trace, expected_trace);
+	}
+
+	#[test]
+	fn should_trace_failed_subcall_transaction() {
+		init_log();
+
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
+
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
+
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
+			value: 100.into(),
+			data: vec![],//600480600b6000396000f35b600056
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
+		state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
+				input: vec![],
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(79_000),
+				output: vec![]
+			}),
+			subs: vec![Trace {
+				depth: 1,
+				action: trace::Action::Call(trace::Call {
+					from: 0xa.into(),
+					to: 0xb.into(),
+					value: 0.into(),
+					gas: 78934.into(),
+					input: vec![],
+				}),
+				result: trace::Res::FailedCall,
+				subs: vec![]
+			}]
+		});
+
+		assert_eq!(result.trace, expected_trace);
+	}
+
+	#[test]
+	fn should_trace_call_with_subcall_with_subcall_transaction() {
+		init_log();
+
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
+
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
+
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
+			value: 100.into(),
+			data: vec![],
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
+		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
+		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
+				input: vec![],
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(135),
+				output: vec![]
+			}),
+			subs: vec![Trace {
+				depth: 1,
+				action: trace::Action::Call(trace::Call {
+					from: 0xa.into(),
+					to: 0xb.into(),
+					value: 0.into(),
+					gas: 78934.into(),
+					input: vec![],
+				}),
+				result: trace::Res::Call(trace::CallResult {
+					gas_used: U256::from(69),
+					output: vec![]
+				}),
+				subs: vec![Trace {
+					depth: 2,
+					action: trace::Action::Call(trace::Call {
+						from: 0xb.into(),
+						to: 0xc.into(),
+						value: 0.into(),
+						gas: 78868.into(),
+						input: vec![],
+					}),
+					result: trace::Res::Call(trace::CallResult {
+						gas_used: U256::from(3),
+						output: vec![]
+					}),
+					subs: vec![]
+				}]
+			}]
+		});
+
+		assert_eq!(result.trace, expected_trace);
+	}
+
+	#[test]
+	fn should_trace_failed_subcall_with_subcall_transaction() {
+		init_log();
+
+		let temp = RandomTempPath::new();
+		let (mut state, _) = get_temp_state_in(temp.as_path());
+
+		let mut info = EnvInfo::default();
+		info.gas_limit = 1_000_000.into();
+		let engine = TestEngine::new(5);
+
+		let t = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Call(0xa.into()),
+			value: 100.into(),
+			data: vec![],//600480600b6000396000f35b600056
+		}.sign(&"".sha3());
+
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
+		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
+		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
+		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+		let vm_factory = Default::default();
+		let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+		let expected_trace = Some(Trace {
+			depth: 0,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 100.into(),
+				gas: 79000.into(),
+				input: vec![],
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(79_000),
+				output: vec![]
+			}),
+			subs: vec![Trace {
+				depth: 1,
+				action: trace::Action::Call(trace::Call {
+					from: 0xa.into(),
+					to: 0xb.into(),
+					value: 0.into(),
+					gas: 78934.into(),
+					input: vec![],
+				}),
+				result: trace::Res::FailedCall,
+				subs: vec![Trace {
+					depth: 2,
+					action: trace::Action::Call(trace::Call {
+					from: 0xb.into(),
+					to: 0xc.into(),
+					value: 0.into(),
+					gas: 78868.into(),
+					input: vec![],
+					}),
+					result: trace::Res::Call(trace::CallResult {
+						gas_used: U256::from(3),
+						output: vec![]
+					}),
+					subs: vec![]
+				}]
+			}]
+		});
+
+		assert_eq!(result.trace, expected_trace);
+	}
+
+	#[test]
+	fn code_from_database() {
+		let a = Address::zero();
+		let temp = RandomTempPath::new();
+		let (root, db, _) = {
+			let (mut state, stop) = get_temp_state_in(temp.as_path());
+			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{});
+			state.init_code(&a, vec![1, 2, 3]);
+			assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+			state.commit();
+			assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+			let (root, drop) = state.drop();
+			(root, drop, stop)
+		};
+
+		let state = State::from_existing(db, root, U256::from(0u8));
 		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
-		state.commit();
-		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
-		state.drop()
-	};
+	}
 
-	let state = State::from_existing(db, root, U256::from(0u8));
-	assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
-}
+	#[test]
+	fn storage_at_from_database() {
+		let a = Address::zero();
+		let temp = RandomTempPath::new();
+		let (root, db, _) = {
+			let (mut state, stop) = get_temp_state_in(temp.as_path());
+			state.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
+			state.commit();
+			let (root, drop) = state.drop();
+			(root, drop, stop)
+		};
 
-#[test]
-fn storage_at_from_database() {
-	let a = Address::zero();
-	let temp = RandomTempPath::new();
-	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
-		state.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
-		state.commit();
-		state.drop()
-	};
+		let s = State::from_existing(db, root, U256::from(0u8));
+		assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
+	}
 
-	let s = State::from_existing(db, root, U256::from(0u8));
-	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
-}
+	#[test]
+	fn get_from_database() {
+		let a = Address::zero();
+		let temp = RandomTempPath::new();
+		let (root, db, _) = {
+			let (mut state, stop) = get_temp_state_in(temp.as_path());
+			state.inc_nonce(&a);
+			state.add_balance(&a, &U256::from(69u64));
+			state.commit();
+			assert_eq!(state.balance(&a), U256::from(69u64));
+			let (root, drop) = state.drop();
+			(root, drop, stop)
+		};
 
-#[test]
-fn get_from_database() {
-	let a = Address::zero();
-	let temp = RandomTempPath::new();
-	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
-		state.inc_nonce(&a);
-		state.add_balance(&a, &U256::from(69u64));
-		state.commit();
+		let state = State::from_existing(db, root, U256::from(0u8));
 		assert_eq!(state.balance(&a), U256::from(69u64));
-		state.drop()
-	};
-
-	let state = State::from_existing(db, root, U256::from(0u8));
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	assert_eq!(state.nonce(&a), U256::from(1u64));
-}
-
-#[test]
-fn remove() {
-	let a = Address::zero();
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	assert_eq!(state.exists(&a), false);
-	state.inc_nonce(&a);
-	assert_eq!(state.exists(&a), true);
-	assert_eq!(state.nonce(&a), U256::from(1u64));
-	state.kill_account(&a);
-	assert_eq!(state.exists(&a), false);
-	assert_eq!(state.nonce(&a), U256::from(0u64));
-}
-
-#[test]
-fn remove_from_database() {
-	let a = Address::zero();
-	let temp = RandomTempPath::new();
-	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
-		state.inc_nonce(&a);
-		state.commit();
-		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
-		state.drop()
-	};
+	}
 
-	let (root, db) = {
-		let mut state = State::from_existing(db, root, U256::from(0u8));
+	#[test]
+	fn remove() {
+		let a = Address::zero();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		assert_eq!(state.exists(&a), false);
+		state.inc_nonce(&a);
 		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 		state.kill_account(&a);
-		state.commit();
 		assert_eq!(state.exists(&a), false);
 		assert_eq!(state.nonce(&a), U256::from(0u64));
-		state.drop()
-	};
+	}
 
-	let state = State::from_existing(db, root, U256::from(0u8));
-	assert_eq!(state.exists(&a), false);
-	assert_eq!(state.nonce(&a), U256::from(0u64));
-}
+	#[test]
+	fn remove_from_database() {
+		let a = Address::zero();
+		let temp = RandomTempPath::new();
+		let (root, db, _) = {
+			let (mut state, stop) = get_temp_state_in(temp.as_path());
+			state.inc_nonce(&a);
+			state.commit();
+			assert_eq!(state.exists(&a), true);
+			assert_eq!(state.nonce(&a), U256::from(1u64));
+			let (root, drop) = state.drop();
+			(root, drop, stop)
+		};
 
-#[test]
-fn alter_balance() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	let b = address_from_u64(1u64);
-	state.add_balance(&a, &U256::from(69u64));
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.commit();
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.sub_balance(&a, &U256::from(42u64));
-	assert_eq!(state.balance(&a), U256::from(27u64));
-	state.commit();
-	assert_eq!(state.balance(&a), U256::from(27u64));
-	state.transfer_balance(&a, &b, &U256::from(18u64));
-	assert_eq!(state.balance(&a), U256::from(9u64));
-	assert_eq!(state.balance(&b), U256::from(18u64));
-	state.commit();
-	assert_eq!(state.balance(&a), U256::from(9u64));
-	assert_eq!(state.balance(&b), U256::from(18u64));
-}
+		let (root, db, _) = {
+			let (mut state, stop) = get_temp_state_in(temp.as_path());
+			assert_eq!(state.exists(&a), true);
+			assert_eq!(state.nonce(&a), U256::from(1u64));
+			state.kill_account(&a);
+			state.commit();
+			assert_eq!(state.exists(&a), false);
+			assert_eq!(state.nonce(&a), U256::from(0u64));
+			let (root, drop) = state.drop();
+			(root, drop, stop)
+		};
 
-#[test]
-fn alter_nonce() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	state.inc_nonce(&a);
-	assert_eq!(state.nonce(&a), U256::from(1u64));
-	state.inc_nonce(&a);
-	assert_eq!(state.nonce(&a), U256::from(2u64));
-	state.commit();
-	assert_eq!(state.nonce(&a), U256::from(2u64));
-	state.inc_nonce(&a);
-	assert_eq!(state.nonce(&a), U256::from(3u64));
-	state.commit();
-	assert_eq!(state.nonce(&a), U256::from(3u64));
-}
+		let state = State::from_existing(db, root, U256::from(0u8));
+		assert_eq!(state.exists(&a), false);
+		assert_eq!(state.nonce(&a), U256::from(0u64));
+	}
 
-#[test]
-fn balance_nonce() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	assert_eq!(state.balance(&a), U256::from(0u64));
-	assert_eq!(state.nonce(&a), U256::from(0u64));
-	state.commit();
-	assert_eq!(state.balance(&a), U256::from(0u64));
-	assert_eq!(state.nonce(&a), U256::from(0u64));
-}
+	#[test]
+	fn alter_balance() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		let b = address_from_u64(1u64);
+		state.add_balance(&a, &U256::from(69u64));
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.sub_balance(&a, &U256::from(42u64));
+		assert_eq!(state.balance(&a), U256::from(27u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(27u64));
+		state.transfer_balance(&a, &b, &U256::from(18u64));
+		assert_eq!(state.balance(&a), U256::from(9u64));
+		assert_eq!(state.balance(&b), U256::from(18u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(9u64));
+		assert_eq!(state.balance(&b), U256::from(18u64));
+	}
 
-#[test]
-fn ensure_cached() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	state.require(&a, false);
-	state.commit();
-	assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
-}
+	#[test]
+	fn alter_nonce() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		state.inc_nonce(&a);
+		assert_eq!(state.nonce(&a), U256::from(1u64));
+		state.inc_nonce(&a);
+		assert_eq!(state.nonce(&a), U256::from(2u64));
+		state.commit();
+		assert_eq!(state.nonce(&a), U256::from(2u64));
+		state.inc_nonce(&a);
+		assert_eq!(state.nonce(&a), U256::from(3u64));
+		state.commit();
+		assert_eq!(state.nonce(&a), U256::from(3u64));
+	}
 
-#[test]
-fn snapshot_basic() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	state.snapshot();
-	state.add_balance(&a, &U256::from(69u64));
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.clear_snapshot();
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.snapshot();
-	state.add_balance(&a, &U256::from(1u64));
-	assert_eq!(state.balance(&a), U256::from(70u64));
-	state.revert_snapshot();
-	assert_eq!(state.balance(&a), U256::from(69u64));
-}
+	#[test]
+	fn balance_nonce() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		assert_eq!(state.balance(&a), U256::from(0u64));
+		assert_eq!(state.nonce(&a), U256::from(0u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(0u64));
+		assert_eq!(state.nonce(&a), U256::from(0u64));
+	}
 
-#[test]
-fn snapshot_nested() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	state.snapshot();
-	state.snapshot();
-	state.add_balance(&a, &U256::from(69u64));
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.clear_snapshot();
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.revert_snapshot();
-	assert_eq!(state.balance(&a), U256::from(0));
-}
+	#[test]
+	fn ensure_cached() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		state.require(&a, false);
+		state.commit();
+		assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
+	}
 
-#[test]
-fn create_empty() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	state.commit();
-	assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
-}
+	#[test]
+	fn snapshot_basic() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		state.snapshot();
+		state.add_balance(&a, &U256::from(69u64));
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.clear_snapshot();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.snapshot();
+		state.add_balance(&a, &U256::from(1u64));
+		assert_eq!(state.balance(&a), U256::from(70u64));
+		state.revert_snapshot();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+	}
 
+	#[test]
+	fn snapshot_nested() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		state.snapshot();
+		state.snapshot();
+		state.add_balance(&a, &U256::from(69u64));
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.clear_snapshot();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.revert_snapshot();
+		assert_eq!(state.balance(&a), U256::from(0));
+	}
+
+	#[test]
+	fn create_empty() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		state.commit();
+		assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+	}
 }
