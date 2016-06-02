@@ -53,6 +53,7 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate parity_dapps;
 extern crate ethcore_rpc;
+extern crate mime_guess;
 
 mod endpoint;
 mod apps;

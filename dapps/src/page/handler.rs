@@ -32,8 +32,8 @@ pub trait DappFile: Send {
 	/// Checks if all bytes from that file were written.
 	fn is_drained(&self) -> bool;
 
-	/// Fetch next chank to write to the client.
-	fn next_chunk(&self) -> &[u8];
+	/// Fetch next chunk to write to the client.
+	fn next_chunk(&mut self) -> &[u8];
 
 	/// How many files have been written to the client.
 	fn bytes_written(&mut self, bytes: usize);
@@ -129,31 +129,55 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 
 
 #[cfg(test)]
-use parity_dapps::File;
+mod test {
+	use super::*;
 
-#[cfg(test)]
-#[derive(Default)]
-struct TestWebapp;
+	pub struct TestWebAppFile;
 
-#[cfg(test)]
-impl WebApp for TestWebapp {
-	fn file(&self, _path: &str) -> Option<&File> {
-		None
+	impl DappFile for TestWebAppFile {
+		/// Returns a content-type of this file.
+		fn content_type(&self) -> &str {
+			unimplemented!()
+		}
+
+		/// Checks if all bytes from that file were written.
+		fn is_drained(&self) -> bool {
+			unimplemented!()
+		}
+
+		/// Fetch next chunk to write to the client.
+		fn next_chunk(&mut self) -> &[u8] {
+			unimplemented!()
+		}
+
+		/// How many files have been written to the client.
+		fn bytes_written(&mut self, _bytes: usize) {
+			unimplemented!()
+		}
 	}
-	fn info(&self) -> Info {
-		unimplemented!()
+
+	#[derive(Default)]
+	pub struct TestWebapp;
+
+	impl Dapp for TestWebapp {
+		type DappFile = TestWebAppFile;
+
+		fn file(&self, _path: &str) -> Option<Self::DappFile> {
+			None
+		}
 	}
 }
 
 #[test]
 fn should_extract_path_with_appid() {
+
 	// given
 	let path1 = "/";
 	let path2= "/test.css";
 	let path3 = "/app/myfile.txt";
 	let path4 = "/app/myfile.txt?query=123";
 	let page_handler = PageHandler {
-		app: Arc::new(TestWebapp),
+		app: test::TestWebapp,
 		prefix: None,
 		path: EndpointPath {
 			app_id: "app".to_owned(),
@@ -161,7 +185,6 @@ fn should_extract_path_with_appid() {
 			port: 8080
 		},
 		file: None,
-		write_pos: 0,
 		safe_to_embed: true,
 	};
 

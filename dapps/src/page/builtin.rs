@@ -140,7 +140,7 @@ impl<T: WebApp + 'static> handler::DappFile for BuiltinDappFile<T> {
 		self.write_pos == self.file().content.len()
 	}
 
-	fn next_chunk(&self) -> &[u8] {
+	fn next_chunk(&mut self) -> &[u8] {
 		&self.file().content[self.write_pos..]
 	}
 

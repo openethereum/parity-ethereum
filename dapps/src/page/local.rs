@@ -14,8 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use page::handler;
+use mime_guess;
+use std::io::{Seek, Read, SeekFrom};
+use std::fs;
 use std::path::PathBuf;
+use page::handler;
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 
 pub struct LocalPageEndpoint {
@@ -63,29 +66,53 @@ impl LocalDapp {
 impl handler::Dapp for LocalDapp {
 	type DappFile = LocalFile;
 
-	fn file(&self, path: &str) -> Option<Self::DappFile> {
-		unimplemented!()
+	fn file(&self, file_path: &str) -> Option<Self::DappFile> {
+		let mut path = self.path.clone();
+		for part in file_path.split('/') {
+			path.push(part);
+		}
+		// Check if file exists
+		fs::File::open(path.clone()).ok().map(|file| {
+			let content_type = mime_guess::guess_mime_type(path);
+			let len = file.metadata().ok().map_or(0, |meta| meta.len());
+			LocalFile {
+				content_type: content_type.to_string(),
+				buffer: [0; 4096],
+				file: file,
+				pos: 0,
+				len: len,
+			}
+		})
 	}
 }
 
 struct LocalFile {
-
+	content_type: String,
+	buffer: [u8; 4096],
+	file: fs::File,
+	len: u64,
+	pos: u64,
 }
 
 impl handler::DappFile for LocalFile {
 	fn content_type(&self) -> &str {
-		"application/octetstream"
+		&self.content_type
 	}
 
 	fn is_drained(&self) -> bool {
-		false
+		self.pos == self.len
 	}
 
-	fn next_chunk(&self) -> &[u8] {
-		unimplemented!()
+	fn next_chunk(&mut self) -> &[u8] {
+		let _ = self.file.seek(SeekFrom::Start(self.pos));
+		if let Ok(n) = self.file.read(&mut self.buffer) {
+			&self.buffer[0..n]
+		} else {
+			&self.buffer[0..0]
+		}
 	}
 
 	fn bytes_written(&mut self, bytes: usize) {
-		unimplemented!()
+		self.pos += bytes as u64;
 	}
 }
