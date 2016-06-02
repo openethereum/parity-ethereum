@@ -97,7 +97,6 @@ use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
-use ethminer::{Miner, MinerService, AccountDetails};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -241,15 +240,13 @@ pub struct ChainSync {
 	imported_this_round: Option<usize>,
 	/// Network ID
 	network_id: U256,
-	/// Miner
-	miner: Arc<Miner>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig, miner: Arc<Miner>, chain: &BlockChainClient) -> ChainSync {
+	pub fn new(config: SyncConfig, chain: &BlockChainClient) -> ChainSync {
 		let chain = chain.chain_info();
 		let mut sync = ChainSync {
 			state: SyncState::ChainHead,
@@ -265,7 +262,6 @@ impl ChainSync {
 			imported_this_round: None,
 			_max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
-			miner: miner,
 		};
 		sync.reset();
 		sync
@@ -898,12 +894,7 @@ impl ChainSync {
 			let tx: SignedTransaction = try!(r.val_at(i));
 			transactions.push(tx);
 		}
-		let chain = io.chain();
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.latest_nonce(a),
-			balance: chain.latest_balance(a),
-		};
-		let _ = self.miner.import_transactions(transactions, fetch_account);
+		let _ = io.chain().import_transactions(transactions);
 		Ok(())
 	}
 
@@ -1226,7 +1217,7 @@ impl ChainSync {
 			return 0;
 		}
 
-		let mut transactions = self.miner.all_transactions();
+		let mut transactions = io.chain().all_transactions();
 		if transactions.is_empty() {
 			return 0;
 		}
@@ -1276,11 +1267,9 @@ impl ChainSync {
 		self.check_resume(io);
 	}
 
-	/// called when block is imported to chain, updates transactions queue and propagates the blocks
-	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+		/// called when block is imported to chain, updates transactions queue and propagates the blocks
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
 		if io.is_chain_queue_empty() {
-			// Notify miner
-			self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
 			// Propagate latests blocks
 			self.propagate_latest_blocks(io);
 		}
@@ -1288,10 +1277,6 @@ impl ChainSync {
 			trace!(target: "sync", "Bad blocks in the queue, restarting");
 			self.restart_on_bad_block(io);
 		}
-	}
-
-	pub fn chain_new_head(&mut self, io: &mut SyncIo) {
-		self.miner.update_sealing(io.chain());
 	}
 }
 
@@ -1305,8 +1290,7 @@ mod tests {
 	use ethcore::views::BlockView;
 	use ethcore::header::*;
 	use ethcore::client::*;
-	use ethcore::spec::Spec;
-	use ethminer::{Miner, MinerService};
+	use ethcore::miner::MinerService;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -1480,7 +1464,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default(), Miner::new(false, Spec::new_test()), client);
+		let mut sync = ChainSync::new(SyncConfig::default(), client);
 		sync.peers.insert(0,
 			PeerInfo {
 				protocol_version: 0,
@@ -1711,9 +1695,10 @@ mod tests {
 		{
 			let mut queue = VecDeque::new();
 			let mut io = TestIo::new(&mut client, &mut queue, None);
+			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
-			assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
-			assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
+			assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
+			assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 1);
 		}
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
@@ -1724,11 +1709,12 @@ mod tests {
 		{
 			let mut queue = VecDeque::new();
 			let mut io = TestIo::new(&mut client, &mut queue, None);
+			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks);
 			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks);
 		}
 
 		// then
-		let status = sync.miner.status();
+		let status = client.miner.status();
 		assert_eq!(status.transactions_in_pending_queue, 1);
 		assert_eq!(status.transactions_in_future_queue, 0);
 	}
@@ -1750,12 +1736,12 @@ mod tests {
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
-		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
-		assert_eq!(sync.miner.status().transactions_in_pending_queue, 0);
+		assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
+		assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 0);
 		sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks);
 
 		// then
-		let status = sync.miner.status();
+		let status = io.chain.miner.status();
 		assert_eq!(status.transactions_in_pending_queue, 0);
 		assert_eq!(status.transactions_in_future_queue, 0);
 	}

@@ -24,12 +24,12 @@ use v1::impls::sign_and_dispatch;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use util::keys::store::AccountProvider;
 use util::numbers::*;
-use ethcore::client::BlockChainClient;
-use ethminer::MinerService;
+use ethcore::client::MiningBlockChainClient;
+use ethcore::miner::MinerService;
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<A, C, M>
-	where A: AccountProvider, C: BlockChainClient, M: MinerService {
+	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
 	queue: Weak<ConfirmationsQueue>,
 	accounts: Weak<A>,
 	client: Weak<C>,
@@ -37,7 +37,7 @@ pub struct SignerClient<A, C, M>
 }
 
 impl<A: 'static, C: 'static, M: 'static> SignerClient<A, C, M>
-	where A: AccountProvider, C: BlockChainClient, M: MinerService {
+	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
 
 	/// Create new instance of signer client.
 	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>, queue: &Arc<ConfirmationsQueue>) -> Self {
@@ -51,7 +51,7 @@ impl<A: 'static, C: 'static, M: 'static> SignerClient<A, C, M>
 }
 
 impl<A: 'static, C: 'static, M: 'static> PersonalSigner for SignerClient<A, C, M>
-	where A: AccountProvider, C: BlockChainClient, M: MinerService {
+	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
 
 	fn transactions_to_confirm(&self, _params: Params) -> Result<Value, Error> {
 		let queue = take_weak!(self.queue);

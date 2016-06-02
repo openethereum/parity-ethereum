@@ -22,6 +22,7 @@ use tests::helpers::*;
 use devtools::*;
 use spec::Genesis;
 use ethjson;
+use miner::Miner;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();
@@ -53,7 +54,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			let temp = RandomTempPath::new();
 			{
-				let client = Client::new(ClientConfig::default(), spec, temp.as_path(), IoChannel::disconnected()).unwrap();
+				let client = Client::new(ClientConfig::default(), spec, temp.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
 				for b in &blockchain.blocks_rlp() {
 					if Block::is_good(&b) {
 						let _ = client.import_block(b.clone());

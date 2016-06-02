@@ -18,8 +18,8 @@
 
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
-use ethminer::MinerService;
-use ethcore::client::BlockChainClient;
+use ethcore::miner::MinerService;
+use ethcore::client::MiningBlockChainClient;
 use util::numbers::*;
 use util::keys::store::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
@@ -62,7 +62,7 @@ impl EthSigning for EthSigningQueueClient  {
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct EthSigningUnsafeClient<C, A, M> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	A: AccountProvider,
 	M: MinerService {
 	client: Weak<C>,
@@ -71,7 +71,7 @@ pub struct EthSigningUnsafeClient<C, A, M> where
 }
 
 impl<C, A, M> EthSigningUnsafeClient<C, A, M> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	A: AccountProvider,
 	M: MinerService {
 
@@ -87,7 +87,7 @@ impl<C, A, M> EthSigningUnsafeClient<C, A, M> where
 }
 
 impl<C, A, M> EthSigning for EthSigningUnsafeClient<C, A, M> where
-	C: BlockChainClient + 'static,
+	C: MiningBlockChainClient + 'static,
 	A: AccountProvider + 'static,
 	M: MinerService + 'static {
 

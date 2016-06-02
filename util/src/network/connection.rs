@@ -170,14 +170,14 @@ impl Connection {
 		self.token
 	}
 
-	/// Replace socket token
-	pub fn set_token(&mut self, token: StreamToken) {
-		self.token = token;
-	}
-
 	/// Get remote peer address
 	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
 		self.socket.peer_addr()
+	}
+
+	/// Get remote peer address string
+	pub fn remote_addr_str(&self) -> String {
+		self.socket.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "Unknown".to_owned())
 	}
 
 	/// Clone this connection. Clears the receiving buffer of the returned connection.
@@ -196,7 +196,7 @@ impl Connection {
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "network", "connection register; token={:?}", reg);
-		if let Err(e) = event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()) {
+		if let Err(e) = event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() /* | PollOpt::oneshot() */) { // TODO: oneshot is broken on windows
 			trace!(target: "network", "Failed to register {:?}, {:?}", reg, e);
 		}
 		Ok(())
@@ -205,7 +205,7 @@ impl Connection {
 	/// Update connection registration. Should be called at the end of the IO handler.
 	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "network", "connection reregister; token={:?}", reg);
-		event_loop.reregister( &self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+		event_loop.reregister( &self.socket, reg, self.interest, PollOpt::edge() /* | PollOpt::oneshot() */ ).or_else(|e| {  // TODO: oneshot is broken on windows
 			trace!(target: "network", "Failed to reregister {:?}, {:?}", reg, e);
 			Ok(())
 		})
@@ -246,7 +246,7 @@ enum EncryptedConnectionState {
 /// https://github.com/ethereum/devp2p/blob/master/rlpx.md#framing
 pub struct EncryptedConnection {
 	/// Underlying tcp connection
-	connection: Connection,
+	pub connection: Connection,
 	/// Egress data encryptor
 	encoder: CtrMode<AesSafe256Encryptor>,
 	/// Ingress data decryptor
@@ -266,27 +266,6 @@ pub struct EncryptedConnection {
 }
 
 impl EncryptedConnection {
-
-	/// Get socket token
-	pub fn token(&self) -> StreamToken {
-		self.connection.token
-	}
-
-	/// Replace socket token
-	pub fn set_token(&mut self, token: StreamToken) {
-		self.connection.set_token(token);
-	}
-
-	/// Get remote peer address
-	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
-		self.connection.remote_addr()
-	}
-
-	/// Check if this connection has data to be sent.
-	pub fn is_sending(&self) -> bool {
-		self.connection.is_sending()
-	}
-
 	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, UtilError> {
 		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral));
@@ -323,8 +302,10 @@ impl EncryptedConnection {
 		ingress_mac.update(&mac_material);
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
+		let old_connection = try!(handshake.connection.try_clone());
+		let connection = ::std::mem::replace(&mut handshake.connection, old_connection);
 		let mut enc = EncryptedConnection {
-			connection: try!(handshake.connection.try_clone()),
+			connection: connection,
 			encoder: encoder,
 			decoder: decoder,
 			mac_encoder: mac_encoder,
@@ -461,24 +442,6 @@ impl EncryptedConnection {
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
 		io.clear_timer(self.connection.token).unwrap();
 		try!(self.connection.writable());
-		Ok(())
-	}
-
-	/// Register socket with the event lpop. This should be called at the end of the event loop.
-	pub fn register_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		try!(self.connection.register_socket(reg, event_loop));
-		Ok(())
-	}
-
-	/// Update connection registration. This should be called at the end of the event loop.
-	pub fn update_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		try!(self.connection.update_socket(reg, event_loop));
-		Ok(())
-	}
-
-	/// Delete connection registration. This should be called at the end of the event loop.
-	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		try!(self.connection.deregister_socket(event_loop));
 		Ok(())
 	}
 }

@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use v1::{Ethcore, EthcoreClient};
-use ethminer::MinerService;
+use ethcore::miner::MinerService;
 use v1::tests::helpers::TestMinerService;
 use util::numbers::*;
 use rustc_serialize::hex::FromHex;
