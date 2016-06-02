@@ -474,7 +474,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().info.id.eq(&Some(id.clone())))
+		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().info.id == Some(id.clone()))
 	}
 
 	fn session_count(&self) -> usize {
@@ -482,7 +482,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
-		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().id().eq(&Some(id)))
+		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().id() == Some(id))
 	}
 
 	fn handshake_count(&self) -> usize {
@@ -667,7 +667,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 							}
 						}
 					}
-					self.num_sessions.fetch_add(1, AtomicOrdering::Relaxed);
+					self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 					for (p, _) in self.handlers.read().unwrap().iter() {
 						if s.have_capability(p)  {
 							ready_data.push(p);
@@ -722,7 +722,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						if s.is_ready() {
 							for (p, _) in self.handlers.read().unwrap().iter() {
 								if s.have_capability(p)  {
-									self.num_sessions.fetch_sub(1, AtomicOrdering::Relaxed);
+									self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
 									to_disconnect.push(p);
 								}
 							}

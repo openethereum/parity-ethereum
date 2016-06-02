@@ -14,12 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+//! Stop guard mod
 
-use rustc_version::{version_meta, Channel};
+use std::sync::Arc;
+use std::sync::atomic::*;
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
+/// Stop guard that will set a stop flag on drop
+pub struct StopGuard {
+	flag: Arc<AtomicBool>,
+}
+
+impl StopGuard {
+	/// Create a stop guard
+	pub fn new() -> StopGuard {
+		StopGuard {
+			flag: Arc::new(AtomicBool::new(false))
+		}
+	}
+
+	/// Share stop guard between the threads
+	pub fn share(&self) -> Arc<AtomicBool> {
+		self.flag.clone()
+	}
+}
+
+impl Drop for StopGuard {
+	fn drop(&mut self) {
+		self.flag.store(true, Ordering::Relaxed)
 	}
 }

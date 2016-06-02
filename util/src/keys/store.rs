@@ -87,7 +87,7 @@ struct AccountUnlock {
 }
 
 /// Basic account management trait
-pub trait AccountProvider : Send + Sync {
+pub trait AccountProvider: Send + Sync {
 	/// Lists all accounts
 	fn accounts(&self) -> Result<Vec<Address>, ::std::io::Error>;
 	/// Unlocks account with the password provided
@@ -325,7 +325,7 @@ impl SecretStore {
 		ret
 	}
 
-	/// Returns secret for unlocked account.
+	/// Returns secret for locked account.
 	pub fn locked_account_secret(&self, account: &Address, pass: &str) -> Result<crypto::Secret, SigningError> {
 		let secret_id = try!(self.account(&account).ok_or(SigningError::NoAccount));
 		self.get(&secret_id, pass).or_else(|e| Err(match e {
@@ -554,7 +554,7 @@ mod tests {
 						H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
 						262144,
 						32));
-			key_file.account = Some(x!(i as u64));
+			key_file.account = Some((i as u64).into());
 			result.push(key_file.id.clone());
 			write_sstore.import_key(key_file).unwrap();
 		}
@@ -627,7 +627,7 @@ mod tests {
 			sstore.sign(&address, &H256::random()).unwrap()
 		};
 
-		assert!(signature != x!(0));
+		assert!(signature != 0.into());
 	}
 
 	#[test]

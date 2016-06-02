@@ -21,16 +21,16 @@ use jsonrpc_core::*;
 /// Traces specific rpc interface.
 pub trait Traces: Sized + Send + Sync + 'static {
 	/// Returns traces matching given filter.
-	fn filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn filter(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns transaction trace at given index.
-	fn trace(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn trace(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns all traces of given transaction.
-	fn transaction_traces(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn transaction_traces(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns all traces produced at given block.
-	fn block_traces(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn block_traces(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {

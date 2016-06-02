@@ -47,10 +47,10 @@ impl Default for EnvInfo {
 			number: 0,
 			author: Address::new(),
 			timestamp: 0,
-			difficulty: x!(0),
-			gas_limit: x!(0),
+			difficulty: 0.into(),
+			gas_limit: 0.into(),
 			last_hashes: vec![],
-			gas_used: x!(0),
+			gas_used: 0.into(),
 		}
 	}
 }
@@ -92,15 +92,15 @@ mod tests {
 
 		assert_eq!(env_info.number, 1112339);
 		assert_eq!(env_info.author, Address::from_str("000000f00000000f000000000000f00000000f00").unwrap());
-		assert_eq!(env_info.gas_limit, x!(40000));
-		assert_eq!(env_info.difficulty, x!(50000));
-		assert_eq!(env_info.gas_used, x!(0));
+		assert_eq!(env_info.gas_limit, 40000.into());
+		assert_eq!(env_info.difficulty, 50000.into());
+		assert_eq!(env_info.gas_used, 0.into());
 	}
 
 	#[test]
 	fn it_can_be_created_as_default() {
 		let default_env_info = EnvInfo::default();
 
-		assert_eq!(default_env_info.difficulty, x!(0));
+		assert_eq!(default_env_info.difficulty, 0.into());
 	}
 }

@@ -19,11 +19,11 @@
 use util::{Address, H256, Bytes, U256, FixedHash, Uint};
 use util::standard::*;
 use ethcore::error::{Error, ExecutionError};
-use ethcore::client::{BlockChainClient, Executed};
+use ethcore::client::{MiningBlockChainClient, Executed};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::transaction::SignedTransaction;
 use ethcore::receipt::Receipt;
-use ethminer::{MinerService, MinerStatus, AccountDetails, TransactionImportResult};
+use ethcore::miner::{MinerService, MinerStatus, AccountDetails, TransactionImportResult};
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -132,7 +132,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction<T>(&self, chain: &BlockChainClient, transaction: SignedTransaction, _fetch_account: T) ->
+	fn import_own_transaction<T>(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction, _fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails {
 
@@ -154,21 +154,21 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, _chain: &BlockChainClient) {
+	fn clear_and_reset(&self, _chain: &MiningBlockChainClient) {
 		unimplemented!();
 	}
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, _chain: &BlockChainClient, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
+	fn chain_new_blocks(&self, _chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
 		unimplemented!();
 	}
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, _chain: &BlockChainClient) {
+	fn update_sealing(&self, _chain: &MiningBlockChainClient) {
 		unimplemented!();
 	}
 
-	fn map_sealing_work<F, T>(&self, _chain: &BlockChainClient, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+	fn map_sealing_work<F, T>(&self, _chain: &MiningBlockChainClient, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
 		unimplemented!();
 	}
 
@@ -194,29 +194,29 @@ impl MinerService for TestMinerService {
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, _chain: &BlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal(&self, _chain: &MiningBlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
 
-	fn balance(&self, _chain: &BlockChainClient, address: &Address) -> U256 {
+	fn balance(&self, _chain: &MiningBlockChainClient, address: &Address) -> U256 {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
 	}
 
-	fn call(&self, _chain: &BlockChainClient, _t: &SignedTransaction) -> Result<Executed, ExecutionError> {
+	fn call(&self, _chain: &MiningBlockChainClient, _t: &SignedTransaction, _vm_tracing: bool) -> Result<Executed, ExecutionError> {
 		unimplemented!();
 	}
 
-	fn storage_at(&self, _chain: &BlockChainClient, address: &Address, position: &H256) -> H256 {
+	fn storage_at(&self, _chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256 {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(H256::default, |b| b.block().fields().state.storage_at(address, position).clone())
 	}
 
-	fn nonce(&self, _chain: &BlockChainClient, address: &Address) -> U256 {
+	fn nonce(&self, _chain: &MiningBlockChainClient, address: &Address) -> U256 {
 		// we assume all transactions are in a pending block, ignoring the
 		// reality of gas limits.
 		self.last_nonce(address).unwrap_or(U256::zero())
 	}
 
-	fn code(&self, _chain: &BlockChainClient, address: &Address) -> Option<Bytes> {
+	fn code(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes> {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or(None, |b| b.block().fields().state.code(address).clone())
 	}
 
