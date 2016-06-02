@@ -153,7 +153,13 @@ impl Database {
 
 		try!(cache_lock.flush_all(&db));
 		Ok(())
+	}
 
+	pub fn backing_iter(&self) -> Result<DBIterator, Error> {
+		try!(self.flush_all());
+		let db_lock = self.db.read().unwrap();
+		if db_lock.is_none() { return Err(Error::IsClosed); }
+		Ok(db_lock.as_ref().expect("Iterating on closed database (checked that it is open above)").iterator(IteratorMode::Start))
 	}
 }
 
