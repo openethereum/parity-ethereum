@@ -19,7 +19,7 @@ use state::*;
 use executive::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory, VMType, ContractCreateResult, MessageCallResult};
+use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
 use externalities::*;
 use substate::*;
 use tests::helpers::*;
@@ -27,7 +27,7 @@ use ethjson;
 use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct CallCreate {
 	data: Bytes,
 	destination: Option<Address>,
@@ -133,7 +133,7 @@ impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
 		self.ext.log(topics, data)
 	}
 
-	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
+	fn ret(self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		self.ext.ret(gas, data)
 	}
 
@@ -208,9 +208,11 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				&mut tracer,
 				&mut vm_tracer,
 			);
-			let evm = vm_factory.create();
+			let mut evm = vm_factory.create();
 			let res = evm.exec(params, &mut ex);
-			(res, ex.callcreates)
+			// a return in finalize will not alter callcreates
+			let callcreates = ex.callcreates.clone();
+			(res.finalize(ex), callcreates)
 		};
 
 		match res {

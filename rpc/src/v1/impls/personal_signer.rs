@@ -63,19 +63,27 @@ impl<A: 'static, C: 'static, M: 'static> PersonalSigner for SignerClient<A, C, M
 			|(id, modification, pass)| {
 				let accounts = take_weak!(self.accounts);
 				let queue = take_weak!(self.queue);
-				queue.remove_request(id)
-					.and_then(|confirmation| {
+				let client = take_weak!(self.client);
+				let miner = take_weak!(self.miner);
+				queue.peek(&id).and_then(|confirmation| {
 						let mut request = confirmation.transaction;
 						// apply modification
 						if let Some(gas_price) = modification.gas_price {
 							request.gas_price = Some(gas_price);
 						}
 						match accounts.locked_account_secret(&request.from, &pass) {
-							Ok(secret) => Some(sign_and_dispatch(&self.client, &self.miner, request, secret)),
+							Ok(secret) => {
+								let hash = sign_and_dispatch(&*client, &*miner, request, secret);
+								queue.request_confirmed(id, hash);
+								Some(to_value(&hash))
+							},
 							Err(_) => None
 						}
 					})
-					.unwrap_or_else(|| to_value(&H256::zero()))
+					.unwrap_or_else(|| {
+						queue.request_rejected(id);
+						to_value(&H256::zero())
+					})
 			}
 		)
 	}
@@ -84,7 +92,7 @@ impl<A: 'static, C: 'static, M: 'static> PersonalSigner for SignerClient<A, C, M
 		from_params::<(U256, )>(params).and_then(
 			|(id, )| {
 				let queue = take_weak!(self.queue);
-				let res = queue.remove_request(id);
+				let res = queue.request_rejected(id);
 				to_value(&res.is_some())
 			}
 		)
