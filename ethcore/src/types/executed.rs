@@ -63,7 +63,7 @@ pub struct Executed {
 	/// The VM trace of this transaction.
 	pub vm_trace: Option<VMTrace>,
 	/// The state diff, if we traced it.
-	pub diff: Option<StateDiff>,
+	pub state_diff: Option<StateDiff>,
 }
 
 /// Result of executing the transaction.

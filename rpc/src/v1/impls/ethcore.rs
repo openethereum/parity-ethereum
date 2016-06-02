@@ -255,7 +255,7 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, 
 		from_params(params)
 			.and_then(|(request,)| {
 				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, CallAnalytics{ vm_tracing: true, diffing: false });
+				let r = take_weak!(self.client).call(&signed, CallAnalytics{ vm_tracing: true, state_diffing: false });
 				if let Ok(executed) = r {
 					if let Some(vm_trace) = executed.vm_trace {
 						return Ok(vm_trace_to_object(&vm_trace));
@@ -265,14 +265,14 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, 
 			})
 	}
 
-	fn diff_call(&self, params: Params) -> Result<Value, Error> {
-		trace!(target: "jsonrpc", "diff_call: {:?}", params);
+	fn state_diff_call(&self, params: Params) -> Result<Value, Error> {
+		trace!(target: "jsonrpc", "state_diff_call: {:?}", params);
 		from_params(params)
 			.and_then(|(request,)| {
 				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, CallAnalytics{ vm_tracing: false, diffing: true });
+				let r = take_weak!(self.client).call(&signed, CallAnalytics{ vm_tracing: false, state_diffing: true });
 				if let Ok(executed) = r {
-					if let Some(state_diff) = executed.diff {
+					if let Some(state_diff) = executed.state_diff {
 						return Ok(state_diff_to_object(&state_diff));
 					}
 				}

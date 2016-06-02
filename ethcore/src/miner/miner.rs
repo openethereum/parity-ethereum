@@ -280,9 +280,9 @@ impl MinerService for Miner {
 
 				let mut ret = Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options);
 				// TODO gav move this into Executive.
-				if analytics.diffing {
+				if analytics.state_diffing {
 					if let Ok(ref mut x) = ret {
-						x.diff = Some(state.diff_from(block.state().clone()));
+						x.state_diff = Some(state.diff_from(block.state().clone()));
 					}
 				}
 				ret

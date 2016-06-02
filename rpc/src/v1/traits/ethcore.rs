@@ -76,7 +76,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	fn vm_trace_call(&self, _: Params) -> Result<Value, Error>;
 
 	/// Executes the given call and returns the diff for it.
-	fn diff_call(&self, params: Params) -> Result<Value, Error>;
+	fn state_diff_call(&self, params: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
@@ -101,7 +101,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_defaultExtraData", Ethcore::default_extra_data);
 
 		delegate.add_method("ethcore_vmTraceCall", Ethcore::vm_trace_call);
-		delegate.add_method("ethcore_diffCall", Ethcore::diff_call);
+		delegate.add_method("ethcore_stateDiffCall", Ethcore::state_diff_call);
 
 		delegate
 	}

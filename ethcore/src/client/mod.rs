@@ -55,7 +55,7 @@ pub struct CallAnalytics {
 	/// Make a VM trace.
 	pub vm_tracing: bool,
 	/// Make a diff.
-	pub diffing: bool,
+	pub state_diffing: bool,
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
