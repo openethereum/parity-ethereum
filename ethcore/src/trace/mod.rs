@@ -31,9 +31,9 @@ pub use self::block::BlockTraces;
 pub use self::config::{Config, Switch};
 pub use self::db::TraceDB;
 pub use self::error::Error;
-pub use types::trace_types::trace::Trace;
-pub use self::noop_tracer::NoopTracer;
-pub use self::executive_tracer::ExecutiveTracer;
+pub use types::trace_types::trace::{Trace, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
+pub use self::noop_tracer::{NoopTracer, NoopVMTracer};
+pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
 pub use types::trace_types::filter::{Filter, AddressesFilter};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
@@ -81,11 +81,30 @@ pub trait Tracer: Send {
 	/// Stores failed create trace.
 	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>);
 
-	/// Spawn subracer which will be used to trace deeper levels of execution.
+	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;
 
 	/// Consumes self and returns all traces.
 	fn traces(self) -> Vec<Trace>;
+}
+
+/// Used by executive to build VM traces.
+pub trait VMTracer: Send {
+	/// Trace the preparation to execute a single instruction.
+	/// @returns true if `trace_executed` should be called.
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: &U256) -> bool { false }
+
+	/// Trace the finalised execution of a single instruction.
+	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
+
+	/// Spawn subtracer which will be used to trace deeper levels of execution.
+	fn prepare_subtrace(&self, code: &Bytes) -> Self where Self: Sized;
+
+	/// Spawn subtracer which will be used to trace deeper levels of execution.
+	fn done_subtrace(&mut self, sub: Self) where Self: Sized;
+
+	/// Consumes self and returns the VM trace.
+	fn drain(self) -> Option<VMTrace>;
 }
 
 /// `DbExtras` provides an interface to query extra data which is not stored in tracesdb,

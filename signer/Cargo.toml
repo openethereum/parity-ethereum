@@ -11,11 +11,14 @@ build = "build.rs"
 rustc_version = "0.1"
 
 [dependencies]
-ethcore-util = { path = "../util" }
+jsonrpc-core = "2.0"
 log = "0.3"
 env_logger = "0.3"
+ws = "0.4.7"
+ethcore-util = { path = "../util" }
+ethcore-rpc = { path = "../rpc" }
+
 clippy = { version = "0.0.69", optional = true}
 
 [features]
-default = []
 dev = ["clippy"]

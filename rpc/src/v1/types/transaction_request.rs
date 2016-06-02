@@ -14,21 +14,49 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! `TransactionRequest` type
+
 use util::hash::Address;
 use util::numbers::U256;
-use v1::types::Bytes;
+use v1::types::bytes::Bytes;
 
-#[derive(Debug, Default, PartialEq, Deserialize)]
+/// Transaction request coming from RPC
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct TransactionRequest {
+	/// Sender
 	pub from: Address,
+	/// Recipient
 	pub to: Option<Address>,
+	/// Gas Price
 	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
+	/// Gas
 	pub gas: Option<U256>,
+	/// Value of transaction in wei
 	pub value: Option<U256>,
+	/// Additional data sent with transaction
 	pub data: Option<Bytes>,
+	/// Transaction's nonce
 	pub nonce: Option<U256>,
 }
+
+/// Transaction confirmation waiting in a queue
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize)]
+pub struct TransactionConfirmation {
+	/// Id of this confirmation
+	pub id: U256,
+	/// TransactionRequest
+	pub transaction: TransactionRequest,
+}
+
+/// Possible modifications to the confirmed transaction sent by SystemUI
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct TransactionModification {
+	/// Modified gas price
+	#[serde(rename="gasPrice")]
+	pub gas_price: Option<U256>,
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -37,7 +65,7 @@ mod tests {
 	use serde_json;
 	use util::numbers::{U256};
 	use util::hash::Address;
-	use v1::types::Bytes;
+	use v1::types::bytes::Bytes;
 	use super::*;
 
 	#[test]
@@ -125,4 +153,26 @@ mod tests {
 			nonce: None,
 		});
 	}
+
+	#[test]
+	fn should_deserialize_modification() {
+		// given
+		let s1 = r#"{
+			"gasPrice":"0x0ba43b7400"
+		}"#;
+		let s2 = r#"{}"#;
+
+		// when
+		let res1: TransactionModification = serde_json::from_str(s1).unwrap();
+		let res2: TransactionModification = serde_json::from_str(s2).unwrap();
+
+		// then
+		assert_eq!(res1, TransactionModification {
+			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
+		});
+		assert_eq!(res2, TransactionModification {
+			gas_price: None,
+		});
+	}
 }
+

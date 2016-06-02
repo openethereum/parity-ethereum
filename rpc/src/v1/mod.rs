@@ -18,12 +18,13 @@
 //!
 //! Compliant with ethereum rpc.
 
-pub mod traits;
 mod impls;
-mod types;
 mod helpers;
 
+pub mod traits;
 pub mod tests;
+pub mod types;
 
-pub use self::traits::{Web3, Eth, EthFilter, Personal, Net, Ethcore, Traces, Rpc};
+pub use self::traits::{Web3, Eth, EthFilter, EthSigning, Personal, PersonalSigner, Net, Ethcore, Traces, Rpc};
 pub use self::impls::*;
+pub use self::helpers::{SigningQueue, ConfirmationsQueue};

@@ -22,16 +22,16 @@ use jsonrpc_core::*;
 pub trait Personal: Sized + Send + Sync + 'static {
 
 	/// Lists all stored accounts
-	fn accounts(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn accounts(&self, _: Params) -> Result<Value, Error>;
 
 	/// Creates new account (it becomes new current unlocked account)
-	fn new_account(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn new_account(&self, _: Params) -> Result<Value, Error>;
 
 	/// Unlocks specified account for use (can only be one unlocked account at one moment)
-	fn unlock_account(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn unlock_account(&self, _: Params) -> Result<Value, Error>;
 
 	/// Sends transaction and signs it in single call. The account is not unlocked in such case.
-	fn sign_and_send_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn sign_and_send_transaction(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
@@ -43,3 +43,26 @@ pub trait Personal: Sized + Send + Sync + 'static {
 		delegate
 	}
 }
+
+/// Personal extension for transactions confirmations rpc interface.
+pub trait PersonalSigner: Sized + Send + Sync + 'static {
+
+	/// Returns a list of transactions to confirm.
+	fn transactions_to_confirm(&self, _: Params) -> Result<Value, Error>;
+
+	/// Confirm and send a specific transaction.
+	fn confirm_transaction(&self, _: Params) -> Result<Value, Error>;
+
+	/// Reject the transaction request.
+	fn reject_transaction(&self, _: Params) -> Result<Value, Error>;
+
+	/// Should be used to convert object to io delegate.
+	fn to_delegate(self) -> IoDelegate<Self> {
+		let mut delegate = IoDelegate::new(Arc::new(self));
+		delegate.add_method("personal_transactionsToConfirm", PersonalSigner::transactions_to_confirm);
+		delegate.add_method("personal_confirmTransaction", PersonalSigner::confirm_transaction);
+		delegate.add_method("personal_rejectTransaction", PersonalSigner::reject_transaction);
+		delegate
+	}
+}
+

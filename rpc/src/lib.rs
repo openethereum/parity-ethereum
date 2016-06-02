@@ -26,12 +26,17 @@ extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
+#[macro_use]
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
-extern crate ethminer;
 extern crate transient_hashmap;
 extern crate json_ipc_server as ipc;
+
+#[cfg(test)]
+extern crate ethjson;
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;
 
 use std::sync::Arc;
 use std::net::SocketAddr;
@@ -39,10 +44,24 @@ use self::jsonrpc_core::{IoHandler, IoDelegate};
 
 pub use jsonrpc_http_server::{Server, RpcServerError};
 pub mod v1;
+pub use v1::{SigningQueue, ConfirmationsQueue};
+
+/// An object that can be extended with `IoDelegates`
+pub trait Extendable {
+	/// Add `Delegate` to this object.
+	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>);
+}
 
 /// Http server.
 pub struct RpcServer {
 	handler: Arc<jsonrpc_core::io::IoHandler>,
+}
+
+impl Extendable for RpcServer {
+	/// Add io delegate.
+	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
+		self.handler.add_delegate(delegate);
+	}
 }
 
 impl RpcServer {
@@ -51,11 +70,6 @@ impl RpcServer {
 		RpcServer {
 			handler: Arc::new(IoHandler::new()),
 		}
-	}
-
-	/// Add io delegate.
-	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
-		self.handler.add_delegate(delegate);
 	}
 
 	/// Start http server asynchronously and returns result with `Server` handle on success or an error.

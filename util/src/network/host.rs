@@ -18,6 +18,7 @@ use std::net::{SocketAddr};
 use std::collections::{HashMap};
 use std::str::{FromStr};
 use std::sync::*;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
@@ -31,7 +32,6 @@ use misc::version;
 use crypto::*;
 use sha3::Hashable;
 use rlp::*;
-use network::handshake::Handshake;
 use network::session::{Session, SessionData};
 use error::*;
 use io::*;
@@ -44,8 +44,7 @@ use network::ip_utils::{map_external_address, select_public_address};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
-const _DEFAULT_PORT: u16 = 30304;
-const MAX_SESSIONS: usize = 1024;
+const MAX_SESSIONS: usize = 1024 + MAX_HANDSHAKES;
 const MAX_HANDSHAKES: usize = 80;
 const MAX_HANDSHAKES_PER_ROUND: usize = 32;
 const MAINTENANCE_TIMEOUT: u64 = 1000;
@@ -115,18 +114,17 @@ impl NetworkConfiguration {
 }
 
 // Tokens
-const TCP_ACCEPT: usize = LAST_HANDSHAKE + 1;
-const IDLE: usize = LAST_HANDSHAKE + 2;
-const DISCOVERY: usize = LAST_HANDSHAKE + 3;
-const DISCOVERY_REFRESH: usize = LAST_HANDSHAKE + 4;
-const DISCOVERY_ROUND: usize = LAST_HANDSHAKE + 5;
-const INIT_PUBLIC: usize = LAST_HANDSHAKE + 6;
-const NODE_TABLE: usize = LAST_HANDSHAKE + 7;
+const TCP_ACCEPT: usize = SYS_TIMER + 1;
+const IDLE: usize = SYS_TIMER + 2;
+const DISCOVERY: usize = SYS_TIMER + 3;
+const DISCOVERY_REFRESH: usize = SYS_TIMER + 4;
+const DISCOVERY_ROUND: usize = SYS_TIMER + 5;
+const INIT_PUBLIC: usize = SYS_TIMER + 6;
+const NODE_TABLE: usize = SYS_TIMER + 7;
 const FIRST_SESSION: usize = 0;
 const LAST_SESSION: usize = FIRST_SESSION + MAX_SESSIONS - 1;
-const FIRST_HANDSHAKE: usize = LAST_SESSION + 1;
-const LAST_HANDSHAKE: usize = FIRST_HANDSHAKE + MAX_HANDSHAKES - 1;
-const USER_TIMER: usize = LAST_HANDSHAKE + 256;
+const USER_TIMER: usize = LAST_SESSION + 256;
+const SYS_TIMER: usize = LAST_SESSION + 1;
 
 /// Protocol handler level packet id
 pub type PacketId = u8;
@@ -306,7 +304,6 @@ impl HostInfo {
 }
 
 type SharedSession = Arc<Mutex<Session>>;
-type SharedHandshake = Arc<Mutex<Handshake>>;
 
 #[derive(Copy, Clone)]
 struct ProtocolTimer {
@@ -318,7 +315,6 @@ struct ProtocolTimer {
 pub struct Host<Message> where Message: Send + Sync + Clone {
 	pub info: RwLock<HostInfo>,
 	tcp_listener: Mutex<TcpListener>,
-	handshakes: Arc<RwLock<Slab<SharedHandshake>>>,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	discovery: Mutex<Option<Discovery>>,
 	nodes: RwLock<NodeTable>,
@@ -327,6 +323,7 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	timer_counter: RwLock<usize>,
 	stats: Arc<NetworkStats>,
 	pinned_nodes: Vec<NodeId>,
+	num_sessions: AtomicUsize,
 }
 
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
@@ -370,7 +367,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}),
 			discovery: Mutex::new(None),
 			tcp_listener: Mutex::new(tcp_listener),
-			handshakes: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_HANDSHAKE, MAX_HANDSHAKES))),
 			sessions: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_SESSION, MAX_SESSIONS))),
 			nodes: RwLock::new(NodeTable::new(path)),
 			handlers: RwLock::new(HashMap::new()),
@@ -378,6 +374,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			timer_counter: RwLock::new(USER_TIMER),
 			stats: Arc::new(NetworkStats::default()),
 			pinned_nodes: Vec::new(),
+			num_sessions: AtomicUsize::new(0),
 		};
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
@@ -477,19 +474,19 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().info.id.eq(&id))
+		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().info.id == Some(id.clone()))
 	}
 
 	fn session_count(&self) -> usize {
-		self.sessions.read().unwrap().count()
+		self.num_sessions.load(AtomicOrdering::Relaxed)
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
-		self.handshakes.read().unwrap().iter().any(|e| e.lock().unwrap().id.eq(&id))
+		self.sessions.read().unwrap().iter().any(|e| e.lock().unwrap().id() == Some(id))
 	}
 
 	fn handshake_count(&self) -> usize {
-		self.handshakes.read().unwrap().count()
+		self.sessions.read().unwrap().count() - self.session_count()
 	}
 
 	fn keep_alive(&self, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -565,21 +562,31 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				}
 			}
 		};
-		self.create_connection(socket, Some(id), io);
+		if let Err(e) = self.create_connection(socket, Some(id), io) {
+			debug!(target: "network", "Can't create connection: {:?}", e);
+		}
 	}
 
 	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
-	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
 		let nonce = self.info.write().unwrap().next_nonce();
-		let mut handshakes = self.handshakes.write().unwrap();
-		if handshakes.insert_with(|token| {
-			let mut handshake = Handshake::new(token, id, socket, &nonce, self.stats.clone()).expect("Can't create handshake");
-			handshake.start(io, &self.info.read().unwrap(), id.is_some()).and_then(|_| io.register_stream(token)).unwrap_or_else (|e| {
-				debug!(target: "network", "Handshake create error: {:?}", e);
-			});
-			Arc::new(Mutex::new(handshake))
-		}).is_none() {
-			debug!(target: "network", "Max handshakes reached");
+		let mut sessions = self.sessions.write().unwrap();
+		let token = sessions.insert_with_opt(|token| {
+			match Session::new(io, socket, token, id, &nonce, self.stats.clone(), &self.info.read().unwrap()) {
+				Ok(s) => Some(Arc::new(Mutex::new(s))),
+				Err(e) => {
+					debug!(target: "network", "Session create error: {:?}", e);
+					None
+				}
+			}
+		});
+
+		match token {
+			Some(t) => io.register_stream(t),
+			None => {
+				debug!(target: "network", "Max sessions reached");
+				Ok(())
+			}
 		}
 	}
 
@@ -594,19 +601,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					break
 				},
 			};
-			self.create_connection(socket, None, io);
-		}
-		io.update_registration(TCP_ACCEPT).expect("Error registering TCP listener");
-	}
-
-	fn handshake_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
-		let handshake = { self.handshakes.read().unwrap().get(token).cloned() };
-		if let Some(handshake) = handshake {
-			let mut h = handshake.lock().unwrap();
-			if let Err(e) = h.writable(io, &self.info.read().unwrap()) {
-				trace!(target: "network", "Handshake write error: {}: {:?}", token, e);
+			if let Err(e) = self.create_connection(socket, None, io) {
+				debug!(target: "network", "Can't accept connection: {:?}", e);
 			}
 		}
+		io.update_registration(TCP_ACCEPT).expect("Error registering TCP listener");
 	}
 
 	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -629,30 +628,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		self.kill_connection(token, io, true);
 	}
 
-	fn handshake_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
-		let mut create_session = false;
-		let mut kill = false;
-		let handshake = { self.handshakes.read().unwrap().get(token).cloned() };
-		if let Some(handshake) = handshake {
-			let mut h = handshake.lock().unwrap();
-			if let Err(e) = h.readable(io, &self.info.read().unwrap()) {
-				debug!(target: "network", "Handshake read error: {}: {:?}", token, e);
-				kill = true;
-			}
-			if h.done() {
-				create_session = true;
-			}
-		}
-		if kill {
-			self.kill_connection(token, io, true);
-			return;
-		} else if create_session {
-			self.start_session(token, io);
-			return;
-		}
-		io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Token registration error: {:?}", e));
-	}
-
 	fn session_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Option<(ProtocolId, PacketId, Vec<u8>)> = None;
@@ -662,17 +637,37 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			let mut s = session.lock().unwrap();
 			match s.readable(io, &self.info.read().unwrap()) {
 				Err(e) => {
-					trace!(target: "network", "Session read error: {}:{} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
+					trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
 					match e {
 						UtilError::Network(NetworkError::Disconnect(DisconnectReason::UselessPeer)) |
 						UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) => {
-							self.nodes.write().unwrap().mark_as_useless(s.id());
+							if let Some(id) = s.id() {
+								self.nodes.write().unwrap().mark_as_useless(id);
+							}
 						}
 						_ => (),
 					}
 					kill = true;
 				},
 				Ok(SessionData::Ready) => {
+					if !s.info.originated {
+						let session_count = self.session_count();
+						let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
+						if session_count >= ideal_peers as usize {
+							s.disconnect(DisconnectReason::TooManyPeers);
+							return;
+						}
+						// Add it no node table
+						if let Ok(address) = s.remote_addr() {
+							let entry = NodeEntry { id: s.id().unwrap().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
+							self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+							let mut discovery = self.discovery.lock().unwrap();
+							if let Some(ref mut discovery) = *discovery.deref_mut() {
+								discovery.add_node(entry);
+							}
+						}
+					}
+					self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 					for (p, _) in self.handlers.read().unwrap().iter() {
 						if s.have_capability(p)  {
 							ready_data.push(p);
@@ -697,6 +692,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		for p in ready_data {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
+			self.stats.inc_sessions();
 			h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone()), &token);
 		}
 		if let Some((p, packet_id, data)) = packet_data {
@@ -704,59 +700,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			h.read(&NetworkContext::new(io, p, session.clone(), self.sessions.clone()), &token, packet_id, &data[1..]);
 		}
 		io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Token registration error: {:?}", e));
-	}
-
-	fn start_session(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
-		let mut handshakes = self.handshakes.write().unwrap();
-		if handshakes.get(token).is_none() {
-			return;
-		}
-
-		// turn a handshake into a session
-		let mut sessions = self.sessions.write().unwrap();
-		let mut h = handshakes.get_mut(token).unwrap().lock().unwrap();
-		if h.expired {
-			return;
-		}
-		io.deregister_stream(token).expect("Error deleting handshake registration");
-		h.set_expired();
-		let originated = h.originated;
-		let mut session = match Session::new(&mut h, &self.info.read().unwrap()) {
-			Ok(s) => s,
-			Err(e) => {
-				debug!(target: "network", "Session creation error: {:?}", e);
-				return;
-			}
-		};
-		if !originated {
-			let session_count = sessions.count();
-			let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
-			if session_count >= ideal_peers as usize {
-				session.disconnect(DisconnectReason::TooManyPeers);
-				return;
-			}
-		}
-		let result = sessions.insert_with(move |session_token| {
-			session.set_token(session_token);
-			io.register_stream(session_token).expect("Error creating session registration");
-			self.stats.inc_sessions();
-			trace!(target: "network", "Creating session {} -> {}:{} ({:?})", token, session_token, session.id(), session.remote_addr());
-			if !originated {
-				// Add it no node table
-				if let Ok(address) = session.remote_addr() {
-					let entry = NodeEntry { id: session.id().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
-					self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
-					let mut discovery = self.discovery.lock().unwrap();
-					if let Some(ref mut discovery) = *discovery.deref_mut() {
-						discovery.add_node(entry);
-					}
-				}
-			}
-			Arc::new(Mutex::new(session))
-		});
-		if result.is_none() {
-			warn!("Max sessions reached");
-		}
 	}
 
 	fn connection_timeout(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -770,17 +713,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut deregister = false;
 		let mut expired_session = None;
 		match token {
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
-				let handshakes = self.handshakes.write().unwrap();
-				if let Some(handshake) = handshakes.get(token).cloned() {
-					let mut handshake = handshake.lock().unwrap();
-					if !handshake.expired() {
-						handshake.set_expired();
-						failure_id = Some(handshake.id().clone());
-						deregister = true;
-					}
-				}
-			},
 			FIRST_SESSION ... LAST_SESSION => {
 				let sessions = self.sessions.write().unwrap();
 				if let Some(session) = sessions.get(token).cloned() {
@@ -790,12 +722,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						if s.is_ready() {
 							for (p, _) in self.handlers.read().unwrap().iter() {
 								if s.have_capability(p)  {
+									self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
 									to_disconnect.push(p);
 								}
 							}
 						}
 						s.set_expired();
-						failure_id = Some(s.id().clone());
+						failure_id = s.id().cloned();
 					}
 					deregister = remote || s.done();
 				}
@@ -821,20 +754,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	fn update_nodes(&self, io: &IoContext<NetworkIoMessage<Message>>, node_changes: TableUpdates) {
 		let mut to_remove: Vec<PeerId> = Vec::new();
 		{
-			{
-				let handshakes = self.handshakes.write().unwrap();
-				for c in handshakes.iter() {
-					let h = c.lock().unwrap();
-					if node_changes.removed.contains(&h.id()) {
-						to_remove.push(h.token());
-					}
-				}
-			}
-			{
-				let sessions = self.sessions.write().unwrap();
-				for c in sessions.iter() {
-					let s = c.lock().unwrap();
-					if node_changes.removed.contains(&s.id()) {
+			let sessions = self.sessions.write().unwrap();
+			for c in sessions.iter() {
+				let s = c.lock().unwrap();
+				if let Some(id) = s.id() {
+					if node_changes.removed.contains(id) {
 						to_remove.push(s.token());
 					}
 				}
@@ -860,7 +784,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		trace!(target: "network", "Hup: {}", stream);
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.connection_closed(stream, io),
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.connection_closed(stream, io),
 			_ => warn!(target: "network", "Unexpected hup"),
 		};
 	}
@@ -868,7 +791,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn stream_readable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_readable(stream, io),
 			DISCOVERY => {
 				let node_changes = { self.discovery.lock().unwrap().as_mut().unwrap().readable() };
 				if let Some(node_changes) = node_changes {
@@ -884,7 +806,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn stream_writable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_writable(stream, io),
 			DISCOVERY => {
 				self.discovery.lock().unwrap().as_mut().unwrap().writable();
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
@@ -899,7 +820,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			INIT_PUBLIC => self.init_public_interface(io).unwrap_or_else(|e|
 				warn!("Error initializing public interface: {:?}", e)),
 			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
 				self.discovery.lock().unwrap().as_mut().unwrap().refresh();
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
@@ -966,7 +886,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				let session = { self.sessions.read().unwrap().get(*peer).cloned() };
 				if let Some(session) = session {
 					session.lock().unwrap().disconnect(DisconnectReason::DisconnectRequested);
-					self.nodes.write().unwrap().mark_as_useless(session.lock().unwrap().id());
+					if let Some(id) = session.lock().unwrap().id() {
+						self.nodes.write().unwrap().mark_as_useless(id)
+					}
 				}
 				trace!(target: "network", "Disabling peer {}", peer);
 				self.kill_connection(*peer, io, false);
@@ -987,12 +909,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					session.lock().unwrap().register_socket(reg, event_loop).expect("Error registering socket");
 				}
 			}
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
-				let connection = { self.handshakes.read().unwrap().get(stream).cloned() };
-				if let Some(connection) = connection {
-					connection.lock().unwrap().register_socket(reg, event_loop).expect("Error registering socket");
-				}
-			}
 			DISCOVERY => self.discovery.lock().unwrap().as_ref().unwrap().register_socket(event_loop).expect("Error registering discovery socket"),
 			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
@@ -1008,13 +924,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					connections.remove(stream);
 				}
 			}
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
-				let mut connections = self.handshakes.write().unwrap();
-				if let Some(connection) = connections.get(stream).cloned() {
-					connection.lock().unwrap().deregister_socket(event_loop).expect("Error deregistering socket");
-					connections.remove(stream);
-				}
-			}
 			DISCOVERY => (),
 			_ => warn!("Unexpected stream deregistration")
 		}
@@ -1024,12 +933,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => {
 				let connection = { self.sessions.read().unwrap().get(stream).cloned() };
-				if let Some(connection) = connection {
-					connection.lock().unwrap().update_socket(reg, event_loop).expect("Error updating socket");
-				}
-			}
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
-				let connection = { self.handshakes.read().unwrap().get(stream).cloned() };
 				if let Some(connection) = connection {
 					connection.lock().unwrap().update_socket(reg, event_loop).expect("Error updating socket");
 				}

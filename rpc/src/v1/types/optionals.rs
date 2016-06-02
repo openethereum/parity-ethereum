@@ -17,9 +17,12 @@
 use serde::{Serialize, Serializer};
 use serde_json::Value;
 
+/// Optional value
 #[derive(Debug)]
 pub enum OptionalValue<T> where T: Serialize {
+	/// Some
 	Value(T),
+	/// None
 	Null
 }
 

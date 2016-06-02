@@ -15,26 +15,41 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::numbers::*;
+use ethcore::contract_address;
 use ethcore::transaction::{LocalizedTransaction, Action, SignedTransaction};
 use v1::types::{Bytes, OptionalValue};
 
+/// Transaction
 #[derive(Debug, Default, Serialize)]
 pub struct Transaction {
+	/// Hash
 	pub hash: H256,
+	/// Nonce
 	pub nonce: U256,
+	/// Block hash
 	#[serde(rename="blockHash")]
 	pub block_hash: OptionalValue<H256>,
+	/// Block number
 	#[serde(rename="blockNumber")]
 	pub block_number: OptionalValue<U256>,
+	/// Transaction Index
 	#[serde(rename="transactionIndex")]
 	pub transaction_index: OptionalValue<U256>,
+	/// Sender
 	pub from: Address,
+	/// Recipient
 	pub to: OptionalValue<Address>,
+	/// Transfered value
 	pub value: U256,
+	/// Gas Price
 	#[serde(rename="gasPrice")]
 	pub gas_price: U256,
+	/// Gas
 	pub gas: U256,
-	pub input: Bytes
+	/// Data
+	pub input: Bytes,
+	/// Creates contract
+	pub creates: OptionalValue<Address>,
 }
 
 impl From<LocalizedTransaction> for Transaction {
@@ -53,7 +68,11 @@ impl From<LocalizedTransaction> for Transaction {
 			value: t.value,
 			gas_price: t.gas_price,
 			gas: t.gas,
-			input: Bytes::new(t.data.clone())
+			input: Bytes::new(t.data.clone()),
+			creates: match t.action {
+				Action::Create => OptionalValue::Value(contract_address(&t.sender().unwrap(), &t.nonce)),
+				Action::Call(_) => OptionalValue::Null,
+			},
 		}
 	}
 }
@@ -74,7 +93,11 @@ impl From<SignedTransaction> for Transaction {
 			value: t.value,
 			gas_price: t.gas_price,
 			gas: t.gas,
-			input: Bytes::new(t.data.clone())
+			input: Bytes::new(t.data.clone()),
+			creates: match t.action {
+				Action::Create => OptionalValue::Value(contract_address(&t.sender().unwrap(), &t.nonce)),
+				Action::Call(_) => OptionalValue::Null,
+			},
 		}
 	}
 }
@@ -88,7 +111,7 @@ mod tests {
 	fn test_transaction_serialize() {
 		let t = Transaction::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x"}"#);
+		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x","creates":null}"#);
 	}
 }
 

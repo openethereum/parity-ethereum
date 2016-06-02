@@ -19,22 +19,31 @@ use util::hash::{Address, H256};
 use v1::types::Log;
 use ethcore::receipt::LocalizedReceipt;
 
+/// Receipt
 #[derive(Debug, Serialize)]
 pub struct Receipt {
+	/// Transaction Hash
 	#[serde(rename="transactionHash")]
 	pub transaction_hash: H256,
+	/// Transaction index
 	#[serde(rename="transactionIndex")]
 	pub transaction_index: U256,
+	/// Block hash
 	#[serde(rename="blockHash")]
 	pub block_hash: H256,
+	/// Block number
 	#[serde(rename="blockNumber")]
 	pub block_number: U256,
+	/// Cumulative gas used
 	#[serde(rename="cumulativeGasUsed")]
 	pub cumulative_gas_used: U256,
+	/// Gas used
 	#[serde(rename="gasUsed")]
 	pub gas_used: U256,
+	/// Contract address
 	#[serde(rename="contractAddress")]
 	pub contract_address: Option<Address>,
+	/// Logs
 	pub logs: Vec<Log>,
 }
 

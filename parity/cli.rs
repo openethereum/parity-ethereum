@@ -76,13 +76,13 @@ API and Console Options:
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
                            ethcore, traces.
-                           [default: web3,eth,net,personal,ethcore,traces].
+                           [default: web3,eth,net,personal,traces].
 
   --ipc-off                Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
-                           IPC [default: web3,eth,net,personal,ethcore].
+                           IPC [default: web3,eth,net,personal,traces].
 
   --dapps-off              Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
@@ -96,6 +96,11 @@ API and Console Options:
                            asked for password on startup.
   --dapps-pass PASSWORD    Specify password for Dapps server. Use only in
                            conjunction with --dapps-user.
+
+  --signer                 Enable Trusted Signer WebSocket endpoint used by
+                           System UIs.
+  --signer-port PORT       Specify the port of Trusted Signer server
+                           [default: 8180].
 
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
@@ -234,6 +239,8 @@ pub struct Args {
 	pub flag_dapps_interface: String,
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
+	pub flag_signer: bool,
+	pub flag_signer_port: u16,
 	pub flag_force_sealing: bool,
 	pub flag_author: String,
 	pub flag_usd_per_tx: String,

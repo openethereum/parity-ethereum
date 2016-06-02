@@ -18,9 +18,12 @@ use serde::{Serialize, Serializer};
 use util::numbers::*;
 use v1::types::{Bytes, Transaction, OptionalValue};
 
+/// Block Transactions
 #[derive(Debug)]
 pub enum BlockTransactions {
+	/// Only hashes
 	Hashes(Vec<H256>),
+	/// Full transactions
 	Full(Vec<Transaction>)
 }
 
@@ -34,38 +37,58 @@ impl Serialize for BlockTransactions {
 	}
 }
 
+/// Block representation
 #[derive(Debug, Serialize)]
 pub struct Block {
+	/// Hash of the block
 	pub hash: OptionalValue<H256>,
+	/// Hash of the parent
 	#[serde(rename="parentHash")]
 	pub parent_hash: H256,
+	/// Hash of the uncles
 	#[serde(rename="sha3Uncles")]
 	pub uncles_hash: H256,
+	/// Authors address
 	pub author: Address,
 	// TODO: get rid of this one
+	/// ?
 	pub miner: Address,
+	/// State root hash
 	#[serde(rename="stateRoot")]
 	pub state_root: H256,
+	/// Transactions root hash
 	#[serde(rename="transactionsRoot")]
 	pub transactions_root: H256,
+	/// Transactions receipts root hash
 	#[serde(rename="receiptsRoot")]
 	pub receipts_root: H256,
+	/// Block number
 	pub number: OptionalValue<U256>,
+	/// Gas Used
 	#[serde(rename="gasUsed")]
 	pub gas_used: U256,
+	/// Gas Limit
 	#[serde(rename="gasLimit")]
 	pub gas_limit: U256,
+	/// Extra data
 	#[serde(rename="extraData")]
 	pub extra_data: Bytes,
+	/// Logs bloom
 	#[serde(rename="logsBloom")]
 	pub logs_bloom: H2048,
+	/// Timestamp
 	pub timestamp: U256,
+	/// Difficulty
 	pub difficulty: U256,
+	/// Total difficulty
 	#[serde(rename="totalDifficulty")]
 	pub total_difficulty: U256,
+	/// Seal fields
 	#[serde(rename="sealFields")]
 	pub seal_fields: Vec<Bytes>,
+	/// Uncles' hashes
 	pub uncles: Vec<H256>,
+	/// Transactions
 	pub transactions: BlockTransactions
 }
 
@@ -80,7 +103,7 @@ mod tests {
 	fn test_serialize_block_transactions() {
 		let t = BlockTransactions::Full(vec![Transaction::default()]);
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x"}]"#);
+		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x","creates":null}]"#);
 
 		let t = BlockTransactions::Hashes(vec![H256::default()]);
 		let serialized = serde_json::to_string(&t).unwrap();

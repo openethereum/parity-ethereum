@@ -25,7 +25,7 @@ elastic-array = "0.4"
 heapsize = "0.3"
 itertools = "0.4"
 crossbeam = "0.2"
-slab = "0.1"
+slab = "0.2"
 sha3 = { path = "sha3" }
 serde = "0.7.0"
 clippy = { version = "0.0.69", optional = true}

@@ -75,6 +75,7 @@ pub fn clean_0x(s: &str) -> &str {
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
+		#[repr(C)]
 		/// Unformatted binary data of fixed length.
 		pub struct $from (pub [u8; $size]);
 
@@ -717,7 +718,7 @@ mod tests {
 
 	#[test]
 	fn from_and_to_u256() {
-		let u: U256 = x!(0x123456789abcdef0u64);
+		let u: U256 = 0x123456789abcdef0u64.into();
 		let h = H256::from(u);
 		assert_eq!(H256::from(u), H256::from("000000000000000000000000000000000000000000000000123456789abcdef0"));
 		let h_ref = H256::from(&u);

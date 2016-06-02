@@ -27,6 +27,8 @@ pub fn setup_log(init: &Option<String>) -> Arc<RotatingLogger> {
 
 	let mut levels = String::new();
 	let mut builder = LogBuilder::new();
+	// Disable ws info logging by default.
+	builder.filter(Some("ws"), LogLevelFilter::Warn);
 	builder.filter(None, LogLevelFilter::Info);
 
 	if env::var("RUST_LOG").is_ok() {

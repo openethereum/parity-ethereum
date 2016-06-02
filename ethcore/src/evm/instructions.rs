@@ -124,6 +124,7 @@ pub struct InstructionInfo {
 	pub side_effects: bool,
 	pub tier: GasPriceTier
 }
+
 impl InstructionInfo {
 	pub fn new(name: &'static str, additional: usize, args: usize, ret: usize, side_effects: bool, tier: GasPriceTier) -> InstructionInfo {
 		InstructionInfo {
@@ -139,7 +140,7 @@ impl InstructionInfo {
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 /// Return details about specific instruction
-pub fn get_info (instruction: Instruction) -> InstructionInfo {
+pub fn get_info(instruction: Instruction) -> InstructionInfo {
 	match instruction {
 		STOP => 		InstructionInfo::new("STOP",			0, 0, 0, true, GasPriceTier::Zero),
 		ADD => 			InstructionInfo::new("ADD",				0, 2, 1, false, GasPriceTier::VeryLow),

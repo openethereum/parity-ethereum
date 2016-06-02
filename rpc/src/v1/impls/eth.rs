@@ -18,16 +18,16 @@
 
 extern crate ethash;
 
-use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, ExternalMinerService};
+use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use ethcore::client::{BlockChainClient, BlockID, TransactionID, UncleID};
+use util::keys::store::AccountProvider;
+use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -35,16 +35,14 @@ use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Act
 use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
-use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::helpers::{PollFilter, PollManager};
-use v1::impls::{dispatch_transaction, sign_and_dispatch};
-use util::keys::store::AccountProvider;
+use v1::traits::Eth;
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
+use v1::impls::dispatch_transaction;
 use serde;
 
 /// Eth rpc implementation.
 pub struct EthClient<C, S, A, M, EM> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	S: SyncProvider,
 	A: AccountProvider,
 	M: MinerService,
@@ -59,7 +57,7 @@ pub struct EthClient<C, S, A, M, EM> where
 }
 
 impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	S: SyncProvider,
 	A: AccountProvider,
 	M: MinerService,
@@ -170,6 +168,25 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 	}
 }
 
+pub fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
+	let receipts = miner.pending_receipts();
+
+	let pending_logs = receipts.into_iter()
+		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
+		.collect::<Vec<(H256, LogEntry)>>();
+
+	let result = pending_logs.into_iter()
+		.filter(|pair| filter.matches(&pair.1))
+		.map(|pair| {
+			let mut log = Log::from(pair.1);
+			log.transaction_hash = Some(pair.0);
+			log
+		})
+		.collect();
+
+	result
+}
+
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 fn params_len(params: &Params) -> usize {
@@ -193,25 +210,6 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 	}
 }
 
-fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
-	let receipts = miner.pending_receipts();
-
-	let pending_logs = receipts.into_iter()
-		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
-		.collect::<Vec<(H256, LogEntry)>>();
-
-	let result = pending_logs.into_iter()
-		.filter(|pair| filter.matches(&pair.1))
-		.map(|pair| {
-			let mut log = Log::from(pair.1);
-			log.transaction_hash = Some(pair.0);
-			log
-		})
-		.collect();
-
-	result
-}
-
 // must be in range [-32099, -32000]
 const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
 
@@ -224,7 +222,7 @@ fn make_unsupported_err() -> Error {
 }
 
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
-	C: BlockChainClient + 'static,
+	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	A: AccountProvider + 'static,
 	M: MinerService + 'static,
@@ -244,12 +242,14 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 				let res = match status.state {
 					SyncState::Idle => SyncStatus::None,
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => {
+						let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
+
 						let info = SyncInfo {
 							starting_block: U256::from(status.start_block_number),
-							current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
+							current_block: current_block,
 							highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
 						};
-						match info.highest_block > info.starting_block + U256::from(6) {
+						match info.highest_block > info.current_block + U256::from(6) {
 							true => SyncStatus::Info(info),
 							false => SyncStatus::None,
 						}
@@ -494,17 +494,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 		})
 	}
 
-	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(request, )| {
-				let accounts = take_weak!(self.accounts);
-				match accounts.account_secret(&request.from) {
-					Ok(secret) => sign_and_dispatch(&self.client, &self.miner, request, secret),
-					Err(_) => to_value(&H256::zero())
-				}
-		})
-	}
-
 	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Bytes, )>(params)
 			.and_then(|(raw_transaction, )| {
@@ -522,8 +511,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(request, block_number,)| {
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
-					BlockNumber::Latest => take_weak!(self.client).call(&signed),
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, false),
+					BlockNumber::Latest => take_weak!(self.client).call(&signed, false),
 					_ => panic!("{:?}", block_number),
 				};
 				to_value(&r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
@@ -535,194 +524,23 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(request, block_number,)| {
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
-					BlockNumber::Latest => take_weak!(self.client).call(&signed),
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, false),
+					BlockNumber::Latest => take_weak!(self.client).call(&signed, false),
 					_ => return Err(Error::invalid_params()),
 				};
 				to_value(&r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0)))
 			})
 	}
-}
 
-/// Eth filter rpc implementation.
-pub struct EthFilterClient<C, M> where
-	C: BlockChainClient,
-	M: MinerService {
-
-	client: Weak<C>,
-	miner: Weak<M>,
-	polls: Mutex<PollManager<PollFilter>>,
-}
-
-impl<C, M> EthFilterClient<C, M> where
-	C: BlockChainClient,
-	M: MinerService {
-
-	/// Creates new Eth filter client.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
-		EthFilterClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
-			polls: Mutex::new(PollManager::new()),
-		}
-	}
-}
-
-impl<C, M> EthFilter for EthFilterClient<C, M> where
-	C: BlockChainClient + 'static,
-	M: MinerService + 'static {
-
-	fn new_filter(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Filter,)>(params)
-			.and_then(|(filter,)| {
-				let mut polls = self.polls.lock().unwrap();
-				let block_number = take_weak!(self.client).chain_info().best_block_number;
-				let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
-				to_value(&U256::from(id))
-			})
+	fn compile_lll(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
 	}
 
-	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => {
-				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
-				to_value(&U256::from(id))
-			},
-			_ => Err(Error::invalid_params())
-		}
+	fn compile_serpent(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
 	}
 
-	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => {
-				let mut polls = self.polls.lock().unwrap();
-				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
-				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
-
-				to_value(&U256::from(id))
-			},
-			_ => Err(Error::invalid_params())
-		}
-	}
-
-	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
-		let client = take_weak!(self.client);
-		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
-				let mut polls = self.polls.lock().unwrap();
-				match polls.poll_mut(&index.value()) {
-					None => Ok(Value::Array(vec![] as Vec<Value>)),
-					Some(filter) => match *filter {
-						PollFilter::Block(ref mut block_number) => {
-							// + 1, cause we want to return hashes including current block hash.
-							let current_number = client.chain_info().best_block_number + 1;
-							let hashes = (*block_number..current_number).into_iter()
-								.map(BlockID::Number)
-								.filter_map(|id| client.block_hash(id))
-								.collect::<Vec<H256>>();
-
-							*block_number = current_number;
-
-							to_value(&hashes)
-						},
-						PollFilter::PendingTransaction(ref mut previous_hashes) => {
-							// get hashes of pending transactions
-							let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
-
-							let new_hashes =
-							{
-								let previous_hashes_set = previous_hashes.iter().collect::<HashSet<_>>();
-
-								//	find all new hashes
-								current_hashes
-									.iter()
-									.filter(|hash| !previous_hashes_set.contains(hash))
-									.cloned()
-									.collect::<Vec<H256>>()
-							};
-
-							// save all hashes of pending transactions
-							*previous_hashes = current_hashes;
-
-							// return new hashes
-							to_value(&new_hashes)
-						},
-						PollFilter::Logs(ref mut block_number, ref mut previous_logs, ref filter) => {
-							// retrive the current block number
-							let current_number = client.chain_info().best_block_number;
-
-							// check if we need to check pending hashes
-							let include_pending = filter.to_block == Some(BlockNumber::Pending);
-
-							// build appropriate filter
-							let mut filter: EthcoreFilter = filter.clone().into();
-							filter.from_block = BlockID::Number(*block_number);
-							filter.to_block = BlockID::Latest;
-
-							// retrieve logs in range from_block..min(BlockID::Latest..to_block)
-							let mut logs = client.logs(filter.clone())
-								.into_iter()
-								.map(From::from)
-								.collect::<Vec<Log>>();
-
-							// additionally retrieve pending logs
-							if include_pending {
-								let pending_logs = pending_logs(take_weak!(self.miner).deref(), &filter);
-
-								// remove logs about which client was already notified about
-								let new_pending_logs: Vec<_> = pending_logs.iter()
-									.filter(|p| !previous_logs.contains(p))
-									.cloned()
-									.collect();
-
-								// save all logs retrieved by client
-								*previous_logs = pending_logs.into_iter().collect();
-
-								// append logs array with new pending logs
-								logs.extend(new_pending_logs);
-							}
-
-							// save current block number as next from block number
-							*block_number = current_number;
-
-							to_value(&logs)
-						}
-					}
-				}
-			})
-	}
-
-	fn filter_logs(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
-				let mut polls = self.polls.lock().unwrap();
-				match polls.poll(&index.value()) {
-					Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
-						let include_pending = filter.to_block == Some(BlockNumber::Pending);
-						let filter: EthcoreFilter = filter.clone().into();
-						let mut logs = take_weak!(self.client).logs(filter.clone())
-							.into_iter()
-							.map(From::from)
-							.collect::<Vec<Log>>();
-
-						if include_pending {
-							logs.extend(pending_logs(take_weak!(self.miner).deref(), &filter));
-						}
-
-						to_value(&logs)
-					},
-					// just empty array
-					_ => Ok(Value::Array(vec![] as Vec<Value>)),
-				}
-			})
-	}
-
-	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
-				self.polls.lock().unwrap().remove_poll(&index.value());
-				to_value(&true)
-			})
+	fn compile_solidity(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
 	}
 }

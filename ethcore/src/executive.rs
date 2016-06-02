@@ -21,9 +21,8 @@ use engine::*;
 use evm::{self, Ext, Factory};
 use externalities::*;
 use substate::*;
-use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
+use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use crossbeam;
-
 pub use types::executed::{Executed, ExecutionResult};
 
 /// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
@@ -43,6 +42,8 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 pub struct TransactOptions {
 	/// Enable call tracing.
 	pub tracing: bool,
+	/// Enable VM tracing.
+	pub vm_tracing: bool,
 	/// Check transaction nonce before execution.
 	pub check_nonce: bool,
 }
@@ -80,21 +81,40 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn as_externalities<'_, T>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_, '_>, tracer: &'_ mut T) -> Externalities<'_, T> where T: Tracer {
-		Externalities::new(self.state, self.info, self.engine, self.vm_factory, self.depth, origin_info, substate, output, tracer)
+	pub fn as_externalities<'_, T, V>(
+		&'_ mut self,
+		origin_info: OriginInfo,
+		substate: &'_ mut Substate,
+		output: OutputPolicy<'_, '_>,
+		tracer: &'_ mut T,
+		vm_tracer: &'_ mut V
+	) -> Externalities<'_, T, V> where T: Tracer, V: VMTracer {
+		Externalities::new(self.state, self.info, self.engine, self.vm_factory, self.depth, origin_info, substate, output, tracer, vm_tracer)
 	}
 
 	/// This function should be used to execute transaction.
 	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
 		let check = options.check_nonce;
 		match options.tracing {
-			true => self.transact_with_tracer(t, check, ExecutiveTracer::default()),
-			false => self.transact_with_tracer(t, check, NoopTracer),
+			true => match options.vm_tracing {
+				true => self.transact_with_tracer(t, check, ExecutiveTracer::default(), ExecutiveVMTracer::default()),
+				false => self.transact_with_tracer(t, check, ExecutiveTracer::default(), NoopVMTracer),
+			},
+			false => match options.vm_tracing {
+				true => self.transact_with_tracer(t, check, NoopTracer, ExecutiveVMTracer::default()),
+				false => self.transact_with_tracer(t, check, NoopTracer, NoopVMTracer),
+			},
 		}
 	}
 
 	/// Execute transaction/call with tracing enabled
-	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, ExecutionError> where T: Tracer {
+	pub fn transact_with_tracer<T, V>(
+		&'a mut self,
+		t: &SignedTransaction,
+		check_nonce: bool,
+		mut tracer: T,
+		mut vm_tracer: V
+	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
 		let sender = try!(t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
@@ -154,7 +174,7 @@ impl<'a> Executive<'a> {
 					code: Some(t.data.clone()),
 					data: None,
 				};
-				(self.create(params, &mut substate, &mut tracer), vec![])
+				(self.create(params, &mut substate, &mut tracer, &mut vm_tracer), vec![])
 			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
@@ -170,20 +190,26 @@ impl<'a> Executive<'a> {
 				};
 				// TODO: move output upstream
 				let mut out = vec![];
-				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer), out)
+				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
 			}
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop())))
+		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop(), vm_tracer.drain())))
 	}
 
-	fn exec_vm<T>(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy, tracer: &mut T)
-		-> evm::Result where T: Tracer {
+	fn exec_vm<T, V>(
+		&mut self,
+		params: ActionParams,
+		unconfirmed_substate: &mut Substate,
+		output_policy: OutputPolicy,
+		tracer: &mut T,
+		vm_tracer: &mut V
+	) -> evm::Result where T: Tracer, V: VMTracer {
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
 			let vm_factory = self.vm_factory;
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
 			return vm_factory.create().exec(params, &mut ext);
 		}
@@ -193,7 +219,7 @@ impl<'a> Executive<'a> {
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
 			let vm_factory = self.vm_factory;
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 
 			scope.spawn(move || {
 				vm_factory.create().exec(params, &mut ext)
@@ -205,8 +231,14 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
-	pub fn call<T>(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef, tracer: &mut T)
-		-> evm::Result where T: Tracer {
+	pub fn call<T, V>(
+		&mut self,
+		params: ActionParams,
+		substate: &mut Substate,
+		mut output: BytesRef,
+		tracer: &mut T,
+		vm_tracer: &mut V
+	) -> evm::Result where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
@@ -264,15 +296,21 @@ impl<'a> Executive<'a> {
 			let trace_info = tracer.prepare_trace_call(&params);
 			let mut trace_output = tracer.prepare_trace_output();
 			let mut subtracer = tracer.subtracer();
+
 			let gas = params.gas;
 
 			if params.code.is_some() {
 				// part of substate that may be reverted
 				let mut unconfirmed_substate = Substate::new();
 
+				// TODO: make ActionParams pass by ref then avoid copy altogether.
+				let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("scope is protected by params.code.is_some condition"));
+
 				let res = {
-					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer)
+					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 				};
+
+				vm_tracer.done_subtrace(subvmtracer);
 
 				trace!(target: "executive", "res={:?}", res);
 
@@ -307,8 +345,13 @@ impl<'a> Executive<'a> {
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
-	pub fn create<T>(&mut self, params: ActionParams, substate: &mut Substate, tracer: &mut T) -> evm::Result where T:
-		Tracer {
+	pub fn create<T, V>(
+		&mut self,
+		params: ActionParams,
+		substate: &mut Substate,
+		tracer: &mut T,
+		vm_tracer: &mut V
+	) -> evm::Result where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
@@ -330,9 +373,13 @@ impl<'a> Executive<'a> {
 		let gas = params.gas;
 		let created = params.address.clone();
 
+		let mut subvmtracer = vm_tracer.prepare_subtrace(&params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
+
 		let res = {
-			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer)
+			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 		};
+
+		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
 			Ok(gas_left) => tracer.trace_create(
@@ -351,7 +398,15 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result, output: Bytes, trace: Option<Trace>) -> ExecutionResult {
+	fn finalize(
+		&mut self,
+		t: &SignedTransaction,
+		substate: Substate,
+		result: evm::Result,
+		output: Bytes,
+		trace: Option<Trace>,
+		vm_trace: Option<VMTrace>
+	) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
@@ -361,7 +416,7 @@ impl<'a> Executive<'a> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match result { Ok(x) => x, _ => x!(0) };
+		let gas_left_prerefund = match result { Ok(x) => x, _ => 0.into() };
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -394,6 +449,7 @@ impl<'a> Executive<'a> {
 					contracts_created: vec![],
 					output: output,
 					trace: trace,
+					vm_trace: vm_trace,
 				})
 			},
 			_ => {
@@ -406,6 +462,7 @@ impl<'a> Executive<'a> {
 					contracts_created: substate.contracts_created,
 					output: output,
 					trace: trace,
+					vm_trace: vm_trace,
 				})
 			},
 		}
@@ -438,6 +495,7 @@ mod tests {
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
+	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 
 	#[test]
 	fn test_contract_address() {
@@ -466,7 +524,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
@@ -525,7 +583,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -542,7 +600,7 @@ mod tests {
 		// 52
 		// 60 1d - push 29
 		// 60 03 - push 3
-		// 60 17 - push 17
+		// 60 17 - push 23
 		// f0 - create
 		// 60 00 - push 0
 		// 55 sstore
@@ -578,20 +636,23 @@ mod tests {
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::default();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
-			ex.call(params, &mut substate, output, &mut tracer).unwrap()
+			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
 		};
+
+		assert_eq!(gas_left, U256::from(44_752));
 
 		let expected_trace = vec![ Trace {
 			depth: 0,
 			action: trace::Action::Call(trace::Call {
-				from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
-				to: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
-				value: x!(100),
-				gas: x!(100000),
+				from: "cd1722f3947def4cf144679da39c4c32bdc35681".into(),
+				to: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+				value: 100.into(),
+				gas: 100000.into(),
 				input: vec![],
 			}),
 			result: trace::Res::Call(trace::CallResult {
@@ -601,9 +662,9 @@ mod tests {
 			subs: vec![Trace {
 				depth: 1,
 				action: trace::Action::Create(trace::Create {
-					from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
-					value: x!(23),
-					gas: x!(67979),
+					from: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+					value: 23.into(),
+					gas: 67979.into(),
 					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
 				}),
 				result: trace::Res::Create(trace::CreateResult {
@@ -615,7 +676,39 @@ mod tests {
 			}]
 		}];
 		assert_eq!(tracer.traces(), expected_trace);
-		assert_eq!(gas_left, U256::from(44_752));
+
+		let expected_vm_trace = VMTrace {
+			parent_step: 0,
+			code: vec![124, 96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85, 96, 0, 82, 96, 29, 96, 3, 96, 23, 240, 96, 0, 85],
+			operations: vec![
+				VMOperation { pc: 0, instruction: 124, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99997.into(), stack_push: vec_into![U256::from_dec_str("2589892687202724018173567190521546555304938078595079151649957320078677").unwrap()], mem_diff: None, store_diff: None }) }, 
+				VMOperation { pc: 30, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99994.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) }, 
+				VMOperation { pc: 32, instruction: 82, gas_cost: 6.into(), executed: Some(VMExecutedOperation { gas_used: 99988.into(), stack_push: vec_into![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![0, 0, 0, 96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85] }), store_diff: None }) }, 
+				VMOperation { pc: 33, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99985.into(), stack_push: vec_into![29], mem_diff: None, store_diff: None }) }, 
+				VMOperation { pc: 35, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99982.into(), stack_push: vec_into![3], mem_diff: None, store_diff: None }) }, 
+				VMOperation { pc: 37, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99979.into(), stack_push: vec_into![23], mem_diff: None, store_diff: None }) }, 
+				VMOperation { pc: 39, instruction: 240, gas_cost: 32000.into(), executed: Some(VMExecutedOperation { gas_used: 67979.into(), stack_push: vec_into![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap()], mem_diff: None, store_diff: None }) }, 
+				VMOperation { pc: 40, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 64752.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) }, 
+				VMOperation { pc: 42, instruction: 85, gas_cost: 20000.into(), executed: Some(VMExecutedOperation { gas_used: 44752.into(), stack_push: vec_into![], mem_diff: None, store_diff: Some(StorageDiff { location: 0.into(), value: U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap() }) }) }
+			],
+			subs: vec![
+				VMTrace {
+					parent_step: 7,
+					code: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+					operations: vec![
+						VMOperation { pc: 0, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67976.into(), stack_push: vec_into![16], mem_diff: None, store_diff: None }) }, 
+						VMOperation { pc: 2, instruction: 128, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67973.into(), stack_push: vec_into![16, 16], mem_diff: None, store_diff: None }) }, 
+						VMOperation { pc: 3, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67970.into(), stack_push: vec_into![12], mem_diff: None, store_diff: None }) }, 
+						VMOperation { pc: 5, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67967.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) }, 
+						VMOperation { pc: 7, instruction: 57, gas_cost: 9.into(), executed: Some(VMExecutedOperation { gas_used: 67958.into(), stack_push: vec_into![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53] }), store_diff: None }) }, 
+						VMOperation { pc: 8, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67955.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) }, 
+						VMOperation { pc: 10, instruction: 243, gas_cost: 0.into(), executed: Some(VMExecutedOperation { gas_used: 67955.into(), stack_push: vec_into![], mem_diff: None, store_diff: None }) }
+					],
+					subs: vec![]
+				}
+			]
+		};
+		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
 	}
 
 	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
@@ -642,7 +735,7 @@ mod tests {
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		params.value = ActionValue::Transfer(x!(100));
+		params.value = ActionValue::Transfer(100.into());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
@@ -650,17 +743,20 @@ mod tests {
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::default();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params.clone(), &mut substate, &mut tracer).unwrap()
+			ex.create(params.clone(), &mut substate, &mut tracer, &mut vm_tracer).unwrap()
 		};
+
+		assert_eq!(gas_left, U256::from(96_776));
 
 		let expected_trace = vec![Trace {
 			depth: 0,
 			action: trace::Action::Create(trace::Create {
 				from: params.sender,
-				value: x!(100),
+				value: 100.into(),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 			}),
@@ -671,9 +767,23 @@ mod tests {
 			}),
 			subs: vec![]
 		}];
-
 		assert_eq!(tracer.traces(), expected_trace);
-		assert_eq!(gas_left, U256::from(96_776));
+		
+		let expected_vm_trace = VMTrace {
+			parent_step: 0,
+			code: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+			operations: vec![
+				VMOperation { pc: 0, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99997.into(), stack_push: vec_into![16], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 2, instruction: 128, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99994.into(), stack_push: vec_into![16, 16], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 3, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99991.into(), stack_push: vec_into![12], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 5, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99988.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 7, instruction: 57, gas_cost: 9.into(), executed: Some(VMExecutedOperation { gas_used: 99979.into(), stack_push: vec_into![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53] }), store_diff: None }) },
+				VMOperation { pc: 8, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99976.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 10, instruction: 243, gas_cost: 0.into(), executed: Some(VMExecutedOperation { gas_used: 99976.into(), stack_push: vec_into![], mem_diff: None, store_diff: None }) }
+			],
+			subs: vec![]
+		};
+		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
 	}
 
 	evm_test!{test_create_contract_value_too_high: test_create_contract_value_too_high_jit, test_create_contract_value_too_high_int}
@@ -722,7 +832,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -774,7 +884,7 @@ mod tests {
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer).unwrap();
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
 		assert_eq!(substate.contracts_created.len(), 1);
@@ -835,7 +945,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer).unwrap()
+			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(73_237));
@@ -880,7 +990,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer).unwrap()
+			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(59_870));
@@ -913,7 +1023,7 @@ mod tests {
 
 		let executed = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts).unwrap()
 		};
 
@@ -947,7 +1057,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts)
 		};
 
@@ -979,7 +1089,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts)
 		};
 
@@ -1013,7 +1123,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts)
 		};
 
@@ -1047,7 +1157,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
 			ex.transact(&t, opts)
 		};
 
@@ -1082,7 +1192,7 @@ mod tests {
 
 		let result = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			ex.create(params, &mut substate, &mut NoopTracer)
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer)
 		};
 
 		match result {

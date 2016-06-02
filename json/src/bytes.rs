@@ -19,6 +19,7 @@
 use rustc_serialize::hex::FromHex;
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
+use std::ops::Deref;
 
 /// Lenient bytes json deserialization for test json files.
 #[derive(Default, Debug, PartialEq, Clone)]
@@ -27,6 +28,14 @@ pub struct Bytes(Vec<u8>);
 impl Into<Vec<u8>> for Bytes {
 	fn into(self) -> Vec<u8> {
 		self.0
+	}
+}
+
+impl Deref for Bytes {
+	type Target = Vec<u8>;
+
+	fn deref(&self) -> &Vec<u8> {
+		&self.0
 	}
 }
 

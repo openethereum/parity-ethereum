@@ -28,11 +28,28 @@
 //! and their responsibility is to confirm (or confirm and sign)
 //! the transaction for you.
 //!
+//! ```
+//! extern crate ethcore_signer;
 //!
+//! use ethcore_signer::ServerBuilder;
+//!
+//!	fn main() {
+//!	 let builder = ServerBuilder::new();
+//!	 let _server = builder.start("127.0.0.1:8084".parse().unwrap()).unwrap();
+//!	}
+//! ```
 
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+
+extern crate ethcore_util as util;
+extern crate ethcore_rpc as rpc;
+extern crate jsonrpc_core;
+extern crate ws;
+
+mod ws_server;
+pub use ws_server::*;
 
 #[cfg(test)]
 mod tests {

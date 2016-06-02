@@ -27,7 +27,6 @@ extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
-extern crate ethminer;
 #[macro_use]
 extern crate log as rlog;
 extern crate env_logger;
@@ -50,6 +49,9 @@ extern crate ethcore_rpc;
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
+#[cfg(feature = "ethcore-signer")]
+extern crate ethcore_signer;
+
 #[macro_use]
 mod die;
 mod price_info;
@@ -63,6 +65,8 @@ mod io_handler;
 mod cli;
 mod configuration;
 mod migration;
+mod signer;
+mod rpc_apis;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
@@ -81,7 +85,7 @@ use ethcore::error::{Error, ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
-use ethminer::{Miner, MinerService, ExternalMiner};
+use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
 use migration::migrate;
 use informant::Informant;
@@ -89,6 +93,7 @@ use informant::Informant;
 use die::*;
 use cli::print_version;
 use rpc::RpcServer;
+use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::Configuration;
@@ -168,14 +173,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
 
-	// Build client
-	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path())
-	).unwrap_or_else(|e| die_with_error("Client", e));
-
-	panic_handler.forward_from(&service);
-	let client = service.client();
-
 	// Miner
 	let miner = Miner::with_accounts(conf.args.flag_force_sealing, conf.spec(), account_service.clone());
 	miner.set_author(conf.author());
@@ -184,14 +181,23 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	miner.set_minimal_gas_price(conf.gas_price());
 	miner.set_transactions_limit(conf.args.flag_tx_limit);
 
+	// Build client
+	let mut service = ClientService::start(
+		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone()
+	).unwrap_or_else(|e| die_with_error("Client", e));
+
+	panic_handler.forward_from(&service);
+	let client = service.client();
+
 	let external_miner = Arc::new(ExternalMiner::default());
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
+	let sync = EthSync::register(service.network(), sync_config, client.clone());
 
-	let dependencies = Arc::new(rpc::Dependencies {
-		panic_handler: panic_handler.clone(),
+	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
+		signer_enabled: conf.args.flag_signer,
+		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
 		client: client.clone(),
 		sync: sync.clone(),
 		secret_store: account_service.clone(),
@@ -200,6 +206,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 	});
+
+	let dependencies = rpc::Dependencies {
+		panic_handler: panic_handler.clone(),
+		apis: deps_for_rpc_apis.clone(),
+	};
 
 	// Setup http rpc
 	let rpc_server = rpc::new_http(rpc::HttpConfiguration {
@@ -222,13 +233,16 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		pass: conf.args.flag_dapps_pass.clone(),
 	}, dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
-		client: client.clone(),
-		sync: sync.clone(),
-		secret_store: account_service.clone(),
-		miner: miner.clone(),
-		external_miner: external_miner.clone(),
-		logger: logger.clone(),
-		settings: network_settings.clone(),
+		apis: deps_for_rpc_apis.clone(),
+	});
+
+	// Set up a signer
+	let signer_server = signer::start(signer::Configuration {
+		enabled: deps_for_rpc_apis.signer_enabled,
+		port: conf.args.flag_signer_port,
+	}, signer::Dependencies {
+		panic_handler: panic_handler.clone(),
+		apis: deps_for_rpc_apis.clone(),
 	});
 
 	// Register IO handler
@@ -241,7 +255,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	// Handle exit
-	wait_for_exit(panic_handler, rpc_server, dapps_server);
+	wait_for_exit(panic_handler, rpc_server, dapps_server, signer_server);
 }
 
 fn flush_stdout() {
@@ -277,7 +291,7 @@ fn execute_export(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path())
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -348,7 +362,7 @@ fn execute_import(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path())
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -453,7 +467,12 @@ fn execute_account_cli(conf: Configuration) {
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _dapps_server: Option<WebappServer>) {
+fn wait_for_exit(
+	panic_handler: Arc<PanicHandler>,
+	_rpc_server: Option<RpcServer>,
+	_dapps_server: Option<WebappServer>,
+	_signer_server: Option<SignerServer>
+	) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits

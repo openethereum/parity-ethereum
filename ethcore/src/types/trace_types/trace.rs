@@ -349,6 +349,170 @@ impl Trace {
 	}
 }
 
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A diff of some chunk of memory.
+pub struct MemoryDiff {
+	/// Offset into memory the change begins.
+	pub offset: usize,
+	/// The changed data.
+	pub data: Bytes,
+}
+
+impl Encodable for MemoryDiff {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.offset);
+		s.append(&self.data);
+	}
+}
+
+impl Decodable for MemoryDiff {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		Ok(MemoryDiff {
+			offset: try!(d.val_at(0)),
+			data: try!(d.val_at(1)),
+		})
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A diff of some storage value.
+pub struct StorageDiff {
+	/// Which key in storage is changed.
+	pub location: U256,
+	/// What the value has been changed to.
+	pub value: U256,
+}
+
+impl Encodable for StorageDiff {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.location);
+		s.append(&self.value);
+	}
+}
+
+impl Decodable for StorageDiff {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		Ok(StorageDiff {
+			location: try!(d.val_at(0)),
+			value: try!(d.val_at(1)),
+		})
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A record of an executed VM operation.
+pub struct VMExecutedOperation {
+	/// The total gas used.
+	pub gas_used: U256,
+	/// The stack item placed, if any.
+	pub stack_push: Vec<U256>,
+	/// If altered, the memory delta.
+	pub mem_diff: Option<MemoryDiff>,
+	/// The altered storage value, if any.
+	pub store_diff: Option<StorageDiff>,
+}
+
+impl Encodable for VMExecutedOperation {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
+		s.append(&self.gas_used);
+		s.append(&self.stack_push);
+		s.append(&self.mem_diff);
+		s.append(&self.store_diff);
+	}
+}
+
+impl Decodable for VMExecutedOperation {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		Ok(VMExecutedOperation {
+			gas_used: try!(d.val_at(0)),
+			stack_push: try!(d.val_at(1)),
+			mem_diff: try!(d.val_at(2)),
+			store_diff: try!(d.val_at(3)),
+		})
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Binary)]
+/// A record of the execution of a single VM operation.
+pub struct VMOperation {
+	/// The program counter.
+	pub pc: usize,
+	/// The instruction executed.
+	pub instruction: u8,
+	/// The gas cost for this instruction.
+	pub gas_cost: U256,
+	/// Information concerning the execution of the operation.
+	pub executed: Option<VMExecutedOperation>,
+}
+
+impl Encodable for VMOperation {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
+		s.append(&self.pc);
+		s.append(&self.instruction);
+		s.append(&self.gas_cost);
+		s.append(&self.executed);
+	}
+}
+
+impl Decodable for VMOperation {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = VMOperation {
+			pc: try!(d.val_at(0)),
+			instruction: try!(d.val_at(1)),
+			gas_cost: try!(d.val_at(2)),
+			executed: try!(d.val_at(3)),
+		};
+
+		Ok(res)
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Binary, Default)]
+/// A record of a full VM trace for a CALL/CREATE.
+pub struct VMTrace {
+	/// The step (i.e. index into operations) at which this trace corresponds.
+	pub parent_step: usize,
+	/// The code to be executed.
+	pub code: Bytes,
+	/// The operations executed.
+	pub operations: Vec<VMOperation>,
+	/// The sub traces for each interior action performed as part of this call/create.
+	/// Thre is a 1:1 correspondance between these and a CALL/CREATE/CALLCODE/DELEGATECALL instruction.
+	pub subs: Vec<VMTrace>,
+}
+
+impl Encodable for VMTrace {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
+		s.append(&self.parent_step);
+		s.append(&self.code);
+		s.append(&self.operations);
+		s.append(&self.subs);
+	}
+}
+
+impl Decodable for VMTrace {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = VMTrace {
+			parent_step: try!(d.val_at(0)),
+			code: try!(d.val_at(1)),
+			operations: try!(d.val_at(2)),
+			subs: try!(d.val_at(3)),
+		};
+
+		Ok(res)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use util::{Address, U256, FixedHash};

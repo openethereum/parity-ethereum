@@ -20,14 +20,16 @@ use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
 use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
-use util::keys::{TestAccount, TestAccountProvider};
+use util::keys::{AccountProvider, TestAccount, TestAccountProvider};
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
-use ethminer::ExternalMiner;
-use v1::{Eth, EthClient};
+use ethcore::miner::{ExternalMiner, MinerService};
+use ethsync::SyncState;
+use v1::{Eth, EthClient, EthSigning, EthSigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
+use rustc_serialize::hex::ToHex;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -70,8 +72,11 @@ impl Default for EthTester {
 		let hashrates = Arc::new(RwLock::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner).to_delegate();
+		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
+		io.add_delegate(sign);
+
 		EthTester {
 			client: client,
 			sync: sync,
@@ -92,9 +97,39 @@ fn rpc_eth_protocol_version() {
 }
 
 #[test]
-#[ignore]
 fn rpc_eth_syncing() {
-	unimplemented!()
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id": 1}"#;
+
+	let tester = EthTester::default();
+
+	let false_res = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+	assert_eq!(tester.io.handle_request(request), Some(false_res.to_owned()));
+
+	{
+		let mut status = tester.sync.status.write().unwrap();
+		status.state = SyncState::Blocks;
+		status.highest_block_number = Some(2500);
+
+		// "sync" to 1000 blocks.
+		// causes TestBlockChainClient to return 1000 for its best block number.
+		let mut blocks = tester.client.blocks.write().unwrap();
+		for i in 0..1000 {
+			blocks.insert(H256::from(i), Vec::new());
+		}
+	}
+
+	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x03e8","highestBlock":"0x09c4","startingBlock":"0x00"},"id":1}"#;
+	assert_eq!(tester.io.handle_request(request), Some(true_res.to_owned()));
+
+	{
+		// finish "syncing"
+		let mut blocks = tester.client.blocks.write().unwrap();
+		for i in 0..1500 {
+			blocks.insert(H256::from(i + 1000), Vec::new());
+		}
+	}
+
+	assert_eq!(tester.io.handle_request(request), Some(false_res.to_owned()));
 }
 
 #[test]
@@ -130,9 +165,47 @@ fn rpc_eth_submit_hashrate() {
 }
 
 #[test]
-#[ignore]
+fn rpc_eth_sign() {
+	let tester = EthTester::default();
+
+	let account = tester.accounts_provider.new_account("abcd").unwrap();
+	let message = H256::from("0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f");
+	let signed = tester.accounts_provider.sign(&account, &message).unwrap();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sign",
+		"params": [
+			""#.to_owned() + &format!("0x{:?}", account) + r#"",
+			"0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f"
+		],
+		"id": 1
+	}"#;
+	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", signed) + r#"","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(&req), Some(res));
+}
+
+#[test]
 fn rpc_eth_author() {
-	unimplemented!()
+	let make_res = |addr| r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", addr) + r#"","id":1}"#;
+	let tester = EthTester::default();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_coinbase",
+		"params": [],
+		"id": 1
+	}"#;
+
+	assert_eq!(tester.io.handle_request(req), Some(make_res(Address::zero())));
+
+	for i in 0..20 {
+		let addr = tester.accounts_provider.new_account(&format!("{}", i)).unwrap();
+		tester.miner.set_author(addr.clone());
+
+		assert_eq!(tester.io.handle_request(req), Some(make_res(addr)));
+	}
 }
 
 #[test]
@@ -193,18 +266,22 @@ fn rpc_eth_balance() {
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
-#[ignore] //TODO: propert test
 #[test]
 fn rpc_eth_balance_pending() {
 	let tester = EthTester::default();
+	tester.client.set_balance(Address::from(1), U256::from(5));
 
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getBalance",
-		"params": ["0x0000000000000000000000000000000000000001", "latest"],
+		"params": ["0x0000000000000000000000000000000000000001", "pending"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x","id":1}"#;
+
+	// the TestMinerService doesn't communicate with the the TestBlockChainClient in any way.
+	// if this returns zero, we know that the "pending" call is being properly forwarded to the
+	// miner.
+	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
 
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
@@ -288,7 +365,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 		tester.miner.pending_transactions.lock().unwrap().insert(H256::zero(), tx);
 	}
 
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x01","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x00","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0x0a"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x01","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x00","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0x0a"},"id":1}"#;
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionByHash",
@@ -353,6 +430,7 @@ fn rpc_eth_call() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
 	});
 
 	let request = r#"{
@@ -386,6 +464,7 @@ fn rpc_eth_call_default_block() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
 	});
 
 	let request = r#"{
@@ -418,6 +497,7 @@ fn rpc_eth_estimate_gas() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
 	});
 
 	let request = r#"{
@@ -451,6 +531,7 @@ fn rpc_eth_estimate_gas_default_block() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
 	});
 
 	let request = r#"{
@@ -503,7 +584,7 @@ fn rpc_eth_send_transaction() {
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+	assert_eq!(tester.io.handle_request(&request), Some(response));
 
 	tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
 
@@ -518,19 +599,38 @@ fn rpc_eth_send_transaction() {
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+	assert_eq!(tester.io.handle_request(&request), Some(response));
 }
 
 #[test]
-#[ignore]
 fn rpc_eth_send_raw_transaction() {
-	unimplemented!()
-}
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account("abcd").unwrap();
+	let secret = tester.accounts_provider.account_secret(&address).unwrap();
 
-#[test]
-#[ignore]
-fn rpc_eth_sign() {
-	unimplemented!()
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	}.sign(&secret);
+
+	let rlp = ::util::rlp::encode(&t).to_vec().to_hex();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendRawTransaction",
+		"params": [
+			"0x"#.to_owned() + &rlp + r#""
+		],
+		"id": 1
+	}"#;
+
+	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", t.hash()) + r#"","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(&req), Some(res));
 }
 
 #[test]
