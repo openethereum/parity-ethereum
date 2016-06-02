@@ -25,6 +25,13 @@ pub use numbers::*;
 pub use sha3::*;
 
 #[macro_export]
+macro_rules! vec_into {
+	( $( $x:expr ),* ) => {
+		vec![ $( $x.into() ),* ]
+	}
+}
+
+#[macro_export]
 macro_rules! hash_map {
 	() => { HashMap::new() };
 	( $( $x:expr => $y:expr ),* ) => {{

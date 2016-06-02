@@ -395,7 +395,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 }
 
 impl<T> Decodable for T where T: FromBytes {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		decoder.read_value(| bytes | {
 			Ok(try!(T::from_bytes(bytes)))
 		})
@@ -403,13 +403,19 @@ impl<T> Decodable for T where T: FromBytes {
 }
 
 impl<T> Decodable for Vec<T> where T: Decodable {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		decoder.as_rlp().iter().map(|d| T::decode(&BasicDecoder::new(d))).collect()
 	}
 }
 
+impl<T> Decodable for Option<T> where T: Decodable {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		decoder.as_rlp().iter().map(|d| T::decode(&BasicDecoder::new(d))).collect::<Result<Vec<_>, DecoderError>>().map(|mut a| a.pop())
+	}
+}
+
 impl Decodable for Vec<u8> {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		decoder.read_value(| bytes | {
 			let mut res = vec![];
 			res.extend_from_slice(bytes);
@@ -418,22 +424,10 @@ impl Decodable for Vec<u8> {
 	}
 }
 
-impl<T> Decodable for Option<T> where T: Decodable {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
-		decoder.read_value(| bytes | {
-			let res = match bytes.len() {
-				0 => None,
-				_ => Some(try!(T::decode(decoder)))
-			};
-			Ok(res)
-		})
-	}
-}
-
 macro_rules! impl_array_decodable {
 	($index_type:ty, $len:expr ) => (
 		impl<T> Decodable for [T; $len] where T: Decodable {
-			fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+			fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 				let decoders = decoder.as_rlp();
 
 				let mut result: [T; $len] = unsafe { ::std::mem::uninitialized() };
@@ -466,7 +460,7 @@ impl_array_decodable_recursive!(
 );
 
 impl<T> RlpDecodable for T where T: Decodable {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		Decodable::decode(decoder)
 	}
 }
@@ -489,7 +483,7 @@ impl FromBytes for DecodableU8 {
 }
 
 impl RlpDecodable for u8 {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let u: DecodableU8 = try!(Decodable::decode(decoder));
 		Ok(u.0)
 	}

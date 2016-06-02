@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use die::*;
 use ethsync::EthSync;
-use ethminer::{Miner, ExternalMiner};
+use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use util::RotatingLogger;
 use util::keys::store::AccountService;
@@ -153,7 +153,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				}
 			},
 			Api::Ethcore => {
-				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client).to_delegate())

@@ -27,7 +27,6 @@ clippy = { version = "0.0.69", optional = true}
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
-ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
 ethcore-signer = { path = "signer", optional = true }
@@ -46,7 +45,7 @@ default-features = false
 default = ["rpc", "dapps", "ethcore-signer"]
 rpc = ["ethcore-rpc"]
 dapps = ["ethcore-dapps"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev",
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev",
 "ethcore-dapps/dev", "ethcore-signer/dev"]
 travis-beta = ["ethcore/json-tests"]
 travis-nightly = ["ethcore/json-tests", "dev"]

@@ -52,15 +52,15 @@ pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
 use v1::types::TransactionRequest;
-use ethminer::{AccountDetails, MinerService};
-use ethcore::client::BlockChainClient;
+use ethcore::miner::{AccountDetails, MinerService};
+use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use util::numbers::*;
 use util::rlp::encode;
 use util::bytes::ToPretty;
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> H256
-	where C: BlockChainClient, M: MinerService {
+	where C: MiningBlockChainClient, M: MinerService {
 	let hash = signed_transaction.hash();
 
 	let import = miner.import_own_transaction(client, signed_transaction, |a: &Address| {
@@ -74,7 +74,7 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 }
 
 fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, secret: H256) -> H256
-	where C: BlockChainClient, M: MinerService {
+	where C: MiningBlockChainClient, M: MinerService {
 
 	let signed_transaction = {
 		Transaction {
