@@ -336,8 +336,8 @@ impl evm::Evm for Interpreter {
 
 			// Execute instruction
 			let result = try!(self.exec_instruction(
-					current_gas, &params, ext, instruction, &mut reader, &mut stack
-					));
+				current_gas, &params, ext, instruction, &mut reader, &mut stack
+			));
 
 			if trace_executed {
 				ext.trace_executed(current_gas, stack.peek_top(get_info(instruction).ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
