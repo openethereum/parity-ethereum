@@ -23,7 +23,7 @@ use error::*;
 use client::{Client, ClientConfig};
 use miner::Miner;
 use ethdb;
-use ethdb::manager::{DatabaseManager, QueuedDatabase};
+use devtools;
 
 /// Message type for external and internal events
 #[derive(Clone)]
@@ -53,7 +53,7 @@ pub struct ClientService {
 	net_service: NetworkService<SyncMessage>,
 	client: Arc<Client>,
 	panic_handler: Arc<PanicHandler>,
-	man: Arc<DatabaseManager<QueuedDatabase>>,
+	_flush_guard: devtools::StopGuard,
 }
 
 impl ClientService {
@@ -63,7 +63,7 @@ impl ClientService {
 		let mut net_service = try!(NetworkService::start(net_config));
 		panic_handler.forward_from(&net_service);
 
-		let man = ethdb::run_manager();
+		let (man, stop) = ethdb::run_manager();
 
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {:?} engine", spec.name, spec.engine.name());
@@ -78,7 +78,7 @@ impl ClientService {
 			net_service: net_service,
 			client: client,
 			panic_handler: panic_handler,
-			man: man,
+			_flush_guard: stop,
 		})
 	}
 

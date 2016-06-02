@@ -28,6 +28,8 @@ use database::*;
 use manager::*;
 use types::*;
 use traits::*;
+#[cfg(test)]
+use devtools::*;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.

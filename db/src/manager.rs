@@ -25,6 +25,7 @@ use traits::DatabaseService;
 use std::thread::{park_timeout, spawn};
 use std::time::Duration;
 use types::{Error, DatabaseConfig};
+use devtools::StopGuard;
 
 pub struct DatabaseManager<K: Eq + Hash> {
 	databases: RwLock<HashMap<K, Arc<Database>>>,
@@ -76,18 +77,19 @@ impl<K: Hash + Eq> Drop for DatabaseManager<K> {
 	}
 }
 
-pub fn run_manager() -> Arc<DatabaseManager<QueuedDatabase>> {
+pub fn run_manager() -> (Arc<DatabaseManager<QueuedDatabase>>, StopGuard) {
 	let manager = Arc::new(DatabaseManager::new(1));
 	let shared_manager = manager.clone();
-
+	let stop_guard = StopGuard::new();
+	let thread_stop = stop_guard.share();
 	spawn(move || {
-		loop {
+		while !thread_stop.load(::std::sync::atomic::Ordering::Relaxed) {
 			park_timeout(Duration::from_millis(10));
 			shared_manager.flush();
 		}
 	});
 
-	manager
+	(manager, stop_guard)
 }
 
 mod tests {

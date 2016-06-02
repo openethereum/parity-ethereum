@@ -93,7 +93,7 @@ extern crate bloomchain;
 extern crate ethcore_db as ethdb;
 extern crate rayon;
 
-#[cfg(test)] extern crate ethcore_devtools as devtools;
+extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod basic_authority;
