@@ -81,14 +81,14 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn as_externalities<'_, T, V>(
-		&'_ mut self,
+	pub fn as_externalities<'any, T, V>(
+		&'any mut self,
 		origin_info: OriginInfo,
-		substate: &'_ mut Substate,
-		output: OutputPolicy<'_, '_>,
-		tracer: &'_ mut T,
-		vm_tracer: &'_ mut V
-	) -> Externalities<'_, T, V> where T: Tracer, V: VMTracer {
+		substate: &'any mut Substate,
+		output: OutputPolicy<'any, 'any>,
+		tracer: &'any mut T,
+		vm_tracer: &'any mut V
+	) -> Externalities<'any, T, V> where T: Tracer, V: VMTracer {
 		Externalities::new(self.state, self.info, self.engine, self.vm_factory, self.depth, origin_info, substate, output, tracer, vm_tracer)
 	}
 

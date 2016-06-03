@@ -712,28 +712,25 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut failure_id = None;
 		let mut deregister = false;
 		let mut expired_session = None;
-		match token {
-			FIRST_SESSION ... LAST_SESSION => {
-				let sessions = self.sessions.write().unwrap();
-				if let Some(session) = sessions.get(token).cloned() {
-					expired_session = Some(session.clone());
-					let mut s = session.lock().unwrap();
-					if !s.expired() {
-						if s.is_ready() {
-							for (p, _) in self.handlers.read().unwrap().iter() {
-								if s.have_capability(p)  {
-									self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
-									to_disconnect.push(p);
-								}
+		if let FIRST_SESSION ... LAST_SESSION = token {
+			let sessions = self.sessions.write().unwrap();
+			if let Some(session) = sessions.get(token).cloned() {
+				expired_session = Some(session.clone());
+				let mut s = session.lock().unwrap();
+				if !s.expired() {
+					if s.is_ready() {
+						for (p, _) in self.handlers.read().unwrap().iter() {
+							if s.have_capability(p)  {
+								self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
+								to_disconnect.push(p);
 							}
 						}
-						s.set_expired();
-						failure_id = s.id().cloned();
 					}
-					deregister = remote || s.done();
+					s.set_expired();
+					failure_id = s.id().cloned();
 				}
-			},
-			_ => {},
+				deregister = remote || s.done();
+			}
 		}
 		if let Some(id) = failure_id {
 			if remote {
