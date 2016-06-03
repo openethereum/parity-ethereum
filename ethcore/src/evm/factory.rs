@@ -89,10 +89,10 @@ impl Factory {
 	pub fn create(&self) -> Box<Evm> {
 		match self.evm {
 			VMType::Jit => {
-				Box::new(super::jit::JitEvm)
+				Box::new(super::jit::JitEvm::default())
 			},
 			VMType::Interpreter => {
-				Box::new(super::interpreter::Interpreter)
+				Box::new(super::interpreter::Interpreter::default())
 			}
 		}
 	}
@@ -102,7 +102,7 @@ impl Factory {
 	pub fn create(&self) -> Box<Evm> {
 		match self.evm {
 			VMType::Interpreter => {
-				Box::new(super::interpreter::Interpreter)
+				Box::new(super::interpreter::Interpreter::default())
 			}
 		}
 	}

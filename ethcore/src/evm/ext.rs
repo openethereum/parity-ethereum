@@ -17,7 +17,7 @@
 //! Interface for Evm externalities.
 
 use util::common::*;
-use evm::{Schedule, Error};
+use evm::{self, Schedule};
 use env_info::*;
 
 /// Result of externalities create function.
@@ -85,7 +85,7 @@ pub trait Ext {
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.
-	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, Error>;
+	fn ret(self, gas: &U256, data: &[u8]) -> evm::Result<U256> where Self: Sized;
 
 	/// Should be called when contract commits suicide.
 	/// Address to which funds should be refunded.

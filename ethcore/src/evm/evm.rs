@@ -63,13 +63,43 @@ pub enum Error {
 	Internal,
 }
 
-/// Evm result.
-///
-/// Returns `gas_left` if execution is successful, otherwise error.
-pub type Result = result::Result<U256, Error>;
+/// A specialized version of Result over EVM errors.
+pub type Result<T> = ::std::result::Result<T, Error>;
 
-/// Evm interface.
+/// Gas Left: either it is a known value, or it needs to be computed by processing
+/// a return instruction.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum GasLeft<'a> {
+	/// Known gas left
+	Known(U256),
+	/// Return instruction must be processed.
+	NeedsReturn(U256, &'a [u8]),
+}
+
+/// Types that can be "finalized" using an EVM.
+///
+/// In practice, this is just used to define an inherent impl on
+/// `Reult<GasLeft<'a>>`.
+pub trait Finalize {
+	/// Consume the externalities, call return if necessary, and produce a final amount of gas left.
+	fn finalize<E: Ext>(self, ext: E) -> Result<U256>;
+}
+
+impl<'a> Finalize for Result<GasLeft<'a>> {
+	fn finalize<E: Ext>(self, ext: E) -> Result<U256> {
+		match self {
+			Ok(GasLeft::Known(gas)) => Ok(gas),
+			Ok(GasLeft::NeedsReturn(gas, ret_code)) => ext.ret(&gas, ret_code),
+			Err(err) => Err(err),
+		}
+	}
+}
+
+/// Evm interface
 pub trait Evm {
 	/// This function should be used to execute transaction.
-	fn exec(&self, params: ActionParams, ext: &mut Ext) -> Result;
+	///
+	/// It returns either an error, a known amount of gas left, or parameters to be used
+	/// to compute the final gas left.
+	fn exec(&mut self, params: ActionParams, ext: &mut Ext) -> Result<GasLeft>;
 }
