@@ -43,6 +43,6 @@ pub trait JournalDB : HashDB + Send + Sync {
 		None
 	}
 
-	/// Whether this database does pruning.
-	fn does_pruning(&self) -> bool { true }
+	/// Whether this database is pruned.
+	fn is_pruned(&self) -> bool { true }
 }

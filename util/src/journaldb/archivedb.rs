@@ -176,7 +176,7 @@ impl JournalDB for ArchiveDB {
 		self.backing.get_by_prefix(&id.bytes()[0..12]).and_then(|b| Some(b.to_vec()))
 	}
 
-	fn does_pruning(&self) -> bool { false }
+	fn is_pruned(&self) -> bool { false }
 }
 
 #[cfg(test)]

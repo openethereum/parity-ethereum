@@ -382,7 +382,7 @@ impl<V> Client<V> where V: Verifier {
 			let root = HeaderView::new(&header).state_root();
 			// check that the block is not too old -- blocks within `HISTORY` blocks of the best will
 			// always be available. If the block could be too old, check if its state root is valid.
-			if db.does_pruning()
+			if db.is_pruned()
 			&& self.chain.best_block_number() >= block_number + HISTORY
 			&& !db.contains(&root) {
 				return None;
