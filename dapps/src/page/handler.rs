@@ -41,17 +41,26 @@ pub trait DappFile: Send {
 
 /// Dapp as a (dynamic) set of files.
 pub trait Dapp: Send + 'static {
+	/// File type
 	type DappFile: DappFile;
 
 	/// Returns file under given path.
 	fn file(&self, path: &str) -> Option<Self::DappFile>;
 }
 
+/// A handler for a single webapp.
+/// Resolves correct paths and serves as a plumbing code between
+/// hyper server and dapp.
 pub struct PageHandler<T: Dapp> {
+	/// A Dapp.
 	pub app: T,
+	/// File currently being served (or `None` if file does not exist).
 	pub file: Option<T::DappFile>,
+	/// Optional prefix to strip from path.
 	pub prefix: Option<String>,
+	/// Requested path.
 	pub path: EndpointPath,
+	/// Flag indicating if the file can be safely embeded (put in iframe).
 	pub safe_to_embed: bool,
 }
 
@@ -135,22 +144,18 @@ mod test {
 	pub struct TestWebAppFile;
 
 	impl DappFile for TestWebAppFile {
-		/// Returns a content-type of this file.
 		fn content_type(&self) -> &str {
 			unimplemented!()
 		}
 
-		/// Checks if all bytes from that file were written.
 		fn is_drained(&self) -> bool {
 			unimplemented!()
 		}
 
-		/// Fetch next chunk to write to the client.
 		fn next_chunk(&mut self) -> &[u8] {
 			unimplemented!()
 		}
 
-		/// How many files have been written to the client.
 		fn bytes_written(&mut self, _bytes: usize) {
 			unimplemented!()
 		}

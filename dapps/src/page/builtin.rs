@@ -30,6 +30,7 @@ pub struct PageEndpoint<T : WebApp + 'static> {
 }
 
 impl<T: WebApp + 'static> PageEndpoint<T> {
+	/// Creates new `PageEndpoint` for builtin (compile time) Dapp.
 	pub fn new(app: T) -> Self {
 		let info = app.info();
 		PageEndpoint {
@@ -40,6 +41,9 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 		}
 	}
 
+	/// Create new `PageEndpoint` and specify prefix that should be removed before looking for a file.
+	/// It's used only for special endpoints (i.e. `/parity-utils/`)
+	/// So `/parity-utils/inject.js` will be resolved to `/inject.js` is prefix is set.
 	pub fn with_prefix(app: T, prefix: String) -> Self {
 		let info = app.info();
 		PageEndpoint {
