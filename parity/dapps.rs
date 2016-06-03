@@ -32,6 +32,7 @@ pub struct Configuration {
 	pub port: u16,
 	pub user: Option<String>,
 	pub pass: Option<String>,
+	pub dapps_path: String,
 }
 
 pub struct Dependencies {
@@ -63,12 +64,13 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappSer
 		(username.to_owned(), password)
 	});
 
-	Some(setup_dapps_server(deps, &addr, auth))
+	Some(setup_dapps_server(deps, configuration.dapps_path, &addr, auth))
 }
 
 #[cfg(not(feature = "dapps"))]
 pub fn setup_dapps_server(
 	_deps: Dependencies,
+	_dapps_path: String,
 	_url: &SocketAddr,
 	_auth: Option<(String, String)>,
 ) -> ! {
@@ -78,12 +80,13 @@ pub fn setup_dapps_server(
 #[cfg(feature = "dapps")]
 pub fn setup_dapps_server(
 	deps: Dependencies,
+	dapps_path: String,
 	url: &SocketAddr,
 	auth: Option<(String, String)>
 ) -> WebappServer {
 	use ethcore_dapps as dapps;
 
-	let server = dapps::ServerBuilder::new();
+	let server = dapps::ServerBuilder::new(dapps_path);
 	let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 	let start_result = match auth {
 		None => {
