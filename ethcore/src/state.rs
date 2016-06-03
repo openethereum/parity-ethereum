@@ -1201,8 +1201,8 @@ mod tests {
 			(root, drop, stop)
 		};
 
-		let (root, db, _) = {
-			let (mut state, stop) = get_temp_state_in(temp.as_path());
+		let (root, db) = {
+			let mut state = State::from_existing(db, root, U256::from(0u8));
 			assert_eq!(state.exists(&a), true);
 			assert_eq!(state.nonce(&a), U256::from(1u64));
 			state.kill_account(&a);
@@ -1210,7 +1210,7 @@ mod tests {
 			assert_eq!(state.exists(&a), false);
 			assert_eq!(state.nonce(&a), U256::from(0u64));
 			let (root, drop) = state.drop();
-			(root, drop, stop)
+			(root, drop)
 		};
 
 		let state = State::from_existing(db, root, U256::from(0u8));
