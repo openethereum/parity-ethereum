@@ -186,11 +186,12 @@ impl Header {
 	/// Get the hash of the header excluding the seal
 	pub fn bare_hash(&self) -> H256 {
 		let mut hash = self.bare_hash.borrow_mut();
-		match &mut *hash {
+		match hash.deref_mut() {
 			&mut Some(ref h) => h.clone(),
-			hash @ &mut None => {
-				*hash = Some(self.rlp_sha3(Seal::Without));
-				hash.as_ref().unwrap().clone()
+			hash => {
+				let h = self.rlp_sha3(Seal::Without);
+				*hash = Some(h.clone());
+				h
 			}
 		}
 	}
