@@ -379,12 +379,11 @@ impl<V> Client<V> where V: Verifier {
 		self.block_header(id).and_then(|header| {
 			let db = self.state_db.lock().unwrap().boxed_clone();
 
-			let root = HeaderView::new(&header).state_root();
 			// check that the block is not too old -- blocks within `HISTORY` blocks of the best will
 			// always be available. If the block could be too old, check if its state root is valid.
-			if db.is_pruned()
-			&& self.chain.best_block_number() >= block_number + HISTORY
-			&& !db.contains(&root) {
+			let root = HeaderView::new(&header).state_root();
+			let is_old = self.chain.best_block_number() >= block_number + HISTORY;
+			if db.is_pruned() && is_old && !db.contains(&root) {
 				return None;
 			}
 
