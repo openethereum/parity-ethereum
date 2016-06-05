@@ -96,6 +96,8 @@ API and Console Options:
                            asked for password on startup.
   --dapps-pass PASSWORD    Specify password for Dapps server. Use only in
                            conjunction with --dapps-user.
+  --dapps-path PATH        Specify directory where dapps should be installed.
+                           [default: $HOME/.parity/dapps]
 
   --signer                 Enable Trusted Signer WebSocket endpoint used by
                            System UIs.
@@ -239,6 +241,7 @@ pub struct Args {
 	pub flag_dapps_interface: String,
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
+	pub flag_dapps_path: String,
 	pub flag_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_force_sealing: bool,

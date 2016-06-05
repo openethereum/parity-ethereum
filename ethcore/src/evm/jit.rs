@@ -18,7 +18,7 @@
 use common::*;
 use trace::VMTracer;
 use evmjit;
-use evm;
+use evm::{self, Error, GasLeft};
 
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {
@@ -107,8 +107,8 @@ impl IntoJit<evmjit::H256> for Address {
 }
 
 /// Externalities adapter. Maps callbacks from evmjit to externalities trait.
-/// 
-/// Evmjit doesn't have to know about children execution failures. 
+///
+/// Evmjit doesn't have to know about children execution failures.
 /// This adapter 'catches' them and moves upstream.
 struct ExtAdapter<'a> {
 	ext: &'a mut evm::Ext,
@@ -166,7 +166,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			  init_beg: *const u8,
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
-			
+
 		let gas = unsafe { U256::from(*io_gas) };
 		let value = unsafe { U256::from_jit(&*value) };
 		let code = unsafe { slice::from_raw_parts(init_beg, init_size as usize) };
@@ -241,9 +241,9 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		}
 
 		match self.ext.call(
-					  &call_gas, 
+					  &call_gas,
 					  &sender_address,
-					  &receive_address, 
+					  &receive_address,
 					  value,
 					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
 					  &code_address,
@@ -284,7 +284,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			if !topic4.is_null() {
 				topics.push(H256::from_jit(&*topic4));
 			}
-		
+
 			let bytes_ref: &[u8] = slice::from_raw_parts(beg, size as usize);
 			self.ext.log(topics, bytes_ref);
 		}
@@ -301,10 +301,13 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 	}
 }
 
-pub struct JitEvm;
+#[derive(Default)]
+pub struct JitEvm {
+	ctxt: Option<evmjit::ContextHandle>,
+}
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result {
+	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, params.address.clone())) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
@@ -343,15 +346,17 @@ impl evm::Evm for JitEvm {
 		// don't really know why jit timestamp is int..
 		data.timestamp = ext.env_info().timestamp as i64;
 
-		let mut context = unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) };
+		self.context = Some(unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) });
+		let context = self.context.as_ref_mut().unwrap();
 		let res = context.exec();
-		
+
 		match res {
-			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),
-			evmjit::ReturnCode::Return => ext.ret(&U256::from(context.gas_left()), context.output_data()),
-			evmjit::ReturnCode::Suicide => { 
+			evmjit::ReturnCode::Stop => Ok(GasLeft::Known(U256::from(context.gas_left()))),
+			evmjit::ReturnCode::Return =>
+				Ok(GasLeft::NeedsReturn(U256::from(context.gas_left()), context.output_data())),
+			evmjit::ReturnCode::Suicide => {
 				ext.suicide(&Address::from_jit(&context.suicide_refund_address()));
-				Ok(U256::from(context.gas_left()))
+				Ok(GasLeft::Known(U256::from(context.gas_left())))
 			},
 			evmjit::ReturnCode::OutOfGas => Err(evm::Error::OutOfGas),
 			_err => Err(evm::Error::Internal)
@@ -372,7 +377,7 @@ fn test_to_and_from_h256() {
 	let h = H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
 	let j: ::evmjit::I256 = h.clone().into_jit();
 	let h2 = H256::from_jit(&j);
-	
+
 	assert_eq!(h, h2);
 
 	let j: ::evmjit::H256 = h.clone().into_jit();

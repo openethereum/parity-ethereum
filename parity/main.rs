@@ -231,6 +231,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
 		pass: conf.args.flag_dapps_pass.clone(),
+		dapps_path: conf.directories().dapps,
 	}, dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
