@@ -14,10 +14,81 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 use util::{Address, U256, H256};
+use serde::{Serialize, Serializer};
 use ethcore::trace::trace;
 use ethcore::trace::{Trace as EthTrace, LocalizedTrace as EthLocalizedTrace};
+use ethcore::state_diff;
+use ethcore::account_diff;
 use v1::types::Bytes;
+
+#[derive(Debug, Serialize)]
+/// Aux type for Diff::Changed.
+pub struct ChangedType<T> where T: Serialize {
+	from: T,
+	to: T,
+}
+
+#[derive(Debug, Serialize)]
+/// Serde-friendly `Diff` shadow.
+pub enum Diff<T> where T: Serialize {
+	#[serde(rename="=")]
+	Same,
+	#[serde(rename="+")]
+	Born(T),
+	#[serde(rename="-")]
+	Died(T),
+	#[serde(rename="*")]
+	Changed(ChangedType<T>),
+}
+
+impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq, U: Serialize + From<T> {
+	fn from(c: account_diff::Diff<T>) -> Self {
+		match c {
+			account_diff::Diff::Same => Diff::Same,
+			account_diff::Diff::Born(t) => Diff::Born(t.into()),
+			account_diff::Diff::Died(t) => Diff::Died(t.into()),
+			account_diff::Diff::Changed(t, u) => Diff::Changed(ChangedType{from: t.into(), to: u.into()}),
+		}
+	}
+}
+
+#[derive(Debug, Serialize)]
+/// Serde-friendly `AccountDiff` shadow.
+pub struct AccountDiff {
+	pub balance: Diff<U256>,
+	pub nonce: Diff<U256>,
+	pub code: Diff<Bytes>,
+	pub storage: BTreeMap<H256, Diff<H256>>,
+}
+
+impl From<account_diff::AccountDiff> for AccountDiff {
+	fn from(c: account_diff::AccountDiff) -> Self {
+		AccountDiff {
+			balance: c.balance.into(),
+			nonce: c.nonce.into(),
+			code: c.code.into(),
+			storage: c.storage.into_iter().map(|(k, v)| (k, v.into())).collect(),
+		}
+	}
+}
+
+/// Serde-friendly `StateDiff` shadow.
+pub struct StateDiff(BTreeMap<Address, AccountDiff>);
+
+impl Serialize for StateDiff {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	where S: Serializer {
+		Serialize::serialize(&self.0, serializer)
+	}
+}
+
+impl From<state_diff::StateDiff> for StateDiff {
+	fn from(c: state_diff::StateDiff) -> Self {
+		StateDiff(c.0.into_iter().map(|(k, v)| (k, v.into())).collect())
+	}
+}
 
 /// Create response
 #[derive(Debug, Serialize)]

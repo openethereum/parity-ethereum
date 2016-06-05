@@ -20,15 +20,12 @@ use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
 use std::collections::BTreeMap;
 use util::{H256, U256, FixedHash, Uint};
-use serde;
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
 use ethcore::trace::VMTrace;
 use ethcore::miner::MinerService;
-use ethcore::state_diff::StateDiff;
-use ethcore::account_diff::{Diff, Existance};
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Traces;
-use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest, Bytes};
+use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest, Bytes, StateDiff};
 
 /// Traces api implementation.
 pub struct TracesClient<C, M> where C: BlockChainClient, M: MinerService {
@@ -108,7 +105,7 @@ fn vm_trace_to_object(t: &VMTrace) -> Value {
 	ret.insert("ops".to_owned(), Value::Array(ops));
 	Value::Object(ret)
 }
-
+/*
 fn diff_to_object<T>(d: &Diff<T>) -> Value where T: serde::Serialize + Eq {
 	let mut ret = BTreeMap::new();
 	match *d {
@@ -149,7 +146,7 @@ fn state_diff_to_object(t: &StateDiff) -> Value {
 		]))
 	}).collect::<BTreeMap<_, _>>())
 }
-
+*/
 impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TraceFilter,)>(params)
@@ -217,7 +214,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 						ret.insert("vmTrace".to_owned(), vm_trace_to_object(&vm_trace));
 					}
 					if let Some(state_diff) = executed.state_diff {
-						ret.insert("stateDiff".to_owned(), state_diff_to_object(&state_diff));
+						ret.insert("stateDiff".to_owned(), to_value(&StateDiff::from(state_diff)).unwrap());
 					}
 					return Ok(Value::Object(ret))
 				}
