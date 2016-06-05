@@ -463,6 +463,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		}
 		let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+		
 		// TODO gav move this into Executive.
 		if analytics.state_diffing {
 			if let Ok(ref mut x) = ret {
