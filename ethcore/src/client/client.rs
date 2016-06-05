@@ -384,12 +384,14 @@ impl<V> Client<V> where V: Verifier {
 				return None;
 			}
 
+			let root = HeaderView::new(&header).state_root();
+
 			// TODO [rob]: refactor State::from_existing so we avoid doing redundant lookups.
 			if !db.contains(&root) {
 				return None;
 			}
 
-			Some(State::from_existing(db, HeaderView::new(&header).state_root(), self.engine.account_start_nonce()))
+			Some(State::from_existing(db, root, self.engine.account_start_nonce()))
 		})
 	}
 
