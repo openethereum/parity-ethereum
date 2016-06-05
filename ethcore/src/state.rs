@@ -285,13 +285,13 @@ impl State {
 	}
 
 	fn query_pod(&mut self, query: &PodState) {
-		query.get().iter().foreach(|(ref address, ref pod_account)| {
+		for (ref address, ref pod_account) in query.get() {
 			if self.get(address, true).is_some() {
-				pod_account.storage.iter().foreach(|(ref key, _)| {
+				for (ref key, _) in &pod_account.storage {
 					self.storage_at(address, key);
-				});
+				}
 			}
-		});
+		}
 	}
 
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
