@@ -43,6 +43,13 @@ pub struct WriteCache {
 
 const FLUSH_BATCH_SIZE: usize = 4096;
 
+#[derive]
+enum CacheStatus {
+	Val(Vec<u8>),
+	Removed,
+	Unknown,
+}
+
 impl WriteCache {
 	fn new(cache_len: usize) -> WriteCache {
 		WriteCache {
@@ -59,12 +66,15 @@ impl WriteCache {
 		self.entries.insert(key, WriteCacheEntry::Remove);
 	}
 
-	fn get(&self, key: &Vec<u8>) -> Option<Vec<u8>> {
-		self.entries.get(key).and_then(
-			|vec_ref| match vec_ref {
-				&WriteCacheEntry::Write(ref val) => Some(val.clone()),
-				&WriteCacheEntry::Remove => None
-			})
+	fn get(&self, key: &Vec<u8>) -> CacheStatus {
+		match self.entries.get(key) {
+			Some(vec_ref) =>
+				match vec_ref {
+					&WriteCacheEntry::Write(ref val) => CacheStatus::Val(val.clone()),
+					&WriteCacheEntry::Remove => CacheStatus::Removed,
+				},
+			None => CacheStatus::Unknown,
+		}
 	}
 
 	/// WriteCache should be locked for this
@@ -236,11 +246,11 @@ impl DatabaseService for Database {
 	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		{
 			let key_vec = key.to_vec();
-			let cache_hit = self.write_cache.read().unwrap().get(&key_vec);
-
-			if cache_hit.is_some() {
-				return Ok(Some(cache_hit.expect("cache_hit.is_some() = true, still there is none somehow here")))
-			}
+			match self.write_cache.read().unwrap().get(&key_vec) {
+				CacheStatus::Unknown => {},
+				CacheStatus::Val(vec) => { return Ok(Some(vec)); },
+				CacheStatus::Removed => { return Ok(None); }
+			};
 		}
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
@@ -256,6 +266,7 @@ impl DatabaseService for Database {
 	fn get_by_prefix(&self, prefix: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+		try!(self.flush_all());
 
 		let mut iter = db.iterator(IteratorMode::From(prefix, Direction::Forward));
 		match iter.next() {

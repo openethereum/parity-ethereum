@@ -418,7 +418,7 @@ mod tests {
 		let a = Address::zero();
 
 		let temp = RandomTempPath::new();
-		let (mut state, man) = {
+		let (mut state, _) = {
 			let (mut state, man) = get_temp_state_in(temp.as_path());
 			assert_eq!(state.exists(&a), false);
 			state.inc_nonce(&a);

@@ -30,6 +30,7 @@ use types::*;
 use traits::*;
 #[cfg(test)]
 use devtools::*;
+#[cfg(test)]
 use manager;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
