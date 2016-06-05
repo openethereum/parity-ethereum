@@ -255,6 +255,8 @@ impl MinerService for Miner {
 		match sealing_work.peek_last_ref() {
 			Some(work) => {
 				let block = work.block();
+
+				// TODO: merge this code with client.rs's fn call somwhow.
 				let header = block.header();
 				let last_hashes = chain.last_hashes();
 				let env_info = EnvInfo {
@@ -273,12 +275,14 @@ impl MinerService for Miner {
 					ExecutionError::TransactionMalformed(message)
 				}));
 				let balance = state.balance(&sender);
-				// give the sender max balance
-				state.sub_balance(&sender, &balance);
-				state.add_balance(&sender, &U256::max_value());
+				let needed_balance = t.value + t.gas * t.gas_price;
+				if balance < needed_balance {
+					// give the sender a sufficient balance
+					state.add_balance(&sender, &(needed_balance - balance));
+				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-
 				let mut ret = Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options);
+				
 				// TODO gav move this into Executive.
 				if analytics.state_diffing {
 					if let Ok(ref mut x) = ret {
