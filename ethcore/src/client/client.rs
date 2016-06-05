@@ -379,6 +379,11 @@ impl<V> Client<V> where V: Verifier {
 		self.block_header(id).and_then(|header| {
 			let db = self.state_db.lock().unwrap().boxed_clone();
 
+			// early exit for pruned blocks
+			if db.is_pruned() && self.chain.best_block_number() >= block_number + HISTORY {
+				return None;
+			}
+
 			// TODO [rob]: refactor State::from_existing so we avoid doing redundant lookups.
 			if !db.contains(&root) {
 				return None;
