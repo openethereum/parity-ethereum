@@ -431,6 +431,7 @@ fn rpc_eth_call() {
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
 		vm_trace: None,
+		state_diff: None,
 	});
 
 	let request = r#"{
@@ -465,6 +466,7 @@ fn rpc_eth_call_default_block() {
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
 		vm_trace: None,
+		state_diff: None,
 	});
 
 	let request = r#"{
@@ -498,6 +500,7 @@ fn rpc_eth_estimate_gas() {
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
 		vm_trace: None,
+		state_diff: None,
 	});
 
 	let request = r#"{
@@ -532,6 +535,7 @@ fn rpc_eth_estimate_gas_default_block() {
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
 		vm_trace: None,
+		state_diff: None,
 	});
 
 	let request = r#"{

@@ -49,6 +49,15 @@ use evm::Factory as EvmFactory;
 use miner::{TransactionImportResult};
 use error::Error as EthError;
 
+/// Options concerning what analytics we run on the call.
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
+pub struct CallAnalytics {
+	/// Make a VM trace.
+	pub vm_tracing: bool,
+	/// Make a diff.
+	pub state_diffing: bool,
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
 	/// Get raw block header data by block id.
@@ -158,7 +167,7 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Makes a non-persistent transaction call.
 	// TODO: should be able to accept blockchain location for call.
-	fn call(&self, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError>;
+	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;

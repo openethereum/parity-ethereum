@@ -17,10 +17,48 @@
 //! Diff between two accounts.
 
 use util::*;
-#[cfg(test)]
-use pod_account::*;
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+/// Diff type for specifying a change (or not).
+pub enum Diff<T> where T: Eq {
+	/// Both sides are the same.
+	Same,
+	/// Left (pre, source) side doesn't include value, right side (post, destination) does.
+	Born(T),
+	/// Both sides include data; it chaged value between them.
+	Changed(T, T),
+	/// Left (pre, source) side does include value, right side (post, destination) does not.
+	Died(T),
+}
+
+impl<T> Diff<T> where T: Eq {
+	/// Construct new object with given `pre` and `post`.
+	pub fn new(pre: T, post: T) -> Self { if pre == post { Diff::Same } else { Diff::Changed(pre, post) } }
+
+	/// Get the before value, if there is one.
+	pub fn pre(&self) -> Option<&T> { match *self { Diff::Died(ref x) | Diff::Changed(ref x, _) => Some(x), _ => None } }
+
+	/// Get the after value, if there is one.
+	pub fn post(&self) -> Option<&T> { match *self { Diff::Born(ref x) | Diff::Changed(_, ref x) => Some(x), _ => None } }
+
+	/// Determine whether there was a change or not.
+	pub fn is_same(&self) -> bool { match *self { Diff::Same => true, _ => false }}
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+/// Account diff.
+pub struct AccountDiff {
+	/// Change in balance, allowed to be `Diff::Same`.
+	pub balance: Diff<U256>,
+	/// Change in nonce, allowed to be `Diff::Same`.
+	pub nonce: Diff<U256>,					// Allowed to be Same
+	/// Change in code, allowed to be `Diff::Same`.
+	pub code: Diff<Bytes>,					// Allowed to be Same
+	/// Change in storage, values are not allowed to be `Diff::Same`.
+	pub storage: BTreeMap<H256, Diff<H256>>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Change in existance type. 
 // TODO: include other types of change.
 pub enum Existance {
@@ -43,19 +81,6 @@ impl fmt::Display for Existance {
 	}
 }
 
-#[derive(Debug,Clone,PartialEq,Eq)]
-/// Account diff.
-pub struct AccountDiff {
-	/// Change in balance, allowed to be `Diff::Same`.
-	pub balance: Diff<U256>,
-	/// Change in nonce, allowed to be `Diff::Same`.
-	pub nonce: Diff<U256>,					// Allowed to be Same
-	/// Change in code, allowed to be `Diff::Same`.
-	pub code: Diff<Bytes>,					// Allowed to be Same
-	/// Change in storage, values are not allowed to be `Diff::Same`.
-	pub storage: BTreeMap<H256, Diff<H256>>,
-}
-
 impl AccountDiff {
 	/// Get `Existance` projection.
 	pub fn existance(&self) -> Existance {
@@ -63,47 +88,6 @@ impl AccountDiff {
 			Diff::Born(_) => Existance::Born,
 			Diff::Died(_) => Existance::Died,
 			_ => Existance::Alive,
-		}
-	}
-
-	#[cfg(test)]
-	/// Determine difference between two optionally existant `Account`s. Returns None
-	/// if they are the same.
-	pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
-		match (pre, post) {
-			(None, Some(x)) => Some(AccountDiff {
-				balance: Diff::Born(x.balance),
-				nonce: Diff::Born(x.nonce),
-				code: Diff::Born(x.code.clone()),
-				storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Born(v.clone()))).collect(),
-			}),
-			(Some(x), None) => Some(AccountDiff {
-				balance: Diff::Died(x.balance),
-				nonce: Diff::Died(x.nonce),
-				code: Diff::Died(x.code.clone()),
-				storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Died(v.clone()))).collect(),
-			}),
-			(Some(pre), Some(post)) => {
-				let storage: Vec<_> = pre.storage.keys().merge(post.storage.keys())
-					.filter(|k| pre.storage.get(k).unwrap_or(&H256::new()) != post.storage.get(k).unwrap_or(&H256::new()))
-					.collect();
-				let r = AccountDiff {
-					balance: Diff::new(pre.balance, post.balance),
-					nonce: Diff::new(pre.nonce, post.nonce),
-					code: Diff::new(pre.code.clone(), post.code.clone()),
-					storage: storage.into_iter().map(|k|
-						(k.clone(), Diff::new(
-							pre.storage.get(&k).cloned().unwrap_or_else(H256::new),
-							post.storage.get(&k).cloned().unwrap_or_else(H256::new)
-						))).collect(),
-				};
-				if r.balance.is_same() && r.nonce.is_same() && r.code.is_same() && r.storage.is_empty() {
-					None
-				} else {
-					Some(r)
-				}
-			},
-			_ => None,
 		}
 	}
 }
