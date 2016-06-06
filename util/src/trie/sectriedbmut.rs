@@ -16,9 +16,10 @@
 
 use hash::*;
 use sha3::*;
-use hashdb::*;
-use super::triedbmut::*;
-use super::trietraits::*;
+use hashdb::HashDB;
+use super::triedbmut::TrieDBMut;
+use super::trietraits::{Trie, TrieMut};
+use super::Result;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
@@ -36,9 +37,8 @@ impl<'db> SecTrieDBMut<'db> {
 	}
 
 	/// Create a new trie with the backing database `db` and `root`
-	/// Panics, if `root` does not exist
-	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
-		SecTrieDBMut { raw: TrieDBMut::from_existing(db, root) }
+	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self> {
+		Ok(SecTrieDBMut { raw: try!(TrieDBMut::from_existing(db, root)) })
 	}
 
 	/// Get the backing database.

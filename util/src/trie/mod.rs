@@ -39,3 +39,12 @@ pub use self::triedbmut::*;
 pub use self::triedb::*;
 pub use self::sectriedbmut::*;
 pub use self::sectriedb::*;
+
+/// Trie Errors
+pub enum TrieError {
+	/// Attempted to create a trie with a state root not in the DB.
+	InvalidStateRoot,
+}
+
+/// Result alias for Trie creation.
+pub type Result<T> = ::std::result::Result<T, TrieError>;
