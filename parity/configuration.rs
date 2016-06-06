@@ -182,24 +182,23 @@ impl Configuration {
 	}
 
 	pub fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
-//		let mut ret = None;
-//		let mut latest_era = None;
-//		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
-//		for i in jdb_types.into_iter() {
-//			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
-//			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
-//			match (latest_era, db.latest_era()) {
-//				(Some(best), Some(this)) if best >= this => {}
-//				(_, None) => {}
-//				(_, Some(this)) => {
-//					latest_era = Some(this);
-//					ret = Some(*i);
-//				}
-//			}
-//		}
-//		ret
-
-		None
+		let mut ret = None;
+		let mut latest_era = None;
+		let (manager, _) = ::ethdb::run_manager();
+		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
+		for i in jdb_types.into_iter() {
+			let db = journaldb::new(manager.clone(), &append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
+			match (latest_era, db.latest_era()) {
+				(Some(best), Some(this)) if best >= this => {}
+				(_, None) => {}
+				(_, Some(this)) => {
+					latest_era = Some(this);
+					ret = Some(*i);
+				}
+			}
+		}
+		ret
 	}
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {

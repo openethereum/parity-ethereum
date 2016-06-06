@@ -264,9 +264,9 @@ impl DatabaseService for Database {
 	}
 
 	fn get_by_prefix(&self, prefix: &[u8]) -> Result<Option<Vec<u8>>, Error> {
+		try!(self.flush_all());
 		let db_lock = self.db.read().unwrap();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
-		try!(self.flush_all());
 
 		let mut iter = db.iterator(IteratorMode::From(prefix, Direction::Forward));
 		match iter.next() {
