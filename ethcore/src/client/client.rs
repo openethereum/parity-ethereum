@@ -37,7 +37,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -429,14 +429,14 @@ impl<V> Client<V> where V: Verifier {
 			TransactionID::Hash(ref hash) => self.chain.transaction_address(hash),
 			TransactionID::Location(id, index) => Self::block_hash(&self.chain, id).map(|hash| TransactionAddress {
 				block_hash: hash,
-				index: index
+				index: index,
 			})
 		}
 	}
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
-	fn call(&self, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError> {
+	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
 		let view = HeaderView::new(&header);
 		let last_hashes = self.build_last_hashes(view.hash());
@@ -456,11 +456,21 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			ExecutionError::TransactionMalformed(message)
 		}));
 		let balance = state.balance(&sender);
-		// give the sender a decent balance
-		state.sub_balance(&sender, &balance);
-		state.add_balance(&sender, &(U256::from(1) << 200));
-		let options = TransactOptions { tracing: false, vm_tracing: vm_tracing, check_nonce: false };
-		Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options)
+		let needed_balance = t.value + t.gas * t.gas_price;
+		if balance < needed_balance {
+			// give the sender a sufficient balance
+			state.add_balance(&sender, &(needed_balance - balance));
+		}
+		let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+		
+		// TODO gav move this into Executive.
+		if analytics.state_diffing {
+			if let Ok(ref mut x) = ret {
+				x.state_diff = Some(state.diff_from(self.state()));
+			}
+		}
+		ret
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {
@@ -504,7 +514,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
 		self.state_at(id).map(|s| s.nonce(address))
 	}
-
 
 	fn block_hash(&self, id: BlockID) -> Option<H256> {
 		Self::block_hash(&self.chain, id)

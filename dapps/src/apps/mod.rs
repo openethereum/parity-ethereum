@@ -19,9 +19,10 @@ use page::PageEndpoint;
 use proxypac::ProxyPac;
 use parity_dapps::WebApp;
 
+mod fs;
+
 extern crate parity_dapps_status;
 extern crate parity_dapps_builtins;
-
 
 pub const DAPPS_DOMAIN : &'static str = ".parity";
 pub const RPC_PATH : &'static str =  "rpc";
@@ -36,22 +37,24 @@ pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_dapps_builtins::App::default(), UTILS_PATH.to_owned()))
 }
 
-pub fn all_endpoints() -> Endpoints {
-	let mut pages = Endpoints::new();
-	pages.insert("proxy".into(), ProxyPac::boxed());
-
+pub fn all_endpoints(dapps_path: String) -> Endpoints {
+	// fetch fs dapps at first to avoid overwriting builtins
+	let mut pages = fs::local_endpoints(dapps_path);
 	// Home page needs to be safe embed
 	// because we use Cross-Origin LocalStorage.
 	// TODO [ToDr] Account naming should be moved to parity.
 	pages.insert("home".into(), Box::new(
 		PageEndpoint::new_safe_to_embed(parity_dapps_builtins::App::default())
 	));
+	pages.insert("proxy".into(), ProxyPac::boxed());
 	insert::<parity_dapps_status::App>(&mut pages, "status");
 	insert::<parity_dapps_status::App>(&mut pages, "parity");
 
+	// Optional dapps
 	wallet_page(&mut pages);
 	daodapp_page(&mut pages);
 	makerotc_page(&mut pages);
+
 	pages
 }
 
