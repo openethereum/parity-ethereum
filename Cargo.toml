@@ -9,7 +9,7 @@ build = "build.rs"
 [build-dependencies]
 rustc_version = "0.1"
 syntex = "*"
-"ethcore-ipc-codegen" = { path = "ipc/codegen" }
+ethcore-ipc-codegen = { path = "ipc/codegen" }
 
 [dependencies]
 log = "0.3"
