@@ -1448,7 +1448,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ws"
 version = "0.4.6"
-source = "git+https://github.com/ethcore/ws-rs.git#c0c2a3fc30dc77c4e6d4d90756f8bc3b5cfbc311"
+source = "git+https://github.com/ethcore/ws-rs.git#5b28de58421b017b01f4565b2c35a46679707789"
 dependencies = [
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
