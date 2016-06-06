@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{RwLock,Arc};
-use std::ops::*;
 use ipc::IpcConfig;
 use std::collections::HashMap;
 use std::mem;

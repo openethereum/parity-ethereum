@@ -13,7 +13,7 @@ log = "0.3"
 serde = "0.7.0"
 serde_json = "0.7.0"
 jsonrpc-core = "2.0"
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git", branch = "multiple_cors_domains" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethash = { path = "../ethash" }
@@ -23,12 +23,12 @@ ethcore-devtools = { path = "../devtools" }
 rustc-serialize = "0.3"
 transient-hashmap = "0.1"
 serde_macros = { version = "0.7.0", optional = true }
-clippy = { version = "0.0.69", optional = true}
+clippy = { version = "0.0.71", optional = true}
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
-syntex = "^0.32.0"
+syntex = "*"
 
 [features]
 default = ["serde_codegen"]

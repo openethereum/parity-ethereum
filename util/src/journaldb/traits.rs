@@ -42,4 +42,7 @@ pub trait JournalDB : HashDB + Send + Sync {
 	fn state(&self, _id: &H256) -> Option<Bytes> {
 		None
 	}
+
+	/// Whether this database is pruned.
+	fn is_pruned(&self) -> bool { true }
 }

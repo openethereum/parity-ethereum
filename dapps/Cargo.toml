@@ -28,11 +28,11 @@ parity-dapps-wallet = { git = "https://github.com/ethcore/parity-dapps-wallet-rs
 parity-dapps-dao = { git = "https://github.com/ethcore/parity-dapps-dao-rs.git", version = "0.3.0", optional = true }
 parity-dapps-makerotc = { git = "https://github.com/ethcore/parity-dapps-makerotc-rs.git", version = "0.2.0", optional = true }
 mime_guess = { version = "1.6.1" }
-clippy = { version = "0.0.69", optional = true}
+clippy = { version = "0.0.71", optional = true}
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
-syntex = "0.32.0"
+syntex = "*"
 
 [features]
 default = ["serde_codegen", "extra-dapps"]

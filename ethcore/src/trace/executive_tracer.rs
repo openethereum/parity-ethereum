@@ -117,7 +117,7 @@ impl VMTracer for ExecutiveVMTracer {
 		self.data.operations.push(VMOperation {
 			pc: pc,
 			instruction: instruction,
-			gas_cost: gas_cost.clone(),	
+			gas_cost: gas_cost.clone(),
 			executed: None,
 		});
 		true
@@ -133,10 +133,10 @@ impl VMTracer for ExecutiveVMTracer {
 		self.data.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute").executed = Some(ex);
 	}
 
-	fn prepare_subtrace(&self, code: &Bytes) -> Self {
+	fn prepare_subtrace(&self, code: &[u8]) -> Self {
 		ExecutiveVMTracer { data: VMTrace {
 			parent_step: self.data.operations.len(),
-			code: code.clone(),
+			code: code.to_vec(),
 			operations: vec![],
 			subs: vec![],
 		}}

@@ -23,14 +23,14 @@ pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> 
 	Box::new(RpcEndpoint {
 		handler: handler,
 		panic_handler: panic_handler,
-		cors_domain: Some(AccessControlAllowOrigin::Null)
+		cors_domain: vec![AccessControlAllowOrigin::Null],
 	})
 }
 
 struct RpcEndpoint {
 	handler: Arc<IoHandler>,
 	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
-	cors_domain: Option<AccessControlAllowOrigin>,
+	cors_domain: Vec<AccessControlAllowOrigin>,
 }
 
 impl Endpoint for RpcEndpoint {
