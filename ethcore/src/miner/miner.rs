@@ -117,90 +117,89 @@ impl Miner {
 		//   otherwise, leave everything alone.
 		// otherwise, author a fresh block.
 */
-
-		let (b, invalid_transactions) = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+		let mut open_block = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
 			Some(old_block) => {
 				trace!(target: "miner", "Already have previous work; updating and returning");
 				// add transactions to old_block
 				let e = self.engine();
-				let mut invalid_transactions = HashSet::new();
-				let mut block = old_block.reopen(e, chain.vm_factory());
-				let block_number = block.block().fields().header.number();
-
-				// TODO: push new uncles, too.
-				// TODO: refactor with chain.prepare_sealing
-				for tx in transactions {
-					let hash = tx.hash();
-					let res = block.push_transaction(tx, None);
-					match res {
-						Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-							trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
-							// Exit early if gas left is smaller then min_tx_gas
-							let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
-							if gas_limit - gas_used < min_tx_gas {
-								break;
-							}
-						},
-						Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
-						Err(e) => {
-							invalid_transactions.insert(hash);
-							trace!(target: "miner",
-								   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
-								   block_number, hash, e);
-						},
-						_ => {}	// imported ok
-					}
-				}
-				(Some(block.close()), invalid_transactions)
+				old_block.reopen(e, chain.vm_factory())
 			}
 			None => {
 				// block not found - create it.
 				trace!(target: "miner", "No existing work - making new block");
-				chain.prepare_sealing(
+				chain.prepare_open_block(
 					self.author(),
 					self.gas_floor_target(),
-					self.extra_data(),
-					transactions,
+					self.extra_data()
 				)
 			}
 		};
+
+		let mut invalid_transactions = HashSet::new();
+		let block_number = open_block.block().fields().header.number();
+		// TODO: push new uncles, too.
+		for tx in transactions {
+			let hash = tx.hash();
+			match open_block.push_transaction(tx, None) {
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
+					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+					// Exit early if gas left is smaller then min_tx_gas
+					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
+					if gas_limit - gas_used < min_tx_gas {
+						break;
+					}
+				},
+				Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
+				Err(e) => {
+					invalid_transactions.insert(hash);
+					trace!(target: "miner",
+						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
+						   block_number, hash, e);
+				},
+				_ => {}	// imported ok
+			}
+		}
+
+		let block = open_block.close();
+
 		let mut queue = self.transaction_queue.lock().unwrap();
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: chain.latest_nonce(a),
 			balance: chain.latest_balance(a),
 		};
+
 		for hash in invalid_transactions.into_iter() {
 			queue.remove_invalid(&hash, &fetch_account);
 		}
-		if let Some(block) = b {
-			if !block.transactions().is_empty() {
-				trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
-				// block with transactions - see if we can seal immediately.
-				let s = self.engine().generate_seal(block.block(), match self.accounts {
-					Some(ref x) => Some(&**x),
-					None => None,
-				});
-				if let Some(seal) = s {
-					trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
-					if let Ok(sealed) = chain.try_seal(block.lock(), seal) {
-						if let Ok(_) = chain.import_block(sealed.rlp_bytes()) {
-							trace!(target: "miner", "prepare_sealing: sealed internally and imported. leaving.");
-						} else {
-							warn!("prepare_sealing: ERROR: could not import internally sealed block. WTF?");
-						}
+
+		if !block.transactions().is_empty() {
+			trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
+			// block with transactions - see if we can seal immediately.
+			let s = self.engine().generate_seal(block.block(), match self.accounts {
+				Some(ref x) => Some(&**x),
+				None => None,
+			});
+			if let Some(seal) = s {
+				trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
+				if let Ok(sealed) = chain.try_seal(block.lock(), seal) {
+					if let Ok(_) = chain.import_block(sealed.rlp_bytes()) {
+						trace!(target: "miner", "prepare_sealing: sealed internally and imported. leaving.");
 					} else {
-						warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal. WTF?");
+						warn!("prepare_sealing: ERROR: could not import internally sealed block. WTF?");
 					}
-					return;
 				} else {
-					trace!(target: "miner", "prepare_sealing: unable to generate seal internally");
+					warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal. WTF?");
 				}
-			}
-			if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
-				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
-				sealing_work.push(block);
+				return;
+			} else {
+				trace!(target: "miner", "prepare_sealing: unable to generate seal internally");
 			}
 		}
+		if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
+			trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
+			sealing_work.push(block);
+		}
+
 		trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
 	}
 
@@ -282,7 +281,7 @@ impl MinerService for Miner {
 				}
 				let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
 				let mut ret = Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options);
-				
+
 				// TODO gav move this into Executive.
 				if analytics.state_diffing {
 					if let Ok(ref mut x) = ret {
