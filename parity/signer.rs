@@ -14,21 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::io;
+use std::path::PathBuf;
 use std::sync::Arc;
 use util::panics::{PanicHandler, ForwardPanic};
+use util::keys::directory::restrict_permissions_owner;
 use die::*;
 use rpc_apis;
+
+const CODES_FILENAME: &'static str = "authcodes";
 
 #[cfg(feature = "ethcore-signer")]
 use ethcore_signer as signer;
 #[cfg(feature = "ethcore-signer")]
 pub use ethcore_signer::Server as SignerServer;
+
 #[cfg(not(feature = "ethcore-signer"))]
 pub struct SignerServer;
 
 pub struct Configuration {
 	pub enabled: bool,
 	pub port: u16,
+	pub signer_path: String,
 }
 
 pub struct Dependencies {
@@ -42,6 +49,23 @@ pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
 	} else {
 		Some(do_start(conf, deps))
 	}
+}
+
+
+#[cfg(feature = "ethcore-signer")]
+pub fn new_token(path: String) -> io::Result<()> {
+	let path = {
+		let mut p = PathBuf::from(path);
+		p.push(CODES_FILENAME);
+		let _ = restrict_permissions_owner(&p);
+		p
+	};
+	let mut codes = try!(signer::AuthCodes::<signer::DefaultTimeProvider>::from_file(&path));
+	let code = try!(codes.generate_new());
+	let _ = try!(codes.to_file(&path));
+	println!("New token has been generated. Copy the code below to your SystemUI:");
+	println!("{}", code);
+	Ok(())
 }
 
 #[cfg(feature = "ethcore-signer")]
@@ -67,8 +91,12 @@ fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 }
 
 #[cfg(not(feature = "ethcore-signer"))]
-fn do_start(conf: Configuration) -> ! {
+fn do_start(_conf: Configuration) -> ! {
 	die!("Your Parity version has been compiled without Trusted Signer support.")
 }
 
+#[cfg(not(feature = "ethcore-signer"))]
+pub fn new_token(_path: String) -> ! {
+	die!("Your Parity version has been compiled without Trusted Signer support.")
+}
 

@@ -45,6 +45,7 @@
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+extern crate rand;
 
 extern crate ethcore_util as util;
 extern crate ethcore_rpc as rpc;
@@ -52,7 +53,10 @@ extern crate jsonrpc_core;
 extern crate ws;
 extern crate parity_minimal_sysui as sysui;
 
+mod authcode_store;
 mod ws_server;
+
+pub use authcode_store::*;
 pub use ws_server::*;
 
 #[cfg(test)]
