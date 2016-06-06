@@ -153,10 +153,10 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				}
 			},
 			Api::Ethcore => {
-				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
 			},
 			Api::Traces => {
-				server.add_delegate(TracesClient::new(&deps.client).to_delegate())
+				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())
 			},
 			Api::Rpc => {
 				let modules = to_modules(&apis);
