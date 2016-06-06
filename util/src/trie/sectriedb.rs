@@ -19,7 +19,7 @@ use sha3::*;
 use hashdb::HashDB;
 use super::triedb::TrieDB;
 use super::trietraits::Trie;
-use super::Result;
+use super::TrieError;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
@@ -32,7 +32,7 @@ impl<'db> SecTrieDB<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self> {
+	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self, TrieError> {
 		Ok(SecTrieDB { raw: try!(TrieDB::new(db, root)) })
 	}
 

@@ -21,7 +21,7 @@ use rlp::*;
 use super::node::Node;
 use super::journal::Journal;
 use super::trietraits::{Trie, TrieMut};
-use super::{Result, TrieError};
+use super::TrieError;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -86,7 +86,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Create a new trie with the backing database `db` and `root`.
 	/// Panics, if `root` does not exist.
-	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self> {
+	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
 		if !db.exists(root) {
 			Err(TrieError::InvalidStateRoot)
 		} else {
