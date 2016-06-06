@@ -224,6 +224,8 @@ pub enum Error {
 	PowHashInvalid,
 	/// The value of the nonce or mishash is invalid.
 	PowInvalid,
+	/// Error concerning TrieDBs
+	TrieError(TrieError),
 }
 
 impl fmt::Display for Error {
@@ -239,6 +241,7 @@ impl fmt::Display for Error {
 				f.write_fmt(format_args!("Unknown engine name ({})", name)),
 			Error::PowHashInvalid => f.write_str("Invalid or out of date PoW hash."),
 			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
+			Error::TrieError(ref err) => f.write_fmt(format_args!("{}", err)),
 		}
 	}
 }
