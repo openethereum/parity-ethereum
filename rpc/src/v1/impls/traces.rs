@@ -19,13 +19,12 @@
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
 use std::collections::BTreeMap;
-use util::{H256, U256, FixedHash, Uint};
+use util::{H256, FixedHash};
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
-use ethcore::trace::VMTrace;
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Traces;
-use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest, Bytes, StateDiff};
+use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest, Bytes, StateDiff, VMTrace};
 
 /// Traces api implementation.
 pub struct TracesClient<C, M> where C: BlockChainClient, M: MinerService {
@@ -58,95 +57,6 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 	}
 }
 
-fn vm_trace_to_object(t: &VMTrace) -> Value {
-	let mut ret = BTreeMap::new();
-	ret.insert("code".to_owned(), to_value(&t.code).unwrap());
-
-	let mut subs = t.subs.iter();
-	let mut next_sub = subs.next();
-
-	let ops = t.operations
-		.iter()
-		.enumerate()
-		.map(|(i, op)| {
-			let mut m = map![
-				"pc".to_owned() => to_value(&op.pc).unwrap(),
-				"cost".to_owned() => match op.gas_cost <= U256::from(!0u64) {
-					true => to_value(&op.gas_cost.low_u64()),
-					false => to_value(&op.gas_cost),
-				}.unwrap()
-			];
-			if let Some(ref ex) = op.executed {
-				let mut em = map![
-					"used".to_owned() => to_value(&ex.gas_used.low_u64()).unwrap(),
-					"push".to_owned() => to_value(&ex.stack_push).unwrap()
-				];
-				if let Some(ref md) = ex.mem_diff {
-					em.insert("mem".to_owned(), Value::Object(map![
-						"off".to_owned() => to_value(&md.offset).unwrap(),
-						"data".to_owned() => to_value(&md.data).unwrap()
-					]));
-				}
-				if let Some(ref sd) = ex.store_diff {
-					em.insert("store".to_owned(), Value::Object(map![
-						"key".to_owned() => to_value(&sd.location).unwrap(),
-						"val".to_owned() => to_value(&sd.value).unwrap()
-					]));
-				}
-				m.insert("ex".to_owned(), Value::Object(em));
-			}
-			if next_sub.is_some() && next_sub.unwrap().parent_step == i {
-				m.insert("sub".to_owned(), vm_trace_to_object(next_sub.unwrap()));
-				next_sub = subs.next();
-			}
-			Value::Object(m)
-		})
-		.collect::<Vec<_>>();
-	ret.insert("ops".to_owned(), Value::Array(ops));
-	Value::Object(ret)
-}
-/*
-fn diff_to_object<T>(d: &Diff<T>) -> Value where T: serde::Serialize + Eq {
-	let mut ret = BTreeMap::new();
-	match *d {
-		Diff::Same => {
-			ret.insert("diff".to_owned(), Value::String("=".to_owned()));
-		}
-		Diff::Born(ref x) => {
-			ret.insert("diff".to_owned(), Value::String("+".to_owned()));
-			ret.insert("+".to_owned(), to_value(x).unwrap());
-		}
-		Diff::Died(ref x) => {
-			ret.insert("diff".to_owned(), Value::String("-".to_owned()));
-			ret.insert("-".to_owned(), to_value(x).unwrap());
-		}
-		Diff::Changed(ref from, ref to) => {
-			ret.insert("diff".to_owned(), Value::String("*".to_owned()));
-			ret.insert("-".to_owned(), to_value(from).unwrap());
-			ret.insert("+".to_owned(), to_value(to).unwrap());
-		}
-	};
-	Value::Object(ret)
-}
-
-fn state_diff_to_object(t: &StateDiff) -> Value {
-	Value::Object(t.iter().map(|(address, account)| {
-		(address.hex(), Value::Object(map![
-			"existance".to_owned() => Value::String(match account.existance() {
-				Existance::Born => "+",
-				Existance::Alive => ".",
-				Existance::Died => "-",
-			}.to_owned()),
-			"balance".to_owned() => diff_to_object(&account.balance),
-			"nonce".to_owned() => diff_to_object(&account.nonce),
-			"code".to_owned() => diff_to_object(&account.code),
-			"storage".to_owned() => Value::Object(account.storage.iter().map(|(key, val)| {
-				(key.hex(), diff_to_object(&val))
-			}).collect::<BTreeMap<_, _>>())
-		]))
-	}).collect::<BTreeMap<_, _>>())
-}
-*/
 impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TraceFilter,)>(params)
@@ -211,7 +121,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 						ret.insert("trace".to_owned(), to_value(&Trace::from(trace)).unwrap());
 					}
 					if let Some(vm_trace) = executed.vm_trace {
-						ret.insert("vmTrace".to_owned(), vm_trace_to_object(&vm_trace));
+						ret.insert("vmTrace".to_owned(), to_value(&VMTrace::from(vm_trace)).unwrap());
 					}
 					if let Some(state_diff) = executed.state_diff {
 						ret.insert("stateDiff".to_owned(), to_value(&StateDiff::from(state_diff)).unwrap());

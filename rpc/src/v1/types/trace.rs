@@ -15,13 +15,132 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::{Address, U256, H256};
+use util::{Address, U256, H256, Uint};
 use serde::{Serialize, Serializer};
 use ethcore::trace::trace;
 use ethcore::trace::{Trace as EthTrace, LocalizedTrace as EthLocalizedTrace};
+use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
 use v1::types::Bytes;
+
+#[derive(Debug, Serialize)]
+/// A diff of some chunk of memory.
+pub struct MemoryDiff {
+	/// Offset into memory the change begins.
+	pub off: usize,
+	/// The changed data.
+	pub data: Vec<u8>,
+}
+
+impl From<et::MemoryDiff> for MemoryDiff {
+	fn from(c: et::MemoryDiff) -> Self {
+		MemoryDiff {
+			off: c.offset,
+			data: c.data,
+		}
+	}
+}
+
+#[derive(Debug, Serialize)]
+/// A diff of some storage value.
+pub struct StorageDiff {
+	/// Which key in storage is changed.
+	pub key: U256,
+	/// What the value has been changed to.
+	pub val: U256,
+}
+
+impl From<et::StorageDiff> for StorageDiff {
+	fn from(c: et::StorageDiff) -> Self {
+		StorageDiff {
+			key: c.location,
+			val: c.value,
+		}
+	}
+}
+
+#[derive(Debug, Serialize)]
+/// A record of an executed VM operation.
+pub struct VMExecutedOperation {
+	/// The total gas used.
+	#[serde(rename="used")]
+	pub used: u64,
+	/// The stack item placed, if any.
+	pub push: Vec<U256>,
+	/// If altered, the memory delta.
+	#[serde(rename="mem")]
+	pub mem: Option<MemoryDiff>,
+	/// The altered storage value, if any.
+	#[serde(rename="store")]
+	pub store: Option<StorageDiff>,
+}
+
+impl From<et::VMExecutedOperation> for VMExecutedOperation {
+	fn from(c: et::VMExecutedOperation) -> Self {
+		VMExecutedOperation {
+			used: c.gas_used.low_u64(),
+			push: c.stack_push,
+			mem: c.mem_diff.map(From::from),
+			store: c.store_diff.map(From::from),
+		}
+	}
+}
+
+#[derive(Debug, Serialize)]
+/// A record of the execution of a single VM operation.
+pub struct VMOperation {
+	/// The program counter.
+	pub pc: usize,
+	/// The gas cost for this instruction.
+	pub cost: u64,
+	/// Information concerning the execution of the operation.
+	pub ex: Option<VMExecutedOperation>,
+	/// Subordinate trace of the CALL/CREATE if applicable.
+	pub sub: Option<VMTrace>,
+}
+
+impl From<(et::VMOperation, Option<et::VMTrace>)> for VMOperation {
+	fn from(c: (et::VMOperation, Option<et::VMTrace>)) -> Self {
+		VMOperation {
+			pc: c.0.pc,
+			cost: c.0.gas_cost.low_u64(),
+			ex: c.0.executed.map(From::from),
+			sub: c.1.map(From::from),
+		}
+	}
+}
+
+#[derive(Debug, Serialize)]
+/// A record of a full VM trace for a CALL/CREATE.
+pub struct VMTrace {
+	/// The code to be executed.
+	pub code: Vec<u8>,
+	/// The operations executed.
+	pub ops: Vec<VMOperation>,
+}
+
+impl From<et::VMTrace> for VMTrace {
+	fn from(c: et::VMTrace) -> Self {
+		let mut subs = c.subs.into_iter();
+		let mut next_sub = subs.next();
+		VMTrace {
+			code: c.code,
+			ops: c.operations
+				.into_iter()
+				.enumerate()
+				.map(|(i, op)| (op, {
+					let have_sub = next_sub.is_some() && next_sub.as_ref().unwrap().parent_step == i;
+					if have_sub {
+						let r = next_sub.clone();
+						next_sub = subs.next();
+						r
+					} else { None }
+				}).into())
+				.collect(),
+		}
+	}
+}
 
 #[derive(Debug, Serialize)]
 /// Aux type for Diff::Changed.
