@@ -569,7 +569,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let vm_factory = Default::default();
-		let mut open_block = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]);
+		let mut open_block = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.extra_data = b"uncle1".to_vec();
 		let mut uncle2_header = Header::new();

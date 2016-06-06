@@ -63,11 +63,12 @@ impl<'db> Trie for SecTrieDB<'db> {
 fn trie_to_sectrie() {
 	use memorydb::MemoryDB;
 	use super::triedbmut::TrieDBMut;
+	use super::trietraits::TrieMut;
 
 	let mut memdb = MemoryDB::new();
 	let mut root = H256::new();
 	{
-		let mut t = TrieDBMut::new(&mut memdb, &mut root).unwrap();
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&(&[0x01u8, 0x23]).sha3(), &[0x01u8, 0x23]);
 	}
 	let t = SecTrieDB::new(&memdb, &root).unwrap();

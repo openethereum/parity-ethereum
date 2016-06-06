@@ -81,6 +81,6 @@ fn sectrie_to_trie() {
 		let mut t = SecTrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 	}
-	let t = TrieDB::new(&memdb, &root);
+	let t = TrieDB::new(&memdb, &root).unwrap();
 	assert_eq!(t.get(&(&[0x01u8, 0x23]).sha3()).unwrap(), &[0x01u8, 0x23]);
 }

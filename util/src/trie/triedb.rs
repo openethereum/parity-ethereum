@@ -357,6 +357,7 @@ impl<'db> fmt::Debug for TrieDB<'db> {
 
 #[test]
 fn iterator() {
+	use super::trietraits::TrieMut;
 	use memorydb::*;
 	use super::triedbmut::*;
 
@@ -370,6 +371,6 @@ fn iterator() {
 			t.insert(&x, &x);
 		}
 	}
-	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).iter().map(|x|x.0).collect::<Vec<_>>());
-	assert_eq!(d, TrieDB::new(&memdb, &root).iter().map(|x|x.1).collect::<Vec<_>>());
+	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).unwrap().iter().map(|x|x.0).collect::<Vec<_>>());
+	assert_eq!(d, TrieDB::new(&memdb, &root).unwrap().iter().map(|x|x.1).collect::<Vec<_>>());
 }
