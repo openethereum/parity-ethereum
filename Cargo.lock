@@ -287,6 +287,7 @@ dependencies = [
  "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
  "parity-dapps-builtins 0.5.0 (git+https://github.com/ethcore/parity-dapps-builtins-rs.git)",
  "parity-dapps-dao 0.3.0 (git+https://github.com/ethcore/parity-dapps-dao-rs.git)",
@@ -883,7 +884,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-builtins"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#eb86a2954f04d3aa5547a8c4bb77ae7aad09bf55"
+source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#8bbf0421e376f9496d70adc62c1c6d7f492df817"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]

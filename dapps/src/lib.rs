@@ -53,6 +53,7 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate parity_dapps;
 extern crate ethcore_rpc;
+extern crate mime_guess;
 
 mod endpoint;
 mod apps;
@@ -73,6 +74,7 @@ static DAPPS_DOMAIN : &'static str = ".parity";
 
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
+	dapps_path: String,
 	handler: Arc<IoHandler>,
 }
 
@@ -84,8 +86,9 @@ impl Extendable for ServerBuilder {
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new() -> Self {
+	pub fn new(dapps_path: String) -> Self {
 		ServerBuilder {
+			dapps_path: dapps_path,
 			handler: Arc::new(IoHandler::new())
 		}
 	}
@@ -93,13 +96,13 @@ impl ServerBuilder {
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
 	pub fn start_unsecure_http(&self, addr: &SocketAddr) -> Result<Server, ServerError> {
-		Server::start_http(addr, NoAuth, self.handler.clone())
+		Server::start_http(addr, NoAuth, self.handler.clone(), self.dapps_path.clone())
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
 	pub fn start_basic_auth_http(&self, addr: &SocketAddr, username: &str, password: &str) -> Result<Server, ServerError> {
-		Server::start_http(addr, HttpBasicAuth::single_user(username, password), self.handler.clone())
+		Server::start_http(addr, HttpBasicAuth::single_user(username, password), self.handler.clone(), self.dapps_path.clone())
 	}
 }
 
@@ -110,10 +113,10 @@ pub struct Server {
 }
 
 impl Server {
-	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>) -> Result<Server, ServerError> {
+	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>, dapps_path: String) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let endpoints = Arc::new(apps::all_endpoints());
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));

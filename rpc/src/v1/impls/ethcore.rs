@@ -22,9 +22,12 @@ use std::sync::{Arc, Weak};
 use std::ops::Deref;
 use std::collections::BTreeMap;
 use jsonrpc_core::*;
+use serde;
 use ethcore::miner::MinerService;
+use ethcore::state_diff::StateDiff;
+use ethcore::account_diff::{Diff, Existance};
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
-use ethcore::client::BlockChainClient;
+use ethcore::client::{BlockChainClient, CallAnalytics};
 use ethcore::trace::VMTrace;
 use v1::traits::Ethcore;
 use v1::types::{Bytes, CallRequest};
@@ -113,6 +116,47 @@ fn vm_trace_to_object(t: &VMTrace) -> Value {
 		.collect::<Vec<_>>();
 	ret.insert("ops".to_owned(), Value::Array(ops));
 	Value::Object(ret)
+}
+
+fn diff_to_object<T>(d: &Diff<T>) -> Value where T: serde::Serialize + Eq {
+	let mut ret = BTreeMap::new();
+	match *d {
+		Diff::Same => {
+			ret.insert("diff".to_owned(), Value::String("=".to_owned()));
+		}
+		Diff::Born(ref x) => {
+			ret.insert("diff".to_owned(), Value::String("+".to_owned()));
+			ret.insert("+".to_owned(), to_value(x).unwrap());
+		}
+		Diff::Died(ref x) => {
+			ret.insert("diff".to_owned(), Value::String("-".to_owned()));
+			ret.insert("-".to_owned(), to_value(x).unwrap());
+		}
+		Diff::Changed(ref from, ref to) => {
+			ret.insert("diff".to_owned(), Value::String("*".to_owned()));
+			ret.insert("-".to_owned(), to_value(from).unwrap());
+			ret.insert("+".to_owned(), to_value(to).unwrap());
+		}
+	};
+	Value::Object(ret)
+}
+
+fn state_diff_to_object(t: &StateDiff) -> Value {
+	Value::Object(t.iter().map(|(address, account)| {
+		(address.hex(), Value::Object(map![
+			"existance".to_owned() => Value::String(match account.existance() {
+				Existance::Born => "+",
+				Existance::Alive => ".",
+				Existance::Died => "-",
+			}.to_owned()),
+			"balance".to_owned() => diff_to_object(&account.balance),
+			"nonce".to_owned() => diff_to_object(&account.nonce),
+			"code".to_owned() => diff_to_object(&account.code),
+			"storage".to_owned() => Value::Object(account.storage.iter().map(|(key, val)| {
+				(key.hex(), diff_to_object(&val))
+			}).collect::<BTreeMap<_, _>>())
+		]))
+	}).collect::<BTreeMap<_, _>>())
 }
 
 impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
@@ -211,10 +255,25 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where C: BlockChainClient + 'static, 
 		from_params(params)
 			.and_then(|(request,)| {
 				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, true);
+				let r = take_weak!(self.client).call(&signed, CallAnalytics{ vm_tracing: true, state_diffing: false });
 				if let Ok(executed) = r {
 					if let Some(vm_trace) = executed.vm_trace {
 						return Ok(vm_trace_to_object(&vm_trace));
+					}
+				}
+				Ok(Value::Null)
+			})
+	}
+
+	fn state_diff_call(&self, params: Params) -> Result<Value, Error> {
+		trace!(target: "jsonrpc", "state_diff_call: {:?}", params);
+		from_params(params)
+			.and_then(|(request,)| {
+				let signed = try!(self.sign_call(request));
+				let r = take_weak!(self.client).call(&signed, CallAnalytics{ vm_tracing: false, state_diffing: true });
+				if let Ok(executed) = r {
+					if let Some(state_diff) = executed.state_diff {
+						return Ok(state_diff_to_object(&state_diff));
 					}
 				}
 				Ok(Value::Null)

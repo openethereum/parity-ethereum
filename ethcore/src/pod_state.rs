@@ -17,7 +17,8 @@
 //! State of all accounts in the system expressed in Plain Old Data.
 
 use util::*;
-use pod_account::*;
+use pod_account::{self, PodAccount};
+use types::state_diff::StateDiff;
 use ethjson;
 
 /// State of all accounts in the system expressed in Plain Old Data.
@@ -29,7 +30,6 @@ impl PodState {
 	pub fn new() -> PodState { Default::default() }
 
 	/// Contruct a new object from the `m`.
-	#[cfg(test)]
 	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
 
 	/// Get the underlying map.
@@ -41,8 +41,6 @@ impl PodState {
 	}
 
 	/// Drain object to get the underlying map.
-	#[cfg(test)]
-	#[cfg(feature = "json-tests")]
 	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
 }
 
@@ -72,3 +70,83 @@ impl fmt::Display for PodState {
 	}
 }
 
+/// Calculate and return diff between `pre` state and `post` state.
+pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
+	StateDiff(pre.get().keys().merge(post.get().keys()).filter_map(|acc| pod_account::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d|(acc.clone(), d))).collect())
+}
+
+#[cfg(test)]
+mod test {
+	use common::*;
+	use types::state_diff::*;
+	use types::account_diff::*;
+	use pod_account::PodAccount;
+	use super::PodState;
+
+	#[test]
+	fn create_delete() {
+		let a = PodState::from(map![ 1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]) ]);
+		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff(map![
+			1.into() => AccountDiff{
+				balance: Diff::Died(69.into()),
+				nonce: Diff::Died(0.into()),
+				code: Diff::Died(vec![]),
+				storage: map![],
+			}
+		]));
+		assert_eq!(super::diff_pod(&PodState::new(), &a), StateDiff(map![
+			1.into() => AccountDiff{
+				balance: Diff::Born(69.into()),
+				nonce: Diff::Born(0.into()),
+				code: Diff::Born(vec![]),
+				storage: map![],
+			}
+		]));
+	}
+
+	#[test]
+	fn create_delete_with_unchanged() {
+		let a = PodState::from(map![ 1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]) ]);
+		let b = PodState::from(map![
+			1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]),
+			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
+		]);
+		assert_eq!(super::diff_pod(&a, &b), StateDiff(map![
+			2.into() => AccountDiff{
+				balance: Diff::Born(69.into()),
+				nonce: Diff::Born(0.into()),
+				code: Diff::Born(vec![]),
+				storage: map![],
+			}
+		]));
+		assert_eq!(super::diff_pod(&b, &a), StateDiff(map![
+			2.into() => AccountDiff{
+				balance: Diff::Died(69.into()),
+				nonce: Diff::Died(0.into()),
+				code: Diff::Died(vec![]),
+				storage: map![],
+			}
+		]));
+	}
+
+	#[test]
+	fn change_with_unchanged() {
+		let a = PodState::from(map![
+			1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]),
+			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
+		]);
+		let b = PodState::from(map![
+			1.into() => PodAccount::new(69.into(), 1.into(), vec![], map![]),
+			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
+		]);
+		assert_eq!(super::diff_pod(&a, &b), StateDiff(map![
+			1.into() => AccountDiff{
+				balance: Diff::Same,
+				nonce: Diff::Changed(0.into(), 1.into()),
+				code: Diff::Same,
+				storage: map![],
+			}
+		]));
+	}
+
+}

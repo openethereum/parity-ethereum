@@ -450,6 +450,7 @@ impl<'a> Executive<'a> {
 					output: output,
 					trace: trace,
 					vm_trace: vm_trace,
+					state_diff: None,
 				})
 			},
 			_ => {
@@ -463,6 +464,7 @@ impl<'a> Executive<'a> {
 					output: output,
 					trace: trace,
 					vm_trace: vm_trace,
+					state_diff: None,
 				})
 			},
 		}

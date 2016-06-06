@@ -18,3 +18,4 @@ mod api;
 mod response;
 
 pub use self::api::RestApi;
+pub use self::api::App;
