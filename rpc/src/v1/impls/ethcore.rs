@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use util::{U256, Address, RotatingLogger, FixedHash};
+use util::{U256, Address, RotatingLogger};
 use util::network_settings::NetworkSettings;
 use util::misc::version_data;
 use std::sync::{Arc, Weak};
@@ -23,7 +23,6 @@ use std::ops::Deref;
 use std::collections::BTreeMap;
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
-use ethcore::client::{BlockChainClient};
 use v1::traits::Ethcore;
 use v1::types::{Bytes};
 
