@@ -32,6 +32,7 @@ extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
+#[cfg(not(windows))]
 extern crate daemonize;
 extern crate time;
 extern crate number_prefix;
@@ -86,6 +87,7 @@ use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
+#[cfg(not(windows))]
 use daemonize::Daemonize;
 use migration::migrate;
 use informant::Informant;
@@ -115,11 +117,7 @@ fn execute(conf: Configuration) {
 	execute_upgrades(&conf, &spec, &client_config);
 
 	if conf.args.cmd_daemon {
-		Daemonize::new()
-			.pid_file(conf.args.arg_pid_file.clone())
-			.chown_pid_file(true)
-			.start()
-			.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
+		daemonize(&conf);
 	}
 
 	if conf.args.cmd_account {
@@ -138,6 +136,20 @@ fn execute(conf: Configuration) {
 	}
 
 	execute_client(conf, spec, client_config);
+}
+
+#[cfg(not(windows))]
+fn daemonize(conf: &Configuration) {
+	use daemonize::Daemonize;
+	Daemonize::new()
+			.pid_file(conf.args.arg_pid_file.clone())
+			.chown_pid_file(true)
+			.start()
+			.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
+}
+
+#[cfg(windows)]
+fn daemonize(_conf: &Configuration) {
 }
 
 fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) {

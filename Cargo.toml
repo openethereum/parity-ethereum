@@ -19,7 +19,6 @@ docopt = "0.6"
 time = "0.1"
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
-daemonize = "0.2"
 num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
@@ -34,8 +33,11 @@ ethcore-dapps = { path = "dapps", optional = true }
 semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
-json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
+json-ipc-server = { path = "../json-ipc-server" }
 ansi_term = "0.7"
+
+[target.'not(cfg(windows))'.dependencies]
+daemonize = "0.2"
 
 [dependencies.hyper]
 version = "0.8"

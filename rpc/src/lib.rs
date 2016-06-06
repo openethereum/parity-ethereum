@@ -80,6 +80,7 @@ impl RpcServer {
 		Server::start(addr, self.handler.clone(), cors_domains)
 	}
 
+	#[cfg(not(windows))]
 	/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
 	pub fn start_ipc(&self, addr: &str) -> Result<ipc::Server, ipc::Error> {
 		let server = try!(ipc::Server::new(addr, &self.handler));

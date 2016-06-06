@@ -20,6 +20,7 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use util::panics::PanicHandler;
 use die::*;
+#[cfg(not(windows))]
 use jsonipc;
 use rpc_apis;
 
@@ -66,12 +67,6 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Option<RpcServe
 	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Option<jsonipc::Server> {
-	if !conf.enabled { return None; }
-	let apis = conf.apis.split(',').collect();
-	Some(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))
-}
-
 fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Server {
 	let apis = rpc_apis::from_str(apis);
 	let server = Server::new();
@@ -109,11 +104,20 @@ pub fn setup_http_rpc_server(
 		},
 	}
 }
+
 #[cfg(not(feature = "rpc"))]
 pub fn setup_ipc_rpc_server(_dependencies: &Dependencies, _addr: &str, _apis: Vec<&str>) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
-#[cfg(feature = "rpc")]
+
+#[cfg(not(windows))]
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Option<jsonipc::Server> {
+	if !conf.enabled { return None; }
+	let apis = conf.apis.split(',').collect();
+	Some(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))
+}
+
+#[cfg(all(feature = "rpc", not(windows)))]
 pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: Vec<&str>) -> jsonipc::Server {
 	let server = setup_rpc_server(apis, dependencies);
 	match server.start_ipc(addr) {
@@ -121,4 +125,9 @@ pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: Vec<&
 		Err(any_error) => die!("RPC: {:?}", any_error),
 		Ok(server) => server
 	}
+}
+
+#[cfg(windows)]
+pub fn new_ipc(_conf: IpcConfiguration, _deps: &Dependencies) -> Option<()> {
+	Some(())
 }

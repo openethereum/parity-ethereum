@@ -465,12 +465,19 @@ pub struct KeyDirectory {
 	cache_usage: RwLock<VecDeque<Uuid>>,
 }
 
+#[cfg(not(windows))]
 fn restrict_permissions_owner(file_path: &Path) -> Result<(), i32>  {
 	let cstr = ::std::ffi::CString::new(file_path.to_str().unwrap()).unwrap();
 	match unsafe { ::libc::chmod(cstr.as_ptr(), ::libc::S_IWUSR | ::libc::S_IRUSR) } {
 		0 => Ok(()),
 		x => Err(x),
 	}
+}
+
+#[cfg(windows)]
+fn restrict_permissions_owner(_file_path: &Path) -> Result<(), i32>  {
+	//TODO: implement me
+	Ok(())
 }
 
 impl KeyDirectory {
