@@ -8,7 +8,7 @@ authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
 [build-dependencies]
-syntex = "*"
+syntex = "0.33"
 ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]

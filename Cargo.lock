@@ -319,7 +319,7 @@ dependencies = [
  "rocksdb 0.4.5 (git+https://github.com/ethcore/rust-rocksdb)",
  "scoped_threadpool 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
