@@ -371,9 +371,27 @@ impl<V> Client<V> where V: Verifier {
 			return Some(self.state())
 		}
 
-		self.block_header(id).map(|header| {
+		let block_number = match self.block_number(id.clone()) {
+			Some(num) => num,
+			None => return None,
+		};
+
+		self.block_header(id).and_then(|header| {
 			let db = self.state_db.lock().unwrap().boxed_clone();
-			State::from_existing(db, HeaderView::new(&header).state_root(), self.engine.account_start_nonce())
+
+			// early exit for pruned blocks
+			if db.is_pruned() && self.chain.best_block_number() >= block_number + HISTORY {
+				return None;
+			}
+
+			let root = HeaderView::new(&header).state_root();
+
+			// TODO [rob]: refactor State::from_existing so we avoid doing redundant lookups.
+			if !db.contains(&root) {
+				return None;
+			}
+
+			Some(State::from_existing(db, root, self.engine.account_start_nonce()))
 		})
 	}
 
