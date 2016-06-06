@@ -42,7 +42,7 @@ use super::TrieError;
 ///   let mut memdb = MemoryDB::new();
 ///   let mut root = H256::new();
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar");
-///   let t = TrieDB::new(&memdb, &root);
+///   let t = TrieDB::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo"));
 ///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
 ///   assert!(t.db_items_remaining().is_empty());
