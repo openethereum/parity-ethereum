@@ -44,6 +44,9 @@ pub struct State {
 	account_start_nonce: U256,
 }
 
+const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
+			 Therefore creating a SecTrieDB with this state's root will not fail.";
+
 impl State {
 	/// Creates new state with empty state root
 	#[cfg(test)]
@@ -153,9 +156,7 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		let db = SecTrieDB::new(self.db.as_hashdb(), &self.root)
-			.expect("A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
-			 Therefore creating a SecTrieDB with this state's root will not fail.");
+		let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || db.contains(&a)
 	}
 
@@ -310,7 +311,8 @@ impl State {
 	fn get<'a>(&'a self, a: &Address, require_code: bool) -> &'a Option<Account> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(self.db.as_hashdb(), &self.root).get(&a).map(Account::from_rlp))
+			let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
@@ -330,7 +332,8 @@ impl State {
 	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> &'a mut Account {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(self.db.as_hashdb(), &self.root).get(&a).map(Account::from_rlp))
+			let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
 		} else {
 			self.note_cache(a);
 		}
