@@ -95,7 +95,8 @@ impl Server {
 		};
 
 		// Create WebSocket
-		let ws = try!(ws::Builder::new().with_settings(config).build(session::Factory::new(handler)));
+		let origin = format!("{}", addr);
+		let ws = try!(ws::Builder::new().with_settings(config).build(session::Factory::new(handler, origin)));
 
 		let panic_handler = PanicHandler::new_in_arc();
 		let ph = panic_handler.clone();

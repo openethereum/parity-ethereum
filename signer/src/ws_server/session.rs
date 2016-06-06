@@ -21,13 +21,46 @@ use sysui;
 use std::sync::Arc;
 use jsonrpc_core::IoHandler;
 
+fn origin_is_allowed(self_origin: &str, header: Option<&Vec<u8>>) -> bool {
+	match header {
+		None => false,
+		Some(h) => {
+			let v = String::from_utf8(h.clone()).ok();
+			match v {
+				Some(ref origin) if origin.starts_with("chrome-extension://") => true,
+				Some(ref origin) if origin.starts_with(self_origin) => true,
+				Some(ref origin) if origin.starts_with(&format!("http://{}", self_origin)) => true,
+				_ => false
+			}
+		}
+	}
+}
+
+fn auth_is_valid(_header: Option<&Vec<u8>>) -> bool {
+	true
+}
+
 pub struct Session {
 	out: ws::Sender,
+	self_origin: String,
 	handler: Arc<IoHandler>,
 }
 
 impl ws::Handler for Session {
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
+		let origin = req.header("origin").or_else(|| req.header("Origin"));
+		let host = req.header("host").or_else(|| req.header("Host"));
+
+		// Check request origin and host header.
+		if !origin_is_allowed(&self.self_origin, origin) && !origin_is_allowed(&self.self_origin, host) {
+			return Ok(ws::Response::forbidden("You are not allowed to access system ui.".into()));
+		}
+
+		// Check authorization
+		if !auth_is_valid(req.header("authorization")) {
+			return Ok(ws::Response::forbidden("You are not authorized.".into()));
+		}
+
 		// Detect if it's a websocket request.
 		if req.header("sec-websocket-key").is_some() {
 			return ws::Response::from_request(req);
@@ -37,7 +70,7 @@ impl ws::Handler for Session {
 		sysui::handle(req.resource())
 			.map_or_else(
 				// return error
-				|| ws::Response::from_request(req),
+				|| Ok(ws::Response::not_found("Page not found".into())),
 				// or serve the file
 				|f| {
 					let content_len = format!("{}", f.content.as_bytes().len());
@@ -67,12 +100,14 @@ impl ws::Handler for Session {
 
 pub struct Factory {
 	handler: Arc<IoHandler>,
+	self_origin: String,
 }
 
 impl Factory {
-	pub fn new(handler: Arc<IoHandler>) -> Self {
+	pub fn new(handler: Arc<IoHandler>, self_origin: String) -> Self {
 		Factory {
 			handler: handler,
+			self_origin: self_origin,
 		}
 	}
 }
@@ -83,6 +118,7 @@ impl ws::Factory for Factory {
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
 		Session {
 			out: sender,
+			self_origin: self.self_origin.clone(),
 			handler: self.handler.clone(),
 		}
 	}
