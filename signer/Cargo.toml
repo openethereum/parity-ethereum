@@ -14,11 +14,12 @@ rustc_version = "0.1"
 jsonrpc-core = "2.0"
 log = "0.3"
 env_logger = "0.3"
-ws = "0.4.7"
+ws = { git = "https://github.com/ethcore/ws-rs.git" }
 ethcore-util = { path = "../util" }
 ethcore-rpc = { path = "../rpc" }
+parity-minimal-sysui = { git = "https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git" }
 
-clippy = { version = "0.0.69", optional = true}
+clippy = { version = "0.0.71", optional = true}
 
 [features]
 dev = ["clippy"]

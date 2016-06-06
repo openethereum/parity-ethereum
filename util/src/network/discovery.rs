@@ -494,10 +494,11 @@ impl Discovery {
 	}
 
 	pub fn update_registration<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
-		let mut registration = EventSet::readable();
-		if !self.send_queue.is_empty() {
-			registration = registration | EventSet::writable();
-		}
+		let registration = if !self.send_queue.is_empty() {
+			EventSet::readable() | EventSet::writable()
+		} else {
+			EventSet::readable()
+		};
 		event_loop.reregister(&self.udp_socket, Token(self.token), registration, PollOpt::edge()).expect("Error reregistering UDP socket");
 		Ok(())
 	}

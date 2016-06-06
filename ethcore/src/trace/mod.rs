@@ -98,7 +98,7 @@ pub trait VMTracer: Send {
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
-	fn prepare_subtrace(&self, code: &Bytes) -> Self where Self: Sized;
+	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized;
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn done_subtrace(&mut self, sub: Self) where Self: Sized;

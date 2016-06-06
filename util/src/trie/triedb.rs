@@ -59,7 +59,7 @@ impl<'db> TrieDB<'db> {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
 	pub fn new(db: &'db HashDB, root: &'db H256) -> Self {
-		if !db.exists(root) {
+		if !db.contains(root) {
 			flushln!("TrieDB::new({}): Trie root not found!", root);
 			panic!("Trie root not found!");
 		}

@@ -66,12 +66,12 @@ fn wallet_page(pages: &mut Endpoints) {
 #[cfg(not(feature = "parity-dapps-wallet"))]
 fn wallet_page(_pages: &mut Endpoints) {}
 
-#[cfg(feature = "parity-dapps-daodapp")]
+#[cfg(feature = "parity-dapps-dao")]
 fn daodapp_page(pages: &mut Endpoints) {
-	extern crate parity_dapps_daodapp;
-	insert::<parity_dapps_daodapp::App>(pages, "dao");
+	extern crate parity_dapps_dao;
+	insert::<parity_dapps_dao::App>(pages, "dao");
 }
-#[cfg(not(feature = "parity-dapps-daodapp"))]
+#[cfg(not(feature = "parity-dapps-dao"))]
 fn daodapp_page(_pages: &mut Endpoints) {}
 
 #[cfg(feature = "parity-dapps-makerotc")]

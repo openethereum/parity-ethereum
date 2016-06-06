@@ -75,7 +75,7 @@ impl VMTracer for NoopVMTracer {
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
-	fn prepare_subtrace(&self, _code: &Bytes) -> Self { NoopVMTracer }
+	fn prepare_subtrace(&self, _code: &[u8]) -> Self { NoopVMTracer }
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn done_subtrace(&mut self, _sub: Self) {}
