@@ -20,10 +20,9 @@ use std::sync::atomic::AtomicBool;
 use util::*;
 use util::keys::store::{AccountProvider};
 use views::{BlockView, HeaderView};
-use client::{MiningBlockChainClient, BlockID};
+use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockChainClient, BlockID, CallAnalytics};
 use block::{ClosedBlock, IsBlock};
 use error::*;
-use client::{Executive, Executed, EnvInfo, TransactOptions};
 use transaction::SignedTransaction;
 use receipt::{Receipt};
 use spec::Spec;
@@ -251,11 +250,13 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError> {
+	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let sealing_work = self.sealing_work.lock().unwrap();
 		match sealing_work.peek_last_ref() {
 			Some(work) => {
 				let block = work.block();
+
+				// TODO: merge this code with client.rs's fn call somwhow.
 				let header = block.header();
 				let last_hashes = chain.last_hashes();
 				let env_info = EnvInfo {
@@ -274,16 +275,24 @@ impl MinerService for Miner {
 					ExecutionError::TransactionMalformed(message)
 				}));
 				let balance = state.balance(&sender);
-				// give the sender max balance
-				state.sub_balance(&sender, &balance);
-				state.add_balance(&sender, &U256::max_value());
-				let options = TransactOptions { tracing: false, vm_tracing: vm_tracing, check_nonce: false };
-
-				// TODO: use vm_trace here.
-				Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options)
+				let needed_balance = t.value + t.gas * t.gas_price;
+				if balance < needed_balance {
+					// give the sender a sufficient balance
+					state.add_balance(&sender, &(needed_balance - balance));
+				}
+				let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
+				let mut ret = Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options);
+				
+				// TODO gav move this into Executive.
+				if analytics.state_diffing {
+					if let Ok(ref mut x) = ret {
+						x.state_diff = Some(state.diff_from(block.state().clone()));
+					}
+				}
+				ret
 			},
 			None => {
-				chain.call(t, vm_tracing)
+				chain.call(t, analytics)
 			}
 		}
 	}

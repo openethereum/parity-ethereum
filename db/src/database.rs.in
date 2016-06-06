@@ -158,10 +158,9 @@ impl Database {
 	pub fn flush_all(&self) -> Result<(), Error> {
 		let mut cache_lock = self.write_cache.write().unwrap();
 		let db_lock = self.db.read().unwrap();
-		if db_lock.is_none() { return Ok(()); }
-		let db = db_lock.as_ref().expect("we should have exited with Ok(()) on the previous step");
-
-		try!(cache_lock.flush_all(&db));
+		if let Some(ref db) = *db_lock {
+			try!(cache_lock.flush_all(&db));
+		}
 		Ok(())
 	}
 

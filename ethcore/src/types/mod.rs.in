@@ -23,3 +23,5 @@ pub mod log_entry;
 pub mod trace_types;
 pub mod executed;
 pub mod block_status;
+pub mod account_diff;
+pub mod state_diff;
