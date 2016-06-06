@@ -85,7 +85,7 @@ impl WriteCache {
 			if self.entries.len() == 0 { break; }
 			let removed_key = {
 				let (key, cache_entry) = self.entries.iter().nth(0)
-				.expect("if entries.len == 0, we should have break in the loop, still we got here somehow");
+					.expect("if entries.len == 0, we should have break in the loop, still we got here somehow");
 
 				match *cache_entry {
 					WriteCacheEntry::Write(ref val) => {
@@ -149,9 +149,9 @@ impl Database {
 		let mut cache_lock = self.write_cache.write().unwrap();
 		let db_lock = self.db.read().unwrap();
 		if db_lock.is_none() { return Ok(()); }
-		let db = db_lock.as_ref().unwrap();
-
-		try!(cache_lock.try_shrink(&db));
+		if let Some(ref db) = *db_lock {
+			try!(cache_lock.try_shrink(&db));
+		}
 		Ok(())
 	}
 
@@ -167,8 +167,7 @@ impl Database {
 	pub fn backing_iter(&self) -> Result<DBIterator, Error> {
 		try!(self.flush_all());
 		let db_lock = self.db.read().unwrap();
-		if db_lock.is_none() { return Err(Error::IsClosed); }
-		Ok(db_lock.as_ref().expect("Iterating on closed database (checked that it is open above)").iterator(IteratorMode::Start))
+		Ok(try!(db_lock.as_ref().ok_or(Error::IsClosed)).iterator(IteratorMode::Start))
 	}
 }
 
