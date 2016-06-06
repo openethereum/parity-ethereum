@@ -25,9 +25,9 @@ use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, Transaction
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
-use ethminer::{ExternalMiner, MinerService};
+use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
-use v1::{Eth, EthClient};
+use v1::{Eth, EthClient, EthSigning, EthSigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use rustc_serialize::hex::ToHex;
 
@@ -72,8 +72,11 @@ impl Default for EthTester {
 		let hashrates = Arc::new(RwLock::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner).to_delegate();
+		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
+		io.add_delegate(sign);
+
 		EthTester {
 			client: client,
 			sync: sync,
@@ -362,7 +365,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 		tester.miner.pending_transactions.lock().unwrap().insert(H256::zero(), tx);
 	}
 
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x01","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x00","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0x0a"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x01","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x00","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0x0a"},"id":1}"#;
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionByHash",
@@ -427,6 +430,8 @@ fn rpc_eth_call() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
+		state_diff: None,
 	});
 
 	let request = r#"{
@@ -460,6 +465,8 @@ fn rpc_eth_call_default_block() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
+		state_diff: None,
 	});
 
 	let request = r#"{
@@ -492,6 +499,8 @@ fn rpc_eth_estimate_gas() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
+		state_diff: None,
 	});
 
 	let request = r#"{
@@ -525,6 +534,8 @@ fn rpc_eth_estimate_gas_default_block() {
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
 		trace: None,
+		vm_trace: None,
+		state_diff: None,
 	});
 
 	let request = r#"{

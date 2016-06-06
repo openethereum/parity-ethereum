@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
+use endpoint::{Endpoint, Endpoints, EndpointInfo, Handler, EndpointPath};
 
 use api::response::as_json;
 
@@ -23,8 +23,8 @@ pub struct RestApi {
 	endpoints: Arc<Endpoints>,
 }
 
-#[derive(Debug, PartialEq, Serialize)]
-struct App {
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct App {
 	pub id: String,
 	pub name: String,
 	pub description: String,
@@ -32,6 +32,19 @@ struct App {
 	pub author: String,
 	#[serde(rename="iconUrl")]
 	pub icon_url: String,
+}
+
+impl App {
+	fn from_info(id: &str, info: &EndpointInfo) -> Self {
+		App {
+			id: id.to_owned(),
+			name: info.name.to_owned(),
+			description: info.description.to_owned(),
+			version: info.version.to_owned(),
+			author: info.author.to_owned(),
+			icon_url: info.icon_url.to_owned(),
+		}
+	}
 }
 
 impl RestApi {
@@ -43,14 +56,7 @@ impl RestApi {
 
 	fn list_apps(&self) -> Vec<App> {
 		self.endpoints.iter().filter_map(|(ref k, ref e)| {
-			e.info().map(|ref info| App {
-				id: k.to_owned().clone(),
-				name: info.name.to_owned(),
-				description: info.description.to_owned(),
-				version: info.version.to_owned(),
-				author: info.author.to_owned(),
-				icon_url: info.icon_url.to_owned(),
-			})
+			e.info().map(|ref info| App::from_info(k, info))
 		}).collect()
 	}
 }

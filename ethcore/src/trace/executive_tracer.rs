@@ -18,13 +18,13 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult};
-use trace::Tracer;
+use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
+use trace::{Tracer, VMTracer};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]
 pub struct ExecutiveTracer {
-	traces: Vec<Trace>
+	traces: Vec<Trace>,
 }
 
 impl Tracer for ExecutiveTracer {
@@ -40,8 +40,7 @@ impl Tracer for ExecutiveTracer {
 		Some(vec![])
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs:
-				  Vec<Trace>, delegate_call: bool) {
+	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
 		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
 			return;
@@ -105,4 +104,47 @@ impl Tracer for ExecutiveTracer {
 	fn traces(self) -> Vec<Trace> {
 		self.traces
 	}
+}
+
+/// Simple VM tracer. Traces all operations.
+#[derive(Default)]
+pub struct ExecutiveVMTracer {
+	data: VMTrace,
+}
+
+impl VMTracer for ExecutiveVMTracer {
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256) -> bool {
+		self.data.operations.push(VMOperation {
+			pc: pc,
+			instruction: instruction,
+			gas_cost: gas_cost.clone(),	
+			executed: None,
+		});
+		true
+	}
+
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
+		let ex = VMExecutedOperation {
+			gas_used: gas_used,
+			stack_push: stack_push.iter().cloned().collect(),
+			mem_diff: mem_diff.map(|(s, r)| MemoryDiff{ offset: s, data: r.iter().cloned().collect() }),
+			store_diff: store_diff.map(|(l, v)| StorageDiff{ location: l, value: v }),
+		};
+		self.data.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute").executed = Some(ex);
+	}
+
+	fn prepare_subtrace(&self, code: &Bytes) -> Self {
+		ExecutiveVMTracer { data: VMTrace {
+			parent_step: self.data.operations.len(),
+			code: code.clone(),
+			operations: vec![],
+			subs: vec![],
+		}}
+	}
+
+	fn done_subtrace(&mut self, sub: Self) {
+		self.data.subs.push(sub.data);
+	}
+
+	fn drain(mut self) -> Option<VMTrace> { self.data.subs.pop() }
 }

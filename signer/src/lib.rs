@@ -30,12 +30,15 @@
 //!
 //! ```
 //! extern crate ethcore_signer;
+//! extern crate ethcore_rpc;
 //!
+//! use std::sync::Arc;
 //! use ethcore_signer::ServerBuilder;
+//! use ethcore_rpc::ConfirmationsQueue;
 //!
 //!	fn main() {
-//!	 let builder = ServerBuilder::new();
-//!	 let _server = builder.start("127.0.0.1:8084".parse().unwrap()).unwrap();
+//!	 let queue = Arc::new(ConfirmationsQueue::default());
+//!	 let _server = ServerBuilder::new(queue).start("127.0.0.1:8084".parse().unwrap());
 //!	}
 //! ```
 
@@ -48,9 +51,7 @@ extern crate ethcore_rpc as rpc;
 extern crate jsonrpc_core;
 extern crate ws;
 
-mod signing_queue;
 mod ws_server;
-
 pub use ws_server::*;
 
 #[cfg(test)]

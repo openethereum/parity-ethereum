@@ -338,6 +338,18 @@ impl<T> Encodable for Vec<T>  where T: Encodable {
 	}
 }
 
+impl<T> Encodable for Option<T>  where T: Encodable {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		match *self {
+			None => { s.begin_list(0); },
+			Some(ref x) => {
+				s.begin_list(1);
+				s.append_internal(x);
+			}
+		}
+	}
+}
+
 impl<T> RlpEncodable for T where T: Encodable {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		Encodable::rlp_append(self, s)

@@ -21,7 +21,7 @@ use util::numbers::U256;
 use v1::types::bytes::Bytes;
 
 /// Transaction request coming from RPC
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct TransactionRequest {
 	/// Sender
 	pub from: Address,
@@ -39,6 +39,24 @@ pub struct TransactionRequest {
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
 }
+
+/// Transaction confirmation waiting in a queue
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize)]
+pub struct TransactionConfirmation {
+	/// Id of this confirmation
+	pub id: U256,
+	/// TransactionRequest
+	pub transaction: TransactionRequest,
+}
+
+/// Possible modifications to the confirmed transaction sent by SystemUI
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct TransactionModification {
+	/// Modified gas price
+	#[serde(rename="gasPrice")]
+	pub gas_price: Option<U256>,
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -133,6 +151,27 @@ mod tests {
 			value: None,
 			data: Some(Bytes::new(vec![0x85, 0x95, 0xba, 0xb1])),
 			nonce: None,
+		});
+	}
+
+	#[test]
+	fn should_deserialize_modification() {
+		// given
+		let s1 = r#"{
+			"gasPrice":"0x0ba43b7400"
+		}"#;
+		let s2 = r#"{}"#;
+
+		// when
+		let res1: TransactionModification = serde_json::from_str(s1).unwrap();
+		let res2: TransactionModification = serde_json::from_str(s2).unwrap();
+
+		// then
+		assert_eq!(res1, TransactionModification {
+			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
+		});
+		assert_eq!(res2, TransactionModification {
+			gas_price: None,
 		});
 	}
 }

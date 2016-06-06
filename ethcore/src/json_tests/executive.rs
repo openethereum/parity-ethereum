@@ -19,14 +19,15 @@ use state::*;
 use executive::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory, VMType, ContractCreateResult, MessageCallResult};
+use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
 use externalities::*;
 use substate::*;
 use tests::helpers::*;
 use ethjson;
 use trace::{Tracer, NoopTracer};
+use trace::{VMTracer, NoopVMTracer};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct CallCreate {
 	data: Bytes,
 	destination: Option<Address>,
@@ -48,32 +49,35 @@ impl From<ethjson::vm::Call> for CallCreate {
 
 /// Tiny wrapper around executive externalities.
 /// Stores callcreates.
-struct TestExt<'a, T> where T: 'a + Tracer {
-	ext: Externalities<'a, T>,
+struct TestExt<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
+	ext: Externalities<'a, T, V>,
 	callcreates: Vec<CallCreate>,
 	contract_address: Address
 }
 
-impl<'a, T> TestExt<'a, T> where T: 'a + Tracer {
-	fn new(state: &'a mut State,
-			   info: &'a EnvInfo,
-			   engine: &'a Engine,
-			   vm_factory: &'a Factory,
-			   depth: usize,
-			   origin_info: OriginInfo,
-			   substate: &'a mut Substate,
-			   output: OutputPolicy<'a, 'a>,
-			   address: Address,
-			   tracer: &'a mut T) -> Self {
+impl<'a, T, V> TestExt<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
+	fn new(
+		state: &'a mut State,
+		info: &'a EnvInfo,
+		engine: &'a Engine,
+		vm_factory: &'a Factory,
+		depth: usize,
+		origin_info: OriginInfo,
+		substate: &'a mut Substate,
+		output: OutputPolicy<'a, 'a>,
+		address: Address,
+		tracer: &'a mut T,
+		vm_tracer: &'a mut V,
+	) -> Self {
 		TestExt {
 			contract_address: contract_address(&address, &state.nonce(&address)),
-			ext: Externalities::new(state, info, engine, vm_factory, depth, origin_info, substate, output, tracer),
+			ext: Externalities::new(state, info, engine, vm_factory, depth, origin_info, substate, output, tracer, vm_tracer),
 			callcreates: vec![]
 		}
 	}
 }
 
-impl<'a, T> Ext for TestExt<'a, T> where T: Tracer {
+impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
 	fn storage_at(&self, key: &H256) -> H256 {
 		self.ext.storage_at(key)
 	}
@@ -129,7 +133,7 @@ impl<'a, T> Ext for TestExt<'a, T> where T: Tracer {
 		self.ext.log(topics, data)
 	}
 
-	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
+	fn ret(self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		self.ext.ret(gas, data)
 	}
 
@@ -186,6 +190,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 
 		let mut substate = Substate::new();
 		let mut tracer = NoopTracer;
+		let mut vm_tracer = NoopVMTracer;
 		let mut output = vec![];
 
 		// execute
@@ -201,10 +206,13 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				OutputPolicy::Return(BytesRef::Flexible(&mut output), None),
 				params.address.clone(),
 				&mut tracer,
+				&mut vm_tracer,
 			);
-			let evm = vm_factory.create();
+			let mut evm = vm_factory.create();
 			let res = evm.exec(params, &mut ex);
-			(res, ex.callcreates)
+			// a return in finalize will not alter callcreates
+			let callcreates = ex.callcreates.clone();
+			(res.finalize(ex), callcreates)
 		};
 
 		match res {

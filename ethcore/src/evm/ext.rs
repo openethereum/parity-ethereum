@@ -17,7 +17,7 @@
 //! Interface for Evm externalities.
 
 use util::common::*;
-use evm::{Schedule, Error};
+use evm::{self, Schedule};
 use env_info::*;
 
 /// Result of externalities create function.
@@ -85,7 +85,7 @@ pub trait Ext {
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.
-	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, Error>;
+	fn ret(self, gas: &U256, data: &[u8]) -> evm::Result<U256> where Self: Sized;
 
 	/// Should be called when contract commits suicide.
 	/// Address to which funds should be refunded.
@@ -105,4 +105,10 @@ pub trait Ext {
 
 	/// Increments sstore refunds count by 1.
 	fn inc_sstore_clears(&mut self);
+
+	/// Prepare to trace an operation. Passthrough for the VM trace.
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: &U256) -> bool { false }
+
+	/// Trace the finalised execution of a single instruction.
+	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
 }

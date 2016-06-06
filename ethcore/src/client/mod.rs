@@ -46,6 +46,17 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
+use miner::{TransactionImportResult};
+use error::Error as EthError;
+
+/// Options concerning what analytics we run on the call.
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
+pub struct CallAnalytics {
+	/// Make a VM trace.
+	pub vm_tracing: bool,
+	/// Make a diff.
+	pub state_diffing: bool,
+}
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -154,17 +165,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
-	// TODO [todr] Should be moved to miner crate eventually.
-	/// Returns ClosedBlock prepared for sealing.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> (Option<ClosedBlock>, HashSet<H256>);
-
-	// TODO [todr] Should be moved to miner crate eventually.
-	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
-	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
-
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &SignedTransaction) -> Result<Executed, ExecutionError>;
+	// TODO: should be able to accept blockchain location for call.
+	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
@@ -183,5 +186,20 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
+
+	/// import transactions from network/other 3rd party
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>>;
+
+	/// list all transactions
+	fn all_transactions(&self) -> Vec<SignedTransaction>;
 }
 
+/// Extended client interface used for mining
+pub trait MiningBlockChainClient : BlockChainClient {
+	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
+	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
+
+	/// Returns ClosedBlock prepared for sealing.
+	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
+		-> (Option<ClosedBlock>, HashSet<H256>);
+}

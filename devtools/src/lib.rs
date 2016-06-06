@@ -21,6 +21,8 @@ extern crate rand;
 
 pub mod random_path;
 pub mod test_socket;
+pub mod stop_guard;
 
 pub use random_path::*;
 pub use test_socket::*;
+pub use stop_guard::*;

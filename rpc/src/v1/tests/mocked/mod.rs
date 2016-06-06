@@ -18,8 +18,10 @@
 //! method calls properly.
 
 mod eth;
+mod eth_signing;
 mod net;
 mod web3;
 mod personal;
+mod personal_signer;
 mod ethcore;
 mod rpc;

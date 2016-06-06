@@ -18,15 +18,16 @@
 
 use util::numbers::*;
 use util::Bytes;
-use trace::Trace;
+use trace::{Trace, VMTrace};
 use types::log_entry::LogEntry;
+use types::state_diff::StateDiff;
 use ipc::binary::BinaryConvertError;
 use std::fmt;
 use std::mem;
 use std::collections::VecDeque;
 
 /// Transaction execution receipt.
-#[derive(Debug, PartialEq, Clone, Binary)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Executed {
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
@@ -59,6 +60,10 @@ pub struct Executed {
 	pub output: Bytes,
 	/// The trace of this transaction.
 	pub trace: Option<Trace>,
+	/// The VM trace of this transaction.
+	pub vm_trace: Option<VMTrace>,
+	/// The state diff, if we traced it.
+	pub state_diff: Option<StateDiff>,
 }
 
 /// Result of executing the transaction.

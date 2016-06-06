@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::client::BlockChainClient;
 use util::{NetworkContext, PeerId, PacketId,};
 use util::error::UtilError;
 use ethcore::service::SyncMessage;
+use ethcore::client::BlockChainClient;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.

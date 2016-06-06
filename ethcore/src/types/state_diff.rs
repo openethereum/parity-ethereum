@@ -14,12 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+//! State diff module.
 
-use rustc_version::{version_meta, Channel};
+use util::*;
+use account_diff::*;
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
+#[derive(Debug, PartialEq, Eq, Clone)]
+/// Expression for the delta between two system states. Encoded the
+/// delta of every altered account.
+pub struct StateDiff (pub BTreeMap<Address, AccountDiff>);
+
+impl StateDiff {
+	/// Get the actual data.
+	pub fn get(&self) -> &BTreeMap<Address, AccountDiff> {
+		&self.0
+	}
+}
+
+impl fmt::Display for StateDiff {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for (add, acc) in &self.0 {
+			try!(write!(f, "{} {}: {}", acc.existance(), add, acc));
+		}
+		Ok(())
+	}
+}
+
+impl Deref for StateDiff {
+	type Target = BTreeMap<Address, AccountDiff>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
 	}
 }

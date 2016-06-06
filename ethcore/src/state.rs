@@ -20,13 +20,9 @@ use executive::{Executive, TransactOptions};
 use evm::Factory as EvmFactory;
 use account_db::*;
 use trace::Trace;
-#[cfg(test)]
-#[cfg(feature = "json-tests")]
 use pod_account::*;
-#[cfg(test)]
-#[cfg(feature = "json-tests")]
-use pod_state::PodState;
-//use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
+use pod_state::{self, PodState};
+use types::state_diff::StateDiff;
 
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome {
@@ -183,16 +179,14 @@ impl State {
 
 	/// Add `incr` to the balance of account `a`.
 	pub fn add_balance(&mut self, a: &Address, incr: &U256) {
-		let old = self.balance(a);
+		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a));
 		self.require(a, false).add_balance(incr);
-		trace!("state: add_balance({}, {}): {} -> {}\n", a, incr, old, self.balance(a));
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
 	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
-		let old = self.balance(a);
+		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a));
 		self.require(a, false).sub_balance(decr);
-		trace!("state: sub_balance({}, {}): {} -> {}\n", a, decr, old, self.balance(a));
 	}
 
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
@@ -222,11 +216,11 @@ impl State {
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, vm_factory: &EvmFactory, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
-		let options = TransactOptions { tracing: tracing, check_nonce: true };
+		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.
-//		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
+//		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 //		trace!("Transaction receipt: {:?}", receipt);
@@ -277,18 +271,36 @@ impl State {
 		}
 	}
 
-	#[cfg(test)]
-	#[cfg(feature = "json-tests")]
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
 		assert!(self.snapshots.borrow().is_empty());
 		// TODO: handle database rather than just the cache.
+		// will need fat db.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = *opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
 			m
 		}))
+	}
+
+	fn query_pod(&mut self, query: &PodState) {
+		for (ref address, ref pod_account) in query.get() {
+			if self.get(address, true).is_some() {
+				for (ref key, _) in &pod_account.storage {
+					self.storage_at(address, key);
+				}
+			}
+		}
+	}
+
+	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
+	/// Consumes self.
+	pub fn diff_from(&self, orig: State) -> StateDiff {
+		let pod_state_post = self.to_pod();
+		let mut state_pre = orig;
+		state_pre.query_pod(&pod_state_post);
+		pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post)
 	}
 
 	/// Pull account `a` in our cache from the trie DB and return it.

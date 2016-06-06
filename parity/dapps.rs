@@ -17,14 +17,9 @@
 use std::sync::Arc;
 use std::str::FromStr;
 use std::net::SocketAddr;
-use ethcore::client::Client;
-use ethsync::EthSync;
-use ethminer::{Miner, ExternalMiner};
-use util::RotatingLogger;
 use util::panics::PanicHandler;
-use util::keys::store::AccountService;
-use util::network_settings::NetworkSettings;
 use die::*;
+use rpc_apis;
 
 #[cfg(feature = "dapps")]
 pub use ethcore_dapps::Server as WebappServer;
@@ -37,17 +32,12 @@ pub struct Configuration {
 	pub port: u16,
 	pub user: Option<String>,
 	pub pass: Option<String>,
+	pub dapps_path: String,
 }
 
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
-	pub client: Arc<Client>,
-	pub sync: Arc<EthSync>,
-	pub secret_store: Arc<AccountService>,
-	pub miner: Arc<Miner>,
-	pub external_miner: Arc<ExternalMiner>,
-	pub logger: Arc<RotatingLogger>,
-	pub settings: Arc<NetworkSettings>,
+	pub apis: Arc<rpc_apis::Dependencies>,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappServer> {
@@ -74,12 +64,13 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappSer
 		(username.to_owned(), password)
 	});
 
-	Some(setup_dapps_server(deps, &addr, auth))
+	Some(setup_dapps_server(deps, configuration.dapps_path, &addr, auth))
 }
 
 #[cfg(not(feature = "dapps"))]
 pub fn setup_dapps_server(
 	_deps: Dependencies,
+	_dapps_path: String,
 	_url: &SocketAddr,
 	_auth: Option<(String, String)>,
 ) -> ! {
@@ -89,20 +80,14 @@ pub fn setup_dapps_server(
 #[cfg(feature = "dapps")]
 pub fn setup_dapps_server(
 	deps: Dependencies,
+	dapps_path: String,
 	url: &SocketAddr,
 	auth: Option<(String, String)>
 ) -> WebappServer {
-	use ethcore_rpc::v1::*;
 	use ethcore_dapps as dapps;
 
-	let server = dapps::ServerBuilder::new();
-	server.add_delegate(Web3Client::new().to_delegate());
-	server.add_delegate(NetClient::new(&deps.sync).to_delegate());
-	server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
-	server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
-	server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner).to_delegate());
-	server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate());
-
+	let server = dapps::ServerBuilder::new(dapps_path);
+	let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 	let start_result = match auth {
 		None => {
 			server.start_unsecure_http(url)

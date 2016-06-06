@@ -26,13 +26,12 @@
 //! ```rust
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
-//! extern crate ethminer;
 //! extern crate rustc_serialize;
 //!
 //!	use util::crypto::KeyPair;
 //! use util::hash::Address;
 //! use util::numbers::{Uint, U256};
-//!	use ethminer::{TransactionQueue, AccountDetails, TransactionOrigin};
+//!	use ethcore::miner::{TransactionQueue, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
 //!	use rustc_serialize::hex::FromHex;
 //!
@@ -89,8 +88,8 @@ use std::collections::{HashMap, BTreeSet};
 use util::numbers::{Uint, U256};
 use util::hash::{Address, H256};
 use util::table::*;
-use ethcore::transaction::*;
-use ethcore::error::{Error, TransactionError};
+use transaction::*;
+use error::{Error, TransactionError};
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -778,8 +777,8 @@ mod test {
 	extern crate rustc_serialize;
 	use util::table::*;
 	use util::*;
-	use ethcore::transaction::*;
-	use ethcore::error::{Error, TransactionError};
+	use transaction::*;
+	use error::{Error, TransactionError};
 	use super::*;
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
 
