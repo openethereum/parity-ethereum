@@ -303,6 +303,12 @@ impl From<IoError> for Error {
 	}
 }
 
+impl From<TrieError> for Error {
+	fn from(err: TrieError) -> Error {
+		Error::TrieError(err)
+	}
+}
+
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
 /*#![feature(concat_idents)]
 macro_rules! assimilate {

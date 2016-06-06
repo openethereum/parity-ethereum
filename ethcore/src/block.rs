@@ -239,8 +239,7 @@ impl<'x> OpenBlock<'x> {
 		gas_floor_target: U256,
 		extra_data: Bytes
 	) -> Result<Self, Error> {
-
-		let state = try!(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce()).map_err(Error::TrieError));
+		let state = try!(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce()));
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(state, tracing),
 			engine: engine,
@@ -476,7 +475,7 @@ impl IsBlock for SealedBlock {
 pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, vm_factory: &EvmFactory) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
-			let s = try!(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce()).map_err(Error::TrieError));
+			let s = try!(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce()));
 			trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
 		}
 	}
