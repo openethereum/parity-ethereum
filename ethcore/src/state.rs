@@ -64,18 +64,17 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256) -> State {
-		{
-			// trie should panic! if root does not exist
-			let _ = SecTrieDB::new(db.as_hashdb(), &root);
-		}
-
-		State {
-			db: db,
-			root: root,
-			cache: RefCell::new(HashMap::new()),
-			snapshots: RefCell::new(Vec::new()),
-			account_start_nonce: account_start_nonce,
+	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256) -> Result<State, TrieError> {
+		if !db.as_hashdb().contains(&root) {
+			Err(TrieError::InvalidStateRoot)
+		} else {
+			Ok(State {
+				db: db,
+				root: root,
+				cache: RefCell::new(HashMap::new()),
+				snapshots: RefCell::new(Vec::new()),
+				account_start_nonce: account_start_nonce,
+			})
 		}
 	}
 
@@ -154,7 +153,10 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || SecTrieDB::new(self.db.as_hashdb(), &self.root).contains(&a)
+		let db = SecTrieDB::new(self.db.as_hashdb(), &self.root)
+			.expect("A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
+			 Therefore creating a SecTrieDB with this state's root will not fail.");
+		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || db.contains(&a)
 	}
 
 	/// Get the balance of account `a`.
@@ -245,7 +247,7 @@ impl State {
 		}
 
 		{
-			let mut trie = SecTrieDBMut::from_existing(db, root);
+			let mut trie = SecTrieDBMut::from_existing(db, root).unwrap();
 			for (address, ref a) in accounts.iter() {
 				match **a {
 					Some(ref account) => trie.insert(address, &account.rlp()),
@@ -1145,7 +1147,7 @@ fn code_from_database() {
 		state.drop()
 	};
 
-	let state = State::from_existing(db, root, U256::from(0u8));
+	let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 	assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
 }
 
@@ -1160,7 +1162,7 @@ fn storage_at_from_database() {
 		state.drop()
 	};
 
-	let s = State::from_existing(db, root, U256::from(0u8));
+	let s = State::from_existing(db, root, U256::from(0u8)).unwrap();
 	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
 }
 
@@ -1177,7 +1179,7 @@ fn get_from_database() {
 		state.drop()
 	};
 
-	let state = State::from_existing(db, root, U256::from(0u8));
+	let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	assert_eq!(state.nonce(&a), U256::from(1u64));
 }
@@ -1210,7 +1212,7 @@ fn remove_from_database() {
 	};
 
 	let (root, db) = {
-		let mut state = State::from_existing(db, root, U256::from(0u8));
+		let mut state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 		state.kill_account(&a);
@@ -1220,7 +1222,7 @@ fn remove_from_database() {
 		state.drop()
 	};
 
-	let state = State::from_existing(db, root, U256::from(0u8));
+	let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 	assert_eq!(state.exists(&a), false);
 	assert_eq!(state.nonce(&a), U256::from(0u64));
 }
