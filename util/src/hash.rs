@@ -143,6 +143,7 @@ macro_rules! impl_hash {
 				}
 				min
 			}
+
 			fn from_slice(src: &[u8]) -> Self {
 				let mut r = Self::new();
 				r.clone_from_slice(src);
@@ -158,11 +159,7 @@ macro_rules! impl_hash {
 				let bp: Self = b.bloom_part($size);
 				let new_self = &bp | self;
 
-				// impl |= instead
-				// TODO: that's done now!
-
 				self.0 = new_self.0;
-
 				self
 			}
 
@@ -174,7 +171,6 @@ macro_rules! impl_hash {
 				let bloom_bits = m * 8;
 				let mask = bloom_bits - 1;
 				let bloom_bytes = (log2(bloom_bits) + 7) / 8;
-				//println!("bb: {}", bloom_bytes);
 
 				// must be a power of 2
 				assert_eq!(m & (m - 1), 0);
