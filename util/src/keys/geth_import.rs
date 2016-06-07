@@ -120,8 +120,10 @@ pub fn import_keys_pat(secret_store: &mut SecretStore, path: &str) -> Result<usi
 			return Ok(1);
 		}
 		else if meta.is_dir() {
-			let total = try!(import_geth_keys(secret_store, Path::new(path)));
-			return Ok(total);
+			let mut path_buf = PathBuf::new();
+			path_buf.push(path);
+			path_buf.push("*.*");
+			return import_keys_pat(secret_store, path_buf.as_path().to_str().unwrap())
 		}
 	}
 
@@ -156,8 +158,19 @@ mod tests {
 		}
 	}
 
+	fn pat_path() -> &'static str {
+		match ::std::fs::metadata("res") {
+			Ok(_) => "res/pat",
+			Err(_) => "util/res/pat"
+		}
+	}
+
 	fn test_path_param(param_val: &'static str) -> String {
 		test_path().to_owned() + param_val
+	}
+
+	fn pat_path_param(param_val: &'static str) -> String {
+		pat_path().to_owned() + param_val
 	}
 
 	#[test]
@@ -232,4 +245,32 @@ mod tests {
 		assert!(val.is_ok());
 		assert_eq!(32, val.unwrap().len());
 	}
+
+	#[test]
+	fn can_import_by_filename() {
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+
+		let amount = import_keys_pat(&mut secret_store, &pat_path_param("/p1.json")).unwrap();
+		assert_eq!(1, amount);
+	}
+
+	#[test]
+	fn can_import_by_dir() {
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+
+		let amount = import_keys_pat(&mut secret_store, pat_path()).unwrap();
+		assert_eq!(2, amount);
+	}
+
+	#[test]
+	fn can_import_by_pattern() {
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+
+		let amount = import_keys_pat(&mut secret_store, &pat_path_param("/*.json")).unwrap();
+		assert_eq!(2, amount);
+	}
+
 }
