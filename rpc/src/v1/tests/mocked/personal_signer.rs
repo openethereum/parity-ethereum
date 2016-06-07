@@ -121,6 +121,30 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 }
 
 #[test]
+fn should_not_remove_transaction_if_password_is_invalid() {
+	// given
+	let tester = signer_tester();
+	tester.queue.add_request(TransactionRequest {
+		from: Address::from(1),
+		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		gas_price: Some(U256::from(10_000)),
+		gas: Some(U256::from(10_000_000)),
+		value: Some(U256::from(1)),
+		data: None,
+		nonce: None,
+	});
+	assert_eq!(tester.queue.requests().len(), 1);
+
+	// when
+	let request = r#"{"jsonrpc":"2.0","method":"personal_confirmTransaction","params":["0x01",{},"xxx"],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.queue.requests().len(), 1);
+}
+
+#[test]
 fn should_confirm_transaction_and_dispatch() {
 	// given
 	let tester = signer_tester();

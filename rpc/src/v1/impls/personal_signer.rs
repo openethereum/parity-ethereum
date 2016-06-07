@@ -81,8 +81,7 @@ impl<A: 'static, C: 'static, M: 'static> PersonalSigner for SignerClient<A, C, M
 						}
 					})
 					.unwrap_or_else(|| {
-						queue.request_rejected(id);
-						to_value(&H256::zero())
+						to_value(&false)
 					})
 			}
 		)
