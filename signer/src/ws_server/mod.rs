@@ -89,13 +89,14 @@ impl Server {
 	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
-			config.max_connections = 5;
+			config.max_connections = 10;
 			config.method_strict = true;
 			config
 		};
 
 		// Create WebSocket
-		let ws = try!(ws::Builder::new().with_settings(config).build(session::Factory::new(handler)));
+		let origin = format!("{}", addr);
+		let ws = try!(ws::Builder::new().with_settings(config).build(session::Factory::new(handler, origin)));
 
 		let panic_handler = PanicHandler::new_in_arc();
 		let ph = panic_handler.clone();

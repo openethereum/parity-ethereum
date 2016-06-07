@@ -19,7 +19,7 @@
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
 use std::collections::BTreeMap;
-use util::{H256, FixedHash};
+use util::{H256, U256, Uint};
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};

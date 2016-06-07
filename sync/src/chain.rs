@@ -918,7 +918,7 @@ impl ChainSync {
 		let skip: usize = try!(r.val_at(2));
 		let reverse: bool = try!(r.val_at(3));
 		let last = io.chain().chain_info().best_block_number;
-		let mut number = if try!(r.at(0)).size() == 32 {
+		let number = if try!(r.at(0)).size() == 32 {
 			// id is a hash
 			let hash: H256 = try!(r.val_at(0));
 			trace!(target: "sync", "-> GetBlockHeaders (hash: {}, max: {}, skip: {}, reverse:{})", hash, max_headers, skip, reverse);
@@ -931,11 +931,11 @@ impl ChainSync {
 			try!(r.val_at(0))
 		};
 
-		if reverse {
-			number = min(last, number);
+		let mut number = if reverse {
+			min(last, number)
 		} else {
-			number = max(0, number);
-		}
+			max(0, number)
+		};
 		let max_count = min(MAX_HEADERS_TO_SEND, max_headers);
 		let mut count = 0;
 		let mut data = Bytes::new();
@@ -1188,11 +1188,12 @@ impl ChainSync {
 		let mut sent = 0;
 		let last_parent = HeaderView::new(&io.chain().block_header(BlockID::Hash(chain_info.best_block_hash.clone())).unwrap()).parent_hash();
 		for (peer_id, peer_number) in lucky_peers {
-			let mut peer_best = self.peers.get(&peer_id).unwrap().latest_hash.clone();
-			if chain_info.best_block_number - peer_number > MAX_PEER_LAG_PROPAGATION as BlockNumber {
+			let peer_best = if chain_info.best_block_number - peer_number > MAX_PEER_LAG_PROPAGATION as BlockNumber {
 				// If we think peer is too far behind just send one latest hash
-				peer_best = last_parent.clone();
-			}
+				last_parent.clone()
+			} else {
+				self.peers.get(&peer_id).unwrap().latest_hash.clone()
+			};
 			sent += match ChainSync::create_new_hashes_rlp(io.chain(), &peer_best, &chain_info.best_block_hash) {
 				Some(rlp) => {
 					{
