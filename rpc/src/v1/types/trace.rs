@@ -447,6 +447,49 @@ mod tests {
 	}
 
 	#[test]
+	fn test_vmtrace_serialize() {
+		let t = VMTrace {
+			code: vec![0, 1, 2, 3],
+			ops: vec![
+				VMOperation {
+					pc: 0,
+					cost: 10,
+					ex: None,
+					sub: None,
+				},
+				VMOperation {
+					pc: 1,
+					cost: 11,
+					ex: Some(VMExecutedOperation {
+						used: 10,
+						push: vec![69.into()],
+						mem: None,
+						store: None,
+					}),
+					sub: Some(VMTrace {
+						code: vec![0],
+						ops: vec![
+							VMOperation {
+								pc: 0,
+								cost: 0,
+								ex: Some(VMExecutedOperation {
+									used: 10,
+									push: vec![42.into()],
+									mem: Some(MemoryDiff {off: 42, data: vec![1, 2, 3]}),
+									store: Some(StorageDiff {key: 69.into(), val: 42.into()}),
+								}),
+								sub: None,
+							}
+						]
+					}),
+				}
+			]
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, "{\"code\":[0,1,2,3],\"ops\":[{\"pc\":0,\"cost\":10,\"ex\":null,\"sub\":null},{\"pc\":1,\"cost\":11,\"ex\":{\"used\":10,\"push\":[\"0x45\"],\"mem\":null,\"store\":null},\"sub\":{\"code\":[0],\"ops\":[{\"pc\":0,\"cost\":0,\"ex\":{\"used\":10,\"push\":[\"0x2a\"],\"mem\":{\"off\":42,\"data\":[1,2,3]},\"store\":{\"key\":\"0x45\",\"val\":\"0x2a\"}},\"sub\":null}]}}]}");
+	}
+
+	#[test]
 	fn test_action_serialize() {
 		let actions = vec![Action::Call(Call {
 			from: Address::from(1),
