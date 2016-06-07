@@ -38,7 +38,7 @@
 //!
 //!	fn main() {
 //!	 let queue = Arc::new(ConfirmationsQueue::default());
-//!	 let _server = ServerBuilder::new(queue).start("127.0.0.1:8084".parse().unwrap());
+//!	 let _server = ServerBuilder::new(queue, "/tmp/authcodes".into()).start("127.0.0.1:8084".parse().unwrap());
 //!	}
 //! ```
 
