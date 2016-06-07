@@ -559,7 +559,7 @@ impl From<Address> for H256 {
 impl<'a> From<&'a Address> for H256 {
 	fn from(value: &'a Address) -> H256 {
 		let mut ret = H256::new();
-		ret.0[12..32].copy_from_slice(&value);
+		ret.0[12..32].copy_from_slice(value);
 		ret
 	}
 }
