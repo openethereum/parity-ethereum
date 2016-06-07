@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
-use v1::{Ethcore, EthcoreClient};
+use v1::{Ethcore, EthcoreClient, EthcoreSet, EthcoreSetClient};
 use ethcore::miner::MinerService;
 use v1::tests::helpers::TestMinerService;
 use util::numbers::*;
@@ -49,12 +49,16 @@ fn ethcore_client(miner: &Arc<TestMinerService>) -> EthcoreClient<TestMinerServi
 	EthcoreClient::new(&miner, logger(), settings())
 }
 
+fn ethcore_set_client(miner: &Arc<TestMinerService>) -> EthcoreSetClient<TestMinerService> {
+	EthcoreSetClient::new(&miner)
+}
+
 #[test]
 fn rpc_ethcore_extra_data() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_extraData", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x01020304","id":1}"#;
@@ -68,9 +72,9 @@ fn rpc_ethcore_default_extra_data() {
 	use util::ToPretty;
 
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_defaultExtraData", "params": [], "id": 1}"#;
 	let response = format!(r#"{{"jsonrpc":"2.0","result":"0x{}","id":1}}"#, misc::version_data().to_hex());
@@ -81,9 +85,9 @@ fn rpc_ethcore_default_extra_data() {
 #[test]
 fn rpc_ethcore_gas_floor_target() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_gasFloorTarget", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x3039","id":1}"#;
@@ -94,9 +98,9 @@ fn rpc_ethcore_gas_floor_target() {
 #[test]
 fn rpc_ethcore_min_gas_price() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_minGasPrice", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x01312d00","id":1}"#;
@@ -107,9 +111,9 @@ fn rpc_ethcore_min_gas_price() {
 #[test]
 fn rpc_ethcore_set_min_gas_price() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -121,9 +125,9 @@ fn rpc_ethcore_set_min_gas_price() {
 #[test]
 fn rpc_ethcore_set_gas_floor_target() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setGasFloorTarget", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -135,9 +139,9 @@ fn rpc_ethcore_set_gas_floor_target() {
 #[test]
 fn rpc_ethcore_set_extra_data() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setExtraData", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -149,9 +153,9 @@ fn rpc_ethcore_set_extra_data() {
 #[test]
 fn rpc_ethcore_set_author() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setAuthor", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -169,6 +173,7 @@ fn rpc_ethcore_dev_logs() {
 	let ethcore = EthcoreClient::new(&miner, logger.clone(), settings()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogs", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["b","a"],"id":1}"#;
@@ -179,9 +184,9 @@ fn rpc_ethcore_dev_logs() {
 #[test]
 fn rpc_ethcore_dev_logs_levels() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogsLevels", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"rpc=trace","id":1}"#;
@@ -191,9 +196,9 @@ fn rpc_ethcore_dev_logs_levels() {
 #[test]
 fn rpc_ethcore_set_transactions_limit() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setTransactionsLimit", "params":[10240240], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -205,9 +210,9 @@ fn rpc_ethcore_set_transactions_limit() {
 #[test]
 fn rpc_ethcore_transactions_limit() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_transactionsLimit", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":1024,"id":1}"#;
@@ -218,9 +223,9 @@ fn rpc_ethcore_transactions_limit() {
 #[test]
 fn rpc_ethcore_net_chain() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netChain", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"testchain","id":1}"#;
@@ -231,9 +236,9 @@ fn rpc_ethcore_net_chain() {
 #[test]
 fn rpc_ethcore_net_max_peers() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netMaxPeers", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":25,"id":1}"#;
@@ -244,9 +249,9 @@ fn rpc_ethcore_net_max_peers() {
 #[test]
 fn rpc_ethcore_net_port() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netPort", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":30303,"id":1}"#;
@@ -257,9 +262,9 @@ fn rpc_ethcore_net_port() {
 #[test]
 fn rpc_ethcore_rpc_settings() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_rpcSettings", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"enabled":true,"interface":"all","port":8545},"id":1}"#;
@@ -270,9 +275,9 @@ fn rpc_ethcore_rpc_settings() {
 #[test]
 fn rpc_ethcore_node_name() {
 	let miner = miner_service();
-	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore_client(&miner).to_delegate());
+	io.add_delegate(ethcore_set_client(&miner).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_nodeName", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"mynode","id":1}"#;

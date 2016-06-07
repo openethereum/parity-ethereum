@@ -53,7 +53,7 @@ impl ws::Handler for Session {
 
 		// Check request origin and host header.
 		if !origin_is_allowed(&self.self_origin, origin) && !origin_is_allowed(&self.self_origin, host) {
-			return Ok(ws::Response::forbidden("You are not allowed to access system ui.".into()));
+			return Ok(ws::Response::forbidden(format!("You are not allowed to access system ui. Use: http://{}", self.self_origin)));
 		}
 
 		// Check authorization
@@ -77,7 +77,7 @@ impl ws::Handler for Session {
 					let mut res = ws::Response::ok(f.content.into());
 					{
 						let mut headers = res.headers_mut();
-						headers.push(("Server".into(), b"Parity/SystemUI".to_vec()));
+						headers.push(("Server".into(), b"Parity/SignerUI".to_vec()));
 						headers.push(("Connection".into(), b"Closed".to_vec()));
 						headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
 						headers.push(("Content-Type".into(), f.mime.as_bytes().to_vec()));

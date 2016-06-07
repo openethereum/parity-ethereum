@@ -75,14 +75,14 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
-                           ethcore, traces.
-                           [default: web3,eth,net,personal,traces].
+                           ethcore, ethcore_set, traces.
+                           [default: web3,eth,net,ethcore,personal,traces].
 
   --ipc-off                Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
-                           IPC [default: web3,eth,net,personal,traces].
+                           IPC [default: web3,eth,net,ethcore,personal,traces].
 
   --dapps-off              Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
