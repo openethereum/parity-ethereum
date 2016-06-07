@@ -285,8 +285,10 @@ impl Configuration {
 		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
 	}
 
-	fn geth_ipc_path() -> String {
-		path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned()
+	fn geth_ipc_path(&self) -> String {
+		if self.args.flag_testnet { path::ethereum::with_testnet("geth.ipc") }
+		else { path::ethereum::with_default("geth.ipc") }
+			.to_str().unwrap().to_owned()
 	}
 
 	pub fn keys_iterations(&self) -> u32 {
@@ -350,7 +352,7 @@ impl Configuration {
 	}
 
 	fn ipc_path(&self) -> String {
-		if self.args.flag_geth { Self::geth_ipc_path() }
+		if self.args.flag_geth { self.geth_ipc_path() }
 		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
 	}
 }
