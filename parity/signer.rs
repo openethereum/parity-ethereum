@@ -51,16 +51,18 @@ pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
 	}
 }
 
+fn codes_path(path: String) -> PathBuf {
+	let mut p = PathBuf::from(path);
+	p.push(CODES_FILENAME);
+	let _ = restrict_permissions_owner(&p);
+	p
+}
+
 
 #[cfg(feature = "ethcore-signer")]
 pub fn new_token(path: String) -> io::Result<()> {
-	let path = {
-		let mut p = PathBuf::from(path);
-		p.push(CODES_FILENAME);
-		let _ = restrict_permissions_owner(&p);
-		p
-	};
-	let mut codes = try!(signer::AuthCodes::<signer::DefaultTimeProvider>::from_file(&path));
+	let path = codes_path(path);
+	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	let _ = try!(codes.to_file(&path));
 	println!("New token has been generated. Copy the code below to your SystemUI:");
@@ -75,7 +77,10 @@ fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 	});
 
 	let start_result = {
-		let server = signer::ServerBuilder::new(deps.apis.signer_queue.clone());
+		let server = signer::ServerBuilder::new(
+			deps.apis.signer_queue.clone(),
+			codes_path(conf.signer_path),
+		);
 		let server = rpc_apis::setup_rpc(server, deps.apis, rpc_apis::ApiSet::SafeContext);
 		server.start(addr)
 	};

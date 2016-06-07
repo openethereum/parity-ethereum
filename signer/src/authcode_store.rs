@@ -55,7 +55,7 @@ pub struct AuthCodes<T: TimeProvider = DefaultTimeProvider> {
 	now: T,
 }
 
-impl<T: TimeProvider> AuthCodes<T> {
+impl AuthCodes<DefaultTimeProvider> {
 
 	/// Reads `AuthCodes` from file and creates new instance using `DefaultTimeProvider`.
 	pub fn from_file(file: &Path) -> io::Result<AuthCodes> {
@@ -69,7 +69,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 			}
 		};
 		let codes = content.lines()
-			.filter(|f| f.len() < TOKEN_LENGTH)
+			.filter(|f| f.len() >= TOKEN_LENGTH)
 			.map(String::from)
 			.collect();
 		Ok(AuthCodes {
@@ -77,6 +77,10 @@ impl<T: TimeProvider> AuthCodes<T> {
 			now: DefaultTimeProvider::default(),
 		})
 	}
+
+}
+
+impl<T: TimeProvider> AuthCodes<T> {
 
 	/// Writes all `AuthCodes` to a disk.
 	pub fn to_file(&self, file: &Path) -> io::Result<()> {
@@ -98,6 +102,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 		let now = self.now.now();
 		// check time
 		if time >= now + TIME_THRESHOLD || time <= now - TIME_THRESHOLD {
+			warn!(target: "signer", "Received old authentication request.");
 			return false;
 		}
 
@@ -116,6 +121,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 			.filter_map(|f| String::from_utf8(f.to_vec()).ok())
 			.collect::<Vec<String>>()
 			.join("-");
+		info!(target: "signer", "New authentication token generated.");
 		self.codes.push(code);
 		Ok(readable_code)
 	}
