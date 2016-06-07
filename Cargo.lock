@@ -374,6 +374,7 @@ dependencies = [
  "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-minimal-sysui 0.1.0 (git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git)",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws 0.4.6 (git+https://github.com/ethcore/ws-rs.git)",
 ]
@@ -940,7 +941,7 @@ dependencies = [
 [[package]]
 name = "parity-minimal-sysui"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#bc5d76f9666ce19993e6f7b636a3a7af329ea19e"
+source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#cb27ae09ee18773ccca6ba2ac74fa3128047a652"
 
 [[package]]
 name = "phf"

@@ -41,6 +41,7 @@ pub struct Directories {
 	pub keys: String,
 	pub db: String,
 	pub dapps: String,
+	pub signer: String,
 }
 
 impl Configuration {
@@ -331,11 +332,15 @@ impl Configuration {
 		::std::fs::create_dir_all(&keys_path).unwrap_or_else(|e| die_with_io_error("main", e));
 		let dapps_path = Configuration::replace_home(&self.args.flag_dapps_path);
 		::std::fs::create_dir_all(&dapps_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
+		::std::fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
+
 
 		Directories {
 			keys: keys_path,
 			db: db_path,
 			dapps: dapps_path,
+			signer: signer_path,
 		}
 	}
 
