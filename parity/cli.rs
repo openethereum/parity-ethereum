@@ -24,7 +24,7 @@ Parity. Ethereum Client.
 Usage:
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
-  parity account import <path>
+  parity account import <path> [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
