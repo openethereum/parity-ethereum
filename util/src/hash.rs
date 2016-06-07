@@ -150,8 +150,8 @@ macro_rules! impl_hash {
 			}
 
 			fn copy_to(&self, dest: &mut[u8]) {
-					let min = ::std::cmp::min($size, dest.len());
-					dest[..min].copy_from_slice(&self.0[..min]);
+				let min = ::std::cmp::min($size, dest.len());
+				dest[..min].copy_from_slice(&self.0[..min]);
 			}
 
 			fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
