@@ -21,6 +21,7 @@ use keys::store::SecretStore;
 use keys::directory::KeyFileContent;
 use std::path::PathBuf;
 use path;
+use glob;
 
 /// Enumerates all geth keys in the directory and returns collection of tuples `(accountId, filename)`
 pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, ImportError> {
@@ -49,11 +50,19 @@ pub enum ImportError {
 	Io(io::Error),
 	/// format error
 	Format,
+	/// Pattern error
+	Pattern(String),
 }
 
 impl From<io::Error> for ImportError {
 	fn from (err: io::Error) -> ImportError {
 		ImportError::Io(err)
+	}
+}
+
+impl From<glob::PatternError> for ImportError {
+	fn from (err: glob::PatternError) -> ImportError {
+		ImportError::Pattern(err.description().to_owned())
 	}
 }
 
@@ -80,9 +89,10 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 }
 
 /// Imports all geth keys in the directory
-pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory: &Path) -> Result<(), ImportError> {
+pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory: &Path) -> Result<usize, ImportError> {
 	use std::path::PathBuf;
 	let geth_files = try!(enumerate_geth_keys(geth_keyfiles_directory));
+	let mut total = 0;
 	for &(ref address, ref file_path) in &geth_files {
 		let mut path = PathBuf::new();
 		path.push(geth_keyfiles_directory);
@@ -90,16 +100,47 @@ pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory:
 		if let Err(e) = import_geth_key(secret_store, Path::new(&path)) {
 			warn!("Skipped geth address {}, error importing: {:?}", address, e)
 		}
+		else { total = total + 1}
 	}
-	Ok(())
+	Ok(total)
 }
 
 
 /// Gets the default geth keystore directory.
-///
-/// Based on https://github.com/ethereum/go-ethereum/blob/e553215/common/path.go#L75
 pub fn keystore_dir(is_testnet: bool) -> PathBuf {
 	path::ethereum::with_default(if is_testnet {"testnet/keystore"} else {"keystore"})
+}
+
+/// Imports all keys from provided file/directory/pattern (tries to interpret `path` in that order)
+pub fn import_keys_pat(secret_store: &mut SecretStore, path: &str) -> Result<usize, ImportError> {
+	// check if it is just one file or directory
+	if let Ok(meta) = fs::metadata(path) {
+		if meta.is_file() {
+			try!(import_geth_key(secret_store, Path::new(path)));
+			return Ok(1);
+		}
+		else if meta.is_dir() {
+			let total = try!(import_geth_keys(secret_store, Path::new(path)));
+			return Ok(total);
+		}
+	}
+
+	let mut total = 0;
+	for entry in try!(glob::glob(path)) {
+		match entry {
+			Ok(path) => {
+				if let Err(e) = import_geth_key(secret_store, path.as_path()) {
+					warn!("Skipped file: {:?}, error importing: {:?}", path, e);
+				}
+				else { total = total + 1}
+			}
+			Err(e) => {
+				warn!("Error accessing path entry in import directory: {}", e)
+			}
+		}
+	}
+
+	Ok(total)
 }
 
 #[cfg(test)]

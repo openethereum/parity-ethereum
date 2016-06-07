@@ -117,6 +117,7 @@ extern crate libc;
 extern crate target_info;
 extern crate bigint;
 extern crate chrono;
+extern crate glob;
 
 pub mod standard;
 #[macro_use]
