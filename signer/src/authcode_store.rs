@@ -46,7 +46,7 @@ impl TimeProvider for DefaultTimeProvider {
 }
 
 /// No of seconds the hash is valid
-const TIME_THRESHOLD: u64 = 5;
+const TIME_THRESHOLD: u64 = 2;
 const TOKEN_LENGTH: usize = 16;
 
 /// Manages authorization codes for `SignerUIs`
