@@ -287,7 +287,7 @@ impl State {
 	fn query_pod(&mut self, query: &PodState) {
 		for (ref address, ref pod_account) in query.get() {
 			if self.get(address, true).is_some() {
-				for (ref key, _) in &pod_account.storage {
+				for key in pod_account.storage.keys() {
 					self.storage_at(address, key);
 				}
 			}

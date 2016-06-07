@@ -17,7 +17,6 @@
 ///! Rust VM implementation
 
 use common::*;
-use trace::VMTracer;
 use super::instructions as instructions;
 use super::instructions::{Instruction, get_info};
 use std::marker::Copy;
