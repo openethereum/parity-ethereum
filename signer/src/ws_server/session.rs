@@ -18,8 +18,12 @@
 
 use ws;
 use sysui;
+use authcode_store::AuthCodes;
+use std::path::{PathBuf, Path};
 use std::sync::Arc;
+use std::str::FromStr;
 use jsonrpc_core::IoHandler;
+use util::H256;
 
 fn origin_is_allowed(self_origin: &str, header: Option<&Vec<u8>>) -> bool {
 	match header {
@@ -36,13 +40,32 @@ fn origin_is_allowed(self_origin: &str, header: Option<&Vec<u8>>) -> bool {
 	}
 }
 
-fn auth_is_valid(_header: Option<&Vec<u8>>) -> bool {
-	true
+fn auth_is_valid(codes: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
+	match protocols {
+		Ok(ref protocols) if protocols.len() == 1 => {
+			protocols.iter().any(|protocol| {
+				let mut split = protocol.split('_');
+				let auth = split.next().and_then(|v| H256::from_str(v).ok());
+				let time = split.next().and_then(|v| u64::from_str_radix(v, 10).ok());
+
+				if let (Some(auth), Some(time)) = (auth, time) {
+					// Check if the code is valid
+					AuthCodes::from_file(codes)
+						.map(|codes| codes.is_valid(&auth, time))
+						.unwrap_or(false)
+				} else {
+					false
+				}
+			})
+		},
+		_ => false
+	}
 }
 
 pub struct Session {
 	out: ws::Sender,
 	self_origin: String,
+	authcodes_path: PathBuf,
 	handler: Arc<IoHandler>,
 }
 
@@ -53,17 +76,25 @@ impl ws::Handler for Session {
 
 		// Check request origin and host header.
 		if !origin_is_allowed(&self.self_origin, origin) && !origin_is_allowed(&self.self_origin, host) {
+			warn!(target: "signer", "Blocked connection to Signer API from untrusted origin.");
 			return Ok(ws::Response::forbidden(format!("You are not allowed to access system ui. Use: http://{}", self.self_origin)));
-		}
-
-		// Check authorization
-		if !auth_is_valid(req.header("authorization")) {
-			return Ok(ws::Response::forbidden("You are not authorized.".into()));
 		}
 
 		// Detect if it's a websocket request.
 		if req.header("sec-websocket-key").is_some() {
-			return ws::Response::from_request(req);
+			// Check authorization
+			if !auth_is_valid(&self.authcodes_path, req.protocols()) {
+				info!(target: "signer", "Unauthorized connection to Signer API blocked.");
+				return Ok(ws::Response::forbidden("You are not authorized.".into()));
+			}
+
+			let protocols = req.protocols().expect("Existence checked by authorization.");
+			let protocol = protocols.get(0).expect("Proved by authorization.");
+			return ws::Response::from_request(req).map(|mut res| {
+				// To make WebSockets connection successful we need to send back the protocol header.
+				res.set_protocol(protocol);
+				res
+			});
 		}
 
 		// Otherwise try to serve a page.
@@ -101,13 +132,15 @@ impl ws::Handler for Session {
 pub struct Factory {
 	handler: Arc<IoHandler>,
 	self_origin: String,
+	authcodes_path: PathBuf,
 }
 
 impl Factory {
-	pub fn new(handler: Arc<IoHandler>, self_origin: String) -> Self {
+	pub fn new(handler: Arc<IoHandler>, self_origin: String, authcodes_path: PathBuf) -> Self {
 		Factory {
 			handler: handler,
 			self_origin: self_origin,
+			authcodes_path: authcodes_path,
 		}
 	}
 }
@@ -118,8 +151,9 @@ impl ws::Factory for Factory {
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
 		Session {
 			out: sender,
-			self_origin: self.self_origin.clone(),
 			handler: self.handler.clone(),
+			self_origin: self.self_origin.clone(),
+			authcodes_path: self.authcodes_path.clone(),
 		}
 	}
 }

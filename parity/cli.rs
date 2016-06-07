@@ -26,6 +26,7 @@ Usage:
   parity account (new | list) [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
+  parity signer new-token [options]
   parity [options]
 
 Protocol Options:
@@ -100,9 +101,11 @@ API and Console Options:
                            [default: $HOME/.parity/dapps]
 
   --signer                 Enable Trusted Signer WebSocket endpoint used by
-                           System UIs.
+                           Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
+  --signer-path PATH       Specify directory where Signer UIs tokens should
+                           be stored. [default: $HOME/.parity/signer]
 
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
@@ -205,6 +208,8 @@ pub struct Args {
 	pub cmd_list: bool,
 	pub cmd_export: bool,
 	pub cmd_import: bool,
+	pub cmd_signer: bool,
+	pub cmd_new_token: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub flag_chain: String,
@@ -244,6 +249,7 @@ pub struct Args {
 	pub flag_dapps_path: String,
 	pub flag_signer: bool,
 	pub flag_signer_port: u16,
+	pub flag_signer_path: String,
 	pub flag_force_sealing: bool,
 	pub flag_author: String,
 	pub flag_usd_per_tx: String,
