@@ -150,10 +150,8 @@ macro_rules! impl_hash {
 			}
 
 			fn copy_to(&self, dest: &mut[u8]) {
-				unsafe {
 					let min = ::std::cmp::min($size, dest.len());
-					::std::ptr::copy(self.0.as_ptr(), dest.as_mut_ptr(), min);
-				}
+					dest[..min].copy_from_slice(&self.0[..min]);
 			}
 
 			fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
@@ -163,10 +161,7 @@ macro_rules! impl_hash {
 				// impl |= instead
 				// TODO: that's done now!
 
-				unsafe {
-					use std::{mem, ptr};
-					ptr::copy(new_self.0.as_ptr(), self.0.as_mut_ptr(), mem::size_of::<Self>());
-				}
+				self.0 = new_self.0;
 
 				self
 			}
@@ -316,12 +311,9 @@ macro_rules! impl_hash {
 		#[cfg_attr(feature="dev", allow(expl_impl_clone_on_copy))]
 		impl Clone for $from {
 			fn clone(&self) -> $from {
-				unsafe {
-					use std::{mem, ptr};
-					let mut ret: $from = mem::uninitialized();
-					ptr::copy(self.0.as_ptr(), ret.0.as_mut_ptr(), mem::size_of::<$from>());
-					ret
-				}
+				let mut ret = $from::new();
+				ret.0.copy_from_slice(&self.0);
+				ret
 			}
 		}
 
@@ -404,14 +396,11 @@ macro_rules! impl_hash {
 			type Output = $from;
 
 			fn bitor(self, rhs: Self) -> Self::Output {
-				unsafe {
-					use std::mem;
-					let mut ret: $from = mem::uninitialized();
-					for i in 0..$size {
-						ret.0[i] = self.0[i] | rhs.0[i];
-					}
-					ret
+				let mut ret: $from = $from::default();
+				for i in 0..$size {
+					ret.0[i] = self.0[i] | rhs.0[i];
 				}
+				ret
 			}
 		}
 
@@ -429,14 +418,11 @@ macro_rules! impl_hash {
 			type Output = $from;
 
 			fn bitand(self, rhs: Self) -> Self::Output {
-				unsafe {
-					use std::mem;
-					let mut ret: $from = mem::uninitialized();
-					for i in 0..$size {
-						ret.0[i] = self.0[i] & rhs.0[i];
-					}
-					ret
+				let mut ret: $from = $from::default();
+				for i in 0..$size {
+					ret.0[i] = self.0[i] & rhs.0[i];
 				}
+				ret
 			}
 		}
 
@@ -454,14 +440,11 @@ macro_rules! impl_hash {
 			type Output = $from;
 
 			fn bitxor(self, rhs: Self) -> Self::Output {
-				unsafe {
-					use std::mem;
-					let mut ret: $from = mem::uninitialized();
-					for i in 0..$size {
-						ret.0[i] = self.0[i] ^ rhs.0[i];
-					}
-					ret
+				let mut ret: $from = $from::default();
+				for i in 0..$size {
+					ret.0[i] = self.0[i] ^ rhs.0[i];
 				}
+				ret
 			}
 		}
 
@@ -516,21 +499,17 @@ macro_rules! impl_hash {
 
 impl From<U256> for H256 {
 	fn from(value: U256) -> H256 {
-		unsafe {
-			let mut ret: H256 = ::std::mem::uninitialized();
-			value.to_raw_bytes(&mut ret);
-			ret
-		}
+		let mut ret = H256::new();
+		value.to_raw_bytes(&mut ret);
+		ret
 	}
 }
 
 impl<'a> From<&'a U256> for H256 {
 	fn from(value: &'a U256) -> H256 {
-		unsafe {
-			let mut ret: H256 = ::std::mem::uninitialized();
-			value.to_raw_bytes(&mut ret);
-			ret
-		}
+		let mut ret: H256 = H256::new();
+		value.to_raw_bytes(&mut ret);
+		ret
 	}
 }
 
@@ -548,51 +527,44 @@ impl<'a> From<&'a H256> for U256 {
 
 impl From<H256> for Address {
 	fn from(value: H256) -> Address {
-		unsafe {
-			let mut ret: Address = ::std::mem::uninitialized();
-			::std::ptr::copy(value.as_ptr().offset(12), ret.as_mut_ptr(), 20);
-			ret
-		}
+		let mut ret = Address::new();
+		ret.0.copy_from_slice(&value[12..32]);
+		ret
 	}
 }
 
 impl From<H256> for H64 {
 	fn from(value: H256) -> H64 {
-		unsafe {
-			let mut ret: H64 = ::std::mem::uninitialized();
-			::std::ptr::copy(value.as_ptr().offset(20), ret.as_mut_ptr(), 8);
-			ret
-		}
+		let mut ret = H64::new();
+		ret.0.copy_from_slice(&value[20..28]);
+		ret
 	}
 }
+
 /*
 impl<'a> From<&'a H256> for Address {
 	fn from(value: &'a H256) -> Address {
-		unsafe {
-			let mut ret: Address = ::std::mem::uninitialized();
-			::std::ptr::copy(value.as_ptr().offset(12), ret.as_mut_ptr(), 20);
+			let mut ret = Address::new();
+			ret.0.copy_from_slice(&value[12..32]);
 			ret
 		}
 	}
 }
 */
+
 impl From<Address> for H256 {
 	fn from(value: Address) -> H256 {
-		unsafe {
-			let mut ret = H256::new();
-			::std::ptr::copy(value.as_ptr(), ret.as_mut_ptr().offset(12), 20);
-			ret
-		}
+		let mut ret = H256::new();
+		ret.0[12..32].copy_from_slice(&value);
+		ret
 	}
 }
 
 impl<'a> From<&'a Address> for H256 {
 	fn from(value: &'a Address) -> H256 {
-		unsafe {
-			let mut ret = H256::new();
-			::std::ptr::copy(value.as_ptr(), ret.as_mut_ptr().offset(12), 20);
-			ret
-		}
+		let mut ret = H256::new();
+		ret.0[12..32].copy_from_slice(&value);
+		ret
 	}
 }
 
