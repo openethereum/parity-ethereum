@@ -417,6 +417,7 @@ impl From<EthTrace> for Trace {
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use std::collections::BTreeMap;
 	use util::{U256, H256, Address};
 	use v1::types::Bytes;
 	use super::*;
@@ -487,6 +488,28 @@ mod tests {
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, "{\"code\":[0,1,2,3],\"ops\":[{\"pc\":0,\"cost\":10,\"ex\":null,\"sub\":null},{\"pc\":1,\"cost\":11,\"ex\":{\"used\":10,\"push\":[\"0x45\"],\"mem\":null,\"store\":null},\"sub\":{\"code\":[0],\"ops\":[{\"pc\":0,\"cost\":0,\"ex\":{\"used\":10,\"push\":[\"0x2a\"],\"mem\":{\"off\":42,\"data\":[1,2,3]},\"store\":{\"key\":\"0x45\",\"val\":\"0x2a\"}},\"sub\":null}]}}]}");
+	}
+
+	#[test]
+	fn test_statediff_serialize() {
+		let t = StateDiff(map![
+			42.into() => AccountDiff {
+				balance: Diff::Same,
+				nonce: Diff::Born(1.into()),
+				code: Diff::Same,
+				storage: map![
+					42.into() => Diff::Same
+				]
+			},
+			69.into() => AccountDiff {
+				balance: Diff::Same,
+				nonce: Diff::Changed(ChangedType { from: 1.into(), to: 0.into() }),
+				code: Diff::Died(vec![96].into()),
+				storage: map![],
+			}
+		]);
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, "{\"0x000000000000000000000000000000000000002a\":{\"balance\":{\"=\":[]},\"nonce\":{\"+\":\"0x01\"},\"code\":{\"=\":[]},\"storage\":{\"0x000000000000000000000000000000000000000000000000000000000000002a\":{\"=\":[]}}},\"0x0000000000000000000000000000000000000045\":{\"balance\":{\"=\":[]},\"nonce\":{\"*\":{\"from\":\"0x01\",\"to\":\"0x00\"}},\"code\":{\"-\":\"0x60\"},\"storage\":{}}}");
 	}
 
 	#[test]
