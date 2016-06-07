@@ -86,7 +86,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 	pub fn to_file(&self, file: &Path) -> io::Result<()> {
 		let mut file = try!(fs::File::create(file));
 		let content = self.codes.join("\n");
-		file.write_all(&content.as_bytes())
+		file.write_all(content.as_bytes())
 	}
 
 	/// Creates a new `AuthCodes` store with given `TimeProvider`.
@@ -108,8 +108,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 		// look for code
 		self.codes.iter()
-			.find(|code| &format!("{}:{}", code, time).sha3() == hash)
-			.is_some()
+			.any(|code| &format!("{}:{}", code, time).sha3() == hash)
 	}
 
 	/// Generates and returns a new code that can be used by `SignerUIs`

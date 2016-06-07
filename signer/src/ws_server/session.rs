@@ -43,7 +43,7 @@ fn origin_is_allowed(self_origin: &str, header: Option<&Vec<u8>>) -> bool {
 fn auth_is_valid(codes: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 	match protocols {
 		Ok(ref protocols) if protocols.len() == 1 => {
-			protocols.iter().find(|protocol| {
+			protocols.iter().any(|protocol| {
 				let mut split = protocol.split('_');
 				let auth = split.next().and_then(|v| H256::from_str(v).ok());
 				let time = split.next().and_then(|v| u64::from_str_radix(v, 10).ok());
@@ -56,7 +56,7 @@ fn auth_is_valid(codes: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 				} else {
 					false
 				}
-			}).is_some()
+			})
 		},
 		_ => false
 	}

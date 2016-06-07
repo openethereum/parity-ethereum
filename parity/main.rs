@@ -451,7 +451,7 @@ fn execute_signer(conf: Configuration) {
 	}
 
 	let path = conf.directories().signer;
-	let _ = new_token(path).unwrap_or_else(|e| {
+	new_token(path).unwrap_or_else(|e| {
 		die!("Error generating token: {:?}", e)
 	});
 }
