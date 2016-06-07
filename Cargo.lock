@@ -941,7 +941,7 @@ dependencies = [
 [[package]]
 name = "parity-minimal-sysui"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#a232184f9a17eb2af0401e6f27e5ec0881768d46"
+source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#cb27ae09ee18773ccca6ba2ac74fa3128047a652"
 
 [[package]]
 name = "phf"
