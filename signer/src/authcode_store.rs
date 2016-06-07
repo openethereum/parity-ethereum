@@ -49,7 +49,7 @@ impl TimeProvider for DefaultTimeProvider {
 const TIME_THRESHOLD: u64 = 5;
 const TOKEN_LENGTH: usize = 16;
 
-/// Manages authorization codes for `SystemUIs`
+/// Manages authorization codes for `SignerUIs`
 pub struct AuthCodes<T: TimeProvider = DefaultTimeProvider> {
 	codes: Vec<String>,
 	now: T,
@@ -97,7 +97,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 		}
 	}
 
-	/// Checks if given hash is correct identifier of `SystemUI`
+	/// Checks if given hash is correct identifier of `SignerUI`
 	pub fn is_valid(&self, hash: &H256, time: u64) -> bool {
 		let now = self.now.now();
 		// check time
@@ -112,7 +112,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 			.is_some()
 	}
 
-	/// Generates and returns a new code that can be used by `SystemUIs`
+	/// Generates and returns a new code that can be used by `SignerUIs`
 	pub fn generate_new(&mut self) -> io::Result<String> {
 		let mut rng = try!(OsRng::new());
 		let code = rng.gen_ascii_chars().take(TOKEN_LENGTH).collect::<String>();

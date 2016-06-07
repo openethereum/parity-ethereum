@@ -65,7 +65,7 @@ pub fn new_token(path: String) -> io::Result<()> {
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	let _ = try!(codes.to_file(&path));
-	println!("New token has been generated. Copy the code below to your SystemUI:");
+	println!("New token has been generated. Copy the code below to your Signer UI:");
 	println!("{}", code);
 	Ok(())
 }
