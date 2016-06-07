@@ -85,7 +85,7 @@ impl<'db> TrieDBMut<'db> {
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
-	/// Panics, if `root` does not exist.
+	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
 		if !db.exists(root) {
 			Err(TrieError::InvalidStateRoot)

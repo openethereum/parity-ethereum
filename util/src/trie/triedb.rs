@@ -58,7 +58,7 @@ pub struct TrieDB<'db> {
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl<'db> TrieDB<'db> {
 	/// Create a new trie with the backing database `db` and `root`
-	/// Panics, if `root` does not exist
+	/// Returns an error if `root` does not exist
 	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self, TrieError> {
 		if !db.contains(root) {
 			Err(TrieError::InvalidStateRoot)

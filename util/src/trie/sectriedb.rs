@@ -30,8 +30,10 @@ pub struct SecTrieDB<'db> {
 
 impl<'db> SecTrieDB<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
+	///
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
+	/// Returns an error if root does not exist.
 	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self, TrieError> {
 		Ok(SecTrieDB { raw: try!(TrieDB::new(db, root)) })
 	}
