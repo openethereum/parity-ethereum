@@ -21,7 +21,6 @@ use keys::store::SecretStore;
 use keys::directory::KeyFileContent;
 use std::path::PathBuf;
 use path;
-use glob;
 
 /// Enumerates all geth keys in the directory and returns collection of tuples `(accountId, filename)`
 pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, ImportError> {
@@ -50,19 +49,11 @@ pub enum ImportError {
 	Io(io::Error),
 	/// format error
 	Format,
-	/// Pattern error
-	Pattern(String),
 }
 
 impl From<io::Error> for ImportError {
 	fn from (err: io::Error) -> ImportError {
 		ImportError::Io(err)
-	}
-}
-
-impl From<glob::PatternError> for ImportError {
-	fn from (err: glob::PatternError) -> ImportError {
-		ImportError::Pattern(err.description().to_owned())
 	}
 }
 
