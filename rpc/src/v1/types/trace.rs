@@ -487,7 +487,7 @@ mod tests {
 			]
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, "{\"code\":[0,1,2,3],\"ops\":[{\"pc\":0,\"cost\":10,\"ex\":null,\"sub\":null},{\"pc\":1,\"cost\":11,\"ex\":{\"used\":10,\"push\":[\"0x45\"],\"mem\":null,\"store\":null},\"sub\":{\"code\":[0],\"ops\":[{\"pc\":0,\"cost\":0,\"ex\":{\"used\":10,\"push\":[\"0x2a\"],\"mem\":{\"off\":42,\"data\":[1,2,3]},\"store\":{\"key\":\"0x45\",\"val\":\"0x2a\"}},\"sub\":null}]}}]}");
+		assert_eq!(serialized, r#"{"code":[0,1,2,3],"ops":[{"pc":0,"cost":10,"ex":null,"sub":null},{"pc":1,"cost":11,"ex":{"used":10,"push":["0x45"],"mem":null,"store":null},"sub":{"code":[0],"ops":[{"pc":0,"cost":0,"ex":{"used":10,"push":["0x2a"],"mem":{"off":42,"data":[1,2,3]},"store":{"key":"0x45","val":"0x2a"}},"sub":null}]}}]}"#);
 	}
 
 	#[test]
@@ -509,7 +509,7 @@ mod tests {
 			}
 		]);
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, "{\"0x000000000000000000000000000000000000002a\":{\"balance\":{\"=\":[]},\"nonce\":{\"+\":\"0x01\"},\"code\":{\"=\":[]},\"storage\":{\"0x000000000000000000000000000000000000000000000000000000000000002a\":{\"=\":[]}}},\"0x0000000000000000000000000000000000000045\":{\"balance\":{\"=\":[]},\"nonce\":{\"*\":{\"from\":\"0x01\",\"to\":\"0x00\"}},\"code\":{\"-\":\"0x60\"},\"storage\":{}}}");
+		assert_eq!(serialized, r#"{"0x000000000000000000000000000000000000002a":{"balance":{"=":[]},"nonce":{"+":"0x01"},"code":{"=":[]},"storage":{"0x000000000000000000000000000000000000000000000000000000000000002a":{"=":[]}}},"0x0000000000000000000000000000000000000045":{"balance":{"=":[]},"nonce":{"*":{"from":"0x01","to":"0x00"}},"code":{"-":"0x60"},"storage":{}}}"#);
 	}
 
 	#[test]
