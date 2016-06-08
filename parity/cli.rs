@@ -24,7 +24,7 @@ Parity. Ethereum Client.
 Usage:
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
-  parity account import <path> [options]
+  parity account import <path>... [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
@@ -213,7 +213,7 @@ pub struct Args {
 	pub cmd_new_token: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
-	pub arg_path: Option<String>,
+	pub arg_path: Vec<String>,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,

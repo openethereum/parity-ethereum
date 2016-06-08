@@ -485,8 +485,8 @@ fn execute_account_cli(conf: Configuration) {
 		return;
 	}
 	if conf.args.cmd_import {
-		let imported = util::keys::import_keys_pat(&mut secret_store, &conf.args.arg_path.unwrap()).unwrap();
-		println!("Imported {} keys", imported);
+		let imported = util::keys::import_keys_paths(&mut secret_store, &conf.args.arg_path).unwrap();
+		println!("Imported {} keys", imported);	
 	}
 }
 

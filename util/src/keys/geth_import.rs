@@ -111,8 +111,8 @@ pub fn keystore_dir(is_testnet: bool) -> PathBuf {
 	path::ethereum::with_default(if is_testnet {"testnet/keystore"} else {"keystore"})
 }
 
-/// Imports all keys from provided file/directory/pattern (tries to interpret `path` in that order)
-pub fn import_keys_pat(secret_store: &mut SecretStore, path: &str) -> Result<usize, ImportError> {
+/// Imports key(s) from provided file/directory
+pub fn import_keys_path(secret_store: &mut SecretStore, path: &str) -> Result<usize, ImportError> {
 	// check if it is just one file or directory
 	if let Ok(meta) = fs::metadata(path) {
 		if meta.is_file() {
@@ -120,29 +120,23 @@ pub fn import_keys_pat(secret_store: &mut SecretStore, path: &str) -> Result<usi
 			return Ok(1);
 		}
 		else if meta.is_dir() {
-			let mut path_buf = PathBuf::new();
-			path_buf.push(path);
-			path_buf.push("*.*");
-			return import_keys_pat(secret_store, path_buf.as_path().to_str().unwrap())
+			return Ok(try!(fs::read_dir(path)).fold(
+				0,
+				|total, p|
+					total +
+						match p {
+							Ok(dir_entry) => import_keys_path(secret_store, dir_entry.path().to_str().unwrap()).unwrap_or_else(|_| 0),
+							Err(e) => { warn!("Error importing dir entry: {:?}", e); 0 },
+						}
+			))
 		}
 	}
+	Ok(0)
+}
 
-	let mut total = 0;
-	for entry in try!(glob::glob(path)) {
-		match entry {
-			Ok(path) => {
-				if let Err(e) = import_geth_key(secret_store, path.as_path()) {
-					warn!("Skipped file: {:?}, error importing: {:?}", path, e);
-				}
-				else { total = total + 1}
-			}
-			Err(e) => {
-				warn!("Error accessing path entry in import directory: {}", e)
-			}
-		}
-	}
-
-	Ok(total)
+/// Imports all keys from list of provided files/directories
+pub fn import_keys_paths(secret_store: &mut SecretStore, path: &[String]) -> Result<usize, ImportError> {
+	Ok(path.iter().fold(0, |total, ref p| total + import_keys_path(secret_store, &p).unwrap_or_else(|_| 0)))
 }
 
 #[cfg(test)]
@@ -251,7 +245,7 @@ mod tests {
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
 
-		let amount = import_keys_pat(&mut secret_store, &pat_path_param("/p1.json")).unwrap();
+		let amount = import_keys_path(&mut secret_store, &pat_path_param("/p1.json")).unwrap();
 		assert_eq!(1, amount);
 	}
 
@@ -260,16 +254,16 @@ mod tests {
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
 
-		let amount = import_keys_pat(&mut secret_store, pat_path()).unwrap();
+		let amount = import_keys_path(&mut secret_store, pat_path()).unwrap();
 		assert_eq!(2, amount);
 	}
 
 	#[test]
-	fn can_import_by_pattern() {
+	fn can_import_mulitple() {
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
 
-		let amount = import_keys_pat(&mut secret_store, &pat_path_param("/*.json")).unwrap();
+		let amount = import_keys_paths(&mut secret_store, &[pat_path_param("/p1.json"), pat_path_param("/p2.json")]).unwrap();
 		assert_eq!(2, amount);
 	}
 
