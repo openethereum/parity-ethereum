@@ -289,11 +289,11 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
- "parity-dapps-builtins 0.5.0 (git+https://github.com/ethcore/parity-dapps-builtins-rs.git)",
- "parity-dapps-dao 0.3.0 (git+https://github.com/ethcore/parity-dapps-dao-rs.git)",
- "parity-dapps-makerotc 0.2.0 (git+https://github.com/ethcore/parity-dapps-makerotc-rs.git)",
+ "parity-dapps-builtins 0.5.1 (git+https://github.com/ethcore/parity-dapps-builtins-rs.git)",
+ "parity-dapps-dao 0.4.0 (git+https://github.com/ethcore/parity-dapps-dao-rs.git)",
+ "parity-dapps-makerotc 0.3.0 (git+https://github.com/ethcore/parity-dapps-makerotc-rs.git)",
  "parity-dapps-status 0.5.0 (git+https://github.com/ethcore/parity-dapps-status-rs.git)",
- "parity-dapps-wallet 0.5.0 (git+https://github.com/ethcore/parity-dapps-wallet-rs.git)",
+ "parity-dapps-wallet 0.6.0 (git+https://github.com/ethcore/parity-dapps-wallet-rs.git)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -900,24 +900,24 @@ dependencies = [
 
 [[package]]
 name = "parity-dapps-builtins"
-version = "0.5.0"
-source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#8bbf0421e376f9496d70adc62c1c6d7f492df817"
+version = "0.5.1"
+source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#d3c95d62ffaa57016b162a9a9f0e6dd629dab423"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
 
 [[package]]
 name = "parity-dapps-dao"
-version = "0.3.0"
-source = "git+https://github.com/ethcore/parity-dapps-dao-rs.git#5723ccc5b93010caa8f4aee248d89ae13401389b"
+version = "0.4.0"
+source = "git+https://github.com/ethcore/parity-dapps-dao-rs.git#18f4b839b20fbdf8e0d163e14d25aafee603ac4b"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
 
 [[package]]
 name = "parity-dapps-makerotc"
-version = "0.2.0"
-source = "git+https://github.com/ethcore/parity-dapps-makerotc-rs.git#39e654469ab659dc5570ba1ec94ca0f943aaff16"
+version = "0.3.0"
+source = "git+https://github.com/ethcore/parity-dapps-makerotc-rs.git#7b771f217a3eefeb9a976c7ed470ca49fd9a9daa"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -925,15 +925,15 @@ dependencies = [
 [[package]]
 name = "parity-dapps-status"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/parity-dapps-status-rs.git#e1caeeacf4b29da586572798881974521e6e8caf"
+source = "git+https://github.com/ethcore/parity-dapps-status-rs.git#53e159f52013be5d2e8ba7eca35f605ad6e3bfa9"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
 
 [[package]]
 name = "parity-dapps-wallet"
-version = "0.5.0"
-source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#25402ce0a02ae49eb66c9e3852b392267a027ea3"
+version = "0.6.0"
+source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#ad23b093d47527333a262c95e6fb20a97d15d6e6"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
