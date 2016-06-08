@@ -181,7 +181,7 @@ impl Miner {
 			});
 			if let Some(seal) = s {
 				trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
-				if let Ok(sealed) = chain.try_seal(block.lock(), seal) {
+				if let Ok(sealed) = block.lock().try_seal(self.engine(), seal) {
 					if let Ok(_) = chain.import_block(sealed.rlp_bytes()) {
 						trace!(target: "miner", "prepare_sealing: sealed internally and imported. leaving.");
 					} else {
@@ -510,7 +510,7 @@ impl MinerService for Miner {
 
 	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
-			match chain.try_seal(b.lock(), seal) {
+			match b.lock().try_seal(self.engine(), seal) {
 				Err(_) => {
 					info!(target: "miner", "Mined block rejected, PoW was invalid.");
 					Err(Error::PowInvalid)
