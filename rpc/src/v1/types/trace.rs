@@ -417,6 +417,7 @@ impl From<EthTrace> for Trace {
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use std::collections::BTreeMap;
 	use util::{U256, H256, Address};
 	use v1::types::Bytes;
 	use super::*;
@@ -444,6 +445,71 @@ mod tests {
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, r#"{"action":{"call":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","input":"0x1234"}},"result":{"call":{"gasUsed":"0x08","output":"0x5678"}},"traceAddress":["0x0a"],"subtraces":"0x01","transactionPosition":"0x0b","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0x0d","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+	}
+
+	#[test]
+	fn test_vmtrace_serialize() {
+		let t = VMTrace {
+			code: vec![0, 1, 2, 3],
+			ops: vec![
+				VMOperation {
+					pc: 0,
+					cost: 10,
+					ex: None,
+					sub: None,
+				},
+				VMOperation {
+					pc: 1,
+					cost: 11,
+					ex: Some(VMExecutedOperation {
+						used: 10,
+						push: vec![69.into()],
+						mem: None,
+						store: None,
+					}),
+					sub: Some(VMTrace {
+						code: vec![0],
+						ops: vec![
+							VMOperation {
+								pc: 0,
+								cost: 0,
+								ex: Some(VMExecutedOperation {
+									used: 10,
+									push: vec![42.into()],
+									mem: Some(MemoryDiff {off: 42, data: vec![1, 2, 3]}),
+									store: Some(StorageDiff {key: 69.into(), val: 42.into()}),
+								}),
+								sub: None,
+							}
+						]
+					}),
+				}
+			]
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, "{\"code\":[0,1,2,3],\"ops\":[{\"pc\":0,\"cost\":10,\"ex\":null,\"sub\":null},{\"pc\":1,\"cost\":11,\"ex\":{\"used\":10,\"push\":[\"0x45\"],\"mem\":null,\"store\":null},\"sub\":{\"code\":[0],\"ops\":[{\"pc\":0,\"cost\":0,\"ex\":{\"used\":10,\"push\":[\"0x2a\"],\"mem\":{\"off\":42,\"data\":[1,2,3]},\"store\":{\"key\":\"0x45\",\"val\":\"0x2a\"}},\"sub\":null}]}}]}");
+	}
+
+	#[test]
+	fn test_statediff_serialize() {
+		let t = StateDiff(map![
+			42.into() => AccountDiff {
+				balance: Diff::Same,
+				nonce: Diff::Born(1.into()),
+				code: Diff::Same,
+				storage: map![
+					42.into() => Diff::Same
+				]
+			},
+			69.into() => AccountDiff {
+				balance: Diff::Same,
+				nonce: Diff::Changed(ChangedType { from: 1.into(), to: 0.into() }),
+				code: Diff::Died(vec![96].into()),
+				storage: map![],
+			}
+		]);
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, "{\"0x000000000000000000000000000000000000002a\":{\"balance\":{\"=\":[]},\"nonce\":{\"+\":\"0x01\"},\"code\":{\"=\":[]},\"storage\":{\"0x000000000000000000000000000000000000000000000000000000000000002a\":{\"=\":[]}}},\"0x0000000000000000000000000000000000000045\":{\"balance\":{\"=\":[]},\"nonce\":{\"*\":{\"from\":\"0x01\",\"to\":\"0x00\"}},\"code\":{\"-\":\"0x60\"},\"storage\":{}}}");
 	}
 
 	#[test]

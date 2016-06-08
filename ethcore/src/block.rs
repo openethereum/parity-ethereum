@@ -38,23 +38,7 @@ pub struct Block {
 
 impl Block {
 	/// Returns true if the given bytes form a valid encoding of a block in RLP.
-	// TODO: implement Decoder for this and have this use that.
 	pub fn is_good(b: &[u8]) -> bool {
-		/*
-		let urlp = UntrustedRlp::new(&b);
-		if !urlp.is_list() || urlp.item_count() != 3 || urlp.size() != b.len() { return false; }
-		if urlp.val_at::<Header>(0).is_err() { return false; }
-
-		if !urlp.at(1).unwrap().is_list() { return false; }
-		if urlp.at(1).unwrap().iter().find(|i| i.as_val::<Transaction>().is_err()).is_some() {
-			return false;
-		}
-
-		if !urlp.at(2).unwrap().is_list() { return false; }
-		if urlp.at(2).unwrap().iter().find(|i| i.as_val::<Header>().is_err()).is_some() {
-			return false;
-		}
-		true*/
 		UntrustedRlp::new(b).as_val::<Block>().is_ok()
 	}
 }
