@@ -80,9 +80,10 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 }
 
 /// Imports all geth keys in the directory
-pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory: &Path) -> Result<(), ImportError> {
+pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory: &Path) -> Result<usize, ImportError> {
 	use std::path::PathBuf;
 	let geth_files = try!(enumerate_geth_keys(geth_keyfiles_directory));
+	let mut total = 0;
 	for &(ref address, ref file_path) in &geth_files {
 		let mut path = PathBuf::new();
 		path.push(geth_keyfiles_directory);
@@ -90,16 +91,43 @@ pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory:
 		if let Err(e) = import_geth_key(secret_store, Path::new(&path)) {
 			warn!("Skipped geth address {}, error importing: {:?}", address, e)
 		}
+		else { total = total + 1}
 	}
-	Ok(())
+	Ok(total)
 }
 
 
 /// Gets the default geth keystore directory.
-///
-/// Based on https://github.com/ethereum/go-ethereum/blob/e553215/common/path.go#L75
 pub fn keystore_dir(is_testnet: bool) -> PathBuf {
 	path::ethereum::with_default(if is_testnet {"testnet/keystore"} else {"keystore"})
+}
+
+/// Imports key(s) from provided file/directory
+pub fn import_keys_path(secret_store: &mut SecretStore, path: &str) -> Result<usize, ImportError> {
+	// check if it is just one file or directory
+	if let Ok(meta) = fs::metadata(path) {
+		if meta.is_file() {
+			try!(import_geth_key(secret_store, Path::new(path)));
+			return Ok(1);
+		}
+		else if meta.is_dir() {
+			return Ok(try!(fs::read_dir(path)).fold(
+				0,
+				|total, p|
+					total +
+						match p {
+							Ok(dir_entry) => import_keys_path(secret_store, dir_entry.path().to_str().unwrap()).unwrap_or_else(|_| 0),
+							Err(e) => { warn!("Error importing dir entry: {:?}", e); 0 },
+						}
+			))
+		}
+	}
+	Ok(0)
+}
+
+/// Imports all keys from list of provided files/directories
+pub fn import_keys_paths(secret_store: &mut SecretStore, path: &[String]) -> Result<usize, ImportError> {
+	Ok(path.iter().fold(0, |total, ref p| total + import_keys_path(secret_store, &p).unwrap_or_else(|_| 0)))
 }
 
 #[cfg(test)]
@@ -115,8 +143,19 @@ mod tests {
 		}
 	}
 
+	fn pat_path() -> &'static str {
+		match ::std::fs::metadata("res") {
+			Ok(_) => "res/pat",
+			Err(_) => "util/res/pat"
+		}
+	}
+
 	fn test_path_param(param_val: &'static str) -> String {
 		test_path().to_owned() + param_val
+	}
+
+	fn pat_path_param(param_val: &'static str) -> String {
+		pat_path().to_owned() + param_val
 	}
 
 	#[test]
@@ -191,4 +230,32 @@ mod tests {
 		assert!(val.is_ok());
 		assert_eq!(32, val.unwrap().len());
 	}
+
+	#[test]
+	fn can_import_by_filename() {
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+
+		let amount = import_keys_path(&mut secret_store, &pat_path_param("/p1.json")).unwrap();
+		assert_eq!(1, amount);
+	}
+
+	#[test]
+	fn can_import_by_dir() {
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+
+		let amount = import_keys_path(&mut secret_store, pat_path()).unwrap();
+		assert_eq!(2, amount);
+	}
+
+	#[test]
+	fn can_import_mulitple() {
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+
+		let amount = import_keys_paths(&mut secret_store, &[pat_path_param("/p1.json"), pat_path_param("/p2.json")]).unwrap();
+		assert_eq!(2, amount);
+	}
+
 }

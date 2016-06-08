@@ -482,6 +482,11 @@ fn execute_account_cli(conf: Configuration) {
 		for &(addr, _) in &secret_store.accounts().unwrap() {
 			println!("{:?}", addr);
 		}
+		return;
+	}
+	if conf.args.cmd_import {
+		let imported = util::keys::import_keys_paths(&mut secret_store, &conf.args.arg_path).unwrap();
+		println!("Imported {} keys", imported);
 	}
 }
 

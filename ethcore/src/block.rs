@@ -212,9 +212,20 @@ pub struct SealedBlock {
 impl<'x> OpenBlock<'x> {
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new(engine: &'x Engine, vm_factory: &'x EvmFactory, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Self {
+	pub fn new(
+		engine: &'x Engine,
+		vm_factory: &'x EvmFactory,
+		tracing: bool,
+		db: Box<JournalDB>,
+		parent: &Header,
+		last_hashes: LastHashes,
+		author: Address,
+		gas_floor_target: U256,
+		extra_data: Bytes
+	) -> Result<Self, Error> {
+		let state = try!(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce()));
 		let mut r = OpenBlock {
-			block: ExecutedBlock::new(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce()), tracing),
+			block: ExecutedBlock::new(state, tracing),
 			engine: engine,
 			vm_factory: vm_factory,
 			last_hashes: last_hashes,
@@ -229,7 +240,7 @@ impl<'x> OpenBlock<'x> {
 
 		engine.populate_from_parent(&mut r.block.base.header, parent, gas_floor_target);
 		engine.on_new_block(&mut r.block);
-		r
+		Ok(r)
 	}
 
 	/// Alter the author for the block.
@@ -448,12 +459,12 @@ impl IsBlock for SealedBlock {
 pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, vm_factory: &EvmFactory) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
-			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce());
+			let s = try!(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce()));
 			trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
 		}
 	}
 
-	let mut b = OpenBlock::new(engine, vm_factory, tracing, db, parent, last_hashes, header.author().clone(), 3141562.into(), header.extra_data().clone());
+	let mut b = try!(OpenBlock::new(engine, vm_factory, tracing, db, parent, last_hashes, header.author().clone(), 3141562.into(), header.extra_data().clone()));
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -498,7 +509,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]);
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let _ = b.seal(engine.deref(), vec![]);
 	}
@@ -514,7 +525,8 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]).close_and_lock().seal(engine.deref(), vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]).unwrap()
+			.close_and_lock().seal(engine.deref(), vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 
@@ -541,7 +553,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let vm_factory = Default::default();
-		let mut open_block = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]);
+		let mut open_block = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.extra_data = b"uncle1".to_vec();
 		let mut uncle2_header = Header::new();
