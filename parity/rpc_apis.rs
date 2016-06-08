@@ -118,7 +118,7 @@ pub fn from_str(apis: Vec<&str>) -> Vec<Api> {
 		})
 }
 
-fn list_apis(apis: ApiSet, signer_enabled: bool) -> Vec<Api> {
+fn list_apis(apis: ApiSet) -> Vec<Api> {
 	match apis {
 		ApiSet::List(apis) => apis,
 		ApiSet::UnsafeContext => {
@@ -133,7 +133,7 @@ fn list_apis(apis: ApiSet, signer_enabled: bool) -> Vec<Api> {
 pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
 	use ethcore_rpc::v1::*;
 
-	let apis = list_apis(apis, deps.signer_enabled);
+	let apis = list_apis(apis);
 	for api in &apis {
 		match *api {
 			Api::Web3 => {
