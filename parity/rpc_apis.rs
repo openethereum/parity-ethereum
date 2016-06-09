@@ -40,7 +40,9 @@ pub enum Api {
 	Net,
 	Eth,
 	Personal,
+	Signer,
 	Ethcore,
+	EthcoreSet,
 	Traces,
 	Rpc,
 }
@@ -66,7 +68,9 @@ impl FromStr for Api {
 			"net" => Ok(Net),
 			"eth" => Ok(Eth),
 			"personal" => Ok(Personal),
+			"signer" => Ok(Signer),
 			"ethcore" => Ok(Ethcore),
+			"ethcore_set" => Ok(EthcoreSet),
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
 			e => Err(ApiError::UnknownApi(e.into())),
@@ -94,7 +98,9 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::Net => ("net", "1.0"),
 			Api::Eth => ("eth", "1.0"),
 			Api::Personal => ("personal", "1.0"),
+			Api::Signer => ("signer", "1.0"),
 			Api::Ethcore => ("ethcore", "1.0"),
+			Api::EthcoreSet => ("ethcore_set", "1.0"),
 			Api::Traces => ("traces", "1.0"),
 			Api::Rpc => ("rpc", "1.0"),
 		};
@@ -112,22 +118,22 @@ pub fn from_str(apis: Vec<&str>) -> Vec<Api> {
 		})
 }
 
-fn list_apis(apis: ApiSet, signer_enabled: bool) -> Vec<Api> {
+fn list_apis(apis: ApiSet) -> Vec<Api> {
 	match apis {
 		ApiSet::List(apis) => apis,
-		ApiSet::UnsafeContext if signer_enabled => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc]
-		}
+		ApiSet::UnsafeContext => {
+			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+		},
 		_ => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
-		}
+			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+		},
 	}
 }
 
 pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
 	use ethcore_rpc::v1::*;
 
-	let apis = list_apis(apis, deps.signer_enabled);
+	let apis = list_apis(apis);
 	for api in &apis {
 		match *api {
 			Api::Web3 => {
@@ -147,13 +153,16 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				}
 			},
 			Api::Personal => {
-				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner).to_delegate());
-				if deps.signer_enabled {
-					server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_queue).to_delegate());
-				}
+				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.signer_enabled).to_delegate());
+			},
+			Api::Signer => {
+				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_queue).to_delegate());
 			},
 			Api::Ethcore => {
 				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+			},
+			Api::EthcoreSet => {
+				server.add_delegate(EthcoreSetClient::new(&deps.miner).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())

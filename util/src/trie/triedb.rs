@@ -18,8 +18,9 @@ use common::*;
 use hashdb::*;
 use nibbleslice::*;
 use rlp::*;
-use super::trietraits::*;
-use super::node::*;
+use super::trietraits::Trie;
+use super::node::Node;
+use super::TrieError;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -41,7 +42,7 @@ use super::node::*;
 ///   let mut memdb = MemoryDB::new();
 ///   let mut root = H256::new();
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar");
-///   let t = TrieDB::new(&memdb, &root);
+///   let t = TrieDB::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo"));
 ///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
 ///   assert!(t.db_items_remaining().is_empty());
@@ -57,16 +58,16 @@ pub struct TrieDB<'db> {
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl<'db> TrieDB<'db> {
 	/// Create a new trie with the backing database `db` and `root`
-	/// Panics, if `root` does not exist
-	pub fn new(db: &'db HashDB, root: &'db H256) -> Self {
+	/// Returns an error if `root` does not exist
+	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self, TrieError> {
 		if !db.contains(root) {
-			flushln!("TrieDB::new({}): Trie root not found!", root);
-			panic!("Trie root not found!");
-		}
-		TrieDB {
-			db: db,
-			root: root,
-			hash_count: 0
+			Err(TrieError::InvalidStateRoot)
+		} else {
+			Ok(TrieDB {
+				db: db,
+				root: root,
+				hash_count: 0
+			})
 		}
 	}
 
@@ -356,6 +357,7 @@ impl<'db> fmt::Debug for TrieDB<'db> {
 
 #[test]
 fn iterator() {
+	use super::trietraits::TrieMut;
 	use memorydb::*;
 	use super::triedbmut::*;
 
@@ -369,6 +371,6 @@ fn iterator() {
 			t.insert(&x, &x);
 		}
 	}
-	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).iter().map(|x|x.0).collect::<Vec<_>>());
-	assert_eq!(d, TrieDB::new(&memdb, &root).iter().map(|x|x.1).collect::<Vec<_>>());
+	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).unwrap().iter().map(|x|x.0).collect::<Vec<_>>());
+	assert_eq!(d, TrieDB::new(&memdb, &root).unwrap().iter().map(|x|x.1).collect::<Vec<_>>());
 }

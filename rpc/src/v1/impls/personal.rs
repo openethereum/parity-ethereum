@@ -31,22 +31,29 @@ pub struct PersonalClient<A, C, M>
 	accounts: Weak<A>,
 	client: Weak<C>,
 	miner: Weak<M>,
+	signer_enabled: bool,
 }
 
 impl<A, C, M> PersonalClient<A, C, M>
 	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>) -> Self {
+	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>, signer_enabled: bool) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
+			signer_enabled: signer_enabled,
 		}
 	}
 }
 
 impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
 	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
+
+	fn signer_enabled(&self, _: Params) -> Result<Value, Error> {
+		to_value(&self.signer_enabled)
+	}
+
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
 		match store.accounts() {

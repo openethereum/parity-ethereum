@@ -49,7 +49,7 @@ pub struct TransactionConfirmation {
 	pub transaction: TransactionRequest,
 }
 
-/// Possible modifications to the confirmed transaction sent by SystemUI
+/// Possible modifications to the confirmed transaction sent by `SignerUI`
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct TransactionModification {
 	/// Modified gas price
