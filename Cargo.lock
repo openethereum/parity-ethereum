@@ -606,7 +606,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "5.1.0"
-source = "git+https://github.com/ethcore/jsonrpc-http-server.git#77dcac785c02c3a7622d36aa635ee80d63d0b20c"
+source = "git+https://github.com/ethcore/jsonrpc-http-server.git#6117b1d77b5a60d6fa2dc884f12aa7f5fd4585ca"
 dependencies = [
  "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
