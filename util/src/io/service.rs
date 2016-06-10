@@ -219,7 +219,6 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			panic!("Unexpected timer token: {}", token.as_usize());
 		}
 		if let Some(timer) = self.timers.read().unwrap().get(&token.as_usize()) {
-			//event_loop.timeout(token, Duration::from_millis(timer.delay)).expect("Error re-registering user timer");
 			event_loop.timeout_ms(token, timer.delay).expect("Error re-registering user timer");
 			let handler = self.handlers[handler_index].clone();
 			self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler, handler_id: handler_index });
@@ -242,7 +241,6 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			},
 			IoMessage::AddTimer { handler_id, token, delay } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
-				//let timeout = event_loop.timeout(Token(timer_id), Duration::from_millis(delay)).expect("Error registering user timer");
 				let timeout = event_loop.timeout_ms(Token(timer_id), delay).expect("Error registering user timer");
 				self.timers.write().unwrap().insert(timer_id, UserTimer { delay: delay, timeout: timeout });
 			},
@@ -260,7 +258,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
 				handler.deregister_stream(token, event_loop);
 				// unregister a timer associated with the token (if any)
-				let timer_id = token + handler_id * TOKENS_PER_HANDLER;	
+				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
 				if let Some(timer) = self.timers.write().unwrap().remove(&timer_id) {
 					event_loop.clear_timeout(timer.timeout);
 				}
@@ -338,7 +336,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, UtilError> {
 		let panic_handler = PanicHandler::new_in_arc();
-        let mut event_loop = EventLoop::new().unwrap();
+    	let mut event_loop = EventLoop::new().unwrap();
         let channel = event_loop.channel();
 		let panic = panic_handler.clone();
 		let thread = thread::spawn(move || {

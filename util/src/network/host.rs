@@ -492,7 +492,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut to_kill = Vec::new();
 		for e in self.sessions.write().unwrap().iter_mut() {
 			let mut s = e.lock().unwrap();
-			if !s.keep_alive(io) {	
+			if !s.keep_alive(io) {
 				s.disconnect(io, DisconnectReason::PingTimeout);
 				to_kill.push(s.token());
 			}
@@ -577,7 +577,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					debug!(target: "network", "Session create error: {:?}", e);
 					None
 				}
-			}	
+			}
 		});
 
 		match token {
@@ -743,9 +743,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if deregister {
 			io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
 		} 
-        /*else if expired_session.is_some() {
-			io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Connection registration error: {:?}", e));
-		}*/
 	}
 
 	fn update_nodes(&self, io: &IoContext<NetworkIoMessage<Message>>, node_changes: TableUpdates) {

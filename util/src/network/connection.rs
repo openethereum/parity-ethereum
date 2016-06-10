@@ -111,7 +111,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 		}
 		if !self.interest.is_writable() {
 			self.interest.insert(EventSet::writable());
-            io.update_registration(self.token).ok();
+			io.update_registration(self.token).ok();
 		}
 	}
 
@@ -151,7 +151,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 			}
 			if self.send_queue.is_empty() {
 				self.interest.remove(EventSet::writable());
-                try!(io.update_registration(self.token));
+				try!(io.update_registration(self.token));
 			}
 			Ok(r)
 		})
@@ -228,7 +228,7 @@ impl Connection {
 				trace!(target: "network", "Failed to reregister {:?}, {:?}", reg, e);
 			});
 			Ok(())
-        }
+		}
 	}
 
 	/// Delete connection registration. Should be called at the end of the IO handler.
@@ -340,7 +340,7 @@ impl EncryptedConnection {
 	}
 
 	/// Send a packet
-    pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
 		let mut header = RlpStream::new();
 		let len = payload.len() as usize;
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
@@ -454,7 +454,7 @@ impl EncryptedConnection {
 			}
 		} else {
 			Ok(None)
-        }
+		}
 	}
 
 	/// Writable IO handler. Processes send queeue.
