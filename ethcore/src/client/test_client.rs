@@ -501,4 +501,8 @@ impl BlockChainClient for TestBlockChainClient {
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.all_transactions()
 	}
+
+	fn take_snapshot(&self) {
+		unimplemented!()
+	}
 }

@@ -755,13 +755,16 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn take_snapshot(&self) {
-		let best_header = HeaderView::(&self.best_block_header());
+		let best_header_bytes = self.best_block_header();
+		let best_header = HeaderView::new(&best_header_bytes);
 		let hash = best_header.hash();
 		let state_root = best_header.state_root();
 
-		// lock the state db to keep it consistent with the best block.
-		// clone the arc so we can loan out self to the block chunker.
-		let state_db = self.state_db.clone().lock().unwrap();
+		// lock the state db while we create the state chunks.
+		{
+			let state_db = self.state_db.lock().unwrap();
+			// todo [rob] actually create the state chunks.
+		}
 	}
 }
 

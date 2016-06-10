@@ -25,13 +25,13 @@ const SIZE_TOLERANCE: usize = 250 * 1024;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path
 
 use client::BlockChainClient;
 use ids::BlockID;
 use views::{BlockView, HeaderView};
 
-use util::Hashable;
+use util::{Bytes, Hashable};
 use util::hash::H256;
 use util::rlp::{Stream, RlpStream};
 
@@ -50,7 +50,7 @@ impl<'a> BlockChunker<'a> {
 		// Todo [rob]: find a way to reuse rlp allocations
 		BlockChunker {
 			client: client,
-			rlps: VecDeque<(Bytes, Bytes)>
+			rlps: VecDeque::new(),
 			genesis_hash: genesis_hash,
 			current_hash: HeaderView::new(&client.best_block_header()).hash(),
 		}
@@ -68,6 +68,9 @@ impl<'a> BlockChunker<'a> {
 			let receipts = self.client.block_receipts(&self.current_hash).unwrap();
 
 			let new_loaded_size = loaded_size + (block.len() + receipts.len());
+
+			// todo [rob]: find a better chunking strategy -- this will likely
+			// result in the last chunk created being small.
 			if new_loaded_size > PREFERRED_CHUNK_SIZE + SIZE_TOLERANCE {
 				return true;
 			} else {
@@ -91,11 +94,16 @@ impl<'a> BlockChunker<'a> {
 		}
 
 		let raw_data = rlp_stream.out();
-		let hash_str = raw_data.sha3().to_string();
+		let hash = raw_data.sha3();
+		let hash_str = hash.to_string();
 
-		let file_path = PathBuf::new(path).push(&hash_str[2..]);
+		let mut file_path = path.to_owned();
+		file_path.push(&hash_str[2..]);
+
 		let mut file = File::create(file_path).unwrap();
 		file.write_all(&raw_data);
+
+		hash
 	}
 
 	/// Create and write out all block chunks to disk, returning a vector of all
@@ -103,12 +111,13 @@ impl<'a> BlockChunker<'a> {
 	///
 	/// The path parameter is the directory to store the block chunks in.
 	/// This function assumes the directory exists already.
-	pub fn chunk_all(self, best_block_hash: H256, path: &Path) -> Vec<H256> {
-		let mut hash = best_block_hash;
+	pub fn chunk_all(mut self, path: &Path) -> Vec<H256> {
 		let mut chunk_hashes = Vec::new();
 
 		while self.fill_buffers() {
 			chunk_hashes.push(self.write_chunk(path));
 		}
+
+		chunk_hashes
 	}
 }
