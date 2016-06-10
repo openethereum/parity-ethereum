@@ -502,7 +502,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.all_transactions()
 	}
 
-	fn take_snapshot(&self) {
+	fn take_snapshot(&self, _root_dir: &Path) {
 		unimplemented!()
 	}
 }

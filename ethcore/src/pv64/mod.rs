@@ -25,11 +25,11 @@ const SIZE_TOLERANCE: usize = 250 * 1024;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
-use std::path::Path
+use std::path::Path;
 
 use client::BlockChainClient;
 use ids::BlockID;
-use views::{BlockView, HeaderView};
+use views::BlockView;
 
 use util::{Bytes, Hashable};
 use util::hash::H256;
@@ -46,13 +46,13 @@ pub struct BlockChunker<'a> {
 
 impl<'a> BlockChunker<'a> {
 	/// Create a new BlockChunker given a client and the genesis hash.
-	pub fn new(client: &'a BlockChainClient, genesis_hash: H256) -> Self {
+	pub fn new(client: &'a BlockChainClient, best_block_hash: H256, genesis_hash: H256) -> Self {
 		// Todo [rob]: find a way to reuse rlp allocations
 		BlockChunker {
 			client: client,
 			rlps: VecDeque::new(),
 			genesis_hash: genesis_hash,
-			current_hash: HeaderView::new(&client.best_block_header()).hash(),
+			current_hash: best_block_hash,
 		}
 	}
 
@@ -95,10 +95,9 @@ impl<'a> BlockChunker<'a> {
 
 		let raw_data = rlp_stream.out();
 		let hash = raw_data.sha3();
-		let hash_str = hash.to_string();
 
 		let mut file_path = path.to_owned();
-		file_path.push(&hash_str[2..]);
+		file_path.push(hash.hex());
 
 		let mut file = File::create(file_path).unwrap();
 		file.write_all(&raw_data);
