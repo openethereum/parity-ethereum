@@ -19,9 +19,6 @@
 // Try to have chunks be around 16MB
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
-// But tolerate ones within a quarter of a megabyte of that size.
-const SIZE_TOLERANCE: usize = 250 * 1024;
-
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
@@ -70,10 +67,9 @@ impl<'a> BlockChunker<'a> {
 
 			let new_loaded_size = loaded_size + (block.len() + receipts.len());
 
-			// todo [rob]: find a better chunking strategy -- this will likely
-			// result in the last chunk created being small.
-			if new_loaded_size > PREFERRED_CHUNK_SIZE + SIZE_TOLERANCE {
-				return true;
+			// cut off the chunk if too large
+			if new_loaded_size > PREFERRED_CHUNK_SIZE {
+				break;
 			} else {
 				loaded_size = new_loaded_size;
 			}
@@ -93,7 +89,7 @@ impl<'a> BlockChunker<'a> {
 
 	// write out the data in the buffers to a chunk on disk
 	fn write_chunk(&mut self, path: &Path) -> H256 {
-		// Todo: compress raw data, put parent hash and block number into chunk.
+		// Todo [rob]: compress raw data, put parent hash and block number into chunk.
 		let mut rlp_stream = RlpStream::new_list(self.rlps.len());
 		for (block, receipts) in self.rlps.drain(..) {
 			rlp_stream.begin_list(2).append(&block).append(&receipts);
