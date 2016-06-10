@@ -23,7 +23,6 @@ use io::{IoError, IoHandler};
 use crossbeam::sync::chase_lev;
 use io::worker::{Worker, Work, WorkType};
 use panics::*;
-use std::time::Duration;
 
 /// Timer ID
 pub type TimerToken = usize;
