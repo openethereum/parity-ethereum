@@ -30,7 +30,7 @@ use views::BlockView;
 
 use util::{Bytes, Hashable};
 use util::hash::H256;
-use util::rlp::{Stream, RlpStream};
+use util::rlp::{DecoderError, Stream, RlpStream, UntrustedRlp, View};
 
 /// Used to build block chunks.
 pub struct BlockChunker<'a> {
@@ -122,5 +122,42 @@ impl<'a> BlockChunker<'a> {
 		}
 
 		chunk_hashes
+	}
+}
+
+/// Manifest data.
+pub struct ManifestData {
+	/// List of state chunk hashes.
+	pub state_hashes: Vec<H256>,
+	/// List of block chunk hashes.
+	pub block_hashes: Vec<H256>,
+	/// The final, expected state root.
+	pub state_root: H256,
+}
+
+impl ManifestData {
+	/// Encode the manifest data to.
+	pub fn to_rlp(self) -> Bytes {
+		let mut stream = RlpStream::new_list(3);
+		stream.append(&self.state_hashes);
+		stream.append(&self.block_hashes);
+		stream.append(&self.state_root);
+
+		stream.out()
+	}
+
+	/// Try to restore manifest data from raw bytes interpreted as RLP.
+	pub fn from_rlp(raw: &[u8]) -> Result<Self, DecoderError> {
+		let decoder = UntrustedRlp::new(raw);
+
+		let state_hashes: Vec<H256> = try!(try!(decoder.at(0)).as_val());
+		let block_hashes: Vec<H256> = try!(try!(decoder.at(1)).as_val());
+		let state_root: H256 = try!(try!(decoder.at(2)).as_val());
+
+		Ok(ManifestData {
+			state_hashes: state_hashes,
+			block_hashes: block_hashes,
+			state_root: state_root,
+		})
 	}
 }

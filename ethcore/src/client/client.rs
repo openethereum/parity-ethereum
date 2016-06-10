@@ -17,6 +17,7 @@
 //! Blockchain database client.
 
 use std::marker::PhantomData;
+use std::fs::{create_dir, File};
 use std::path::PathBuf;
 use util::*;
 use util::panics::*;
@@ -755,33 +756,39 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn take_snapshot(&self, root_dir: &Path) {
-		use pv64::BlockChunker;
+		use pv64::{BlockChunker, ManifestData};
 
 		let best_header_bytes = self.best_block_header();
 		let best_header = HeaderView::new(&best_header_bytes);
+		let state_root = best_header.state_root();
 
 		trace!(target: "pv64_snapshot", "Taking snapshot starting at block {}", best_header.number());
 
-		let mut manifest_hashes = Vec::new();
-
 		// lock the state db while we create the state chunks.
-		{
+		let state_hashes = {
 			let _state_db = self.state_db.lock().unwrap();
-			let _state_root = best_header.state_root();
 			// todo [rob] actually create the state chunks.
-		}
+
+			Vec::new()
+		};
 
 		let best_hash = best_header.hash();
 		let genesis_hash = self.chain.genesis_hash();
 
 		let mut path = root_dir.to_owned();
 		path.push("snapshot/");
-		let _ = ::std::fs::create_dir(&path);
+		let _ = create_dir(&path);
 
 		let block_chunk_hashes = BlockChunker::new(self, best_hash, genesis_hash).chunk_all(&path);
-		for hash in block_chunk_hashes {
-			manifest_hashes.push(hash);
-		}
+
+		let manifest_data = ManifestData {
+			state_hashes: state_hashes,
+			block_hashes: block_chunk_hashes,
+			state_root: state_root,
+		};
+
+		let mut manifest_file = File::create("MANIFEST").unwrap();
+		manifest_file.write_all(&manifest_data.to_rlp()).unwrap();
 	}
 }
 
