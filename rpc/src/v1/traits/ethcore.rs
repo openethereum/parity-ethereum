@@ -21,21 +21,6 @@ use jsonrpc_core::*;
 /// Ethcore-specific rpc interface.
 pub trait Ethcore: Sized + Send + Sync + 'static {
 
-	/// Sets new minimal gas price for mined blocks.
-	fn set_min_gas_price(&self, _: Params) -> Result<Value, Error>;
-
-	/// Sets new gas floor target for mined blocks.
-	fn set_gas_floor_target(&self, _: Params) -> Result<Value, Error>;
-
-	/// Sets new extra data for mined blocks.
-	fn set_extra_data(&self, _: Params) -> Result<Value, Error>;
-
-	/// Sets new author for mined block.
-	fn set_author(&self, _: Params) -> Result<Value, Error>;
-
-	/// Sets the limits for transaction queue.
-	fn set_transactions_limit(&self, _: Params) -> Result<Value, Error>;
-
 	/// Returns current transactions limit.
 	fn transactions_limit(&self, _: Params) -> Result<Value, Error>;
 
@@ -72,17 +57,9 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns default extra data
 	fn default_extra_data(&self, _: Params) -> Result<Value, Error>;
 
-	/// Executes the given call and returns the VM trace for it.
-	fn vm_trace_call(&self, _: Params) -> Result<Value, Error>;
-
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_method("ethcore_setMinGasPrice", Ethcore::set_min_gas_price);
-		delegate.add_method("ethcore_setGasFloorTarget", Ethcore::set_gas_floor_target);
-		delegate.add_method("ethcore_setExtraData", Ethcore::set_extra_data);
-		delegate.add_method("ethcore_setAuthor", Ethcore::set_author);
-		delegate.add_method("ethcore_setTransactionsLimit", Ethcore::set_transactions_limit);
 
 		delegate.add_method("ethcore_extraData", Ethcore::extra_data);
 		delegate.add_method("ethcore_gasFloorTarget", Ethcore::gas_floor_target);
@@ -96,8 +73,6 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_rpcSettings", Ethcore::rpc_settings);
 		delegate.add_method("ethcore_nodeName", Ethcore::node_name);
 		delegate.add_method("ethcore_defaultExtraData", Ethcore::default_extra_data);
-
-		delegate.add_method("ethcore_vmTraceCall", Ethcore::vm_trace_call);
 
 		delegate
 	}

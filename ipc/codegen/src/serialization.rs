@@ -230,6 +230,9 @@ fn binary_expr_struct(
 	let field_amount = builder.id(&format!("{}",fields.len()));
 	map_stmts.push(quote_stmt!(cx, let mut map = vec![0usize; $field_amount];).unwrap());
 	map_stmts.push(quote_stmt!(cx, let mut total = 0usize;).unwrap());
+
+	let mut post_write_stmts = Vec::<ast::Stmt>::new();
+
 	for (index, field) in fields.iter().enumerate() {
 		let field_type_ident = builder.id(
 			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)));
@@ -249,6 +252,7 @@ fn binary_expr_struct(
 		};
 
 		let raw_ident = ::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty));
+		let range_ident = builder.id(format!("r{}", index));
 		match raw_ident.as_ref() {
 			"u8" => {
 				write_stmts.push(quote_stmt!(cx, let next_line = offset + 1;).unwrap());
@@ -258,15 +262,17 @@ fn binary_expr_struct(
 				write_stmts.push(quote_stmt!(cx, let size = $member_expr .len();).unwrap());
 				write_stmts.push(quote_stmt!(cx, let next_line = offset + size;).unwrap());
 				write_stmts.push(quote_stmt!(cx, length_stack.push_back(size);).unwrap());
-				write_stmts.push(quote_stmt!(cx, buffer[offset..next_line].clone_from_slice($member_expr); ).unwrap());
+				write_stmts.push(quote_stmt!(cx, let $range_ident = offset..next_line; ).unwrap());
+				post_write_stmts.push(quote_stmt!(cx, buffer[$range_ident].clone_from_slice($member_expr); ).unwrap());
 			}
 			_ => {
 				write_stmts.push(quote_stmt!(cx, let next_line = offset + match $field_type_ident_qualified::len_params() {
 						0 => mem::size_of::<$field_type_ident>(),
 						_ => { let size = $member_expr .size(); length_stack.push_back(size); size },
 					}).unwrap());
-				write_stmts.push(quote_stmt!(cx,
-					if let Err(e) = $member_expr .to_bytes(&mut buffer[offset..next_line], length_stack) { return Err(e) };).unwrap());
+				write_stmts.push(quote_stmt!(cx, let $range_ident = offset..next_line; ).unwrap());
+				post_write_stmts.push(quote_stmt!(cx,
+					if let Err(e) = $member_expr .to_bytes(&mut buffer[$range_ident], length_stack) { return Err(e) };).unwrap());
 			}
 		}
 
@@ -312,7 +318,7 @@ fn binary_expr_struct(
 
     Ok(BinaryExpressions {
 		size: total_size_expr,
-		write: quote_expr!(cx, { $write_stmts; Ok(()) } ),
+		write: quote_expr!(cx, { $write_stmts; $post_write_stmts; Ok(()) } ),
 		read: read_expr,
 	})
 }

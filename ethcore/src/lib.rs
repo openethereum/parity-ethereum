@@ -119,8 +119,6 @@ mod basic_types;
 #[macro_use] mod evm;
 mod env_info;
 mod pod_account;
-mod account_diff;
-mod state_diff;
 mod state;
 mod account;
 mod account_db;

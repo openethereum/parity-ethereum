@@ -53,7 +53,7 @@ fn setup() -> PersonalTester {
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
-	let personal = PersonalClient::new(&accounts, &client, &miner);
+	let personal = PersonalClient::new(&accounts, &client, &miner, false);
 
 	let io = IoHandler::new();
 	io.add_delegate(personal.to_delegate());
@@ -66,6 +66,20 @@ fn setup() -> PersonalTester {
 	};
 
 	tester
+}
+
+#[test]
+fn should_return_false_if_signer_is_disabled() {
+	// given
+	let tester = setup();
+
+	// when
+	let request = r#"{"jsonrpc": "2.0", "method": "personal_signerEnabled", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+
+
+	// then
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
 #[test]

@@ -169,8 +169,9 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 								logs.extend(new_pending_logs);
 							}
 
-							// save current block number as next from block number
-							*block_number = current_number;
+							// save the number of the next block as a first block from which
+							// we want to get logs
+							*block_number = current_number + 1;
 
 							to_value(&logs)
 						}

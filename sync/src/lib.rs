@@ -162,6 +162,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 		self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 
+	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
 		match *message {
 			SyncMessage::NewChainBlocks { ref imported, ref invalid, ref enacted, ref retracted } => {

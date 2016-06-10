@@ -20,13 +20,9 @@ use executive::{Executive, TransactOptions};
 use evm::Factory as EvmFactory;
 use account_db::*;
 use trace::Trace;
-#[cfg(test)]
-#[cfg(feature = "json-tests")]
 use pod_account::*;
-#[cfg(test)]
-#[cfg(feature = "json-tests")]
-use pod_state::PodState;
-//use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
+use pod_state::{self, PodState};
+use types::state_diff::StateDiff;
 
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome {
@@ -48,6 +44,9 @@ pub struct State {
 	account_start_nonce: U256,
 }
 
+const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
+			 Therefore creating a SecTrieDB with this state's root will not fail.";
+
 impl State {
 	/// Creates new state with empty state root
 	#[cfg(test)]
@@ -68,18 +67,17 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256) -> State {
-		{
-			// trie should panic! if root does not exist
-			let _ = SecTrieDB::new(db.as_hashdb(), &root);
-		}
-
-		State {
-			db: db,
-			root: root,
-			cache: RefCell::new(HashMap::new()),
-			snapshots: RefCell::new(Vec::new()),
-			account_start_nonce: account_start_nonce,
+	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256) -> Result<State, TrieError> {
+		if !db.as_hashdb().contains(&root) {
+			Err(TrieError::InvalidStateRoot)
+		} else {
+			Ok(State {
+				db: db,
+				root: root,
+				cache: RefCell::new(HashMap::new()),
+				snapshots: RefCell::new(Vec::new()),
+				account_start_nonce: account_start_nonce,
+			})
 		}
 	}
 
@@ -158,7 +156,8 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || SecTrieDB::new(self.db.as_hashdb(), &self.root).contains(&a)
+		let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || db.contains(&a)
 	}
 
 	/// Get the balance of account `a`.
@@ -224,7 +223,7 @@ impl State {
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.
-//		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
+//		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 //		trace!("Transaction receipt: {:?}", receipt);
@@ -249,7 +248,7 @@ impl State {
 		}
 
 		{
-			let mut trie = SecTrieDBMut::from_existing(db, root);
+			let mut trie = SecTrieDBMut::from_existing(db, root).unwrap();
 			for (address, ref a) in accounts.iter() {
 				match **a {
 					Some(ref account) => trie.insert(address, &account.rlp()),
@@ -275,12 +274,11 @@ impl State {
 		}
 	}
 
-	#[cfg(test)]
-	#[cfg(feature = "json-tests")]
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
 		assert!(self.snapshots.borrow().is_empty());
 		// TODO: handle database rather than just the cache.
+		// will need fat db.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = *opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
@@ -289,12 +287,32 @@ impl State {
 		}))
 	}
 
+	fn query_pod(&mut self, query: &PodState) {
+		for (ref address, ref pod_account) in query.get() {
+			if self.get(address, true).is_some() {
+				for key in pod_account.storage.keys() {
+					self.storage_at(address, key);
+				}
+			}
+		}
+	}
+
+	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
+	/// Consumes self.
+	pub fn diff_from(&self, orig: State) -> StateDiff {
+		let pod_state_post = self.to_pod();
+		let mut state_pre = orig;
+		state_pre.query_pod(&pod_state_post);
+		pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post)
+	}
+
 	/// Pull account `a` in our cache from the trie DB and return it.
 	/// `require_code` requires that the code be cached, too.
 	fn get<'a>(&'a self, a: &Address, require_code: bool) -> &'a Option<Account> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(self.db.as_hashdb(), &self.root).get(&a).map(Account::from_rlp))
+			let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
@@ -314,7 +332,8 @@ impl State {
 	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> &'a mut Account {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(self.db.as_hashdb(), &self.root).get(&a).map(Account::from_rlp))
+			let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
 		} else {
 			self.note_cache(a);
 		}
@@ -1131,7 +1150,7 @@ fn code_from_database() {
 		state.drop()
 	};
 
-	let state = State::from_existing(db, root, U256::from(0u8));
+	let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 	assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
 }
 
@@ -1146,7 +1165,7 @@ fn storage_at_from_database() {
 		state.drop()
 	};
 
-	let s = State::from_existing(db, root, U256::from(0u8));
+	let s = State::from_existing(db, root, U256::from(0u8)).unwrap();
 	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
 }
 
@@ -1163,7 +1182,7 @@ fn get_from_database() {
 		state.drop()
 	};
 
-	let state = State::from_existing(db, root, U256::from(0u8));
+	let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	assert_eq!(state.nonce(&a), U256::from(1u64));
 }
@@ -1196,7 +1215,7 @@ fn remove_from_database() {
 	};
 
 	let (root, db) = {
-		let mut state = State::from_existing(db, root, U256::from(0u8));
+		let mut state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 		state.kill_account(&a);
@@ -1206,7 +1225,7 @@ fn remove_from_database() {
 		state.drop()
 	};
 
-	let state = State::from_existing(db, root, U256::from(0u8));
+	let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 	assert_eq!(state.exists(&a), false);
 	assert_eq!(state.nonce(&a), U256::from(0u64));
 }

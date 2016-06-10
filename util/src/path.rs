@@ -53,4 +53,12 @@ pub mod ethereum {
 		pth.push(s);
 		pth
 	}
+
+	/// Get the specific folder inside default ethereum installation configured for testnet
+	pub fn with_testnet(s: &str) -> PathBuf {
+		let mut pth = default();
+		pth.push("testnet");
+		pth.push(s);
+		pth
+	}
 }

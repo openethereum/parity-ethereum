@@ -32,6 +32,9 @@ pub trait Traces: Sized + Send + Sync + 'static {
 	/// Returns all traces produced at given block.
 	fn block_traces(&self, _: Params) -> Result<Value, Error>;
 
+	/// Executes the given call and returns a number of possible traces for it.
+	fn call(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -39,6 +42,8 @@ pub trait Traces: Sized + Send + Sync + 'static {
 		delegate.add_method("trace_get", Traces::trace);
 		delegate.add_method("trace_transaction", Traces::transaction_traces);
 		delegate.add_method("trace_block", Traces::block_traces);
+		delegate.add_method("trace_call", Traces::call);
+
 		delegate
 	}
 }

@@ -30,6 +30,7 @@ use nanomsg::{Socket, Protocol, Error, Endpoint, PollRequest, PollFd, PollInOut}
 use std::ops::Deref;
 
 const POLL_TIMEOUT: isize = 100;
+const CLIENT_CONNECTION_TIMEOUT: isize = 2500;
 
 /// Generic worker to handle service (binded) sockets
 pub struct Worker<S> where S: IpcInterface<S> {
@@ -44,6 +45,12 @@ pub struct Worker<S> where S: IpcInterface<S> {
 pub struct GuardedSocket<S> where S: WithSocket<Socket> {
 	client: Arc<S>,
 	_endpoint: Endpoint,
+}
+
+impl<S> GuardedSocket<S> where S: WithSocket<Socket> {
+	pub fn service(&self) -> Arc<S> {
+		self.client.clone()
+	}
 }
 
 impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
@@ -62,6 +69,9 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 		SocketError::DuplexLink
 	}));
+
+	// 2500 ms default timeout
+	socket.set_receive_timeout(CLIENT_CONNECTION_TIMEOUT).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
@@ -82,6 +92,9 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 		SocketError::RequestLink
 	}));
+
+	// 2500 ms default timeout
+	socket.set_receive_timeout(CLIENT_CONNECTION_TIMEOUT).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);

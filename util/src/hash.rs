@@ -501,8 +501,8 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl<'_> From<&'_ str> for $from {
-			fn from(s: &'_ str) -> $from {
+		impl<'a> From<&'a str> for $from {
+			fn from(s: &'a str) -> $from {
 				use std::str::FromStr;
 				if s.len() % 2 == 1 {
 					$from::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap_or_else(|_| $from::new())
@@ -524,8 +524,8 @@ impl From<U256> for H256 {
 	}
 }
 
-impl<'_> From<&'_ U256> for H256 {
-	fn from(value: &'_ U256) -> H256 {
+impl<'a> From<&'a U256> for H256 {
+	fn from(value: &'a U256) -> H256 {
 		unsafe {
 			let mut ret: H256 = ::std::mem::uninitialized();
 			value.to_raw_bytes(&mut ret);
@@ -540,8 +540,8 @@ impl From<H256> for U256 {
 	}
 }
 
-impl<'_> From<&'_ H256> for U256 {
-	fn from(value: &'_ H256) -> U256 {
+impl<'a> From<&'a H256> for U256 {
+	fn from(value: &'a H256) -> U256 {
 		U256::from(value.bytes())
 	}
 }
@@ -566,8 +566,8 @@ impl From<H256> for H64 {
 	}
 }
 /*
-impl<'_> From<&'_ H256> for Address {
-	fn from(value: &'_ H256) -> Address {
+impl<'a> From<&'a H256> for Address {
+	fn from(value: &'a H256) -> Address {
 		unsafe {
 			let mut ret: Address = ::std::mem::uninitialized();
 			::std::ptr::copy(value.as_ptr().offset(12), ret.as_mut_ptr(), 20);
@@ -586,8 +586,8 @@ impl From<Address> for H256 {
 	}
 }
 
-impl<'_> From<&'_ Address> for H256 {
-	fn from(value: &'_ Address) -> H256 {
+impl<'a> From<&'a Address> for H256 {
+	fn from(value: &'a Address) -> H256 {
 		unsafe {
 			let mut ret = H256::new();
 			::std::ptr::copy(value.as_ptr(), ret.as_mut_ptr().offset(12), 20);

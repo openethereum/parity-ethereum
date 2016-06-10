@@ -37,7 +37,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -371,15 +371,29 @@ impl<V> Client<V> where V: Verifier {
 			return Some(self.state())
 		}
 
-		self.block_header(id).map(|header| {
+		let block_number = match self.block_number(id.clone()) {
+			Some(num) => num,
+			None => return None,
+		};
+
+		self.block_header(id).and_then(|header| {
 			let db = self.state_db.lock().unwrap().boxed_clone();
-			State::from_existing(db, HeaderView::new(&header).state_root(), self.engine.account_start_nonce())
+
+			// early exit for pruned blocks
+			if db.is_pruned() && self.chain.best_block_number() >= block_number + HISTORY {
+				return None;
+			}
+
+			let root = HeaderView::new(&header).state_root();
+
+			State::from_existing(db, root, self.engine.account_start_nonce()).ok()
 		})
 	}
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
 		State::from_existing(self.state_db.lock().unwrap().boxed_clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+			.expect("State root of best block header always valid.")
 	}
 
 	/// Get info on the cache.
@@ -429,14 +443,14 @@ impl<V> Client<V> where V: Verifier {
 			TransactionID::Hash(ref hash) => self.chain.transaction_address(hash),
 			TransactionID::Location(id, index) => Self::block_hash(&self.chain, id).map(|hash| TransactionAddress {
 				block_hash: hash,
-				index: index
+				index: index,
 			})
 		}
 	}
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
-	fn call(&self, t: &SignedTransaction, vm_tracing: bool) -> Result<Executed, ExecutionError> {
+	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
 		let view = HeaderView::new(&header);
 		let last_hashes = self.build_last_hashes(view.hash());
@@ -456,11 +470,21 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			ExecutionError::TransactionMalformed(message)
 		}));
 		let balance = state.balance(&sender);
-		// give the sender a decent balance
-		state.sub_balance(&sender, &balance);
-		state.add_balance(&sender, &(U256::from(1) << 200));
-		let options = TransactOptions { tracing: false, vm_tracing: vm_tracing, check_nonce: false };
-		Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options)
+		let needed_balance = t.value + t.gas * t.gas_price;
+		if balance < needed_balance {
+			// give the sender a sufficient balance
+			state.add_balance(&sender, &(needed_balance - balance));
+		}
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+
+		// TODO gav move this into Executive.
+		if analytics.state_diffing {
+			if let Ok(ref mut x) = ret {
+				x.state_diff = Some(state.diff_from(self.state()));
+			}
+		}
+		ret
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {
@@ -504,7 +528,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
 		self.state_at(id).map(|s| s.nonce(address))
 	}
-
 
 	fn block_hash(&self, id: BlockID) -> Option<H256> {
 		Self::block_hash(&self.chain, id)
@@ -749,7 +772,8 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			author,
 			gas_floor_target,
 			extra_data,
-		);
+		).expect("OpenBlock::new only fails if parent state root invalid. State root of best block's header is never invalid. \
+		         Therefore creating an OpenBlock with the best block's header will not fail.");
 
 		// Add uncles
 		self.chain

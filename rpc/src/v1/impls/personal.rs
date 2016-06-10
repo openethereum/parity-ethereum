@@ -31,22 +31,29 @@ pub struct PersonalClient<A, C, M>
 	accounts: Weak<A>,
 	client: Weak<C>,
 	miner: Weak<M>,
+	signer_enabled: bool,
 }
 
 impl<A, C, M> PersonalClient<A, C, M>
 	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>) -> Self {
+	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>, signer_enabled: bool) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
+			signer_enabled: signer_enabled,
 		}
 	}
 }
 
 impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
 	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
+
+	fn signer_enabled(&self, _: Params) -> Result<Value, Error> {
+		to_value(&self.signer_enabled)
+	}
+
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
 		match store.accounts() {
@@ -83,7 +90,7 @@ impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
 			.and_then(|(request, password)| {
 				let accounts = take_weak!(self.accounts);
 				match accounts.locked_account_secret(&request.from, &password) {
-					Ok(secret) => sign_and_dispatch(&self.client, &self.miner, request, secret),
+					Ok(secret) => to_value(&sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, secret)),
 					Err(_) => to_value(&H256::zero()),
 				}
 		})

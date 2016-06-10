@@ -16,8 +16,7 @@
 
 use super::test_common::*;
 use tests::helpers::*;
-use pod_state::*;
-use state_diff::*;
+use pod_state::{self, PodState};
 use ethereum;
 use ethjson;
 
@@ -71,7 +70,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 					let our_post = state.to_pod();
 					println!("Got:\n{}", our_post);
 					println!("Expect:\n{}", post);
-					println!("Diff ---expect -> +++got:\n{}", StateDiff::diff_pod(&post, &our_post));
+					println!("Diff ---expect -> +++got:\n{}", pod_state::diff_pod(&post, &our_post));
 				}
 
 				if let Ok(r) = res {
