@@ -927,7 +927,16 @@ impl ChainSync {
 			let hash: H256 = try!(r.val_at(0));
 			trace!(target: "sync", "-> GetBlockHeaders (hash: {}, max: {}, skip: {}, reverse:{})", hash, max_headers, skip, reverse);
 			match io.chain().block_header(BlockID::Hash(hash)) {
-				Some(hdr) => From::from(HeaderView::new(&hdr).number()),
+				Some(hdr) => {
+					let number = From::from(HeaderView::new(&hdr).number());
+					if io.chain().block_hash(BlockID::Number(number)) != Some(hash) {
+						// Non canonical header requested, return just a single header
+						let mut rlp = RlpStream::new_list(1);
+						rlp.append_raw(&hdr, 1);
+						return Ok(Some((BLOCK_HEADERS_PACKET, rlp)));
+					}
+					number
+				}
 				None => return Ok(Some((BLOCK_HEADERS_PACKET, RlpStream::new_list(0)))) //no such header, return nothing
 			}
 		} else {
