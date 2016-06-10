@@ -23,6 +23,7 @@ use die::*;
 #[cfg(not(windows))]
 use jsonipc;
 use rpc_apis;
+use std::fmt;
 
 #[cfg(feature = "rpc")]
 pub use ethcore_rpc::Server as RpcServer;
@@ -43,6 +44,17 @@ pub struct IpcConfiguration {
 	pub enabled: bool,
 	pub socket_addr: String,
 	pub apis: String,
+}
+
+impl fmt::Display for IpcConfiguration {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		if self.enabled {
+			write!(f, "endpoint address [{}], api list [{}]", self.socket_addr, self.apis)
+		}
+		else {
+			write!(f, "disabled")
+		}
+	}
 }
 
 pub struct Dependencies {

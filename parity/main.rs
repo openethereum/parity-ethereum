@@ -238,6 +238,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// setup ipc rpc
 	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
+	println!("IPC: {}", conf.ipc_settings());
 
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {

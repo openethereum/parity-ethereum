@@ -20,7 +20,7 @@ dependencies = [
  "ethsync 1.2.0",
  "fdlimit 0.1.0",
  "hyper 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "json-ipc-server 0.2.0 (git+https://github.com/ethcore/json-ipc-server.git)",
+ "json-ipc-server 0.2.1 (git+https://github.com/ethcore/json-ipc-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "number_prefix 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -351,7 +351,7 @@ dependencies = [
  "ethcore-util 1.2.0",
  "ethjson 0.1.0",
  "ethsync 1.2.0",
- "json-ipc-server 0.2.0 (git+https://github.com/ethcore/json-ipc-server.git)",
+ "json-ipc-server 0.2.1 (git+https://github.com/ethcore/json-ipc-server.git)",
  "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -575,11 +575,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "json-ipc-server"
-version = "0.2.0"
-source = "git+https://github.com/ethcore/json-ipc-server.git#ca021542946dff20f86ba5d194b8e03b962cb8f9"
+version = "0.2.1"
+source = "git+https://github.com/ethcore/json-ipc-server.git#d5b5653a6e2f9f8d275321dea30dd81a6fac602d"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
