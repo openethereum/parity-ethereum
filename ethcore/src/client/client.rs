@@ -753,12 +753,22 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.all_transactions()
 	}
+
+	fn take_snapshot(&self) {
+		let best_header = HeaderView::(&self.best_block_header());
+		let hash = best_header.hash();
+		let state_root = best_header.state_root();
+
+		// lock the state db to keep it consistent with the best block.
+		// clone the arc so we can loan out self to the block chunker.
+		let state_db = self.state_db.clone().lock().unwrap();
+	}
 }
 
 impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
 		-> (Option<ClosedBlock>, HashSet<H256>) {
-		let engine = self.engine.deref().deref();
+		let engine = &**self.engine;
 		let h = self.chain.best_block_hash();
 		let mut invalid_transactions = HashSet::new();
 

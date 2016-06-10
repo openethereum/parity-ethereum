@@ -194,6 +194,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// list all transactions
 	fn all_transactions(&self) -> Vec<SignedTransaction>;
+
+	/// Generate a PV64 snapshot for the current best block.
+	fn take_snapshot(&self);
 }
 
 /// Extended client interface used for mining
