@@ -476,7 +476,7 @@ pub fn restrict_permissions_owner(file_path: &Path) -> Result<(), i32>  {
 }
 
 #[cfg(windows)]
-fn restrict_permissions_owner(_file_path: &Path) -> Result<(), i32>  {
+pub fn restrict_permissions_owner(_file_path: &Path) -> Result<(), i32>  {
 	//TODO: implement me
 	Ok(())
 }
