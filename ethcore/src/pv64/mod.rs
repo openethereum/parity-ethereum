@@ -60,6 +60,7 @@ impl<'a> BlockChunker<'a> {
 	// This will return true if it created a block chunk, false otherwise.
 	fn fill_buffers(&mut self) -> bool {
 		let mut loaded_size = 0;
+		let mut blocks_loaded = 0;
 
 		while loaded_size < PREFERRED_CHUNK_SIZE && self.current_hash != self.genesis_hash {
 
@@ -80,9 +81,14 @@ impl<'a> BlockChunker<'a> {
 			self.current_hash = BlockView::new(&block).header_view().parent_hash();
 
 			self.rlps.push_front((block, receipts));
+			blocks_loaded += 1;
 		}
 
-		loaded_size == 0
+		if blocks_loaded > 0 {
+			trace!(target: "pv64_snapshot", "prepared block chunk with {} blocks", blocks_loaded);
+		}
+
+		loaded_size != 0
 	}
 
 	// write out the data in the buffers to a chunk on disk
@@ -95,6 +101,8 @@ impl<'a> BlockChunker<'a> {
 
 		let raw_data = rlp_stream.out();
 		let hash = raw_data.sha3();
+
+		trace!(target: "pv64_snapshot", "writing block chunk. hash: {},  size: {} bytes", hash.hex(), raw_data.len());
 
 		let mut file_path = path.to_owned();
 		file_path.push(hash.hex());
