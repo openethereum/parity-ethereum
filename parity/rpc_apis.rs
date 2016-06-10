@@ -79,7 +79,7 @@ impl FromStr for Api {
 }
 
 pub struct Dependencies {
-	pub signer_enabled: bool,
+	pub signer_port: Option<u16>,
 	pub signer_queue: Arc<ConfirmationsQueue>,
 	pub client: Arc<Client>,
 	pub sync: Arc<EthSync>,
@@ -146,14 +146,14 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 
-				if deps.signer_enabled {
+				if deps.signer_port.is_some() {
 					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue).to_delegate());
 				} else {
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
 			},
 			Api::Personal => {
-				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.signer_enabled).to_delegate());
+				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.signer_port.clone()).to_delegate());
 			},
 			Api::Signer => {
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_queue).to_delegate());

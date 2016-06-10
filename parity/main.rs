@@ -201,7 +201,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let sync = EthSync::register(service.network(), sync_config, client.clone());
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
-		signer_enabled: conf.args.flag_signer,
+		signer_port: conf.signer_port(),
 		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
 		client: client.clone(),
 		sync: sync.clone(),
@@ -244,7 +244,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Set up a signer
 	let signer_server = signer::start(signer::Configuration {
-		enabled: deps_for_rpc_apis.signer_enabled,
+		enabled: deps_for_rpc_apis.signer_port.is_some(),
 		port: conf.args.flag_signer_port,
 		signer_path: conf.directories().signer,
 	}, signer::Dependencies {
