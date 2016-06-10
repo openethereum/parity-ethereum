@@ -33,10 +33,10 @@ ethcore-dapps = { path = "dapps", optional = true }
 semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
-json-ipc-server = { path = "../json-ipc-server" }
+json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ansi_term = "0.7"
 
-[target.'not(cfg(windows))'.dependencies]
+[target.'cfg(not(windows))'.dependencies]
 daemonize = "0.2"
 
 [dependencies.hyper]

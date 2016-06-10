@@ -20,7 +20,7 @@ dependencies = [
  "ethsync 1.2.0",
  "fdlimit 0.1.0",
  "hyper 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "json-ipc-server 0.1.0",
+ "json-ipc-server 0.1.0 (git+https://github.com/ethcore/json-ipc-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "number_prefix 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -335,7 +335,7 @@ dependencies = [
  "ethcore-util 1.2.0",
  "ethjson 0.1.0",
  "ethsync 1.2.0",
- "json-ipc-server 0.1.0",
+ "json-ipc-server 0.1.0 (git+https://github.com/ethcore/json-ipc-server.git)",
  "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git?branch=multiple_cors_domains)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -381,10 +381,10 @@ dependencies = [
  "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.1",
+ "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
  "nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb 0.4.4",
+ "rocksdb 0.4.5 (git+https://github.com/ethcore/rust-rocksdb)",
  "rust-crypto 0.2.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -558,6 +558,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "json-ipc-server"
 version = "0.1.0"
+source = "git+https://github.com/ethcore/json-ipc-server.git#d738d518e181cf0abc3cf6b1b889b7ed09c8b39e"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -687,6 +688,7 @@ dependencies = [
 [[package]]
 name = "mio"
 version = "0.5.1"
+source = "git+https://github.com/ethcore/mio?branch=v0.5.x#1fc881771fb8c2517317b4f805d7b88235be422b"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1059,15 +1061,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rocksdb"
-version = "0.4.4"
+version = "0.4.5"
+source = "git+https://github.com/ethcore/rust-rocksdb#9140e37ce0fdb748097f85653c01b0f7e3736ea9"
 dependencies = [
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb-sys 0.3.0",
+ "rocksdb-sys 0.3.0 (git+https://github.com/ethcore/rust-rocksdb)",
 ]
 
 [[package]]
 name = "rocksdb-sys"
 version = "0.3.0"
+source = "git+https://github.com/ethcore/rust-rocksdb#9140e37ce0fdb748097f85653c01b0f7e3736ea9"
 dependencies = [
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",

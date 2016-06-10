@@ -87,8 +87,6 @@ use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
-#[cfg(not(windows))]
-use daemonize::Daemonize;
 use migration::migrate;
 use informant::Informant;
 
