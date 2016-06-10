@@ -100,7 +100,7 @@ impl<'a> BlockChunker<'a> {
 		file_path.push(hash.hex());
 
 		let mut file = File::create(file_path).unwrap();
-		file.write_all(&raw_data);
+		file.write_all(&raw_data).unwrap();
 
 		hash
 	}
