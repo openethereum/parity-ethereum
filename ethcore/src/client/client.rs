@@ -787,7 +787,9 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			state_root: state_root,
 		};
 
-		let mut manifest_file = File::create("MANIFEST").unwrap();
+		path.push("MANIFEST");
+
+		let mut manifest_file = File::create(&path).unwrap();
 		manifest_file.write_all(&manifest_data.to_rlp()).unwrap();
 	}
 }
