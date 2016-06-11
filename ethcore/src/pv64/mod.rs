@@ -16,7 +16,7 @@
 
 //! Pv64 snapshot creation helpers.
 
-// Try to have chunks be around 16MB
+// Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
 use std::collections::VecDeque;
@@ -24,12 +24,15 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+use account::Account;
 use client::BlockChainClient;
+use error::Error;
 use ids::BlockID;
 use views::BlockView;
 
 use util::{Bytes, Hashable};
 use util::hash::H256;
+use util::{HashDB, TrieDB};
 use util::rlp::{DecoderError, Stream, RlpStream, UntrustedRlp, View};
 
 /// Used to build block chunks.
@@ -122,6 +125,88 @@ impl<'a> BlockChunker<'a> {
 		}
 
 		chunk_hashes
+	}
+}
+
+/// State trie chunker.
+pub struct StateChunker<'a> {
+	hashes: Vec<H256>,
+	rlps: Vec<Bytes>,
+	cur_size: usize,
+	hash_db: &'a HashDB,
+	snapshot_path: &'a Path,
+}
+
+impl<'a> StateChunker<'a> {
+	// Push a key, value pair to be encoded.
+	//
+	// If the buffer is greater than the desired chunk size,
+	// this will write out the data to disk.
+	fn push(&mut self, key: Bytes, value: Bytes) {
+		let pair = RlpStream::new_list(2).append(&key).append(&value).out();
+
+		if self.cur_size + pair.len() >= PREFERRED_CHUNK_SIZE {
+			self.write_chunk();
+		}
+
+		self.rlps.push(pair);
+	}
+
+	// Write out the buffer to disk, pushing the created chunk's hash to
+	// the list.
+	fn write_chunk(&mut self) {
+		let mut bytes = RlpStream::new().append(&&self.rlps[..]).out();
+
+		self.rlps.clear();
+
+		let hash = bytes.sha3();
+
+		let mut path = self.snapshot_path.to_owned();
+		path.push(hash.hex());
+
+		let mut file = File::create(path).unwrap();
+		file.write_all(&bytes).unwrap();
+
+		self.hashes.push(hash);
+		self.cur_size = 0;
+	}
+
+	// walk an account's storage trie, pushing all the key, value pairs.
+	fn walk_account(&mut self, account: Account) -> Result<(), Error> {
+		let storage_view = try!(TrieDB::new(self.hash_db, &account.storage_root));
+
+		for (storage_key, storage_val) in storage_view.iter() {
+			self.push(storage_key, storage_val);
+		}
+	}
+
+	/// Walk the given state database starting from the given root,
+	/// creating chunks and writing them out.
+	///
+	/// Returns a list of hashes created, or any error it may
+	/// have encountered.
+	///
+	/// The data in the chunks is just a list of key, value pairs.
+	pub fn chunk_all(db: &'a HashDB, root: &'a H256, path: &'a Path) -> Result<Vec<H256>, Error> {
+		let account_view = try!(TrieDB::new(db, &root));
+
+		let mut chunker = StateChunker {
+			hashes: Vec::new(),
+			rlps: Vec::new(),
+			cur_size: 0,
+			hash_db: db,
+			snapshot_path: path,
+		};
+
+		for (account_key, account_data) in account_view.iter() {
+			// todo [rob]: reformat account data to new RLP structure.
+			let account = Account::from_rlp(account_data);
+			chunker.push(account_key, account_data.to_owned());
+
+			try!(chunker.walk_account(account_data));
+		}
+
+		chunker.hashes
 	}
 }
 
