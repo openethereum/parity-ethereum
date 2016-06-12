@@ -293,7 +293,7 @@ dependencies = [
  "parity-dapps-dao 0.4.0 (git+https://github.com/ethcore/parity-dapps-dao-rs.git)",
  "parity-dapps-makerotc 0.3.0 (git+https://github.com/ethcore/parity-dapps-makerotc-rs.git)",
  "parity-dapps-status 0.5.0 (git+https://github.com/ethcore/parity-dapps-status-rs.git)",
- "parity-dapps-wallet 0.6.0 (git+https://github.com/ethcore/parity-dapps-wallet-rs.git)",
+ "parity-dapps-wallet 0.6.1 (git+https://github.com/ethcore/parity-dapps-wallet-rs.git)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -932,8 +932,8 @@ dependencies = [
 
 [[package]]
 name = "parity-dapps-wallet"
-version = "0.6.0"
-source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#ad23b093d47527333a262c95e6fb20a97d15d6e6"
+version = "0.6.1"
+source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#8923d4c73359c75ce04f0639bbcde46adb846b81"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -941,7 +941,7 @@ dependencies = [
 [[package]]
 name = "parity-minimal-sysui"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#cb27ae09ee18773ccca6ba2ac74fa3128047a652"
+source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#4c704913f671060bb0e43b5ce4a68d02281115d5"
 
 [[package]]
 name = "phf"
