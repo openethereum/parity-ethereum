@@ -34,6 +34,7 @@ use util::{Bytes, Hashable, HashDB, TrieDB};
 use util::hash::{FixedHash, H256};
 use util::numbers::U256;
 use util::rlp::{DecoderError, Rlp, RlpStream, Stream, SHA3_NULL_RLP, UntrustedRlp, View};
+use util::snappy;
 /// Used to build block chunks.
 struct BlockChunker<'a> {
 	client: &'a BlockChainClient,
@@ -92,7 +93,7 @@ impl<'a> BlockChunker<'a> {
 			rlp_stream.append(&pair);
 		}
 
-		let raw_data = rlp_stream.out();
+		let raw_data = snappy::compress(&rlp_stream.out());
 		let hash = raw_data.sha3();
 
 		trace!(target: "snapshot", "writing block chunk. hash: {},  size: {} bytes", hash.hex(), raw_data.len());
@@ -169,7 +170,7 @@ impl<'a> StateChunker<'a> {
 		let bytes = {
 			let mut stream = RlpStream::new();
 			stream.append(&&self.rlps[..]);
-			stream.out()
+			snappy::compress(&stream.out())
 		};
 
 		self.rlps.clear();
