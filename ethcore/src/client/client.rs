@@ -771,8 +771,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		// lock the state db while we create the state chunks.
 		let state_hashes = {
 			let state_db = self.state_db.lock().unwrap();
-			// todo [rob] actually create the state chunks.
-
 			StateChunker::chunk_all(state_db.as_hashdb(), &state_root, &path).unwrap()
 		};
 

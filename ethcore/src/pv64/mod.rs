@@ -157,6 +157,8 @@ impl<'a> StateChunker<'a> {
 	// Write out the buffer to disk, pushing the created chunk's hash to
 	// the list.
 	fn write_chunk(&mut self) {
+		trace!(target: "pv64_snapshot", "writing state chunk. uncompressed size: {}", self.cur_size);
+
 		let bytes = {
 			let mut stream = RlpStream::new();
 			stream.append(&&self.rlps[..]);
@@ -180,10 +182,8 @@ impl<'a> StateChunker<'a> {
 	/// Walk the given state database starting from the given root,
 	/// creating chunks and writing them out.
 	///
-	/// Returns a list of hashes created, or any error it may
+	/// Returns a list of hashes of chunks created, or any error it may
 	/// have encountered.
-	///
-	/// The data in the chunks is just a list of key, value pairs.
 	pub fn chunk_all(db: &'a HashDB, root: &'a H256, path: &'a Path) -> Result<Vec<H256>, Error> {
 		let account_view = try!(TrieDB::new(db, &root));
 
@@ -194,12 +194,13 @@ impl<'a> StateChunker<'a> {
 			snapshot_path: path,
 		};
 
+		trace!(target: "pv64_snapshot", "beginning state chunking");
+
 		// account_key here is the address' hash.
 		for (account_key, account_data) in account_view.iter() {
 			let account = AccountReader::from_thin_rlp(account_data);
 
 			let fat_rlp = try!(account.to_fat_rlp(db));
-
 			chunker.push(account_key, fat_rlp);
 		}
 
