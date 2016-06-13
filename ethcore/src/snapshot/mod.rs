@@ -73,6 +73,7 @@ impl<'a> BlockChunker<'a> {
 				loaded_size = new_loaded_size;
 			}
 
+			self.rlps.push_front(pair);
 			self.current_hash = BlockView::new(&block).header_view().parent_hash();
 			blocks_loaded += 1;
 		}
