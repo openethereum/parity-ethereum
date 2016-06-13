@@ -360,6 +360,14 @@ impl Configuration {
 		if self.args.flag_geth { self.geth_ipc_path() }
 		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
 	}
+
+	pub fn signer_port(&self) -> Option<u16> {
+		if self.args.flag_signer {
+			Some(self.args.flag_signer_port)
+		} else {
+			None
+		}
+	}
 }
 
 #[cfg(test)]

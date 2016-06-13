@@ -49,11 +49,11 @@ fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
 }
 
-fn setup() -> PersonalTester {
+fn setup(signer: Option<u16>) -> PersonalTester {
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
-	let personal = PersonalClient::new(&accounts, &client, &miner, false);
+	let personal = PersonalClient::new(&accounts, &client, &miner, signer);
 
 	let io = IoHandler::new();
 	io.add_delegate(personal.to_delegate());
@@ -71,7 +71,7 @@ fn setup() -> PersonalTester {
 #[test]
 fn should_return_false_if_signer_is_disabled() {
 	// given
-	let tester = setup();
+	let tester = setup(None);
 
 	// when
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_signerEnabled", "params": [], "id": 1}"#;
@@ -83,8 +83,22 @@ fn should_return_false_if_signer_is_disabled() {
 }
 
 #[test]
+fn should_return_port_number_if_signer_is_enabled() {
+	// given
+	let tester = setup(Some(8180));
+
+	// when
+	let request = r#"{"jsonrpc": "2.0", "method": "personal_signerEnabled", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":8180,"id":1}"#;
+
+
+	// then
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
 fn accounts() {
-	let tester = setup();
+	let tester = setup(None);
 	tester.accounts.accounts
 		.write()
 		.unwrap()
@@ -98,7 +112,7 @@ fn accounts() {
 
 #[test]
 fn new_account() {
-	let tester = setup();
+	let tester = setup(None);
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_newAccount", "params": ["pass"], "id": 1}"#;
 
 	let res = tester.io.handle_request(request);
@@ -122,7 +136,7 @@ fn sign_and_send_transaction_with_invalid_password() {
 	let account = TestAccount::new("password123");
 	let address = account.address();
 
-	let tester = setup();
+	let tester = setup(None);
 	tester.accounts.accounts.write().unwrap().insert(address.clone(), account);
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -148,7 +162,7 @@ fn sign_and_send_transaction() {
 	let address = account.address();
 	let secret = account.secret.clone();
 
-	let tester = setup();
+	let tester = setup(None);
 	tester.accounts.accounts.write().unwrap().insert(address.clone(), account);
 	let request = r#"{
 		"jsonrpc": "2.0",
