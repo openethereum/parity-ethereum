@@ -46,8 +46,6 @@ pub trait Engine : Sync + Send {
 	/// (In principle these are just hints for the engine since that has the last word on them.)
 	fn builtins(&self) -> &BTreeMap<Address, Builtin>;
 
-	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self) -> usize { self.params().maximum_extra_data_size }
 	/// Maximum number of uncles a block is allowed to declare.
 	fn maximum_uncle_count(&self) -> usize { 2 }
 	/// The number of generations back that uncles can be.
@@ -68,17 +66,17 @@ pub trait Engine : Sync + Send {
 	/// be returned.
 	fn generate_seal(&self, _block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { None }
 
-	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
+	/// Phase 1 quick block verification. Only does checks that are cheap.
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_basic(&self, _header: &Header,  _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_header_basic(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
-	/// Phase 2 verification. Perform costly checks such as transaction signatures. `block` (the header's full block)
+	/// Phase 2 verification. Perform costly checks such as transaction signatures.
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_header_unordered(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
-	/// Phase 3 verification. Check block information against parent and uncles. `block` (the header's full block)
+	/// Phase 3 verification. Check block information against parent and uncles.
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_header_family(&self, _header: &Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
@@ -91,7 +89,7 @@ pub trait Engine : Sync + Send {
 	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer
 	/// methods are needed for an Engine, this may be overridden.
 	fn verify_block_seal(&self, header: &Header) -> Result<(), Error> {
-		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
+		self.verify_header_basic(header).and_then(|_| self.verify_header_unordered(header))
 	}
 
 	/// Don't forget to call Super::populate_from_parent when subclassing & overriding.
