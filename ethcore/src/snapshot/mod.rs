@@ -78,7 +78,7 @@ impl<'a> BlockChunker<'a> {
 		}
 
 		if blocks_loaded > 0 {
-			trace!(target: "pv64_snapshot", "prepared block chunk with {} blocks", blocks_loaded);
+			trace!(target: "snapshot", "prepared block chunk with {} blocks", blocks_loaded);
 		}
 
 		loaded_size != 0
@@ -95,7 +95,7 @@ impl<'a> BlockChunker<'a> {
 		let raw_data = rlp_stream.out();
 		let hash = raw_data.sha3();
 
-		trace!(target: "pv64_snapshot", "writing block chunk. hash: {},  size: {} bytes", hash.hex(), raw_data.len());
+		trace!(target: "snapshot", "writing block chunk. hash: {},  size: {} bytes", hash.hex(), raw_data.len());
 
 		let mut file_path = path.to_owned();
 		file_path.push(hash.hex());
@@ -164,7 +164,7 @@ impl<'a> StateChunker<'a> {
 	// Write out the buffer to disk, pushing the created chunk's hash to
 	// the list.
 	fn write_chunk(&mut self) -> Result<(), Error> {
-		trace!(target: "pv64_snapshot", "writing state chunk. uncompressed size: {}", self.cur_size);
+		trace!(target: "snapshot", "writing state chunk. uncompressed size: {}", self.cur_size);
 
 		let bytes = {
 			let mut stream = RlpStream::new();
@@ -204,7 +204,7 @@ pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, E
 		snapshot_path: path,
 	};
 
-	trace!(target: "pv64_snapshot", "beginning state chunking");
+	trace!(target: "snapshot", "beginning state chunking");
 
 	// account_key here is the address' hash.
 	for (account_key, account_data) in account_view.iter() {
