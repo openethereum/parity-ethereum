@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Pv64 snapshot creation helpers.
+//! Snapshot creation helpers.
 
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;

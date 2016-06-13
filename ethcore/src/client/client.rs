@@ -756,13 +756,13 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn take_snapshot(&self, root_dir: &Path) {
-		use pv64::{ManifestData, chunk_blocks, chunk_state};
+		use snapshot::{ManifestData, chunk_blocks, chunk_state};
 
 		let best_header_bytes = self.best_block_header();
 		let best_header = HeaderView::new(&best_header_bytes);
 		let state_root = best_header.state_root();
 
-		trace!(target: "pv64_snapshot", "Taking snapshot starting at block {}", best_header.number());
+		trace!(target: "snapshot", "Taking snapshot starting at block {}", best_header.number());
 
 		let mut path = root_dir.to_owned();
 		path.push("snapshot/");
