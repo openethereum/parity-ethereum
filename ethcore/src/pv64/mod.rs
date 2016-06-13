@@ -124,6 +124,10 @@ impl<'a> BlockChunker<'a> {
 			chunk_hashes.push(self.write_chunk(path));
 		}
 
+		if self.rlps.len() != 0 {
+			chunk_hashes.push(self.write_chunk(path));
+		}
+
 		chunk_hashes
 	}
 }
@@ -152,6 +156,7 @@ impl<'a> StateChunker<'a> {
 			self.write_chunk();
 		}
 
+		self.cur_size += pair.len();
 		self.rlps.push(pair);
 	}
 
@@ -208,6 +213,10 @@ impl<'a> StateChunker<'a> {
 
 			let fat_rlp = try!(account.to_fat_rlp(&account_db));
 			chunker.push(account_key, fat_rlp);
+		}
+
+		if chunker.cur_size != 0 {
+			chunker.write_chunk();
 		}
 
 		Ok(chunker.hashes)
