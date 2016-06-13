@@ -36,7 +36,7 @@ use util::numbers::U256;
 use util::rlp::{DecoderError, Stream, Rlp, RlpStream, UntrustedRlp, View};
 
 /// Used to build block chunks.
-pub struct BlockChunker<'a> {
+struct BlockChunker<'a> {
 	client: &'a BlockChainClient,
 	// block, receipt rlp pairs.
 	rlps: VecDeque<Bytes>,
@@ -46,18 +46,6 @@ pub struct BlockChunker<'a> {
 }
 
 impl<'a> BlockChunker<'a> {
-	/// Create a new BlockChunker given a client and the genesis hash.
-	pub fn new(client: &'a BlockChainClient, best_block_hash: H256, genesis_hash: H256) -> Self {
-		// Todo [rob]: find a way to reuse rlp allocations
-		BlockChunker {
-			client: client,
-			rlps: VecDeque::new(),
-			genesis_hash: genesis_hash,
-			current_hash: best_block_hash,
-			hashes: Vec::new(),
-		}
-	}
-
 	// Try to fill the buffers, moving backwards from current block hash.
 	// This will return true if it created a block chunk, false otherwise.
 	fn fill_buffers(&mut self) -> bool {
@@ -118,27 +106,33 @@ impl<'a> BlockChunker<'a> {
 		self.hashes.push(hash);
 		Ok(())
 	}
+}
 
-	/// Create and write out all block chunks to disk, returning a vector of all
-	/// the hashes of block chunks created.
-	///
-	/// The path parameter is the directory to store the block chunks in.
-	/// This function assumes the directory exists already.
-	pub fn chunk_all(mut self, path: &Path) -> Result<Vec<H256>, Error> {
-		while self.fill_buffers() {
-			try!(self.write_chunk(path));
-		}
+/// Create and write out all block chunks to disk, returning a vector of all
+/// the hashes of block chunks created.
+///
+/// The path parameter is the directory to store the block chunks in.
+/// This function assumes the directory exists already.
+pub fn chunk_blocks(client: &BlockChainClient, best_block_hash: H256, genesis_hash: H256, path: &Path) -> Result<Vec<H256>, Error> {
+	let mut chunker = BlockChunker {
+		client: client,
+		rlps: VecDeque::new(),
+		genesis_hash: genesis_hash,
+		current_hash: best_block_hash,
+		hashes: Vec::new(),
+	};
 
-		if self.rlps.len() != 0 {
-			try!(self.write_chunk(path));
-		}
-
-		Ok(self.hashes)
+	while chunker.fill_buffers() {
+		try!(chunker.write_chunk(path));
 	}
+	if chunker.rlps.len() != 0 {
+		try!(chunker.write_chunk(path));
+	}
+	Ok(chunker.hashes)
 }
 
 /// State trie chunker.
-pub struct StateChunker<'a> {
+struct StateChunker<'a> {
 	hashes: Vec<H256>,
 	rlps: Vec<Bytes>,
 	cur_size: usize,
@@ -193,41 +187,41 @@ impl<'a> StateChunker<'a> {
 
 		Ok(())
 	}
+}
 
-	/// Walk the given state database starting from the given root,
-	/// creating chunks and writing them out.
-	///
-	/// Returns a list of hashes of chunks created, or any error it may
-	/// have encountered.
-	pub fn chunk_all(db: &'a HashDB, root: &'a H256, path: &'a Path) -> Result<Vec<H256>, Error> {
-		let account_view = try!(TrieDB::new(db, &root));
+/// Walk the given state database starting from the given root,
+/// creating chunks and writing them out.
+///
+/// Returns a list of hashes of chunks created, or any error it may
+/// have encountered.
+pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, Error> {
+	let account_view = try!(TrieDB::new(db, &root));
 
-		let mut chunker = StateChunker {
-			hashes: Vec::new(),
-			rlps: Vec::new(),
-			cur_size: 0,
-			snapshot_path: path,
-		};
+	let mut chunker = StateChunker {
+		hashes: Vec::new(),
+		rlps: Vec::new(),
+		cur_size: 0,
+		snapshot_path: path,
+	};
 
-		trace!(target: "pv64_snapshot", "beginning state chunking");
+	trace!(target: "pv64_snapshot", "beginning state chunking");
 
-		// account_key here is the address' hash.
-		for (account_key, account_data) in account_view.iter() {
-			let account = AccountReader::from_thin_rlp(account_data);
-			let account_key_hash = H256::from_slice(&account_key);
+	// account_key here is the address' hash.
+	for (account_key, account_data) in account_view.iter() {
+		let account = AccountReader::from_thin_rlp(account_data);
+		let account_key_hash = H256::from_slice(&account_key);
 
-			let account_db = AccountDB::from_hash(db, account_key_hash);
+		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-			let fat_rlp = try!(account.to_fat_rlp(&account_db));
-			try!(chunker.push(account_key, fat_rlp));
-		}
-
-		if chunker.cur_size != 0 {
-			try!(chunker.write_chunk());
-		}
-
-		Ok(chunker.hashes)
+		let fat_rlp = try!(account.to_fat_rlp(&account_db));
+		try!(chunker.push(account_key, fat_rlp));
 	}
+
+	if chunker.cur_size != 0 {
+		try!(chunker.write_chunk());
+	}
+
+	Ok(chunker.hashes)
 }
 
 // An alternate account structure, only used for reading the storage values

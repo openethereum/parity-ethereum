@@ -756,7 +756,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn take_snapshot(&self, root_dir: &Path) {
-		use pv64::{BlockChunker, ManifestData, StateChunker};
+		use pv64::{ManifestData, chunk_blocks, chunk_state};
 
 		let best_header_bytes = self.best_block_header();
 		let best_header = HeaderView::new(&best_header_bytes);
@@ -771,13 +771,13 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		// lock the state db while we create the state chunks.
 		let state_hashes = {
 			let state_db = self.state_db.lock().unwrap();
-			StateChunker::chunk_all(state_db.as_hashdb(), &state_root, &path).unwrap()
+			chunk_state(state_db.as_hashdb(), &state_root, &path).unwrap()
 		};
 
 		let best_hash = best_header.hash();
 		let genesis_hash = self.chain.genesis_hash();
 
-		let block_chunk_hashes = BlockChunker::new(self, best_hash, genesis_hash).chunk_all(&path).unwrap();
+		let block_chunk_hashes = chunk_blocks(self, best_hash, genesis_hash, &path).unwrap();
 
 		let manifest_data = ManifestData {
 			state_hashes: state_hashes,
