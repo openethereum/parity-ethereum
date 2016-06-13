@@ -215,8 +215,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	pub fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
-			try!(session.lock().unwrap().deref_mut().send_packet(self.protocol, packet_id as u8, &data));
-			try!(self.io.update_registration(peer));
+			try!(session.lock().unwrap().deref_mut().send_packet(self.io, self.protocol, packet_id as u8, &data));
 		} else  {
 			trace!(target: "network", "Send: Peer no longer exist")
 		}
@@ -494,7 +493,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		for e in self.sessions.write().unwrap().iter_mut() {
 			let mut s = e.lock().unwrap();
 			if !s.keep_alive(io) {
-				s.disconnect(DisconnectReason::PingTimeout);
+				s.disconnect(io, DisconnectReason::PingTimeout);
 				to_kill.push(s.token());
 			}
 		}
@@ -616,10 +615,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				trace!(target: "network", "Session write error: {}: {:?}", token, e);
 			}
 			if s.done() {
-				io.deregister_stream(token).expect("Error deregistering stream");
-			} else {
-				io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Session registration error: {:?}", e));
-			}
+				io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
+			} 
 		}
 	}
 
@@ -630,62 +627,65 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	fn session_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
-		let mut packet_data: Option<(ProtocolId, PacketId, Vec<u8>)> = None;
+		let mut packet_data: Vec<(ProtocolId, PacketId, Vec<u8>)> = Vec::new();
 		let mut kill = false;
 		let session = { self.sessions.read().unwrap().get(token).cloned() };
 		if let Some(session) = session.clone() {
 			let mut s = session.lock().unwrap();
-			match s.readable(io, &self.info.read().unwrap()) {
-				Err(e) => {
-					trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-					match e {
-						UtilError::Network(NetworkError::Disconnect(DisconnectReason::UselessPeer)) |
-						UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) => {
-							if let Some(id) = s.id() {
-								self.nodes.write().unwrap().mark_as_useless(id);
+			loop {
+				match s.readable(io, &self.info.read().unwrap()) {
+					Err(e) => {
+						trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
+						match e {
+							UtilError::Network(NetworkError::Disconnect(DisconnectReason::UselessPeer)) |
+							UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) => {
+								if let Some(id) = s.id() {
+									self.nodes.write().unwrap().mark_as_useless(id);
+								}
+							}
+							_ => (),
+						}
+						kill = true;
+						break;
+					},
+					Ok(SessionData::Ready) => {
+						if !s.info.originated {
+							let session_count = self.session_count();
+							let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
+							if session_count >= ideal_peers as usize {
+								s.disconnect(io, DisconnectReason::TooManyPeers);
+								return;
+							}
+							// Add it no node table
+							if let Ok(address) = s.remote_addr() {
+								let entry = NodeEntry { id: s.id().unwrap().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
+								self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+								let mut discovery = self.discovery.lock().unwrap();
+								if let Some(ref mut discovery) = *discovery.deref_mut() {
+									discovery.add_node(entry);
+								}
 							}
 						}
-						_ => (),
-					}
-					kill = true;
-				},
-				Ok(SessionData::Ready) => {
-					if !s.info.originated {
-						let session_count = self.session_count();
-						let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
-						if session_count >= ideal_peers as usize {
-							s.disconnect(DisconnectReason::TooManyPeers);
-							return;
-						}
-						// Add it no node table
-						if let Ok(address) = s.remote_addr() {
-							let entry = NodeEntry { id: s.id().unwrap().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
-							self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
-							let mut discovery = self.discovery.lock().unwrap();
-							if let Some(ref mut discovery) = *discovery.deref_mut() {
-								discovery.add_node(entry);
+						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
+						for (p, _) in self.handlers.read().unwrap().iter() {
+							if s.have_capability(p)  {
+								ready_data.push(p);
 							}
 						}
-					}
-					self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
-					for (p, _) in self.handlers.read().unwrap().iter() {
-						if s.have_capability(p)  {
-							ready_data.push(p);
+					},
+					Ok(SessionData::Packet {
+						data,
+						protocol,
+						packet_id,
+					}) => {
+						match self.handlers.read().unwrap().get(protocol) {
+							None => { warn!(target: "network", "No handler found for protocol: {:?}", protocol) },
+							Some(_) => packet_data.push((protocol, packet_id, data)),
 						}
-					}
-				},
-				Ok(SessionData::Packet {
-					data,
-					protocol,
-					packet_id,
-				}) => {
-					match self.handlers.read().unwrap().get(protocol) {
-						None => { warn!(target: "network", "No handler found for protocol: {:?}", protocol) },
-						Some(_) => packet_data = Some((protocol, packet_id, data)),
-					}
-				},
-				Ok(SessionData::None) => {},
-			}
+					},
+					Ok(SessionData::None) => break,
+				}
+            }
 		}
 		if kill {
 			self.kill_connection(token, io, true);
@@ -695,11 +695,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			self.stats.inc_sessions();
 			h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone()), &token);
 		}
-		if let Some((p, packet_id, data)) = packet_data {
+		for (p, packet_id, data) in packet_data {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
 			h.read(&NetworkContext::new(io, p, session.clone(), self.sessions.clone()), &token, packet_id, &data[1..]);
 		}
-		io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Token registration error: {:?}", e));
 	}
 
 	fn connection_timeout(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -742,10 +741,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone()), &token);
 		}
 		if deregister {
-			io.deregister_stream(token).expect("Error deregistering stream");
-		} else if expired_session.is_some() {
-			io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Connection registration error: {:?}", e));
-		}
+			io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
+		} 
 	}
 
 	fn update_nodes(&self, io: &IoContext<NetworkIoMessage<Message>>, node_changes: TableUpdates) {
@@ -874,7 +871,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			NetworkIoMessage::Disconnect(ref peer) => {
 				let session = { self.sessions.read().unwrap().get(*peer).cloned() };
 				if let Some(session) = session {
-					session.lock().unwrap().disconnect(DisconnectReason::DisconnectRequested);
+					session.lock().unwrap().disconnect(io, DisconnectReason::DisconnectRequested);
 				}
 				trace!(target: "network", "Disconnect requested {}", peer);
 				self.kill_connection(*peer, io, false);
@@ -882,7 +879,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			NetworkIoMessage::DisablePeer(ref peer) => {
 				let session = { self.sessions.read().unwrap().get(*peer).cloned() };
 				if let Some(session) = session {
-					session.lock().unwrap().disconnect(DisconnectReason::DisconnectRequested);
+					session.lock().unwrap().disconnect(io, DisconnectReason::DisconnectRequested);
 					if let Some(id) = session.lock().unwrap().id() {
 						self.nodes.write().unwrap().mark_as_useless(id)
 					}

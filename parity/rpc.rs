@@ -22,6 +22,7 @@ use util::panics::PanicHandler;
 use die::*;
 use jsonipc;
 use rpc_apis;
+use std::fmt;
 
 #[cfg(feature = "rpc")]
 pub use ethcore_rpc::Server as RpcServer;
@@ -44,6 +45,17 @@ pub struct IpcConfiguration {
 	pub apis: String,
 }
 
+impl fmt::Display for IpcConfiguration {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		if self.enabled {
+			write!(f, "endpoint address [{}], api list [{}]", self.socket_addr, self.apis)
+		}
+		else {
+			write!(f, "disabled")
+		}
+	}
+}
+
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
@@ -64,12 +76,6 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Option<RpcServe
 	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 
 	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))
-}
-
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Option<jsonipc::Server> {
-	if !conf.enabled { return None; }
-	let apis = conf.apis.split(',').collect();
-	Some(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))
 }
 
 fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Server {
@@ -109,10 +115,18 @@ pub fn setup_http_rpc_server(
 		},
 	}
 }
+
 #[cfg(not(feature = "rpc"))]
 pub fn setup_ipc_rpc_server(_dependencies: &Dependencies, _addr: &str, _apis: Vec<&str>) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
+
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Option<jsonipc::Server> {
+	if !conf.enabled { return None; }
+	let apis = conf.apis.split(',').collect();
+	Some(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))
+}
+
 #[cfg(feature = "rpc")]
 pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: Vec<&str>) -> jsonipc::Server {
 	let server = setup_rpc_server(apis, dependencies);
