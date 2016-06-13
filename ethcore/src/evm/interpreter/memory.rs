@@ -124,7 +124,7 @@ impl Memory for Vec<u8> {
 #[test]
 fn test_memory_read_and_write() {
 	// given
-	let mem: &mut super::Memory = &mut vec![];
+	let mem: &mut Memory = &mut vec![];
 	mem.resize(0x80 + 32);
 
 	// when
@@ -137,7 +137,7 @@ fn test_memory_read_and_write() {
 #[test]
 fn test_memory_read_and_write_byte() {
 	// given
-	let mem: &mut super::Memory = &mut vec![];
+	let mem: &mut Memory = &mut vec![];
 	mem.resize(32);
 
 	// when

@@ -16,7 +16,7 @@
 
 use common::*;
 use super::u256_to_address;
-use evm;
+use evm::{self, CostType};
 use evm::instructions::{self, Instruction};
 use evm::interpreter::stack::Stack;
 
@@ -29,67 +29,25 @@ macro_rules! overflowing {
 }
 
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
-enum InstructionCost {
-	Gas(U256),
-	GasMem(U256, U256),
-	GasMemCopy(U256, U256, U256)
+enum InstructionCost<Cost: CostType> {
+	Gas(Cost),
+	GasMem(Cost, Cost),
+	GasMemCopy(Cost, Cost, Cost)
 }
 
-pub trait Gasometer {
-	type Gas;
-
-	fn new(current_gas: Self::Gas) -> Self;
-
-	fn current_gas(&self) -> Self::Gas;
-
-	fn subtract_gas(&mut self, gas_cost: Self::Gas);
-
-	fn add_gas(&mut self, gas: Self::Gas);
-
-	fn set_gas(&mut self, gas: Self::Gas);
-
-	fn verify_gas(&self, gas_cost: &Self::Gas) -> evm::Result<()>;
-
-	fn get_gas_cost_mem(
-		&mut self,
-		ext: &evm::Ext,
-		instruction: Instruction,
-		stack: &Stack<U256>,
-		current_mem_size: usize,
-	) -> evm::Result<(Self::Gas, usize)>;
-
+pub struct Gasometer<Gas: CostType> {
+	pub current_gas: Gas,
 }
 
-pub struct GasometerU256 {
-	pub current_gas: U256,
-}
+impl<Gas: CostType> Gasometer<Gas> {
 
-impl Gasometer for GasometerU256 {
-	type Gas = U256;
-
-	fn new(current_gas: Self::Gas) -> Self {
-		GasometerU256 {
+	pub fn new(current_gas: Gas) -> Self {
+		Gasometer {
 			current_gas: current_gas,
 		}
 	}
 
-	fn current_gas(&self) -> Self::Gas {
-		self.current_gas
-	}
-
-	fn subtract_gas(&mut self, gas_cost: Self::Gas) {
-		self.current_gas = self.current_gas - gas_cost;
-	}
-
-	fn add_gas(&mut self, gas: Self::Gas) {
-		self.current_gas = self.current_gas + gas;
-	}
-
-	fn set_gas(&mut self, gas: Self::Gas) {
-		self.current_gas = gas;
-	}
-
-	fn verify_gas(&self, gas_cost: &U256) -> evm::Result<()> {
+	pub fn verify_gas(&self, gas_cost: &Gas) -> evm::Result<()> {
 		match &self.current_gas < gas_cost {
 			true => Err(evm::Error::OutOfGas),
 			false => Ok(())
@@ -97,13 +55,13 @@ impl Gasometer for GasometerU256 {
 	}
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
-	fn get_gas_cost_mem(
+	pub fn get_gas_cost_mem(
 		&mut self,
 		ext: &evm::Ext,
 		instruction: Instruction,
 		stack: &Stack<U256>,
 		current_mem_size: usize,
-	) -> evm::Result<(Self::Gas, usize)> {
+	) -> evm::Result<(Gas, usize)> {
 		let schedule = ext.schedule();
 		let info = instructions::get_info(instruction);
 
@@ -121,7 +79,7 @@ impl Gasometer for GasometerU256 {
 		try!(self.verify_instructions_requirements(&info, schedule.stack_limit, stack));
 
 		let tier = instructions::get_tier_idx(info.tier);
-		let default_gas = U256::from(schedule.tier_step_gas[tier]);
+		let default_gas = Gas::from(schedule.tier_step_gas[tier]);
 
 		let cost = match instruction {
 			instructions::SSTORE => {
@@ -129,17 +87,17 @@ impl Gasometer for GasometerU256 {
 				let newval = stack.peek(1);
 				let val = U256::from(ext.storage_at(&address).as_slice());
 
-				let gas = if self.is_zero(&val) && !self.is_zero(newval) {
+				let gas = if U256::zero() == val && &U256::zero() != newval {
 					schedule.sstore_set_gas
 				} else {
 					// Refund for below case is added when actually executing sstore
 					// !self.is_zero(&val) && self.is_zero(newval)
 					schedule.sstore_reset_gas
 				};
-				InstructionCost::Gas(U256::from(gas))
+				InstructionCost::Gas(Gas::from(gas))
 			},
 			instructions::SLOAD => {
-				InstructionCost::Gas(U256::from(schedule.sload_gas))
+				InstructionCost::Gas(Gas::from(schedule.sload_gas))
 			},
 			instructions::MSTORE | instructions::MLOAD => {
 				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 32)))
@@ -151,30 +109,30 @@ impl Gasometer for GasometerU256 {
 				InstructionCost::GasMem(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
 			},
 			instructions::SHA3 => {
-				let w = overflowing!(add_u256_usize(stack.peek(1), 31));
+				let w = overflowing!(add_gas_usize(try!(Gas::from_u256(*stack.peek(1))), 31));
 				let words = w >> 5;
-				let gas = U256::from(schedule.sha3_gas) + (U256::from(schedule.sha3_word_gas) * words);
+				let gas = Gas::from(schedule.sha3_gas) + (Gas::from(schedule.sha3_word_gas) * words);
 				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
 			},
 			instructions::CALLDATACOPY | instructions::CODECOPY => {
-				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(2))), stack.peek(2).clone())
+				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(2))), try!(Gas::from_u256(*stack.peek(2))))
 			},
 			instructions::EXTCODECOPY => {
-				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(1), stack.peek(3))), stack.peek(3).clone())
+				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(1), stack.peek(3))), try!(Gas::from_u256(*stack.peek(3))))
 			},
 			instructions::JUMPDEST => {
-				InstructionCost::Gas(U256::one())
+				InstructionCost::Gas(Gas::from(1))
 			},
 			instructions::LOG0...instructions::LOG4 => {
 				let no_of_topics = instructions::get_log_topics(instruction);
 				let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
 
-				let data_gas = overflowing!(stack.peek(1).overflowing_mul(U256::from(schedule.log_data_gas)));
-				let gas = overflowing!(data_gas.overflowing_add(U256::from(log_gas)));
+				let data_gas = overflowing!(try!(Gas::from_u256(*stack.peek(1))).overflow_mul(Gas::from(schedule.log_data_gas)));
+				let gas = overflowing!(data_gas.overflow_add(Gas::from(log_gas)));
 				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
 			},
 			instructions::CALL | instructions::CALLCODE => {
-				let mut gas  = overflowing!(add_u256_usize(stack.peek(0), schedule.call_gas));
+				let mut gas  = overflowing!(add_gas_usize(try!(Gas::from_u256(*stack.peek(0))), schedule.call_gas));
 				let mem = cmp::max(
 					try!(self.mem_needed(stack.peek(5), stack.peek(6))),
 					try!(self.mem_needed(stack.peek(3), stack.peek(4)))
@@ -183,17 +141,17 @@ impl Gasometer for GasometerU256 {
 				let address = u256_to_address(stack.peek(1));
 
 				if instruction == instructions::CALL && !ext.exists(&address) {
-					gas = overflowing!(gas.overflowing_add(U256::from(schedule.call_new_account_gas)));
+					gas = overflowing!(gas.overflow_add(Gas::from(schedule.call_new_account_gas)));
 				};
 
-				if stack.peek(2).clone() > U256::zero() {
-					gas = overflowing!(gas.overflowing_add(U256::from(schedule.call_value_transfer_gas)));
+				if stack.peek(2) > &U256::zero() {
+					gas = overflowing!(gas.overflow_add(Gas::from(schedule.call_value_transfer_gas)));
 				};
 
 				InstructionCost::GasMem(gas,mem)
 			},
 			instructions::DELEGATECALL => {
-				let gas = overflowing!(add_u256_usize(stack.peek(0), schedule.call_gas));
+				let gas = overflowing!(add_gas_usize(try!(Gas::from_u256(*stack.peek(0))), schedule.call_gas));
 				let mem = cmp::max(
 					try!(self.mem_needed(stack.peek(4), stack.peek(5))),
 					try!(self.mem_needed(stack.peek(2), stack.peek(3)))
@@ -201,14 +159,14 @@ impl Gasometer for GasometerU256 {
 				InstructionCost::GasMem(gas, mem)
 			},
 			instructions::CREATE => {
-				let gas = U256::from(schedule.create_gas);
+				let gas = Gas::from(schedule.create_gas);
 				let mem = try!(self.mem_needed(stack.peek(1), stack.peek(2)));
 				InstructionCost::GasMem(gas, mem)
 			},
 			instructions::EXP => {
 				let expon = stack.peek(1);
 				let bytes = ((expon.bits() + 7) / 8) as usize;
-				let gas = U256::from(schedule.exp_gas + schedule.exp_byte_gas * bytes);
+				let gas = Gas::from(schedule.exp_gas + schedule.exp_byte_gas * bytes);
 				InstructionCost::Gas(gas)
 			},
 			_ => InstructionCost::Gas(default_gas)
@@ -220,22 +178,19 @@ impl Gasometer for GasometerU256 {
 			},
 			InstructionCost::GasMem(gas, mem_size) => {
 				let (mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem_size));
-				let gas = overflowing!(gas.overflowing_add(mem_gas));
+				let gas = overflowing!(gas.overflow_add(mem_gas));
 				Ok((gas, new_mem_size))
 			},
 			InstructionCost::GasMemCopy(gas, mem_size, copy) => {
 				let (mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem_size));
-				let copy = overflowing!(add_u256_usize(&copy, 31));
-				let copy_gas = U256::from(schedule.copy_gas) * (copy / U256::from(32));
-				let gas = overflowing!(gas.overflowing_add(copy_gas));
-				let gas = overflowing!(gas.overflowing_add(mem_gas));
+				let copy = overflowing!(add_gas_usize(copy, 31));
+				let copy_gas = Gas::from(schedule.copy_gas) * (copy / Gas::from(32 as usize));
+				let gas = overflowing!(gas.overflow_add(copy_gas));
+				let gas = overflowing!(gas.overflow_add(mem_gas));
 				Ok((gas, new_mem_size))
 			}
 		}
 	}
-}
-
-impl GasometerU256 {
 
 	fn verify_instructions_requirements(
 		&self,
@@ -260,64 +215,64 @@ impl GasometerU256 {
 		}
 	}
 
-	fn is_zero(&self, val: &U256) -> bool {
-		&U256::zero() == val
+	fn is_zero(&self, val: &Gas) -> bool {
+		&Gas::from(0) == val
 	}
 
-	fn mem_needed_const(&self, mem: &U256, add: usize) -> evm::Result<U256> {
-		Ok(overflowing!(mem.overflowing_add(U256::from(add))))
+	fn mem_needed_const(&self, mem: &U256, add: usize) -> evm::Result<Gas> {
+		Gas::from_u256(overflowing!(mem.overflowing_add(U256::from(add))))
 	}
 
-	fn mem_needed(&self, offset: &U256, size: &U256) -> evm::Result<U256> {
-		if self.is_zero(size) {
-			return Ok(U256::zero());
+	fn mem_needed(&self, offset: &U256, size: &U256) -> evm::Result<Gas> {
+		if self.is_zero(&try!(Gas::from_u256(*size))) {
+			return Ok(Gas::from(0));
 		}
 
-		Ok(overflowing!(offset.overflowing_add(size.clone())))
+		Gas::from_u256(overflowing!(offset.overflowing_add(*size)))
 	}
 
-	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> evm::Result<(U256, usize)> {
-		let gas_for_mem = |mem_size: U256| {
+	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &Gas) -> evm::Result<(Gas, usize)> {
+		let gas_for_mem = |mem_size: Gas| {
 			let s = mem_size >> 5;
 			// s * memory_gas + s * s / quad_coeff_div
-			let a = overflowing!(s.overflowing_mul(U256::from(schedule.memory_gas)));
+			let a = overflowing!(s.overflow_mul(Gas::from(schedule.memory_gas)));
 			// We need to go to U512 to calculate s*s/quad_coeff_div
-			let b = U512::from(s) * U512::from(s) / U512::from(schedule.quad_coeff_div);
+			let b = U512::from(s.as_u256()) * U512::from(s.as_u256()) / U512::from(schedule.quad_coeff_div);
 			if b > U512::from(!U256::zero()) {
 				Err(evm::Error::OutOfGas)
 			} else {
-				Ok(overflowing!(a.overflowing_add(U256::from(b))))
+				Ok(overflowing!(a.overflow_add(try!(Gas::from_u256(U256::from(b))))))
 			}
 		};
-		let current_mem_size = U256::from(current_mem_size);
-		let req_mem_size_rounded = (overflowing!(mem_size.overflowing_add(U256::from(31))) >> 5) << 5;
-		let new_mem_gas = try!(gas_for_mem(U256::from(req_mem_size_rounded)));
+		let current_mem_size = Gas::from(current_mem_size);
+		let req_mem_size_rounded = (overflowing!(mem_size.overflow_add(Gas::from(31 as usize))) >> 5) << 5;
+		let new_mem_gas = try!(gas_for_mem(req_mem_size_rounded));
 		let current_mem_gas = try!(gas_for_mem(current_mem_size));
 
 		Ok((if req_mem_size_rounded > current_mem_size {
 			new_mem_gas - current_mem_gas
 		} else {
-			U256::zero()
-		}, req_mem_size_rounded.low_u64() as usize))
+			Gas::from(0)
+		}, req_mem_size_rounded.as_usize()))
 	}
 
 }
 
 #[inline]
-fn add_u256_usize(value: &U256, num: usize) -> (U256, bool) {
-	value.clone().overflowing_add(U256::from(num))
+fn add_gas_usize<Gas: CostType>(value: Gas, num: usize) -> (Gas, bool) {
+	value.overflow_add(Gas::from(num))
 }
 
 #[test]
 fn test_mem_gas_cost() {
 	// given
-	let interpreter = Interpreter::default();
+	let gasometer = Gasometer::<U256>::new(U256::zero());
 	let schedule = evm::Schedule::default();
 	let current_mem_size = 5;
 	let mem_size = !U256::zero();
 
 	// when
-	let result = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size);
+	let result = gasometer.mem_gas_cost(&schedule, current_mem_size, &mem_size);
 
 	// then
 	if let Ok(_) = result {
@@ -328,15 +283,15 @@ fn test_mem_gas_cost() {
 #[test]
 fn test_calculate_mem_cost() {
 	// given
-	let gasometer = Gasometer::new(U256::zero());
+	let gasometer = Gasometer::<usize>::new(0);
 	let schedule = evm::Schedule::default();
 	let current_mem_size = 0;
-	let mem_size = U256::from(5);
+	let mem_size = 5;
 
 	// when
 	let (mem_cost, mem_size) = gasometer.mem_gas_cost(&schedule, current_mem_size, &mem_size).unwrap();
 
 	// then
-	assert_eq!(mem_cost, U256::from(3));
+	assert_eq!(mem_cost, 3);
 	assert_eq!(mem_size, 32);
 }
