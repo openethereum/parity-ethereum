@@ -209,8 +209,6 @@ impl<'a> StateChunker<'a> {
 
 			let account_db = AccountDB::from_hash(db, account_key_hash);
 
-			trace!(target: "pv64_snapshot", "snapshotting account with address hash {}", account_key_hash.hex());
-
 			let fat_rlp = try!(account.to_fat_rlp(&account_db));
 			chunker.push(account_key, fat_rlp);
 		}
