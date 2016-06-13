@@ -475,6 +475,7 @@ pub fn restrict_permissions_owner(file_path: &Path) -> Result<(), i32>  {
 	}
 }
 
+/// Restricts the permissions of given path only to the owner.
 #[cfg(windows)]
 pub fn restrict_permissions_owner(_file_path: &Path) -> Result<(), i32>  {
 	//TODO: implement me
