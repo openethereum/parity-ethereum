@@ -777,7 +777,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		let best_hash = best_header.hash();
 		let genesis_hash = self.chain.genesis_hash();
 
-		let block_chunk_hashes = BlockChunker::new(self, best_hash, genesis_hash).chunk_all(&path);
+		let block_chunk_hashes = BlockChunker::new(self, best_hash, genesis_hash).chunk_all(&path).unwrap();
 
 		let manifest_data = ManifestData {
 			state_hashes: state_hashes,
