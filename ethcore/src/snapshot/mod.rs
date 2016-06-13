@@ -33,8 +33,7 @@ use views::BlockView;
 use util::{Bytes, Hashable, HashDB, TrieDB};
 use util::hash::{FixedHash, H256};
 use util::numbers::U256;
-use util::rlp::{DecoderError, Stream, Rlp, RlpStream, UntrustedRlp, View};
-
+use util::rlp::{DecoderError, Rlp, RlpStream, Stream, SHA3_NULL_RLP, UntrustedRlp, View};
 /// Used to build block chunks.
 struct BlockChunker<'a> {
 	client: &'a BlockChainClient,
@@ -269,9 +268,17 @@ impl AccountReader {
 		let mut account_stream = RlpStream::new_list(5);
 		account_stream.append(&self.nonce)
 					  .append(&self.balance)
-					  .append(&self.storage_root)
-					  .append(&self.code_hash)
-					  .append(&pairs_rlp);
+					  .append(&self.storage_root);
+
+		account_stream.begin_list(2);
+		if self.code_hash == SHA3_NULL_RLP {
+			account_stream.append(&true).append(&hash_db.get(&self.code_hash).unwrap());
+		} else {
+			let empty: &[u8] = &[];
+			account_stream.append(&false).append(&empty);
+		}
+
+		account_stream.append(&pairs_rlp);
 
 		Ok(account_stream.out())
 	}
