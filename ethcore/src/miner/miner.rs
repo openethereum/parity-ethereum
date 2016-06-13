@@ -46,27 +46,10 @@ pub struct Miner {
 	accounts: Option<Arc<AccountProvider>>,
 }
 
-impl Default for Miner {
-	fn default() -> Miner {
-		Miner {
-			transaction_queue: Mutex::new(TransactionQueue::new()),
-			force_sealing: false,
-			sealing_enabled: AtomicBool::new(false),
-			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(UsingQueue::new(5)),
-			gas_floor_target: RwLock::new(U256::zero()),
-			author: RwLock::new(Address::default()),
-			extra_data: RwLock::new(Vec::new()),
-			accounts: None,
-			spec: Spec::new_test(),
-		}
-	}
-}
-
 impl Miner {
 	/// Creates new instance of miner
-	pub fn new(force_sealing: bool, spec: Spec) -> Arc<Miner> {
-		Arc::new(Miner {
+	pub fn new(force_sealing: bool, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: force_sealing,
 			sealing_enabled: AtomicBool::new(force_sealing),
@@ -75,25 +58,9 @@ impl Miner {
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
-			accounts: None,
+			accounts: accounts,
 			spec: spec,
-		})
-	}
-
-	/// Creates new instance of miner
-	pub fn with_accounts(force_sealing: bool, spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-		Arc::new(Miner {
-			transaction_queue: Mutex::new(TransactionQueue::new()),
-			force_sealing: force_sealing,
-			sealing_enabled: AtomicBool::new(force_sealing),
-			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(UsingQueue::new(5)),
-			gas_floor_target: RwLock::new(U256::zero()),
-			author: RwLock::new(Address::default()),
-			extra_data: RwLock::new(Vec::new()),
-			accounts: Some(accounts),
-			spec: spec,
-		})
+		}
 	}
 
 	fn engine(&self) -> &Engine {
@@ -590,47 +557,3 @@ impl MinerService for Miner {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-
-	use super::super::MinerService;
-	use super::Miner;
-	use util::*;
-	use client::{TestBlockChainClient, EachBlockWith};
-	use block::*;
-
-	// TODO [ToDr] To uncomment` when TestBlockChainClient can actually return a ClosedBlock.
-	#[ignore]
-	#[test]
-	fn should_prepare_block_to_seal() {
-		// given
-		let client = TestBlockChainClient::default();
-		let miner = Miner::default();
-
-		// when
-		let sealing_work = miner.map_sealing_work(&client, |_| ());
-		assert!(sealing_work.is_some(), "Expected closed block");
-	}
-
-	#[ignore]
-	#[test]
-	fn should_still_work_after_a_couple_of_blocks() {
-		// given
-		let client = TestBlockChainClient::default();
-		let miner = Miner::default();
-
-		let res = miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
-		assert!(res.is_some());
-		assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
-
-		// two more blocks mined, work requested.
-		client.add_blocks(1, EachBlockWith::Uncle);
-		miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
-
-		client.add_blocks(1, EachBlockWith::Uncle);
-		miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
-
-		// solution to original work submitted.
-		assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
-	}
-}
