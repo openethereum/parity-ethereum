@@ -40,7 +40,7 @@ below to build from source.
 
 Parity is fully compatible with Stable Rust.
 
-We recommend installing Rust through [multirust](https://github.com/brson/multirust). If you don't already have multirust, you can install it like this:
+We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
 - Linux and OSX:
 ```bash
