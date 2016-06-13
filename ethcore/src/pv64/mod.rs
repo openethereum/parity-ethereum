@@ -24,13 +24,14 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+use account_db::AccountDB;
 use client::BlockChainClient;
 use error::Error;
 use ids::BlockID;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, TrieDB};
-use util::hash::H256;
+use util::hash::{FixedHash, H256};
 use util::numbers::U256;
 use util::rlp::{DecoderError, Stream, Rlp, RlpStream, UntrustedRlp, View};
 
@@ -199,8 +200,13 @@ impl<'a> StateChunker<'a> {
 		// account_key here is the address' hash.
 		for (account_key, account_data) in account_view.iter() {
 			let account = AccountReader::from_thin_rlp(account_data);
+			let account_key_hash = H256::from_slice(&account_key);
 
-			let fat_rlp = try!(account.to_fat_rlp(db));
+			let account_db = AccountDB::from_hash(db, account_key_hash);
+
+			trace!(target: "pv64_snapshot", "snapshotting account with address hash {}", account_key_hash.hex());
+
+			let fat_rlp = try!(account.to_fat_rlp(&account_db));
 			chunker.push(account_key, fat_rlp);
 		}
 
