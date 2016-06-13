@@ -388,7 +388,7 @@ impl MinerService for Miner {
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails {
 		let hash = transaction.hash();
-		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
+		debug!(target: "own_tx", "Importing transaction: {:?}", transaction);
 
 		let imported = {
 			// Be sure to release the lock before we call enable_and_prepare_sealing
@@ -397,11 +397,11 @@ impl MinerService for Miner {
 
 			match import {
 				Ok(ref res) => {
-					trace!(target: "own_tx", "Imported transaction to {:?} (hash: {:?})", res, hash);
+					debug!(target: "own_tx", "Imported transaction to {:?} (hash: {:?})", res, hash);
 					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
 				},
 				Err(ref e) => {
-					trace!(target: "own_tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
+					debug!(target: "own_tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
 					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
 					warn!(target: "own_tx", "Error importing transaction: {:?}", e);
 				},

@@ -120,6 +120,14 @@ impl Ord for TransactionOrigin {
 	}
 }
 
+macro_rules! trace_local {
+	($order: expr, $x: expr) => {
+		if $order.origin == TransactionOrigin::Local {
+			$x
+		}
+	}
+}
+
 #[derive(Clone, Debug)]
 /// Light structure used to identify transaction and it's order
 struct TransactionOrder {
@@ -255,8 +263,11 @@ impl TransactionSet {
 			self.by_priority
 				.iter()
 				.skip(self.limit)
-				.map(|order| by_hash.get(&order.hash)
-					.expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`."))
+				.map(|order| {
+					trace_local!(order, trace!(target: "own_tx", "Removing transaction because of limit {:?}", order.hash));
+					trace!(target: "miner", "Removing transaction because of limit {:?}", order.hash);
+					by_hash.get(&order.hash).expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`.")
+				})
 				.map(|tx| (tx.sender(), tx.nonce()))
 				.collect()
 		};
@@ -541,8 +552,10 @@ impl TransactionQueue {
 		for k in all_nonces_from_sender {
 			let order = self.future.drop(sender, &k).unwrap();
 			if k >= current_nonce {
+				trace_local!(order, trace!(target: "own_tx", "Moving transaction to future {:?} (nonce: {} >= {})", order.hash, k, current_nonce));
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
+				trace_local!(order, trace!(target: "own_tx", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce));
 				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				// Remove the transaction completely
 				self.by_hash.remove(&order.hash);
@@ -562,8 +575,10 @@ impl TransactionQueue {
 			// Goes to future or is removed
 			let order = self.current.drop(sender, &k).unwrap();
 			if k >= current_nonce {
+				trace_local!(order, trace!(target: "own_tx", "Moving transaction to future {:?} (nonce: {} >= {})", order.hash, k, current_nonce));
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
+				trace_local!(order, trace!(target: "own_tx", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce));
 				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				self.by_hash.remove(&order.hash);
 			}
@@ -622,6 +637,9 @@ impl TransactionQueue {
 			}
 			let mut by_nonce = by_nonce.unwrap();
 			while let Some(order) = by_nonce.remove(&current_nonce) {
+				trace_local!(order, trace!(
+					target: "own_tx", "Moving transaction back to current: {:?} ({} <= {})", order.hash, first_nonce, current_nonce
+				));
 				// remove also from priority and hash
 				self.future.by_priority.remove(&order);
 				// Put to current
