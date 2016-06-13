@@ -372,6 +372,10 @@ impl Configuration {
 			}
 		}
 	}
+
+	pub fn have_color(&self) -> bool {
+		!self.args.flag_no_color && !cfg!(windows)
+	}
 }
 
 #[cfg(test)]

@@ -266,7 +266,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Register IO handler
 	let io_handler  = Arc::new(ClientIoHandler {
 		client: service.client(),
-		info: Informant::new(!conf.args.flag_no_color),
+		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
 	});
@@ -386,8 +386,8 @@ fn execute_import(conf: Configuration) {
 	panic_handler.forward_from(&service);
 	let client = service.client();
 
-	let mut instream: Box<Read> = if let Some(f) = conf.args.arg_file {
-		let f = File::open(&f).unwrap_or_else(|_| die!("Cannot open the file given: {}", f));
+	let mut instream: Box<Read> = if let Some(ref f) = conf.args.arg_file {
+		let f = File::open(f).unwrap_or_else(|_| die!("Cannot open the file given: {}", f));
 		Box::new(f)
 	} else {
 		Box::new(::std::io::stdin())
@@ -397,7 +397,7 @@ fn execute_import(conf: Configuration) {
 	let mut first_read = 0;
 
 	let format = match conf.args.flag_format {
-		Some(x) => match x.deref() {
+		Some(ref x) => match x.deref() {
 			"binary" | "bin" => DataFormat::Binary,
 			"hex" => DataFormat::Hex,
 			x => die!("Invalid --format parameter given: {:?}", x),
@@ -418,7 +418,7 @@ fn execute_import(conf: Configuration) {
 		}
 	};
 
-	let informant = Informant::new(!conf.args.flag_no_color);
+	let informant = Informant::new(conf.have_color());
 
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
