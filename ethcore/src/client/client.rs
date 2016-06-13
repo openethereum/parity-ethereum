@@ -756,7 +756,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn take_snapshot(&self, root_dir: &Path) {
-		use pv64::{BlockChunker, ManifestData};
+		use pv64::{BlockChunker, ManifestData, StateChunker};
 
 		let best_header_bytes = self.best_block_header();
 		let best_header = HeaderView::new(&best_header_bytes);
@@ -764,20 +764,20 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 		trace!(target: "pv64_snapshot", "Taking snapshot starting at block {}", best_header.number());
 
+		let mut path = root_dir.to_owned();
+		path.push("snapshot/");
+		let _ = create_dir(&path);
+
 		// lock the state db while we create the state chunks.
 		let state_hashes = {
-			let _state_db = self.state_db.lock().unwrap();
+			let state_db = self.state_db.lock().unwrap();
 			// todo [rob] actually create the state chunks.
 
-			Vec::new()
+			StateChunker::chunk_all(state_db.as_hashdb(), &state_root, &path).unwrap()
 		};
 
 		let best_hash = best_header.hash();
 		let genesis_hash = self.chain.genesis_hash();
-
-		let mut path = root_dir.to_owned();
-		path.push("snapshot/");
-		let _ = create_dir(&path);
 
 		let block_chunk_hashes = BlockChunker::new(self, best_hash, genesis_hash).chunk_all(&path);
 

@@ -24,16 +24,15 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use account::Account;
 use client::BlockChainClient;
 use error::Error;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable};
+use util::{Bytes, Hashable, HashDB, TrieDB};
 use util::hash::H256;
-use util::{HashDB, TrieDB};
-use util::rlp::{DecoderError, Stream, RlpStream, UntrustedRlp, View};
+use util::numbers::U256;
+use util::rlp::{DecoderError, Stream, Rlp, RlpStream, UntrustedRlp, View};
 
 /// Used to build block chunks.
 pub struct BlockChunker<'a> {
@@ -143,7 +142,11 @@ impl<'a> StateChunker<'a> {
 	// If the buffer is greater than the desired chunk size,
 	// this will write out the data to disk.
 	fn push(&mut self, key: Bytes, value: Bytes) {
-		let pair = RlpStream::new_list(2).append(&key).append(&value).out();
+		let pair = {
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&key).append(&value);
+			stream.out()
+		};
 
 		if self.cur_size + pair.len() >= PREFERRED_CHUNK_SIZE {
 			self.write_chunk();
@@ -155,7 +158,11 @@ impl<'a> StateChunker<'a> {
 	// Write out the buffer to disk, pushing the created chunk's hash to
 	// the list.
 	fn write_chunk(&mut self) {
-		let mut bytes = RlpStream::new().append(&&self.rlps[..]).out();
+		let bytes = {
+			let mut stream = RlpStream::new();
+			stream.append(&&self.rlps[..]);
+			stream.out()
+		};
 
 		self.rlps.clear();
 
@@ -169,15 +176,6 @@ impl<'a> StateChunker<'a> {
 
 		self.hashes.push(hash);
 		self.cur_size = 0;
-	}
-
-	// walk an account's storage trie, pushing all the key, value pairs.
-	fn walk_account(&mut self, account: Account) -> Result<(), Error> {
-		let storage_view = try!(TrieDB::new(self.hash_db, &account.storage_root));
-
-		for (storage_key, storage_val) in storage_view.iter() {
-			self.push(storage_key, storage_val);
-		}
 	}
 
 	/// Walk the given state database starting from the given root,
@@ -198,15 +196,47 @@ impl<'a> StateChunker<'a> {
 			snapshot_path: path,
 		};
 
-		for (account_key, account_data) in account_view.iter() {
-			// todo [rob]: reformat account data to new RLP structure.
-			let account = Account::from_rlp(account_data);
-			chunker.push(account_key, account_data.to_owned());
+		for (_account_key, account_data) in account_view.iter() {
+			let account = AccountReader::from_full_rlp(account_data);
 
-			try!(chunker.walk_account(account_data));
+			try!(account.walk(&mut chunker));
 		}
 
-		chunker.hashes
+		Ok(chunker.hashes)
+	}
+}
+
+// An alternate account structure, only used for reading the storage values
+// out of the account as opposed to writing any.
+struct AccountReader {
+	nonce: U256,
+	balance: U256,
+	storage_root: H256,
+	code_hash: H256,
+}
+
+impl AccountReader {
+	// deserialize the account from rlp.
+	fn from_full_rlp(rlp: &[u8]) -> Self {
+		let r: Rlp = Rlp::new(rlp);
+
+		AccountReader {
+			nonce: r.val_at(0),
+			balance: r.val_at(1),
+			storage_root: r.val_at(2),
+			code_hash: r.val_at(3),
+		}
+	}
+
+	// walk the account's storage trie, pushing all key, value pairs.
+	fn walk(&self, chunker: &mut StateChunker) -> Result<(), Error> {
+		let db = try!(TrieDB::new(chunker.hash_db, &self.storage_root));
+
+		for (k, v) in db.iter() {
+			chunker.push(k, v.to_owned());
+		}
+
+		Ok(())
 	}
 }
 
