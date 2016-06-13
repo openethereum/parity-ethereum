@@ -132,7 +132,6 @@ pub struct StateChunker<'a> {
 	hashes: Vec<H256>,
 	rlps: Vec<Bytes>,
 	cur_size: usize,
-	hash_db: &'a HashDB,
 	snapshot_path: &'a Path,
 }
 
@@ -192,14 +191,16 @@ impl<'a> StateChunker<'a> {
 			hashes: Vec::new(),
 			rlps: Vec::new(),
 			cur_size: 0,
-			hash_db: db,
 			snapshot_path: path,
 		};
 
-		for (_account_key, account_data) in account_view.iter() {
-			let account = AccountReader::from_full_rlp(account_data);
+		// account_key here is the address' hash.
+		for (account_key, account_data) in account_view.iter() {
+			let account = AccountReader::from_thin_rlp(account_data);
 
-			try!(account.walk(&mut chunker));
+			let fat_rlp = try!(account.to_fat_rlp(db));
+
+			chunker.push(account_key, fat_rlp);
 		}
 
 		Ok(chunker.hashes)
@@ -217,7 +218,7 @@ struct AccountReader {
 
 impl AccountReader {
 	// deserialize the account from rlp.
-	fn from_full_rlp(rlp: &[u8]) -> Self {
+	fn from_thin_rlp(rlp: &[u8]) -> Self {
 		let r: Rlp = Rlp::new(rlp);
 
 		AccountReader {
@@ -228,15 +229,33 @@ impl AccountReader {
 		}
 	}
 
-	// walk the account's storage trie, pushing all key, value pairs.
-	fn walk(&self, chunker: &mut StateChunker) -> Result<(), Error> {
-		let db = try!(TrieDB::new(chunker.hash_db, &self.storage_root));
+	// walk the account's storage trie, returning an RLP item containing the
+	// account properties and the storage.
+	fn to_fat_rlp(&self, hash_db: &HashDB) -> Result<Bytes, Error> {
+		let db = try!(TrieDB::new(hash_db, &self.storage_root));
+
+		let mut pairs = Vec::new();
 
 		for (k, v) in db.iter() {
-			chunker.push(k, v.to_owned());
+			pairs.push((k, v));
 		}
 
-		Ok(())
+		let mut stream = RlpStream::new_list(pairs.len());
+
+		for (k, v) in pairs {
+			stream.begin_list(2).append(&k).append(&v);
+		}
+
+		let pairs_rlp = stream.out();
+
+		let mut account_stream = RlpStream::new_list(5);
+		account_stream.append(&self.nonce)
+					  .append(&self.balance)
+					  .append(&self.storage_root)
+					  .append(&self.code_hash)
+					  .append(&pairs_rlp);
+
+		Ok(account_stream.out())
 	}
 }
 
