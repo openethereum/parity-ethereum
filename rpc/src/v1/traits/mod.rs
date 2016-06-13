@@ -21,6 +21,7 @@ pub mod eth;
 pub mod net;
 pub mod personal;
 pub mod ethcore;
+pub mod ethcore_set;
 pub mod traces;
 pub mod rpc;
 
@@ -29,6 +30,7 @@ pub use self::eth::{Eth, EthFilter, EthSigning};
 pub use self::net::Net;
 pub use self::personal::{Personal, PersonalSigner};
 pub use self::ethcore::Ethcore;
+pub use self::ethcore_set::EthcoreSet;
 pub use self::traces::Traces;
 pub use self::rpc::Rpc;
 

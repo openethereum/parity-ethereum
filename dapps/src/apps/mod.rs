@@ -47,8 +47,8 @@ pub fn all_endpoints(dapps_path: String) -> Endpoints {
 		PageEndpoint::new_safe_to_embed(parity_dapps_builtins::App::default())
 	));
 	pages.insert("proxy".into(), ProxyPac::boxed());
-	insert::<parity_dapps_status::App>(&mut pages, "status");
 	insert::<parity_dapps_status::App>(&mut pages, "parity");
+	insert::<parity_dapps_status::App>(&mut pages, "status");
 
 	// Optional dapps
 	wallet_page(&mut pages);

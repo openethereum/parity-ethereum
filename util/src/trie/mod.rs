@@ -16,6 +16,8 @@
 
 //! Trie interface and implementation.
 
+use std::fmt;
+
 /// Export the trietraits module.
 pub mod trietraits;
 /// Export the standardmap module.
@@ -33,9 +35,22 @@ pub mod sectriedb;
 /// Export the sectriedbmut module.
 pub mod sectriedbmut;
 
-pub use self::trietraits::*;
-pub use self::standardmap::*;
-pub use self::triedbmut::*;
-pub use self::triedb::*;
-pub use self::sectriedbmut::*;
-pub use self::sectriedb::*;
+pub use self::trietraits::{Trie, TrieMut};
+pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
+pub use self::triedbmut::TrieDBMut;
+pub use self::triedb::TrieDB;
+pub use self::sectriedbmut::SecTrieDBMut;
+pub use self::sectriedb::SecTrieDB;
+
+/// Trie Errors
+#[derive(Debug)]
+pub enum TrieError {
+	/// Attempted to create a trie with a state root not in the DB.
+	InvalidStateRoot,
+}
+
+impl fmt::Display for TrieError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "Trie Error: Invalid state root.")
+	}
+}

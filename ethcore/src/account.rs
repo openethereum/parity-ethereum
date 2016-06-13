@@ -116,7 +116,12 @@ impl Account {
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			(Filth::Clean, H256::from(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).map_or(U256::zero(), |v| -> U256 {decode(v)})))
+			let db = SecTrieDB::new(db, &self.storage_root)
+				.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
+				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
+				using it will not fail.");
+
+			(Filth::Clean, H256::from(db.get(key.bytes()).map_or(U256::zero(), |v| -> U256 {decode(v)})))
 		}).1.clone()
 	}
 
@@ -204,7 +209,10 @@ impl Account {
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut AccountDBMut) {
-		let mut t = SecTrieDBMut::from_existing(db, &mut self.storage_root);
+		let mut t = SecTrieDBMut::from_existing(db, &mut self.storage_root)
+			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
+				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
+				using it will not fail.");
 		for (k, &mut (ref mut f, ref mut v)) in self.storage_overlay.borrow_mut().iter_mut() {
 			if f == &Filth::Dirty {
 				// cast key and value to trait type,

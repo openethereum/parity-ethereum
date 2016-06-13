@@ -19,6 +19,7 @@
 use ws;
 use std;
 use std::thread;
+use std::path::PathBuf;
 use std::default::Default;
 use std::ops::Drop;
 use std::sync::Arc;
@@ -51,6 +52,7 @@ impl From<ws::Error> for ServerError {
 pub struct ServerBuilder {
 	queue: Arc<ConfirmationsQueue>,
 	handler: Arc<IoHandler>,
+	authcodes_path: PathBuf,
 }
 
 impl Extendable for ServerBuilder {
@@ -61,17 +63,18 @@ impl Extendable for ServerBuilder {
 
 impl ServerBuilder {
 	/// Creates new `ServerBuilder`
-	pub fn new(queue: Arc<ConfirmationsQueue>) -> Self {
+	pub fn new(queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf) -> Self {
 		ServerBuilder {
 			queue: queue,
 			handler: Arc::new(IoHandler::new()),
+			authcodes_path: authcodes_path,
 		}
 	}
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
 	pub fn start(self, addr: SocketAddr) -> Result<Server, ServerError> {
-		Server::start(addr, self.handler, self.queue)
+		Server::start(addr, self.handler, self.queue, self.authcodes_path)
 	}
 }
 
@@ -86,7 +89,7 @@ pub struct Server {
 impl Server {
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>) -> Result<Server, ServerError> {
+	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
 			config.max_connections = 10;
@@ -95,7 +98,8 @@ impl Server {
 		};
 
 		// Create WebSocket
-		let ws = try!(ws::Builder::new().with_settings(config).build(session::Factory::new(handler)));
+		let origin = format!("{}", addr);
+		let ws = try!(ws::Builder::new().with_settings(config).build(session::Factory::new(handler, origin, authcodes_path)));
 
 		let panic_handler = PanicHandler::new_in_arc();
 		let ph = panic_handler.clone();

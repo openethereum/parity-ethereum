@@ -18,9 +18,10 @@ use common::*;
 use hashdb::*;
 use nibbleslice::*;
 use rlp::*;
-use super::node::*;
-use super::journal::*;
-use super::trietraits::*;
+use super::node::Node;
+use super::journal::Journal;
+use super::trietraits::{Trie, TrieMut};
+use super::TrieError;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -84,17 +85,16 @@ impl<'db> TrieDBMut<'db> {
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
-	/// Panics, if `root` does not exist.
-	// TODO: return Result<Self, TrieError>
-	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
+	/// Returns an error if `root` does not exist.
+	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
 		if !db.exists(root) {
-			flushln!("Trie root not found {}", root);
-			panic!("Trie root not found!");
-		}
-		TrieDBMut {
-			db: db,
-			root: root,
-			hash_count: 0
+			Err(TrieError::InvalidStateRoot)
+		} else {
+			Ok(TrieDBMut {
+				db: db,
+				root: root,
+				hash_count: 0
+			})
 		}
 	}
 

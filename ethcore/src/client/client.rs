@@ -386,18 +386,14 @@ impl<V> Client<V> where V: Verifier {
 
 			let root = HeaderView::new(&header).state_root();
 
-			// TODO [rob]: refactor State::from_existing so we avoid doing redundant lookups.
-			if !db.contains(&root) {
-				return None;
-			}
-
-			Some(State::from_existing(db, root, self.engine.account_start_nonce()))
+			State::from_existing(db, root, self.engine.account_start_nonce()).ok()
 		})
 	}
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
 		State::from_existing(self.state_db.lock().unwrap().boxed_clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+			.expect("State root of best block header always valid.")
 	}
 
 	/// Get info on the cache.
@@ -479,7 +475,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			// give the sender a sufficient balance
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
-		let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
 
 		// TODO gav move this into Executive.
@@ -774,7 +770,8 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			author,
 			gas_floor_target,
 			extra_data,
-		);
+		).expect("OpenBlock::new only fails if parent state root invalid. State root of best block's header is never invalid. \
+		         Therefore creating an OpenBlock with the best block's header will not fail.");
 
 		// Add uncles
 		self.chain

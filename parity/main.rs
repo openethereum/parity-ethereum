@@ -93,7 +93,7 @@ use informant::Informant;
 use die::*;
 use cli::print_version;
 use rpc::RpcServer;
-use signer::SignerServer;
+use signer::{SignerServer, new_token};
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::Configuration;
@@ -134,6 +134,11 @@ fn execute(conf: Configuration) {
 
 	if conf.args.cmd_import {
 		execute_import(conf);
+		return;
+	}
+
+	if conf.args.cmd_signer {
+		execute_signer(conf);
 		return;
 	}
 
@@ -196,7 +201,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let sync = EthSync::register(service.network(), sync_config, client.clone());
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
-		signer_enabled: conf.args.flag_signer,
+		signer_port: conf.signer_port(),
 		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
 		client: client.clone(),
 		sync: sync.clone(),
@@ -239,8 +244,9 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Set up a signer
 	let signer_server = signer::start(signer::Configuration {
-		enabled: deps_for_rpc_apis.signer_enabled,
+		enabled: deps_for_rpc_apis.signer_port.is_some(),
 		port: conf.args.flag_signer_port,
+		signer_path: conf.directories().signer,
 	}, signer::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
@@ -439,6 +445,17 @@ fn execute_import(conf: Configuration) {
 	client.flush_queue();
 }
 
+fn execute_signer(conf: Configuration) {
+	if !conf.args.cmd_new_token {
+		die!("Unknown command.");
+	}
+
+	let path = conf.directories().signer;
+	new_token(path).unwrap_or_else(|e| {
+		die!("Error generating token: {:?}", e)
+	});
+}
+
 fn execute_account_cli(conf: Configuration) {
 	use util::keys::store::SecretStore;
 	use rpassword::read_password;
@@ -465,6 +482,11 @@ fn execute_account_cli(conf: Configuration) {
 		for &(addr, _) in &secret_store.accounts().unwrap() {
 			println!("{:?}", addr);
 		}
+		return;
+	}
+	if conf.args.cmd_import {
+		let imported = util::keys::import_keys_paths(&mut secret_store, &conf.args.arg_path).unwrap();
+		println!("Imported {} keys", imported);
 	}
 }
 

@@ -19,20 +19,20 @@ extern crate ethcore_ipc_codegen as codegen;
 
 use std::env;
 use std::path::Path;
+use std::process::exit;
 
 pub fn main() {
 	let out_dir = env::var_os("OUT_DIR").unwrap();
 
-	// ipc pass
-	{
+	// rpc pass
+	if {
 		let src = Path::new("nested.rs.in");
 		let dst = Path::new(&out_dir).join("nested_ipc.rs");
 		let mut registry = syntex::Registry::new();
 		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
+		registry.expand("", &src, &dst).is_ok()
 	}
-
-	// serde pass
+	// serialization pass
 	{
 		let src = Path::new(&out_dir).join("nested_ipc.rs");
 		let dst = Path::new(&out_dir).join("nested_cg.rs");
@@ -41,16 +41,15 @@ pub fn main() {
 		registry.expand("", &src, &dst).unwrap();
 	}
 
-	// ipc pass
-	{
+	// rpc pass
+	if {
 		let src = Path::new("service.rs.in");
 		let dst = Path::new(&out_dir).join("service_ipc.rs");
 		let mut registry = syntex::Registry::new();
 		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
+		registry.expand("", &src, &dst).is_ok()
 	}
-
-	// serde pass
+	// serialization pass
 	{
 		let src = Path::new(&out_dir).join("service_ipc.rs");
 		let dst = Path::new(&out_dir).join("service_cg.rs");
@@ -59,13 +58,15 @@ pub fn main() {
 		registry.expand("", &src, &dst).unwrap();
 	}
 
-
-	// ipc pass
+	// rpc pass
 	{
 		let src = Path::new("binary.rs.in");
 		let dst = Path::new(&out_dir).join("binary.rs");
 		let mut registry = syntex::Registry::new();
 		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
+		if let Err(err_msg) = registry.expand("", &src, &dst) {
+			println!("error: {}", err_msg);
+			exit(1);
+		}
 	}
 }

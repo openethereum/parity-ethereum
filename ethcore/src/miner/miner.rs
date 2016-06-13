@@ -20,7 +20,7 @@ use std::sync::atomic::AtomicBool;
 use util::*;
 use util::keys::store::{AccountProvider};
 use views::{BlockView, HeaderView};
-use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockChainClient, BlockID, CallAnalytics};
+use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use block::{ClosedBlock, IsBlock};
 use error::*;
 use transaction::SignedTransaction;
@@ -279,7 +279,7 @@ impl MinerService for Miner {
 					// give the sender a sufficient balance
 					state.add_balance(&sender, &(needed_balance - balance));
 				}
-				let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
+				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 				let mut ret = Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options);
 
 				// TODO gav move this into Executive.
