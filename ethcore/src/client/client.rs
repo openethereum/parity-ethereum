@@ -785,10 +785,6 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 
 		open_block
 	}
-
-	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
-		block.try_seal(self.engine.deref().deref(), seal)
-	}
 }
 
 impl MayPanic for Client {
