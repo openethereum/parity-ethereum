@@ -770,7 +770,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 		// lock the state db while we create the state chunks.
 		let state_hashes = {
-			let state_db = self.state_db.lock().unwrap();
+			let state_db = self.state_db.lock().unwrap().boxed_clone();
 			chunk_state(state_db.as_hashdb(), &state_root, &path).unwrap()
 		};
 
