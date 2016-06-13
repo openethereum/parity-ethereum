@@ -490,12 +490,14 @@ pub fn test_encryption() {
 mod tests {
 	use super::*;
 	use std::sync::*;
+	use std::sync::atomic::AtomicBool;
 	use super::super::stats::*;
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
 	use mio::{EventSet};
 	use std::collections::VecDeque;
 	use bytes::*;
 	use devtools::*;
+	use io::*;
 
 	impl GenericSocket for TestSocket {}
 
@@ -539,6 +541,7 @@ mod tests {
 				rec_size: 0,
 				interest: EventSet::hup() | EventSet::readable(),
 				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
+				registered: AtomicBool::new(false),
 			}
 		}
 	}
@@ -561,8 +564,13 @@ mod tests {
 				rec_size: 0,
 				interest: EventSet::hup() | EventSet::readable(),
 				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
+				registered: AtomicBool::new(false),
 			}
 		}
+	}
+
+	fn test_io() -> IoContext<i32> {
+		IoContext::new(IoChannel::disconnected(), 0)
 	}
 
 	#[test]
@@ -575,7 +583,7 @@ mod tests {
 	#[test]
 	fn connection_write_empty() {
 		let mut connection = TestConnection::new();
-		let status = connection.writable();
+		let status = connection.writable(&test_io());
 		assert!(status.is_ok());
 		assert!(WriteStatus::Complete == status.unwrap());
 	}
@@ -586,7 +594,7 @@ mod tests {
 		let data = Cursor::new(vec![0; 10240]);
 		connection.send_queue.push_back(data);
 
-		let status = connection.writable();
+		let status = connection.writable(&test_io());
 		assert!(status.is_ok());
 		assert!(WriteStatus::Complete == status.unwrap());
 		assert_eq!(10240, connection.socket.write_buffer.len());
@@ -599,7 +607,7 @@ mod tests {
 		let data = Cursor::new(vec![0; 10240]);
 		connection.send_queue.push_back(data);
 
-		let status = connection.writable();
+		let status = connection.writable(&test_io());
 
 		assert!(status.is_ok());
 		assert!(WriteStatus::Ongoing == status.unwrap());
@@ -612,7 +620,7 @@ mod tests {
 		let data = Cursor::new(vec![0; 10240]);
 		connection.send_queue.push_back(data);
 
-		let status = connection.writable();
+		let status = connection.writable(&test_io());
 
 		assert!(!status.is_ok());
 		assert_eq!(1, connection.send_queue.len());

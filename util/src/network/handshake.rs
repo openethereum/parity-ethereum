@@ -340,6 +340,7 @@ mod test {
 	use super::*;
 	use crypto::*;
 	use hash::*;
+	use io::*;
 	use std::net::SocketAddr;
 	use mio::tcp::TcpStream;
 	use network::stats::NetworkStats;
@@ -364,6 +365,10 @@ mod test {
 		Handshake::new(0, to, socket, &nonce, Arc::new(NetworkStats::new())).unwrap()
 	}
 
+	fn test_io() -> IoContext<i32> {
+		IoContext::new(IoChannel::disconnected(), 0)
+	}
+
 	#[test]
 	fn test_handshake_auth_plain() {
 		let mut h = create_handshake(None);
@@ -380,7 +385,7 @@ mod test {
 			a4592ee77e2bd94d0be3691f3b406f9bba9b591fc63facc016bfa8\
 			".from_hex().unwrap();
 
-		h.read_auth(&secret, &auth).unwrap();
+		h.read_auth(&test_io(), &secret, &auth).unwrap();
 		assert_eq!(h.state, super::HandshakeState::StartSession);
 		check_auth(&h, 4);
 	}
@@ -404,9 +409,9 @@ mod test {
 			3bf7678318e2d5b5340c9e488eefea198576344afbdf66db5f51204a6961a63ce072c8926c\
 			".from_hex().unwrap();
 
-		h.read_auth(&secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
+		h.read_auth(&test_io(), &secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::ReadingAuthEip8);
-		h.read_auth_eip8(&secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
+		h.read_auth_eip8(&test_io(), &secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::StartSession);
 		check_auth(&h, 4);
 	}
@@ -431,9 +436,9 @@ mod test {
 			d490\
 			".from_hex().unwrap();
 
-		h.read_auth(&secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
+		h.read_auth(&test_io(), &secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::ReadingAuthEip8);
-		h.read_auth_eip8(&secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
+		h.read_auth_eip8(&test_io(), &secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::StartSession);
 		check_auth(&h, 56);
 		let ack = h.ack_cipher.clone();
