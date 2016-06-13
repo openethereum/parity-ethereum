@@ -436,7 +436,7 @@ impl EncryptedConnection {
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, UtilError> where Message: Send + Clone{
-		io.clear_timer(self.connection.token).unwrap();
+		try!(io.clear_timer(self.connection.token));
 		if let EncryptedConnectionState::Header = self.read_state {
 			if let Some(data) = try!(self.connection.readable()) {
 				try!(self.read_header(&data));

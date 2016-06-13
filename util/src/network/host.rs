@@ -683,6 +683,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 							Some(_) => packet_data.push((protocol, packet_id, data)),
 						}
 					},
+					Ok(SessionData::Continue) => (),
 					Ok(SessionData::None) => break,
 				}
             }
