@@ -155,6 +155,7 @@ pub mod keys;
 pub mod table;
 pub mod network_settings;
 pub mod path;
+pub mod snappy;
 
 pub use common::*;
 pub use misc::*;
