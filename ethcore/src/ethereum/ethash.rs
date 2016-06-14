@@ -255,12 +255,14 @@ impl Ethash {
 
 	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
 	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
-		U256::from((U512::one() << 256) / U256::from(boundary.as_slice()).into())
+		let d =	cmp::max(U256::from(boundary), U256::one());
+		((U256::one() << 255) / d) << 1
 	}
 
 	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
 	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-		U256::from((U512::one() << 256) / difficulty.into()).into()
+		let d =	cmp::max(*difficulty, U256::one());
+		(((U256::one() << 255) / d) << 1).into()
 	}
 
 	fn to_ethash(hash: H256) -> EH256 {
@@ -291,12 +293,11 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-	extern crate ethash;
-
 	use common::*;
 	use block::*;
 	use tests::helpers::*;
 	use super::super::new_morden;
+	use super::Ethash;
 
 	#[test]
 	fn on_close_block() {
@@ -507,6 +508,12 @@ mod tests {
 			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
+	}
+
+	#[test]
+	fn test_difficulty_to_boundary() {
+		let _ = Ethash::difficulty_to_boundary(&U256::from(0));
+		let _ = Ethash::difficulty_to_boundary(&U256::from(1));
 	}
 
 	// TODO: difficulty test
