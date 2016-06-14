@@ -31,7 +31,7 @@ mod shell {
 	pub use self::winapi::SW_SHOWNORMAL as Normal;
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 pub fn open(url: &str) {
 	use std::ffi::CString;
 	use std::ptr;
@@ -46,12 +46,12 @@ pub fn open(url: &str) {
 	}
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(macos)]
 pub fn open(url: &str) {
 	let _ = std::process::Command::new("open").arg(url).output();
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(linux)]
 pub fn open(url: &str) {
 	let _ = std::process::Command::new("xdg-open").arg(url).output();
 }

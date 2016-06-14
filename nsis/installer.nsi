@@ -98,6 +98,7 @@ function un.onInit
 	#Verify the uninstaller - last chance to back out
 	MessageBox MB_OKCANCEL "Permanantly remove ${APPNAME}?" IDOK next
 		Abort
+
 	next:
 	!insertmacro VerifyUserIsAdmin
 functionEnd
@@ -121,4 +122,5 @@ section "uninstall"
 
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
+
 sectionEnd
