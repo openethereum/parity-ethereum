@@ -32,6 +32,7 @@ extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
+#[cfg(not(windows))]
 extern crate daemonize;
 extern crate time;
 extern crate number_prefix;
@@ -86,7 +87,6 @@ use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
-use daemonize::Daemonize;
 use migration::migrate;
 use informant::Informant;
 
@@ -115,11 +115,7 @@ fn execute(conf: Configuration) {
 	execute_upgrades(&conf, &spec, &client_config);
 
 	if conf.args.cmd_daemon {
-		Daemonize::new()
-			.pid_file(conf.args.arg_pid_file.clone())
-			.chown_pid_file(true)
-			.start()
-			.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
+		daemonize(&conf);
 	}
 
 	if conf.args.cmd_account {
@@ -143,6 +139,20 @@ fn execute(conf: Configuration) {
 	}
 
 	execute_client(conf, spec, client_config);
+}
+
+#[cfg(not(windows))]
+fn daemonize(conf: &Configuration) {
+	use daemonize::Daemonize;
+	Daemonize::new()
+			.pid_file(conf.args.arg_pid_file.clone())
+			.chown_pid_file(true)
+			.start()
+			.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
+}
+
+#[cfg(windows)]
+fn daemonize(_conf: &Configuration) {
 }
 
 fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) {
@@ -228,6 +238,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// setup ipc rpc
 	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
+	debug!("IPC: {}", conf.ipc_settings());
 
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {
@@ -255,7 +266,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Register IO handler
 	let io_handler  = Arc::new(ClientIoHandler {
 		client: service.client(),
-		info: Informant::new(!conf.args.flag_no_color),
+		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
 	});
@@ -375,8 +386,8 @@ fn execute_import(conf: Configuration) {
 	panic_handler.forward_from(&service);
 	let client = service.client();
 
-	let mut instream: Box<Read> = if let Some(f) = conf.args.arg_file {
-		let f = File::open(&f).unwrap_or_else(|_| die!("Cannot open the file given: {}", f));
+	let mut instream: Box<Read> = if let Some(ref f) = conf.args.arg_file {
+		let f = File::open(f).unwrap_or_else(|_| die!("Cannot open the file given: {}", f));
 		Box::new(f)
 	} else {
 		Box::new(::std::io::stdin())
@@ -386,7 +397,7 @@ fn execute_import(conf: Configuration) {
 	let mut first_read = 0;
 
 	let format = match conf.args.flag_format {
-		Some(x) => match x.deref() {
+		Some(ref x) => match x.deref() {
 			"binary" | "bin" => DataFormat::Binary,
 			"hex" => DataFormat::Hex,
 			x => die!("Invalid --format parameter given: {:?}", x),
@@ -407,7 +418,7 @@ fn execute_import(conf: Configuration) {
 		}
 	};
 
-	let informant = Informant::new(!conf.args.flag_no_color);
+	let informant = Informant::new(conf.have_color());
 
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }

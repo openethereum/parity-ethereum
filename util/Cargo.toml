@@ -12,7 +12,7 @@ log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
 arrayvec = "0.3"
-mio = "0.5.1"
+mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
 nix ="0.5.0"
 rand = "0.3.12"
 time = "0.1.34"

@@ -40,18 +40,21 @@ below to build from source.
 
 Parity is fully compatible with Stable Rust.
 
-We recommend installing Rust through [multirust](https://github.com/brson/multirust). If you don't already have multirust, you can install it like this:
+We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
-- Linux:
+- Linux and OSX:
 ```bash
-$ curl -sf https://raw.githubusercontent.com/brson/multirust/master/quick-install.sh | sh
+$ curl https://sh.rustup.rs -sSf | sh
 ```
 
-- OSX with Homebrew:
-```bash
-$ brew update && brew install multirust
-$ multirust default stable
+- Windows
+
+Make sure you have Visual Studio 2015 with C++ support installed, download and run [rustup](https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe) and use the following command to setup msvc toolchain:
+
 ```
+rustup default stable-x86_64-pc-windows-msvc
+```
+
 
 Then, download and build Parity:
 

@@ -335,7 +335,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, UtilError> {
 		let panic_handler = PanicHandler::new_in_arc();
-		let mut event_loop = EventLoop::new().unwrap();
+    	let mut event_loop = EventLoop::new().unwrap();
         let channel = event_loop.channel();
 		let panic = panic_handler.clone();
 		let thread = thread::spawn(move || {
