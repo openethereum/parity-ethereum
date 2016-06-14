@@ -732,7 +732,7 @@ fn returns_no_work_if_cant_mine() {
 	eth_tester.client.set_queue_size(10);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["","",""],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32001,"message":"Mining not ready.","data":null},"id":1}"#;
 
 	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
 }
