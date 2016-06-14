@@ -287,9 +287,14 @@ impl Configuration {
 	}
 
 	fn geth_ipc_path(&self) -> String {
-		if self.args.flag_testnet { path::ethereum::with_testnet("geth.ipc") }
-		else { path::ethereum::with_default("geth.ipc") }
-			.to_str().unwrap().to_owned()
+		if cfg!(windows) {
+			r"\\.\pipe\geth.ipc".to_owned()
+		}
+		else {
+			if self.args.flag_testnet { path::ethereum::with_testnet("geth.ipc") }
+			else { path::ethereum::with_default("geth.ipc") }
+				.to_str().unwrap().to_owned()
+		}
 	}
 
 	pub fn keys_iterations(&self) -> u32 {
@@ -358,7 +363,26 @@ impl Configuration {
 
 	fn ipc_path(&self) -> String {
 		if self.args.flag_geth { self.geth_ipc_path() }
-		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
+		else {
+			if cfg!(windows) {
+				r"\\.\pipe\parity.jsonrpc".to_owned()
+			}
+			else {
+				Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			}
+		}
+	}
+
+	pub fn have_color(&self) -> bool {
+		!self.args.flag_no_color && !cfg!(windows)
+	}
+
+	pub fn signer_port(&self) -> Option<u16> {
+		if self.args.flag_signer {
+			Some(self.args.flag_signer_port)
+		} else {
+			None
+		}
 	}
 }
 

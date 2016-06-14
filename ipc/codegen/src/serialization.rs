@@ -89,7 +89,7 @@ fn serialize_item(
 	let (size_expr, read_expr, write_expr) =
 		(binary_expressions.size, binary_expressions.read, binary_expressions.write);
 
-	Ok(quote_item!(cx,
+	match quote_item!(cx,
 		impl $generics ::ipc::BinaryConvertable for $ty $where_clause {
 			fn size(&self) -> usize {
 				$size_expr
@@ -106,8 +106,16 @@ fn serialize_item(
 			fn len_params() -> usize {
 				1
 			}
-        }
-    ).unwrap())
+        })
+	{
+		Some(item) => Ok(item),
+		None => {
+			cx.span_err(
+				item.span,
+				"syntax error expanding serialization implementation");
+			Err(Error)
+		}
+	}
 }
 
 #[allow(unreachable_code)]

@@ -31,7 +31,7 @@ use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 
 use block_queue::BlockQueueInfo;
-use block::{SealedBlock, ClosedBlock, LockedBlock};
+use block::OpenBlock;
 use executive::Executed;
 use error::{ExecutionError};
 use trace::LocalizedTrace;
@@ -240,13 +240,8 @@ impl TestBlockChainClient {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
-	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
-		Err(block)
-	}
-
-
-	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> (Option<ClosedBlock>, HashSet<H256>) {
-		(None, HashSet::new())
+	fn prepare_open_block(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes) -> OpenBlock {
+		unimplemented!();
 	}
 }
 
