@@ -109,6 +109,11 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
+	if conf.args.cmd_signer {
+		execute_signer(conf);
+		return;
+	}
+
 	let spec = conf.spec();
 	let client_config = conf.client_config(&spec);
 
@@ -130,11 +135,6 @@ fn execute(conf: Configuration) {
 
 	if conf.args.cmd_import {
 		execute_import(conf);
-		return;
-	}
-
-	if conf.args.cmd_signer {
-		execute_signer(conf);
 		return;
 	}
 
