@@ -384,6 +384,7 @@ impl ChainSync {
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		self.clear_peer_download(peer_id);
+		let expected_hash = self.peers.get(&peer_id).and_then(|p| p.asking_hash);
 		let expected_asking = if self.state == SyncState::ChainHead { PeerAsking::Heads } else { PeerAsking::BlockHeaders };
 		if !self.reset_peer_asking(peer_id, expected_asking) {
 			trace!(target: "sync", "Ignored unexpected headers");
@@ -409,9 +410,15 @@ impl ChainSync {
 
 		let mut headers = Vec::new();
 		let mut hashes = Vec::new();
+		let mut valid_response = false;
 		for i in 0..item_count {
 			let info: BlockHeader = try!(r.val_at(i));
 			let number = BlockNumber::from(info.number);
+			if !valid_response {
+				if let Some(expected) = expected_hash {
+					valid_response = expected == info.hash()
+				}
+			}
 			if self.blocks.contains(&info.hash()) {
 				trace!(target: "sync", "Skipping existing block header {} ({:?})", number, info.hash());
 				continue;
@@ -442,6 +449,10 @@ impl ChainSync {
 			}
 		}
 
+		if !valid_response {
+			trace!(target: "sync", "{} Disabled for invalid headers response", peer_id);
+			self.deactivate_peer(io, peer_id); // disable the peer for this syncing round if it gives invalid chain
+		}
 		match self.state {
 			SyncState::ChainHead => {
 				if headers.is_empty() {
@@ -457,9 +468,6 @@ impl ChainSync {
 				}
 			},
 			SyncState::Blocks | SyncState::NewBlocks | SyncState::Waiting => {
-				if headers.len() == 0 {
-					self.deactivate_peer(io, peer_id); // disable the peer for this syncing round if it gives invalid chain
-				}
 				trace!(target: "sync", "Inserted {} headers", headers.len());
 				self.blocks.insert_headers(headers);
 			},
@@ -835,6 +843,9 @@ impl ChainSync {
 		rlp.append(&skip);
 		rlp.append(&if reverse {1u32} else {0u32});
 		self.send_request(sync, peer_id, asking, GET_BLOCK_HEADERS_PACKET, rlp.out());
+		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+			peer.asking_hash = Some(h.clone());
+		}
 	}
 
 	/// Request block bodies from a peer
