@@ -42,6 +42,7 @@ pub struct Directories {
 	pub keys: String,
 	pub db: String,
 	pub dapps: String,
+	pub signer: String,
 }
 
 impl Configuration {
@@ -287,8 +288,15 @@ impl Configuration {
 		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
 	}
 
-	fn geth_ipc_path() -> String {
-		path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned()
+	fn geth_ipc_path(&self) -> String {
+		if cfg!(windows) {
+			r"\\.\pipe\geth.ipc".to_owned()
+		}
+		else {
+			if self.args.flag_testnet { path::ethereum::with_testnet("geth.ipc") }
+			else { path::ethereum::with_default("geth.ipc") }
+				.to_str().unwrap().to_owned()
+		}
 	}
 
 	pub fn keys_iterations(&self) -> u32 {
@@ -331,11 +339,15 @@ impl Configuration {
 		::std::fs::create_dir_all(&keys_path).unwrap_or_else(|e| die_with_io_error("main", e));
 		let dapps_path = Configuration::replace_home(&self.args.flag_dapps_path);
 		::std::fs::create_dir_all(&dapps_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
+		::std::fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
+
 
 		Directories {
 			keys: keys_path,
 			db: db_path,
 			dapps: dapps_path,
+			signer: signer_path,
 		}
 	}
 
@@ -352,8 +364,27 @@ impl Configuration {
 	}
 
 	fn ipc_path(&self) -> String {
-		if self.args.flag_geth { Self::geth_ipc_path() }
-		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
+		if self.args.flag_geth { self.geth_ipc_path() }
+		else {
+			if cfg!(windows) {
+				r"\\.\pipe\parity.jsonrpc".to_owned()
+			}
+			else {
+				Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			}
+		}
+	}
+
+	pub fn have_color(&self) -> bool {
+		!self.args.flag_no_color && !cfg!(windows)
+	}
+
+	pub fn signer_port(&self) -> Option<u16> {
+		if self.args.flag_signer {
+			Some(self.args.flag_signer_port)
+		} else {
+			None
+		}
 	}
 }
 

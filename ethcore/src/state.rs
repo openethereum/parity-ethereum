@@ -45,6 +45,9 @@ pub struct State {
 	account_start_nonce: U256,
 }
 
+const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
+			 Therefore creating a SecTrieDB with this state's root will not fail.";
+
 impl State {
 	/// Creates new state with empty state root
 	#[cfg(test)]
@@ -65,18 +68,17 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256) -> State {
-		{
-			// trie should panic! if root does not exist
-			let _ = SecTrieDB::new(db.as_hashdb(), &root);
-		}
-
-		State {
-			db: db,
-			root: root,
-			cache: RefCell::new(HashMap::new()),
-			snapshots: RefCell::new(Vec::new()),
-			account_start_nonce: account_start_nonce,
+	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256) -> Result<State, TrieError> {
+		if !db.as_hashdb().contains(&root) {
+			Err(TrieError::InvalidStateRoot)
+		} else {
+			Ok(State {
+				db: db,
+				root: root,
+				cache: RefCell::new(HashMap::new()),
+				snapshots: RefCell::new(Vec::new()),
+				account_start_nonce: account_start_nonce,
+			})
 		}
 	}
 
@@ -155,7 +157,8 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || SecTrieDB::new(self.db.as_hashdb(), &self.root).contains(&a)
+		let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || db.contains(&a)
 	}
 
 	/// Get the balance of account `a`.
@@ -246,7 +249,7 @@ impl State {
 		}
 
 		{
-			let mut trie = SecTrieDBMut::from_existing(db, root);
+			let mut trie = SecTrieDBMut::from_existing(db, root).unwrap();
 			for (address, ref a) in accounts.iter() {
 				match **a {
 					Some(ref account) => trie.insert(address, &account.rlp()),
@@ -288,7 +291,7 @@ impl State {
 	fn query_pod(&mut self, query: &PodState) {
 		for (ref address, ref pod_account) in query.get() {
 			if self.get(address, true).is_some() {
-				for (ref key, _) in &pod_account.storage {
+				for key in pod_account.storage.keys() {
 					self.storage_at(address, key);
 				}
 			}
@@ -309,7 +312,8 @@ impl State {
 	fn get<'a>(&'a self, a: &Address, require_code: bool) -> &'a Option<Account> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(self.db.as_hashdb(), &self.root).get(&a).map(Account::from_rlp))
+			let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
@@ -329,7 +333,8 @@ impl State {
 	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> &'a mut Account {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(self.db.as_hashdb(), &self.root).get(&a).map(Account::from_rlp))
+			let db = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
 		} else {
 			self.note_cache(a);
 		}
@@ -1128,7 +1133,6 @@ mod tests {
 				}]
 			}]
 		});
-
 		assert_eq!(result.trace, expected_trace);
 	}
 
@@ -1147,7 +1151,7 @@ mod tests {
 			(root, drop, stop)
 		};
 
-		let state = State::from_existing(db, root, U256::from(0u8));
+		let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
 	}
 
@@ -1163,7 +1167,7 @@ mod tests {
 			(root, drop, stop)
 		};
 
-		let s = State::from_existing(db, root, U256::from(0u8));
+		let s = State::from_existing(db, root, U256::from(0u8)).unwrap();
 		assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
 	}
 
@@ -1181,7 +1185,7 @@ mod tests {
 			(root, drop, stop)
 		};
 
-		let state = State::from_existing(db, root, U256::from(0u8));
+		let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 		assert_eq!(state.balance(&a), U256::from(69u64));
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 	}
@@ -1193,6 +1197,7 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		assert_eq!(state.exists(&a), false);
 		state.inc_nonce(&a);
+
 		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 		state.kill_account(&a);
@@ -1215,7 +1220,7 @@ mod tests {
 		};
 
 		let (root, db) = {
-			let mut state = State::from_existing(db, root, U256::from(0u8));
+			let mut state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 			assert_eq!(state.exists(&a), true);
 			assert_eq!(state.nonce(&a), U256::from(1u64));
 			state.kill_account(&a);
@@ -1226,7 +1231,7 @@ mod tests {
 			(root, drop)
 		};
 
-		let state = State::from_existing(db, root, U256::from(0u8));
+		let state = State::from_existing(db, root, U256::from(0u8)).unwrap();
 		assert_eq!(state.exists(&a), false);
 		assert_eq!(state.nonce(&a), U256::from(0u64));
 	}

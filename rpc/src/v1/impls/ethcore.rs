@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use util::{U256, Address, RotatingLogger, FixedHash};
+use util::RotatingLogger;
 use util::network_settings::NetworkSettings;
 use util::misc::version_data;
 use std::sync::{Arc, Weak};
@@ -23,7 +23,6 @@ use std::ops::Deref;
 use std::collections::BTreeMap;
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
-use ethcore::client::{BlockChainClient};
 use v1::traits::Ethcore;
 use v1::types::{Bytes};
 
@@ -48,41 +47,6 @@ impl<M> EthcoreClient<M> where M: MinerService {
 }
 
 impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
-
-	fn set_min_gas_price(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(U256,)>(params).and_then(|(gas_price,)| {
-			take_weak!(self.miner).set_minimal_gas_price(gas_price);
-			to_value(&true)
-		})
-	}
-
-	fn set_gas_floor_target(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(U256,)>(params).and_then(|(gas_floor_target,)| {
-			take_weak!(self.miner).set_gas_floor_target(gas_floor_target);
-			to_value(&true)
-		})
-	}
-
-	fn set_extra_data(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Bytes,)>(params).and_then(|(extra_data,)| {
-			take_weak!(self.miner).set_extra_data(extra_data.to_vec());
-			to_value(&true)
-		})
-	}
-
-	fn set_author(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address,)>(params).and_then(|(author,)| {
-			take_weak!(self.miner).set_author(author);
-			to_value(&true)
-		})
-	}
-
-	fn set_transactions_limit(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(usize,)>(params).and_then(|(limit,)| {
-			take_weak!(self.miner).set_transactions_limit(limit);
-			to_value(&true)
-		})
-	}
 
 	fn transactions_limit(&self, _: Params) -> Result<Value, Error> {
 		to_value(&take_weak!(self.miner).transactions_limit())

@@ -23,8 +23,8 @@
 //! This module manages your private keys and accounts/identities
 //! that can be used within Dapps.
 //!
-//! It exposes API (over `WebSockets`) accessed by System UIs.
-//! Each transaction sent by Dapp is broadcasted to System UIs
+//! It exposes API (over `WebSockets`) accessed by Signer UIs.
+//! Each transaction sent by Dapp is broadcasted to Signer UIs
 //! and their responsibility is to confirm (or confirm and sign)
 //! the transaction for you.
 //!
@@ -38,13 +38,14 @@
 //!
 //!	fn main() {
 //!	 let queue = Arc::new(ConfirmationsQueue::default());
-//!	 let _server = ServerBuilder::new(queue).start("127.0.0.1:8084".parse().unwrap());
+//!	 let _server = ServerBuilder::new(queue, "/tmp/authcodes".into()).start("127.0.0.1:8084".parse().unwrap());
 //!	}
 //! ```
 
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+extern crate rand;
 
 extern crate ethcore_util as util;
 extern crate ethcore_rpc as rpc;
@@ -52,7 +53,10 @@ extern crate jsonrpc_core;
 extern crate ws;
 extern crate parity_minimal_sysui as sysui;
 
+mod authcode_store;
 mod ws_server;
+
+pub use authcode_store::*;
 pub use ws_server::*;
 
 #[cfg(test)]

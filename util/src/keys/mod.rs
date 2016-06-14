@@ -23,3 +23,4 @@ mod test_account_provider;
 
 pub use self::store::AccountProvider;
 pub use self::test_account_provider::{TestAccount, TestAccountProvider};
+pub use self::geth_import::import_keys_paths;

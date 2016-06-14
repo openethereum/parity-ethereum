@@ -15,7 +15,7 @@ with-syntex = ["quasi/with-syntex", "quasi_codegen", "quasi_codegen/with-syntex"
 
 [build-dependencies]
 quasi_codegen = { version = "0.11", optional = true }
-syntex = { version = "*", optional = true }
+syntex = { version = "0.33", optional = true }
 
 [dependencies]
 aster = { version = "0.17", default-features = false }

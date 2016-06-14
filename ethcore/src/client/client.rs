@@ -390,18 +390,14 @@ impl<V> Client<V> where V: Verifier {
 
 			let root = HeaderView::new(&header).state_root();
 
-			// TODO [rob]: refactor State::from_existing so we avoid doing redundant lookups.
-			if !db.contains(&root) {
-				return None;
-			}
-
-			Some(State::from_existing(db, root, self.engine.account_start_nonce()))
+			State::from_existing(db, root, self.engine.account_start_nonce()).ok()
 		})
 	}
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
 		State::from_existing(self.state_db.lock().unwrap().boxed_clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+			.expect("State root of best block header always valid.")
 	}
 
 	/// Get info on the cache.
@@ -483,9 +479,9 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			// give the sender a sufficient balance
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
-		let options = TransactOptions { tracing: false, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
-		
+
 		// TODO gav move this into Executive.
 		if analytics.state_diffing {
 			if let Ok(ref mut x) = ret {
@@ -764,23 +760,22 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 }
 
 impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> (Option<ClosedBlock>, HashSet<H256>) {
+	fn prepare_open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
-		let mut invalid_transactions = HashSet::new();
 
-		let mut b = OpenBlock::new(
+		let mut open_block = OpenBlock::new(
 			engine,
 			&self.vm_factory,
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().boxed_clone(),
-			match self.chain.block_header(&h) { Some(ref x) => x, None => { return (None, invalid_transactions) } },
+			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
 			self.build_last_hashes(h.clone()),
 			author,
 			gas_floor_target,
 			extra_data,
-		);
+		).expect("OpenBlock::new only fails if parent state root invalid. State root of best block's header is never invalid. \
+		         Therefore creating an OpenBlock with the best block's header will not fail.");
 
 		// Add uncles
 		self.chain
@@ -789,48 +784,10 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			.into_iter()
 			.take(engine.maximum_uncle_count())
 			.foreach(|h| {
-				b.push_uncle(h).unwrap();
+				open_block.push_uncle(h).unwrap();
 			});
 
-		// Add transactions
-		let block_number = b.block().header().number();
-		let min_tx_gas = U256::from(self.engine.schedule(&b.env_info()).tx_gas);
-
-		for tx in transactions {
-			// Push transaction to block
-			let hash = tx.hash();
-			let import = b.push_transaction(tx, None);
-
-			match import {
-				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
-					// Exit early if gas left is smaller then min_tx_gas
-					if gas_limit - gas_used < min_tx_gas {
-						break;
-					}
-				},
-				Err(e) => {
-					invalid_transactions.insert(hash);
-					trace!(target: "miner",
-						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
-						   block_number, hash, e);
-				},
-				_ => {}
-			}
-		}
-
-		// And close
-		let b = b.close();
-		trace!(target: "miner", "Sealing: number={}, hash={}, diff={}",
-			   b.block().header().number(),
-			   b.hash(),
-			   b.block().header().difficulty()
-		);
-		(Some(b), invalid_transactions)
-	}
-
-	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
-		block.try_seal(self.engine.deref().deref(), seal)
+		open_block
 	}
 }
 

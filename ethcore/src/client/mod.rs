@@ -31,13 +31,12 @@ pub use self::trace::Filter as TraceFilter;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
 
-use std::collections::HashSet;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::{ClosedBlock, LockedBlock, SealedBlock};
+use block::OpenBlock;
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
@@ -52,6 +51,8 @@ use error::Error as EthError;
 /// Options concerning what analytics we run on the call.
 #[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
 pub struct CallAnalytics {
+	/// Make a transaction trace.
+	pub transaction_tracing: bool,
 	/// Make a VM trace.
 	pub vm_tracing: bool,
 	/// Make a diff.
@@ -196,10 +197,7 @@ pub trait BlockChainClient : Sync + Send {
 
 /// Extended client interface used for mining
 pub trait MiningBlockChainClient : BlockChainClient {
-	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
-	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
-
-	/// Returns ClosedBlock prepared for sealing.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> (Option<ClosedBlock>, HashSet<H256>);
+	/// Returns OpenBlock prepared for closing.
+	fn prepare_open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes)
+		-> OpenBlock;
 }

@@ -23,9 +23,11 @@ Parity. Ethereum Client.
 
 Usage:
   parity daemon <pid-file> [options]
-  parity account (new | list) [options]
+  parity account (new | list ) [options]
+  parity account import <path>... [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
+  parity signer new-token [options]
   parity [options]
 
 Protocol Options:
@@ -75,14 +77,14 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
-                           ethcore, traces.
-                           [default: web3,eth,net,personal,traces].
+                           ethcore, ethcore_set, traces.
+                           [default: web3,eth,net,ethcore,personal,traces].
 
   --ipc-off                Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
-                           IPC [default: web3,eth,net,personal,traces].
+                           IPC [default: web3,eth,net,ethcore,personal,traces].
 
   --dapps-off              Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
@@ -100,9 +102,11 @@ API and Console Options:
                            [default: $HOME/.parity/dapps]
 
   --signer                 Enable Trusted Signer WebSocket endpoint used by
-                           System UIs.
+                           Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
+  --signer-path PATH       Specify directory where Signer UIs tokens should
+                           be stored. [default: $HOME/.parity/signer]
 
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
@@ -205,8 +209,11 @@ pub struct Args {
 	pub cmd_list: bool,
 	pub cmd_export: bool,
 	pub cmd_import: bool,
+	pub cmd_signer: bool,
+	pub cmd_new_token: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
+	pub arg_path: Vec<String>,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
@@ -244,6 +251,7 @@ pub struct Args {
 	pub flag_dapps_path: String,
 	pub flag_signer: bool,
 	pub flag_signer_port: u16,
+	pub flag_signer_path: String,
 	pub flag_force_sealing: bool,
 	pub flag_author: String,
 	pub flag_usd_per_tx: String,
