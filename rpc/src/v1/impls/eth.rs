@@ -154,10 +154,11 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 	}
 
 	fn default_gas_price(&self) -> Result<U256, Error> {
+		let miner = take_weak!(self.miner);
 		Ok(take_weak!(self.client)
 			.gas_price_statistics(100, 8)
 			.map(|x| x[4])
-			.unwrap_or_else(|_| take_weak!(self.miner).sensible_gas_price())
+			.unwrap_or_else(|_| miner.sensible_gas_price())
 		)
 	}
 
@@ -291,7 +292,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&self.default_gas_price()),
+			Params::None => to_value(&try!(self.default_gas_price())),
 			_ => Err(Error::invalid_params())
 		}
 	}
