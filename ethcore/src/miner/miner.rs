@@ -25,7 +25,6 @@ use block::{ClosedBlock, IsBlock};
 use error::*;
 use transaction::SignedTransaction;
 use receipt::{Receipt};
-use spec::Spec;
 use engine::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 
@@ -41,14 +40,14 @@ pub struct Miner {
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
-	spec: Spec,
+	engine: Box<Engine>,
 
 	accounts: Option<Arc<AccountProvider>>,
 }
 
 impl Miner {
 	/// Creates new instance of miner
-	pub fn new(force_sealing: bool, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+	pub fn new(force_sealing: bool, engine: Box<Engine>, accounts: Option<Arc<AccountProvider>>) -> Miner {
 		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: force_sealing,
@@ -59,12 +58,12 @@ impl Miner {
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: accounts,
-			spec: spec,
+			engine: engine,
 		}
 	}
 
 	fn engine(&self) -> &Engine {
-		self.spec.engine.deref()
+		self.engine.deref()
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
@@ -150,7 +149,7 @@ impl Miner {
 			if let Some(seal) = s {
 				trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
 				let sealed = block.lock().try_seal(self.engine(), seal).expect("seal is created internally: so it must be valid: qed");
-				let _ = chain.import_block(sealed.rlp_bytes()).unwrap("block is sealed internally: so it must be valid: qed");
+				let _ = chain.import_block(sealed.rlp_bytes()).expect("block is sealed internally: so it must be valid: qed");
 				return;
 			}
 		}

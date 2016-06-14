@@ -144,13 +144,13 @@ mod tests {
 	use client::ClientConfig;
 	use std::sync::Arc;
 	use miner::Miner;
-	use spec::Spec;
+	use null_engine::NullEngine;
 
 	#[test]
 	fn it_can_be_started() {
 		let spec = get_test_spec();
 		let temp_path = RandomTempPath::new();
-		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path(), Arc::new(Miner::new(false, Spec::new_test(), None)));
+		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path(), Arc::new(Miner::new(false, Box::new(NullEngine::default()), None)));
 		assert!(service.is_ok());
 	}
 }

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::hash::Address;
+use util::{Address, U256};
 use builtin::Builtin;
 use engine::Engine;
 use spec::CommonParams;
@@ -26,6 +26,20 @@ use env_info::EnvInfo;
 pub struct NullEngine {
 	params: CommonParams,
 	builtins: BTreeMap<Address, Builtin>,
+}
+
+impl Default for NullEngine {
+	fn default() -> Self {
+		NullEngine {
+			params: CommonParams {
+				account_start_nonce: U256::from(0x10_00_00),
+				maximum_extra_data_size: 0x20,
+				min_gas_limit: U256::from(0x1388),
+				network_id: U256::from(0x2),
+			},
+			builtins: BTreeMap::new(),
+		}
+	}
 }
 
 impl NullEngine {
