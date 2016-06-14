@@ -30,6 +30,7 @@ ethjson = { path = "../json" }
 bloomchain = "0.1"
 "ethcore-ipc" = { path = "../ipc/rpc" }
 rayon = "0.3.1"
+ethstore = { git = "https://github.com/ethcore/ethstore.git" }
 
 [features]
 jit = ["evmjit"]
