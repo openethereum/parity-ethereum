@@ -120,8 +120,7 @@ impl<'db> TrieDBMut<'db> {
 	pub fn to_map(hashes: Vec<H256>) -> HashMap<H256, u32> {
 		let mut r: HashMap<H256, u32> = HashMap::new();
 		for h in hashes.into_iter() {
-			let c = *r.get(&h).unwrap_or(&0);
-			r.insert(h, c + 1);
+			*r.entry(h).or_insert(0) += 1;
 		}
 		r
 	}
@@ -174,7 +173,12 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Get the root node's RLP.
 	fn root_node(&self) -> Node {
-		Node::decoded(self.db.lookup(&self.root).expect("Trie root not found!"))
+		Node::decoded(self.root_data())
+	}
+
+	/// Get the data of the root node.
+	fn root_data(&self) -> &[u8] {
+		self.db.lookup(&self.root).expect("Trie root not found!")
 	}
 
 	/// Get the root node as a `Node`.
@@ -225,7 +229,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
 	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		let root_rlp = self.root_data();
 		self.get_from_node(&root_rlp, key)
 	}
 
@@ -266,7 +270,7 @@ impl<'db> TrieDBMut<'db> {
 		trace!("ADD: {:?} {:?}", key, value.pretty());
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Journal = Journal::new();
-		let root_rlp = self.augmented(self.db.lookup(&self.root).expect("Trie root not found!"), key, value, &mut todo);
+		let root_rlp = self.augmented(self.root_data(), key, value, &mut todo);
 		self.apply(todo);
 		self.set_root_rlp(&root_rlp);
 		trace!("/");
@@ -279,7 +283,7 @@ impl<'db> TrieDBMut<'db> {
 		trace!("DELETE: {:?}", key);
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Journal = Journal::new();
-		match self.cleared_from_slice(self.db.lookup(&self.root).expect("Trie root not found!"), key, &mut todo) {
+		match self.cleared_from_slice(self.root_data(), key, &mut todo) {
 			Some(root_rlp) => {
 				self.apply(todo);
 				self.set_root_rlp(&root_rlp);
@@ -670,7 +674,7 @@ impl<'db> TrieMut for TrieDBMut<'db> {
 impl<'db> fmt::Debug for TrieDBMut<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		let root_rlp = self.root_data();
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
 	}
