@@ -274,8 +274,7 @@ impl AccountReader {
 		if self.code_hash == SHA3_NULL_RLP {
 			account_stream.append(&true).append(&hash_db.get(&self.code_hash).unwrap());
 		} else {
-			let empty: &[u8] = &[];
-			account_stream.append(&false).append(&empty);
+			account_stream.append(&false).append_empty_data();
 		}
 
 		account_stream.append(&pairs_rlp);
