@@ -225,7 +225,7 @@ fn make_unsupported_err() -> Error {
 fn no_work_err() -> Error {
 	Error {
 		code: ErrorCode::ServerError(NO_WORK_CODE),
-		message: "Mining not ready.".into(),
+		message: "Still syncing.".into(),
 		data: None
 	}
 }
