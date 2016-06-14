@@ -57,6 +57,22 @@ fn compression_helper(input: &[u8], output: &mut Vec<u8>) -> usize {
 	}
 }
 
+// shared portion of write_chunk
+// returns either a (hash, compressed_size) pair or an io error.
+fn write_chunk(raw_data: &[u8], compression_buffer: &mut Vec<u8>, path: &Path) -> Result<(H256, usize), Error> {
+	let compressed_size = compression_helper(raw_data, compression_buffer);
+	let compressed = &compression_buffer[..compressed_size];
+	let hash = compressed.sha3();
+
+	let mut file_path = path.to_owned();
+	file_path.push(hash.hex());
+
+	let mut file = try!(File::create(file_path));
+	try!(file.write_all(compressed));
+
+	Ok((hash, compressed_size))
+}
+
 /// Used to build block chunks.
 struct BlockChunker<'a> {
 	client: &'a BlockChainClient,
@@ -116,19 +132,9 @@ impl<'a> BlockChunker<'a> {
 			rlp_stream.append(&pair);
 		}
 
-		let uncompressed = rlp_stream.out();
-		let compressed_size = compression_helper(&uncompressed, &mut self.snappy_buffer);
-		let raw_data = &self.snappy_buffer[..compressed_size];
-
-		let hash = raw_data.sha3();
-
-		trace!(target: "snapshot", "writing block chunk. hash: {},  size: {} bytes", hash.hex(), raw_data.len());
-
-		let mut file_path = path.to_owned();
-		file_path.push(hash.hex());
-
-		let mut file = try!(File::create(file_path));
-		try!(file.write_all(&raw_data));
+		let raw_data = rlp_stream.out();
+		let (hash, size) = try!(write_chunk(&raw_data, &mut self.snappy_buffer, path));
+		trace!(target: "snapshot", "wrote block chunk. hash: {}, size: {}, uncompressed size: {}", hash.hex(), size, raw_data.len());
 
 		self.hashes.push(hash);
 		Ok(())
@@ -193,26 +199,13 @@ impl<'a> StateChunker<'a> {
 	// Write out the buffer to disk, pushing the created chunk's hash to
 	// the list.
 	fn write_chunk(&mut self) -> Result<(), Error> {
-		trace!(target: "snapshot", "writing state chunk. uncompressed size: {}", self.cur_size);
-
-		let compressed_size = {
-			let mut stream = RlpStream::new();
-			stream.append(&&self.rlps[..]);
-
-			compression_helper(&stream.out(), &mut self.snappy_buffer)
-		};
-
+		let mut stream = RlpStream::new();
+		stream.append(&&self.rlps[..]);
 		self.rlps.clear();
 
-		let bytes = &self.snappy_buffer[..compressed_size];
-
-		let hash = bytes.sha3();
-
-		let mut path = self.snapshot_path.to_owned();
-		path.push(hash.hex());
-
-		let mut file = try!(File::create(path));
-		try!(file.write_all(bytes));
+		let raw_data = stream.out();
+		let (hash, compressed_size) = try!(write_chunk(&raw_data, &mut self.snappy_buffer, self.snapshot_path));
+		trace!(target: "snapshot", "wrote state chunk. size: {}, uncompressed size: {}", compressed_size, raw_data.len());
 
 		self.hashes.push(hash);
 		self.cur_size = 0;

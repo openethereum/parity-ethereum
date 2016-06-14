@@ -777,11 +777,13 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		let best_hash = best_header.hash();
 		let genesis_hash = self.chain.genesis_hash();
 
-		let block_chunk_hashes = chunk_blocks(self, best_hash, genesis_hash, &path).unwrap();
+		let block_hashes = chunk_blocks(self, best_hash, genesis_hash, &path).unwrap();
+
+		trace!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 		let manifest_data = ManifestData {
 			state_hashes: state_hashes,
-			block_hashes: block_chunk_hashes,
+			block_hashes: block_hashes,
 			state_root: state_root,
 		};
 
