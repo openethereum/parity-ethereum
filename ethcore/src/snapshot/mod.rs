@@ -33,6 +33,10 @@ use util::numbers::U256;
 use util::rlp::{DecoderError, Rlp, RlpStream, Stream, SHA3_NULL_RLP, UntrustedRlp, View};
 use util::snappy;
 
+use self::block::AbridgedBlock;
+
+mod block;
+
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
@@ -78,7 +82,6 @@ struct BlockChunker<'a> {
 	client: &'a BlockChainClient,
 	// block, receipt rlp pairs.
 	rlps: VecDeque<Bytes>,
-	genesis_hash: H256,
 	current_hash: H256,
 	hashes: Vec<H256>,
 	snappy_buffer: Vec<u8>,
@@ -86,20 +89,20 @@ struct BlockChunker<'a> {
 
 impl<'a> BlockChunker<'a> {
 	// Try to fill the buffers, moving backwards from current block hash.
-	// This will return true if it created a block chunk, false otherwise.
-	fn fill_buffers(&mut self) -> bool {
+	// Loops until we reach the genesis, and writes out the remainder.
+	fn chunk_all(&mut self, genesis_hash: H256, path: &Path) -> Result<(), Error> {
 		let mut loaded_size = 0;
-		let mut blocks_loaded = 0;
 
-		while loaded_size < PREFERRED_CHUNK_SIZE && self.current_hash != self.genesis_hash {
-
-			// skip compression for now
+		while self.current_hash != genesis_hash {
 			let block = self.client.block(BlockID::Hash(self.current_hash)).unwrap();
+			let view = BlockView::new(&block);
+			let abridged_rlp = AbridgedBlock::from_block_view(&view).into_inner();
+
 			let receipts = self.client.block_receipts(&self.current_hash).unwrap();
 
 			let pair = {
 				let mut pair_stream = RlpStream::new_list(2);
-				pair_stream.append(&block).append(&receipts);
+				pair_stream.append(&abridged_rlp).append(&receipts);
 				pair_stream.out()
 			};
 
@@ -107,27 +110,31 @@ impl<'a> BlockChunker<'a> {
 
 			// cut off the chunk if too large
 			if new_loaded_size > PREFERRED_CHUNK_SIZE {
-				break;
+				let header = view.header_view();
+				try!(self.write_chunk(header.parent_hash(), header.number(), path));
+				loaded_size = pair.len();
 			} else {
 				loaded_size = new_loaded_size;
 			}
 
 			self.rlps.push_front(pair);
-			self.current_hash = BlockView::new(&block).header_view().parent_hash();
-			blocks_loaded += 1;
+			self.current_hash = view.header_view().parent_hash();
 		}
 
-		if blocks_loaded > 0 {
-			trace!(target: "snapshot", "prepared block chunk with {} blocks", blocks_loaded);
+		if loaded_size != 0 {
+			// we don't store the genesis hash, so once we get to this point,
+			// the "first" block will have number 1.
+			try!(self.write_chunk(genesis_hash, 1, path));
 		}
 
-		loaded_size != 0
+		Ok(())
 	}
 
 	// write out the data in the buffers to a chunk on disk
-	fn write_chunk(&mut self, path: &Path) -> Result<(), Error> {
-		// Todo [rob]: compress raw data, put parent hash and block number into chunk.
-		let mut rlp_stream = RlpStream::new_list(self.rlps.len());
+	fn write_chunk(&mut self, parent_hash: H256, number: u64, path: &Path) -> Result<(), Error> {
+		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
+		let mut rlp_stream = RlpStream::new_list(self.rlps.len() + 2);
+		rlp_stream.append(&parent_hash).append(&number);
 		for pair in self.rlps.drain(..) {
 			rlp_stream.append(&pair);
 		}
@@ -150,18 +157,13 @@ pub fn chunk_blocks(client: &BlockChainClient, best_block_hash: H256, genesis_ha
 	let mut chunker = BlockChunker {
 		client: client,
 		rlps: VecDeque::new(),
-		genesis_hash: genesis_hash,
 		current_hash: best_block_hash,
 		hashes: Vec::new(),
 		snappy_buffer: vec![0; SNAPPY_BUFFER_SIZE],
 	};
 
-	while chunker.fill_buffers() {
-		try!(chunker.write_chunk(path));
-	}
-	if chunker.rlps.len() != 0 {
-		try!(chunker.write_chunk(path));
-	}
+	try!(chunker.chunk_all(genesis_hash, path));
+
 	Ok(chunker.hashes)
 }
 
