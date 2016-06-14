@@ -88,7 +88,7 @@ struct BlockChunker<'a> {
 }
 
 impl<'a> BlockChunker<'a> {
-	// Try to fill the buffers, moving backwards from current block hash.
+	// Repeatedly fill the buffers and writes out chunks, moving backwards from starting block hash.
 	// Loops until we reach the genesis, and writes out the remainder.
 	fn chunk_all(&mut self, genesis_hash: H256, path: &Path) -> Result<(), Error> {
 		let mut loaded_size = 0;
@@ -122,8 +122,8 @@ impl<'a> BlockChunker<'a> {
 		}
 
 		if loaded_size != 0 {
-			// we don't store the genesis hash, so once we get to this point,
-			// the "first" block will have number 1.
+			// we don't store the genesis block, so once we get to this point,
+			// the "first" block will be number 1.
 			try!(self.write_chunk(genesis_hash, 1, path));
 		}
 
