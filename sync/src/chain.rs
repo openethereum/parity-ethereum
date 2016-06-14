@@ -410,7 +410,7 @@ impl ChainSync {
 
 		let mut headers = Vec::new();
 		let mut hashes = Vec::new();
-		let mut valid_response = false;
+		let mut valid_response = item_count == 0; //empty response is valid
 		for i in 0..item_count {
 			let info: BlockHeader = try!(r.val_at(i));
 			let number = BlockNumber::from(info.number);
@@ -455,27 +455,25 @@ impl ChainSync {
 			trace!(target: "sync", "{} Disabled for invalid headers response", peer_id);
 			self.deactivate_peer(io, peer_id); 
 		}
-		else {
-			match self.state {
-				SyncState::ChainHead => {
-					if headers.is_empty() {
-						// peer is not on our chain
-						// track back and try again
-						self.imported_this_round = Some(0);
-						self.start_sync_round(io);
-					} else {
-						// TODO: validate heads better. E.g. check that there is enough distance between blocks.
-						trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
-						self.blocks.reset_to(hashes);
-						self.state = SyncState::Blocks;
-					}
-				},
-				SyncState::Blocks | SyncState::NewBlocks | SyncState::Waiting => {
-					trace!(target: "sync", "Inserted {} headers", headers.len());
-					self.blocks.insert_headers(headers);
-				},
-				_ => trace!(target: "sync", "Unexpected headers({}) from  {} ({}), state = {:?}", headers.len(), peer_id, io.peer_info(peer_id), self.state)
-			}
+		match self.state {
+			SyncState::ChainHead => {
+				if headers.is_empty() {
+					// peer is not on our chain
+					// track back and try again
+					self.imported_this_round = Some(0);
+					self.start_sync_round(io);
+				} else {
+					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
+					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
+					self.blocks.reset_to(hashes);
+					self.state = SyncState::Blocks;
+				}
+			},
+			SyncState::Blocks | SyncState::NewBlocks | SyncState::Waiting => {
+				trace!(target: "sync", "Inserted {} headers", headers.len());
+				self.blocks.insert_headers(headers);
+			},
+			_ => trace!(target: "sync", "Unexpected headers({}) from  {} ({}), state = {:?}", headers.len(), peer_id, io.peer_info(peer_id), self.state)
 		}
 
 		self.collect_blocks(io);
