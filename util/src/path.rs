@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Path utilities
+use std::path::Path;
 
 /// Default ethereum paths
 pub mod ethereum {
@@ -62,3 +63,21 @@ pub mod ethereum {
 		pth
 	}
 }
+
+/// Restricts the permissions of given path only to the owner.
+#[cfg(not(windows))]
+pub fn restrict_permissions_owner(file_path: &Path) -> Result<(), i32>  {
+	let cstr = ::std::ffi::CString::new(file_path.to_str().unwrap()).unwrap();
+	match unsafe { ::libc::chmod(cstr.as_ptr(), ::libc::S_IWUSR | ::libc::S_IRUSR) } {
+		0 => Ok(()),
+		x => Err(x),
+	}
+}
+
+/// Restricts the permissions of given path only to the owner.
+#[cfg(windows)]
+pub fn restrict_permissions_owner(_file_path: &Path) -> Result<(), i32>  {
+	//TODO: implement me
+	Ok(())
+}
+
