@@ -146,22 +146,15 @@ impl Miner {
 				Some(ref x) => Some(&**x),
 				None => None,
 			});
+
 			if let Some(seal) = s {
 				trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
-				if let Ok(sealed) = block.lock().try_seal(self.engine(), seal) {
-					if let Ok(_) = chain.import_block(sealed.rlp_bytes()) {
-						trace!(target: "miner", "prepare_sealing: sealed internally and imported. leaving.");
-					} else {
-						warn!("prepare_sealing: ERROR: could not import internally sealed block. WTF?");
-					}
-				} else {
-					warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal. WTF?");
-				}
+				let sealed = block.lock().try_seal(self.engine(), seal).expect("seal is created internally: so it must be valid: qed");
+				let _ = chain.import_block(sealed.rlp_bytes()).unwrap("block is sealed internally: so it must be valid: qed");
 				return;
-			} else {
-				trace!(target: "miner", "prepare_sealing: unable to generate seal internally");
 			}
 		}
+
 		if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
 			trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
 			sealing_work.push(block);
