@@ -30,6 +30,3 @@
 
 # Build artifacts
 out/
-
-# Cargo local dev config
-.cargo
