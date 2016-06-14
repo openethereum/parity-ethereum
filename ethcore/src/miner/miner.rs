@@ -492,7 +492,7 @@ impl MinerService for Miner {
 				trace!(target: "miner", "Miner sleeping (current {}, last {})", current_no, last_request);
 				self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
 				self.sealing_work.lock().unwrap().reset();
-			} else if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			} else {
 				self.prepare_sealing(chain);
 			}
 		}
