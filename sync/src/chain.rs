@@ -414,6 +414,7 @@ impl ChainSync {
 		for i in 0..item_count {
 			let info: BlockHeader = try!(r.val_at(i));
 			let number = BlockNumber::from(info.number);
+			// Check if any of the headers matches the hash we requested
 			if !valid_response {
 				if let Some(expected) = expected_hash {
 					valid_response = expected == info.hash()
@@ -449,29 +450,32 @@ impl ChainSync {
 			}
 		}
 
+		// Disable the peer for this syncing round if it gives invalid chain
 		if !valid_response {
 			trace!(target: "sync", "{} Disabled for invalid headers response", peer_id);
-			self.deactivate_peer(io, peer_id); // disable the peer for this syncing round if it gives invalid chain
+			self.deactivate_peer(io, peer_id); 
 		}
-		match self.state {
-			SyncState::ChainHead => {
-				if headers.is_empty() {
-					// peer is not on our chain
-					// track back and try again
-					self.imported_this_round = Some(0);
-					self.start_sync_round(io);
-				} else {
-					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
-					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
-					self.blocks.reset_to(hashes);
-					self.state = SyncState::Blocks;
-				}
-			},
-			SyncState::Blocks | SyncState::NewBlocks | SyncState::Waiting => {
-				trace!(target: "sync", "Inserted {} headers", headers.len());
-				self.blocks.insert_headers(headers);
-			},
-			_ => trace!(target: "sync", "Unexpected headers({}) from  {} ({}), state = {:?}", headers.len(), peer_id, io.peer_info(peer_id), self.state)
+		else {
+			match self.state {
+				SyncState::ChainHead => {
+					if headers.is_empty() {
+						// peer is not on our chain
+						// track back and try again
+						self.imported_this_round = Some(0);
+						self.start_sync_round(io);
+					} else {
+						// TODO: validate heads better. E.g. check that there is enough distance between blocks.
+						trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
+						self.blocks.reset_to(hashes);
+						self.state = SyncState::Blocks;
+					}
+				},
+				SyncState::Blocks | SyncState::NewBlocks | SyncState::Waiting => {
+					trace!(target: "sync", "Inserted {} headers", headers.len());
+					self.blocks.insert_headers(headers);
+				},
+				_ => trace!(target: "sync", "Unexpected headers({}) from  {} ({}), state = {:?}", headers.len(), peer_id, io.peer_info(peer_id), self.state)
+			}
 		}
 
 		self.collect_blocks(io);
@@ -843,9 +847,9 @@ impl ChainSync {
 		rlp.append(&skip);
 		rlp.append(&if reverse {1u32} else {0u32});
 		self.send_request(sync, peer_id, asking, GET_BLOCK_HEADERS_PACKET, rlp.out());
-		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
-			peer.asking_hash = Some(h.clone());
-		}
+		self.peers.get_mut(&peer_id)
+			.expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed")
+			.asking_hash = Some(h.clone());
 	}
 
 	/// Request block bodies from a peer
@@ -940,10 +944,11 @@ impl ChainSync {
 			match io.chain().block_header(BlockID::Hash(hash)) {
 				Some(hdr) => {
 					let number = From::from(HeaderView::new(&hdr).number());
-					assert_eq!(HeaderView::new(&hdr).sha3(), hash);
+					debug_assert_eq!(HeaderView::new(&hdr).sha3(), hash);
 					if max_headers == 1 || io.chain().block_hash(BlockID::Number(number)) != Some(hash) {
 						// Non canonical header or single header requested
-						trace!("Returning single header: {:?}", hash);
+						// TODO: handle single-step reverse hashchains of non-canon hashes
+						trace!(target:"sync", "Returning single header: {:?}", hash);
 						let mut rlp = RlpStream::new_list(1);
 						rlp.append_raw(&hdr, 1);
 						return Ok(Some((BLOCK_HEADERS_PACKET, rlp)));
@@ -1145,7 +1150,8 @@ impl ChainSync {
 						let mut rlp_stream = RlpStream::new_list(blocks.len());
 						for block_hash in  blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
-							let number = HeaderView::new(&chain.block_header(BlockID::Hash(block_hash.clone())).expect("Malformed block without a header on the chain!")).number();
+							let number = HeaderView::new(&chain.block_header(BlockID::Hash(block_hash.clone()))
+								.expect("chain.tree_route and chain.find_uncles only return hahses of blocks that are in the blockchain. qed.")).number();
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&number);
 							rlp_stream.append_raw(&hash_rlp.as_raw(), 1);
