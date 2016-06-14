@@ -362,14 +362,12 @@ impl Configuration {
 	}
 
 	fn ipc_path(&self) -> String {
-		if self.args.flag_geth { self.geth_ipc_path() }
-		else {
-			if cfg!(windows) {
-				r"\\.\pipe\parity.jsonrpc".to_owned()
-			}
-			else {
-				Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
-			}
+		if self.args.flag_geth {
+			self.geth_ipc_path()
+		} else if cfg!(windows) {
+			r"\\.\pipe\parity.jsonrpc".to_owned()
+		} else {
+			Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
 		}
 	}
 
