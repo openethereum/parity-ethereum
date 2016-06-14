@@ -512,8 +512,11 @@ mod tests {
 
 	#[test]
 	fn test_difficulty_to_boundary() {
-		let _ = Ethash::difficulty_to_boundary(&U256::from(0));
-		let _ = Ethash::difficulty_to_boundary(&U256::from(1));
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(0)), H256::from(0));
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(1)), H256::from(0));
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(2)), H256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(4)), H256::from_str("4000000000000000000000000000000000000000000000000000000000000000").unwrap());
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
 	}
 
 	// TODO: difficulty test
