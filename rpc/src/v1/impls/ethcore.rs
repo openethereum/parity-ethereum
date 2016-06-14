@@ -15,30 +15,34 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use util::RotatingLogger;
+use util::{RotatingLogger};
 use util::network_settings::NetworkSettings;
 use util::misc::version_data;
 use std::sync::{Arc, Weak};
 use std::ops::Deref;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap};
+use ethcore::client::{MiningBlockChainClient};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use v1::traits::Ethcore;
 use v1::types::{Bytes};
 
 /// Ethcore implementation.
-pub struct EthcoreClient<M> where
+pub struct EthcoreClient<C, M> where
+	C: MiningBlockChainClient,
 	M: MinerService {
 
+	client: Weak<C>,
 	miner: Weak<M>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 }
 
-impl<M> EthcoreClient<M> where M: MinerService {
+impl<C, M> EthcoreClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new `EthcoreClient`.
-	pub fn new(miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>) -> Self {
 		EthcoreClient {
+			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			logger: logger,
 			settings: settings,
@@ -46,7 +50,7 @@ impl<M> EthcoreClient<M> where M: MinerService {
 	}
 }
 
-impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
+impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: MiningBlockChainClient + 'static {
 
 	fn transactions_limit(&self, _: Params) -> Result<Value, Error> {
 		to_value(&take_weak!(self.miner).transactions_limit())
@@ -97,8 +101,23 @@ impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
 		Ok(Value::Object(map))
 	}
 
-	fn default_extra_data(&self, _params: Params) -> Result<Value, Error> {
-		let version = version_data();
-		to_value(&Bytes::new(version))
+	fn default_extra_data(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => to_value(&Bytes::new(version_data())),
+			_ => Err(Error::invalid_params()),
+		}
+	}
+
+	fn gas_price_statistics(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => match take_weak!(self.client).gas_price_statistics(100, 8) {
+				Ok(stats) => to_value(&stats
+					.iter()
+					.map(|x| to_value(&x).expect("x must be U256; qed"))
+					.collect::<Vec<_>>()),
+				_ => Err(Error::internal_error()),
+			},
+			_ => Err(Error::invalid_params()),
+		}
 	}
 }
