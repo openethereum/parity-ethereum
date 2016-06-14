@@ -68,9 +68,14 @@ impl fmt::Display for Error {
 	}
 }
 
+/// The maximum compressed length given a size.
+pub fn max_compressed_len(len: usize) -> usize {
+	unsafe { snappy_max_compressed_length(len as size_t) as usize }
+}
+
 /// Compress a buffer using snappy.
 pub fn compress(input: &[u8]) -> Vec<u8> {
-	let mut buf_size = unsafe { snappy_max_compressed_length(input.len() as size_t) };
+	let mut buf_size = max_compressed_len(input.len());
 	let mut output = vec![0; buf_size as usize];
 
 	buf_size = compress_into(input, &mut output).expect("snappy compression failed with large enough buffer.");
@@ -79,7 +84,7 @@ pub fn compress(input: &[u8]) -> Vec<u8> {
 }
 
 /// Compress a buffer using snappy, writing the result into
-/// the given output buffer. Will error if the buffer is too small.
+/// the given output buffer. Will error iff the buffer is too small.
 /// Otherwise, returns the length of the compressed data.
 pub fn compress_into(input: &[u8], output: &mut [u8]) -> Result<usize, Error> {
 	let mut len = output.len() as size_t;
