@@ -68,6 +68,7 @@ mod configuration;
 mod migration;
 mod signer;
 mod rpc_apis;
+mod url;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
@@ -271,6 +272,10 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		accounts: account_service.clone(),
 	});
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
+
+	if conf.args.cmd_ui {
+		url::open("http://localhost:8080/")
+	}
 
 	// Handle exit
 	wait_for_exit(panic_handler, rpc_server, dapps_server, signer_server);

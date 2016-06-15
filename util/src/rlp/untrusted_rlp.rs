@@ -334,9 +334,9 @@ impl<'a> BasicDecoder<'a> {
 	/// Return first item info.
 	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
 		let item = try!(PayloadInfo::from(bytes));
-		match item.header_len + item.value_len <= bytes.len() {
-			true => Ok(item),
-			false => Err(DecoderError::RlpIsTooShort),
+		match item.header_len.checked_add(item.value_len) { 
+			Some(x) if x <= bytes.len() => Ok(item), 
+			_ => Err(DecoderError::RlpIsTooShort), 
 		}
 	}
 }

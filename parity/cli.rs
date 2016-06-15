@@ -29,6 +29,7 @@ Usage:
   parity export [ <file> ] [options]
   parity signer new-token [options]
   parity [options]
+  parity ui [options]
 
 Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
@@ -211,6 +212,7 @@ pub struct Args {
 	pub cmd_import: bool,
 	pub cmd_signer: bool,
 	pub cmd_new_token: bool,
+	pub cmd_ui: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,
