@@ -78,6 +78,8 @@ fn write_chunk(raw_data: &[u8], compression_buffer: &mut Vec<u8>, path: &Path) -
 	let compressed = &compression_buffer[..compressed_size];
 	let hash = compressed.sha3();
 
+	assert!(snappy::validate_compressed_buffer(compressed));
+
 	let mut file_path = path.to_owned();
 	file_path.push(hash.hex());
 
