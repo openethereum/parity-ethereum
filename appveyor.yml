@@ -23,4 +23,4 @@ artifacts:
 
 cache:
   - target
-  - %USERPROFILE%\.nuget\.cargo
+  - %HOME%\.cargo
