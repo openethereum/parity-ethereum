@@ -56,6 +56,18 @@ section "install"
 	createDirectory "$SMPROGRAMS\${COMPANYNAME}"
 	createShortCut "$SMPROGRAMS\${COMPANYNAME}\${APPNAME}.lnk" "$INSTDIR\parity.exe" "ui" "$INSTDIR\logo.ico"
 
+	# Firewall remove rules if exists
+	SimpleFC::AdvRemoveRule "Parity incoming peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule "Parity outgoing peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule       "Parity web queries (TCP:80)"
+	SimpleFC::AdvRemoveRule  "Parity UDP discovery (UDP:30303)"
+
+	# Firewall exception rules
+	SimpleFC::AdvAddRule "Parity incoming peers (TCP:30303)" ""  6 1 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity" 30303    "" "" ""
+	SimpleFC::AdvAddRule "Parity outgoing peers (TCP:30303)" ""  6 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    "" 30303 "" ""
+	SimpleFC::AdvAddRule       "Parity web queries (TCP:80)" ""  6 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    ""    80 "" ""
+	SimpleFC::AdvAddRule  "Parity UDP discovery (UDP:30303)" "" 17 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    "" 30303 "" ""
+
 	# Registry information for add/remove programs
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${COMPANYNAME} - ${APPNAME} - ${DESCRIPTION}"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
@@ -105,6 +117,12 @@ section "uninstall"
 
 	# Try to remove the install directory - this will only happen if it is empty
 	rmDir $INSTDIR
+
+	# Firewall exception rules
+	SimpleFC::AdvRemoveRule "Parity incoming peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule "Parity outgoing peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule       "Parity web queries (TCP:80)"
+	SimpleFC::AdvRemoveRule  "Parity UDP discovery (UDP:30303)"
 
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
