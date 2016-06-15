@@ -322,8 +322,8 @@ impl<'a> StateRebuilder<'a> {
 		let rlp = UntrustedRlp::new(&self.snappy_buffer[..len]);
 
 		for account_pair in rlp.iter() {
-			let hash: H256 = try!(rlp.val_at(0));
-			let fat_rlp = try!(rlp.at(1));
+			let hash: H256 = try!(account_pair.val_at(0));
+			let fat_rlp = try!(account_pair.at(1));
 
 			let thin_rlp = {
 				let mut acct_db = AccountDBMut::from_hash(self.db, hash);
