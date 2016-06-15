@@ -52,6 +52,13 @@ impl FromSS<SSSignature> for H520 {
 	}
 }
 
+impl FromSS<SSAddress> for Address {
+	fn from(a: SSAddress) -> Self {
+		let bare: [u8; 20] = a.into();
+		From::from(bare)
+	}
+}
+
 /// Type of unlock.
 enum Unlock {
 	/// If account is unlocked temporarily, it should be locked after first usage.
@@ -94,9 +101,9 @@ impl AccountProvider {
 		}
 	}
 
-	/// Returns reference to secret store (it's completely safe).
-	pub fn secret_store(&self) -> &SecretStore {
-		&*self.sstore
+	/// Returns addresses of all accounts.
+	pub fn accounts(&self) -> Vec<Address> {
+		self.sstore.accounts().into_iter().map(FromSS::from).collect()
 	}
 
 	/// Helper method used for unlocking accounts.
