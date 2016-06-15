@@ -4,7 +4,7 @@ environment:
 install:
   - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-1.9.0-x86_64-pc-windows-msvc.exe"
   - rust-1.9.0-x86_64-pc-windows-msvc.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
-  - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin
+  - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin;C:\Program Files (x86)\NSIS\bin
   - rustc -V
   - cargo -V
 
@@ -15,12 +15,12 @@ test_script:
 
 after_test:
   - cargo build --verbose --release
-  - \"C:\Program Files (x86)\NSIS\bin\makensis.exe\" nsis\installer.nsi
+  - makensis.exe nsis\installer.nsi
 
 artifacts:
-- path: nsis\installer.exe
+- path: installer.exe
   name: Windows Installer (x86_64)
 
 cache:
   target
-  c:\users\appveyor\.cargo
+  %USERPROFILE%\.nuget\.cargo
