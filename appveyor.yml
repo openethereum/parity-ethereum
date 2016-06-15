@@ -21,3 +21,6 @@ artifacts:
 - path: nsis\installer.exe
   name: Windows Installer (x86_64)
 
+cache:
+  target
+  %HOME%/.cargo
