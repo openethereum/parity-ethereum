@@ -456,7 +456,8 @@ impl ChainSync {
 			trace!(target: "sync", "{} Deactivated for invalid headers response", peer_id);
 			self.deactivate_peer(io, peer_id); 
 		}
-		if headers.is_empty() {
+		if headers.is_empty() && self.state == SyncState::ChainHead {
+			// Peer does not have any new subchain heads, deactivate it nd try with another
 			trace!(target: "sync", "{} Deactivated for no data", peer_id);
 			self.deactivate_peer(io, peer_id); 
 		}
