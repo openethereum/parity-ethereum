@@ -66,12 +66,11 @@ $ cd parity
 $ cargo build --release
 ```
 
-This will produce an executable in the `target/release` subdirectory.
-Either run `cd target/release` or copy `target/release/parity` to another location.
+This will produce an executable in the `./target/release` subdirectory.
 
 To get started, just run
 ```bash
-$ parity
+$ ./target/release/parity
 ```
 
 and parity will begin syncing the Ethereum blockchain.
