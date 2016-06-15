@@ -37,7 +37,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::impls::dispatch_transaction;
+use v1::impls::{dispatch_transaction, error_codes};
 use serde;
 
 /// Eth rpc implementation.
@@ -218,13 +218,9 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 	}
 }
 
-// must be in range [-32099, -32000]
-const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
-const NO_WORK_CODE: i64 = -32001;
-
 fn make_unsupported_err() -> Error {
 	Error {
-		code: ErrorCode::ServerError(UNSUPPORTED_REQUEST_CODE),
+		code: ErrorCode::ServerError(error_codes::UNSUPPORTED_REQUEST_CODE),
 		message: "Unsupported request.".into(),
 		data: None
 	}
@@ -232,7 +228,7 @@ fn make_unsupported_err() -> Error {
 
 fn no_work_err() -> Error {
 	Error {
-		code: ErrorCode::ServerError(NO_WORK_CODE),
+		code: ErrorCode::ServerError(error_codes::NO_WORK_CODE),
 		message: "Still syncing.".into(),
 		data: None
 	}
