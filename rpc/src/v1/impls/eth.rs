@@ -212,11 +212,20 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 
 // must be in range [-32099, -32000]
 const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
+const NO_WORK_CODE: i64 = -32001;
 
 fn make_unsupported_err() -> Error {
 	Error {
 		code: ErrorCode::ServerError(UNSUPPORTED_REQUEST_CODE),
 		message: "Unsupported request.".into(),
+		data: None
+	}
+}
+
+fn no_work_err() -> Error {
+	Error {
+		code: ErrorCode::ServerError(NO_WORK_CODE),
+		message: "Still syncing.".into(),
 		data: None
 	}
 }
@@ -460,7 +469,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 					//let sync = take_weak!(self.sync);
 					if /*sync.status().state != SyncState::Idle ||*/ client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
 						trace!(target: "miner", "Syncing. Cannot give any work.");
-						return to_value(&(String::new(), String::new(), String::new()));
+						return Err(no_work_err());
 					}
 				}
 
