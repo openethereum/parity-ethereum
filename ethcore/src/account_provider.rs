@@ -20,7 +20,8 @@ use std::fmt;
 use std::sync::RwLock;
 use std::collections::HashMap;
 use util::{Address as H160, H256, H520};
-use ethstore::{SecretStore, Error as SSError};
+use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
+use ethstore::dir::{KeyDirectory};
 use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret, Random, Generator};
 
 /// Type of unlock.
@@ -105,6 +106,23 @@ impl_bridge_type!(Secret, 32, H256, SSSecret);
 impl_bridge_type!(Message, 32, H256, SSMessage);
 impl_bridge_type!(Address, 20, H160, SSAddress);
 
+
+struct NullDir;
+
+impl KeyDirectory for NullDir {
+	fn load(&self) -> Result<Vec<SafeAccount>, SSError> {
+		Ok(vec![])
+	}
+
+	fn insert(&self, _account: SafeAccount) -> Result<(), SSError> {
+		Ok(())
+	}
+
+	fn remove(&self, _address: &SSAddress) -> Result<(), SSError> {
+		Ok(())
+	}
+}
+
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
@@ -118,6 +136,14 @@ impl AccountProvider {
 		AccountProvider {
 			unlocked: RwLock::new(HashMap::new()),
 			sstore: sstore,
+		}
+	}
+
+	/// Creates not disk backed provider.
+	pub fn transient_provider() -> Self {
+		AccountProvider {
+			unlocked: RwLock::new(HashMap::new()),
+			sstore: Box::new(EthStore::open(Box::new(NullDir)).unwrap())
 		}
 	}
 
@@ -202,34 +228,13 @@ impl AccountProvider {
 #[cfg(test)]
 mod tests {
 	use super::AccountProvider;
-	use ethstore::{SecretStore, SafeAccount, Error, EthStore};
-	use ethstore::dir::KeyDirectory;
-	use ethstore::ethkey::{Address, Generator, Random};
-
-	struct NullDir;
-
-	impl KeyDirectory for NullDir {
-		fn load(&self) -> Result<Vec<SafeAccount>, Error> {
-			Ok(vec![])
-		}
-
-		fn insert(&self, _account: SafeAccount) -> Result<(), Error> {
-			Ok(())
-		}
-
-		fn remove(&self, _address: &Address) -> Result<(), Error> {
-			Ok(())
-		}
-	}
-
-	fn account_provider() -> AccountProvider {
-		AccountProvider::new(Box::new(EthStore::open(Box::new(NullDir)).unwrap()))
-	}
+	use ethstore::SecretStore;
+	use ethstore::ethkey::{Generator, Random};
 
 	#[test]
 	fn unlock_account_temp() {
 		let kp = Random.generate().unwrap();
-		let ap = account_provider();
+		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
@@ -240,7 +245,7 @@ mod tests {
 	#[test]
 	fn unlock_account_perm() {
 		let kp = Random.generate().unwrap();
-		let ap = account_provider();
+		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_permanently(kp.address(), "test".into()).is_ok());
