@@ -522,11 +522,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 
 		let nodes = if pin { self.pinned_nodes.clone() } else { self.nodes.read().unwrap().nodes() };
+		let mut started: usize = 0;
 		for id in nodes.iter().filter(|ref id| !self.have_session(id) && !self.connecting_to(id))
 			.take(min(MAX_HANDSHAKES_PER_ROUND, handshake_limit - handshake_count)) {
 			self.connect_peer(&id, io);
+			started += 1;
 		}
-		debug!(target: "network", "Connecting peers: {} sessions, {} pending", self.session_count(), self.handshake_count());
+		debug!(target: "network", "Connecting peers: {} sessions, {} pending, {} started", self.session_count(), self.handshake_count(), started);
 	}
 
 	#[cfg_attr(feature="dev", allow(single_match))]
