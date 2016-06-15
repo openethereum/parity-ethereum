@@ -18,9 +18,9 @@ after_test:
   - makensis.exe nsis\installer.nsi
 
 artifacts:
-- path: installer.exe
-  name: Windows Installer (x86_64)
+  - path: installer.exe
+    name: Windows Installer (x86_64)
 
 cache:
-  target
-  %USERPROFILE%\.nuget\.cargo
+  - target
+  - %USERPROFILE%\.nuget\.cargo
