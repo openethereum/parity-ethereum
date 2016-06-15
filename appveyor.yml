@@ -11,10 +11,10 @@ install:
 build: off
 
 test_script:
-  - cargo test --verbose
+  - cargo test --verbose --release
 
 after_test:
-  - cargo build --release
+  - cargo build --verbose --release
   - C:\Program Files (x86)\NSIS\bin\makensis.exe nsis\installer.nsi
 
 artifacts:
