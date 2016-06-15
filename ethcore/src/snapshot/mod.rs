@@ -40,10 +40,6 @@ mod block;
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
-// use initially 20MB for the reusable snappy buffers.
-// should always be larger than PREFERRED_CHUNK_SIZE for fault tolerance.
-const SNAPPY_BUFFER_SIZE: usize = 20 * 1024 * 1024;
-
 // compresses the data into the buffer, resizing if necessary.
 fn compression_helper(input: &[u8], output: &mut Vec<u8>) -> usize {
 	let max_size = snappy::max_compressed_len(input.len());
@@ -159,7 +155,7 @@ pub fn chunk_blocks(client: &BlockChainClient, best_block_hash: H256, genesis_ha
 		rlps: VecDeque::new(),
 		current_hash: best_block_hash,
 		hashes: Vec::new(),
-		snappy_buffer: vec![0; SNAPPY_BUFFER_SIZE],
+		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
 	};
 
 	try!(chunker.chunk_all(genesis_hash, path));
@@ -229,7 +225,7 @@ pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, E
 		rlps: Vec::new(),
 		cur_size: 0,
 		snapshot_path: path,
-		snappy_buffer: vec![0; SNAPPY_BUFFER_SIZE],
+		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
 	};
 
 	trace!(target: "snapshot", "beginning state chunking");
