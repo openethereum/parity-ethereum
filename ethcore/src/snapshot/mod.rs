@@ -21,19 +21,20 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use account_db::{AccountDB, AccountDBMut};
+use account_db::{AccountDB};
 use client::BlockChainClient;
 use error::Error;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, SHA3_EMPTY, snappy, TrieDB};
+use util::{Bytes, Hashable, HashDB, snappy, TrieDB};
 use util::hash::{FixedHash, H256};
-use util::numbers::U256;
-use util::rlp::{DecoderError, Rlp, RlpStream, Stream, UntrustedRlp, View};
+use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 
+use self::account::Account;
 use self::block::AbridgedBlock;
 
+mod account;
 mod block;
 
 // Try to have chunks be around 16MB (before compression)
@@ -231,7 +232,7 @@ pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, E
 
 	// account_key here is the address' hash.
 	for (account_key, account_data) in account_view.iter() {
-		let account = AccountReader::from_thin_rlp(account_data);
+		let account = Account::from_thin_rlp(account_data);
 		let account_key_hash = H256::from_slice(&account_key);
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
@@ -245,120 +246,6 @@ pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, E
 	}
 
 	Ok(chunker.hashes)
-}
-
-// An alternate account structure, only used for reading the storage values
-// out of the account as opposed to writing any.
-struct AccountReader {
-	nonce: U256,
-	balance: U256,
-	storage_root: H256,
-	code_hash: H256,
-}
-
-impl AccountReader {
-	// decode the account from rlp.
-	fn from_thin_rlp(rlp: &[u8]) -> Self {
-		let r: Rlp = Rlp::new(rlp);
-
-		AccountReader {
-			nonce: r.val_at(0),
-			balance: r.val_at(1),
-			storage_root: r.val_at(2),
-			code_hash: r.val_at(3),
-		}
-	}
-
-	// encode the account to a standard rlp.
-	fn to_thin_rlp(&self) -> Bytes {
-		let mut stream = RlpStream::new_list(4);
-		stream
-			.append(&self.nonce)
-			.append(&self.balance)
-			.append(&self.storage_root)
-			.append(&self.code_hash);
-
-		stream.out()
-	}
-
-	// walk the account's storage trie, returning an RLP item containing the
-	// account properties and the storage.
-	fn to_fat_rlp(&self, acct_db: &AccountDB, addr_hash: H256) -> Result<Bytes, Error> {
-		let db = try!(TrieDB::new(acct_db, &self.storage_root));
-
-		let mut pairs = Vec::new();
-
-		for (k, v) in db.iter() {
-			pairs.push((k, v));
-		}
-
-		let mut stream = RlpStream::new_list(pairs.len());
-
-		for (k, v) in pairs {
-			stream.begin_list(2).append(&k).append(&v);
-		}
-
-		let pairs_rlp = stream.out();
-
-		let mut account_stream = RlpStream::new_list(5);
-		account_stream.append(&self.nonce)
-					  .append(&self.balance);
-
-		// [has_code, code_hash].
-		if self.code_hash == SHA3_EMPTY {
-			account_stream.append(&false).append_empty_data();
-		} else {
-			match acct_db.lookup(&self.code_hash) {
-				Some(c) => {
-					account_stream.append(&true).append(&c);
-				}
-				None => {
-					warn!("code lookup failed for account with address hash {}, code hash {}", addr_hash, self.code_hash);
-					account_stream.append(&false).append_empty_data();
-				}
-			}
-		}
-
-		account_stream.append(&pairs_rlp);
-
-		Ok(account_stream.out())
-	}
-
-	// decode a fat rlp, and rebuild the storage trie as we go.
-	fn from_fat_rlp(acct_db: &mut AccountDBMut, rlp: Bytes) -> Result<Self, DecoderError> {
-		use util::{TrieDBMut, TrieMut};
-
-		let rlp = UntrustedRlp::new(&rlp);
-
-		let nonce = try!(rlp.val_at(0));
-		let balance = try!(rlp.val_at(1));
-		let code_hash = if try!(rlp.val_at(2)) {
-			let code: Bytes = try!(rlp.val_at(3));
-			acct_db.insert(&code)
-		} else {
-			SHA3_EMPTY
-		};
-
-		let mut storage_root = H256::zero();
-
-		{
-			let mut storage_trie = TrieDBMut::new(acct_db, &mut storage_root);
-			let pairs = try!(rlp.at(4));
-			for pair_rlp in pairs.iter() {
-				let k: Bytes  = try!(pair_rlp.val_at(0));
-				let v: Bytes = try!(pair_rlp.val_at(1));
-
-				storage_trie.insert(&k, &v);
-			}
-		}
-
-		Ok(AccountReader {
-			nonce: nonce,
-			balance: balance,
-			storage_root: storage_root,
-			code_hash: code_hash,
-		})
-	}
 }
 
 /// Manifest data.
