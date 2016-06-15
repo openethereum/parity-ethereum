@@ -398,7 +398,7 @@ fn execute_import(conf: Configuration) {
 		Box::new(::std::io::stdin())
 	};
 
-	let mut first_bytes: Bytes = vec![0; 3];
+	let mut first_bytes: Bytes = vec![0; 8];
 	let mut first_read = 0;
 
 	let format = match conf.args.flag_format {
@@ -438,13 +438,13 @@ fn execute_import(conf: Configuration) {
 	match format {
 		DataFormat::Binary => {
 			loop {
-				let mut bytes: Bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; 3]};
+				let mut bytes: Bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; 8]};
 				let n = if first_read > 0 {first_read} else {instream.read(&mut(bytes[..])).unwrap_or_else(|_| die!("Error reading from the file/stream."))};
 				if n == 0 { break; }
 				first_read = 0;
 				let s = PayloadInfo::from(&(bytes[..])).unwrap_or_else(|e| die!("Invalid RLP in the file/stream: {:?}", e)).total();
 				bytes.resize(s, 0);
-				instream.read_exact(&mut(bytes[3..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
+				instream.read_exact(&mut(bytes[8..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
 				do_import(bytes);
 			}
 		}
