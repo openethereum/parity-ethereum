@@ -21,7 +21,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use account_db::AccountDB;
+use account_db::{AccountDB, AccountDBMut};
 use client::BlockChainClient;
 use error::Error;
 use ids::BlockID;
@@ -300,13 +300,11 @@ impl AccountReader {
 
 		let pairs_rlp = stream.out();
 
-		let mut account_stream = RlpStream::new_list(4);
+		let mut account_stream = RlpStream::new_list(5);
 		account_stream.append(&self.nonce)
 					  .append(&self.balance);
 
 		// [has_code, code_hash].
-		account_stream.begin_list(2);
-
 		if self.code_hash == SHA3_EMPTY {
 			account_stream.append(&false).append_empty_data();
 		} else {
@@ -324,6 +322,42 @@ impl AccountReader {
 		account_stream.append(&pairs_rlp);
 
 		Ok(account_stream.out())
+	}
+
+	// decode a fat rlp, and rebuild the storage trie as we go.
+	fn from_fat_rlp(acct_db: &mut AccountDBMut, rlp: Bytes) -> Result<Self, DecoderError> {
+		use util::{TrieDBMut, TrieMut};
+
+		let rlp = UntrustedRlp::new(&rlp);
+
+		let nonce = try!(rlp.val_at(0));
+		let balance = try!(rlp.val_at(1));
+		let code_hash = if try!(rlp.val_at(2)) {
+			let code: Bytes = try!(rlp.val_at(3));
+			acct_db.insert(&code)
+		} else {
+			SHA3_EMPTY
+		};
+
+		let mut storage_root = H256::zero();
+
+		{
+			let mut storage_trie = TrieDBMut::new(acct_db, &mut storage_root);
+			let pairs = try!(rlp.at(4));
+			for pair_rlp in pairs.iter() {
+				let k: Bytes  = try!(pair_rlp.val_at(0));
+				let v: Bytes = try!(pair_rlp.val_at(1));
+
+				storage_trie.insert(&k, &v);
+			}
+		}
+
+		Ok(AccountReader {
+			nonce: nonce,
+			balance: balance,
+			storage_root: storage_root,
+			code_hash: code_hash,
+		})
 	}
 }
 
