@@ -102,10 +102,8 @@ impl Account {
 	}
 
 	// decode a fat rlp, and rebuild the storage trie as we go.
-	pub fn from_fat_rlp(acct_db: &mut AccountDBMut, rlp: Bytes) -> Result<Self, DecoderError> {
+	pub fn from_fat_rlp(acct_db: &mut AccountDBMut, rlp: UntrustedRlp) -> Result<Self, DecoderError> {
 		use util::{TrieDBMut, TrieMut};
-
-		let rlp = UntrustedRlp::new(&rlp);
 
 		let nonce = try!(rlp.val_at(0));
 		let balance = try!(rlp.val_at(1));

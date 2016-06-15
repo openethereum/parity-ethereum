@@ -228,6 +228,8 @@ pub enum Error {
 	Trie(TrieError),
 	/// Io error.
 	Io(::std::io::Error),
+	/// Snappy error.
+	Snappy(::util::snappy::Error),
 }
 
 impl fmt::Display for Error {
@@ -245,6 +247,7 @@ impl fmt::Display for Error {
 			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
 			Error::Trie(ref err) => f.write_fmt(format_args!("{}", err)),
 			Error::Io(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::Snappy(ref err) => f.write_fmt(format_args!("{}", err)),
 		}
 	}
 }
@@ -315,6 +318,12 @@ impl From<TrieError> for Error {
 impl From<::std::io::Error> for Error {
 	fn from(err: ::std::io::Error) -> Error {
 		Error::Io(err)
+	}
+}
+
+impl From<::util::snappy::Error> for Error {
+	fn from(err: ::util::snappy::Error) -> Error {
+		Error::Snappy(err)
 	}
 }
 

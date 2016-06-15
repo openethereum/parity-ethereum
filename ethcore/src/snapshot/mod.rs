@@ -21,7 +21,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use account_db::{AccountDB};
+use account_db::{AccountDB, AccountDBMut};
 use client::BlockChainClient;
 use error::Error;
 use ids::BlockID;
@@ -45,7 +45,7 @@ fn compression_helper(input: &[u8], output: &mut Vec<u8>) -> usize {
 	let max_size = snappy::max_compressed_len(input.len());
 	let buf_len = output.len();
 
-	// resize if necessary, but in reality this will probably never happen.
+	// resize if necessary, but in reality this will probably almost never happen.
 	if max_size > buf_len {
 		output.resize(max_size, 0);
 	}
@@ -55,6 +55,20 @@ fn compression_helper(input: &[u8], output: &mut Vec<u8>) -> usize {
 		Err(snappy::Error::BufferTooSmall) => panic!("buffer too small although capacity ensured?"),
 		Err(snappy::Error::InvalidInput) => panic!("invalid input error impossible in snappy_compress"),
 	}
+}
+
+// decompresses the data into the buffer, resizing if necessary.
+// may return invalid input error.
+fn decompression_helper(input: &[u8], output: &mut Vec<u8>) -> Result<usize, snappy::Error> {
+	let size = try!(snappy::decompressed_len(input));
+	let buf_len = output.len();
+
+	// resize if necessary, slow path.
+	if size > buf_len {
+		output.resize(size, 0);
+	}
+
+	snappy::decompress_into(&input, output)
 }
 
 // shared portion of write_chunk
@@ -259,7 +273,7 @@ pub struct ManifestData {
 }
 
 impl ManifestData {
-	/// Encode the manifest data to.
+	/// Encode the manifest data to rlp.
 	pub fn to_rlp(self) -> Bytes {
 		let mut stream = RlpStream::new_list(3);
 		stream.append(&self.state_hashes);
@@ -269,7 +283,7 @@ impl ManifestData {
 		stream.out()
 	}
 
-	/// Try to restore manifest data from raw bytes interpreted as RLP.
+	/// Try to restore manifest data from raw bytes, interpreted as RLP.
 	pub fn from_rlp(raw: &[u8]) -> Result<Self, DecoderError> {
 		let decoder = UntrustedRlp::new(raw);
 
@@ -283,4 +297,48 @@ impl ManifestData {
 			state_root: state_root,
 		})
 	}
+}
+
+/// Used to rebuild the state trie piece by piece.
+pub struct StateRebuilder<'a> {
+	db: &'a mut HashDB,
+	state_root: H256,
+	snappy_buffer: Vec<u8>
+}
+
+impl<'a> StateRebuilder<'a> {
+	/// Create a new state rebuilder to write into the given backing DB.
+	pub fn new(db: &'a mut HashDB) -> Self {
+		StateRebuilder {
+			db: db,
+			state_root: H256::zero(),
+			snappy_buffer: Vec::new(),
+		}
+	}
+
+	/// Feed a compressed state chunk into the rebuilder.
+	pub fn feed(&mut self, compressed: &[u8]) -> Result<(), Error> {
+		let len = try!(decompression_helper(compressed, &mut self.snappy_buffer));
+		let rlp = UntrustedRlp::new(&self.snappy_buffer[..len]);
+
+		for account_pair in rlp.iter() {
+			let hash: H256 = try!(rlp.val_at(0));
+			let fat_rlp = try!(rlp.at(1));
+
+			let thin_rlp = {
+				let mut acct_db = AccountDBMut::from_hash(self.db, hash);
+
+				// fill out the storage trie and code while decoding.
+				let acc = try!(Account::from_fat_rlp(&mut acct_db, fat_rlp));
+				acc.to_thin_rlp()
+			};
+
+			self.db.insert(&thin_rlp);
+		}
+
+		Ok(())
+	}
+
+	/// Get the state root of the rebuilder.
+	pub fn state_root(&self) -> H256 { self.state_root }
 }

@@ -73,6 +73,20 @@ pub fn max_compressed_len(len: usize) -> usize {
 	unsafe { snappy_max_compressed_length(len as size_t) as usize }
 }
 
+/// How large the given data will be when decompressed.
+pub fn decompressed_len(compressed: &[u8]) -> Result<usize, Error> {
+	let mut size: size_t = 0;
+	let len = compressed.len() as size_t;
+
+	let status = unsafe { snappy_uncompressed_length(compressed.as_ptr() as *const c_char, len, &mut size) };
+
+	if status == SNAPPY_INVALID_INPUT {
+		Err(Error::InvalidInput)
+	} else {
+		Ok(len)
+	}
+}
+
 /// Compress a buffer using snappy.
 pub fn compress(input: &[u8]) -> Vec<u8> {
 	let mut buf_size = max_compressed_len(input.len());
@@ -107,18 +121,13 @@ pub fn compress_into(input: &[u8], output: &mut [u8]) -> Result<usize, Error> {
 
 /// Decompress a buffer using snappy. Will return an error if the buffer is not snappy-compressed.
 pub fn decompress(input: &[u8]) -> Result<Vec<u8>, Error> {
-	let mut buf_size: size_t = 0;
+	decompressed_len(input).and_then(|mut buf_size| {
+		let mut output = vec![0; buf_size];
 
-	let status = unsafe { snappy_uncompressed_length(input.as_ptr() as *const c_char, input.len() as size_t, &mut buf_size) };
-	if status == SNAPPY_INVALID_INPUT {
-		return Err(Error::InvalidInput);
-	}
-
-	let mut output = vec![0; buf_size];
-
-	buf_size = try!(decompress_into(input, &mut output));
-	output.truncate(buf_size);
-	Ok(output)
+		buf_size = try!(decompress_into(input, &mut output));
+		output.truncate(buf_size);
+		Ok(output)
+	})
 }
 
 /// Decompress a buffer using snappy, writing the result into
