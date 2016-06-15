@@ -27,11 +27,10 @@ use error::Error;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, TrieDB};
+use util::{Bytes, Hashable, HashDB, SHA3_EMPTY, snappy, TrieDB};
 use util::hash::{FixedHash, H256};
 use util::numbers::U256;
-use util::rlp::{DecoderError, Rlp, RlpStream, Stream, SHA3_NULL_RLP, UntrustedRlp, View};
-use util::snappy;
+use util::rlp::{DecoderError, Rlp, RlpStream, Stream, UntrustedRlp, View};
 
 use self::block::AbridgedBlock;
 
@@ -237,7 +236,7 @@ pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, E
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlp = try!(account.to_fat_rlp(&account_db));
+		let fat_rlp = try!(account.to_fat_rlp(&account_db, account_key_hash));
 		try!(chunker.push(account_key, fat_rlp));
 	}
 
@@ -258,7 +257,7 @@ struct AccountReader {
 }
 
 impl AccountReader {
-	// deserialize the account from rlp.
+	// decode the account from rlp.
 	fn from_thin_rlp(rlp: &[u8]) -> Self {
 		let r: Rlp = Rlp::new(rlp);
 
@@ -270,10 +269,22 @@ impl AccountReader {
 		}
 	}
 
+	// encode the account to a standard rlp.
+	fn to_thin_rlp(&self) -> Bytes {
+		let mut stream = RlpStream::new_list(4);
+		stream
+			.append(&self.nonce)
+			.append(&self.balance)
+			.append(&self.storage_root)
+			.append(&self.code_hash);
+
+		stream.out()
+	}
+
 	// walk the account's storage trie, returning an RLP item containing the
 	// account properties and the storage.
-	fn to_fat_rlp(&self, hash_db: &HashDB) -> Result<Bytes, Error> {
-		let db = try!(TrieDB::new(hash_db, &self.storage_root));
+	fn to_fat_rlp(&self, acct_db: &AccountDB, addr_hash: H256) -> Result<Bytes, Error> {
+		let db = try!(TrieDB::new(acct_db, &self.storage_root));
 
 		let mut pairs = Vec::new();
 
@@ -289,16 +300,25 @@ impl AccountReader {
 
 		let pairs_rlp = stream.out();
 
-		let mut account_stream = RlpStream::new_list(5);
+		let mut account_stream = RlpStream::new_list(4);
 		account_stream.append(&self.nonce)
-					  .append(&self.balance)
-					  .append(&self.storage_root);
+					  .append(&self.balance);
 
+		// [has_code, code_hash].
 		account_stream.begin_list(2);
-		if self.code_hash == SHA3_NULL_RLP {
-			account_stream.append(&true).append(&hash_db.get(&self.code_hash).unwrap());
-		} else {
+
+		if self.code_hash == SHA3_EMPTY {
 			account_stream.append(&false).append_empty_data();
+		} else {
+			match acct_db.lookup(&self.code_hash) {
+				Some(c) => {
+					account_stream.append(&true).append(&c);
+				}
+				None => {
+					warn!("code lookup failed for account with address hash {}, code hash {}", addr_hash, self.code_hash);
+					account_stream.append(&false).append_empty_data();
+				}
+			}
 		}
 
 		account_stream.append(&pairs_rlp);
@@ -332,9 +352,9 @@ impl ManifestData {
 	pub fn from_rlp(raw: &[u8]) -> Result<Self, DecoderError> {
 		let decoder = UntrustedRlp::new(raw);
 
-		let state_hashes: Vec<H256> = try!(try!(decoder.at(0)).as_val());
-		let block_hashes: Vec<H256> = try!(try!(decoder.at(1)).as_val());
-		let state_root: H256 = try!(try!(decoder.at(2)).as_val());
+		let state_hashes: Vec<H256> = try!(decoder.val_at(0));
+		let block_hashes: Vec<H256> = try!(decoder.val_at(1));
+		let state_root: H256 = try!(decoder.val_at(2));
 
 		Ok(ManifestData {
 			state_hashes: state_hashes,
