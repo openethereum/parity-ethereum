@@ -20,7 +20,7 @@ use block::Block;
 use header::Header;
 
 use views::BlockView;
-use util::rlp::{Rlp, RlpStream, Stream, View};
+use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 use util::{Bytes, H256};
 
 const HEADER_FIELDS: usize = 11;
@@ -87,34 +87,34 @@ impl AbridgedBlock {
 	/// Flesh out an abridged block view with the provided parent hash and block number.
 	///
 	/// Will fail if contains invalid rlp.
-	pub fn to_block(&self, parent_hash: H256, number: u64) -> Block {
-		let rlp = Rlp::new(&self.rlp);
+	pub fn to_block(&self, parent_hash: H256, number: u64) -> Result<Block, DecoderError> {
+		let rlp = UntrustedRlp::new(&self.rlp);
 
 		let mut header = Header {
 			parent_hash: parent_hash,
-			uncles_hash: rlp.val_at(0),
-			author: rlp.val_at(1),
-			state_root: rlp.val_at(2),
-			transactions_root: rlp.val_at(3),
-			receipts_root: rlp.val_at(4),
-			log_bloom: rlp.val_at(5),
-			difficulty: rlp.val_at(6),
+			uncles_hash: try!(rlp.val_at(0)),
+			author: try!(rlp.val_at(1)),
+			state_root: try!(rlp.val_at(2)),
+			transactions_root: try!(rlp.val_at(3)),
+			receipts_root: try!(rlp.val_at(4)),
+			log_bloom: try!(rlp.val_at(5)),
+			difficulty: try!(rlp.val_at(6)),
 			number: number,
-			gas_limit: rlp.val_at(7),
-			gas_used: rlp.val_at(8),
-			timestamp: rlp.val_at(9),
-			extra_data: rlp.val_at(10),
+			gas_limit: try!(rlp.val_at(7)),
+			gas_used: try!(rlp.val_at(8)),
+			timestamp: try!(rlp.val_at(9)),
+			extra_data: try!(rlp.val_at(10)),
 			..Default::default()
 		};
 
-		let seal: Vec<Bytes> = rlp.val_at(11);
+		let seal: Vec<Bytes> = try!(rlp.val_at(11));
 
 		header.set_seal(seal);
 
-		Block {
+		Ok(Block {
 			header: header,
-			transactions: rlp.val_at(12),
-			uncles: rlp.val_at(13),
-		}
+			transactions: try!(rlp.val_at(12)),
+			uncles: try!(rlp.val_at(13)),
+		})
 	}
 }
