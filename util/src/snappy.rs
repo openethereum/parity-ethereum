@@ -46,6 +46,11 @@ extern {
 		compressed_len: size_t,
 		result: *mut size_t,
 	) -> c_int;
+
+	fn snappy_validate_compressed_buffer(
+		compressed: *const c_char,
+		compressed_len: size_t,
+	) -> c_int;
 }
 
 /// Errors that can occur during usage of snappy.
@@ -151,4 +156,10 @@ pub fn decompress_into(input: &[u8], output: &mut [u8]) -> Result<usize, Error> 
 		SNAPPY_BUFFER_TOO_SMALL => Err(Error::BufferTooSmall),
 		_ => panic!("snappy returned unspecified status"),
 	}
+}
+
+/// Validate a compressed buffer. True if valid, false if not.
+pub fn validate_compressed_buffer(input: &[u8]) -> bool {
+	let status = unsafe { snappy_validate_compressed_buffer(input.as_ptr() as *const c_char, input.len() as size_t )};
+	status == SNAPPY_OK
 }
