@@ -19,54 +19,12 @@
 use std::fmt;
 use std::sync::RwLock;
 use std::collections::HashMap;
-use util::{Address, H256, H520};
+use util::{Address as H160, H256, H520};
 use ethstore::{SecretStore, Error as SSError};
-use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Signature as SSSignature, Secret as SSSecret};
-
-/// Helper trait, works the same as Into.
-/// Used instead of into, cause we cannot implement into,
-/// if both types are from foreign crates.
-trait IntoSS<T> {
-	fn into(self) -> T;
-}
-
-impl IntoSS<SSAddress> for Address {
-	fn into(self) -> SSAddress {
-		SSAddress::from(self.0)
-	}
-}
-
-impl IntoSS<SSMessage> for H256 {
-	fn into(self) -> SSMessage {
-		SSMessage::from(self.0)
-	}
-}
-
-impl IntoSS<SSSecret> for H256 {
-	fn into(self) -> SSSecret {
-		SSSecret::from(self.0)
-	}
-}
-
-trait FromSS<T> {
-	fn from(T) -> Self where Self: Sized;
-}
-
-impl FromSS<SSSignature> for H520 {
-	fn from(s: SSSignature) -> Self {
-		let bare: [u8; 65] = s.into();
-		From::from(bare)
-	}
-}
-
-impl FromSS<SSAddress> for Address {
-	fn from(a: SSAddress) -> Self {
-		let bare: [u8; 20] = a.into();
-		From::from(bare)
-	}
-}
+use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret};
 
 /// Type of unlock.
+#[derive(Clone)]
 enum Unlock {
 	/// If account is unlocked temporarily, it should be locked after first usage.
 	Temp,
@@ -76,14 +34,18 @@ enum Unlock {
 }
 
 /// Data associated with account.
+#[derive(Clone)]
 struct AccountData {
 	unlock: Unlock,
 	password: String,
 }
 
+/// `AccountProvider` errors.
 #[derive(Debug)]
 pub enum Error {
+	/// Returned when account is not unlocked.
 	NotUnlocked,
+	/// Returned when signing fails.
 	SStore(SSError),
 }
 
@@ -102,10 +64,45 @@ impl From<SSError> for Error {
 	}
 }
 
+macro_rules! impl_bridge_type {
+	($name: ident, $size: expr, $core: ident, $store: ident) => {
+		/// Primitive
+		pub struct $name([u8; $size]);
+
+		impl From<[u8; $size]> for $name {
+			fn from(s: [u8; $size]) -> Self {
+				$name(s)
+			}
+		}
+
+		impl From<$core> for $name {
+			fn from(s: $core) -> Self {
+				$name(s.0)
+			}
+		}
+
+		impl From<$store> for $name {
+			fn from(s: $store) -> Self {
+				$name(s.into())
+			}
+		}
+
+		impl Into<$store> for $name {
+			fn into(self) -> $store {
+				$store::from(self.0)
+			}
+		}
+	}
+}
+
+impl_bridge_type!(Secret, 32, H256, SSSecret);
+impl_bridge_type!(Message, 32, H256, SSMessage);
+impl_bridge_type!(Address, 20, H160, SSAddress);
+
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
-	unlocked: RwLock<HashMap<Address, AccountData>>,
+	unlocked: RwLock<HashMap<SSAddress, AccountData>>,
 	sstore: Box<SecretStore>,
 }
 
@@ -120,51 +117,62 @@ impl AccountProvider {
 
 	/// Inserts new account into underlying store.
 	/// Does not unlock account!
-	pub fn insert_account(&self, secret: H256, password: &str) -> Result<(), Error> {
-		let _ = try!(self.sstore.insert_account(IntoSS::into(secret), password));
+	pub fn insert_account<S>(&self, secret: S, password: &str) -> Result<(), Error> where Secret: From<S> {
+		let s = Secret::from(secret);
+		let _ = try!(self.sstore.insert_account(s.into(), password));
 		Ok(())
 	}
 
 	/// Returns addresses of all accounts.
-	pub fn accounts(&self) -> Vec<Address> {
-		self.sstore.accounts().into_iter().map(FromSS::from).collect()
+	pub fn accounts(&self) -> Vec<H160> {
+		self.sstore.accounts().into_iter().map(|a| H160(a.into())).collect()
 	}
 
 	/// Helper method used for unlocking accounts.
-	fn unlock_account(&self, account: Address, password: String, unlock: Unlock) -> Result<(), Error> {
+	fn unlock_account<A>(&self, account: A, password: String, unlock: Unlock) -> Result<(), Error> where Address: From<A> {
+		let a = Address::from(account);
+		let account = a.into();
 		// verify password by signing dump message
 		// result may be discarded
-		let _ = try!(self.sstore.sign(&IntoSS::into(account), &password, &Default::default()));
+		let _ = try!(self.sstore.sign(&account, &password, &Default::default()));
 
 		let data = AccountData {
 			unlock: unlock,
 			password: password,
 		};
+
 		let mut unlocked = self.unlocked.write().unwrap();
 		unlocked.insert(account, data);
 		Ok(())
 	}
 
 	/// Unlocks account permanently.
-	pub fn unlock_account_permanently(&self, account: Address, password: String) -> Result<(), Error> {
+	pub fn unlock_account_permanently<A>(&self, account: A, password: String) -> Result<(), Error> where Address: From<A> {
 		self.unlock_account(account, password, Unlock::Perm)
 	}
 
 	/// Unlocks account temporarily (for one signing).
-	pub fn unlock_account_temporarily(&self, account: Address, password: String) -> Result<(), Error> {
+	pub fn unlock_account_temporarily<A>(&self, account: A, password: String) -> Result<(), Error> where Address: From<A> {
 		self.unlock_account(account, password, Unlock::Temp)
 	}
 
 	/// Signs the message. Account must be unlocked.
-	pub fn sign(&self, account: &Address, message: &H256) -> Result<H520, Error> {
-		let password = {
+	pub fn sign<A, M>(&self, account: A, message: M) -> Result<H520, Error> where Address: From<A>, Message: From<M> {
+		let account = Address::from(account).into();
+		let message = Message::from(message).into();
+
+		let data = {
 			let unlocked = self.unlocked.read().unwrap();
-			let data = try!(unlocked.get(account).ok_or(Error::NotUnlocked));
-			data.password.clone()
+			try!(unlocked.get(&account).ok_or(Error::NotUnlocked)).clone()
 		};
 
-		let signature = try!(self.sstore.sign(&IntoSS::into(*account), &password, &IntoSS::into(*message)));
-		Ok(FromSS::from(signature))
+		if let Unlock::Temp = data.unlock {
+			let mut unlocked = self.unlocked.write().unwrap();
+			unlocked.remove(&account).expect("data exists: so key must exist: qed");
+		}
+
+		let signature = try!(self.sstore.sign(&account, &data.password, &message));
+		Ok(H520(signature.into()))
 	}
 }
 
@@ -173,7 +181,7 @@ mod tests {
 	use super::AccountProvider;
 	use ethstore::{SecretStore, SafeAccount, Error, EthStore};
 	use ethstore::dir::KeyDirectory;
-	use ethstore::ethkey::{Address, Generator, Random, Secret};
+	use ethstore::ethkey::{Address, Generator, Random};
 
 	struct NullDir;
 
@@ -182,11 +190,11 @@ mod tests {
 			Ok(vec![])
 		}
 
-		fn insert(&self, account: SafeAccount) -> Result<(), Error> {
+		fn insert(&self, _account: SafeAccount) -> Result<(), Error> {
 			Ok(())
 		}
 
-		fn remove(&self, address: &Address) -> Result<(), Error> {
+		fn remove(&self, _address: &Address) -> Result<(), Error> {
 			Ok(())
 		}
 	}
@@ -195,12 +203,25 @@ mod tests {
 		AccountProvider::new(Box::new(EthStore::open(Box::new(NullDir)).unwrap()))
 	}
 
-	fn random_secret() -> Secret {
-		Random.generate().unwrap().secret().clone()
+	#[test]
+	fn unlock_account_temp() {
+		let kp = Random.generate().unwrap();
+		let ap = account_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+		assert!(ap.unlock_account_temporarily(kp.address(), "test1".into()).is_err());
+		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
+		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
+		assert!(ap.sign(kp.address(), [0u8; 32]).is_err());
 	}
 
 	#[test]
-	fn unlock_account_temp() {
+	fn unlock_account_perm() {
+		let kp = Random.generate().unwrap();
 		let ap = account_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+		assert!(ap.unlock_account_permanently(kp.address(), "test1".into()).is_err());
+		assert!(ap.unlock_account_permanently(kp.address(), "test".into()).is_ok());
+		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
+		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
 	}
 }

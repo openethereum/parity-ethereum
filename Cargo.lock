@@ -427,7 +427,7 @@ dependencies = [
 [[package]]
 name = "ethkey"
 version = "0.2.0"
-source = "git+https://github.com/ethcore/ethkey#bf14e3c1bbc22129337d322fe51e30daacd2dea2"
+source = "git+https://github.com/ethcore/ethkey#2b00d5ecc85f727ae66c5c12df0925d38baf0987"
 dependencies = [
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
