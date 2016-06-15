@@ -255,14 +255,21 @@ impl Ethash {
 
 	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
 	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
-		let d =	cmp::max(U256::from(boundary), U256::one());
-		((U256::one() << 255) / d) << 1
+		let d = U256::from(*boundary);
+		if d <= U256::one() {
+			U256::max_value()
+		} else {
+			((U256::one() << 255) / d) << 1
+		}
 	}
 
 	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
 	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-		let d =	cmp::max(*difficulty, U256::one());
-		(((U256::one() << 255) / d) << 1).into()
+		if *difficulty <= U256::one() {
+			U256::max_value().into()
+		} else {
+			(((U256::one() << 255) / *difficulty) << 1).into()
+		}
 	}
 
 	fn to_ethash(hash: H256) -> EH256 {
@@ -512,8 +519,9 @@ mod tests {
 
 	#[test]
 	fn test_difficulty_to_boundary() {
-		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(0)), H256::from(0));
-		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(1)), H256::from(0));
+		// result of f(0) is undefined, so do not assert the result
+		let _ = Ethash::difficulty_to_boundary(&U256::from(0));
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(1)), H256::from(U256::max_value()));
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(2)), H256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(4)), H256::from_str("4000000000000000000000000000000000000000000000000000000000000000").unwrap());
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
