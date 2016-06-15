@@ -43,9 +43,9 @@ Parity is fully compatible with Stable Rust.
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
 - Linux and OSX:
-```bash
-$ curl https://sh.rustup.rs -sSf | sh
-```
+	```bash
+	$ curl https://sh.rustup.rs -sSf | sh
+	```
 
 - Windows
 
