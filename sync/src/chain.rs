@@ -405,6 +405,7 @@ impl ChainSync {
 		}
 		if item_count == 0 && (self.state == SyncState::Blocks || self.state == SyncState::NewBlocks) {
 			self.deactivate_peer(io, peer_id); //TODO: is this too harsh?
+			self.continue_sync(io);
 			return Ok(());
 		}
 
@@ -452,7 +453,12 @@ impl ChainSync {
 
 		// Disable the peer for this syncing round if it gives invalid chain
 		if !valid_response {
-			trace!(target: "sync", "{} Disabled for invalid headers response", peer_id);
+			trace!(target: "sync", "{} Deactivated for invalid headers response", peer_id);
+			self.deactivate_peer(io, peer_id); 
+		}
+		if headers.is_empty() {
+			// Peer does not have any new subchain heads, deactivate it nd try with another
+			trace!(target: "sync", "{} Deactivated for no data", peer_id);
 			self.deactivate_peer(io, peer_id); 
 		}
 		match self.state {

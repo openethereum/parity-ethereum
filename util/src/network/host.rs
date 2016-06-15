@@ -523,11 +523,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 
 		let nodes = if pin { self.pinned_nodes.clone() } else { self.nodes.read().unwrap().nodes() };
+		let mut started: usize = 0;
 		for id in nodes.iter().filter(|ref id| !self.have_session(id) && !self.connecting_to(id))
 			.take(min(MAX_HANDSHAKES_PER_ROUND, handshake_limit - handshake_count)) {
 			self.connect_peer(&id, io);
+			started += 1;
 		}
-		debug!(target: "network", "Connecting peers: {} sessions, {} pending", self.session_count(), self.handshake_count());
+		debug!(target: "network", "Connecting peers: {} sessions, {} pending, {} started", self.session_count(), self.handshake_count(), started);
 	}
 
 	#[cfg_attr(feature="dev", allow(single_match))]
@@ -650,6 +652,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						break;
 					},
 					Ok(SessionData::Ready) => {
+						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 						if !s.info.originated {
 							let session_count = self.session_count();
 							let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
@@ -667,7 +670,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 								}
 							}
 						}
-						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 						for (p, _) in self.handlers.read().unwrap().iter() {
 							if s.have_capability(p)  {
 								ready_data.push(p);
@@ -828,6 +830,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
 			NODE_TABLE => {
+				trace!(target: "network", "Refreshing node table");
 				self.nodes.write().unwrap().clear_useless();
 			},
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
