@@ -92,7 +92,7 @@ impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
 			.and_then(|(request, password)| {
 				let accounts = take_weak!(self.accounts);
 				match accounts.locked_account_secret(&request.from, &password) {
-					Ok(secret) => to_value(&sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, secret)),
+					Ok(secret) => sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, secret),
 					Err(_) => to_value(&H256::zero()),
 				}
 		})
