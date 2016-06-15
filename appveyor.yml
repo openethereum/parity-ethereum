@@ -8,7 +8,16 @@ install:
   - rustc -V
   - cargo -V
 
-build: false
+build: off
 
 test_script:
   - cargo test --verbose
+
+after_test:
+  - cargo build --release
+  - C:\Program Files (x86)\NSIS\bin\makensis.exe nsis\installer.nsi
+
+artifacts:
+- path: nsis\installer.exe
+  name: Windows Installer (x86_64)
+
