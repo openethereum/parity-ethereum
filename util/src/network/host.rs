@@ -828,6 +828,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			},
 			NODE_TABLE => {
 				self.nodes.write().unwrap().clear_useless();
+				io.update_registration(NODE_TABLE).expect("Error updating node table timer registration");
 			},
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
