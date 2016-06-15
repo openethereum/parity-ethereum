@@ -829,6 +829,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
 			NODE_TABLE => {
+				trace!(target: "network", "Refreshing node table");
 				self.nodes.write().unwrap().clear_useless();
 				io.update_registration(NODE_TABLE).expect("Error updating node table timer registration");
 			},
