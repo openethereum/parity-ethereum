@@ -41,6 +41,7 @@ use network::stats::NetworkStats;
 use network::error::{NetworkError, DisconnectReason};
 use network::discovery::{Discovery, TableUpdates, NodeEntry};
 use network::ip_utils::{map_external_address, select_public_address};
+use path::restrict_permissions_owner;
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -946,13 +947,17 @@ fn save_key(path: &Path, key: &Secret) {
 		return;
 	};
 	path_buf.push("key");
-	let mut file = match fs::File::create(path_buf.as_path()) {
+	let path = path_buf.as_path();
+	let mut file = match fs::File::create(&path) {
 		Ok(file) => file,
 		Err(e) => {
 			warn!("Error creating key file: {:?}", e);
 			return;
 		}
 	};
+	if let Err(e) = restrict_permissions_owner(&path) {
+		warn!(target: "network", "Failed to modify permissions of the file (chmod: {})", e);
+	}
 	if let Err(e) = file.write(&key.hex().into_bytes()) {
 		warn!("Error writing key file: {:?}", e);
 	}

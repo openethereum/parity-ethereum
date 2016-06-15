@@ -18,7 +18,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 use util::panics::{PanicHandler, ForwardPanic};
-use util::keys::directory::restrict_permissions_owner;
+use util::path::restrict_permissions_owner;
 use die::*;
 use rpc_apis;
 
