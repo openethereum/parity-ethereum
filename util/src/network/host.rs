@@ -651,6 +651,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						break;
 					},
 					Ok(SessionData::Ready) => {
+						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 						if !s.info.originated {
 							let session_count = self.session_count();
 							let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
@@ -668,7 +669,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 								}
 							}
 						}
-						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 						for (p, _) in self.handlers.read().unwrap().iter() {
 							if s.have_capability(p)  {
 								ready_data.push(p);
