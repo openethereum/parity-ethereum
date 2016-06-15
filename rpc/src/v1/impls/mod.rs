@@ -63,6 +63,15 @@ use util::rlp::encode;
 use util::bytes::ToPretty;
 use jsonrpc_core::{Error, ErrorCode, Value, to_value};
 
+mod error_codes {
+	// NOTE [ToDr] Codes from [-32099, -32000]
+	pub const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
+	pub const NO_WORK_CODE: i64 = -32001;
+	pub const UNKNOWN_ERROR: i64 = -32002;
+	pub const TRANSACTION_ERROR: i64 = -32010;
+	pub const ACCOUNT_LOCKED: i64 = -32020;
+}
+
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 	let hash = signed_transaction.hash();
@@ -100,13 +109,6 @@ fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, s
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
 	dispatch_transaction(&*client, &*miner, signed_transaction)
-}
-
-mod error_codes {
-	// NOTE [ToDr] Codes from -32000 to -32099
-	pub const UNKNOWN_ERROR: i64 = -32002;
-	pub const TRANSACTION_ERROR: i64 = -32010;
-	pub const ACCOUNT_LOCKED: i64 = -32020;
 }
 
 fn transaction_error(error: EthcoreError) -> Error {
