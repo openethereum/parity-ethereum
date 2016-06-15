@@ -6,6 +6,8 @@
 !define VERSIONMINOR 2
 !define VERSIONBUILD 0
 
+!addplugindir win-build
+
 !define HELPURL "https://github.com/ethcore/parity/wiki" # "Support Information" link
 !define UPDATEURL "https://github.com/ethcore/parity/releases" # "Product Updates" link
 !define ABOUTURL "https://github.com/ethcore/parity" # "Publisher" link
