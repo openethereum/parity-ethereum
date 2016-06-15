@@ -1,0 +1,14 @@
+environment:
+  matrix:
+  - TARGET: x86_64-pc-windows-msvc
+install:
+  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-stable-${env:TARGET}.exe"
+  - rust-stable-%TARGET%.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
+  - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin
+  - rustc -V
+  - cargo -V
+
+build: false
+
+test_script:
+  - cargo test --verbose
