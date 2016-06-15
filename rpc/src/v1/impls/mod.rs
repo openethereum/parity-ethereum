@@ -57,6 +57,7 @@ use v1::types::TransactionRequest;
 use ethcore::miner::{AccountDetails, MinerService};
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
+use ethcore::account_provider::{AccountProvider, Error};
 use util::numbers::*;
 use util::rlp::encode;
 use util::bytes::ToPretty;
@@ -75,11 +76,11 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 	import.map(|_| hash).unwrap_or(H256::zero())
 }
 
-fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, secret: H256) -> H256
+fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, address: Address) -> Result<H256, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
 	let signed_transaction = {
-		Transaction {
+		let t = Transaction {
 			nonce: request.nonce
 				.or_else(|| miner
 						 .last_nonce(&request.from)
@@ -91,9 +92,12 @@ fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, s
 			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |b| b.to_vec()),
-		}.sign(&secret)
+		};
+		let hash = t.hash();
+		let signature = try!(account_provider.sign(address, hash));
+		t.with_signature(signature)
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
-	dispatch_transaction(&*client, &*miner, signed_transaction)
+	Ok(dispatch_transaction(&*client, &*miner, signed_transaction))
 }

@@ -21,7 +21,7 @@ use std::sync::RwLock;
 use std::collections::HashMap;
 use util::{Address as H160, H256, H520};
 use ethstore::{SecretStore, Error as SSError};
-use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret};
+use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret, Random, Generator};
 
 /// Type of unlock.
 #[derive(Clone)]
@@ -87,6 +87,12 @@ macro_rules! impl_bridge_type {
 			}
 		}
 
+		impl Into<$core> for $name {
+			fn into(self) -> $core {
+				$core(self.0)
+			}
+		}
+
 		impl Into<$store> for $name {
 			fn into(self) -> $store {
 				$store::from(self.0)
@@ -115,12 +121,19 @@ impl AccountProvider {
 		}
 	}
 
+	/// Creates new random account.
+	pub fn new_account(&self, password: &str) -> Result<H160, Error> {
+		let secret = Random.generate().unwrap().secret().clone();
+		let address = try!(self.sstore.insert_account(secret, password));
+		Ok(Address::from(address).into())
+	}
+
 	/// Inserts new account into underlying store.
 	/// Does not unlock account!
-	pub fn insert_account<S>(&self, secret: S, password: &str) -> Result<(), Error> where Secret: From<S> {
+	pub fn insert_account<S>(&self, secret: S, password: &str) -> Result<H160, Error> where Secret: From<S> {
 		let s = Secret::from(secret);
-		let _ = try!(self.sstore.insert_account(s.into(), password));
-		Ok(())
+		let address = try!(self.sstore.insert_account(s.into(), password));
+		Ok(Address::from(address).into())
 	}
 
 	/// Returns addresses of all accounts.
@@ -135,6 +148,16 @@ impl AccountProvider {
 		// verify password by signing dump message
 		// result may be discarded
 		let _ = try!(self.sstore.sign(&account, &password, &Default::default()));
+
+		// check if account is already unlocked pernamently, if it is, do nothing
+		{
+			let unlocked = self.unlocked.read().unwrap();
+			if let Some(data) = unlocked.get(&account) {
+				if let Unlock::Perm = data.unlock {
+					return Ok(())
+				}
+			}
+		}
 
 		let data = AccountData {
 			unlock: unlock,
@@ -221,6 +244,9 @@ mod tests {
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_permanently(kp.address(), "test".into()).is_ok());
+		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
+		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
+		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
 		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
 		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
 	}
