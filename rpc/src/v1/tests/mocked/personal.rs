@@ -19,7 +19,6 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use jsonrpc_core::IoHandler;
 use util::numbers::*;
-//use util::keys::{TestAccount, TestAccountProvider};
 use ethcore::account_provider::AccountProvider;
 use v1::{PersonalClient, Personal};
 use v1::tests::helpers::TestMinerService;
@@ -27,7 +26,6 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Action, Transaction};
 
 struct PersonalTester {
-	//accounts: Arc<TestAccountProvider>,
 	accounts: Arc<AccountProvider>,
 	io: IoHandler,
 	miner: Arc<TestMinerService>,
@@ -100,10 +98,6 @@ fn should_return_port_number_if_signer_is_enabled() {
 fn accounts() {
 	let tester = setup(None);
 	let address = tester.accounts.new_account("").unwrap();
-		//.write()
-		//.unwrap()
-		//.insert(Address::from(1), TestAccount::new("test"));
-
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_listAccounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
 
@@ -147,52 +141,55 @@ fn sign_and_send_transaction_with_invalid_password() {
 	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response.into()));
 }
 
-//#[test]
-//fn sign_and_send_transaction() {
-	//let account = TestAccount::new("password123");
-	//let address = account.address();
-	//let secret = account.secret.clone();
+#[test]
+fn sign_and_send_transaction() {
+	let tester = setup(None);
+	let address = tester.accounts.new_account("password123").unwrap();
 
-	//let tester = setup(None);
-	//tester.accounts.accounts.write().unwrap().insert(address.clone(), account);
-	//let request = r#"{
-		//"jsonrpc": "2.0",
-		//"method": "personal_signAndSendTransaction",
-		//"params": [{
-			//"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
-			//"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
-			//"gas": "0x76c0",
-			//"gasPrice": "0x9184e72a000",
-			//"value": "0x9184e72a"
-		//}, "password123"],
-		//"id": 1
-	//}"#;
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_signAndSendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}, "password123"],
+		"id": 1
+	}"#;
 
-	//let t = Transaction {
-		//nonce: U256::zero(),
-		//gas_price: U256::from(0x9184e72a000u64),
-		//gas: U256::from(0x76c0),
-		//action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-		//value: U256::from(0x9184e72au64),
-		//data: vec![]
-	//}.sign(&secret);
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	tester.accounts.unlock_account_temporarily(address, "password123".into()).unwrap();
+	let signature = tester.accounts.sign(address, t.hash()).unwrap();
+	let t = t.with_signature(signature);
 
-	//let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	//assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
 
-	//tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
+	tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
 
-	//let t = Transaction {
-		//nonce: U256::one(),
-		//gas_price: U256::from(0x9184e72a000u64),
-		//gas: U256::from(0x76c0),
-		//action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-		//value: U256::from(0x9184e72au64),
-		//data: vec![]
-	//}.sign(&secret);
+	let t = Transaction {
+		nonce: U256::one(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	tester.accounts.unlock_account_temporarily(address, "password123".into()).unwrap();
+	let signature = tester.accounts.sign(address, t.hash()).unwrap();
+	let t = t.with_signature(signature);
 
-	//let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	//assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
-//}
+	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+}
