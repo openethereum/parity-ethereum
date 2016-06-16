@@ -361,7 +361,7 @@ mod tests {
 			nonce: U256::from(2)
 		}.sign(&keypair.secret());
 
-		let good_transactions = [ &tr1, &tr2 ];
+		let good_transactions = [ tr1.clone(), tr2.clone() ];
 
 		let diff_inc = U256::from(0x40);
 

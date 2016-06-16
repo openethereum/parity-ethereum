@@ -25,8 +25,7 @@ use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use v1::traits::EthSigning;
 use v1::types::TransactionRequest;
-use v1::impls::sign_and_dispatch;
-
+use v1::impls::{sign_and_dispatch};
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct EthSigningQueueClient {
@@ -45,6 +44,7 @@ impl EthSigningQueueClient {
 impl EthSigning for EthSigningQueueClient  {
 
 	fn sign(&self, _params: Params) -> Result<Value, Error> {
+		warn!("Invoking eth_sign is not yet supported with signer enabled.");
 		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
 		rpc_unimplemented!()
 	}
@@ -55,7 +55,7 @@ impl EthSigning for EthSigningQueueClient  {
 				let queue = take_weak!(self.queue);
 				let id = queue.add_request(request);
 				let result = id.wait_with_timeout();
-				to_value(&result.unwrap_or_else(H256::new))
+				result.unwrap_or_else(|| to_value(&H256::new()))
 		})
 	}
 }
@@ -104,5 +104,4 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 				}
 		})
 	}
-
 }

@@ -159,7 +159,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_queue).to_delegate());
 			},
 			Api::Ethcore => {
-				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
 			},
 			Api::EthcoreSet => {
 				server.add_delegate(EthcoreSetClient::new(&deps.miner).to_delegate())

@@ -76,7 +76,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 
 						match sign_and_dispatch(&*client, &*miner, request, &*accounts, sender) {
 							Ok(hash) => {
-								queue.request_confirmed(id, hash);
+								queue.request_confirmed(id, Ok(hash.clone()));
 								Some(to_value(&hash))
 							},
 							_ => None

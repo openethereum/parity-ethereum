@@ -244,6 +244,11 @@ impl Spec {
 	pub fn new_test() -> Spec {
 		Spec::load(include_bytes!("../../res/null_morden.json"))
 	}
+
+	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
+	pub fn new_null() -> Spec {
+		Spec::load(include_bytes!("../../res/null.json"))
+	}
 }
 
 #[cfg(test)]

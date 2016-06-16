@@ -86,6 +86,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			.and_then(|(request, password)| {
 				let sender = request.from;
 				let accounts = take_weak!(self.accounts);
+
 				if let Err(_) = accounts.unlock_account_temporarily(sender, password) {
 					return to_value(&H256::zero());
 				}
