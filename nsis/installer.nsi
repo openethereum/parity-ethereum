@@ -1,6 +1,6 @@
 
 !define APPNAME "Parity"
-!define COMPANYNAME "ETHCORE"
+!define COMPANYNAME "Ethcore"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 2
