@@ -19,7 +19,6 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use jsonrpc_core::IoHandler;
 use util::numbers::*;
-//use util::keys::{TestAccount, TestAccountProvider};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
@@ -45,8 +44,6 @@ fn blockchain_client() -> Arc<TestBlockChainClient> {
 }
 
 fn accounts_provider() -> Arc<AccountProvider> {
-	//let accounts = HashMap::new();
-	//let ap = TestAccountProvider::new(accounts);
 	Arc::new(AccountProvider::transient_provider())
 }
 
@@ -145,50 +142,48 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 	assert_eq!(tester.queue.requests().len(), 1);
 }
 
-//#[test]
-//fn should_confirm_transaction_and_dispatch() {
+#[test]
+fn should_confirm_transaction_and_dispatch() {
 	//// given
-	//let tester = signer_tester();
-	//let account = TestAccount::new("test");
-	//let address = account.address();
-	//let secret = account.secret.clone();
-	//let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	//tester.accounts.accounts
-		//.write()
-		//.unwrap()
-		//.insert(address, account);
-	//tester.queue.add_request(TransactionRequest {
-		//from: address,
-		//to: Some(recipient),
-		//gas_price: Some(U256::from(10_000)),
-		//gas: Some(U256::from(10_000_000)),
-		//value: Some(U256::from(1)),
-		//data: None,
-		//nonce: None,
-	//});
-	//let t = Transaction {
-		//nonce: U256::zero(),
-		//gas_price: U256::from(0x1000),
-		//gas: U256::from(10_000_000),
-		//action: Action::Call(recipient),
-		//value: U256::from(0x1),
-		//data: vec![]
-	//}.sign(&secret);
+	let tester = signer_tester();
+	let address = tester.accounts.new_account("test").unwrap();
+	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
+	tester.queue.add_request(TransactionRequest {
+		from: address,
+		to: Some(recipient),
+		gas_price: Some(U256::from(10_000)),
+		gas: Some(U256::from(10_000_000)),
+		value: Some(U256::from(1)),
+		data: None,
+		nonce: None,
+	});
 
-	//assert_eq!(tester.queue.requests().len(), 1);
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x1000),
+		gas: U256::from(10_000_000),
+		action: Action::Call(recipient),
+		value: U256::from(0x1),
+		data: vec![]
+	};
+	tester.accounts.unlock_account_temporarily(address, "test".into()).unwrap();
+	let signature = tester.accounts.sign(address, t.hash()).unwrap();
+	let t = t.with_signature(signature);
 
-	//// when
-	//let request = r#"{
-		//"jsonrpc":"2.0",
-		//"method":"personal_confirmTransaction",
-		//"params":["0x01", {"gasPrice":"0x1000"}, "test"],
-		//"id":1
-	//}"#;
-	//let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+	assert_eq!(tester.queue.requests().len(), 1);
 
-	//// then
-	//assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
-	//assert_eq!(tester.queue.requests().len(), 0);
-	//assert_eq!(tester.miner.imported_transactions.lock().unwrap().len(), 1);
-//}
+	// when
+	let request = r#"{
+		"jsonrpc":"2.0",
+		"method":"personal_confirmTransaction",
+		"params":["0x01", {"gasPrice":"0x1000"}, "test"],
+		"id":1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.queue.requests().len(), 0);
+	assert_eq!(tester.miner.imported_transactions.lock().unwrap().len(), 1);
+}
 
