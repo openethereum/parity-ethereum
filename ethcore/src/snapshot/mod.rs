@@ -27,7 +27,7 @@ use error::Error;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, snappy, TrieDB};
+use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 
@@ -162,10 +162,10 @@ impl<'a> StateChunker<'a> {
 	//
 	// If the buffer is greater than the desired chunk size,
 	// this will write out the data to disk.
-	fn push(&mut self, key: Bytes, value: Bytes) -> Result<(), Error> {
+	fn push(&mut self, account_hash: Bytes, data: Bytes) -> Result<(), Error> {
 		let pair = {
 			let mut stream = RlpStream::new_list(2);
-			stream.append(&key).append(&value);
+			stream.append(&account_hash).append_raw(&data, 1);
 			stream.out()
 		};
 
@@ -305,7 +305,12 @@ impl<'a> StateRebuilder<'a> {
 				acc.to_thin_rlp()
 			};
 
-			self.db.insert(&thin_rlp);
+			let mut account_trie = if self.state_root != H256::zero() {
+				try!(TrieDBMut::from_existing(self.db, &mut self.state_root))
+			} else {
+				TrieDBMut::new(self.db, &mut self.state_root)
+			};
+			account_trie.insert(&hash, &thin_rlp);
 		}
 
 		Ok(())
