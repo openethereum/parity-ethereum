@@ -19,9 +19,9 @@ after_test:
   - makensis.exe nsis\installer.nsi
 
 artifacts:
-  - path: installer.exe
+  - path: nsis\installer.exe
     name: Windows Installer (x86_64)
 
 cache:
   - target
-  - '%HOME%\.cargo'
+  - '\Users\appveyor\.cargo'
