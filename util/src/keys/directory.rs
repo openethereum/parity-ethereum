@@ -186,9 +186,9 @@ impl KeyFileCrypto {
 				match try!(as_object.get("cipherparams").ok_or(CryptoParseError::NoCipherParameters)).as_object() {
 					None => { return Err(CryptoParseError::NoCipherParameters); },
 					Some(cipher_param) => match H128::from_str(match cipher_param["iv"].as_string() {
-						None => { return Err(CryptoParseError::NoInitialVector); },
-						Some(iv_hex_string) => iv_hex_string
-					})
+							None => { return Err(CryptoParseError::NoInitialVector); },
+							Some(iv_hex_string) => iv_hex_string
+						})
 					{
 						Ok(iv_value) => iv_value,
 						Err(hex_error) => { return Err(CryptoParseError::InvalidInitialVector(hex_error)); }
@@ -519,8 +519,8 @@ impl KeyDirectory {
 
 		// todo: replace with Ref::map when it stabilized to avoid copies
 		Some(self.cache.read().unwrap().get(id)
-			 .expect("Key should be there, we have just inserted or checked it.")
-			 .clone())
+			.expect("Key should be there, we have just inserted or checked it.")
+			.clone())
 	}
 
 	/// Returns current path to the directory with keys

@@ -663,14 +663,14 @@ mod tests {
 		use keys::directory::{KeyFileContent, KeyFileCrypto};
 		let temp = RandomTempPath::create_dir();
 		let mut key_file =
-		KeyFileContent::new(
-			KeyFileCrypto::new_pbkdf2(
-				FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
-				H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
-				H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
-				H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
-				262144,
-				32));
+			KeyFileContent::new(
+				KeyFileCrypto::new_pbkdf2(
+					FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
+					H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
+					H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
+					H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
+					262144,
+					32));
 		key_file.account = Some(Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
 
 		let mut sstore = SecretStore::new_test(&temp);
