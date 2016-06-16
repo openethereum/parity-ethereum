@@ -96,7 +96,7 @@ impl Account {
 			}
 		}
 
-		account_stream.append(&pairs_rlp);
+		account_stream.append_raw(&pairs_rlp, 1);
 
 		Ok(account_stream.out())
 	}
@@ -126,7 +126,6 @@ impl Account {
 				storage_trie.insert(&k, &v);
 			}
 		}
-
 		Ok(Account {
 			nonce: nonce,
 			balance: balance,
