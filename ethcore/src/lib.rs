@@ -109,6 +109,7 @@ pub mod spec;
 pub mod views;
 pub mod pod_state;
 pub mod engine;
+pub mod null_engine;
 pub mod migrations;
 pub mod miner;
 
@@ -123,7 +124,6 @@ mod state;
 mod account;
 mod account_db;
 mod action_params;
-mod null_engine;
 mod builtin;
 mod substate;
 mod executive;

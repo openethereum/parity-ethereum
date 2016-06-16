@@ -61,7 +61,7 @@ impl Decodable for Block {
 }
 
 /// Internal type for a block's common elements.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ExecutedBlock {
 	base: Block,
 
@@ -194,7 +194,7 @@ pub struct ClosedBlock {
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.
 ///
 /// We actually store the post-`Engine::on_close_block` state, unlike in `ClosedBlock` where it's the pre.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LockedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,

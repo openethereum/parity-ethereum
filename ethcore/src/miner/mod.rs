@@ -30,9 +30,11 @@
 //! use util::network::{NetworkService, NetworkConfiguration};
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethcore::miner::{Miner, MinerService};
+//! use ethcore::null_engine::NullEngine;
+//! use ethcore::spec::Spec;
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::default();
+//!		let miner: Miner = Miner::new(false, Box::new(NullEngine::default()), None);
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!

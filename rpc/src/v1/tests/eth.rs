@@ -54,7 +54,7 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 }
 
 fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-	Miner::with_accounts(true, spec, accounts)
+	Miner::new(true, spec, Some(accounts))
 }
 
 fn make_spec(chain: &BlockChain) -> Spec {
