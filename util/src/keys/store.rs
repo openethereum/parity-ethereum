@@ -294,9 +294,9 @@ impl SecretStore {
 			if let Some(unlock) = read_lock.get(account) {
 				(unlock.relock_on_use, match crypto::KeyPair::from_secret(unlock.secret) {
 					Ok(pair) => match pair.sign(message) {
-							Ok(signature) => Ok(signature),
-							Err(_) => Err(SigningError::InvalidSecret)
-						},
+						Ok(signature) => Ok(signature),
+						Err(_) => Err(SigningError::InvalidSecret)
+					},
 					Err(_) => Err(SigningError::InvalidSecret)
 				})
 			} else {
@@ -347,6 +347,10 @@ impl SecretStore {
 		for expired in expired_addresses { garbage_lock.remove(&expired); }
 
 		garbage_lock.shrink_to_fit();
+	}
+
+	fn exists(&self, key: &H128) -> bool {
+		self.directory.exists(key)
 	}
 }
 
@@ -408,7 +412,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 	}
 
 	fn insert<Value: FromRawBytesVariable + BytesConvertable>(&mut self, key: H128, value: Value, password: &str) -> Option<Value> {
-		let previous = if let Ok(previous_value) = self.get(&key, password) { Some(previous_value) } else { None };
+		let previous = if !self.exists(&key) { None } else { self.get(&key, password).ok() };
 
 		// crypto random initiators
 		let salt = H256::random();

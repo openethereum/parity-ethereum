@@ -428,9 +428,9 @@ impl KeyFileContent {
 		let crypto = match as_object.get("crypto") {
 			None => { return Err(KeyFileParseError::NoCryptoSection); }
 			Some(crypto_json) => match KeyFileCrypto::from_json(crypto_json) {
-					Ok(crypto) => crypto,
-					Err(crypto_error) => { return Err(KeyFileParseError::Crypto(crypto_error)); }
-				}
+				Ok(crypto) => crypto,
+				Err(crypto_error) => { return Err(KeyFileParseError::Crypto(crypto_error)); }
+			}
 		};
 
 		Ok(KeyFileContent {
@@ -627,7 +627,10 @@ impl KeyDirectory {
 		}
 	}
 
-
+	/// Checks if key exists
+	pub fn exists(&self, id: &Uuid) -> bool {
+		KeyDirectory::load_key(&self.key_path(id)).is_ok()
+	}
 }
 
 
