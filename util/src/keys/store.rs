@@ -412,7 +412,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 	}
 
 	fn insert<Value: FromRawBytesVariable + BytesConvertable>(&mut self, key: H128, value: Value, password: &str) -> Option<Value> {
-		let previous = if self.exists(&key) { Some(self.get(&key, password).expect("we just checked it existsed")) } else { None };
+		let previous = if !self.exists(&key) { None } else { self.get(&key, password).ok() };
 
 		// crypto random initiators
 		let salt = H256::random();
