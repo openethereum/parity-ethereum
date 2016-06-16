@@ -147,7 +147,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 
 				if deps.signer_port.is_some() {
-					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue).to_delegate());
+					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue, &deps.miner).to_delegate());
 				} else {
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
