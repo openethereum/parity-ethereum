@@ -41,10 +41,6 @@ use v1::tests::helpers::{TestSyncProvider, Config};
 
 fn account_provider() -> Arc<AccountProvider> {
 	Arc::new(AccountProvider::transient_provider())
-	//let mut accounts = HashMap::new();
-	//accounts.insert(Address::from(1), TestAccount::new("test"));
-	//let ap = TestAccountProvider::new(accounts);
-	//Arc::new(ap)
 }
 
 fn sync_provider() -> Arc<TestSyncProvider> {
@@ -222,71 +218,66 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 }
 "#;
 
-//#[test]
-//fn eth_transaction_count() {
-	//use util::crypto::Secret;
+#[test]
+fn eth_transaction_count() {
+	use util::crypto::Secret;
 
-	//let address = Address::from_str("faa34835af5c2ea724333018a515fbb7d5bc0b33").unwrap();
-	//let secret = Secret::from_str("8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2").unwrap();
+	let secret = Secret::from_str("8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2").unwrap();
+	let tester = EthTester::from_spec_provider(|| Spec::load(TRANSACTION_COUNT_SPEC));
+	let address = tester.accounts.insert_account(secret, "").unwrap();
+	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
 
-	//let tester = EthTester::from_spec_provider(|| Spec::load(TRANSACTION_COUNT_SPEC));
-	//tester.accounts.accounts.write().unwrap().insert(address, TestAccount {
-		//unlocked: false,
-		//password: "123".into(),
-		//secret: secret
-	//});
+	let req_before = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
+		"id": 15
+	}"#;
 
-	//let req_before = r#"{
-		//"jsonrpc": "2.0",
-		//"method": "eth_getTransactionCount",
-		//"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
-		//"id": 15
-	//}"#;
+	let res_before = r#"{"jsonrpc":"2.0","result":"0x00","id":15}"#;
 
-	//let res_before = r#"{"jsonrpc":"2.0","result":"0x00","id":15}"#;
+	assert_eq!(tester.handler.handle_request(&req_before).unwrap(), res_before);
 
-	//assert_eq!(tester.handler.handle_request(&req_before).unwrap(), res_before);
+	let req_send_trans = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x30000",
+			"gasPrice": "0x01",
+			"value": "0x9184e72a"
+		}],
+		"id": 16
+	}"#;
 
-	//let req_send_trans = r#"{
-		//"jsonrpc": "2.0",
-		//"method": "eth_sendTransaction",
-		//"params": [{
-			//"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
-			//"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
-			//"gas": "0x30000",
-			//"gasPrice": "0x01",
-			//"value": "0x9184e72a"
-		//}],
-		//"id": 16
-	//}"#;
+	// dispatch the transaction.
+	tester.handler.handle_request(&req_send_trans).unwrap();
 
-	//// dispatch the transaction.
-	//tester.handler.handle_request(&req_send_trans).unwrap();
+	// we have submitted the transaction -- but this shouldn't be reflected in a "latest" query.
+	let req_after_latest = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
+		"id": 17
+	}"#;
 
-	//// we have submitted the transaction -- but this shouldn't be reflected in a "latest" query.
-	//let req_after_latest = r#"{
-		//"jsonrpc": "2.0",
-		//"method": "eth_getTransactionCount",
-		//"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
-		//"id": 17
-	//}"#;
+	let res_after_latest = r#"{"jsonrpc":"2.0","result":"0x00","id":17}"#;
 
-	//let res_after_latest = r#"{"jsonrpc":"2.0","result":"0x00","id":17}"#;
+	assert_eq!(&tester.handler.handle_request(&req_after_latest).unwrap(), res_after_latest);
 
-	//assert_eq!(&tester.handler.handle_request(&req_after_latest).unwrap(), res_after_latest);
+	// the pending transactions should have been updated.
+	let req_after_pending = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "pending"],
+		"id": 18
+	}"#;
 
-	//// the pending transactions should have been updated.
-	//let req_after_pending = r#"{
-		//"jsonrpc": "2.0",
-		//"method": "eth_getTransactionCount",
-		//"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "pending"],
-		//"id": 18
-	//}"#;
+	let res_after_pending = r#"{"jsonrpc":"2.0","result":"0x01","id":18}"#;
 
-	//let res_after_pending = r#"{"jsonrpc":"2.0","result":"0x01","id":18}"#;
-
-	//assert_eq!(&tester.handler.handle_request(&req_after_pending).unwrap(), res_after_pending);
-//}
+	assert_eq!(&tester.handler.handle_request(&req_after_pending).unwrap(), res_after_pending);
+}
 
 fn verify_transaction_counts(name: String, chain: BlockChain) {
 	struct PanicHandler(String);
