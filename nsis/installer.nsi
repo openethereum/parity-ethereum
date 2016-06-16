@@ -1,10 +1,12 @@
 
 !define APPNAME "Parity"
-!define COMPANYNAME "ETHCORE"
+!define COMPANYNAME "Ethcore"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 2
 !define VERSIONBUILD 0
+
+!addplugindir .\
 
 !define HELPURL "https://github.com/ethcore/parity/wiki" # "Support Information" link
 !define UPDATEURL "https://github.com/ethcore/parity/releases" # "Product Updates" link
@@ -47,6 +49,9 @@ section "install"
 	# Files added here should be removed by the uninstaller (see section "uninstall")
 	file /oname=parity.exe ..\target\release\parity.exe
 	file "logo.ico"
+	file vc_redist.x64.exe
+
+	ExecWait '"$INSTDIR\vc_redist.x64.exe"  /passive /norestart'
 	# Add any other files for the install directory (license files, app data, etc) here
 
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration
