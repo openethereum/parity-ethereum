@@ -117,7 +117,7 @@ impl<'a> BlockChunker<'a> {
 		let mut rlp_stream = RlpStream::new_list(self.rlps.len() + 2);
 		rlp_stream.append(&parent_hash).append(&number);
 		for pair in self.rlps.drain(..) {
-			rlp_stream.append(&pair);
+			rlp_stream.append_raw(&pair, 1);
 		}
 
 		let raw_data = rlp_stream.out();
@@ -182,9 +182,10 @@ impl<'a> StateChunker<'a> {
 	// Write out the buffer to disk, pushing the created chunk's hash to
 	// the list.
 	fn write_chunk(&mut self) -> Result<(), Error> {
-		let mut stream = RlpStream::new();
-		stream.append(&&self.rlps[..]);
-		self.rlps.clear();
+		let mut stream = RlpStream::new_list(self.rlps.len());
+		for rlp in self.rlps.drain(..) {
+			stream.append_raw(&rlp, 1);
+		}
 
 		let raw_data = stream.out();
 		let (hash, compressed_size) = try!(write_chunk(&raw_data, &mut self.snappy_buffer, self.snapshot_path));
