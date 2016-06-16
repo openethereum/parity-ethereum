@@ -25,4 +25,4 @@ artifacts:
 
 cache:
   - target
-  - '\Users\appveyor\.cargo'
+  - C:\users\appveyor\.cargo -> appveyor.yml
