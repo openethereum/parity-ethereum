@@ -17,6 +17,7 @@
 use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;
+use block::{OpenBlock};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use state::*;
 use evm::Schedule;
@@ -85,6 +86,7 @@ impl Engine for TestEngine {
 	}
 }
 
+// TODO: move everything over to get_null_spec.
 pub fn get_test_spec() -> Spec {
 	Spec::new_test()
 }
@@ -126,7 +128,7 @@ fn create_unverifiable_block(order: u32, parent_hash: H256) -> Bytes {
 	create_test_block(&create_unverifiable_block_header(order, parent_hash))
 }
 
-pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTransaction], uncles: &[Header]) -> Bytes {
+pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransaction], uncles: &[Header]) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
 	rlp.append(header);
 	rlp.begin_list(transactions.len());
@@ -138,33 +140,74 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTrans
 }
 
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
+	generate_dummy_client_with_spec_and_data(Spec::new_test, block_number, 0, &(vec![]))
+}
+
+pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> {
+	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
+}
+
+pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
 	let dir = RandomTempPath::new();
 
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
 	let test_spec = get_test_spec();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
 	let test_engine = &test_spec.engine;
-	let state_root = test_spec.genesis_header().state_root;
-	let mut rolling_hash = test_spec.genesis_header().hash();
-	let mut rolling_block_number = 1;
+
+	let mut db_result = get_temp_journal_db();
+	let mut db = db_result.take();
+	test_spec.ensure_db_good(db.as_hashdb_mut());
+	let vm_factory = Default::default();
+	let genesis_header = test_spec.genesis_header();
+
 	let mut rolling_timestamp = 40;
+	let mut last_hashes = vec![];
+	let mut last_header = genesis_header.clone();
 
+	let kp = KeyPair::from_secret("".sha3()).unwrap()	;
+	let author = kp.address();
+
+	let mut n = 0;
 	for _ in 0..block_number {
-		let mut header = Header::new();
+		last_hashes.push(last_header.hash());
 
-		header.gas_limit = test_engine.params().min_gas_limit;
-		header.difficulty = U256::from(0x20000);
-		header.timestamp = rolling_timestamp;
-		header.number = rolling_block_number;
-		header.parent_hash = rolling_hash;
-		header.state_root = state_root.clone();
+		// forge block.
+		let mut b = OpenBlock::new(
+			test_engine.deref(),
+			&vm_factory,
+			false,
+			db,
+			&last_header,
+			last_hashes.clone(),
+			author.clone(),
+			3141562.into(),
+			vec![]
+		).unwrap();
+		b.set_difficulty(U256::from(0x20000));
+		rolling_timestamp += 10;
+		b.set_timestamp(rolling_timestamp);
 
-		rolling_hash = header.hash();
-		rolling_block_number = rolling_block_number + 1;
-		rolling_timestamp = rolling_timestamp + 10;
+		// first block we don't have any balance, so can't send any transactions.
+		for _ in 0..txs_per_block {
+			b.push_transaction(Transaction {
+				nonce: n.into(),
+				gas_price: tx_gas_prices[n % tx_gas_prices.len()],
+				gas: 100000.into(),
+				action: Action::Create,
+				data: vec![],
+				value: U256::zero(),
+			}.sign(kp.secret()), None).unwrap();
+			n += 1;
+		}
 
-		if let Err(e) = client.import_block(create_test_block(&header)) {
+		let b = b.close_and_lock().seal(test_engine.deref(), vec![]).unwrap();
+
+		if let Err(e) = client.import_block(b.rlp_bytes()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
+		
+		last_header = BlockView::new(&b.rlp_bytes()).header();
+		db = b.drain();
 	}
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
