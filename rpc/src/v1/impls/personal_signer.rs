@@ -73,9 +73,9 @@ impl<A: 'static, C: 'static, M: 'static> PersonalSigner for SignerClient<A, C, M
 						}
 						match accounts.locked_account_secret(&request.from, &pass) {
 							Ok(secret) => {
-								let hash = sign_and_dispatch(&*client, &*miner, request, secret);
-								queue.request_confirmed(id, hash);
-								Some(to_value(&hash))
+								let res = sign_and_dispatch(&*client, &*miner, request, secret);
+								queue.request_confirmed(id, res.clone());
+								Some(res)
 							},
 							Err(_) => None
 						}
