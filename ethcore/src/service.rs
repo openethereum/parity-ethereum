@@ -41,6 +41,10 @@ pub enum SyncMessage {
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
+	/// We're entering a period of inactivity. Shutdown extreneous services.
+	Suspend,
+	/// We're leaving a period of inactivity. Resume extreneous services.
+	Resume,
 }
 
 /// IO Message type used for Network service

@@ -18,6 +18,7 @@
 
 use std::marker::PhantomData;
 use std::path::PathBuf;
+use std::time::{Instant, Duration};
 use util::*;
 use util::panics::*;
 use views::BlockView;
@@ -92,6 +93,9 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	verifier: PhantomData<V>,
 	vm_factory: Arc<EvmFactory>,
 	miner: Arc<Miner>,
+	last_activity: Mutex<Instant>,
+	liveness: Mutex<bool>,
+	io: IoChannel<NetSyncMessage>,
 }
 
 const HISTORY: u64 = 1200;
@@ -133,9 +137,8 @@ impl<V> Client<V> where V: Verifier {
 		spec: Spec,
 		path: &Path,
 		miner: Arc<Miner>,
-		message_channel: IoChannel<NetSyncMessage>)
-		-> Result<Arc<Client<V>>, ClientError>
-	{
+		message_channel: IoChannel<NetSyncMessage>
+	) -> Result<Arc<Client<V>>, ClientError> {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
@@ -149,7 +152,7 @@ impl<V> Client<V> where V: Verifier {
 
 		let engine = Arc::new(spec.engine);
 
-		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel);
+		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel.clone());
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
@@ -165,6 +168,9 @@ impl<V> Client<V> where V: Verifier {
 			verifier: PhantomData,
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
 			miner: miner,
+			last_activity: Mutex::new(Instant::now()),
+			liveness: Mutex::new(true),
+			io: message_channel,
 		};
 
 		Ok(Arc::new(client))
@@ -412,6 +418,14 @@ impl<V> Client<V> where V: Verifier {
 	pub fn tick(&self) {
 		self.chain.collect_garbage();
 		self.block_queue.collect_garbage();
+
+		// seconds of inactivity before we go to sleep.
+		const SLEEP_TIMER: u64 = 60;
+
+		let last_activity = *self.last_activity.lock().unwrap();
+		if last_activity + Duration::from_secs(SLEEP_TIMER) < Instant::now() {
+			self.sleep();
+		}
 	}
 
 	/// Set up the cache behaviour.
@@ -445,6 +459,22 @@ impl<V> Client<V> where V: Verifier {
 				block_hash: hash,
 				index: index,
 			})
+		}
+	}
+
+	fn wake_up(&self) {
+		let mut liveness = self.liveness.lock().unwrap();
+		if !*liveness {
+			*liveness = true;
+			self.io.send(NetworkIoMessage::User(SyncMessage::Resume)).unwrap();
+		}
+	}
+
+	fn sleep(&self) {
+		let mut liveness = self.liveness.lock().unwrap();
+		if *liveness {
+			*liveness = false;
+			self.io.send(NetworkIoMessage::User(SyncMessage::Suspend)).unwrap();
 		}
 	}
 }
@@ -489,6 +519,11 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.vm_factory
+	}
+
+	fn keep_alive(&self) {
+		*self.last_activity.lock().unwrap() = Instant::now();
+		self.wake_up();
 	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
