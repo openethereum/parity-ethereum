@@ -23,7 +23,7 @@ use ethsync::EthSync;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use util::RotatingLogger;
-use util::keys::store::AccountService;
+use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 
 #[cfg(feature="rpc")]
@@ -83,7 +83,7 @@ pub struct Dependencies {
 	pub signer_queue: Arc<ConfirmationsQueue>,
 	pub client: Arc<Client>,
 	pub sync: Arc<EthSync>,
-	pub secret_store: Arc<AccountService>,
+	pub secret_store: Arc<AccountProvider>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,

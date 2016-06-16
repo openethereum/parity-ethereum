@@ -91,7 +91,7 @@ extern crate ethjson;
 extern crate bloomchain;
 #[macro_use] extern crate ethcore_ipc as ipc;
 extern crate rayon;
-extern crate ethstore;
+pub extern crate ethstore;
 
 #[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
