@@ -31,7 +31,11 @@ Usage:
   parity [options]
   parity ui [options]
 
-Protocol Options:
+Operating Options:
+  --mode MODE              Set the operating mode. MODE can be one of:
+                           active - Parity continuously syncs the chain.
+                           dark - Parity syncs only when an external interface
+                           is active. [default: active].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, or testnet
@@ -216,6 +220,7 @@ pub struct Args {
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,
+	pub flag_mode: String,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,

@@ -44,10 +44,25 @@ pub struct Directories {
 	pub signer: String,
 }
 
+pub enum Mode {
+	Active,
+	Passive,
+	Dark,
+}
+
 impl Configuration {
 	pub fn parse() -> Self {
 		Configuration {
 			args: Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit()),
+		}
+	}
+
+	pub fn mode(&self) -> Mode {
+		match &(self.args.flag_mode[..]) {
+			"active" => Mode::Active,
+			"passive" => die!("--mode passive is not yet implemented. Please use active or dark."),
+			"dark" => Mode::Dark,
+			_ => die!("{}: Invalid address for --mode. Must be one of active, passive or dark.", self.args.flag_mode),
 		}
 	}
 

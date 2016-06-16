@@ -265,7 +265,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	});
 
 	// Register IO handler
-	let io_handler  = Arc::new(ClientIoHandler {
+	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
