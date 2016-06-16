@@ -229,7 +229,7 @@ pub enum Error {
 	/// Io error.
 	Io(::std::io::Error),
 	/// Snappy error.
-	Snappy(::util::snappy::Error),
+	Snappy(::util::snappy::InvalidInput),
 }
 
 impl fmt::Display for Error {
@@ -321,8 +321,8 @@ impl From<::std::io::Error> for Error {
 	}
 }
 
-impl From<::util::snappy::Error> for Error {
-	fn from(err: ::util::snappy::Error) -> Error {
+impl From<::util::snappy::InvalidInput> for Error {
+	fn from(err: ::util::snappy::InvalidInput) -> Error {
 		Error::Snappy(err)
 	}
 }

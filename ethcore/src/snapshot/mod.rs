@@ -40,41 +40,10 @@ mod block;
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
-// compresses the data into the buffer, resizing if necessary.
-fn compression_helper(input: &[u8], output: &mut Vec<u8>) -> usize {
-	let max_size = snappy::max_compressed_len(input.len());
-	let buf_len = output.len();
-
-	// resize if necessary, but in reality this will probably almost never happen.
-	if max_size > buf_len {
-		output.resize(max_size, 0);
-	}
-
-	match snappy::compress_into(&input, output) {
-		Ok(size) => size,
-		Err(snappy::Error::BufferTooSmall) => panic!("buffer too small although capacity ensured?"),
-		Err(snappy::Error::InvalidInput) => panic!("invalid input error impossible in snappy_compress"),
-	}
-}
-
-// decompresses the data into the buffer, resizing if necessary.
-// may return invalid input error.
-fn decompression_helper(input: &[u8], output: &mut Vec<u8>) -> Result<usize, snappy::Error> {
-	let size = try!(snappy::decompressed_len(input));
-	let buf_len = output.len();
-
-	// resize if necessary, slow path.
-	if size > buf_len {
-		output.resize(size, 0);
-	}
-
-	snappy::decompress_into(&input, output)
-}
-
 // shared portion of write_chunk
 // returns either a (hash, compressed_size) pair or an io error.
 fn write_chunk(raw_data: &[u8], compression_buffer: &mut Vec<u8>, path: &Path) -> Result<(H256, usize), Error> {
-	let compressed_size = compression_helper(raw_data, compression_buffer);
+	let compressed_size = snappy::compress_into(raw_data, compression_buffer);
 	let compressed = &compression_buffer[..compressed_size];
 	let hash = compressed.sha3();
 
@@ -320,7 +289,7 @@ impl<'a> StateRebuilder<'a> {
 
 	/// Feed a compressed state chunk into the rebuilder.
 	pub fn feed(&mut self, compressed: &[u8]) -> Result<(), Error> {
-		let len = try!(decompression_helper(compressed, &mut self.snappy_buffer));
+		let len = try!(snappy::decompress_into(compressed, &mut self.snappy_buffer));
 		let rlp = UntrustedRlp::new(&self.snappy_buffer[..len]);
 
 		for account_pair in rlp.iter() {

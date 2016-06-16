@@ -53,23 +53,13 @@ extern {
 	) -> c_int;
 }
 
-/// Errors that can occur during usage of snappy.
+/// Attempted to decompress an uncompressed buffer.
 #[derive(Debug)]
-pub enum Error {
-	/// An invalid input was supplied. Usually means that you tried to decompress an uncompressed
-	/// buffer.
-	InvalidInput,
-	/// The output buffer supplied was too small. Make sure to provide buffers large enough to hold
-	/// all the output data.
-	BufferTooSmall,
-}
+pub struct InvalidInput;
 
-impl fmt::Display for Error {
+impl fmt::Display for InvalidInput {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Error::InvalidInput => write!(f, "Snappy error (invalid input)"),
-			Error::BufferTooSmall => write!(f, "Snappy error (buffer too small)"),
-		}
+		write!(f, "Attempted snappy decompression with invalid input")
 	}
 }
 
@@ -79,30 +69,30 @@ pub fn max_compressed_len(len: usize) -> usize {
 }
 
 /// How large the given data will be when decompressed.
-pub fn decompressed_len(compressed: &[u8]) -> Result<usize, Error> {
+pub fn decompressed_len(compressed: &[u8]) -> Result<usize, InvalidInput> {
 	let mut size: size_t = 0;
 	let len = compressed.len() as size_t;
 
 	let status = unsafe { snappy_uncompressed_length(compressed.as_ptr() as *const c_char, len, &mut size) };
 
 	if status == SNAPPY_INVALID_INPUT {
-		Err(Error::InvalidInput)
+		Err(InvalidInput)
 	} else {
-		Ok(len)
+		Ok(size)
 	}
 }
 
 /// Compress a buffer using snappy.
 pub fn compress(input: &[u8]) -> Vec<u8> {
 	let mut buf = Vec::new();
-	compress_into(input, &mut buf).expect("snappy compression failed");
+	compress_into(input, &mut buf);
 	buf
 }
 
 /// Compress a buffer using snappy, writing the result into
 /// the given output buffer, growing it if necessary.
 /// Otherwise, returns the length of the compressed data.
-pub fn compress_into(input: &[u8], output: &mut Vec<u8>) -> Result<usize, Error> {
+pub fn compress_into(input: &[u8], output: &mut Vec<u8>) -> usize {
 	let mut len = max_compressed_len(input.len());
 
 	if output.len() < len {
@@ -119,15 +109,15 @@ pub fn compress_into(input: &[u8], output: &mut Vec<u8>) -> Result<usize, Error>
 	};
 
 	match status {
-		SNAPPY_OK => Ok(len),
-		SNAPPY_INVALID_INPUT => Err(Error::InvalidInput), // should never happen, but can't hurt!
+		SNAPPY_OK => len,
+		SNAPPY_INVALID_INPUT => panic!("snappy compression has no concept of invalid input"),
 		SNAPPY_BUFFER_TOO_SMALL => panic!("buffer cannot be too small, the capacity was just ensured."),
 		_ => panic!("snappy returned unspecified status"),
 	}
 }
 
 /// Decompress a buffer using snappy. Will return an error if the buffer is not snappy-compressed.
-pub fn decompress(input: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn decompress(input: &[u8]) -> Result<Vec<u8>, InvalidInput> {
 	let mut v = Vec::new();
 	decompress_into(input, &mut v).map(|_| v)
 }
@@ -136,7 +126,7 @@ pub fn decompress(input: &[u8]) -> Result<Vec<u8>, Error> {
 /// the given output buffer, growing it if necessary.
 /// Will error if the input buffer is not snappy-compressed.
 /// Otherwise, returns the length of the decompressed data.
-pub fn decompress_into(input: &[u8], output: &mut Vec<u8>) -> Result<usize, Error> {
+pub fn decompress_into(input: &[u8], output: &mut Vec<u8>) -> Result<usize, InvalidInput> {
 	let mut len = try!(decompressed_len(input));
 
 	if output.len() < len {
@@ -154,7 +144,7 @@ pub fn decompress_into(input: &[u8], output: &mut Vec<u8>) -> Result<usize, Erro
 
 	match status {
 		SNAPPY_OK => Ok(len as usize),
-		SNAPPY_INVALID_INPUT => Err(Error::InvalidInput),
+		SNAPPY_INVALID_INPUT => Err(InvalidInput),
 		SNAPPY_BUFFER_TOO_SMALL => panic!("buffer cannot be too small, size was just set to large enough."),
 		_ => panic!("snappy returned unspecified status"),
 	}
