@@ -4,6 +4,7 @@ environment:
 install:
   - git submodule update --init --recursive
   - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-1.9.0-x86_64-pc-windows-msvc.exe"
+  - ps: Start-FileDownload "https://github.com/ethcore/win-build/blob/master/SimpleFC.dll" -FileName nsis\SimpleFC.dll
   - rust-1.9.0-x86_64-pc-windows-msvc.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
   - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin;C:\Program Files (x86)\NSIS
   - rustc -V
