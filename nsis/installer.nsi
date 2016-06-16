@@ -49,6 +49,9 @@ section "install"
 	# Files added here should be removed by the uninstaller (see section "uninstall")
 	file /oname=parity.exe ..\target\release\parity.exe
 	file "logo.ico"
+	file vc_redist.x64.exe
+
+	ExecWait '"$INSTDIR\vc_redist.x64.exe"  /passive /norestart'
 	# Add any other files for the install directory (license files, app data, etc) here
 
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration
