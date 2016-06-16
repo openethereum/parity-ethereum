@@ -37,10 +37,6 @@ fn blockchain_client() -> Arc<TestBlockChainClient> {
 }
 
 fn accounts_provider() -> Arc<AccountProvider> {
-	//let mut accounts = HashMap::new();
-	//accounts.insert(Address::from(1), TestAccount::new("test"));
-	//let ap = TestAccountProvider::new(accounts);
-	//Arc::new(ap)
 	Arc::new(AccountProvider::transient_provider())
 }
 
@@ -561,86 +557,89 @@ fn rpc_eth_estimate_gas_default_block() {
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
-//#[test]
-//fn rpc_eth_send_transaction() {
-	//let account = TestAccount::new("123");
-	//let address = account.address();
-	//let secret = account.secret.clone();
+#[test]
+fn rpc_eth_send_transaction() {
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account("").unwrap();
+	tester.accounts_provider.unlock_account_permanently(address, "".into()).unwrap();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
 
-	//let tester = EthTester::default();
-	//tester.accounts_provider.accounts.write().unwrap().insert(address.clone(), account);
-	//let request = r#"{
-		//"jsonrpc": "2.0",
-		//"method": "eth_sendTransaction",
-		//"params": [{
-			//"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
-			//"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
-			//"gas": "0x76c0",
-			//"gasPrice": "0x9184e72a000",
-			//"value": "0x9184e72a"
-		//}],
-		//"id": 1
-	//}"#;
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let t = t.with_signature(signature);
 
-	//let t = Transaction {
-		//nonce: U256::zero(),
-		//gas_price: U256::from(0x9184e72a000u64),
-		//gas: U256::from(0x76c0),
-		//action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-		//value: U256::from(0x9184e72au64),
-		//data: vec![]
-	//}.sign(&secret);
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	//let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+	assert_eq!(tester.io.handle_request(&request), Some(response));
 
-	//assert_eq!(tester.io.handle_request(&request), Some(response));
+	tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
 
-	//tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
+	let t = Transaction {
+		nonce: U256::one(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let t = t.with_signature(signature);
 
-	//let t = Transaction {
-		//nonce: U256::one(),
-		//gas_price: U256::from(0x9184e72a000u64),
-		//gas: U256::from(0x76c0),
-		//action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-		//value: U256::from(0x9184e72au64),
-		//data: vec![]
-	//}.sign(&secret);
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	//let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+	assert_eq!(tester.io.handle_request(&request), Some(response));
+}
 
-	//assert_eq!(tester.io.handle_request(&request), Some(response));
-//}
+#[test]
+fn rpc_eth_send_raw_transaction() {
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account("abcd").unwrap();
+	tester.accounts_provider.unlock_account_permanently(address, "abcd".into()).unwrap();
 
-//#[test]
-//fn rpc_eth_send_raw_transaction() {
-	//let tester = EthTester::default();
-	//let address = tester.accounts_provider.new_account("abcd").unwrap();
-	//let secret = tester.accounts_provider.account_secret(&address).unwrap();
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let t = t.with_signature(signature);
 
-	//let t = Transaction {
-		//nonce: U256::zero(),
-		//gas_price: U256::from(0x9184e72a000u64),
-		//gas: U256::from(0x76c0),
-		//action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-		//value: U256::from(0x9184e72au64),
-		//data: vec![]
-	//}.sign(&secret);
+	let rlp = ::util::rlp::encode(&t).to_vec().to_hex();
 
-	//let rlp = ::util::rlp::encode(&t).to_vec().to_hex();
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendRawTransaction",
+		"params": [
+			"0x"#.to_owned() + &rlp + r#""
+		],
+		"id": 1
+	}"#;
 
-	//let req = r#"{
-		//"jsonrpc": "2.0",
-		//"method": "eth_sendRawTransaction",
-		//"params": [
-			//"0x"#.to_owned() + &rlp + r#""
-		//],
-		//"id": 1
-	//}"#;
+	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", t.hash()) + r#"","id":1}"#;
 
-	//let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", t.hash()) + r#"","id":1}"#;
-
-	//assert_eq!(tester.io.handle_request(&req), Some(res));
-//}
+	assert_eq!(tester.io.handle_request(&req), Some(res));
+}
 
 #[test]
 fn rpc_eth_transaction_receipt() {
