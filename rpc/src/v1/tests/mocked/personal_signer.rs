@@ -16,7 +16,6 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use std::collections::HashMap;
 use jsonrpc_core::IoHandler;
 use util::numbers::*;
 use ethcore::account_provider::AccountProvider;

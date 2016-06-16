@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! rpc integration tests.
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
@@ -30,8 +29,7 @@ use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
 use util::io::IoChannel;
-use util::hash::{Address, H256};
-use util::numbers::U256;
+use util::{U256, H256};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 

@@ -223,6 +223,14 @@ impl AccountProvider {
 		let signature = try!(self.sstore.sign(&account, &data.password, &message));
 		Ok(H520(signature.into()))
 	}
+
+	/// Unlocks an account, signs the message, and locks it again.
+	pub fn sign_with_password<A, M>(&self, account: A, password: String, message: M) -> Result<H520, Error> where Address: From<A>, Message: From<M> {
+		let account = Address::from(account).into();
+		let message = Message::from(message).into();
+		let signature = try!(self.sstore.sign(&account, &password, &message));
+		Ok(H520(signature.into()))
+	}
 }
 
 #[cfg(test)]
