@@ -58,6 +58,8 @@ pub enum TransactionError {
 	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
+	/// Transaction is invalid for some other reason.
+	DAORescue,
 }
 
 impl fmt::Display for TransactionError {
@@ -76,6 +78,7 @@ impl fmt::Display for TransactionError {
 			GasLimitExceeded { limit, got } =>
 				format!("Gas limit exceeded. Limit={}, Given={}", limit, got),
 			InvalidGasLimit(ref err) => format!("Invalid gas limit. {}", err),
+			DAORescue => "Transaction is invalid due to the DAO rescue.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
