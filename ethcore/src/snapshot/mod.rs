@@ -27,7 +27,7 @@ use error::Error;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
+use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 
@@ -272,15 +272,15 @@ impl ManifestData {
 }
 
 /// Used to rebuild the state trie piece by piece.
-pub struct StateRebuilder<'a> {
-	db: &'a mut HashDB,
+pub struct StateRebuilder {
+	db: Box<JournalDB>,
 	state_root: H256,
 	snappy_buffer: Vec<u8>
 }
 
-impl<'a> StateRebuilder<'a> {
+impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: &'a mut HashDB) -> Self {
+	pub fn new(db: Box<JournalDB>) -> Self {
 		StateRebuilder {
 			db: db,
 			state_root: H256::zero(),
@@ -298,7 +298,7 @@ impl<'a> StateRebuilder<'a> {
 			let fat_rlp = try!(account_pair.at(1));
 
 			let thin_rlp = {
-				let mut acct_db = AccountDBMut::from_hash(self.db, hash);
+				let mut acct_db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), hash);
 
 				// fill out the storage trie and code while decoding.
 				let acc = try!(Account::from_fat_rlp(&mut acct_db, fat_rlp));
@@ -306,13 +306,14 @@ impl<'a> StateRebuilder<'a> {
 			};
 
 			let mut account_trie = if self.state_root != H256::zero() {
-				try!(TrieDBMut::from_existing(self.db, &mut self.state_root))
+				try!(TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root))
 			} else {
-				TrieDBMut::new(self.db, &mut self.state_root)
+				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
 			};
 			account_trie.insert(&hash, &thin_rlp);
 		}
 
+		try!(self.db.commit(0, &H256::zero(), None));
 		Ok(())
 	}
 
