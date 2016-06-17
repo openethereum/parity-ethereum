@@ -170,6 +170,13 @@ impl<V> Client<V> where V: Verifier {
 		Ok(Arc::new(client))
 	}
 
+	fn block_dao_transactions(&self) -> bool {
+		self.chain.block_hash(1_760_000)
+			.and_then(|hash| self.chain.block_header(&hash))
+			.map(|header| header.gas_limit > U256::from(4_000_000))
+			.unwrap_or(false)
+	}
+
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
 		self.block_queue.flush();
@@ -220,7 +227,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.block_dao_transactions());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -462,6 +469,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
 			gas_limit: U256::max_value(),
+			block_dao_transactions: self.block_dao_transactions(),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state();
@@ -770,6 +778,7 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			author,
 			gas_floor_target,
 			extra_data,
+			self.block_dao_transactions(),
 		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 
 		// Add uncles

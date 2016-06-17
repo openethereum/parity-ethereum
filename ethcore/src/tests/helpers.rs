@@ -181,7 +181,8 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 			last_hashes.clone(),
 			author.clone(),
 			3141562.into(),
-			vec![]
+			vec![],
+			false,
 		).unwrap();
 		b.set_difficulty(U256::from(0x20000));
 		rolling_timestamp += 10;
@@ -205,7 +206,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 		if let Err(e) = client.import_block(b.rlp_bytes()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
-		
+
 		last_header = BlockView::new(&b.rlp_bytes()).header();
 		db = b.drain();
 	}

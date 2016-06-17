@@ -318,7 +318,8 @@ mod tests {
 			difficulty: 0.into(),
 			last_hashes: vec![],
 			gas_used: 0.into(),
-			gas_limit: 0.into()
+			gas_limit: 0.into(),
+			block_dao_transactions: false,
 		}
 	}
 
