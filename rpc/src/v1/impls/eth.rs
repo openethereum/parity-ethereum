@@ -37,7 +37,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::impls::dispatch_transaction;
+use v1::impls::{dispatch_transaction, error_codes};
 use serde;
 
 /// Eth rpc implementation.
@@ -153,15 +153,23 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 		}
 	}
 
+	fn default_gas_price(&self) -> Result<U256, Error> {
+		let miner = take_weak!(self.miner);
+		Ok(take_weak!(self.client)
+			.gas_price_statistics(100, 8)
+			.map(|x| x[4])
+			.unwrap_or_else(|_| miner.sensible_gas_price())
+		)
+	}
+
 	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
 		let client = take_weak!(self.client);
-		let miner = take_weak!(self.miner);
 		let from = request.from.unwrap_or(Address::zero());
 		Ok(EthTransaction {
 			nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
 			gas: request.gas.unwrap_or(U256::from(50_000_000)),
-			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+			gas_price: request.gas_price.unwrap_or_else(|| self.default_gas_price().expect("call only fails if client or miner are unavailable; client and miner are both available to be here; qed")),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
@@ -210,13 +218,9 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 	}
 }
 
-// must be in range [-32099, -32000]
-const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
-const NO_WORK_CODE: i64 = -32001;
-
 fn make_unsupported_err() -> Error {
 	Error {
-		code: ErrorCode::ServerError(UNSUPPORTED_REQUEST_CODE),
+		code: ErrorCode::ServerError(error_codes::UNSUPPORTED_REQUEST_CODE),
 		message: "Unsupported request.".into(),
 		data: None
 	}
@@ -224,7 +228,7 @@ fn make_unsupported_err() -> Error {
 
 fn no_work_err() -> Error {
 	Error {
-		code: ErrorCode::ServerError(NO_WORK_CODE),
+		code: ErrorCode::ServerError(error_codes::NO_WORK_CODE),
 		message: "Still syncing.".into(),
 		data: None
 	}
@@ -293,7 +297,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&take_weak!(self.miner).sensible_gas_price()),
+			Params::None => to_value(&try!(self.default_gas_price())),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -508,7 +512,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(raw_transaction, )| {
 				let raw_transaction = raw_transaction.to_vec();
 				match UntrustedRlp::new(&raw_transaction).as_val() {
-					Ok(signed_transaction) => to_value(&dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction)),
+					Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction),
 					Err(_) => to_value(&H256::zero()),
 				}
 		})

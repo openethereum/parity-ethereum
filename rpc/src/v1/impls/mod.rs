@@ -54,14 +54,25 @@ pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
 use v1::types::TransactionRequest;
+use ethcore::error::Error as EthcoreError;
 use ethcore::miner::{AccountDetails, MinerService};
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use util::numbers::*;
 use util::rlp::encode;
 use util::bytes::ToPretty;
+use jsonrpc_core::{Error, ErrorCode, Value, to_value};
 
-fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> H256
+mod error_codes {
+	// NOTE [ToDr] Codes from [-32099, -32000]
+	pub const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
+	pub const NO_WORK_CODE: i64 = -32001;
+	pub const UNKNOWN_ERROR: i64 = -32002;
+	pub const TRANSACTION_ERROR: i64 = -32010;
+	pub const ACCOUNT_LOCKED: i64 = -32020;
+}
+
+fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 	let hash = signed_transaction.hash();
 
@@ -72,10 +83,12 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 		}
 	});
 
-	import.map(|_| hash).unwrap_or(H256::zero())
+	import
+		.map_err(transaction_error)
+		.and_then(|_| to_value(&hash))
 }
 
-fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, secret: H256) -> H256
+fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, secret: H256) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
 	let signed_transaction = {
@@ -96,4 +109,42 @@ fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, s
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
 	dispatch_transaction(&*client, &*miner, signed_transaction)
+}
+
+fn transaction_error(error: EthcoreError) -> Error {
+	use ethcore::error::TransactionError::*;
+
+	if let EthcoreError::Transaction(e) = error {
+		let msg = match e {
+			AlreadyImported => "Transaction with the same hash was already imported.".into(),
+			Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
+			TooCheapToReplace => {
+				"Transaction fee is too low. There is another transaction with same nonce in the queue. Try increasing the fee or incrementing the nonce.".into()
+			},
+			LimitReached => {
+				"There is too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
+			},
+			InsufficientGasPrice { minimal, got } => {
+				format!("Transaction fee is to low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)
+			},
+			InsufficientBalance { balance, cost } => {
+				format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
+			},
+			GasLimitExceeded { limit, got } => {
+				format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
+			},
+			InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
+		};
+		Error {
+			code: ErrorCode::ServerError(error_codes::TRANSACTION_ERROR),
+			message: msg,
+			data: None,
+		}
+	} else {
+		Error {
+			code: ErrorCode::ServerError(error_codes::UNKNOWN_ERROR),
+			message: "Unknown error when sending transaction.".into(),
+			data: Some(Value::String(format!("{:?}", error))),
+		}
+	}
 }

@@ -113,6 +113,18 @@ fn can_collect_garbage() {
 }
 
 #[test]
+fn can_generate_gas_price_statistics() {
+	let client_result = generate_dummy_client_with_data(16, 1, &vec_into![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+	let client = client_result.reference();
+	let s = client.gas_price_statistics(8, 8).unwrap();
+	assert_eq!(s, vec_into![8, 8, 9, 10, 11, 12, 13, 14, 15]);
+	let s = client.gas_price_statistics(16, 8).unwrap();
+	assert_eq!(s, vec_into![0, 1, 3, 5, 7, 9, 11, 13, 15]);
+	let s = client.gas_price_statistics(32, 8).unwrap();
+	assert_eq!(s, vec_into![0, 1, 3, 5, 7, 9, 11, 13, 15]);
+}
+
+#[test]
 fn can_handle_long_fork() {
 	let client_result = generate_dummy_client(1200);
 	let client = client_result.reference();

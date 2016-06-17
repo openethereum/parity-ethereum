@@ -770,8 +770,7 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			author,
 			gas_floor_target,
 			extra_data,
-		).expect("OpenBlock::new only fails if parent state root invalid. State root of best block's header is never invalid. \
-		         Therefore creating an OpenBlock with the best block's header will not fail.");
+		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 
 		// Add uncles
 		self.chain

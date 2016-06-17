@@ -1,10 +1,12 @@
 
 !define APPNAME "Parity"
-!define COMPANYNAME "ETHCORE"
+!define COMPANYNAME "Ethcore"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 2
 !define VERSIONBUILD 0
+
+!addplugindir .\
 
 !define HELPURL "https://github.com/ethcore/parity/wiki" # "Support Information" link
 !define UPDATEURL "https://github.com/ethcore/parity/releases" # "Product Updates" link
@@ -13,7 +15,7 @@
 
 RequestExecutionLevel admin ;Require admin rights on NT6+ (When UAC is turned on)
 
-InstallDir "$PROGRAMFILES\${COMPANYNAME}\${APPNAME}"
+InstallDir "$PROGRAMFILES64\${COMPANYNAME}\${APPNAME}"
 
 LicenseData "..\LICENSE"
 Name "${COMPANYNAME} ${APPNAME}"
@@ -47,6 +49,9 @@ section "install"
 	# Files added here should be removed by the uninstaller (see section "uninstall")
 	file /oname=parity.exe ..\target\release\parity.exe
 	file "logo.ico"
+	file vc_redist.x64.exe
+
+	ExecWait '"$INSTDIR\vc_redist.x64.exe"  /passive /norestart'
 	# Add any other files for the install directory (license files, app data, etc) here
 
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration
@@ -55,6 +60,18 @@ section "install"
 	# Start Menu
 	createDirectory "$SMPROGRAMS\${COMPANYNAME}"
 	createShortCut "$SMPROGRAMS\${COMPANYNAME}\${APPNAME}.lnk" "$INSTDIR\parity.exe" "ui" "$INSTDIR\logo.ico"
+
+	# Firewall remove rules if exists
+	SimpleFC::AdvRemoveRule "Parity incoming peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule "Parity outgoing peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule       "Parity web queries (TCP:80)"
+	SimpleFC::AdvRemoveRule  "Parity UDP discovery (UDP:30303)"
+
+	# Firewall exception rules
+	SimpleFC::AdvAddRule "Parity incoming peers (TCP:30303)" ""  6 1 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity" 30303    "" "" ""
+	SimpleFC::AdvAddRule "Parity outgoing peers (TCP:30303)" ""  6 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    "" 30303 "" ""
+	SimpleFC::AdvAddRule       "Parity web queries (TCP:80)" ""  6 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    ""    80 "" ""
+	SimpleFC::AdvAddRule  "Parity UDP discovery (UDP:30303)" "" 17 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    "" 30303 "" ""
 
 	# Registry information for add/remove programs
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${COMPANYNAME} - ${APPNAME} - ${DESCRIPTION}"
@@ -105,6 +122,12 @@ section "uninstall"
 
 	# Try to remove the install directory - this will only happen if it is empty
 	rmDir $INSTDIR
+
+	# Firewall exception rules
+	SimpleFC::AdvRemoveRule "Parity incoming peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule "Parity outgoing peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule       "Parity web queries (TCP:80)"
+	SimpleFC::AdvRemoveRule  "Parity UDP discovery (UDP:30303)"
 
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
