@@ -134,6 +134,7 @@ fn transaction_error(error: EthcoreError) -> Error {
 				format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
 			},
 			InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
+			DAORescue => "Transaction removes funds from a DAO.".into(),
 		};
 		Error {
 			code: ErrorCode::ServerError(error_codes::TRANSACTION_ERROR),
