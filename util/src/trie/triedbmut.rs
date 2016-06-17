@@ -73,7 +73,7 @@ impl<'db> TrieDBMut<'db> {
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
-		let mut r = TrieDBMut{
+		let mut r = TrieDBMut {
 			db: db,
 			root: root,
 			hash_count: 0
