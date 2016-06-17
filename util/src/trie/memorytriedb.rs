@@ -158,13 +158,13 @@ impl<'a> IndexMut<&'a StorageHandle> for NodeStorage {
 /// on the trie fully in memory without RLP representation. It will encode to
 /// rlp, commit to the database, and update the state root reference when `commit`
 /// is explicitly called.
-pub struct MemoryTrie<'a> {
+pub struct MemoryTrieDB<'a> {
 	storage: NodeStorage,
 	db: &'a mut HashDB,
 	root: &'a mut H256,
 }
 
-impl<'a> MemoryTrie<'a> {
+impl<'a> MemoryTrieDB<'a> {
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB, root: &'a mut H256) -> Self {
 		*root = SHA3_NULL_RLP;
