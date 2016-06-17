@@ -55,6 +55,7 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 			NetworkIoMessage::User(SyncMessage::StartNetwork) => {
 				info!("Starting network");
 				self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
+				EthSync::register(&*self.network, self.sync.clone()).unwrap_or_else(|e| warn!("Error registering eth protocol handler: {}", e));
 			},
 			NetworkIoMessage::User(SyncMessage::StopNetwork) => {
 				info!("Stopping network");

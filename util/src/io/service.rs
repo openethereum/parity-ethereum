@@ -17,7 +17,6 @@
 use std::sync::*;
 use std::thread::{self, JoinHandle};
 use std::collections::HashMap;
-use std::ops::Deref;
 use mio::*;
 use crossbeam::sync::chase_lev;
 use slab::Slab;
@@ -36,13 +35,6 @@ pub type HandlerId = usize;
 /// Maximum number of tokens a handler can use
 pub const TOKENS_PER_HANDLER: usize = 16384;
 const MAX_HANDLERS: usize = 8;
-
-fn compare_arcs<T: ?Sized>(a: Arc<T>, b: Arc<T>) -> bool {
-	let p1 = &*a as *const T;
-	let p2 = &*b as *const T;
-	info!("{:p} == {:p} : {}", p1, p2 , p1 == p2);
-	p1 == p2
-}
 
 /// Messages used to communicate with the event loop from other threads.
 #[derive(Clone)]
@@ -214,30 +206,31 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 	fn ready(&mut self, _event_loop: &mut EventLoop<Self>, token: Token, events: EventSet) {
 		let handler_index  = token.as_usize() / TOKENS_PER_HANDLER;
 		let token_id  = token.as_usize() % TOKENS_PER_HANDLER;
-		let handler = self.handlers.get(handler_index).unwrap_or_else(|| panic!("Unexpected stream token: {}", token.as_usize())).clone();
-
-		if events.is_hup() {
-			self.worker_channel.push(Work { work_type: WorkType::Hup, token: token_id, handler: handler.clone(), handler_id: handler_index });
-		}
-		else {
-			if events.is_readable() {
-				self.worker_channel.push(Work { work_type: WorkType::Readable, token: token_id, handler: handler.clone(), handler_id: handler_index });
+		if let Some(handler) = self.handlers.get(handler_index) {
+			if events.is_hup() {
+				self.worker_channel.push(Work { work_type: WorkType::Hup, token: token_id, handler: handler.clone(), handler_id: handler_index });
 			}
-			if events.is_writable() {
-				self.worker_channel.push(Work { work_type: WorkType::Writable, token: token_id, handler: handler.clone(), handler_id: handler_index });
+			else {
+				if events.is_readable() {
+					self.worker_channel.push(Work { work_type: WorkType::Readable, token: token_id, handler: handler.clone(), handler_id: handler_index });
+				}
+				if events.is_writable() {
+					self.worker_channel.push(Work { work_type: WorkType::Writable, token: token_id, handler: handler.clone(), handler_id: handler_index });
+				}
 			}
+			self.work_ready.notify_all();
 		}
-		self.work_ready.notify_all();
 	}
 
 	fn timeout(&mut self, event_loop: &mut EventLoop<Self>, token: Token) {
 		let handler_index  = token.as_usize()  / TOKENS_PER_HANDLER;
 		let token_id  = token.as_usize()  % TOKENS_PER_HANDLER;
-		let handler = self.handlers.get(handler_index).unwrap_or_else(|| panic!("Unexpected stream token: {}", token.as_usize())).clone();
-		if let Some(timer) = self.timers.read().unwrap().get(&token.as_usize()) {
-			event_loop.timeout_ms(token, timer.delay).expect("Error re-registering user timer");
-			self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler, handler_id: handler_index });
-			self.work_ready.notify_all();
+		if let Some(handler) = self.handlers.get(handler_index) {
+			if let Some(timer) = self.timers.read().unwrap().get(&token.as_usize()) {
+				event_loop.timeout_ms(token, timer.delay).expect("Error re-registering user timer");
+				self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler.clone(), handler_id: handler_index });
+				self.work_ready.notify_all();
+			}
 		}
 	}
 
@@ -254,7 +247,6 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			IoMessage::RemoveHandler { handler_id } => {
 				// TODO: flush event loop
 				self.handlers.remove(handler_id);
-				info!("{} left", self.handlers.count());
 			},
 			IoMessage::AddTimer { handler_id, token, delay } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
@@ -268,21 +260,24 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 				}
 			},
 			IoMessage::RegisterStream { handler_id, token } => {
-				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
-				handler.register_stream(token, Token(token + handler_id * TOKENS_PER_HANDLER), event_loop);
+				if let Some(handler) = self.handlers.get(handler_id) {
+					handler.register_stream(token, Token(token + handler_id * TOKENS_PER_HANDLER), event_loop);
+				}
 			},
 			IoMessage::DeregisterStream { handler_id, token } => {
-				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
-				handler.deregister_stream(token, event_loop);
-				// unregister a timer associated with the token (if any)
-				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
-				if let Some(timer) = self.timers.write().unwrap().remove(&timer_id) {
-					event_loop.clear_timeout(timer.timeout);
+				if let Some(handler) = self.handlers.get(handler_id) {
+					handler.deregister_stream(token, event_loop);
+					// unregister a timer associated with the token (if any)
+					let timer_id = token + handler_id * TOKENS_PER_HANDLER;
+					if let Some(timer) = self.timers.write().unwrap().remove(&timer_id) {
+						event_loop.clear_timeout(timer.timeout);
+					}
 				}
 			},
 			IoMessage::UpdateStreamRegistration { handler_id, token } => {
-				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
-				handler.update_stream(token, Token(token + handler_id * TOKENS_PER_HANDLER), event_loop);
+				if let Some(handler) = self.handlers.get(handler_id) {
+					handler.update_stream(token, Token(token + handler_id * TOKENS_PER_HANDLER), event_loop);
+				}
 			},
 			IoMessage::UserMessage(data) => {
 				//TODO: better way to iterate the slab

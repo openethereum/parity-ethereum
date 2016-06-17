@@ -333,6 +333,7 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	stats: Arc<NetworkStats>,
 	pinned_nodes: Vec<NodeId>,
 	num_sessions: AtomicUsize,
+	stopping: AtomicBool,
 }
 
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
@@ -384,6 +385,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			stats: stats,
 			pinned_nodes: Vec::new(),
 			num_sessions: AtomicUsize::new(0),
+			stopping: AtomicBool::new(false),
 		};
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
@@ -422,19 +424,18 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	pub fn stop(&self, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
+		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
 		for e in self.sessions.write().unwrap().iter_mut() {
 			let mut s = e.lock().unwrap();
-			if !s.keep_alive(io) {
-				s.disconnect(io, DisconnectReason::PingTimeout);
-				to_kill.push(s.token());
-			}
+			s.disconnect(io, DisconnectReason::ClientQuit);
+			to_kill.push(s.token());
 		}
 		for p in to_kill {
-			trace!(target: "network", "Ping timeout: {}", p);
+			trace!(target: "network", "Disconnecting on shutdown: {}", p);
 			self.kill_connection(p, io, true);
 		}
-		io.unregister_handler();
+		try!(io.unregister_handler());
 		Ok(())
 	}
 
@@ -790,13 +791,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 }
 
-
-impl<Message> Drop for Host<Message> where Message: Send + Sync + Clone {
-	fn drop(&mut self) {
-		info!("Dropping host");
-	}
-}
-
 impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Message: Send + Sync + Clone + 'static {
 	/// Initialize networking
 	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -814,6 +808,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn stream_readable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+		if self.stopping.load(AtomicOrdering::Acquire) {
+			return;
+		}
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
 			DISCOVERY => {
@@ -829,6 +826,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn stream_writable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+		if self.stopping.load(AtomicOrdering::Acquire) {
+			return;
+		}
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
 			DISCOVERY => {
@@ -840,6 +840,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn timeout(&self, io: &IoContext<NetworkIoMessage<Message>>, token: TimerToken) {
+		if self.stopping.load(AtomicOrdering::Acquire) {
+			return;
+		}
 		match token {
 			IDLE => self.maintain_network(io),
 			INIT_PUBLIC => self.init_public_interface(io).unwrap_or_else(|e|
@@ -870,6 +873,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn message(&self, io: &IoContext<NetworkIoMessage<Message>>, message: &NetworkIoMessage<Message>) {
+		if self.stopping.load(AtomicOrdering::Acquire) {
+			return;
+		}
 		match *message {
 			NetworkIoMessage::AddHandler {
 				ref handler,
@@ -1031,6 +1037,6 @@ fn host_client_url() {
 	let mut config = NetworkConfiguration::new();
 	let key = h256_from_hex("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2");
 	config.use_secret = Some(key);
-	let host: Host<u32> = Host::new(config).unwrap();
+	let host: Host<u32> = Host::new(config, Arc::new(NetworkStats::new())).unwrap();
 	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }

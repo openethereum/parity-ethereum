@@ -107,7 +107,7 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 		if let Some(ref host) = *host {
 			info!("Unregistering handler");
 			let io = IoContext::new(self.io_service.channel(), 0); //TODO: take token id from host
-			host.stop(&io);
+			try!(host.stop(&io));
 		}
 		*host = None;
 		Ok(())

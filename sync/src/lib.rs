@@ -41,11 +41,13 @@
 //! use ethcore::miner::Miner;
 //!
 //! fn main() {
-//! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
+//! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
+//! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, Arc::new(Miner::default()), service.io().channel()).unwrap();
 //! 	let miner = Miner::new(false, ethereum::new_frontier());
-//! 	EthSync::register(&mut service, SyncConfig::default(), client);
+//! 	let sync = EthSync::new(SyncConfig::default(), client);
+//! 	EthSync::register(&mut service, sync);
 //! }
 //! ```
 
@@ -69,7 +71,7 @@ use ethcore::client::Client;
 use ethcore::service::{SyncMessage, NetSyncMessage};
 use io::NetSyncIo;
 use util::io::IoChannel;
-use util::NetworkIoMessage;
+use util::{NetworkIoMessage, NetworkError};
 use chain::ChainSync;
 
 mod chain;
@@ -120,15 +122,19 @@ pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
+	pub fn new(config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
 		let sync = ChainSync::new(config, chain.deref());
 		let sync = Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(sync),
 			io_channel: RwLock::new(IoChannel::disconnected()),
 		});
-		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
 		sync
+	}
+
+	/// Register protocol with the network service
+	pub fn register(service: &NetworkService<SyncMessage>, sync: Arc<EthSync>) -> Result<(), NetworkError> {
+		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8])
 	}
 
 	/// Stop sync
