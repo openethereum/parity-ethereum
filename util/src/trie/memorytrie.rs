@@ -16,10 +16,11 @@
 
 //! In-memory trie representation.
 
-use super::TrieError;
+use super::{Trie, TrieError, TrieMut};
 use super::node::Node as RlpNode;
 
-use ::{Bytes, HashDB, H256, SHA3_NULL_RLP};
+use ::{Bytes, FixedHash, HashDB, H256, SHA3_NULL_RLP};
+use ::rlp::{Rlp, View};
 
 use std::ops::{Index, IndexMut};
 
@@ -39,9 +40,13 @@ enum Node {
 	/// Empty node.
 	Empty,
 	/// A leaf node contains the end of a key and a value.
+	/// This key is encoded from a `NibbleSlice`, meaning it contains
+	/// a flag indicating it is a leaf.
 	Leaf(Bytes, Bytes),
 	/// An extension contains a shared portion of a key and a child node.
-	/// This child node is always a branch.
+	/// The shared portion is encoded from a `NibbleSlice` meaning it contains
+	/// a flag indicating it is an extension.
+	/// The child node is always a branch.
 	Extension(Bytes, ChildNode),
 	/// A branch has up to 16 children and an optional value.
 	Branch([Option<ChildNode>; 16], Option<Bytes>)
@@ -51,7 +56,43 @@ impl Node {
 	// decode a node from rlp. Also loads any inline child nodes into
 	// storage.
 	fn from_rlp(rlp: &[u8], storage: &mut NodeStorage) -> Self {
-		unimplemented!();
+		match RlpNode::decoded(rlp) {
+			RlpNode::Empty => Node::Empty,
+			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), v.to_owned()),
+			RlpNode::Extension(k, v) => {
+				let key = k.encoded(false);
+				// inline node.
+				if v.len() < 32 {
+					let child = Node::from_rlp(v, storage);
+					Node::Extension(key, ChildNode::Node(storage.insert(child)))
+				} else {
+					Node::Extension(key, ChildNode::Hash(Rlp::new(v).as_val()))
+				}
+			}
+			RlpNode::Branch(children_rlp, v) => {
+				let val = v.map(|x| x.to_owned());
+				let mut children = [
+					None, None, None, None, None, None, None, None,
+					None, None, None, None, None, None, None, None,
+				];
+
+				for i in 0..16 {
+					let raw = children_rlp[i];
+					let child_rlp = Rlp::new(raw);
+					if !child_rlp.is_empty()  {
+						// inline node.
+						if raw.len() < 32 {
+							let child = Node::from_rlp(raw, storage);
+							children[i] = Some(ChildNode::Node(storage.insert(child)));
+						} else {
+							children[i] = Some(ChildNode::Hash(child_rlp.as_val()));
+						}
+					}
+				}
+
+				Node::Branch(children, val)
+			}
+		}
 	}
 }
 
@@ -80,12 +121,20 @@ impl NodeStorage {
 		storage
 	}
 
+	/// Get a reference to the root node.
 	fn root(&self) -> &Node {
 		&self.nodes[0]
 	}
 
+	/// Get a mutable reference to the root node.
 	fn root_mut(&mut self) -> &mut Node {
 		&mut self.nodes[0]
+	}
+
+	/// Insert a node into the storage, yielding a handle.
+	fn insert(&mut self, node: Node) -> StorageHandle {
+		self.nodes.push(node);
+		StorageHandle(self.nodes.len() - 1)
 	}
 }
 
