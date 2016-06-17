@@ -52,6 +52,7 @@ Account Options:
   --no-import-keys         Do not import keys from legacy clients.
 
 Networking Options:
+  --no-network             Disable p2p networking.
   --port PORT              Override the port on which the node should listen
                            [default: 30303].
   --peers NUM              Try to maintain that many peers [default: 25].
@@ -266,6 +267,7 @@ pub struct Args {
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_no_color: bool,
+	pub flag_no_network: bool,
 	// legacy...
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,

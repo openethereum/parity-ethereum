@@ -17,10 +17,12 @@
 use std::sync::*;
 use std::thread::{self, JoinHandle};
 use std::collections::HashMap;
+use std::ops::Deref;
 use mio::*;
+use crossbeam::sync::chase_lev;
+use slab::Slab;
 use error::*;
 use io::{IoError, IoHandler};
-use crossbeam::sync::chase_lev;
 use io::worker::{Worker, Work, WorkType};
 use panics::*;
 
@@ -33,6 +35,14 @@ pub type HandlerId = usize;
 
 /// Maximum number of tokens a handler can use
 pub const TOKENS_PER_HANDLER: usize = 16384;
+const MAX_HANDLERS: usize = 8;
+
+fn compare_arcs<T: ?Sized>(a: Arc<T>, b: Arc<T>) -> bool {
+	let p1 = &*a as *const T;
+	let p2 = &*b as *const T;
+	info!("{:p} == {:p} : {}", p1, p2 , p1 == p2);
+	p1 == p2
+}
 
 /// Messages used to communicate with the event loop from other threads.
 #[derive(Clone)]
@@ -42,6 +52,9 @@ pub enum IoMessage<Message> where Message: Send + Clone + Sized {
 	/// Register a new protocol handler.
 	AddHandler {
 		handler: Arc<IoHandler<Message>+Send>,
+	},
+	RemoveHandler {
+		handler_id: HandlerId,
 	},
 	AddTimer {
 		handler_id: HandlerId,
@@ -138,6 +151,15 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	pub fn channel(&self) -> IoChannel<Message> {
 		self.channel.clone()
 	}
+
+	/// Unregister current IO handler.
+	pub fn unregister_handler(&self) -> Result<(), IoError> {
+		try!(self.channel.send_io(IoMessage::RemoveHandler {
+			handler_id: self.handler,
+		}));
+		Ok(())
+	}
+
 }
 
 #[derive(Clone)]
@@ -149,7 +171,7 @@ struct UserTimer {
 /// Root IO handler. Manages user handlers, messages and IO timers.
 pub struct IoManager<Message> where Message: Send + Sync {
 	timers: Arc<RwLock<HashMap<HandlerId, UserTimer>>>,
-	handlers: Vec<Arc<IoHandler<Message>>>,
+	handlers: Slab<Arc<IoHandler<Message>>, HandlerId>,
 	workers: Vec<Worker>,
 	worker_channel: chase_lev::Worker<Work<Message>>,
 	work_ready: Arc<Condvar>,
@@ -175,7 +197,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 
 		let mut io = IoManager {
 			timers: Arc::new(RwLock::new(HashMap::new())),
-			handlers: Vec::new(),
+			handlers: Slab::new(MAX_HANDLERS),
 			worker_channel: worker,
 			workers: workers,
 			work_ready: work_ready,
@@ -192,10 +214,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 	fn ready(&mut self, _event_loop: &mut EventLoop<Self>, token: Token, events: EventSet) {
 		let handler_index  = token.as_usize() / TOKENS_PER_HANDLER;
 		let token_id  = token.as_usize() % TOKENS_PER_HANDLER;
-		if handler_index >= self.handlers.len() {
-			panic!("Unexpected stream token: {}", token.as_usize());
-		}
-		let handler = self.handlers[handler_index].clone();
+		let handler = self.handlers.get(handler_index).unwrap_or_else(|| panic!("Unexpected stream token: {}", token.as_usize())).clone();
 
 		if events.is_hup() {
 			self.worker_channel.push(Work { work_type: WorkType::Hup, token: token_id, handler: handler.clone(), handler_id: handler_index });
@@ -214,12 +233,9 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 	fn timeout(&mut self, event_loop: &mut EventLoop<Self>, token: Token) {
 		let handler_index  = token.as_usize()  / TOKENS_PER_HANDLER;
 		let token_id  = token.as_usize()  % TOKENS_PER_HANDLER;
-		if handler_index >= self.handlers.len() {
-			panic!("Unexpected timer token: {}", token.as_usize());
-		}
+		let handler = self.handlers.get(handler_index).unwrap_or_else(|| panic!("Unexpected stream token: {}", token.as_usize())).clone();
 		if let Some(timer) = self.timers.read().unwrap().get(&token.as_usize()) {
 			event_loop.timeout_ms(token, timer.delay).expect("Error re-registering user timer");
-			let handler = self.handlers[handler_index].clone();
 			self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler, handler_id: handler_index });
 			self.work_ready.notify_all();
 		}
@@ -232,11 +248,13 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 				event_loop.shutdown();
 			},
 			IoMessage::AddHandler { handler } => {
-				let handler_id = {
-					self.handlers.push(handler.clone());
-					self.handlers.len() - 1
-				};
+				let handler_id = self.handlers.insert(handler.clone()).unwrap_or_else(|_| panic!("Too many handlers registered"));
 				handler.initialize(&IoContext::new(IoChannel::new(event_loop.channel()), handler_id));
+			},
+			IoMessage::RemoveHandler { handler_id } => {
+				// TODO: flush event loop
+				self.handlers.remove(handler_id);
+				info!("{} left", self.handlers.count());
 			},
 			IoMessage::AddTimer { handler_id, token, delay } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
@@ -267,9 +285,12 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 				handler.update_stream(token, Token(token + handler_id * TOKENS_PER_HANDLER), event_loop);
 			},
 			IoMessage::UserMessage(data) => {
-				for n in 0 .. self.handlers.len() {
-					let handler = self.handlers[n].clone();
-					self.worker_channel.push(Work { work_type: WorkType::Message(data.clone()), token: 0, handler: handler, handler_id: n });
+				//TODO: better way to iterate the slab
+				for id in 0 .. MAX_HANDLERS {
+					if let Some(h) = self.handlers.get(id) {
+						let handler = h.clone();
+						self.worker_channel.push(Work { work_type: WorkType::Message(data.clone()), token: 0, handler: handler, handler_id: id });
+					}
 				}
 				self.work_ready.notify_all();
 			}
@@ -351,8 +372,8 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 		})
 	}
 
-	/// Regiter a IO hadnler with the event loop.
-	pub fn register_handler(&mut self, handler: Arc<IoHandler<Message>+Send>) -> Result<(), IoError> {
+	/// Regiter an IO handler with the event loop.
+	pub fn register_handler(&self, handler: Arc<IoHandler<Message>+Send>) -> Result<(), IoError> {
 		try!(self.host_channel.send(IoMessage::AddHandler {
 			handler: handler,
 		}));
@@ -360,13 +381,13 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	}
 
 	/// Send a message over the network. Normaly `HostIo::send` should be used. This can be used from non-io threads.
-	pub fn send_message(&mut self, message: Message) -> Result<(), IoError> {
+	pub fn send_message(&self, message: Message) -> Result<(), IoError> {
 		try!(self.host_channel.send(IoMessage::UserMessage(message)));
 		Ok(())
 	}
 
 	/// Create a new message channel
-	pub fn channel(&mut self) -> IoChannel<Message> {
+	pub fn channel(&self) -> IoChannel<Message> {
 		IoChannel { channel: Some(self.host_channel.clone()) }
 	}
 }

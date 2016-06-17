@@ -66,8 +66,10 @@ use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, Peer
 use util::TimerToken;
 use util::{U256, ONE_U256};
 use ethcore::client::Client;
-use ethcore::service::SyncMessage;
+use ethcore::service::{SyncMessage, NetSyncMessage};
 use io::NetSyncIo;
+use util::io::IoChannel;
+use util::NetworkIoMessage;
 use chain::ChainSync;
 
 mod chain;
@@ -98,6 +100,10 @@ impl Default for SyncConfig {
 pub trait SyncProvider: Send + Sync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus;
+	/// Start the network
+	fn start_network(&self);
+	/// Stop the network
+	fn stop_network(&self);
 }
 
 /// Ethereum network protocol handler
@@ -105,18 +111,21 @@ pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
 	chain: Arc<Client>,
 	/// Sync strategy
-	sync: RwLock<ChainSync>
+	sync: RwLock<ChainSync>,
+	/// IO communication chnnel.
+	io_channel: RwLock<IoChannel<NetSyncMessage>>,
 }
 
 pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
+	pub fn register(service: &NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
 		let sync = ChainSync::new(config, chain.deref());
 		let sync = Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(sync),
+			io_channel: RwLock::new(IoChannel::disconnected()),
 		});
 		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
 		sync
@@ -138,11 +147,20 @@ impl SyncProvider for EthSync {
 	fn status(&self) -> SyncStatus {
 		self.sync.read().unwrap().status()
 	}
+
+	fn start_network(&self) {
+		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StartNetwork)).expect("Error sending IO notification");
+	}
+
+	fn stop_network(&self) {
+		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StopNetwork)).expect("Error sending IO notification");
+	}
 }
 
 impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	fn initialize(&self, io: &NetworkContext<SyncMessage>) {
 		io.register_timer(0, 1000).expect("Error registering sync timer");
+		*self.io_channel.write().unwrap() = io.io_channel();
 	}
 
 	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {

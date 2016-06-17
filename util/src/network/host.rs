@@ -49,7 +49,7 @@ const MAX_HANDSHAKES: usize = 80;
 const MAX_HANDSHAKES_PER_ROUND: usize = 32;
 const MAINTENANCE_TIMEOUT: u64 = 1000;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store network configuration. None means nothing will be saved
@@ -233,6 +233,11 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 		self.io.message(NetworkIoMessage::User(msg));
 	}
 
+	/// Send an IO message
+	pub fn io_channel(&self) -> IoChannel<NetworkIoMessage<Message>> {
+		self.io.channel()
+	}
+
 	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
 	pub fn disable_peer(&self, peer: PeerId) {
 		//TODO: remove capability, disconnect if no capabilities left
@@ -327,7 +332,7 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	/// Create a new instance
-	pub fn new(config: NetworkConfiguration) -> Result<Host<Message>, UtilError> {
+	pub fn new(config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host<Message>, UtilError> {
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::from_str("0.0.0.0:30304").unwrap(),
 			Some(addr) => addr,
@@ -371,7 +376,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			handlers: RwLock::new(HashMap::new()),
 			timers: RwLock::new(HashMap::new()),
 			timer_counter: RwLock::new(USER_TIMER),
-			stats: Arc::new(NetworkStats::default()),
+			stats: stats,
 			pinned_nodes: Vec::new(),
 			num_sessions: AtomicUsize::new(0),
 		};
@@ -381,10 +386,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			host.add_node(&n);
 		}
 		Ok(host)
-	}
-
-	pub fn stats(&self) -> Arc<NetworkStats> {
-		self.stats.clone()
 	}
 
 	pub fn add_node(&mut self, id: &str) {
@@ -401,8 +402,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	pub fn client_version(&self) -> String {
-		self.info.read().unwrap().client_version.clone()
+	pub fn client_version() -> String {
+		version()
 	}
 
 	pub fn external_url(&self) -> Option<String> {
@@ -413,6 +414,23 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let r = format!("{}", Node::new(self.info.read().unwrap().id().clone(), self.info.read().unwrap().local_endpoint.clone()));
 		println!("{}", r);
 		r
+	}
+
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
+		let mut to_kill = Vec::new();
+		for e in self.sessions.write().unwrap().iter_mut() {
+			let mut s = e.lock().unwrap();
+			if !s.keep_alive(io) {
+				s.disconnect(io, DisconnectReason::PingTimeout);
+				to_kill.push(s.token());
+			}
+		}
+		for p in to_kill {
+			trace!(target: "network", "Ping timeout: {}", p);
+			self.kill_connection(p, io, true);
+		}
+		io.unregister_handler();
+		Ok(())
 	}
 
 	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
@@ -767,6 +785,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 }
 
+
+impl<Message> Drop for Host<Message> where Message: Send + Sync + Clone {
+	fn drop(&mut self) {
+		info!("Dropping host");
+	}
+}
+
 impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Message: Send + Sync + Clone + 'static {
 	/// Initialize networking
 	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -831,8 +856,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			},
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
-						None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
-						Some(h) => { h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone()), timer.token); }
+					None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
+					Some(h) => { h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone()), timer.token); }
 				},
 				None => { warn!("Unknown timer token: {}", token); } // timer is not registerd through us
 			}
