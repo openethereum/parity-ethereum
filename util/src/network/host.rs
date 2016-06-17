@@ -250,9 +250,9 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 		self.io.message(NetworkIoMessage::Disconnect(peer));
 	}
 
-	/// Sheck if the session is till active.
+	/// Check if the session is still active.
 	pub fn is_expired(&self) -> bool {
-		self.session.as_ref().map(|s| s.lock().unwrap().expired()).unwrap_or(false)
+		self.session.as_ref().map(|s| s.lock().unwrap().expired()).unwrap()
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
