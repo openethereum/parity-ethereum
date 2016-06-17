@@ -222,13 +222,15 @@ impl State {
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
+		let broken_dao = H256::from("7278d050619a624f84f51987149ddb439cdaadfba5966f7cfaea7ad44340a4ba");
+
 		// dao attack soft fork
 		if engine.schedule(&env_info).block_dao_transactions {
 			// collect all the addresses which have changed.
-			let addresses = self.cache.borrow().deref().iter().map(|(addr, _)| addr.clone()).collect::<Vec<_>>();
+			let addresses = self.cache.borrow().iter().map(|(addr, _)| addr.clone()).collect::<Vec<_>>();
 
 			for a in addresses.iter() {
-				if self.code(a).map(|c| c.sha3() == H256::from("7278d050619a624f84f51987149ddb439cdaadfba5966f7cfaea7ad44340a4ba")).unwrap_or(false) {
+				if self.code(a).map(|c| c.sha3() == broken_dao).unwrap_or(false) {
 					// Figure out if the balance has been reduced.
 					let maybe_original = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR).get(&a).map(Account::from_rlp);
 					if maybe_original.map(|original| *original.balance() > self.balance(a)).unwrap_or(false) {
