@@ -20,20 +20,13 @@ use super::{Trie, TrieError, TrieMut};
 use super::node::Node as RlpNode;
 
 use ::{Bytes, FixedHash, HashDB, H256, SHA3_NULL_RLP};
+use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, View};
 
 use std::ops::{Index, IndexMut};
 
 /// For lookups into the Node storage buffer.
 struct StorageHandle(usize);
-
-/// Lazily loaded child nodes.
-enum ChildNode {
-	/// A hash of a node we can look up with.
-	Hash(H256),
-	/// A handle into the trie storage
-	Node(StorageHandle),
-}
 
 /// Node types in the Trie.
 enum Node {
@@ -47,27 +40,31 @@ enum Node {
 	/// The shared portion is encoded from a `NibbleSlice` meaning it contains
 	/// a flag indicating it is an extension.
 	/// The child node is always a branch.
-	Extension(Bytes, ChildNode),
+	Extension(Bytes, StorageHandle),
 	/// A branch has up to 16 children and an optional value.
-	Branch([Option<ChildNode>; 16], Option<Bytes>)
+	Branch([Option<StorageHandle>; 16], Option<Bytes>)
 }
 
 impl Node {
+	fn get_raw_or_lookup<'a>(node: &'a [u8], db: &'a HashDB) -> &'a [u8] {
+		// check if its sha3 + len
+		let r = Rlp::new(node);
+		match r.is_data() && r.size() == 32 {
+			true => db.get(&r.as_val::<H256>()).expect("Not found!"),
+			false => node
+		}
+	}
 	// decode a node from rlp. Also loads any inline child nodes into
 	// storage.
-	fn from_rlp(rlp: &[u8], storage: &mut NodeStorage) -> Self {
+	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
 		match RlpNode::decoded(rlp) {
 			RlpNode::Empty => Node::Empty,
 			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), v.to_owned()),
 			RlpNode::Extension(k, v) => {
 				let key = k.encoded(false);
-				// inline node.
-				if v.len() < 32 {
-					let child = Node::from_rlp(v, storage);
-					Node::Extension(key, ChildNode::Node(storage.insert(child)))
-				} else {
-					Node::Extension(key, ChildNode::Hash(Rlp::new(v).as_val()))
-				}
+				let child_rlp = Node::get_raw_or_lookup(v, db);
+				let child_node = Node::from_rlp(child_rlp, db, storage);
+				Node::Extension(key, storage.insert(child_node))
 			}
 			RlpNode::Branch(children_rlp, v) => {
 				let val = v.map(|x| x.to_owned());
@@ -80,17 +77,44 @@ impl Node {
 					let raw = children_rlp[i];
 					let child_rlp = Rlp::new(raw);
 					if !child_rlp.is_empty()  {
-						// inline node.
-						if raw.len() < 32 {
-							let child = Node::from_rlp(raw, storage);
-							children[i] = Some(ChildNode::Node(storage.insert(child)));
-						} else {
-							children[i] = Some(ChildNode::Hash(child_rlp.as_val()));
-						}
+						let child_rlp = Node::get_raw_or_lookup(raw, db);
+						let child_node = Node::from_rlp(child_rlp, db, storage);
+						children[i] = Some(storage.insert(child_node));
 					}
 				}
 
 				Node::Branch(children, val)
+			}
+		}
+	}
+
+	fn lookup<'a, 'key>(&'a self, partial: NibbleSlice<'key>, storage: &'a NodeStorage) -> Option<&'a [u8]> {
+		match *self {
+			Node::Empty => None,
+			Node::Leaf(ref key, ref value) => {
+				if NibbleSlice::from_encoded(key).0 == partial {
+					Some(value)
+				} else {
+					None
+				}
+			}
+			Node::Extension(ref slice, ref child) => {
+				let slice = NibbleSlice::from_encoded(slice).0;
+				if partial.starts_with(&slice) {
+					storage[child].lookup(partial.mid(slice.len()), storage)
+				} else {
+					None
+				}
+			}
+			Node::Branch(ref children, ref value) => {
+				if partial.is_empty() {
+					value.as_ref().map(|v| &v[..])
+				} else {
+					let idx = partial.at(0);
+					(&children[idx as usize]).as_ref().and_then(|child| {
+						storage[child].lookup(partial.mid(1), storage)
+					})
+				}
 			}
 		}
 	}
@@ -110,12 +134,12 @@ impl NodeStorage {
 	}
 
 	/// Create storage from root rlp.
-	fn from_root_rlp(rlp: &[u8]) -> Self {
+	fn from_root_rlp(rlp: &[u8], db: &HashDB) -> Self {
 		// reserve a slot for the root.
 		let mut storage = NodeStorage::empty();
 
 		// decode and overwrite.
-		let root_node = Node::from_rlp(rlp, &mut storage);
+		let root_node = Node::from_rlp(rlp, db, &mut storage);
 		*storage.root_mut() = root_node;
 
 		storage
@@ -169,7 +193,7 @@ impl<'a> MemoryTrieDB<'a> {
 	pub fn new(db: &'a mut HashDB, root: &'a mut H256) -> Self {
 		*root = SHA3_NULL_RLP;
 
-		MemoryTrie {
+		MemoryTrieDB {
 			storage: NodeStorage::empty(),
 			db: db,
 			root: root,
@@ -179,15 +203,41 @@ impl<'a> MemoryTrieDB<'a> {
 	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'a mut HashDB, root: &'a mut H256) -> Result<Self, TrieError> {
-		let storage = match db.get(root) {
-			Some(root_rlp) => NodeStorage::from_root_rlp(root_rlp),
-			None => return Err(TrieError::InvalidStateRoot),
+		let storage = {
+			let root_rlp = match db.get(root) {
+				Some(root_rlp) => root_rlp,
+				None => return Err(TrieError::InvalidStateRoot),
+			};
+
+			NodeStorage::from_root_rlp(root_rlp, db)
 		};
 
-		Ok(MemoryTrie {
+		Ok(MemoryTrieDB {
 			storage: storage,
 			db: db,
 			root: root,
 		})
+	}
+}
+
+impl<'a> Trie for MemoryTrieDB<'a> {
+	// TODO [rob] do something about the root not being consistent with trie state.
+	fn root(&self) -> &H256 {
+		&self.root
+	}
+
+	fn is_empty(&self) -> bool {
+		match *self.storage.root() {
+			Node::Empty => true,
+			_ => false,
+		}
+	}
+
+	fn get<'b, 'key>(&'b self, key: &'key [u8]) -> Option<&'b [u8]> where 'b: 'key {
+		self.storage.root().lookup(NibbleSlice::new(key), &self.storage)
+	}
+
+	fn contains(&self, key: &[u8]) -> bool {
+		self.get(key).is_some()
 	}
 }
