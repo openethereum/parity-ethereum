@@ -356,6 +356,10 @@ impl ChainSync {
 		};
 
 		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis);
+		if io.is_expired() {
+			info!("Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
+			return Ok(());
+		}
 
 		if self.peers.contains_key(&peer_id) {
 			warn!("Unexpected status packet from {}:{}", peer_id, io.peer_info(peer_id));

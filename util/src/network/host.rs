@@ -18,7 +18,7 @@ use std::net::{SocketAddr};
 use std::collections::{HashMap};
 use std::str::{FromStr};
 use std::sync::*;
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
@@ -247,6 +247,11 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	/// Disconnect peer. Reconnect can be attempted later.
 	pub fn disconnect_peer(&self, peer: PeerId) {
 		self.io.message(NetworkIoMessage::Disconnect(peer));
+	}
+
+	/// Sheck if the session is till active.
+	pub fn is_expired(&self) -> bool {
+		self.session.as_ref().map(|s| s.lock().unwrap().expired()).unwrap_or(false)
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
