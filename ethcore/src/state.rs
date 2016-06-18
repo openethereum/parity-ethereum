@@ -225,7 +225,7 @@ impl State {
 		let broken_dao = H256::from("7278d050619a624f84f51987149ddb439cdaadfba5966f7cfaea7ad44340a4ba");
 
 		// dao attack soft fork
-		if engine.schedule(&env_info).block_dao_transactions {
+		if engine.schedule(&env_info).reject_dao_transactions {
 			// collect all the addresses which have changed.
 			let addresses = self.cache.borrow().iter().map(|(addr, _)| addr.clone()).collect::<Vec<_>>();
 
