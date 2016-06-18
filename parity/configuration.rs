@@ -268,9 +268,11 @@ impl Configuration {
 				false => DirectoryType::Main,
 			};
 
-			let from = GethDirectory::create(dir_type).unwrap();
+			let from = GethDirectory::open(dir_type);
 			let to = DiskDirectory::create(self.keys_path()).unwrap();
-			import_accounts(&from, &to).expect("TODO: error here");
+			if let Err(e) = import_accounts(&from, &to) {
+				warn!("Could not import accounts {}", e);
+			}
 		}
 
 		let dir = Box::new(DiskDirectory::create(self.keys_path()).unwrap());
