@@ -440,7 +440,7 @@ dependencies = [
 [[package]]
 name = "ethstore"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/ethstore.git#d3f381002508333cd8a224515225c8baa8490f4c"
+source = "git+https://github.com/ethcore/ethstore.git#8ee40d4088508fac7e0468346db24eac91fb93f1"
 dependencies = [
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.2.0 (git+https://github.com/ethcore/ethkey)",
