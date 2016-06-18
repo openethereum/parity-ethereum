@@ -24,6 +24,7 @@ use util::keys::TestAccount;
 
 struct EthSigningTester {
 	pub queue: Arc<ConfirmationsQueue>,
+	pub miner: Arc<TestMinerService>,
 	pub io: IoHandler,
 }
 
@@ -36,6 +37,7 @@ impl Default for EthSigningTester {
 
 		EthSigningTester {
 			queue: queue,
+			miner: miner,
 			io: io,
 		}
 	}
