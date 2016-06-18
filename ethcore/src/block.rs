@@ -177,6 +177,7 @@ pub struct OpenBlock<'x> {
 	engine: &'x Engine,
 	vm_factory: &'x EvmFactory,
 	last_hashes: LastHashes,
+	dao_rescue_block_gas_limit: Option<U256>,
 }
 
 /// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
@@ -188,6 +189,7 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	last_hashes: LastHashes,
+	dao_rescue_block_gas_limit: Option<U256>,
 	unclosed_state: State,
 }
 
@@ -198,7 +200,6 @@ pub struct ClosedBlock {
 pub struct LockedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
-	last_hashes: LastHashes,
 }
 
 /// A block that has a valid seal.
@@ -219,9 +220,10 @@ impl<'x> OpenBlock<'x> {
 		db: Box<JournalDB>,
 		parent: &Header,
 		last_hashes: LastHashes,
+		dao_rescue_block_gas_limit: Option<U256>,
 		author: Address,
 		gas_floor_target: U256,
-		extra_data: Bytes
+		extra_data: Bytes,
 	) -> Result<Self, Error> {
 		let state = try!(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce()));
 		let mut r = OpenBlock {
@@ -229,6 +231,7 @@ impl<'x> OpenBlock<'x> {
 			engine: engine,
 			vm_factory: vm_factory,
 			last_hashes: last_hashes,
+			dao_rescue_block_gas_limit: dao_rescue_block_gas_limit,
 		};
 
 		r.block.base.header.parent_hash = parent.hash();
@@ -293,6 +296,7 @@ impl<'x> OpenBlock<'x> {
 			last_hashes: self.last_hashes.clone(),		// TODO: should be a reference.
 			gas_used: self.block.receipts.last().map_or(U256::zero(), |r| r.gas_used),
 			gas_limit: self.block.base.header.gas_limit.clone(),
+			dao_rescue_block_gas_limit: if self.block.base.header.number == 1760000 { Some(self.block.base.header.gas_limit) } else { self.dao_rescue_block_gas_limit },
 		}
 	}
 
@@ -339,6 +343,7 @@ impl<'x> OpenBlock<'x> {
 			block: s.block,
 			uncle_bytes: uncle_bytes,
 			last_hashes: s.last_hashes,
+			dao_rescue_block_gas_limit: s.dao_rescue_block_gas_limit,
 			unclosed_state: unclosed_state,
 		}
 	}
@@ -360,7 +365,6 @@ impl<'x> OpenBlock<'x> {
 		LockedBlock {
 			block: s.block,
 			uncle_bytes: uncle_bytes,
-			last_hashes: s.last_hashes,
 		}
 	}
 }
@@ -386,7 +390,6 @@ impl ClosedBlock {
 		LockedBlock {
 			block: self.block,
 			uncle_bytes: self.uncle_bytes,
-			last_hashes: self.last_hashes,
 		}
 	}
 
@@ -400,6 +403,7 @@ impl ClosedBlock {
 			engine: engine,
 			vm_factory: vm_factory,
 			last_hashes: self.last_hashes,
+			dao_rescue_block_gas_limit: self.dao_rescue_block_gas_limit,
 		}
 	}
 }
@@ -456,7 +460,18 @@ impl IsBlock for SealedBlock {
 
 /// Enact the block given by block header, transactions and uncles
 #[cfg_attr(feature="dev", allow(too_many_arguments))]
-pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, vm_factory: &EvmFactory) -> Result<LockedBlock, Error> {
+pub fn enact(
+	header: &Header,
+	transactions: &[SignedTransaction],
+	uncles: &[Header],
+	engine: &Engine,
+	tracing: bool,
+	db: Box<JournalDB>,
+	parent: &Header,
+	last_hashes: LastHashes,
+	dao_rescue_block_gas_limit: Option<U256>,
+	vm_factory: &EvmFactory
+) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
 			let s = try!(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce()));
@@ -464,7 +479,7 @@ pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Head
 		}
 	}
 
-	let mut b = try!(OpenBlock::new(engine, vm_factory, tracing, db, parent, last_hashes, header.author().clone(), 3141562.into(), header.extra_data().clone()));
+	let mut b = try!(OpenBlock::new(engine, vm_factory, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, header.author().clone(), 3141562.into(), header.extra_data().clone()));
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -474,22 +489,49 @@ pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Head
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_bytes(block_bytes: &[u8], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, vm_factory: &EvmFactory) -> Result<LockedBlock, Error> {
+pub fn enact_bytes(
+	block_bytes: &[u8],
+	engine: &Engine,
+	tracing: bool,
+	db: Box<JournalDB>,
+	parent: &Header,
+	last_hashes: LastHashes,
+	dao_rescue_block_gas_limit: Option<U256>,
+	vm_factory: &EvmFactory
+) -> Result<LockedBlock, Error> {
 	let block = BlockView::new(block_bytes);
 	let header = block.header();
-	enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, vm_factory)
+	enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, vm_factory)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_verified(block: &PreverifiedBlock, engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, vm_factory: &EvmFactory) -> Result<LockedBlock, Error> {
+pub fn enact_verified(
+	block: &PreverifiedBlock,
+	engine: &Engine,
+	tracing: bool,
+	db: Box<JournalDB>,
+	parent: &Header,
+	last_hashes: LastHashes,
+	dao_rescue_block_gas_limit: Option<U256>,
+	vm_factory: &EvmFactory
+) -> Result<LockedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
-	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, vm_factory)
+	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, vm_factory)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
-pub fn enact_and_seal(block_bytes: &[u8], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, vm_factory: &EvmFactory) -> Result<SealedBlock, Error> {
+pub fn enact_and_seal(
+	block_bytes: &[u8],
+	engine: &Engine,
+	tracing: bool,
+	db: Box<JournalDB>,
+	parent: &Header,
+	last_hashes: LastHashes,
+	dao_rescue_block_gas_limit: Option<U256>,
+	vm_factory: &EvmFactory
+) -> Result<SealedBlock, Error> {
 	let header = BlockView::new(block_bytes).header_view();
-	Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, vm_factory)).seal(engine, header.seal())))
+	Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, vm_factory)).seal(engine, header.seal())))
 }
 
 #[cfg(test)]
@@ -509,7 +551,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, None, Address::zero(), 3141562.into(), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let _ = b.seal(engine.deref(), vec![]);
 	}
@@ -525,7 +567,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]).unwrap()
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], None, Address::zero(), 3141562.into(), vec![]).unwrap()
 			.close_and_lock().seal(engine.deref(), vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
@@ -533,7 +575,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
-		let e = enact_and_seal(&orig_bytes, engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()], &Default::default()).unwrap();
+		let e = enact_and_seal(&orig_bytes, engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()], None, &Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 
@@ -553,7 +595,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let vm_factory = Default::default();
-		let mut open_block = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), 3141562.into(), vec![]).unwrap();
+		let mut open_block = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, vec![genesis_header.hash()], None, Address::zero(), 3141562.into(), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.extra_data = b"uncle1".to_vec();
 		let mut uncle2_header = Header::new();
@@ -568,7 +610,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
-		let e = enact_and_seal(&orig_bytes, engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()], &Default::default()).unwrap();
+		let e = enact_and_seal(&orig_bytes, engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()], None, &Default::default()).unwrap();
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
