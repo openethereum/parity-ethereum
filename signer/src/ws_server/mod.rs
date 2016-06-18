@@ -92,8 +92,11 @@ impl Server {
 	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
-			config.max_connections = 10;
+			// It's also used for handling min-sysui requests (browser can make many of them in paralel)
+			config.max_connections = 15;
 			config.method_strict = true;
+			// Was shutting down server when suspending on linux:
+			config.shutdown_on_interrupt = false;
 			config
 		};
 

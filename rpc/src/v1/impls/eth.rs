@@ -421,9 +421,15 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 	fn transaction_receipt(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| {
-				let client = take_weak!(self.client);
-				let receipt = client.transaction_receipt(TransactionID::Hash(hash));
-				to_value(&receipt.map(Receipt::from))
+				let miner = take_weak!(self.miner);
+				match miner.pending_receipts().get(&hash) {
+					Some(receipt) => to_value(&Receipt::from(receipt.clone())),
+					None => {
+						let client = take_weak!(self.client);
+						let receipt = client.transaction_receipt(TransactionID::Hash(hash));
+						to_value(&receipt.map(Receipt::from))
+					}
+				}
 			})
 	}
 

@@ -101,7 +101,10 @@ impl Engine for Ethash {
 		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
 			Schedule::new_frontier()
 		} else {
-			Schedule::new_homestead()
+			let mut s = Schedule::new_homestead();
+			// TODO: make dependent on gaslimit > 4000000 of block 1760000.	
+			s.block_dao_transactions = env_info.number >= 1760000;
+			s
 		}
 	}
 

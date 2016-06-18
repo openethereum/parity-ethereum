@@ -19,21 +19,25 @@ use jsonrpc_core::IoHandler;
 use v1::impls::EthSigningQueueClient;
 use v1::traits::EthSigning;
 use v1::helpers::{ConfirmationsQueue, SigningQueue};
+use v1::tests::helpers::TestMinerService;
 use util::keys::TestAccount;
 
 struct EthSigningTester {
 	pub queue: Arc<ConfirmationsQueue>,
+	pub miner: Arc<TestMinerService>,
 	pub io: IoHandler,
 }
 
 impl Default for EthSigningTester {
 	fn default() -> Self {
 		let queue = Arc::new(ConfirmationsQueue::default());
+		let miner = Arc::new(TestMinerService::default());
 		let io = IoHandler::new();
-		io.add_delegate(EthSigningQueueClient::new(&queue).to_delegate());
+		io.add_delegate(EthSigningQueueClient::new(&queue, &miner).to_delegate());
 
 		EthSigningTester {
 			queue: queue,
+			miner: miner,
 			io: io,
 		}
 	}

@@ -229,11 +229,11 @@ impl State {
 			// collect all the addresses which have changed.
 			let addresses = self.cache.borrow().iter().map(|(addr, _)| addr.clone()).collect::<Vec<_>>();
 
-			for a in addresses.iter() {
-				if self.code(a).map(|c| c.sha3() == broken_dao).unwrap_or(false) {
+			for a in &addresses {
+				if self.code(a).map_or(false, |c| c.sha3() == broken_dao) {
 					// Figure out if the balance has been reduced.
 					let maybe_original = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR).get(&a).map(Account::from_rlp);
-					if maybe_original.map(|original| *original.balance() > self.balance(a)).unwrap_or(false) {
+					if maybe_original.map_or(false, |original| *original.balance() > self.balance(a)) {
 						return Err(Error::Transaction(TransactionError::DAORescue));
 					}
 				}
