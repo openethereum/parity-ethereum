@@ -20,7 +20,7 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::PersonalSigner;
 use v1::types::TransactionModification;
-use v1::impls::sign_and_dispatch;
+use v1::impls::unlock_sign_and_dispatch;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use ethcore::account_provider::AccountProvider;
 use util::numbers::*;
@@ -70,11 +70,8 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 						}
 
 						let sender = request.from;
-						if let Err(_) = accounts.unlock_account_temporarily(sender, pass) {
-							return None;
-						}
 
-						match sign_and_dispatch(&*client, &*miner, request, &*accounts, sender) {
+						match unlock_sign_and_dispatch(&*client, &*miner, request, &*accounts, sender, pass) {
 							Ok(hash) => {
 								queue.request_confirmed(id, Ok(hash.clone()));
 								Some(to_value(&hash))

@@ -89,23 +89,41 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 		.and_then(|_| to_value(&hash))
 }
 
+fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest) -> Transaction where C: MiningBlockChainClient, M: MinerService {
+	Transaction {
+		nonce: request.nonce
+			.or_else(|| miner
+					 .last_nonce(&request.from)
+					 .map(|nonce| nonce + U256::one()))
+			.unwrap_or_else(|| client.latest_nonce(&request.from)),
+
+		action: request.to.map_or(Action::Create, Action::Call),
+		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
+		gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+		value: request.value.unwrap_or_else(U256::zero),
+		data: request.data.map_or_else(Vec::new, |b| b.to_vec()),
+	}
+}
+
+fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, address: Address, password: String) -> Result<Value, Error>
+	where C: MiningBlockChainClient, M: MinerService {
+
+	let signed_transaction = {
+		let t = prepare_transaction(client, miner, request);
+		let hash = t.hash();
+		let signature = try!(account_provider.sign_with_password(address, password, hash).map_err(signing_error));
+		t.with_signature(signature)
+	};
+
+	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
+	dispatch_transaction(&*client, &*miner, signed_transaction)
+}
+
 fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, address: Address) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
 	let signed_transaction = {
-		let t = Transaction {
-			nonce: request.nonce
-				.or_else(|| miner
-						 .last_nonce(&request.from)
-						 .map(|nonce| nonce + U256::one()))
-				.unwrap_or_else(|| client.latest_nonce(&request.from)),
-
-			action: request.to.map_or(Action::Create, Action::Call),
-			gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
-			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
-			value: request.value.unwrap_or_else(U256::zero),
-			data: request.data.map_or_else(Vec::new, |b| b.to_vec()),
-		};
+		let t = prepare_transaction(client, miner, request);
 		let hash = t.hash();
 		let signature = try!(account_provider.sign(address, hash).map_err(signing_error));
 		t.with_signature(signature)

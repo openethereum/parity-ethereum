@@ -19,7 +19,7 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::Personal;
 use v1::types::TransactionRequest;
-use v1::impls::sign_and_dispatch;
+use v1::impls::unlock_sign_and_dispatch;
 use ethcore::account_provider::AccountProvider;
 use util::numbers::*;
 use ethcore::client::MiningBlockChainClient;
@@ -87,11 +87,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 				let sender = request.from;
 				let accounts = take_weak!(self.accounts);
 
-				if let Err(_) = accounts.unlock_account_temporarily(sender, password) {
-					return to_value(&H256::zero());
-				}
-
-				match sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, sender) {
+				match unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, sender, password) {
 					Ok(hash) => to_value(&hash),
 					_ => to_value(&H256::zero()),
 				}
