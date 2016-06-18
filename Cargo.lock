@@ -370,7 +370,7 @@ dependencies = [
  "parity-minimal-sysui 0.1.0 (git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.4.6 (git+https://github.com/ethcore/ws-rs.git)",
+ "ws 0.5.1 (git+https://github.com/ethcore/ws-rs.git)",
 ]
 
 [[package]]
@@ -910,7 +910,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-builtins"
 version = "0.5.1"
-source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#b3970ff4686a12321365cfafba6552bfaa2e7874"
+source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#413ef9a6f9c46d16d578a48e39adb44d5650d7d7"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -1446,8 +1446,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "ws"
-version = "0.4.6"
-source = "git+https://github.com/ethcore/ws-rs.git#5b28de58421b017b01f4565b2c35a46679707789"
+version = "0.5.1"
+source = "git+https://github.com/ethcore/ws-rs.git#d5745df8ea1ab82cd2b844f15ca1ac759e7aa9f5"
 dependencies = [
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
