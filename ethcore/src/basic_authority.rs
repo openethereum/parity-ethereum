@@ -217,7 +217,7 @@ mod tests {
 			last_hashes: vec![],
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
-			block_dao_transactions: false,
+			dao_rescue_gas_limit: None,
 		});
 
 		assert!(schedule.stack_limit > 0);
@@ -279,7 +279,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, addr.clone(), 3141562.into(), vec![], false).unwrap();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, addr.clone(), 3141562.into(), vec![], None).unwrap();
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 

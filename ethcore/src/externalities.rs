@@ -319,7 +319,7 @@ mod tests {
 			last_hashes: vec![],
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
-			block_dao_transactions: false,
+			dao_rescue_gas_limit: None,
 		}
 	}
 
