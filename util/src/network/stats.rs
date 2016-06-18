@@ -65,7 +65,7 @@ impl NetworkStats {
 		self.sessions.load(Ordering::Relaxed)
 	}
 
-	#[cfg(test)]
+	/// Create a new empty instance.
 	pub fn new() -> NetworkStats {
 		NetworkStats {
 			recv: AtomicUsize::new(0),
