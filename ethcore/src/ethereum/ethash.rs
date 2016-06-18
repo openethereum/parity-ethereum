@@ -102,8 +102,10 @@ impl Engine for Ethash {
 			Schedule::new_frontier()
 		} else {
 			let mut s = Schedule::new_homestead();
-			// TODO: make dependent on gaslimit > 4000000 of block 1760000.	
-			s.block_dao_transactions = env_info.number >= 1760000;
+			// dao_rescue_gas_limut has info only about the past
+			// for block 1_760_000 it is None, so gas_limit is used instead
+			let gas_limit = env_info.dao_rescue_gas_limit.unwrap_or(env_info.gas_limit);
+			s.block_dao_transactions = env_info.number >= 1_760_000 && gas_limit > U256::from(4_000_000);
 			s
 		}
 	}

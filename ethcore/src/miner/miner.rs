@@ -266,7 +266,7 @@ impl MinerService for Miner {
 					last_hashes: last_hashes,
 					gas_used: U256::zero(),
 					gas_limit: U256::max_value(),
-					block_dao_transactions: false,
+					dao_rescue_gas_limit: None,
 				};
 				// that's just a copy of the state.
 				let mut state = block.state().clone();

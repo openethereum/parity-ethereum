@@ -140,7 +140,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 }
 
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
-	generate_dummy_client_with_spec_and_data(Spec::new_test, block_number, 0, &(vec![]))
+	generate_dummy_client_with_spec_and_data(Spec::new_test, block_number, 0, &[])
 }
 
 pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> {
