@@ -80,7 +80,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
 use ethcore::error::{Error, ImportError};
@@ -199,7 +199,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Build client
 	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone()
+		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone(), !conf.args.flag_no_network
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -209,7 +209,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::register(service.network(), sync_config, client.clone());
+	let sync = EthSync::new(sync_config, client.clone());
+	EthSync::register(&*service.network(), sync.clone()).unwrap_or_else(|e| die_with_error("Error registering eth protocol handler", UtilError::from(e).into()));
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
@@ -270,8 +271,9 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
+		network: service.network(),
 	});
-	service.io().register_handler(io_handler).expect("Error registering IO handler");
+	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
 	if conf.args.cmd_ui {
 		url::open("http://localhost:8080/")
@@ -314,7 +316,7 @@ fn execute_export(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -385,7 +387,7 @@ fn execute_import(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
