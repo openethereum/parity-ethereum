@@ -103,7 +103,7 @@ impl Engine for Ethash {
 		} else {
 			let mut s = Schedule::new_homestead();
 			// TODO: make dependent on gaslimit > 4000000 of block 1760000.	
-			s.block_dao_transactions = env_info.number >= 1760000;
+			s.reject_dao_transactions = env_info.number >= 1760000;
 			s
 		}
 	}
