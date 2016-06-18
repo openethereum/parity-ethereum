@@ -56,8 +56,9 @@
 //! }
 //!
 //! fn main () {
-//! 	let mut service = NetworkService::<MyMessage>::start(NetworkConfiguration::new_local()).expect("Error creating network service");
+//! 	let mut service = NetworkService::<MyMessage>::new(NetworkConfiguration::new_local()).expect("Error creating network service");
 //! 	service.register_protocol(Arc::new(MyHandler), "myproto", &[1u8]);
+//! 	service.start().expect("Error starting service");
 //!
 //! 	// Wait for quit condition
 //! 	// ...

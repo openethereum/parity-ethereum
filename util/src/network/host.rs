@@ -18,7 +18,7 @@ use std::net::{SocketAddr};
 use std::collections::{HashMap};
 use std::str::{FromStr};
 use std::sync::*;
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
@@ -50,7 +50,7 @@ const MAX_HANDSHAKES: usize = 80;
 const MAX_HANDSHAKES_PER_ROUND: usize = 32;
 const MAINTENANCE_TIMEOUT: u64 = 1000;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store network configuration. None means nothing will be saved
@@ -234,6 +234,11 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 		self.io.message(NetworkIoMessage::User(msg));
 	}
 
+	/// Send an IO message
+	pub fn io_channel(&self) -> IoChannel<NetworkIoMessage<Message>> {
+		self.io.channel()
+	}
+
 	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
 	pub fn disable_peer(&self, peer: PeerId) {
 		//TODO: remove capability, disconnect if no capabilities left
@@ -243,6 +248,11 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	/// Disconnect peer. Reconnect can be attempted later.
 	pub fn disconnect_peer(&self, peer: PeerId) {
 		self.io.message(NetworkIoMessage::Disconnect(peer));
+	}
+
+	/// Sheck if the session is till active.
+	pub fn is_expired(&self) -> bool {
+		self.session.as_ref().map(|s| s.lock().unwrap().expired()).unwrap_or(false)
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
@@ -324,11 +334,12 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	stats: Arc<NetworkStats>,
 	pinned_nodes: Vec<NodeId>,
 	num_sessions: AtomicUsize,
+	stopping: AtomicBool,
 }
 
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	/// Create a new instance
-	pub fn new(config: NetworkConfiguration) -> Result<Host<Message>, UtilError> {
+	pub fn new(config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host<Message>, UtilError> {
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::from_str("0.0.0.0:30304").unwrap(),
 			Some(addr) => addr,
@@ -372,9 +383,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			handlers: RwLock::new(HashMap::new()),
 			timers: RwLock::new(HashMap::new()),
 			timer_counter: RwLock::new(USER_TIMER),
-			stats: Arc::new(NetworkStats::default()),
+			stats: stats,
 			pinned_nodes: Vec::new(),
 			num_sessions: AtomicUsize::new(0),
+			stopping: AtomicBool::new(false),
 		};
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
@@ -382,10 +394,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			host.add_node(&n);
 		}
 		Ok(host)
-	}
-
-	pub fn stats(&self) -> Arc<NetworkStats> {
-		self.stats.clone()
 	}
 
 	pub fn add_node(&mut self, id: &str) {
@@ -402,8 +410,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	pub fn client_version(&self) -> String {
-		self.info.read().unwrap().client_version.clone()
+	pub fn client_version() -> String {
+		version()
 	}
 
 	pub fn external_url(&self) -> Option<String> {
@@ -414,6 +422,22 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let r = format!("{}", Node::new(self.info.read().unwrap().id().clone(), self.info.read().unwrap().local_endpoint.clone()));
 		println!("{}", r);
 		r
+	}
+
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
+		self.stopping.store(true, AtomicOrdering::Release);
+		let mut to_kill = Vec::new();
+		for e in self.sessions.write().unwrap().iter_mut() {
+			let mut s = e.lock().unwrap();
+			s.disconnect(io, DisconnectReason::ClientQuit);
+			to_kill.push(s.token());
+		}
+		for p in to_kill {
+			trace!(target: "network", "Disconnecting on shutdown: {}", p);
+			self.kill_connection(p, io, true);
+		}
+		try!(io.unregister_handler());
+		Ok(())
 	}
 
 	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
@@ -787,6 +811,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn stream_readable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+		if self.stopping.load(AtomicOrdering::Acquire) {
+			return;
+		}
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
 			DISCOVERY => {
@@ -802,6 +829,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn stream_writable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+		if self.stopping.load(AtomicOrdering::Acquire) {
+			return;
+		}
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
 			DISCOVERY => {
@@ -813,6 +843,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn timeout(&self, io: &IoContext<NetworkIoMessage<Message>>, token: TimerToken) {
+		if self.stopping.load(AtomicOrdering::Acquire) {
+			return;
+		}
 		match token {
 			IDLE => self.maintain_network(io),
 			INIT_PUBLIC => self.init_public_interface(io).unwrap_or_else(|e|
@@ -835,8 +868,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			},
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
-						None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
-						Some(h) => { h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone()), timer.token); }
+					None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
+					Some(h) => { h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone()), timer.token); }
 				},
 				None => { warn!("Unknown timer token: {}", token); } // timer is not registerd through us
 			}
@@ -844,6 +877,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn message(&self, io: &IoContext<NetworkIoMessage<Message>>, message: &NetworkIoMessage<Message>) {
+		if self.stopping.load(AtomicOrdering::Acquire) {
+			return;
+		}
 		match *message {
 			NetworkIoMessage::AddHandler {
 				ref handler,
@@ -1009,6 +1045,6 @@ fn host_client_url() {
 	let mut config = NetworkConfiguration::new();
 	let key = h256_from_hex("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2");
 	config.use_secret = Some(key);
-	let host: Host<u32> = Host::new(config).unwrap();
+	let host: Host<u32> = Host::new(config, Arc::new(NetworkStats::new())).unwrap();
 	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }

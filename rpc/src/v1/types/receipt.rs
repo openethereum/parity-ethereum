@@ -17,23 +17,23 @@
 use util::numbers::U256;
 use util::hash::{Address, H256};
 use v1::types::Log;
-use ethcore::receipt::LocalizedReceipt;
+use ethcore::receipt::{Receipt as EthReceipt, LocalizedReceipt};
 
 /// Receipt
 #[derive(Debug, Serialize)]
 pub struct Receipt {
 	/// Transaction Hash
 	#[serde(rename="transactionHash")]
-	pub transaction_hash: H256,
+	pub transaction_hash: Option<H256>,
 	/// Transaction index
 	#[serde(rename="transactionIndex")]
-	pub transaction_index: U256,
+	pub transaction_index: Option<U256>,
 	/// Block hash
 	#[serde(rename="blockHash")]
-	pub block_hash: H256,
+	pub block_hash: Option<H256>,
 	/// Block number
 	#[serde(rename="blockNumber")]
-	pub block_number: U256,
+	pub block_number: Option<U256>,
 	/// Cumulative gas used
 	#[serde(rename="cumulativeGasUsed")]
 	pub cumulative_gas_used: U256,
@@ -50,13 +50,28 @@ pub struct Receipt {
 impl From<LocalizedReceipt> for Receipt {
 	fn from(r: LocalizedReceipt) -> Self {
 		Receipt {
-			transaction_hash: r.transaction_hash,
-			transaction_index: U256::from(r.transaction_index),
-			block_hash: r.block_hash,
-			block_number: U256::from(r.block_number),
+			transaction_hash: Some(r.transaction_hash),
+			transaction_index: Some(U256::from(r.transaction_index)),
+			block_hash: Some(r.block_hash),
+			block_number: Some(U256::from(r.block_number)),
 			cumulative_gas_used: r.cumulative_gas_used,
 			gas_used: r.gas_used,
 			contract_address: r.contract_address,
+			logs: r.logs.into_iter().map(From::from).collect(),
+		}
+	}
+}
+
+impl From<EthReceipt> for Receipt {
+	fn from(r: EthReceipt) -> Self {
+		Receipt {
+			transaction_hash: None,
+			transaction_index: None,
+			block_hash: None,
+			block_number: None,
+			cumulative_gas_used: r.gas_used,
+			gas_used: r.gas_used,
+			contract_address: None,
 			logs: r.logs.into_iter().map(From::from).collect(),
 		}
 	}
@@ -74,10 +89,10 @@ mod tests {
 		let s = r#"{"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","cumulativeGasUsed":"0x20","gasUsed":"0x10","contractAddress":null,"logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"data":"0x","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00","logIndex":"0x01","type":"mined"}]}"#;
 
 		let receipt = Receipt {
-			transaction_hash: H256::zero(),
-			transaction_index: U256::zero(),
-			block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
-			block_number: U256::from(0x4510c),
+			transaction_hash: Some(H256::zero()),
+			transaction_index: Some(U256::zero()),
+			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
+			block_number: Some(U256::from(0x4510c)),
 			cumulative_gas_used: U256::from(0x20),
 			gas_used: U256::from(0x10),
 			contract_address: None,

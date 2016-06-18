@@ -356,6 +356,10 @@ impl ChainSync {
 		};
 
 		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis);
+		if io.is_expired() {
+			trace!("Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
+			return Ok(());
+		}
 
 		if self.peers.contains_key(&peer_id) {
 			warn!("Unexpected status packet from {}:{}", peer_id, io.peer_info(peer_id));
@@ -454,12 +458,21 @@ impl ChainSync {
 		// Disable the peer for this syncing round if it gives invalid chain
 		if !valid_response {
 			trace!(target: "sync", "{} Deactivated for invalid headers response", peer_id);
+<<<<<<< HEAD
 			self.deactivate_peer(io, peer_id); 
 		}
 		if headers.is_empty() && self.state == SyncState::ChainHead {
 			// Peer does not have any new subchain heads, deactivate it nd try with another
 			trace!(target: "sync", "{} Deactivated for no data", peer_id);
 			self.deactivate_peer(io, peer_id); 
+=======
+			self.deactivate_peer(io, peer_id);
+		}
+		if headers.is_empty() {
+			// Peer does not have any new subchain heads, deactivate it nd try with another
+			trace!(target: "sync", "{} Deactivated for no data", peer_id);
+			self.deactivate_peer(io, peer_id);
+>>>>>>> master
 		}
 		match self.state {
 			SyncState::ChainHead => {

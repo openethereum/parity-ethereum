@@ -192,3 +192,13 @@ fn restart_on_broken_chain() {
 
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
 }
+
+#[test]
+fn high_td_attach() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.corrupt_block_parent(6);
+	net.sync_steps(20);
+
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
+}

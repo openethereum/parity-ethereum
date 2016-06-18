@@ -36,6 +36,6 @@ syntex = "*"
 
 [features]
 default = ["serde_codegen", "extra-dapps"]
-extra-dapps = ["parity-dapps-wallet", "parity-dapps-dao", "parity-dapps-makerotc"]
+extra-dapps = ["parity-dapps-wallet"]
 nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]

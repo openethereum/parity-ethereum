@@ -122,10 +122,10 @@ fn list_apis(apis: ApiSet) -> Vec<Api> {
 	match apis {
 		ApiSet::List(apis) => apis,
 		ApiSet::UnsafeContext => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
 		},
 		_ => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::Traces, Api::Rpc]
 		},
 	}
 }
@@ -147,7 +147,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 
 				if deps.signer_port.is_some() {
-					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue).to_delegate());
+					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue, &deps.miner).to_delegate());
 				} else {
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
