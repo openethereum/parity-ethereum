@@ -1,0 +1,30 @@
+[package]
+name = "ethstore"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+build = "build.rs"
+
+[dependencies]
+libc = "0.2.11"
+rand = "0.3.14"
+ethkey = { git = "https://github.com/ethcore/ethkey" }
+serde = "0.7"
+serde_json = "0.7"
+serde_macros = { version = "0.7", optional = true }
+rustc-serialize = "0.3"
+rust-crypto = "0.2.36"
+tiny-keccak = "1.0"
+docopt = { version = "0.6", optional = true }
+
+[build-dependencies]
+serde_codegen = { version = "0.7", optional = true }
+syntex = "0.33.0"
+
+[features]
+default = ["cli", "serde_codegen"]
+nightly = ["serde_macros"]
+cli = ["docopt"]
+
+[[bin]]
+name = "ethstore"
+doc = false
