@@ -102,8 +102,10 @@ impl Engine for Ethash {
 			Schedule::new_frontier()
 		} else {
 			let mut s = Schedule::new_homestead();
-			// TODO: make dependent on gaslimit > 4000000 of block 1760000.	
-			s.reject_dao_transactions = env_info.number >= 1760000;
+			// dao_rescue_gas_limut has info only about the past
+			// for block 1_760_000 it is None, so gas_limit is used instead
+			let gas_limit = env_info.dao_rescue_gas_limit.unwrap_or(env_info.gas_limit);
+			s.reject_dao_transactions = env_info.number >= 1_760_000 && gas_limit > U256::from(4_000_000);
 			s
 		}
 	}
@@ -319,7 +321,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![], None).unwrap();
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -334,7 +336,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let mut b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]).unwrap();
+		let mut b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![], None).unwrap();
 		let mut uncle = Header::new();
 		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 		uncle.author = uncle_author.clone();
@@ -362,7 +364,8 @@ mod tests {
 			difficulty: 0.into(),
 			last_hashes: vec![],
 			gas_used: 0.into(),
-			gas_limit: 0.into()
+			gas_limit: 0.into(),
+			dao_rescue_gas_limit: None,
 		});
 
 		assert!(schedule.stack_limit > 0);
@@ -374,7 +377,8 @@ mod tests {
 			difficulty: 0.into(),
 			last_hashes: vec![],
 			gas_used: 0.into(),
-			gas_limit: 0.into()
+			gas_limit: 0.into(),
+			dao_rescue_gas_limit: None,
 		});
 
 		assert!(!schedule.have_delegate_call);

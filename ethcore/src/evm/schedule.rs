@@ -127,7 +127,7 @@ impl Schedule {
 			tx_create_gas: tcg,
 			tx_data_zero_gas: 4,
 			tx_data_non_zero_gas: 68,
-			copy_gas: 3,	
+			copy_gas: 3,
 			reject_dao_transactions: false,
 		}
 	}
