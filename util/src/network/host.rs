@@ -250,9 +250,9 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 		self.io.message(NetworkIoMessage::Disconnect(peer));
 	}
 
-	/// Sheck if the session is till active.
+	/// Check if the session is still active.
 	pub fn is_expired(&self) -> bool {
-		self.session.as_ref().map(|s| s.lock().unwrap().expired()).unwrap_or(false)
+		self.session.as_ref().map_or(false, |s| s.lock().unwrap().expired())
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
@@ -643,7 +643,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 			if s.done() {
 				io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
-			} 
+			}
 		}
 	}
 
@@ -664,7 +664,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					Err(e) => {
 						trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
 						match e {
-							UtilError::Network(NetworkError::Disconnect(DisconnectReason::UselessPeer)) |
 							UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) => {
 								if let Some(id) = s.id() {
 									self.nodes.write().unwrap().mark_as_useless(id);
@@ -770,7 +769,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		if deregister {
 			io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
-		} 
+		}
 	}
 
 	fn update_nodes(&self, io: &IoContext<NetworkIoMessage<Message>>, node_changes: TableUpdates) {

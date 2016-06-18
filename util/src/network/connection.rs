@@ -139,6 +139,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 				},
 				Ok(Some(size)) if (buf.position() as usize) == send_size => {
 					self.stats.inc_send(size);
+					trace!(target:"network", "{}: Wrote {} bytes", self.token, send_size);
 					Ok(WriteStatus::Complete)
 				},
 				Ok(Some(_)) => { panic!("Wrote past buffer");},

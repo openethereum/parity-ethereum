@@ -124,12 +124,11 @@ impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
 		let sync = ChainSync::new(config, chain.deref());
-		let sync = Arc::new(EthSync {
+		Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(sync),
 			io_channel: RwLock::new(IoChannel::disconnected()),
-		});
-		sync
+		})
 	}
 
 	/// Register protocol with the network service
