@@ -42,8 +42,6 @@ pub trait Net: Sized + Send + Sync + 'static {
 		delegate.add_method("net_version", Net::version);
 		delegate.add_method("net_peerCount", Net::peer_count);
 		delegate.add_method("net_listening", Net::is_listening);
-		delegate.add_method("net_start", Net::start_network);
-		delegate.add_method("net_stop", Net::stop_network);
 		delegate
 	}
 }
