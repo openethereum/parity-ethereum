@@ -80,6 +80,8 @@ pub struct Schedule {
 	pub tx_data_non_zero_gas: usize,
 	/// Gas price for copying memory
 	pub copy_gas: usize,
+	/// DAO Rescue softfork block
+	pub block_dao_transactions: bool,
 }
 
 impl Schedule {
@@ -126,6 +128,7 @@ impl Schedule {
 			tx_data_zero_gas: 4,
 			tx_data_non_zero_gas: 68,
 			copy_gas: 3,	
+			block_dao_transactions: false,
 		}
 	}
 }

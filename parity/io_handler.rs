@@ -16,10 +16,10 @@
 
 use std::sync::Arc;
 use ethcore::client::Client;
-use ethcore::service::NetSyncMessage;
+use ethcore::service::{NetSyncMessage, SyncMessage};
 use ethsync::EthSync;
 use ethcore::account_provider::AccountProvider;
-use util::{TimerToken, IoHandler, IoContext};
+use util::{TimerToken, IoHandler, IoContext, NetworkService, NetworkIoMessage};
 
 use informant::Informant;
 
@@ -30,6 +30,7 @@ pub struct ClientIoHandler {
 	pub sync: Arc<EthSync>,
 	pub accounts: Arc<AccountProvider>,
 	pub info: Informant,
+	pub network: Arc<NetworkService<SyncMessage>>,
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
@@ -41,6 +42,21 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 		match timer {
 			INFO_TIMER => { self.info.tick(&self.client, Some(&self.sync)); }
 			_ => {}
+		}
+	}
+
+	fn message(&self, _io: &IoContext<NetSyncMessage>, message: &NetSyncMessage) {
+		match *message {
+			NetworkIoMessage::User(SyncMessage::StartNetwork) => {
+				info!("Starting network");
+				self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
+				EthSync::register(&*self.network, self.sync.clone()).unwrap_or_else(|e| warn!("Error registering eth protocol handler: {}", e));
+			},
+			NetworkIoMessage::User(SyncMessage::StopNetwork) => {
+				info!("Stopping network");
+				self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
+			},
+			_ => {/* Ignore other messages */},
 		}
 	}
 }

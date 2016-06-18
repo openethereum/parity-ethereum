@@ -25,7 +25,7 @@ use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use v1::traits::EthSigning;
 use v1::types::TransactionRequest;
-use v1::impls::{sign_and_dispatch};
+use v1::impls::{sign_and_dispatch, error_codes};
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct EthSigningQueueClient {

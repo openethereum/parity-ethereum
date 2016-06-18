@@ -41,6 +41,10 @@ pub enum SyncMessage {
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
+	/// Start network command.
+	StartNetwork,
+	/// Stop network command.
+	StopNetwork,
 }
 
 /// IO Message type used for Network service
@@ -48,17 +52,20 @@ pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
-	net_service: NetworkService<SyncMessage>,
+	net_service: Arc<NetworkService<SyncMessage>>,
 	client: Arc<Client>,
 	panic_handler: Arc<PanicHandler>
 }
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path, miner: Arc<Miner>) -> Result<ClientService, Error> {
+	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path, miner: Arc<Miner>, enable_network: bool) -> Result<ClientService, Error> {
 		let panic_handler = PanicHandler::new_in_arc();
-		let mut net_service = try!(NetworkService::start(net_config));
+		let net_service = try!(NetworkService::new(net_config));
 		panic_handler.forward_from(&net_service);
+		if enable_network {
+			try!(net_service.start());
+		}
 
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {:?} engine", spec.name, spec.engine.name());
@@ -70,7 +77,7 @@ impl ClientService {
 		try!(net_service.io().register_handler(client_io));
 
 		Ok(ClientService {
-			net_service: net_service,
+			net_service: Arc::new(net_service),
 			client: client,
 			panic_handler: panic_handler,
 		})
@@ -82,8 +89,8 @@ impl ClientService {
 	}
 
 	/// Get general IO interface
-	pub fn io(&mut self) -> &mut IoService<NetSyncMessage> {
-		self.net_service.io()
+	pub fn register_io_handler(&self, handler: Arc<IoHandler<NetSyncMessage> + Send>) -> Result<(), IoError> {
+		self.net_service.io().register_handler(handler)
 	}
 
 	/// Get client interface
@@ -92,8 +99,8 @@ impl ClientService {
 	}
 
 	/// Get network service component
-	pub fn network(&mut self) -> &mut NetworkService<SyncMessage> {
-		&mut self.net_service
+	pub fn network(&mut self) -> Arc<NetworkService<SyncMessage>> {
+		self.net_service.clone()
 	}
 }
 
@@ -149,7 +156,7 @@ mod tests {
 	fn it_can_be_started() {
 		let spec = get_test_spec();
 		let temp_path = RandomTempPath::new();
-		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path(), Arc::new(Miner::default()));
+		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path(), Arc::new(Miner::default()), false);
 		assert!(service.is_ok());
 	}
 }
