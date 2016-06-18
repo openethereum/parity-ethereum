@@ -252,7 +252,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 
 	/// Check if the session is still active.
 	pub fn is_expired(&self) -> bool {
-		self.session.as_ref().map(|s| s.lock().unwrap().expired()).unwrap()
+		self.session.as_ref().map(|s| s.lock().unwrap().expired()).unwrap_or(false)
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
@@ -664,7 +664,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					Err(e) => {
 						trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
 						match e {
-							UtilError::Network(NetworkError::Disconnect(DisconnectReason::UselessPeer)) |
 							UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) => {
 								if let Some(id) = s.id() {
 									self.nodes.write().unwrap().mark_as_useless(id);

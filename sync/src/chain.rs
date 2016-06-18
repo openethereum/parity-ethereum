@@ -461,7 +461,7 @@ impl ChainSync {
 			self.deactivate_peer(io, peer_id); 
 		}
 		if headers.is_empty() {
-			// Peer does not have any new subchain heads, deactivate it and try with another
+			// Peer does not have any new subchain heads, deactivate it nd try with another
 			trace!(target: "sync", "{} Deactivated for no data", peer_id);
 			self.deactivate_peer(io, peer_id); 
 		}
@@ -738,6 +738,8 @@ impl ChainSync {
 				None => {
 					// TODO: get hash by number from the block queue
 					trace!(target: "sync", "Could not revert to previous block, last: {} ({})", self.last_imported_block, self.last_imported_hash);
+					// just wait for full sync to complete
+					self.pause_sync();
 				}
 			}
 		}
@@ -1319,7 +1321,7 @@ impl ChainSync {
 		self.check_resume(io);
 	}
 
-		/// called when block is imported to chain, updates transactions queue and propagates the blocks
+	/// called when block is imported to chain, updates transactions queue and propagates the blocks
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
 		if io.is_chain_queue_empty() {
 			// Propagate latests blocks
