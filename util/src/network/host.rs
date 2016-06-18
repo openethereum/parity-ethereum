@@ -252,7 +252,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 
 	/// Sheck if the session is till active.
 	pub fn is_expired(&self) -> bool {
-		self.session.as_ref().map(|s| s.lock().unwrap().expired()).unwrap_or(false)
+		self.session.as_ref().map_or(false, |s| s.lock().unwrap().expired())
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
@@ -643,7 +643,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 			if s.done() {
 				io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
-			} 
+			}
 		}
 	}
 
@@ -770,7 +770,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		if deregister {
 			io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
-		} 
+		}
 	}
 
 	fn update_nodes(&self, io: &IoContext<NetworkIoMessage<Message>>, node_changes: TableUpdates) {

@@ -458,12 +458,12 @@ impl ChainSync {
 		// Disable the peer for this syncing round if it gives invalid chain
 		if !valid_response {
 			trace!(target: "sync", "{} Deactivated for invalid headers response", peer_id);
-			self.deactivate_peer(io, peer_id); 
+			self.deactivate_peer(io, peer_id);
 		}
 		if headers.is_empty() {
 			// Peer does not have any new subchain heads, deactivate it nd try with another
 			trace!(target: "sync", "{} Deactivated for no data", peer_id);
-			self.deactivate_peer(io, peer_id); 
+			self.deactivate_peer(io, peer_id);
 		}
 		match self.state {
 			SyncState::ChainHead => {
@@ -1162,7 +1162,7 @@ impl ChainSync {
 								.expect("chain.tree_route and chain.find_uncles only return hahses of blocks that are in the blockchain. qed.")).number();
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&number);
-							rlp_stream.append_raw(&hash_rlp.as_raw(), 1);
+							rlp_stream.append_raw(hash_rlp.as_raw(), 1);
 						}
 						Some(rlp_stream.out())
 					}
