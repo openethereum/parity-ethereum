@@ -113,6 +113,7 @@ fn can_collect_garbage() {
 }
 
 #[test]
+#[cfg_attr(feature="dev", allow(useless_vec))]
 fn can_generate_gas_price_statistics() {
 	let client_result = generate_dummy_client_with_data(16, 1, &vec_into![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
 	let client = client_result.reference();

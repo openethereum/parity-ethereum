@@ -1170,7 +1170,7 @@ impl ChainSync {
 								.expect("chain.tree_route and chain.find_uncles only return hahses of blocks that are in the blockchain. qed.")).number();
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&number);
-							rlp_stream.append_raw(&hash_rlp.as_raw(), 1);
+							rlp_stream.append_raw(hash_rlp.as_raw(), 1);
 						}
 						Some(rlp_stream.out())
 					}
