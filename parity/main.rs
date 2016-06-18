@@ -513,10 +513,10 @@ fn execute_account_cli(conf: Configuration) {
 	}
 
 	if conf.args.cmd_import {
-		let from = DiskDirectory::at(conf.keys_path());
+		let to = DiskDirectory::at(conf.keys_path());
 		let mut imported = 0;
 		for path in &conf.args.arg_path {
-			let to = DiskDirectory::at(path);
+			let from = DiskDirectory::at(path);
 			imported += import_accounts(&from, &to).expect("TODO: replace with err").len();
 		}
 		println!("Imported {} keys", imported);
