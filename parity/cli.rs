@@ -121,7 +121,7 @@ Sealing/Mining Options:
                            web service in turn and fallback on the last known
                            good value [default: auto].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
-                           block [default: 4712388].
+                           block [default: 3141592].
   --author ADDRESS         Specify the block author (aka "coinbase") address
                            for sending block rewards from sealed blocks
                            [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
