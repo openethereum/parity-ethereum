@@ -20,6 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use overlaydb::*;
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
@@ -40,8 +41,6 @@ pub struct RefCountedDB {
 	removes: Vec<H256>,
 }
 
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const DB_VERSION : u32 = 0x200;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
@@ -49,8 +48,8 @@ impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(path: &str) -> RefCountedDB {
 		let opts = DatabaseConfig {
-			//use 12 bytes as prefix, this must match account_db prefix
-			prefix_size: Some(12),
+			// this must match account_db prefix
+			prefix_size: Some(DB_PREFIX_LEN),
 			max_open_files: 256,
 		};
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {

@@ -20,6 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
@@ -92,9 +93,6 @@ impl Clone for OverlayRecentDB {
 	}
 }
 
-// all keys must be at least 12 bytes
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const DB_VERSION : u32 = 0x203;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
@@ -107,8 +105,8 @@ impl OverlayRecentDB {
 	/// Create a new instance from file
 	pub fn from_prefs(path: &str) -> OverlayRecentDB {
 		let opts = DatabaseConfig {
-			//use 12 bytes as prefix, this must match account_db prefix
-			prefix_size: Some(12),
+			// this must match account_db prefix
+			prefix_size: Some(DB_PREFIX_LEN),
 			max_open_files: 256,
 		};
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
