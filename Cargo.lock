@@ -936,7 +936,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-status"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/parity-dapps-status-rs.git#53e159f52013be5d2e8ba7eca35f605ad6e3bfa9"
+source = "git+https://github.com/ethcore/parity-dapps-status-rs.git#0cdd3512004e403aff7da3b8c16ba0bf5d6c911c"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
