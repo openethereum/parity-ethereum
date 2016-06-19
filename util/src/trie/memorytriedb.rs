@@ -45,6 +45,25 @@ enum Node {
 	Branch([Option<StorageHandle>; 16], Option<Bytes>)
 }
 
+fn empty_children() -> [Option<StorageHandle>; 16] {
+	[
+		None, None, None, None, None, None, None, None,
+		None, None, None, None, None, None, None, None,
+	]
+}
+
+// attempt to add a child to this child array.
+fn add_child(children: &mut [Option<StorageHandle>; 16], storage: &mut NodeStorage, key: &NibbleSlice, value: Bytes) -> Option<Bytes> {
+	if key.is_empty() {
+		Some(value)
+	} else {
+		let idx = key.at(0);
+		let leaf = Node::Leaf(key.mid(1).encoded(true), value);
+		children[idx as usize] = Some(storage.insert(leaf));
+		None
+	}
+}
+
 impl Node {
 	fn get_raw_or_lookup<'a>(node: &'a [u8], db: &'a HashDB) -> &'a [u8] {
 		// check if its sha3 + len
@@ -68,10 +87,7 @@ impl Node {
 			}
 			RlpNode::Branch(children_rlp, v) => {
 				let val = v.map(|x| x.to_owned());
-				let mut children = [
-					None, None, None, None, None, None, None, None,
-					None, None, None, None, None, None, None, None,
-				];
+				let mut children = empty_children();
 
 				for i in 0..16 {
 					let raw = children_rlp[i];
@@ -88,6 +104,7 @@ impl Node {
 		}
 	}
 
+	// walk the trie, attempting to find the key's node.
 	fn lookup<'a, 'key>(&'a self, partial: NibbleSlice<'key>, storage: &'a NodeStorage) -> Option<&'a [u8]> {
 		match *self {
 			Node::Empty => None,
@@ -117,6 +134,74 @@ impl Node {
 				}
 			}
 		}
+	}
+
+	// insert a key, value pair into the trie, creating new nodes if necessary.
+	fn insert(&mut self, key: NibbleSlice, value: Bytes, storage: &mut NodeStorage) {
+		let maybe_new = match *self {
+			Node::Empty => {
+				Some(Node::Leaf(key.encoded(true), value))
+			}
+			Node::Leaf(ref existing, ref mut data) => {
+				let existing_key = NibbleSlice::from_encoded(existing).0;
+				let cp = key.common_prefix(&existing_key);
+				if cp == existing_key.len() {
+					if cp == key.len() {
+						// equivalent leaf. replace
+						*data = value;
+					} else {
+						// shared prefix, make an extension.
+						// factor out the common prefix, and then build a branch.
+						// the data will be from the shorter of the two keys, and
+						// one child with the longer.
+						let remainder = key.mid(cp);
+						let idx = key.at(0);
+
+						let mut children = empty_children();
+						let leaf_node = Node::Leaf(key.mid(1).encoded(true), value);
+						children[idx as usize] = Some(storage.insert(leaf_node));
+						let branch = Node::Branch(children, data.clone());
+
+						Some(Node::Extension(existing_key.encoded(false), storage.insert(branch)))
+					}
+				} else {
+					// partially shared prefix. make an extension followed by a branch.
+					let mid_slice = key.encoded_leftmost(cp, false);
+					let key = key.mid(cp);
+					let existing_key_partial = existing_key.mid(cp);
+
+					let mut children = empty_children();
+					// it is impossible for existing_key_partial to be empty here. then cp
+					// would have been equal to existing_key.len(), and we wouldn't be in this branch.
+					add_child(&mut children, storage, &existing_key_partial, data.clone());
+					let branch = if let Some(value) = add_child(&mut children, storage, &key, value) {
+						// key is empty, value needs to be put in branch value.
+						Node::Branch(children, Some(value))
+					} else {
+						Node::Branch(children, None)
+					};
+
+					Some(Node::Extension(mid_slice, storage.insert(branch)))
+				}
+		}
+		Node::Extension(ref common, ref mut child_branch) => {
+			let common_key = NibbleSlice::from_encoded(common).0;
+			let cp = key.common_prefix(&common_key);
+			assert!(!common_key.is_empty(), "Extension nodes cannot have empty common prefixes");
+
+			if cp == 0 {
+				// make a branch, punting the extension's child branch into it.
+			} else if cp == common_key.len() {
+				// fully shared key.
+			} else {
+
+			}
+
+		}
+	};
+
+	if let Some(new_node) = maybe_new {
+		*self = new_node;
 	}
 }
 
@@ -239,5 +324,11 @@ impl<'a> Trie for MemoryTrieDB<'a> {
 
 	fn contains(&self, key: &[u8]) -> bool {
 		self.get(key).is_some()
+	}
+}
+
+impl<'a> TrieMut for MemoryTrieDB<'a> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) {
+		self.storage.root_mut().insert(NibbleSlice::new(key), value.to_owned(), &mut self.storage);
 	}
 }
