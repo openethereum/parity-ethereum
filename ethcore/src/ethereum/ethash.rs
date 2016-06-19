@@ -41,6 +41,8 @@ pub struct EthashParams {
 	pub registrar: Address,
 	/// Homestead transition block number.
 	pub frontier_compatibility_mode_limit: u64,
+	/// Enable the soft-fork logic.
+	pub dao_rescue_soft_fork: bool,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -53,6 +55,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.into(),
 			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.into(),
+			dao_rescue_soft_fork: p.dao_rescue_soft_fork.into(),
 		}
 	}
 }
@@ -102,7 +105,9 @@ impl Engine for Ethash {
 			Schedule::new_frontier()
 		} else {
 			let mut s = Schedule::new_homestead();
-			s.reject_dao_transactions = env_info.dao_rescue_block_gas_limit.map(|x| x <= 4_000_000.into()).unwrap_or(false);
+			if self.ethash_params.dao_rescue_soft_fork {
+				s.reject_dao_transactions = env_info.dao_rescue_block_gas_limit.map(|x| x <= 4_000_000.into()).unwrap_or(false);
+			}
 			s
 		}
 	}

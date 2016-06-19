@@ -75,11 +75,17 @@ impl Configuration {
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
-		let d = &self.args.flag_gas_floor_target;
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
-		})
+		if self.args.flag_assist_dao_attack || self.args.flag_dogmatic {
+			4_700_000.into()
+		} else {
+			let d = &self.args.flag_gas_floor_target;
+			U256::from_dec_str(d).unwrap_or_else(|_| {
+				die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
+			})
+		}
 	}
+
+
 
 	pub fn gas_price(&self) -> U256 {
 		match self.args.flag_gasprice.as_ref() {
@@ -124,7 +130,7 @@ impl Configuration {
 
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(!self.args.flag_dogmatic),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
