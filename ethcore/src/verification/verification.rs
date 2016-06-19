@@ -23,6 +23,7 @@
 
 use common::*;
 use engine::Engine;
+use spec::CommonParams;
 use blockchain::*;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
@@ -37,12 +38,13 @@ pub struct PreverifiedBlock {
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
-	try!(verify_header(&header, engine));
+	let params = engine.params();
+	try!(verify_header(&header, params));
 	try!(verify_block_integrity(bytes, &header.transactions_root, &header.uncles_hash));
-	try!(engine.verify_block_basic(&header, Some(bytes)));
-	for u in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(verify_header(&u, engine));
-		try!(engine.verify_block_basic(&u, None));
+	try!(engine.verify_header_basic(&header));
+	for u in &BlockView::new(bytes).uncles() {
+		try!(verify_header(u, params));
+		try!(engine.verify_header_basic(&u));
 	}
 	// Verify transactions.
 	// TODO: either use transaction views or cache the decoded transactions.
@@ -57,9 +59,9 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 /// Still operates on a individual block
 /// Returns a `PreverifiedBlock` structure populated with transactions
 pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreverifiedBlock, Error> {
-	try!(engine.verify_block_unordered(&header, Some(&bytes)));
-	for u in Rlp::new(&bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(engine.verify_block_unordered(&u, None));
+	try!(engine.verify_header_unordered(&header));
+	for u in &BlockView::new(&bytes).uncles() {
+		try!(engine.verify_header_unordered(u));
 	}
 	// Verify transactions.
 	let mut transactions = Vec::new();
@@ -82,9 +84,9 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 	// TODO: verify timestamp
 	let parent = try!(bc.block_header(&header.parent_hash).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash.clone()))));
 	try!(verify_parent(&header, &parent));
-	try!(engine.verify_block_family(&header, &parent, Some(bytes)));
+	try!(engine.verify_header_family(&header, &parent));
 
-	let num_uncles = Rlp::new(bytes).at(2).item_count();
+	let num_uncles = BlockView::new(bytes).uncles_count();
 	if num_uncles != 0 {
 		if num_uncles > engine.maximum_uncle_count() {
 			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: None, max: Some(engine.maximum_uncle_count()), found: num_uncles })));
@@ -106,7 +108,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			}
 		}
 
-		for uncle in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
+		for uncle in &BlockView::new(bytes).uncles() {
 			if excluded.contains(&uncle.hash()) {
 				return Err(From::from(BlockError::UncleInChain(uncle.hash())))
 			}
@@ -152,7 +154,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			}
 
 			try!(verify_parent(&uncle, &uncle_parent));
-			try!(engine.verify_block_family(&uncle, &uncle_parent, Some(bytes)));
+			try!(engine.verify_header_family(&uncle, &uncle_parent));
 		}
 	}
 	Ok(())
@@ -176,18 +178,18 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
+fn verify_header(header: &Header, params: &CommonParams) -> Result<(), Error> {
 	if header.number >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number })))
 	}
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
 	}
-	let min_gas_limit = engine.params().min_gas_limit;
+	let min_gas_limit = params.min_gas_limit;
 	if header.gas_limit < min_gas_limit {
 		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit })));
 	}
-	let maximum_extra_data_size = engine.maximum_extra_data_size();
+	let maximum_extra_data_size = params.maximum_extra_data_size;
 	if header.number != 0 && header.extra_data.len() > maximum_extra_data_size {
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data.len() })));
 	}
@@ -437,14 +439,14 @@ mod tests {
 			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used }));
 
 		header = good.clone();
-		header.extra_data.resize(engine.maximum_extra_data_size() + 1, 0u8);
+		header.extra_data.resize(engine.params().maximum_extra_data_size + 1, 0u8);
 		check_fail(basic_test(&create_test_block(&header), engine.deref()),
-			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data.len() }));
+			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.params().maximum_extra_data_size), min: None, found: header.extra_data.len() }));
 
 		header = good.clone();
-		header.extra_data.resize(engine.maximum_extra_data_size() + 1, 0u8);
+		header.extra_data.resize(engine.params().maximum_extra_data_size + 1, 0u8);
 		check_fail(basic_test(&create_test_block(&header), engine.deref()),
-			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data.len() }));
+			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.params().maximum_extra_data_size), min: None, found: header.extra_data.len() }));
 
 		header = good.clone();
 		header.uncles_hash = good_uncles_hash.clone();

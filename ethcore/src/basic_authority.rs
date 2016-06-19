@@ -121,7 +121,7 @@ impl Engine for BasicAuthority {
 		None
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_header_basic(&self, header: &Header) -> result::Result<(), Error> {
 		// check the seal fields.
 		// TODO: pull this out into common code.
 		if header.seal.len() != self.seal_fields() {
@@ -132,7 +132,7 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_header_unordered(&self, header: &Header) -> result::Result<(), Error> {
 		// check the signature is legit.
 		let sig = try!(UntrustedRlp::new(&header.seal[0]).as_val::<H520>());
 		let signer = Address::from(try!(ec::recover(&sig, &header.bare_hash())).sha3());
@@ -142,7 +142,7 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_header_family(&self, header: &Header, parent: &Header) -> result::Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -227,7 +227,7 @@ mod tests {
 		let engine = new_test_authority().engine;
 		let header: Header = Header::default();
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_header_basic(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
@@ -242,7 +242,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_header_unordered(&header);
 
 		match verify_result {
 			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => {},
@@ -261,7 +261,7 @@ mod tests {
 		header.set_author(addr);
 		header.sign(&secret);
 
-		assert!(engine.verify_block_unordered(&header, None).is_ok());
+		assert!(engine.verify_header_unordered(&header).is_ok());
 	}
 
 	#[test]

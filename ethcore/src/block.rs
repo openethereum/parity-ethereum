@@ -260,8 +260,8 @@ impl<'x> OpenBlock<'x> {
 
 	/// Alter the extra_data for the block.
 	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
-		if extra_data.len() > self.engine.maximum_extra_data_size() {
-			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds{min: None, max: Some(self.engine.maximum_extra_data_size()), found: extra_data.len()}))
+		if extra_data.len() > self.engine.params().maximum_extra_data_size {
+			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds{min: None, max: Some(self.engine.params().maximum_extra_data_size), found: extra_data.len()}))
 		} else {
 			self.block.base.header.set_extra_data(extra_data);
 			Ok(())

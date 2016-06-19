@@ -140,7 +140,7 @@ impl Engine for Ethash {
 		fields.state.commit();
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_header_basic(&self, header: &Header) -> result::Result<(), Error> {
 		// check the seal fields.
 		if header.seal.len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
@@ -167,7 +167,7 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_header_unordered(&self, header: &Header) -> result::Result<(), Error> {
 		if header.seal.len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
@@ -185,7 +185,7 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_header_family(&self, header: &Header, parent: &Header) -> result::Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -386,7 +386,7 @@ mod tests {
 		//let engine = Ethash::new_test(new_morden());
 		let header: Header = Header::default();
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_header_basic(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
@@ -401,7 +401,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_header_basic(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
@@ -417,7 +417,7 @@ mod tests {
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_header_basic(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
@@ -431,7 +431,7 @@ mod tests {
 		let engine = new_morden().engine;
 		let header: Header = Header::default();
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_header_unordered(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
@@ -445,7 +445,7 @@ mod tests {
 		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_header_unordered(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
@@ -461,7 +461,7 @@ mod tests {
 		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_header_unordered(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
@@ -471,12 +471,12 @@ mod tests {
 	}
 
 	#[test]
-	fn can_verify_block_family_genesis_fail() {
+	fn can_verify_header_family_genesis_fail() {
 		let engine = new_morden().engine;
 		let header: Header = Header::default();
 		let parent_header: Header = Header::default();
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_header_family(&header, &parent_header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
@@ -486,14 +486,14 @@ mod tests {
 	}
 
 	#[test]
-	fn can_verify_block_family_difficulty_fail() {
+	fn can_verify_header_family_difficulty_fail() {
 		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_number(2);
 		let mut parent_header: Header = Header::default();
 		parent_header.set_number(1);
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_header_family(&header, &parent_header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
@@ -503,7 +503,7 @@ mod tests {
 	}
 
 	#[test]
-	fn can_verify_block_family_gas_fail() {
+	fn can_verify_header_family_gas_fail() {
 		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_number(2);
@@ -511,7 +511,7 @@ mod tests {
 		let mut parent_header: Header = Header::default();
 		parent_header.set_number(1);
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_header_family(&header, &parent_header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {},
