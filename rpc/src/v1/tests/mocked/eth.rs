@@ -71,7 +71,7 @@ impl Default for EthTester {
 		let miner = miner_service();
 		let hashrates = Arc::new(RwLock::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
-		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner).to_delegate();
+		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner, true).to_delegate();
 		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);

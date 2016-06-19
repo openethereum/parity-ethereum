@@ -385,9 +385,13 @@ impl MinerService for Miner {
 			.collect()
 	}
 
-	fn import_own_transaction<T>(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
-		Result<TransactionImportResult, Error>
-		where T: Fn(&Address) -> AccountDetails {
+	fn import_own_transaction<T>(
+		&self,
+		chain: &MiningBlockChainClient,
+		transaction: SignedTransaction,
+		fetch_account: T
+	) -> Result<TransactionImportResult, Error> where T: Fn(&Address) -> AccountDetails {
+
 		let hash = transaction.hash();
 		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
 

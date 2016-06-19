@@ -222,6 +222,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: network_settings.clone(),
+		allow_pending_receipt_query: !conf.args.flag_geth,
 	});
 
 	let dependencies = rpc::Dependencies {
