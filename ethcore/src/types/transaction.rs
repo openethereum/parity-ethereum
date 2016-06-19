@@ -140,8 +140,13 @@ impl Transaction {
 
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(self, secret: &Secret) -> SignedTransaction {
-		let sig = ec::sign(secret, &self.hash());
-		let (r, s, v) = sig.unwrap().to_rsv();
+		let sig = ec::sign(secret, &self.hash()).unwrap();
+		self.with_signature(sig)
+	}
+
+	/// Signs the transaction with signature.
+	pub fn with_signature(self, sig: H520) -> SignedTransaction {
+		let (r, s, v) = sig.to_rsv();
 		SignedTransaction {
 			unsigned: self,
 			r: r,

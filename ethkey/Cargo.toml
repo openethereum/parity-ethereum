@@ -1,0 +1,21 @@
+[package]
+name = "ethkey"
+version = "0.2.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]
+rand = "0.3.14"
+lazy_static = "0.2.1"
+tiny-keccak = "1.0"
+eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
+rustc-serialize = "0.3"
+docopt = { version = "0.6", optional = true }
+
+[features]
+default = ["cli"]
+cli = ["docopt"]
+
+[[bin]]
+name = "ethkey"
+path = "src/bin/main.rs"
+doc = false

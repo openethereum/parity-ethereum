@@ -26,7 +26,7 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use util::keys::store::AccountProvider;
+use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
@@ -41,31 +41,30 @@ use v1::impls::{dispatch_transaction, error_codes};
 use serde;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, A, M, EM> where
+pub struct EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
-	A: AccountProvider,
 	M: MinerService,
 	EM: ExternalMinerService {
 
 	client: Weak<C>,
 	sync: Weak<S>,
-	accounts: Weak<A>,
+	accounts: Weak<AccountProvider>,
 	miner: Weak<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
+	allow_pending_receipt_query: bool,
 }
 
-impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
+impl<C, S, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
-	A: AccountProvider,
 	M: MinerService,
 	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: &Arc<EM>)
-		-> EthClient<C, S, A, M, EM> {
+	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<AccountProvider>, miner: &Arc<M>, em: &Arc<EM>, allow_pending_receipt_query: bool)
+		-> EthClient<C, S, M, EM> {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
@@ -73,6 +72,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 			accounts: Arc::downgrade(accounts),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
+			allow_pending_receipt_query: allow_pending_receipt_query,
 		}
 	}
 
@@ -234,10 +234,9 @@ fn no_work_err() -> Error {
 	}
 }
 
-impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
+impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
-	A: AccountProvider + 'static,
 	M: MinerService + 'static,
 	EM: ExternalMinerService + 'static {
 
@@ -304,10 +303,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
-		match store.accounts() {
-			Ok(account_list) => to_value(&account_list),
-			Err(_) => Err(Error::internal_error())
-		}
+		to_value(&store.accounts())
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
@@ -423,8 +419,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(hash,)| {
 				let miner = take_weak!(self.miner);
 				match miner.pending_receipts().get(&hash) {
-					Some(receipt) => to_value(&Receipt::from(receipt.clone())),
-					None => {
+					Some(receipt) if self.allow_pending_receipt_query => to_value(&Receipt::from(receipt.clone())),
+					_ => {
 						let client = take_weak!(self.client);
 						let receipt = client.transaction_receipt(TransactionID::Hash(hash));
 						to_value(&receipt.map(Receipt::from))

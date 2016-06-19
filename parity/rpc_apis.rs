@@ -23,7 +23,7 @@ use ethsync::EthSync;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use util::RotatingLogger;
-use util::keys::store::AccountService;
+use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 
 #[cfg(feature="rpc")]
@@ -83,11 +83,12 @@ pub struct Dependencies {
 	pub signer_queue: Arc<ConfirmationsQueue>,
 	pub client: Arc<Client>,
 	pub sync: Arc<EthSync>,
-	pub secret_store: Arc<AccountService>,
+	pub secret_store: Arc<AccountProvider>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
+	pub allow_pending_receipt_query: bool,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -143,7 +144,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(NetClient::new(&deps.sync).to_delegate());
 			},
 			Api::Eth => {
-				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
+				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner, deps.allow_pending_receipt_query).to_delegate());
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 
 				if deps.signer_port.is_some() {

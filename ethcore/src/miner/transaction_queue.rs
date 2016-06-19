@@ -425,7 +425,7 @@ impl TransactionQueue {
 
 	/// Add signed transaction to queue to be verified and imported
 	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_account: &T, origin: TransactionOrigin) -> Result<TransactionImportResult, Error>
-		where T: Fn(&Address) -> AccountDetails {
+	where T: Fn(&Address) -> AccountDetails {
 
 		trace!(target: "miner", "Importing: {:?}", tx.hash());
 

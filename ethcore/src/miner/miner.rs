@@ -18,7 +18,7 @@ use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
 
 use util::*;
-use util::keys::store::{AccountProvider};
+use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use block::{ClosedBlock, IsBlock};
@@ -31,13 +31,14 @@ use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, Transac
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
+	// NOTE [ToDr]  When locking always lock in this order!
 	transaction_queue: Mutex<TransactionQueue>,
+	sealing_work: Mutex<UsingQueue<ClosedBlock>>,
 
 	// for sealing...
 	force_sealing: bool,
 	sealing_enabled: AtomicBool,
 	sealing_block_last_request: Mutex<u64>,
-	sealing_work: Mutex<UsingQueue<ClosedBlock>>,
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
@@ -385,9 +386,13 @@ impl MinerService for Miner {
 			.collect()
 	}
 
-	fn import_own_transaction<T>(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
-		Result<TransactionImportResult, Error>
-		where T: Fn(&Address) -> AccountDetails {
+	fn import_own_transaction<T>(
+		&self,
+		chain: &MiningBlockChainClient,
+		transaction: SignedTransaction,
+		fetch_account: T
+	) -> Result<TransactionImportResult, Error> where T: Fn(&Address) -> AccountDetails {
+
 		let hash = transaction.hash();
 		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
 
@@ -425,20 +430,20 @@ impl MinerService for Miner {
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
+		let queue = self.transaction_queue.lock().unwrap();
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
 			(true, Some(pending)) => pending.transactions().iter().map(|t| t.hash()).collect(),
 			_ => {
-				let queue = self.transaction_queue.lock().unwrap();
 				queue.pending_hashes()
 			}
 		}
 	}
 
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+		let queue = self.transaction_queue.lock().unwrap();
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
 			(true, Some(pending)) => pending.transactions().iter().find(|t| &t.hash() == hash).cloned(),
 			_ => {
-				let queue = self.transaction_queue.lock().unwrap();
 				queue.find(hash)
 			}
 		}
@@ -450,11 +455,11 @@ impl MinerService for Miner {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		let queue = self.transaction_queue.lock().unwrap();
 		// TODO: should only use the sealing_work when it's current (it could be an old block)
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
 			(true, Some(pending)) => pending.transactions().clone(),
 			_ => {
-				let queue = self.transaction_queue.lock().unwrap();
 				queue.top_transactions()
 			}
 		}

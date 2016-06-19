@@ -176,9 +176,10 @@ Virtual Machine Options:
   --jitvm                  Enable the JIT VM.
 
 Legacy Options:
-  --geth                   Run in Geth-compatibility mode. Currently just sets
-                           the IPC path to be the same as Geth's. Overrides
-                           the --ipc-path/--ipcpath options.
+  --geth                   Run in Geth-compatibility mode. Sets the IPC path
+                           to be the same as Geth's. Overrides the --ipc-path
+                           and --ipcpath options. Alters RPCs to reflect Geth
+                           bugs.
   --testnet                Geth-compatible testnet mode. Equivalent to --chain
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.
