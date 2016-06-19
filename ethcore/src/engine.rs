@@ -17,7 +17,7 @@
 //! Consensus engine specification
 
 use common::*;
-use util::keys::store::AccountProvider;
+use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
 use evm::Schedule;

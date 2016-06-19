@@ -24,7 +24,7 @@ use docopt::Docopt;
 
 use die::*;
 use util::*;
-use util::keys::store::{ImportKeySet, AccountService};
+use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 use ethcore::client::{append_path, get_db_path, ClientConfig, Switch, VMType};
 use ethcore::ethereum;
@@ -249,7 +249,10 @@ impl Configuration {
 		sync_config
 	}
 
-	pub fn account_service(&self) -> AccountService {
+	pub fn account_service(&self) -> AccountProvider {
+		use ethcore::ethstore::{import_accounts, EthStore};
+		use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
+
 		// Secret Store
 		let passwords = self.args.flag_password.iter().flat_map(|filename| {
 			BufReader::new(&File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)))
@@ -258,18 +261,30 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-		let import_keys = match (self.args.flag_no_import_keys, self.args.flag_testnet) {
-			(true, _) => ImportKeySet::None,
-			(false, false) => ImportKeySet::Legacy,
-			(false, true) => ImportKeySet::LegacyTestnet,
-		};
-		let account_service = AccountService::with_security(Path::new(&self.keys_path()), self.keys_iterations(), import_keys);
+
+		if !self.args.flag_no_import_keys {
+			let dir_type = match self.args.flag_testnet {
+				true => DirectoryType::Testnet,
+				false => DirectoryType::Main,
+			};
+
+			let from = GethDirectory::open(dir_type);
+			let to = DiskDirectory::create(self.keys_path()).unwrap();
+			if let Err(e) = import_accounts(&from, &to) {
+				warn!("Could not import accounts {}", e);
+			}
+		}
+
+		let dir = Box::new(DiskDirectory::create(self.keys_path()).unwrap());
+		let iterations = self.keys_iterations();
+		let account_service = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
+
 		if let Some(ref unlocks) = self.args.flag_unlock {
 			for d in unlocks.split(',') {
 				let a = Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
 					die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
 				});
-				if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
+				if passwords.iter().find(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()).is_none() {
 					die!("No password given to unlock account {}. Pass the password using `--password`.", a);
 				}
 			}

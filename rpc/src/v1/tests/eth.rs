@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! rpc integration tests.
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::str::FromStr;
 
@@ -26,12 +25,11 @@ use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
 use ethcore::miner::{MinerService, ExternalMiner, Miner};
+use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
 use util::io::IoChannel;
-use util::hash::{Address, H256};
-use util::numbers::U256;
-use util::keys::{AccountProvider, TestAccount, TestAccountProvider};
+use util::{U256, H256};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
@@ -39,11 +37,8 @@ use v1::traits::eth::{Eth, EthSigning};
 use v1::impls::{EthClient, EthSigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config};
 
-fn account_provider() -> Arc<TestAccountProvider> {
-	let mut accounts = HashMap::new();
-	accounts.insert(Address::from(1), TestAccount::new("test"));
-	let ap = TestAccountProvider::new(accounts);
-	Arc::new(ap)
+fn account_provider() -> Arc<AccountProvider> {
+	Arc::new(AccountProvider::transient_provider())
 }
 
 fn sync_provider() -> Arc<TestSyncProvider> {
@@ -70,7 +65,7 @@ fn make_spec(chain: &BlockChain) -> Spec {
 struct EthTester {
 	client: Arc<Client>,
 	_miner: Arc<MinerService>,
-	accounts: Arc<TestAccountProvider>,
+	accounts: Arc<AccountProvider>,
 	handler: IoHandler,
 }
 
@@ -226,15 +221,10 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 fn eth_transaction_count() {
 	use util::crypto::Secret;
 
-	let address = Address::from_str("faa34835af5c2ea724333018a515fbb7d5bc0b33").unwrap();
 	let secret = Secret::from_str("8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2").unwrap();
-
 	let tester = EthTester::from_spec_provider(|| Spec::load(TRANSACTION_COUNT_SPEC));
-	tester.accounts.accounts.write().unwrap().insert(address, TestAccount {
-		unlocked: false,
-		password: "123".into(),
-		secret: secret
-	});
+	let address = tester.accounts.insert_account(secret, "").unwrap();
+	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
 
 	let req_before = r#"{
 		"jsonrpc": "2.0",

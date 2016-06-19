@@ -18,7 +18,7 @@ use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
 
 use util::*;
-use util::keys::store::{AccountProvider};
+use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use block::{ClosedBlock, IsBlock};
