@@ -193,6 +193,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// import transactions from network/other 3rd party
 	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>>;
 
+	/// Queue transactions for importing.
+	fn queue_transactions(&self, transactions: Vec<Bytes>);
+
 	/// list all transactions
 	fn all_transactions(&self) -> Vec<SignedTransaction>;
 

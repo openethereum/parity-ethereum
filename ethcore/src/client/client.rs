@@ -18,6 +18,7 @@
 
 use std::marker::PhantomData;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use util::panics::*;
 use views::BlockView;
@@ -49,6 +50,8 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
+
+const MAX_TX_QUEUE_SIZE: usize = 4096;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -92,6 +95,8 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	verifier: PhantomData<V>,
 	vm_factory: Arc<EvmFactory>,
 	miner: Arc<Miner>,
+	io_channel: IoChannel<NetSyncMessage>,
+	queue_transactions: AtomicUsize,
 }
 
 const HISTORY: u64 = 1200;
@@ -149,7 +154,7 @@ impl<V> Client<V> where V: Verifier {
 
 		let engine = Arc::new(spec.engine);
 
-		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel);
+		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel.clone());
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
@@ -165,6 +170,8 @@ impl<V> Client<V> where V: Verifier {
 			verifier: PhantomData,
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
 			miner: miner,
+			io_channel: message_channel,
+			queue_transactions: AtomicUsize::new(0),
 		};
 
 		Ok(Arc::new(client))
@@ -271,6 +278,7 @@ impl<V> Client<V> where V: Verifier {
 		let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 		let _import_lock = self.import_lock.lock();
+		let _timer = PerfTimer::new("import_verified_blocks");
 		let blocks = self.block_queue.drain(max_blocks_to_import);
 
 		let original_best = self.chain_info().best_block_hash;
@@ -359,6 +367,19 @@ impl<V> Client<V> where V: Verifier {
 		}
 
 		imported
+	}
+
+	/// Import transactions from the IO queue
+	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
+		let _timer = PerfTimer::new("import_queued_transactions");
+		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: self.latest_nonce(a),
+			balance: self.latest_balance(a),
+		};
+		let tx = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		let results = self.miner.import_transactions(tx, fetch_account);
+		results.len()
 	}
 
 	/// Attempt to get a copy of a specific block's state.
@@ -748,6 +769,22 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			balance: self.latest_balance(a),
 		};
 		self.miner.import_transactions(transactions, fetch_account)
+	}
+
+	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+		if self.queue_transactions.load(AtomicOrdering::Relaxed) > MAX_TX_QUEUE_SIZE {
+			debug!("Ignoring {} transactions: queue is full", transactions.len());
+		} else {
+			let len = transactions.len();
+			match self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewTransactions(transactions))) {
+				Ok(_) => {
+					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
+				}
+				Err(e) => {
+					debug!("Ignoring {} transactions: error queueing: {}", len, e);
+				}
+			}
+		}
 	}
 
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
