@@ -119,6 +119,8 @@ const MAX_PEERS_PROPAGATION: usize = 128;
 const MAX_PEER_LAG_PROPAGATION: BlockNumber = 20;
 const SUBCHAIN_SIZE: usize = 64;
 const MAX_ROUND_PARENTS: usize = 32;
+const MAX_NEW_HASHES: usize = 64;
+const MAX_TX_TO_IMPORT: usize = 512;
 
 const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
@@ -590,7 +592,7 @@ impl ChainSync {
 			return Ok(());
 		}
 		trace!(target: "sync", "{} -> NewHashes ({} entries)", peer_id, r.item_count());
-		let hashes = r.iter().map(|item| (item.val_at::<H256>(0), item.val_at::<BlockNumber>(1)));
+		let hashes = r.iter().take(MAX_NEW_HASHES).map(|item| (item.val_at::<H256>(0), item.val_at::<BlockNumber>(1)));
 		let mut max_height: BlockNumber = 0;
 		let mut new_hashes = Vec::new();
 		for (rh, rd) in hashes {
@@ -938,7 +940,7 @@ impl ChainSync {
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
 
 		let mut transactions = Vec::with_capacity(item_count);
-		for i in 0..item_count {
+		for i in 0 .. min(item_count, MAX_TX_TO_IMPORT) {
 			let tx: SignedTransaction = try!(r.val_at(i));
 			transactions.push(tx);
 		}
