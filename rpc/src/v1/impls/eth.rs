@@ -53,6 +53,7 @@ pub struct EthClient<C, S, M, EM> where
 	miner: Weak<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
+	allow_pending_receipt_query: bool,
 }
 
 impl<C, S, M, EM> EthClient<C, S, M, EM> where
@@ -62,7 +63,7 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<AccountProvider>, miner: &Arc<M>, em: &Arc<EM>)
+	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<AccountProvider>, miner: &Arc<M>, em: &Arc<EM>, allow_pending_receipt_query: bool)
 		-> EthClient<C, S, M, EM> {
 		EthClient {
 			client: Arc::downgrade(client),
@@ -71,6 +72,7 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 			accounts: Arc::downgrade(accounts),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
+			allow_pending_receipt_query: allow_pending_receipt_query,
 		}
 	}
 
@@ -417,8 +419,8 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(hash,)| {
 				let miner = take_weak!(self.miner);
 				match miner.pending_receipts().get(&hash) {
-					Some(receipt) => to_value(&Receipt::from(receipt.clone())),
-					None => {
+					Some(receipt) if self.allow_pending_receipt_query => to_value(&Receipt::from(receipt.clone())),
+					_ => {
 						let client = take_weak!(self.client);
 						let receipt = client.transaction_receipt(TransactionID::Hash(hash));
 						to_value(&receipt.map(Receipt::from))
