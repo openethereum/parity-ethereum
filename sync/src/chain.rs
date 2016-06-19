@@ -361,12 +361,12 @@ impl ChainSync {
 
 		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis);
 		if io.is_expired() {
-			trace!("Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
+			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
 			return Ok(());
 		}
 
 		if self.peers.contains_key(&peer_id) {
-			warn!("Unexpected status packet from {}:{}", peer_id, io.peer_info(peer_id));
+			debug!(target: "sync", "Unexpected status packet from {}:{}", peer_id, io.peer_info(peer_id));
 			return Ok(());
 		}
 		let chain_info = io.chain().chain_info();
@@ -1243,7 +1243,7 @@ impl ChainSync {
 	/// propagates latest block to lagging peers
 	fn propagate_blocks(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo) -> usize {
 		let lucky_peers = self.select_lagging_peers(chain_info, io);
-		trace!("Sending NewBlocks to {:?}", lucky_peers);
+		trace!(target: "sync", "Sending NewBlocks to {:?}", lucky_peers);
 		let mut sent = 0;
 		for (peer_id, _) in lucky_peers {
 			let rlp = ChainSync::create_latest_block_rlp(io.chain());
@@ -1258,7 +1258,7 @@ impl ChainSync {
 	/// propagates new known hashes to all peers
 	fn propagate_new_hashes(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo) -> usize {
 		let lucky_peers = self.select_lagging_peers(chain_info, io);
-		trace!("Sending NewHashes to {:?}", lucky_peers);
+		trace!(target: "sync", "Sending NewHashes to {:?}", lucky_peers);
 		let mut sent = 0;
 		let last_parent = HeaderView::new(&io.chain().block_header(BlockID::Hash(chain_info.best_block_hash.clone())).unwrap()).parent_hash();
 		for (peer_id, peer_number) in lucky_peers {
