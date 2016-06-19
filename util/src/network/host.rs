@@ -73,6 +73,8 @@ pub struct NetworkConfiguration {
 	pub use_secret: Option<Secret>,
 	/// Number of connected peers to maintain
 	pub ideal_peers: u32,
+	/// List of reserved node addresses.
+	pub reserved_nodes: Vec<String>,
 }
 
 impl Default for NetworkConfiguration {
