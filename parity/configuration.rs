@@ -157,11 +157,13 @@ impl Configuration {
 		use std::fs::File;
 		use std::io::BufRead;
 
-		if let Some(ref path) = self.args.reserved_nodes {
-			let node_file = File::open(path).unwrap_or_else(|e| {
+		if let Some(ref path) = self.args.flag_reserved_peers {
+			let mut buffer = String::new();
+			let mut node_file = File::open(path).unwrap_or_else(|e| {
 				die!("Error opening reserved nodes file: {}", e);
 			});
-			node_file.lines().map(|s| {
+			node_file.read_to_string(&mut buffer).expect("Error reading reserved node file");
+			buffer.lines().map(|s| {
 				Self::normalize_enode(s).unwrap_or_else(|| {
 					die!("{}: Invalid node address format given for a reserved node.", s);
 				})
