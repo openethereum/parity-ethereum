@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate ansi_term;
-use self::ansi_term::Colour::Red;
+use self::ansi_term::Colour::White;
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
