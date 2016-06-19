@@ -88,6 +88,7 @@ pub struct Dependencies {
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
+	pub allow_pending_receipt_query: bool,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -122,10 +123,10 @@ fn list_apis(apis: ApiSet) -> Vec<Api> {
 	match apis {
 		ApiSet::List(apis) => apis,
 		ApiSet::UnsafeContext => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
 		},
 		_ => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::Traces, Api::Rpc]
 		},
 	}
 }
@@ -143,11 +144,11 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(NetClient::new(&deps.sync).to_delegate());
 			},
 			Api::Eth => {
-				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
+				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner, deps.allow_pending_receipt_query).to_delegate());
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 
 				if deps.signer_port.is_some() {
-					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue).to_delegate());
+					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue, &deps.miner).to_delegate());
 				} else {
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
@@ -159,7 +160,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_queue).to_delegate());
 			},
 			Api::Ethcore => {
-				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
 			},
 			Api::EthcoreSet => {
 				server.add_delegate(EthcoreSetClient::new(&deps.miner).to_delegate())

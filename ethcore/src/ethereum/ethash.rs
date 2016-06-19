@@ -101,7 +101,10 @@ impl Engine for Ethash {
 		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
 			Schedule::new_frontier()
 		} else {
-			Schedule::new_homestead()
+			let mut s = Schedule::new_homestead();
+			// TODO: make dependent on gaslimit > 4000000 of block 1760000.	
+			s.reject_dao_transactions = env_info.number >= 1760000;
+			s
 		}
 	}
 
@@ -255,12 +258,21 @@ impl Ethash {
 
 	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
 	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
-		U256::from((U512::one() << 256) / U256::from(boundary.as_slice()).into())
+		let d = U256::from(*boundary);
+		if d <= U256::one() {
+			U256::max_value()
+		} else {
+			((U256::one() << 255) / d) << 1
+		}
 	}
 
 	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
 	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-		U256::from((U512::one() << 256) / difficulty.into()).into()
+		if *difficulty <= U256::one() {
+			U256::max_value().into()
+		} else {
+			(((U256::one() << 255) / *difficulty) << 1).into()
+		}
 	}
 
 	fn to_ethash(hash: H256) -> EH256 {
@@ -291,12 +303,11 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-	extern crate ethash;
-
 	use common::*;
 	use block::*;
 	use tests::helpers::*;
 	use super::super::new_morden;
+	use super::Ethash;
 
 	#[test]
 	fn on_close_block() {
@@ -507,6 +518,16 @@ mod tests {
 			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
+	}
+
+	#[test]
+	fn test_difficulty_to_boundary() {
+		// result of f(0) is undefined, so do not assert the result
+		let _ = Ethash::difficulty_to_boundary(&U256::from(0));
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(1)), H256::from(U256::max_value()));
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(2)), H256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(4)), H256::from_str("4000000000000000000000000000000000000000000000000000000000000000").unwrap());
+		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
 	}
 
 	// TODO: difficulty test

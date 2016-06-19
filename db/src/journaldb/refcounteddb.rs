@@ -19,6 +19,7 @@
 use util::common::*;
 use util::rlp::*;
 use util::hashdb::*;
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use super::traits::JournalDB;
 #[cfg(test)]
 use std::env;
@@ -48,15 +49,13 @@ pub struct RefCountedDB {
 	removes: Vec<H256>,
 }
 
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const DB_VERSION : u32 = 0x200;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(man: Arc<DatabaseManager<QueuedDatabase>>, path: &str) -> RefCountedDB {
-		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(12)).unwrap_or_else(|e| {
+		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(DB_PREFIX_LEN)).unwrap_or_else(|e| {
 			panic!("Error opening state db: {:?}", e);
 		});
 		if !backing.is_empty().unwrap() {

@@ -81,3 +81,8 @@ pub fn new(man: Arc<DatabaseManager<QueuedDatabase>>, path: &str, algorithm: Alg
 		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(man, path)),
 	}
 }
+
+// all keys must be at least 12 bytes
+const DB_PREFIX_LEN : usize = 12;
+const LATEST_ERA_KEY : [u8; DB_PREFIX_LEN] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
+const VERSION_KEY : [u8; DB_PREFIX_LEN] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];

@@ -110,7 +110,8 @@ impl EthTester {
 			&sync_provider,
 			&account_provider,
 			&miner_service,
-			&external_miner
+			&external_miner,
+			true
 		);
 		let eth_sign = EthSigningUnsafeClient::new(
 			&client,

@@ -139,6 +139,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 				},
 				Ok(Some(size)) if (buf.position() as usize) == send_size => {
 					self.stats.inc_send(size);
+					trace!(target:"network", "{}: Wrote {} bytes", self.token, send_size);
 					Ok(WriteStatus::Complete)
 				},
 				Ok(Some(_)) => { panic!("Wrote past buffer");},
@@ -436,7 +437,7 @@ impl EncryptedConnection {
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, UtilError> where Message: Send + Clone{
-		io.clear_timer(self.connection.token).unwrap();
+		try!(io.clear_timer(self.connection.token));
 		if let EncryptedConnectionState::Header = self.read_state {
 			if let Some(data) = try!(self.connection.readable()) {
 				try!(self.read_header(&data));

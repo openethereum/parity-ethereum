@@ -20,6 +20,7 @@ use util::common::*;
 use util::rlp::*;
 use util::hashdb::*;
 use util::memorydb::*;
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use super::traits::JournalDB;
 //use util::kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
@@ -46,15 +47,12 @@ pub struct ArchiveDB {
 	latest_era: Option<u64>,
 }
 
-// all keys must be at least 12 bytes
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const DB_VERSION : u32 = 0x103;
 
 impl ArchiveDB {
 	/// Create a new instance from file
 	pub fn new(man: Arc<DatabaseManager<QueuedDatabase>>, path: &str) -> ArchiveDB {
-		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(12)).unwrap_or_else(|e| {
+		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(DB_PREFIX_LEN)).unwrap_or_else(|e| {
 			panic!("Error opening state db: {:?}", e);
 		});
 		if !backing.is_empty().unwrap() {

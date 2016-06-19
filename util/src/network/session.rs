@@ -68,6 +68,8 @@ pub enum SessionData {
 		/// Zero based packet ID
 		packet_id: u8,
 	},
+	/// Session has more data to be read
+	Continue,
 }
 
 /// Shared session information
@@ -329,16 +331,19 @@ impl Session {
 			PACKET_DISCONNECT => {
 				let rlp = UntrustedRlp::new(&packet.data[1..]);
 				let reason: u8 = try!(rlp.val_at(0));
+				if self.had_hello {
+					debug!("Disconnected: {}: {:?}", self.token(), DisconnectReason::from_u8(reason));
+				}
 				Err(From::from(NetworkError::Disconnect(DisconnectReason::from_u8(reason))))
 			}
 			PACKET_PING => {
 				try!(self.send_pong(io));
-				Ok(SessionData::None)
+				Ok(SessionData::Continue)
 			},
 			PACKET_PONG => {
 				self.pong_time_ns = Some(time::precise_time_ns());
 				self.info.ping_ms = Some((self.pong_time_ns.unwrap() - self.ping_time_ns) / 1000_000);
-				Ok(SessionData::None)
+				Ok(SessionData::Continue)
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
 			PACKET_PEERS => Ok(SessionData::None),
@@ -348,7 +353,7 @@ impl Session {
 					i += 1;
 					if i == self.info.capabilities.len() {
 						debug!(target: "network", "Unknown packet: {:?}", packet_id);
-						return Ok(SessionData::None)
+						return Ok(SessionData::Continue)
 					}
 				}
 
@@ -359,7 +364,7 @@ impl Session {
 			},
 			_ => {
 				debug!(target: "network", "Unknown packet: {:?}", packet_id);
-				Ok(SessionData::None)
+				Ok(SessionData::Continue)
 			}
 		}
 	}

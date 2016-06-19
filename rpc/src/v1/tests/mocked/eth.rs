@@ -71,7 +71,7 @@ impl Default for EthTester {
 		let miner = miner_service();
 		let hashrates = Arc::new(RwLock::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
-		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner).to_delegate();
+		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner, true).to_delegate();
 		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
@@ -732,7 +732,7 @@ fn returns_no_work_if_cant_mine() {
 	eth_tester.client.set_queue_size(10);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["","",""],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32001,"message":"Still syncing.","data":null},"id":1}"#;
 
 	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
 }

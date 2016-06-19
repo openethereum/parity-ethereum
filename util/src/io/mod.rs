@@ -142,7 +142,7 @@ mod tests {
 
 	#[test]
 	fn test_service_register_handler () {
-		let mut service = IoService::<MyMessage>::start().expect("Error creating network service");
+		let service = IoService::<MyMessage>::start().expect("Error creating network service");
 		service.register_handler(Arc::new(MyHandler)).unwrap();
 	}
 

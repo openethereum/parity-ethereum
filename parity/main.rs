@@ -69,6 +69,7 @@ mod configuration;
 mod migration;
 mod signer;
 mod rpc_apis;
+mod url;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
@@ -80,7 +81,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
 use ethcore::error::{Error, ImportError};
@@ -199,7 +200,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Build client
 	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone()
+		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone(), !conf.args.flag_no_network
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -209,7 +210,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::register(service.network(), sync_config, client.clone());
+	let sync = EthSync::new(sync_config, client.clone());
+	EthSync::register(&*service.network(), sync.clone()).unwrap_or_else(|e| die_with_error("Error registering eth protocol handler", UtilError::from(e).into()));
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
@@ -221,6 +223,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: network_settings.clone(),
+		allow_pending_receipt_query: !conf.args.flag_geth,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -270,8 +273,13 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
+		network: service.network(),
 	});
-	service.io().register_handler(io_handler).expect("Error registering IO handler");
+	service.register_io_handler(io_handler).expect("Error registering IO handler");
+
+	if conf.args.cmd_ui {
+		url::open("http://localhost:8080/")
+	}
 
 	// Handle exit
 	wait_for_exit(panic_handler, rpc_server, dapps_server, signer_server);
@@ -310,7 +318,7 @@ fn execute_export(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -381,7 +389,7 @@ fn execute_import(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -394,7 +402,9 @@ fn execute_import(conf: Configuration) {
 		Box::new(::std::io::stdin())
 	};
 
-	let mut first_bytes: Bytes = vec![0; 3];
+	const READAHEAD_BYTES: usize = 8;
+
+	let mut first_bytes: Bytes = vec![0; READAHEAD_BYTES];
 	let mut first_read = 0;
 
 	let format = match conf.args.flag_format {
@@ -434,13 +444,13 @@ fn execute_import(conf: Configuration) {
 	match format {
 		DataFormat::Binary => {
 			loop {
-				let mut bytes: Bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; 3]};
+				let mut bytes: Bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; READAHEAD_BYTES]};
 				let n = if first_read > 0 {first_read} else {instream.read(&mut(bytes[..])).unwrap_or_else(|_| die!("Error reading from the file/stream."))};
 				if n == 0 { break; }
 				first_read = 0;
 				let s = PayloadInfo::from(&(bytes[..])).unwrap_or_else(|e| die!("Invalid RLP in the file/stream: {:?}", e)).total();
 				bytes.resize(s, 0);
-				instream.read_exact(&mut(bytes[3..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
+				instream.read_exact(&mut(bytes[READAHEAD_BYTES..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
 				do_import(bytes);
 			}
 		}

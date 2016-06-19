@@ -128,7 +128,6 @@ impl Handshake {
 	/// Readable IO handler. Drives the state change.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
 		if !self.expired() {
-			io.clear_timer(self.connection.token).ok();
 			match self.state {
 				HandshakeState::New => {}
 				HandshakeState::ReadingAuth => {
@@ -151,7 +150,9 @@ impl Handshake {
 						try!(self.read_ack_eip8(host.secret(), &data));
 					};
 				},
-				HandshakeState::StartSession => {},
+				HandshakeState::StartSession => {
+					io.clear_timer(self.connection.token).ok();
+				},
 			}
 		}
 		Ok(())

@@ -29,6 +29,7 @@ Usage:
   parity export [ <file> ] [options]
   parity signer new-token [options]
   parity [options]
+  parity ui [options]
 
 Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
@@ -52,6 +53,7 @@ Account Options:
   --no-import-keys         Do not import keys from legacy clients.
 
 Networking Options:
+  --no-network             Disable p2p networking.
   --port PORT              Override the port on which the node should listen
                            [default: 30303].
   --peers NUM              Try to maintain that many peers [default: 25].
@@ -119,7 +121,7 @@ Sealing/Mining Options:
                            web service in turn and fallback on the last known
                            good value [default: auto].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
-                           block [default: 4712388].
+                           block [default: 3141592].
   --author ADDRESS         Specify the block author (aka "coinbase") address
                            for sending block rewards from sealed blocks
                            [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
@@ -166,9 +168,10 @@ Virtual Machine Options:
   --jitvm                  Enable the JIT VM.
 
 Legacy Options:
-  --geth                   Run in Geth-compatibility mode. Currently just sets
-                           the IPC path to be the same as Geth's. Overrides
-                           the --ipc-path/--ipcpath options.
+  --geth                   Run in Geth-compatibility mode. Sets the IPC path
+                           to be the same as Geth's. Overrides the --ipc-path
+                           and --ipcpath options. Alters RPCs to reflect Geth
+                           bugs.
   --testnet                Geth-compatible testnet mode. Equivalent to --chain
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.
@@ -211,6 +214,7 @@ pub struct Args {
 	pub cmd_import: bool,
 	pub cmd_signer: bool,
 	pub cmd_new_token: bool,
+	pub cmd_ui: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,
@@ -266,6 +270,7 @@ pub struct Args {
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_no_color: bool,
+	pub flag_no_network: bool,
 	// legacy...
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,

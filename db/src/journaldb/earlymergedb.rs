@@ -20,6 +20,7 @@ use util::common::*;
 use util::rlp::*;
 use util::hashdb::*;
 use util::memorydb::*;
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use super::traits::JournalDB;
 #[cfg(test)]
 use std::env;
@@ -75,16 +76,13 @@ pub struct EarlyMergeDB {
 	latest_era: Option<u64>,
 }
 
-// all keys must be at least 12 bytes
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const DB_VERSION : u32 = 0x003;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl EarlyMergeDB {
 	/// Create a new instance from file
 	pub fn new(man: Arc<DatabaseManager<QueuedDatabase>>, path: &str) -> EarlyMergeDB {
-		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(12)).unwrap_or_else(|e| {
+		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(DB_PREFIX_LEN)).unwrap_or_else(|e| {
 			panic!("Error opening state db: {:?}", e);
 		});
 
