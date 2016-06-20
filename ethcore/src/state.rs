@@ -222,7 +222,7 @@ impl State {
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
-		let broken_dao = H256::from("7278d050619a624f84f51987149ddb439cdaadfba5966f7cfaea7ad44340a4ba");
+		let broken_dao = H256::from("6a5d24750f78441e56fec050dc52fe8e911976485b7472faac7464a176a67caa");
 
 		// dao attack soft fork
 		if engine.schedule(&env_info).reject_dao_transactions {
