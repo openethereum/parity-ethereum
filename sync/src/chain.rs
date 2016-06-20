@@ -517,7 +517,10 @@ impl ChainSync {
 			for i in 0..item_count {
 				bodies.push(try!(r.at(i)).as_raw().to_vec());
 			}
-			self.blocks.insert_bodies(bodies);
+			if self.blocks.insert_bodies(bodies) != item_count {
+				trace!(target: "sync", "Deactivating peer for giving invalid block bodies");
+				self.deactivate_peer(io, peer_id);
+			}
 			self.collect_blocks(io);
 		}
 		self.continue_sync(io);
