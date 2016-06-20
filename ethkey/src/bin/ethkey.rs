@@ -7,7 +7,7 @@ use std::{env, fmt, process};
 use std::num::ParseIntError;
 use docopt::Docopt;
 use rustc_serialize::hex::{FromHex, FromHexError};
-use ethkey::{KeyPair, Random, Brain, Prefix, Error as EthkeyError, Generator, Secret, Message, Public, Signature, sign, verify};
+use ethkey::{KeyPair, Random, Brain, Prefix, Error as EthkeyError, Generator, Secret, Message, Public, Signature, Address, sign, verify_public, verify_address};
 
 pub const USAGE: &'static str = r#"
 Ethereum keys generator.
@@ -19,7 +19,8 @@ Usage:
     ethkey generate prefix <prefix> <iterations> [options]
     ethkey generate brain <seed> [options]
     ethkey sign <secret> <message>
-    ethkey verify <public> <signature> <message>
+    ethkey verify public <public> <signature> <message>
+    ethkey verify address <address> <signature> <message>
     ethkey [-h | --help]
 
 Options:
@@ -47,12 +48,15 @@ struct Args {
 	cmd_brain: bool,
 	cmd_sign: bool,
 	cmd_verify: bool,
+	cmd_public: bool,
+	cmd_address: bool,
 	arg_prefix: String,
 	arg_iterations: String,
 	arg_seed: String,
 	arg_secret: String,
 	arg_message: String,
 	arg_public: String,
+	arg_address: String,
 	arg_signature: String,
 	flag_secret: bool,
 	flag_public: bool,
@@ -164,10 +168,17 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let signature = try!(sign(&secret, &message));
 		Ok(format!("{}", signature))
 	} else if args.cmd_verify {
-		let public = try!(Public::from_str(&args.arg_public));
 		let signature = try!(Signature::from_str(&args.arg_signature));
 		let message = try!(Message::from_str(&args.arg_message));
-		let ok = try!(verify(&public, &signature, &message));
+		let ok = if args.cmd_public {
+			let public = try!(Public::from_str(&args.arg_public));
+			try!(verify_public(&public, &signature, &message))
+		} else if args.cmd_address {
+			let address = try!(Address::from_str(&args.arg_address));
+			try!(verify_address(&address, &signature, &message))
+		} else {
+			unreachable!();
+		};
 		Ok(format!("{}", ok))
 	} else {
 		unreachable!();
@@ -251,8 +262,19 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 	}
 
 	#[test]
-	fn verify_valid() {
-		let command = vec!["ethkey", "verify", "689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124", "c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200", "bd50b7370c3f96733b31744c6c45079e7ae6c8d299613246d28ebcef507ec987"]
+	fn verify_valid_public() {
+		let command = vec!["ethkey", "verify", "public", "689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124", "c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200", "bd50b7370c3f96733b31744c6c45079e7ae6c8d299613246d28ebcef507ec987"]
+			.into_iter()
+			.map(Into::into)
+			.collect::<Vec<String>>();
+
+		let expected = "true".to_owned();
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
+	fn verify_valid_address() {
+		let command = vec!["ethkey", "verify", "address", "26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5", "c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200", "bd50b7370c3f96733b31744c6c45079e7ae6c8d299613246d28ebcef507ec987"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
@@ -263,7 +285,7 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 
 	#[test]
 	fn verify_invalid() {
-		let command = vec!["ethkey", "verify", "689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124", "c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200", "bd50b7370c3f96733b31744c6c45079e7ae6c8d299613246d28ebcef507ec986"]
+		let command = vec!["ethkey", "verify", "public", "689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124", "c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200", "bd50b7370c3f96733b31744c6c45079e7ae6c8d299613246d28ebcef507ec986"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();

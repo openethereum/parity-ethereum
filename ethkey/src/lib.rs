@@ -26,8 +26,8 @@ pub trait Generator {
 
 pub use self::brain::Brain;
 pub use self::error::Error;
-pub use self::keypair::KeyPair;
+pub use self::keypair::{KeyPair, public_to_address};
 pub use self::primitive::{Secret, Public, Address, Message};
 pub use self::prefix::Prefix;
 pub use self::random::Random;
-pub use self::signature::{sign, verify, Signature};
+pub use self::signature::{sign, verify_public, verify_address, recover, Signature};

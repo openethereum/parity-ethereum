@@ -4,7 +4,7 @@ use std::str::FromStr;
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
 use secp256k1::key::{SecretKey, PublicKey};
 use rustc_serialize::hex::{ToHex, FromHex};
-use {Secret, Public, SECP256K1, Error, Message};
+use {Secret, Public, SECP256K1, Error, Message, public_to_address, Address};
 
 #[repr(C)]
 #[derive(Eq)]
@@ -113,7 +113,7 @@ pub fn sign(secret: &Secret, message: &Message) -> Result<Signature, Error> {
 	Ok(Signature(data_arr))
 }
 
-pub fn verify(public: &Public, signature: &Signature, message: &Message) -> Result<bool, Error> {
+pub fn verify_public(public: &Public, signature: &Signature, message: &Message) -> Result<bool, Error> {
 	let context = &SECP256K1;
 	let rsig = try!(RecoverableSignature::from_compact(context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
 	let sig = rsig.to_standard(context);
@@ -132,11 +132,28 @@ pub fn verify(public: &Public, signature: &Signature, message: &Message) -> Resu
 	}
 }
 
+pub fn verify_address(address: &Address, signature: &Signature, message: &Message) -> Result<bool, Error> {
+	let public = try!(recover(signature, message));
+	let recovered_address = public_to_address(&public);
+	Ok(address == &recovered_address)
+}
+
+pub fn recover(signature: &Signature, message: &Message) -> Result<Public, Error> {
+	let context = &SECP256K1;
+	let rsig = try!(RecoverableSignature::from_compact(context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
+	let pubkey = try!(context.recover(&try!(SecpMessage::from_slice(&message[..])), &rsig));
+	let serialized = pubkey.serialize_vec(context, false);
+
+	let mut public = Public::default();
+	public.copy_from_slice(&serialized[1..65]);
+	Ok(public)
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
 	use {Generator, Random, Message};
-	use super::{sign, verify, Signature};
+	use super::{sign, verify_public, verify_address, recover, Signature};
 
 	#[test]
 	fn signature_to_and_from_str() {
@@ -149,10 +166,26 @@ mod tests {
 	}
 
 	#[test]
-	fn sign_and_verify() {
+	fn sign_and_recover_public() {
 		let keypair = Random.generate().unwrap();
 		let message = Message::default();
 		let signature = sign(keypair.secret(), &message).unwrap();
-		assert!(verify(keypair.public(), &signature, &message).unwrap());
+		assert_eq!(keypair.public(), &recover(&signature, &message).unwrap());
+	}
+
+	#[test]
+	fn sign_and_verify_public() {
+		let keypair = Random.generate().unwrap();
+		let message = Message::default();
+		let signature = sign(keypair.secret(), &message).unwrap();
+		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
+	}
+
+	#[test]
+	fn sign_and_verify_address() {
+		let keypair = Random.generate().unwrap();
+		let message = Message::default();
+		let signature = sign(keypair.secret(), &message).unwrap();
+		assert!(verify_address(&keypair.address(), &signature, &message).unwrap());
 	}
 }

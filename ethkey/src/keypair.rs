@@ -4,6 +4,13 @@ use rustc_serialize::hex::ToHex;
 use keccak::Keccak256;
 use super::{Secret, Public, Address, SECP256K1, Error};
 
+pub fn public_to_address(public: &Public) -> Address {
+	let hash = public.keccak256();
+	let mut result = Address::default();
+	result.copy_from_slice(&hash[12..]);
+	result
+}
+
 /// secp256k1 key pair
 pub struct KeyPair {
 	secret: Secret,
@@ -60,10 +67,7 @@ impl KeyPair {
 	}
 
 	pub fn address(&self) -> Address {
-		let hash = self.public.keccak256();
-		let mut result = Address::default();
-		result.copy_from_slice(&hash[12..]);
-		result
+		public_to_address(&self.public)
 	}
 }
 
