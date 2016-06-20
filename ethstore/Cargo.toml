@@ -21,7 +21,7 @@ serde_codegen = { version = "0.7", optional = true }
 syntex = "0.33.0"
 
 [features]
-default = ["cli", "serde_codegen"]
+default = ["serde_codegen"]
 nightly = ["serde_macros"]
 cli = ["docopt"]
 
