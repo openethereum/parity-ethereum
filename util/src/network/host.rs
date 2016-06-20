@@ -65,8 +65,8 @@ pub struct NetworkConfiguration {
 	pub nat_enabled: bool,
 	/// Enable discovery
 	pub discovery_enabled: bool,
-	/// Pin to boot nodes only
-	pub pin: bool,
+	/// Pin to reserved nodes only
+	pub reserved_only: bool,
 	/// List of initial node addresses
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
@@ -93,7 +93,7 @@ impl NetworkConfiguration {
 			udp_port: None,
 			nat_enabled: true,
 			discovery_enabled: true,
-			pin: false,
+			reserved_only: false,
 			boot_nodes: Vec::new(),
 			use_secret: None,
 			ideal_peers: 25,
@@ -483,7 +483,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		// Initialize discovery.
 		let discovery = {
 			let info = self.info.read().unwrap();
-			if info.config.discovery_enabled && !info.config.pin {
+			if info.config.discovery_enabled && !info.config.reserved_only {
 				Some(Discovery::new(&info.keys, public_endpoint.address.clone(), public_endpoint, DISCOVERY))
 			} else { None }
 		};
@@ -544,7 +544,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			return;
 		}
 		let ideal_peers = { self.info.read().unwrap().config.ideal_peers };
-		let pin = { self.info.read().unwrap().config.pin };
+		let pin = { self.info.read().unwrap().config.reserved_only };
 		let session_count = self.session_count();
 		if session_count >= ideal_peers as usize + self.pinned_nodes.len() {
 			// check if all pinned nodes are connected.

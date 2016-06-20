@@ -70,6 +70,7 @@ Networking Options:
   --reserved-peers FILE    Provide a file containing enodes, one per line.
                            These nodes will always have a reserved slot on top
                            of the normal maximum peers.
+  --reserved-only          Connect only to reserved nodes.
 
 API and Console Options:
   --jsonrpc-off            Disable the JSON-RPC API server.
@@ -240,6 +241,7 @@ pub struct Args {
 	pub flag_nat: String,
 	pub flag_node_key: Option<String>,
   pub flag_reserved_peers: Option<String>,
+  pub flag_reserved_only: bool,
 	pub flag_cache_pref_size: usize,
 	pub flag_cache_max_size: usize,
 	pub flag_queue_max_size: usize,
