@@ -109,6 +109,8 @@ API and Console Options:
                            [default: 8180].
   --signer-path PATH       Specify directory where Signer UIs tokens should
                            be stored. [default: $HOME/.parity/signer]
+  --no-token               By default a new system UI security token will be
+                           output on start up. This will prevent it.
 
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
@@ -256,6 +258,7 @@ pub struct Args {
 	pub flag_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
+	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
 	pub flag_author: String,
 	pub flag_usd_per_tx: String,
