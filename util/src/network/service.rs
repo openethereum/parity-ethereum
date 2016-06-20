@@ -111,6 +111,26 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 		*host = None;
 		Ok(())
 	}
+
+	/// Try to add a reserved peer.
+	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), UtilError> {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			host.add_reserved_node(peer)
+		} else {
+			Ok(())
+		}
+	}
+
+	/// Try to remove a reserved peer.
+	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), UtilError> {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			host.remove_reserved_node(peer)
+		} else {
+			Ok(())
+		}
+	}
 }
 
 impl<Message> MayPanic for NetworkService<Message> where Message: Send + Sync + Clone + 'static {

@@ -437,6 +437,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		Ok(())
 	}
 
+	pub fn remove_reserved_node(&self, id: &str) -> Result<(), UtilError> {
+		let n = try!(Node::from_str(id));
+		self.reserved_nodes.write().unwrap().remove(&n.id);
+
+		Ok(())
+	}
+
 	pub fn client_version() -> String {
 		version()
 	}

@@ -102,6 +102,16 @@ impl ClientService {
 	pub fn network(&mut self) -> Arc<NetworkService<SyncMessage>> {
 		self.net_service.clone()
 	}
+
+	/// Try to add a reserved peer.
+	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), Error> {
+		self.net_service.add_reserved_peer(peer).map_err(Into::into)
+	}
+
+	/// Try to remove a reserved peer.
+	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), Error> {
+		self.net_service.remove_reserved_peer(peer).map_err(Into::into)
+	}
 }
 
 impl MayPanic for ClientService {
