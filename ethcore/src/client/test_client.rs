@@ -187,7 +187,7 @@ impl TestBlockChainClient {
 					txs.append(&signed_tx);
 					txs.out()
 				},
-				_ => rlp::NULL_RLP.to_vec()
+				_ => rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
 			let mut rlp = RlpStream::new_list(3);

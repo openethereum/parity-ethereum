@@ -265,7 +265,7 @@ impl BlockCollection {
 		if header_id.transactions_root == rlp::SHA3_NULL_RLP && header_id.uncles == rlp::SHA3_EMPTY_LIST_RLP {
 			// empty body, just mark as downloaded
 			let mut body_stream = RlpStream::new_list(2);
-			body_stream.append_raw(&rlp::NULL_RLP, 1);
+			body_stream.append_raw(&rlp::EMPTY_LIST_RLP, 1);
 			body_stream.append_raw(&rlp::EMPTY_LIST_RLP, 1);
 			block.body = Some(body_stream.out());
 		}
