@@ -490,7 +490,7 @@ impl BlockChainClient for TestBlockChainClient {
 			balance: balances[a],
 		};
 
-		self.miner.import_transactions(transactions, &fetch_account)
+		self.miner.import_transactions(self, transactions, &fetch_account)
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {

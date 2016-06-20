@@ -94,7 +94,7 @@ pub trait MinerService : Send + Sync {
 	fn set_transactions_limit(&self, limit: usize);
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
+	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails, Self: Sized;
 
