@@ -223,6 +223,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 		allow_pending_receipt_query: !conf.args.flag_geth,
+		net_service: service.network(),
 	});
 
 	let dependencies = rpc::Dependencies {
