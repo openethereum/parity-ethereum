@@ -106,7 +106,8 @@ impl Miner {
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
-		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
+		let mut queue = self.transaction_queue.lock().unwrap();
+		let transactions = queue.top_transactions();
 		let mut sealing_work = self.sealing_work.lock().unwrap();
 		let best_hash = chain.best_block_header().sha3();
 
@@ -163,7 +164,6 @@ impl Miner {
 
 		let block = open_block.close();
 
-		let mut queue = self.transaction_queue.lock().unwrap();
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: chain.latest_nonce(a),
 			balance: chain.latest_balance(a),
