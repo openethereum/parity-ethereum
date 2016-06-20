@@ -141,7 +141,10 @@ impl<V> Client<V> where V: Verifier {
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
 
-		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
+		let mut state_db = journaldb::new(
+			&append_path(&path, "state"),
+			config.pruning,
+			config.db_cache_size);
 
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");

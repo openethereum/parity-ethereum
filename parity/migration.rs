@@ -163,6 +163,7 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 		let db_config = DatabaseConfig {
 			prefix_size: None,
 			max_open_files: 64,
+			cache_size: None,
 		};
 
 		// open old database

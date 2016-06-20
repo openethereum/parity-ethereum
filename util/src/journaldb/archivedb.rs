@@ -43,11 +43,12 @@ const DB_VERSION : u32 = 0x103;
 
 impl ArchiveDB {
 	/// Create a new instance from file
-	pub fn new(path: &str) -> ArchiveDB {
+	pub fn new(path: &str, cache_size: Option<usize>) -> ArchiveDB {
 		let opts = DatabaseConfig {
 			// this must match account_db prefix
 			prefix_size: Some(DB_PREFIX_LEN),
 			max_open_files: 256,
+			cache_size: cache_size,
 		};
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);

@@ -54,6 +54,29 @@ pub struct DatabaseConfig {
 	pub prefix_size: Option<usize>,
 	/// Max number of open files.
 	pub max_open_files: i32,
+	/// Cache-size
+	pub cache_size: Option<usize>,
+}
+
+impl DatabaseConfig {
+	/// Database with default settings and specified cache size
+	pub fn with_cache(cache_size: usize) -> DatabaseConfig {
+		DatabaseConfig {
+			cache_size: Some(cache_size),
+			prefix_size: None,
+			max_open_files: 256
+		}
+	}
+}
+
+impl Default for DatabaseConfig {
+	fn default() -> DatabaseConfig {
+		DatabaseConfig {
+			cache_size: None,
+			prefix_size: None,
+			max_open_files: 256
+		}
+	}
 }
 
 /// Database iterator
@@ -77,7 +100,7 @@ pub struct Database {
 impl Database {
 	/// Open database with default settings.
 	pub fn open_default(path: &str) -> Result<Database, String> {
-		Database::open(&DatabaseConfig { prefix_size: None, max_open_files: 256 }, path)
+		Database::open(&DatabaseConfig::default(), path)
 	}
 
 	/// Open database file. Creates if it does not exist.
@@ -87,6 +110,12 @@ impl Database {
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
 		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
+		if let Some(cache_size) = config.cache_size {
+			// half goes to read cache
+			opts.set_block_cache_size_mb(cache_size as u64 / 2);
+			// quarter goes to each of the two write buffers
+			opts.set_write_buffer_size(cache_size * 1024 * 256);
+		}
 		/*
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);

@@ -46,11 +46,12 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(path: &str) -> RefCountedDB {
+	pub fn new(path: &str, cache_size: Option<usize>) -> RefCountedDB {
 		let opts = DatabaseConfig {
 			// this must match account_db prefix
 			prefix_size: Some(DB_PREFIX_LEN),
 			max_open_files: 256,
+			cache_size: cache_size,
 		};
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
