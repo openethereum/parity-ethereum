@@ -236,8 +236,8 @@ impl TransactionSet {
 		self.by_priority.insert(order.clone());
 		let r = self.by_address.insert(sender, nonce, order);
 		// If transaction was replaced remove it from priority queue
-		if let Some(ref order) = r {
-			self.by_priority.remove(order);
+		if let Some(ref old_order) = r {
+			self.by_priority.remove(old_order);
 		}
 		r
 	}
@@ -517,16 +517,9 @@ impl TransactionQueue {
 		// Remove from current
 		let order = self.current.drop(&sender, &nonce);
 		if order.is_some() {
-			// We will either move transaction to future or remove it completely
-			// so there will be no transactions from this sender in current
-			self.last_nonces.remove(&sender);
-			// First update height of transactions in future to avoid collisions
-			self.update_future(&sender, current_nonce);
-			// This should move all current transactions to future and remove old transactions
-			self.move_all_to_future(&sender, current_nonce);
-			// And now lets check if there is some chain of transactions in future
-			// that should be placed in current. It should also update last_nonces.
-			self.move_matching_future_to_current(sender, current_nonce, current_nonce);
+			// This will keep consistency in queue
+			// Moves all to future and then promotes a batch from current:
+			self.remove_all(sender, current_nonce);
 			return;
 		}
 	}
@@ -682,7 +675,8 @@ impl TransactionQueue {
 
 		try!(check_too_cheap(Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		// Keep track of highest nonce stored in current
-		self.last_nonces.insert(address, nonce);
+		let new_max = self.last_nonces.get(&address).map_or(nonce, |n| cmp::max(nonce, *n));
+		self.last_nonces.insert(address, new_max);
 		// Update nonces of transactions in future
 		self.update_future(&address, state_nonce);
 		// Maybe there are some more items waiting in future?
@@ -1595,6 +1589,39 @@ mod test {
 		// then
 		assert_eq!(txq.future.by_priority.len(), 1);
 		assert_eq!(txq.future.by_priority.iter().next().unwrap().hash, tx1.hash());
+	}
+
+	#[test]
+	fn should_return_correct_last_nonce() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let (tx1, tx2, tx2_2, tx3) = {
+			let keypair = KeyPair::create().unwrap();
+			let secret = &keypair.secret();
+			let nonce = U256::from(123);
+			let tx = new_unsigned_tx(nonce);
+			let tx2 = new_unsigned_tx(nonce + 1.into());
+			let mut tx2_2 = new_unsigned_tx(nonce + 1.into());
+			tx2_2.gas_price = U256::from(5);
+			let tx3 = new_unsigned_tx(nonce + 2.into());
+
+
+			(tx.sign(secret), tx2.sign(secret), tx2_2.sign(secret), tx3.sign(secret))
+		};
+		let sender = tx1.sender().unwrap();
+		txq.add(tx1, &default_nonce, TransactionOrigin::Local).unwrap();
+		txq.add(tx2, &default_nonce, TransactionOrigin::Local).unwrap();
+		txq.add(tx3, &default_nonce, TransactionOrigin::Local).unwrap();
+		assert_eq!(txq.future.by_priority.len(), 0);
+		assert_eq!(txq.current.by_priority.len(), 3);
+
+		// when
+		let res = txq.add(tx2_2, &default_nonce, TransactionOrigin::Local);
+
+		// then
+		assert_eq!(txq.last_nonce(&sender).unwrap(), 125.into());
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(txq.current.by_priority.len(), 3);
 	}
 
 }
