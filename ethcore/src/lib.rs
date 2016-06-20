@@ -92,10 +92,12 @@ extern crate bloomchain;
 #[macro_use] extern crate ethcore_ipc as ipc;
 extern crate ethcore_db as ethdb;
 extern crate rayon;
+pub extern crate ethstore;
 
 extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
+pub mod account_provider;
 pub mod basic_authority;
 pub mod block;
 pub mod block_queue;

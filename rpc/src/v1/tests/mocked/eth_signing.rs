@@ -20,7 +20,7 @@ use v1::impls::EthSigningQueueClient;
 use v1::traits::EthSigning;
 use v1::helpers::{ConfirmationsQueue, SigningQueue};
 use v1::tests::helpers::TestMinerService;
-use util::keys::TestAccount;
+use util::{Address, FixedHash};
 
 struct EthSigningTester {
 	pub queue: Arc<ConfirmationsQueue>,
@@ -52,8 +52,7 @@ fn eth_signing() -> EthSigningTester {
 fn should_add_transaction_to_queue() {
 	// given
 	let tester = eth_signing();
-	let account = TestAccount::new("123");
-	let address = account.address();
+	let address = Address::random();
 	assert_eq!(tester.queue.requests().len(), 0);
 
 	// when

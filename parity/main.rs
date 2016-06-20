@@ -273,7 +273,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
-		network: service.network(),
+		network: Arc::downgrade(&service.network()),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
@@ -479,9 +479,15 @@ fn execute_signer(conf: Configuration) {
 }
 
 fn execute_account_cli(conf: Configuration) {
-	use util::keys::store::SecretStore;
+	use ethcore::ethstore::{SecretStore, EthStore, import_accounts};
+	use ethcore::ethstore::dir::DiskDirectory;
+	use ethcore::account_provider::AccountProvider;
 	use rpassword::read_password;
-	let mut secret_store = SecretStore::with_security(Path::new(&conf.keys_path()), conf.keys_iterations());
+
+	let dir = Box::new(DiskDirectory::create(conf.keys_path()).unwrap());
+	let iterations = conf.keys_iterations();
+	let secret_store = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
+
 	if conf.args.cmd_new {
 		println!("Please note that password is NOT RECOVERABLE.");
 		print!("Type password: ");
@@ -499,15 +505,22 @@ fn execute_account_cli(conf: Configuration) {
 		println!("{:?}", new_address);
 		return;
 	}
+
 	if conf.args.cmd_list {
 		println!("Known addresses:");
-		for &(addr, _) in &secret_store.accounts().unwrap() {
+		for addr in &secret_store.accounts() {
 			println!("{:?}", addr);
 		}
 		return;
 	}
+
 	if conf.args.cmd_import {
-		let imported = util::keys::import_keys_paths(&mut secret_store, &conf.args.arg_path).unwrap();
+		let to = DiskDirectory::create(conf.keys_path()).unwrap();
+		let mut imported = 0;
+		for path in &conf.args.arg_path {
+			let from = DiskDirectory::at(path);
+			imported += import_accounts(&from, &to).unwrap_or_else(|e| die!("Could not import accounts {}", e)).len();
+		}
 		println!("Imported {} keys", imported);
 	}
 }

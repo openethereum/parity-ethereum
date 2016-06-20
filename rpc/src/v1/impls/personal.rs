@@ -19,25 +19,23 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::Personal;
 use v1::types::TransactionRequest;
-use v1::impls::sign_and_dispatch;
-use util::keys::store::AccountProvider;
+use v1::impls::unlock_sign_and_dispatch;
+use ethcore::account_provider::AccountProvider;
 use util::numbers::*;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 
 /// Account management (personal) rpc implementation.
-pub struct PersonalClient<A, C, M>
-	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
-	accounts: Weak<A>,
+pub struct PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
 	signer_port: Option<u16>,
 }
 
-impl<A, C, M> PersonalClient<A, C, M>
-	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
+impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>, signer_port: Option<u16>) -> Self {
+	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, signer_port: Option<u16>) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
@@ -47,8 +45,7 @@ impl<A, C, M> PersonalClient<A, C, M>
 	}
 }
 
-impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
-	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
+impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	fn signer_enabled(&self, _: Params) -> Result<Value, Error> {
 		self.signer_port
@@ -58,10 +55,7 @@ impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
 
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
-		match store.accounts() {
-			Ok(account_list) => to_value(&account_list),
-			Err(_) => Err(Error::internal_error())
-		}
+		to_value(&store.accounts())
 	}
 
 	fn new_account(&self, params: Params) -> Result<Value, Error> {
@@ -80,7 +74,7 @@ impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
 		from_params::<(Address, String, u64)>(params).and_then(
 			|(account, account_pass, _)|{
 				let store = take_weak!(self.accounts);
-				match store.unlock_account_temp(&account, &account_pass) {
+				match store.unlock_account_temporarily(account, account_pass) {
 					Ok(_) => Ok(Value::Bool(true)),
 					Err(_) => Ok(Value::Bool(false)),
 				}
@@ -90,10 +84,12 @@ impl<A: 'static, C: 'static, M: 'static> Personal for PersonalClient<A, C, M>
 	fn sign_and_send_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, String)>(params)
 			.and_then(|(request, password)| {
+				let sender = request.from;
 				let accounts = take_weak!(self.accounts);
-				match accounts.locked_account_secret(&request.from, &password) {
-					Ok(secret) => sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, secret),
-					Err(_) => to_value(&H256::zero()),
+
+				match unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, sender, password) {
+					Ok(hash) => to_value(&hash),
+					_ => to_value(&H256::zero()),
 				}
 		})
 	}

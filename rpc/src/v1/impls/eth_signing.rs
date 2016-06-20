@@ -21,12 +21,11 @@ use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use util::numbers::*;
-use util::keys::store::AccountProvider;
+use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, Bytes};
-use v1::impls::{sign_and_dispatch, error_codes};
-
+use v1::impls::sign_and_dispatch;
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct EthSigningQueueClient<M: MinerService> {
@@ -79,22 +78,20 @@ impl<M: MinerService + 'static> EthSigning for EthSigningQueueClient<M>  {
 }
 
 /// Implementation of functions that require signing when no trusted signer is used.
-pub struct EthSigningUnsafeClient<C, A, M> where
+pub struct EthSigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient,
-	A: AccountProvider,
 	M: MinerService {
 	client: Weak<C>,
-	accounts: Weak<A>,
+	accounts: Weak<AccountProvider>,
 	miner: Weak<M>,
 }
 
-impl<C, A, M> EthSigningUnsafeClient<C, A, M> where
+impl<C, M> EthSigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient,
-	A: AccountProvider,
 	M: MinerService {
 
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, accounts: &Arc<A>, miner: &Arc<M>)
+	pub fn new(client: &Arc<C>, accounts: &Arc<AccountProvider>, miner: &Arc<M>)
 		-> Self {
 		EthSigningUnsafeClient {
 			client: Arc::downgrade(client),
@@ -104,35 +101,24 @@ impl<C, A, M> EthSigningUnsafeClient<C, A, M> where
 	}
 }
 
-impl<C, A, M> EthSigning for EthSigningUnsafeClient<C, A, M> where
+impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient + 'static,
-	A: AccountProvider + 'static,
 	M: MinerService + 'static {
 
 	fn sign(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, H256)>(params).and_then(|(addr, msg)| {
-			take_weak!(self.accounts).sign(&addr, &msg)
-				.map(|v| to_value(&v))
-				.unwrap_or_else(|e| Err(account_locked(format!("Error: {:?}", e))))
+			to_value(&take_weak!(self.accounts).sign(addr, msg).unwrap_or(H520::zero()))
 		})
 	}
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
-				let accounts = take_weak!(self.accounts);
-				match accounts.account_secret(&request.from) {
-					Ok(secret) => sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, secret),
-					Err(e) => Err(account_locked(format!("Error: {:?}", e))),
+				let sender = request.from;
+				match sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender) {
+					Ok(hash) => to_value(&hash),
+					_ => to_value(&H256::zero()),
 				}
 		})
-	}
-}
-
-fn account_locked(data: String) -> Error {
-	Error {
-		code: ErrorCode::ServerError(error_codes::ACCOUNT_LOCKED),
-		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
-		data: Some(Value::String(data)),
 	}
 }

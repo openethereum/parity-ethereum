@@ -20,27 +20,25 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::PersonalSigner;
 use v1::types::TransactionModification;
-use v1::impls::sign_and_dispatch;
+use v1::impls::unlock_sign_and_dispatch;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
-use util::keys::store::AccountProvider;
+use ethcore::account_provider::AccountProvider;
 use util::numbers::*;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 
 /// Transactions confirmation (personal) rpc implementation.
-pub struct SignerClient<A, C, M>
-	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
+pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	queue: Weak<ConfirmationsQueue>,
-	accounts: Weak<A>,
+	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
 }
 
-impl<A: 'static, C: 'static, M: 'static> SignerClient<A, C, M>
-	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
+impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	/// Create new instance of signer client.
-	pub fn new(store: &Arc<A>, client: &Arc<C>, miner: &Arc<M>, queue: &Arc<ConfirmationsQueue>) -> Self {
+	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, queue: &Arc<ConfirmationsQueue>) -> Self {
 		SignerClient {
 			queue: Arc::downgrade(queue),
 			accounts: Arc::downgrade(store),
@@ -50,8 +48,7 @@ impl<A: 'static, C: 'static, M: 'static> SignerClient<A, C, M>
 	}
 }
 
-impl<A: 'static, C: 'static, M: 'static> PersonalSigner for SignerClient<A, C, M>
-	where A: AccountProvider, C: MiningBlockChainClient, M: MinerService {
+impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	fn transactions_to_confirm(&self, _params: Params) -> Result<Value, Error> {
 		let queue = take_weak!(self.queue);
@@ -71,13 +68,15 @@ impl<A: 'static, C: 'static, M: 'static> PersonalSigner for SignerClient<A, C, M
 						if let Some(gas_price) = modification.gas_price {
 							request.gas_price = Some(gas_price);
 						}
-						match accounts.locked_account_secret(&request.from, &pass) {
-							Ok(secret) => {
-								let res = sign_and_dispatch(&*client, &*miner, request, secret);
-								queue.request_confirmed(id, res.clone());
-								Some(res)
+
+						let sender = request.from;
+
+						match unlock_sign_and_dispatch(&*client, &*miner, request, &*accounts, sender, pass) {
+							Ok(hash) => {
+								queue.request_confirmed(id, Ok(hash.clone()));
+								Some(to_value(&hash))
 							},
-							Err(_) => None
+							_ => None
 						}
 					})
 					.unwrap_or_else(|| {
