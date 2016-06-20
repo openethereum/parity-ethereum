@@ -167,14 +167,15 @@ impl PartialOrd for TransactionOrder {
 
 impl Ord for TransactionOrder {
 	fn cmp(&self, b: &TransactionOrder) -> Ordering {
-		// Local transactions should always have priority
-		if self.origin != b.origin {
-			return self.origin.cmp(&b.origin);
-		}
-
 		// First check nonce_height
 		if self.nonce_height != b.nonce_height {
 			return self.nonce_height.cmp(&b.nonce_height);
+		}
+
+		// Local transactions should always have priority
+		// NOTE nonce has to be checked first, cause otherwise the order might be wrong.
+		if self.origin != b.origin {
+			return self.origin.cmp(&b.origin);
 		}
 
 		// Then compare gas_prices
@@ -1087,7 +1088,28 @@ mod test {
 	}
 
 	#[test]
-	fn should_prioritize_local_transactions() {
+	fn should_prioritize_local_transactions_within_same_nonce_height() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		// the second one has same nonce but higher `gas_price`
+		let (_, tx2) = new_similar_txs();
+
+		// when
+		// first insert the one with higher gas price
+		txq.add(tx2.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+		// then the one with lower gas price, but local
+		txq.add(tx.clone(), &default_nonce, TransactionOrigin::Local).unwrap();
+
+		// then
+		let top = txq.top_transactions();
+		assert_eq!(top[0], tx); // local should be first
+		assert_eq!(top[1], tx2);
+		assert_eq!(top.len(), 2);
+	}
+
+	#[test]
+	fn should_not_prioritize_local_transactions_with_different_nonce_height() {
 		// given
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
@@ -1098,8 +1120,8 @@ mod test {
 
 		// then
 		let top = txq.top_transactions();
-		assert_eq!(top[0], tx2);
-		assert_eq!(top[1], tx);
+		assert_eq!(top[0], tx);
+		assert_eq!(top[1], tx2);
 		assert_eq!(top.len(), 2);
 	}
 
