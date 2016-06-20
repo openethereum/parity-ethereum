@@ -424,7 +424,6 @@ dependencies = [
 name = "ethkey"
 version = "0.2.0"
 dependencies = [
- "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -436,7 +435,6 @@ dependencies = [
 name = "ethstore"
 version = "0.1.0"
 dependencies = [
- "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.2.0",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
