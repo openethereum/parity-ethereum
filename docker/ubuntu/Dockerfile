@@ -8,11 +8,11 @@ RUN apt-get update && \
 	git \
 	make
 
-# install multirust
-RUN curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
+# install rustup
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
-# export rust LIBRARY_PATH
-ENV LIBRARY_PATH /usr/local/lib
+# rustup directory
+ENV PATH /root/.cargo/bin:$PATH
 
 # show backtraces
 ENV RUST_BACKTRACE 1
