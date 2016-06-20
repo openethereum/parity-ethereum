@@ -315,11 +315,10 @@ fn execute_export(conf: Configuration) {
 		udp_port: None,
 		nat_enabled: false,
 		discovery_enabled: false,
-		reserved_only: true,
+		pin: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
 		ideal_peers: 0,
-		reserved_nodes: Vec::new(),
 	};
 	let client_config = conf.client_config(&spec);
 
@@ -387,11 +386,10 @@ fn execute_import(conf: Configuration) {
 		udp_port: None,
 		nat_enabled: false,
 		discovery_enabled: false,
-		reserved_only: true,
+		pin: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
 		ideal_peers: 0,
-		reserved_nodes: Vec::new(),
 	};
 	let client_config = conf.client_config(&spec);
 

@@ -74,4 +74,5 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 			to_value(&true)
 		})
 	}
+
 }
