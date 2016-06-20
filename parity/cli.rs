@@ -157,6 +157,7 @@ Footprint Options:
   --cache MEGABYTES        Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
+  --db-cache-size MB       Database cache size.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -295,6 +296,7 @@ pub struct Args {
 	pub flag_ipcdisable: bool,
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
+	pub flag_db_cache_size: Option<usize>,
 }
 
 pub fn print_version() {

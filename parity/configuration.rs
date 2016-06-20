@@ -187,7 +187,7 @@ impl Configuration {
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
-			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i, None);
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
@@ -214,6 +214,8 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
+		// forced blockchain (blocks + extras) db cache size if provided
+		client_config.blockchain.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 2));
 
 		client_config.tracing.enabled = match self.args.flag_tracing.as_str() {
 			"auto" => Switch::Auto,
@@ -221,6 +223,8 @@ impl Configuration {
 			"off" => Switch::Off,
 			_ => { die!("Invalid tracing method given!") }
 		};
+		// forced trace db cache size if provided
+		client_config.tracing.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
 		client_config.pruning = match self.args.flag_pruning.as_str() {
 			"archive" => journaldb::Algorithm::Archive,
@@ -230,6 +234,9 @@ impl Configuration {
 			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::Archive),
 			_ => { die!("Invalid pruning method given."); }
 		};
+
+		// forced state db cache size if provided
+		client_config.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
 		if self.args.flag_jitvm {
 			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
