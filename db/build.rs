@@ -23,19 +23,37 @@ use std::path::Path;
 pub fn main() {
 	let out_dir = env::var_os("OUT_DIR").unwrap();
 
-	// ipc pass
+	// rpc pass
 	{
-		let src = Path::new("src/lib.rs.in");
-		let dst = Path::new(&out_dir).join("lib.intermediate.rs.in");
+		let src = Path::new("src/database.rs.in");
+		let dst = Path::new(&out_dir).join("database.rpc.rs.in");
 		let mut registry = syntex::Registry::new();
 		codegen::register(&mut registry);
 		registry.expand("", &src, &dst).unwrap();
 	}
 
-	// binary serialization pass
+	// serialization pass
 	{
-		let src = Path::new(&out_dir).join("lib.intermediate.rs.in");
-		let dst = Path::new(&out_dir).join("lib.rs");
+		let src = Path::new(&out_dir).join("database.rpc.rs.in");
+		let dst = Path::new(&out_dir).join("database.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
+
+	// rpc pass
+	{
+		let src = Path::new("src/types.rs.in");
+		let dst = Path::new(&out_dir).join("types.rpc.rs.in");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
+
+	// serialization pass
+	{
+		let src = Path::new(&out_dir).join("types.rpc.rs.in");
+		let dst = Path::new(&out_dir).join("types.rs");
 		let mut registry = syntex::Registry::new();
 		codegen::register(&mut registry);
 		registry.expand("", &src, &dst).unwrap();

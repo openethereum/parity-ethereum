@@ -16,17 +16,20 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use error::*;
-use hash::*;
-use bytes::*;
-use rlp::*;
-use hashdb::*;
-use memorydb::*;
+use util::error::*;
+use util::hash::*;
+use util::bytes::*;
+use util::rlp::*;
+use util::hashdb::*;
+use util::memorydb::*;
 use std::ops::*;
 use std::sync::*;
 use std::env;
 use std::collections::HashMap;
-use kvdb::{Database, DBTransaction};
+
+use database::*;
+use traits::*;
+use types::*;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
@@ -55,7 +58,9 @@ impl OverlayDB {
 	pub fn new_temp() -> OverlayDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(Database::open_default(dir.to_str().unwrap()).unwrap())
+		let db = Database::new();
+		db.open_default(dir.to_str().unwrap().to_owned()).unwrap();
+		Self::new(db)
 	}
 
 	/// Commit all operations to given batch.
@@ -186,10 +191,10 @@ impl OverlayDB {
 			let mut s = RlpStream::new_list(2);
 			s.append(&payload.1);
 			s.append(&payload.0);
-			batch.put(&key.bytes(), s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(&key.bytes(), s.as_raw());
 			false
 		} else {
-			batch.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+			batch.delete(&key.bytes());
 			true
 		}
 	}
@@ -212,7 +217,7 @@ impl OverlayDB {
 impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter() {
+		for (key, _) in self.backing.backing_iter().unwrap() {
 			let h = H256::from_slice(key.deref());
 			let r = self.payload(&h).unwrap().1;
 			ret.insert(h, r as i32);
@@ -366,7 +371,8 @@ fn overlaydb_complex() {
 fn playpen() {
 	use std::fs;
 	{
-		let db: Database = Database::open_default("/tmp/test").unwrap();
+		let db = Database::new();
+		db.open_default("/tmp/test".to_owned()).unwrap();
 		db.put(b"test", b"test2").unwrap();
 		match db.get(b"test") {
 			Ok(Some(value)) => println!("Got value {:?}", value.deref()),

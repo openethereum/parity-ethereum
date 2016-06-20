@@ -25,13 +25,14 @@ use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
 use ethcore::miner::{MinerService, ExternalMiner, Miner};
+use devtools::*;
 use ethcore::account_provider::AccountProvider;
-use devtools::RandomTempPath;
 use util::Hashable;
 use util::io::IoChannel;
 use util::{U256, H256};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
+use ethdb;
 
 use v1::traits::eth::{Eth, EthSigning};
 use v1::impls::{EthClient, EthSigningUnsafeClient};
@@ -67,6 +68,7 @@ struct EthTester {
 	_miner: Arc<MinerService>,
 	accounts: Arc<AccountProvider>,
 	handler: IoHandler,
+	_stop: StopGuard,
 }
 
 impl EthTester {
@@ -91,9 +93,10 @@ impl EthTester {
 		where F: Fn() -> Spec {
 
 		let dir = RandomTempPath::new();
+		let (man, stop) = ethdb::manager::run_manager();
 		let account_provider = account_provider();
 		let miner_service = miner_service(spec_provider(), account_provider.clone());
-		let client = Client::new(ClientConfig::default(), spec_provider(), dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
+		let client = Client::new(ClientConfig::default(), spec_provider(), man, dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
 		let sync_provider = sync_provider();
 		let external_miner = Arc::new(ExternalMiner::default());
 
@@ -117,6 +120,7 @@ impl EthTester {
 
 		EthTester {
 			_miner: miner_service,
+			_stop: stop,
 			client: client,
 			accounts: account_provider,
 			handler: handler,

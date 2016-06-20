@@ -25,31 +25,6 @@
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
-//!
-//! Usage example:
-//!
-//! ```rust
-//! extern crate ethcore_util as util;
-//! extern crate ethcore;
-//! extern crate ethsync;
-//! use std::env;
-//! use std::sync::Arc;
-//! use util::network::{NetworkService, NetworkConfiguration};
-//! use ethcore::client::{Client, ClientConfig};
-//! use ethsync::{EthSync, SyncConfig};
-//! use ethcore::ethereum;
-//! use ethcore::miner::Miner;
-//!
-//! fn main() {
-//! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
-//! 	service.start().unwrap();
-//! 	let dir = env::temp_dir();
-//! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, Arc::new(Miner::default()), service.io().channel()).unwrap();
-//! 	let miner = Miner::new(false, ethereum::new_frontier());
-//! 	let sync = EthSync::new(SyncConfig::default(), client);
-//! 	EthSync::register(&mut service, sync);
-//! }
-//! ```
 
 #[macro_use]
 extern crate log;

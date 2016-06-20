@@ -10,6 +10,7 @@ dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.2.0",
  "ethcore-dapps 1.2.0",
+ "ethcore-db 1.2.0",
  "ethcore-devtools 1.2.0",
  "ethcore-ipc 1.2.0",
  "ethcore-ipc-codegen 1.2.0",
@@ -256,6 +257,7 @@ dependencies = [
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.2.0",
+ "ethcore-db 1.2.0",
  "ethcore-devtools 1.2.0",
  "ethcore-ipc 1.2.0",
  "ethcore-ipc-codegen 1.2.0",
@@ -295,6 +297,24 @@ dependencies = [
  "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-db"
+version = "1.2.0"
+dependencies = [
+ "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-devtools 1.2.0",
+ "ethcore-ipc 1.2.0",
+ "ethcore-ipc-codegen 1.2.0",
+ "ethcore-ipc-nano 1.2.0",
+ "ethcore-util 1.2.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "rocksdb 0.4.5 (git+https://github.com/ethcore/rust-rocksdb)",
+ "scoped_threadpool 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -342,6 +362,7 @@ dependencies = [
  "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.2.0",
  "ethcore 1.2.0",
+ "ethcore-db 1.2.0",
  "ethcore-devtools 1.2.0",
  "ethcore-util 1.2.0",
  "ethjson 0.1.0",
@@ -1169,6 +1190,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "scoped_threadpool"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "semver"

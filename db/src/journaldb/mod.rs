@@ -16,7 +16,7 @@
 
 //! `JournalDB` interface and implementation.
 
-use common::*;
+use util::common::*;
 
 /// Export the journaldb module.
 pub mod traits;
@@ -24,6 +24,8 @@ mod archivedb;
 mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
+
+use manager::{DatabaseManager, QueuedDatabase};
 
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
@@ -71,12 +73,12 @@ impl fmt::Display for Algorithm {
 }
 
 /// Create a new `JournalDB` trait object.
-pub fn new(path: &str, algorithm: Algorithm) -> Box<JournalDB> {
+pub fn new(man: Arc<DatabaseManager<QueuedDatabase>>, path: &str, algorithm: Algorithm) -> Box<JournalDB> {
 	match algorithm {
-		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path)),
-		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(path)),
-		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(path)),
-		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(path)),
+		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(man, path)),
+		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(man, path)),
+		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(man, path)),
+		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(man, path)),
 	}
 }
 

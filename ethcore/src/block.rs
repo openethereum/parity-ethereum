@@ -24,6 +24,7 @@ use state::*;
 use verification::PreverifiedBlock;
 use trace::Trace;
 use evm::Factory as EvmFactory;
+use ethdb::journaldb::JournalDB;
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone)]

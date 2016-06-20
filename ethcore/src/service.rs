@@ -22,6 +22,8 @@ use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig};
 use miner::Miner;
+use ethdb;
+use devtools;
 
 /// Message type for external and internal events
 #[derive(Clone)]
@@ -54,7 +56,8 @@ pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 pub struct ClientService {
 	net_service: Arc<NetworkService<SyncMessage>>,
 	client: Arc<Client>,
-	panic_handler: Arc<PanicHandler>
+	panic_handler: Arc<PanicHandler>,
+	_flush_guard: devtools::StopGuard,
 }
 
 impl ClientService {
@@ -67,9 +70,11 @@ impl ClientService {
 			try!(net_service.start());
 		}
 
+		let (man, stop) = ethdb::run_manager();
+
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {:?} engine", spec.name, spec.engine.name());
-		let client = try!(Client::new(config, spec, db_path, miner, net_service.io().channel()));
+		let client = try!(Client::new(config, spec, man.clone(), db_path, miner, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
@@ -80,6 +85,7 @@ impl ClientService {
 			net_service: Arc::new(net_service),
 			client: client,
 			panic_handler: panic_handler,
+			_flush_guard: stop,
 		})
 	}
 

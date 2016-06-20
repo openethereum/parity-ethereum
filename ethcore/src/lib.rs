@@ -90,10 +90,11 @@ extern crate crossbeam;
 extern crate ethjson;
 extern crate bloomchain;
 #[macro_use] extern crate ethcore_ipc as ipc;
+extern crate ethcore_db as ethdb;
 extern crate rayon;
 pub extern crate ethstore;
 
-#[cfg(test)] extern crate ethcore_devtools as devtools;
+extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod account_provider;

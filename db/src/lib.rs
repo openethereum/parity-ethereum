@@ -14,7 +14,85 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database ipc service
+extern crate ethcore_ipc as ipc;
+extern crate rocksdb;
+extern crate ethcore_devtools as devtools;
+extern crate semver;
+extern crate ethcore_ipc_nano as nanoipc;
+extern crate nanomsg;
+extern crate crossbeam;
+extern crate ethcore_util as util;
+extern crate scoped_threadpool;
+#[macro_use]
+extern crate log as rlog;
 
-#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
-include!(concat!(env!("OUT_DIR"), "/lib.rs"));
+pub mod database;
+pub mod traits;
+pub mod manager;
+pub mod types;
+pub mod journaldb;
+pub mod overlaydb;
+
+pub use traits::DatabaseService;
+pub use database::{Database, DatabaseClient, DatabaseIterator};
+pub use types::{DBTransaction, Error};
+pub use manager::run_manager;
+
+use std::sync::Arc;
+use std::sync::atomic::*;
+use std::path::PathBuf;
+
+pub type DatabaseNanoClient = DatabaseClient<::nanomsg::Socket>;
+pub type DatabaseConnection = nanoipc::GuardedSocket<DatabaseNanoClient>;
+
+#[derive(Debug)]
+pub enum ServiceError {
+	Io(std::io::Error),
+	Socket(nanoipc::SocketError),
+}
+
+impl std::convert::From<std::io::Error> for ServiceError {
+	fn from(io_error: std::io::Error) -> ServiceError { ServiceError::Io(io_error) }
+}
+
+impl std::convert::From<nanoipc::SocketError> for ServiceError {
+	fn from(socket_error: nanoipc::SocketError) -> ServiceError { ServiceError::Socket(socket_error) }
+}
+
+pub fn blocks_service_url(db_path: &str) -> Result<String, std::io::Error> {
+	let mut path = PathBuf::from(db_path);
+	try!(::std::fs::create_dir_all(db_path));
+	path.push("blocks.ipc");
+	Ok(format!("ipc://{}", path.to_str().unwrap()))
+}
+
+pub fn extras_service_url(db_path: &str) -> Result<String, ::std::io::Error> {
+	let mut path = PathBuf::from(db_path);
+	try!(::std::fs::create_dir_all(db_path));
+	path.push("extras.ipc");
+	Ok(format!("ipc://{}", path.to_str().unwrap()))
+}
+
+pub fn blocks_client(db_path: &str) -> Result<DatabaseConnection, ServiceError> {
+	let url = try!(blocks_service_url(db_path));
+	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
+	Ok(client)
+}
+
+pub fn extras_client(db_path: &str) -> Result<DatabaseConnection, ServiceError> {
+	let url = try!(extras_service_url(db_path));
+	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
+	Ok(client)
+}
+
+// for tests
+pub fn run_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_path: &str) {
+	let socket_path = socket_path.to_owned();
+	scope.spawn(move || {
+		let mut worker = nanoipc::Worker::new(&Arc::new(Database::new()));
+		worker.add_reqrep(&socket_path).unwrap();
+		while !stop.load(Ordering::Relaxed) {
+			worker.poll();
+		}
+	});
+}

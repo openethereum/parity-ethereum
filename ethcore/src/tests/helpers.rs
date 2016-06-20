@@ -24,7 +24,10 @@ use evm::Schedule;
 use engine::*;
 use ethereum;
 use devtools::*;
+use ethdb::journaldb;
+use ethdb::journaldb::JournalDB;
 use miner::Miner;
+use ethdb::manager;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -35,7 +38,8 @@ pub enum ChainEra {
 #[cfg(test)]
 pub struct GuardedTempResult<T> {
 	result: Option<T>,
-	_temp: RandomTempPath
+	_temp: RandomTempPath,
+	_stop: Option<StopGuard>,
 }
 
 impl<T> GuardedTempResult<T> {
@@ -149,9 +153,10 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 
 pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
 	let dir = RandomTempPath::new();
+	let (man, stop) = manager::run_manager();
 
 	let test_spec = get_test_spec();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(),  man, dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
 	let test_engine = &test_spec.engine;
 
 	let mut db_result = get_temp_journal_db();
@@ -214,7 +219,8 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: Some(client)
+		result: Some(client),
+		_stop: Some(stop),
 	}
 }
 
@@ -249,7 +255,9 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
+	let (man, stop) = manager::run_manager();
+
+	let client = Client::new(ClientConfig::default(), get_test_spec(), man, dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");
@@ -260,6 +268,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
+		_stop: Some(stop),
 		result: Some(client)
 	}
 }
@@ -273,7 +282,8 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: Some(bc)
+		_stop: None,
+		result: Some(bc),
 	}
 }
 
@@ -286,6 +296,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
+		_stop: None,
 		result: Some(bc)
 	}
 }
@@ -296,35 +307,40 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
+		_stop: None,
 		result: Some(bc)
 	}
 }
 
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
-	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge);
+	let (man, stop) = manager::run_manager();
+	let journal_db = journaldb::new(man, temp.as_str(), journaldb::Algorithm::EarlyMerge);
 	GuardedTempResult {
 		_temp: temp,
-		result: Some(journal_db)
+		_stop: Some(stop),
+		result: Some(journal_db),
 	}
 }
 
 pub fn get_temp_state() -> GuardedTempResult<State> {
 	let temp = RandomTempPath::new();
-	let journal_db = get_temp_journal_db_in(temp.as_path());
+	let (journal_db, stop) = get_temp_journal_db_in(temp.as_path());
 	GuardedTempResult {
 	    _temp: temp,
+		_stop: Some(stop),
 		result: Some(State::new(journal_db, U256::from(0u8)))
 	}
 }
 
-pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
-	journaldb::new(path.to_str().unwrap(), journaldb::Algorithm::EarlyMerge)
+pub fn get_temp_journal_db_in(path: &Path) -> (Box<JournalDB>, StopGuard) {
+	let (man, stop) = manager::run_manager();
+	(journaldb::new(man, path.to_str().unwrap(), journaldb::Algorithm::EarlyMerge), stop)
 }
 
-pub fn get_temp_state_in(path: &Path) -> State {
-	let journal_db = get_temp_journal_db_in(path);
-	State::new(journal_db, U256::from(0u8))
+pub fn get_temp_state_in(path: &Path) -> (State, StopGuard) {
+	let (journal_db, stop) = get_temp_journal_db_in(path);
+	(State::new(journal_db, U256::from(0u8)), stop)
 }
 
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {

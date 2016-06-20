@@ -35,6 +35,7 @@ ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ansi_term = "0.7"
+ethcore-db = { path = "db" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

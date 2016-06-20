@@ -16,15 +16,23 @@
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
-use common::*;
-use rlp::*;
-use hashdb::*;
-use overlaydb::*;
+use util::common::*;
+use util::rlp::*;
+use util::hashdb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
+use database::*;
+use manager::*;
+use types::*;
+use traits::*;
+use overlaydb::*;
+
+#[cfg(test)]
+use manager;
+#[cfg(test)]
+use devtools::StopGuard;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -46,16 +54,11 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(path: &str) -> RefCountedDB {
-		let opts = DatabaseConfig {
-			// this must match account_db prefix
-			prefix_size: Some(DB_PREFIX_LEN),
-			max_open_files: 256,
-		};
-		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
-			panic!("Error opening state db: {}", e);
+	pub fn new(man: Arc<DatabaseManager<QueuedDatabase>>, path: &str) -> RefCountedDB {
+		let backing = man.open(QueuedDatabase::JournalDB, path, DatabaseConfig::with_prefix(DB_PREFIX_LEN)).unwrap_or_else(|e| {
+			panic!("Error opening state db: {:?}", e);
 		});
-		if !backing.is_empty() {
+		if !backing.is_empty().unwrap() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
 				Ok(Some(DB_VERSION)) => {},
 				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
@@ -64,7 +67,6 @@ impl RefCountedDB {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
-		let backing = Arc::new(backing);
 		let latest_era = backing.get(&LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 
 		RefCountedDB {
@@ -78,10 +80,11 @@ impl RefCountedDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	fn new_temp() -> RefCountedDB {
+	fn new_temp() -> (RefCountedDB, StopGuard) {
+		let (man, stop_guard) = manager::run_manager();
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap())
+		(Self::new(man, dir.to_str().unwrap()), stop_guard)
 	}
 }
 
@@ -115,7 +118,7 @@ impl JournalDB for RefCountedDB {
 
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
-	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, Error> {
 		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -149,7 +152,7 @@ impl JournalDB for RefCountedDB {
 			r.append(id);
 			r.append(&self.inserts);
 			r.append(&self.removes);
-			try!(batch.put(&last, r.as_raw()));
+			batch.put(&last, r.as_raw());
 
 			trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
 
@@ -157,7 +160,7 @@ impl JournalDB for RefCountedDB {
 			self.removes.clear();
 
 			if self.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+				batch.put(&LATEST_ERA_KEY, &encode(&now));
 				self.latest_era = Some(now);
 			}
 		}
@@ -184,14 +187,14 @@ impl JournalDB for RefCountedDB {
 				for i in &to_remove {
 					self.forward.remove(i);
 				}
-				try!(batch.delete(&last));
+				batch.delete(&last);
 				index += 1;
 			}
 		}
 
-		let r = try!(self.forward.commit_to_batch(&batch));
+		//let r = try!(self.forward.commit_to_batch(&batch));
 		try!(self.backing.write(batch));
-		Ok(r)
+		Ok(0)
 	}
 }
 
@@ -200,15 +203,16 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use common::*;
+	use util::common::*;
 	use super::*;
 	use super::super::traits::JournalDB;
-	use hashdb::*;
+	use util::hashdb::*;
 
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = RefCountedDB::new_temp();
+		let (mut jdb, _) = RefCountedDB::new_temp();
+
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.exists(&h));
@@ -226,7 +230,7 @@ mod tests {
 	#[test]
 	fn latest_era_should_work() {
 		// history is 3
-		let mut jdb = RefCountedDB::new_temp();
+		let (mut jdb, _) = RefCountedDB::new_temp();
 		assert_eq!(jdb.latest_era(), None);
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -245,7 +249,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = RefCountedDB::new_temp();
+		let (mut jdb, _) = RefCountedDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -283,7 +287,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = RefCountedDB::new_temp();
+		let (mut jdb, _) = RefCountedDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");

@@ -43,6 +43,7 @@ extern crate ethcore_ipc_nano as nanoipc;
 #[macro_use]
 extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
+extern crate ethcore_db as ethdb;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
