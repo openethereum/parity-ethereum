@@ -35,7 +35,7 @@ use rlp::*;
 use network::session::{Session, SessionData};
 use error::*;
 use io::*;
-use network::{NetworkProtocolHandler, PROTOCOL_VERSION};
+use network::{NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION};
 use network::node_table::*;
 use network::stats::NetworkStats;
 use network::error::{NetworkError, DisconnectReason};
@@ -65,8 +65,6 @@ pub struct NetworkConfiguration {
 	pub nat_enabled: bool,
 	/// Enable discovery
 	pub discovery_enabled: bool,
-	/// Pin to reserved nodes only
-	pub reserved_only: bool,
 	/// List of initial node addresses
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
@@ -75,6 +73,8 @@ pub struct NetworkConfiguration {
 	pub ideal_peers: u32,
 	/// List of reserved node addresses.
 	pub reserved_nodes: Vec<String>,
+	/// The non-reserved peer mode.
+	pub non_reserved_mode: NonReservedPeerMode,
 }
 
 impl Default for NetworkConfiguration {
@@ -93,11 +93,11 @@ impl NetworkConfiguration {
 			udp_port: None,
 			nat_enabled: true,
 			discovery_enabled: true,
-			reserved_only: false,
 			boot_nodes: Vec::new(),
 			use_secret: None,
 			ideal_peers: 25,
 			reserved_nodes: Vec::new(),
+			non_reserved_mode: NonReservedPeerMode::Accept,
 		}
 	}
 
@@ -437,6 +437,23 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		Ok(())
 	}
 
+	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode) {
+		let info = self.info.write().unwrap();
+
+		if info.config.non_reserved_mode != mode {
+			info.config.non_reserved_mode = mode.clone();
+			if let NonReservedPeerMode::Deny = mode {
+				// disconnect all non-reserved peers here.
+				let reserved = self.reserved_nodes.read().unwrap();
+				for node in self.node_table.read().unwrap().nodes() {
+					if !reserved.contains(&node) {
+						self.disconnect_peer(node);
+					}
+				}
+			}
+		}
+	}
+
 	pub fn remove_reserved_node(&self, id: &str) -> Result<(), UtilError> {
 		let n = try!(Node::from_str(id));
 		self.reserved_nodes.write().unwrap().remove(&n.id);
@@ -570,7 +587,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 			let config = &info.config;
 
-			(config.ideal_peers, config.reserved_only)
+			(config.ideal_peers, config.non_reserved_mode == NonReservedPeerMode::Deny)
 		};
 
 		let session_count = self.session_count();

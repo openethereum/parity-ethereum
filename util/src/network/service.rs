@@ -18,9 +18,9 @@ use std::sync::*;
 use error::*;
 use panics::*;
 use network::{NetworkProtocolHandler, NetworkConfiguration};
-use network::error::{NetworkError};
+use network::error::NetworkError;
 use network::host::{Host, NetworkIoMessage, ProtocolId};
-use network::stats::{NetworkStats};
+use network::stats::NetworkStats;
 use io::*;
 
 /// IO Service with networking
@@ -129,6 +129,14 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 			host.remove_reserved_node(peer)
 		} else {
 			Ok(())
+		}
+	}
+
+	/// Set the non-reserved peer mode.
+	pub fn set_non_reserved_mode(&self, mode: ::network::NonReservedPeerMode) {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			host.set_non_reserved_mode(mode);
 		}
 	}
 }
