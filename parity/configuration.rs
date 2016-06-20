@@ -153,6 +153,26 @@ impl Configuration {
 		}
 	}
 
+	pub fn init_reserved_nodes(&self) -> Vec<String> {
+		use std::fs::File;
+		use std::io::BufRead;
+
+		if let Some(ref path) = self.args.flag_reserved_peers {
+			let mut buffer = String::new();
+			let mut node_file = File::open(path).unwrap_or_else(|e| {
+				die!("Error opening reserved nodes file: {}", e);
+			});
+			node_file.read_to_string(&mut buffer).expect("Error reading reserved node file");
+			buffer.lines().map(|s| {
+				Self::normalize_enode(s).unwrap_or_else(|| {
+					die!("{}: Invalid node address format given for a reserved node.", s);
+				})
+			}).collect()
+		} else {
+			Vec::new()
+		}
+	}
+
 	pub fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
 		let port = self.net_port();
 		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), port));
@@ -179,6 +199,8 @@ impl Configuration {
 		let mut net_path = PathBuf::from(&self.path());
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
+		ret.reserved_nodes = self.init_reserved_nodes();
+		ret.reserved_only = self.args.flag_reserved_only;
 		ret
 	}
 
