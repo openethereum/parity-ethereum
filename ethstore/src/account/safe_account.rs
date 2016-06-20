@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::ops::{Deref, DerefMut};
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
@@ -154,7 +170,7 @@ impl SafeAccount {
 
 #[cfg(test)]
 mod tests {
-	use ethkey::{Generator, Random, verify, Message};
+	use ethkey::{Generator, Random, verify_public, Message};
 	use super::{Crypto, SafeAccount};
 
 	#[test]
@@ -174,13 +190,13 @@ mod tests {
 	}
 
 	#[test]
-	fn sign_and_verify() {
+	fn sign_and_verify_public() {
 		let keypair = Random.generate().unwrap();
 		let password = "hello world";
 		let message = Message::default();
 		let account = SafeAccount::create(&keypair, [0u8; 16], password, 10240);
 		let signature = account.sign(password, &message).unwrap();
-		assert!(verify(keypair.public(), &signature, &message).unwrap());
+		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
 	}
 
 	#[test]
