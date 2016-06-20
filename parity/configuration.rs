@@ -299,9 +299,8 @@ impl Configuration {
 
 			let from = GethDirectory::open(dir_type);
 			let to = DiskDirectory::create(self.keys_path()).unwrap();
-			if let Err(e) = import_accounts(&from, &to) {
-				warn!("Could not import accounts {}", e);
-			}
+			// ignore error, cause geth may not exist
+			let _ = import_accounts(&from, &to);
 		}
 
 		let dir = Box::new(DiskDirectory::create(self.keys_path()).unwrap());
