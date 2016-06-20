@@ -95,12 +95,17 @@ impl BlockCollection {
 	}
 
 	/// Insert a collection of block bodies for previously downloaded headers.
-	pub fn insert_bodies(&mut self, bodies: Vec<Bytes>) {
+	pub fn insert_bodies(&mut self, bodies: Vec<Bytes>) -> usize {
+		let mut inserted = 0;
 		for b in bodies.into_iter() {
 			if let Err(e) =  self.insert_body(b) {
 				trace!(target: "sync", "Ignored invalid body: {:?}", e);
 			}
+			else {
+				inserted += 1;
+			}
 		}
+		inserted
 	}
 
 	/// Returns a set of block hashes that require a body download. The returned set is marked as being downloaded.
@@ -231,13 +236,19 @@ impl BlockCollection {
 					Some(ref mut block) => {
 						trace!(target: "sync", "Got body {}", h);
 						block.body = Some(body.as_raw().to_vec());
+						Ok(())
 					},
-					None => warn!("Got body with no header {}", h)
+					None => {
+						warn!("Got body with no header {}", h);
+						Err(UtilError::Network(NetworkError::BadProtocol))
+					}
 				}
 			}
-			None => trace!(target: "sync", "Ignored unknown/stale block body")
-		};
-		Ok(())
+			None => {
+				trace!(target: "sync", "Ignored unknown/stale block body");
+				Err(UtilError::Network(NetworkError::BadProtocol))
+			}
+		}
 	}
 
 	fn insert_header(&mut self, header: Bytes) -> Result<H256, UtilError> {
