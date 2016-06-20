@@ -78,7 +78,7 @@ pub struct TestPacket {
 
 pub struct TestPeer {
 	pub chain: TestBlockChainClient,
-	pub sync: ChainSync,
+	pub sync: RwLock<ChainSync>,
 	pub queue: VecDeque<TestPacket>,
 }
 
@@ -97,7 +97,7 @@ impl TestNet {
 			let chain = TestBlockChainClient::new();
 			let sync = ChainSync::new(SyncConfig::default(), &chain);
 			net.peers.push(TestPeer {
-				sync: sync,
+				sync: RwLock::new(sync),
 				chain: chain,
 				queue: VecDeque::new(),
 			});
@@ -118,7 +118,7 @@ impl TestNet {
 			for client in 0..self.peers.len() {
 				if peer != client {
 					let mut p = self.peers.get_mut(peer).unwrap();
-					p.sync.on_peer_connected(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(client as PeerId)), client as PeerId);
+					p.sync.write().unwrap().on_peer_connected(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(client as PeerId)), client as PeerId);
 				}
 			}
 		}
@@ -129,22 +129,22 @@ impl TestNet {
 			if let Some(packet) = self.peers[peer].queue.pop_front() {
 				let mut p = self.peers.get_mut(packet.recipient).unwrap();
 				trace!("--- {} -> {} ---", peer, packet.recipient);
-				p.sync.on_packet(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
+				ChainSync::dispatch_packet(&p.sync, &mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
 				trace!("----------------");
 			}
 			let mut p = self.peers.get_mut(peer).unwrap();
-			p.sync.maintain_sync(&mut TestIo::new(&mut p.chain, &mut p.queue, None));
+			p.sync.write().unwrap().maintain_sync(&mut TestIo::new(&mut p.chain, &mut p.queue, None));
 		}
 	}
 
 	pub fn sync_step_peer(&mut self, peer_num: usize) {
 		let mut peer = self.peer_mut(peer_num);
-		peer.sync.maintain_sync(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+		peer.sync.write().unwrap().maintain_sync(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
 	}
 
 	pub fn restart_peer(&mut self, i: usize) {
 		let peer = self.peer_mut(i);
-		peer.sync.restart(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+		peer.sync.write().unwrap().restart(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
 	}
 
 	pub fn sync(&mut self) -> u32 {
@@ -173,6 +173,6 @@ impl TestNet {
 
 	pub fn trigger_chain_new_blocks(&mut self, peer_id: usize) {
 		let mut peer = self.peer_mut(peer_id);
-		peer.sync.chain_new_blocks(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None), &[], &[], &[], &[]);
+		peer.sync.write().unwrap().chain_new_blocks(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None), &[], &[], &[], &[]);
 	}
 }
