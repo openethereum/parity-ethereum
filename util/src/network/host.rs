@@ -684,13 +684,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				match s.readable(io, &self.info.read().unwrap()) {
 					Err(e) => {
 						trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-						match e {
-							UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) => {
-								if let Some(id) = s.id() {
-									self.nodes.write().unwrap().mark_as_useless(id);
-								}
+						if let UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) = e {
+							if let Some(id) = s.id() {
+								self.nodes.write().unwrap().mark_as_useless(id);
 							}
-							_ => (),
 						}
 						kill = true;
 						break;

@@ -487,7 +487,7 @@ fn execute_signer(conf: Configuration) {
 }
 
 fn execute_account_cli(conf: Configuration) {
-	use ethcore::ethstore::{SecretStore, EthStore, import_accounts};
+	use ethcore::ethstore::{EthStore, import_accounts};
 	use ethcore::ethstore::dir::DiskDirectory;
 	use ethcore::account_provider::AccountProvider;
 	use rpassword::read_password;

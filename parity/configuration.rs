@@ -292,9 +292,10 @@ impl Configuration {
 		}).collect::<Vec<_>>();
 
 		if !self.args.flag_no_import_keys {
-			let dir_type = match self.args.flag_testnet {
-				true => DirectoryType::Testnet,
-				false => DirectoryType::Main,
+			let dir_type = if self.args.flag_testnet {
+				DirectoryType::Testnet
+			} else {
+				DirectoryType::Main
 			};
 
 			let from = GethDirectory::open(dir_type);

@@ -236,7 +236,6 @@ impl AccountProvider {
 #[cfg(test)]
 mod tests {
 	use super::AccountProvider;
-	use ethstore::SecretStore;
 	use ethstore::ethkey::{Generator, Random};
 
 	#[test]
