@@ -95,7 +95,6 @@ use ethcore::views::{HeaderView, BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo};
 use ethcore::error::*;
-use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
 use io::SyncIo;
 use time;
@@ -940,15 +939,15 @@ impl ChainSync {
 			return Ok(());
 		}
 
-		let item_count = r.item_count();
+		let mut item_count = r.item_count();
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
-
+		item_count = min(item_count, MAX_TX_TO_IMPORT);
 		let mut transactions = Vec::with_capacity(item_count);
-		for i in 0 .. min(item_count, MAX_TX_TO_IMPORT) {
-			let tx: SignedTransaction = try!(r.val_at(i));
+		for i in 0 .. item_count {
+			let tx = try!(r.at(i)).as_raw().to_vec();
 			transactions.push(tx);
 		}
-		let _ = io.chain().import_transactions(transactions);
+		let _ = io.chain().queue_transactions(transactions);
 		Ok(())
 	}
 
