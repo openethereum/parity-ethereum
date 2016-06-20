@@ -9,18 +9,22 @@ RUN apt-get -y update && \
 	&& \
     apt-get clean
 
-# install multirust
-RUN curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
+# install rustup
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+# rustup directory
+ENV PATH /root/.cargo/bin:$PATH
+
 ENV RUST_TARGETS="arm-unknown-linux-gnueabihf"
 
 # multirust add arm--linux-gnuabhf toolchain
-RUN multirust add-target stable arm-unknown-linux-gnueabihf
+RUN rustup target add stable arm-unknown-linux-gnueabihf
 
 # show backtraces
 ENV RUST_BACKTRACE 1
 # set compilers
-ENV CXX arm-linux-gnueabihf-g++ 
-ENV CC arm-linux-gnueabihf-gcc 
+ENV CXX arm-linux-gnueabihf-g++
+ENV CC arm-linux-gnueabihf-gcc
 # build parity
 RUN git clone https://github.com/ethcore/parity && \
 	cd parity && \
