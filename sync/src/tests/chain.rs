@@ -47,7 +47,7 @@ fn status_after_sync() {
 	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
-	let status = net.peer(0).sync.status();
+	let status = net.peer(0).sync.read().unwrap().status();
 	assert_eq!(status.state, SyncState::Idle);
 }
 
@@ -107,14 +107,14 @@ fn restart() {
 	assert!(net.peer(0).chain.chain_info().best_block_number > 100);
 	net.restart_peer(0);
 
-	let status = net.peer(0).sync.status();
+	let status = net.peer(0).sync.read().unwrap().status();
 	assert_eq!(status.state, SyncState::ChainHead);
 }
 
 #[test]
 fn status_empty() {
 	let net = TestNet::new(2);
-	assert_eq!(net.peer(0).sync.status().state, SyncState::Idle);
+	assert_eq!(net.peer(0).sync.read().unwrap().status().state, SyncState::Idle);
 }
 
 #[test]
