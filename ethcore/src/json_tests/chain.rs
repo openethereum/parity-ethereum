@@ -54,7 +54,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			let temp = RandomTempPath::new();
 			{
-				let client = Client::new(ClientConfig::default(), spec, temp.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
+				let client = Client::new(ClientConfig::default(), spec.clone(), temp.as_path(), Arc::new(Miner::with_spec(spec)), IoChannel::disconnected()).unwrap();
 				for b in &blockchain.blocks_rlp() {
 					if Block::is_good(&b) {
 						let _ = client.import_block(b.clone());

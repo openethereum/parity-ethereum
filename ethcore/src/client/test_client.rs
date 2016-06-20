@@ -29,6 +29,7 @@ use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
+use spec::Spec;
 
 use block_queue::BlockQueueInfo;
 use block::OpenBlock;
@@ -105,7 +106,7 @@ impl TestBlockChainClient {
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
 			queue_size: AtomicUsize::new(0),
-			miner: Arc::new(Miner::default()),
+			miner: Arc::new(Miner::with_spec(Spec::new_test())),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();

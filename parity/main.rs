@@ -190,7 +190,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let account_service = Arc::new(conf.account_service());
 
 	// Miner
-	let miner = Miner::with_accounts(conf.args.flag_force_sealing, conf.spec(), account_service.clone());
+	let miner = Miner::new(conf.args.flag_force_sealing, conf.spec(), Some(account_service.clone()));
 	miner.set_author(conf.author());
 	miner.set_gas_floor_target(conf.gas_floor_target());
 	miner.set_extra_data(conf.extra_data());
@@ -317,7 +317,7 @@ fn execute_export(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -388,7 +388,7 @@ fn execute_import(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);

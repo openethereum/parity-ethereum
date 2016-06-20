@@ -47,8 +47,9 @@ pub struct Miner {
 	accounts: Option<Arc<AccountProvider>>,
 }
 
-impl Default for Miner {
-	fn default() -> Miner {
+impl Miner {
+	/// Creates new instance of miner without accounts, but with given spec.
+	pub fn with_spec(spec: Spec) -> Miner {
 		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: false,
@@ -59,14 +60,12 @@ impl Default for Miner {
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
-			spec: Spec::new_test(),
+			spec: spec,
 		}
 	}
-}
 
-impl Miner {
 	/// Creates new instance of miner
-	pub fn new(force_sealing: bool, spec: Spec) -> Arc<Miner> {
+	pub fn new(force_sealing: bool, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: force_sealing,
@@ -76,23 +75,7 @@ impl Miner {
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
-			accounts: None,
-			spec: spec,
-		})
-	}
-
-	/// Creates new instance of miner
-	pub fn with_accounts(force_sealing: bool, spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-		Arc::new(Miner {
-			transaction_queue: Mutex::new(TransactionQueue::new()),
-			force_sealing: force_sealing,
-			sealing_enabled: AtomicBool::new(force_sealing),
-			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(UsingQueue::new(5)),
-			gas_floor_target: RwLock::new(U256::zero()),
-			author: RwLock::new(Address::default()),
-			extra_data: RwLock::new(Vec::new()),
-			accounts: Some(accounts),
+			accounts: accounts,
 			spec: spec,
 		})
 	}
@@ -610,7 +593,7 @@ mod tests {
 	fn should_prepare_block_to_seal() {
 		// given
 		let client = TestBlockChainClient::default();
-		let miner = Miner::default();
+		let miner = Miner::with_spec(Spec::new_test());
 
 		// when
 		let sealing_work = miner.map_sealing_work(&client, |_| ());
@@ -622,7 +605,7 @@ mod tests {
 	fn should_still_work_after_a_couple_of_blocks() {
 		// given
 		let client = TestBlockChainClient::default();
-		let miner = Miner::default();
+		let miner = Miner::with_spec(Spec::new_test());
 
 		let res = miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
 		assert!(res.is_some());
