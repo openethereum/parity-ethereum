@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use ethcore::client::Client;
 use ethcore::service::{NetSyncMessage, SyncMessage};
 use ethsync::EthSync;
@@ -30,7 +30,7 @@ pub struct ClientIoHandler {
 	pub sync: Arc<EthSync>,
 	pub accounts: Arc<AccountProvider>,
 	pub info: Informant,
-	pub network: Arc<NetworkService<SyncMessage>>,
+	pub network: Weak<NetworkService<SyncMessage>>,
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
@@ -49,12 +49,16 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 		match *message {
 			NetworkIoMessage::User(SyncMessage::StartNetwork) => {
 				info!("Starting network");
-				self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
-				EthSync::register(&*self.network, self.sync.clone()).unwrap_or_else(|e| warn!("Error registering eth protocol handler: {}", e));
+				if let Some(network) = self.network.upgrade() {
+					network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
+					EthSync::register(&*network, self.sync.clone()).unwrap_or_else(|e| warn!("Error registering eth protocol handler: {}", e));
+				}
 			},
 			NetworkIoMessage::User(SyncMessage::StopNetwork) => {
 				info!("Stopping network");
-				self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
+				if let Some(network) = self.network.upgrade() {
+					network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
+				}
 			},
 			_ => {/* Ignore other messages */},
 		}

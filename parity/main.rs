@@ -272,7 +272,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
-		network: service.network(),
+		network: Arc::downgrade(&service.network()),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
