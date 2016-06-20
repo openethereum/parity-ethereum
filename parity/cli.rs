@@ -155,7 +155,7 @@ Footprint Options:
   --cache MEGABYTES        Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
-  --db-cache-size MEGABYTE Database cache size.
+  --db-cache-size MB       Database cache size.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
