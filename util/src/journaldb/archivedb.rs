@@ -75,7 +75,7 @@ impl ArchiveDB {
 	fn new_temp() -> ArchiveDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap())
+		Self::new(dir.to_str().unwrap(), None)
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
@@ -328,7 +328,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -337,13 +337,13 @@ mod tests {
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		}
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -356,7 +356,7 @@ mod tests {
 		dir.push(H32::random().hex());
 
 		let foo = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -370,7 +370,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			jdb.remove(&foo);
 			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
@@ -385,7 +385,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, _, _) = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -400,7 +400,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
+			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
 		}
@@ -411,14 +411,14 @@ mod tests {
 		let temp = ::devtools::RandomTempPath::new();
 
 		let key = {
-			let mut jdb = ArchiveDB::new(temp.as_str());
+			let mut jdb = ArchiveDB::new(temp.as_str(), None);
 			let key = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
 			key
 		};
 
 		{
-			let jdb = ArchiveDB::new(temp.as_str());
+			let jdb = ArchiveDB::new(temp.as_str(), None);
 			let state = jdb.state(&key);
 			assert!(state.is_some());
 		}
