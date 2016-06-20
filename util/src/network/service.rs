@@ -136,7 +136,8 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 	pub fn set_non_reserved_mode(&self, mode: ::network::NonReservedPeerMode) {
 		let host = self.host.read().unwrap();
 		if let Some(ref host) = *host {
-			host.set_non_reserved_mode(mode);
+			let io_ctxt = IoContext::new(self.io_service.channel(), 0);
+			host.set_non_reserved_mode(mode, &io_ctxt);
 		}
 	}
 }

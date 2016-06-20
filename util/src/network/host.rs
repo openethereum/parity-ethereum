@@ -437,18 +437,30 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		Ok(())
 	}
 
-	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode) {
-		let info = self.info.write().unwrap();
+	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage<Message>>) {
+		let mut info = self.info.write().unwrap();
 
 		if info.config.non_reserved_mode != mode {
 			info.config.non_reserved_mode = mode.clone();
 			if let NonReservedPeerMode::Deny = mode {
 				// disconnect all non-reserved peers here.
 				let reserved = self.reserved_nodes.read().unwrap();
-				for node in self.node_table.read().unwrap().nodes() {
-					if !reserved.contains(&node) {
-						self.disconnect_peer(node);
+				let mut to_kill = Vec::new();
+				for e in self.sessions.write().unwrap().iter_mut() {
+					let mut s = e.lock().unwrap();
+					{
+						let id = s.id();
+						if id.is_some() && reserved.contains(id.unwrap()) {
+							continue;
+						}
 					}
+
+					s.disconnect(io, DisconnectReason::ClientQuit);
+					to_kill.push(s.token());
+				}
+				for p in to_kill {
+					trace!(target: "network", "Disconnecting on reserved-only mode: {}", p);
+					self.kill_connection(p, io, false);
 				}
 			}
 		}
@@ -523,7 +535,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		// Initialize discovery.
 		let discovery = {
 			let info = self.info.read().unwrap();
-			if info.config.discovery_enabled && !info.config.reserved_only {
+			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
 				Some(Discovery::new(&info.keys, public_endpoint.address.clone(), public_endpoint, DISCOVERY))
 			} else { None }
 		};
@@ -580,7 +592,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {
-		let (ideal_peers, pin) = {
+		let (ideal_peers, mut pin) = {
 			let info = self.info.read().unwrap();
 			if info.capabilities.is_empty() {
 				return;
@@ -597,6 +609,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			if reserved_nodes.iter().all(|n| self.have_session(n) && self.connecting_to(n)) {
 				return;
 			}
+
+			// if not, only attempt connect to reserved peers
+			pin = true;
 		}
 
 		let handshake_count = self.handshake_count();
@@ -745,11 +760,20 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 						if !s.info.originated {
 							let session_count = self.session_count();
-							let ideal_peers = { self.info.read().unwrap().config.ideal_peers };
-							if session_count >= ideal_peers as usize {
-								s.disconnect(io, DisconnectReason::TooManyPeers);
-								return;
+							let reserved_nodes = self.reserved_nodes.read().unwrap();
+							let (ideal_peers, reserved_only) = {
+								let info = self.info.read().unwrap();
+								(info.config.ideal_peers, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
+							};
+
+							if session_count >= ideal_peers as usize || reserved_only {
+								// only proceed if the connecting peer is reserved.
+								if !reserved_nodes.contains(s.id().unwrap()) {
+									s.disconnect(io, DisconnectReason::TooManyPeers);
+									return;
+								}
 							}
+
 							// Add it no node table
 							if let Ok(address) = s.remote_addr() {
 								let entry = NodeEntry { id: s.id().unwrap().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };

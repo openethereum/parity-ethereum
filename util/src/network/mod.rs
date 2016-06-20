@@ -113,7 +113,7 @@ pub trait NetworkProtocolHandler<Message>: Sync + Send where Message: Send + Syn
 }
 
 /// Non-reserved peer modes.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NonReservedPeerMode {
 	/// Accept them. This is the default.
 	Accept,
