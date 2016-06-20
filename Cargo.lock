@@ -67,9 +67,7 @@ dependencies = [
 name = "bigint"
 version = "0.1.0"
 dependencies = [
- "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
