@@ -21,7 +21,7 @@ use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 
 const DB_FILE_SIZE_BASE: u64 = 100 * 1024 * 1024;
-const DB_FILE_SIZE_MULTIPLIER: usize = 10;
+const DB_FILE_SIZE_MULTIPLIER: i32 = 10;
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
