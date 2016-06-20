@@ -167,11 +167,6 @@ impl PartialOrd for TransactionOrder {
 
 impl Ord for TransactionOrder {
 	fn cmp(&self, b: &TransactionOrder) -> Ordering {
-		// Local transactions should always have priority
-		if self.origin != b.origin {
-			return self.origin.cmp(&b.origin);
-		}
-
 		// First check nonce_height
 		if self.nonce_height != b.nonce_height {
 			return self.nonce_height.cmp(&b.nonce_height);
@@ -1087,7 +1082,7 @@ mod test {
 	}
 
 	#[test]
-	fn should_prioritize_local_transactions() {
+	fn should_not_prioritize_local_transactions() {
 		// given
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
@@ -1098,8 +1093,8 @@ mod test {
 
 		// then
 		let top = txq.top_transactions();
-		assert_eq!(top[0], tx2);
-		assert_eq!(top[1], tx);
+		assert_eq!(top[0], tx);
+		assert_eq!(top[1], tx2);
 		assert_eq!(top.len(), 2);
 	}
 
