@@ -239,6 +239,7 @@ impl TransactionSet {
 		if let Some(ref old_order) = r {
 			self.by_priority.remove(old_order);
 		}
+		assert_eq!(self.by_priority.len(), self.by_address.len());
 		r
 	}
 
@@ -279,8 +280,10 @@ impl TransactionSet {
 	fn drop(&mut self, sender: &Address, nonce: &U256) -> Option<TransactionOrder> {
 		if let Some(tx_order) = self.by_address.remove(sender, nonce) {
 			self.by_priority.remove(&tx_order);
+			assert_eq!(self.by_priority.len(), self.by_address.len());
 			return Some(tx_order);
 		}
+		assert_eq!(self.by_priority.len(), self.by_address.len());
 		None
 	}
 
@@ -468,7 +471,9 @@ impl TransactionQueue {
 			}));
 		}
 
-		self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction)
+		let r = self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction);
+		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
+		r
 	}
 
 	/// Removes all transactions from particular sender up to (excluding) given client (state) nonce.
@@ -484,6 +489,7 @@ impl TransactionQueue {
 		// And now lets check if there is some batch of transactions in future
 		// that should be placed in current. It should also update last_nonces.
 		self.move_matching_future_to_current(sender, client_nonce, client_nonce);
+		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 	}
 
 	/// Removes invalid transaction identified by hash from queue.
@@ -493,6 +499,8 @@ impl TransactionQueue {
 	/// If gap is introduced marks subsequent transactions as future
 	pub fn remove_invalid<T>(&mut self, transaction_hash: &H256, fetch_account: &T)
 		where T: Fn(&Address) -> AccountDetails {
+
+		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 		let transaction = self.by_hash.remove(transaction_hash);
 		if transaction.is_none() {
 			// We don't know this transaction
@@ -511,6 +519,7 @@ impl TransactionQueue {
 			// And now lets check if there is some chain of transactions in future
 			// that should be placed in current
 			self.move_matching_future_to_current(sender, current_nonce, current_nonce);
+			assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 			return;
 		}
 
@@ -520,6 +529,7 @@ impl TransactionQueue {
 			// This will keep consistency in queue
 			// Moves all to future and then promotes a batch from current:
 			self.remove_all(sender, current_nonce);
+			assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 			return;
 		}
 	}
@@ -538,7 +548,7 @@ impl TransactionQueue {
 			} else {
 				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				// Remove the transaction completely
-				self.by_hash.remove(&order.hash);
+				self.by_hash.remove(&order.hash).expect("All transactions in `future` are also in `by_hash`");
 			}
 		}
 	}
@@ -558,7 +568,7 @@ impl TransactionQueue {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
 				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
-				self.by_hash.remove(&order.hash);
+				self.by_hash.remove(&order.hash).expect("All transactions in `future` are also in `by_hash`");
 			}
 		}
 		self.future.enforce_limit(&mut self.by_hash);
@@ -685,7 +695,8 @@ impl TransactionQueue {
 		// same (sender, nonce), but above function would not move it.
 		if let Some(order) = self.future.drop(&address, &nonce) {
 			// Let's insert that transaction to current (if it has higher gas_price)
-			let future_tx = self.by_hash.remove(&order.hash).unwrap();
+			let future_tx = self.by_hash.remove(&order.hash).expect("All transactions in `future` are always in `by_hash`.");
+			// if transaction in `current` (then one we are importing) is replaced it means that it has to low gas_price
 			try!(check_too_cheap(Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		}
 
@@ -726,7 +737,9 @@ impl TransactionQueue {
 		let address = tx.sender();
 		let nonce = tx.nonce();
 
-		by_hash.insert(hash, tx);
+		let old_hash = by_hash.insert(hash, tx);
+		assert!(old_hash.is_none(), "Each hash has to be inserted exactly once.");
+
 
 		if let Some(old) = set.insert(address, nonce, order.clone()) {
 			// There was already transaction in queue. Let's check which one should stay
@@ -736,11 +749,11 @@ impl TransactionQueue {
 				// Put back old transaction since it has greater priority (higher gas_price)
 				set.insert(address, nonce, old);
 				// and remove new one
-				by_hash.remove(&hash);
+				by_hash.remove(&hash).expect("The hash has been just inserted and no other line is altering `by_hash`.");
 				false
 			} else {
 				// Make sure we remove old transaction entirely
-				by_hash.remove(&old.hash);
+				by_hash.remove(&old.hash).expect("The hash is coming from `future` so it has to be in `by_hash`.");
 				true
 			}
 		} else {
