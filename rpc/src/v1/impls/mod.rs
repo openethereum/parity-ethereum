@@ -71,6 +71,7 @@ mod error_codes {
 	pub const UNKNOWN_ERROR: i64 = -32002;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
+	pub const SIGNER_DISABLED: i64 = -32030;
 }
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
