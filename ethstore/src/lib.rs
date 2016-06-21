@@ -37,6 +37,7 @@ mod crypto;
 mod error;
 mod ethstore;
 mod import;
+mod presale;
 mod random;
 mod secret_store;
 
@@ -44,5 +45,6 @@ pub use self::account::SafeAccount;
 pub use self::error::Error;
 pub use self::ethstore::EthStore;
 pub use self::import::import_accounts;
+pub use self::presale::PresaleWallet;
 pub use self::secret_store::SecretStore;
 

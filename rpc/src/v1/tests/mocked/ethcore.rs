@@ -132,6 +132,7 @@ fn rpc_ethcore_dev_logs_levels() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogsLevels", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"rpc=trace","id":1}"#;
+
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
 

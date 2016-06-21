@@ -230,6 +230,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 		allow_pending_receipt_query: !conf.args.flag_geth,
+		net_service: service.network(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -315,11 +316,11 @@ fn execute_export(conf: Configuration) {
 		udp_port: None,
 		nat_enabled: false,
 		discovery_enabled: false,
-		reserved_only: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
 		ideal_peers: 0,
 		reserved_nodes: Vec::new(),
+		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
 	};
 	let client_config = conf.client_config(&spec);
 
@@ -387,11 +388,11 @@ fn execute_import(conf: Configuration) {
 		udp_port: None,
 		nat_enabled: false,
 		discovery_enabled: false,
-		reserved_only: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
 		ideal_peers: 0,
 		reserved_nodes: Vec::new(),
+		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
 	};
 	let client_config = conf.client_config(&spec);
 

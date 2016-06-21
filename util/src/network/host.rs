@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::{SocketAddr};
-use std::collections::{HashMap};
-use std::str::{FromStr};
+use std::net::SocketAddr;
+use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 use std::sync::*;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::ops::*;
@@ -35,7 +35,7 @@ use rlp::*;
 use network::session::{Session, SessionData};
 use error::*;
 use io::*;
-use network::{NetworkProtocolHandler, PROTOCOL_VERSION};
+use network::{NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION};
 use network::node_table::*;
 use network::stats::NetworkStats;
 use network::error::{NetworkError, DisconnectReason};
@@ -65,8 +65,6 @@ pub struct NetworkConfiguration {
 	pub nat_enabled: bool,
 	/// Enable discovery
 	pub discovery_enabled: bool,
-	/// Pin to reserved nodes only
-	pub reserved_only: bool,
 	/// List of initial node addresses
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
@@ -75,6 +73,8 @@ pub struct NetworkConfiguration {
 	pub ideal_peers: u32,
 	/// List of reserved node addresses.
 	pub reserved_nodes: Vec<String>,
+	/// The non-reserved peer mode.
+	pub non_reserved_mode: NonReservedPeerMode,
 }
 
 impl Default for NetworkConfiguration {
@@ -93,11 +93,11 @@ impl NetworkConfiguration {
 			udp_port: None,
 			nat_enabled: true,
 			discovery_enabled: true,
-			reserved_only: false,
 			boot_nodes: Vec::new(),
 			use_secret: None,
 			ideal_peers: 25,
 			reserved_nodes: Vec::new(),
+			non_reserved_mode: NonReservedPeerMode::Accept,
 		}
 	}
 
@@ -191,13 +191,15 @@ pub struct NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'sta
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	session: Option<SharedSession>,
 	session_id: Option<StreamToken>,
+	reserved_peers: &'s HashSet<NodeId>,
 }
 
 impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, {
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
 	fn new(io: &'s IoContext<NetworkIoMessage<Message>>,
 		protocol: ProtocolId,
-		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>) -> NetworkContext<'s, Message> {
+		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>,
+		reserved_peers: &'s HashSet<NodeId>) -> NetworkContext<'s, Message> {
 		let id = session.as_ref().map(|s| s.lock().unwrap().token());
 		NetworkContext {
 			io: io,
@@ -205,6 +207,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 			session_id: id,
 			session: session,
 			sessions: sessions,
+			reserved_peers: reserved_peers,
 		}
 	}
 
@@ -237,7 +240,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 		self.io.message(NetworkIoMessage::User(msg));
 	}
 
-	/// Send an IO message
+	/// Get an IoChannel.
 	pub fn io_channel(&self) -> IoChannel<NetworkIoMessage<Message>> {
 		self.io.channel()
 	}
@@ -335,7 +338,7 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
 	stats: Arc<NetworkStats>,
-	pinned_nodes: Vec<NodeId>,
+	reserved_nodes: RwLock<HashSet<NodeId>>,
 	num_sessions: AtomicUsize,
 	stopping: AtomicBool,
 }
@@ -390,28 +393,28 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			timers: RwLock::new(HashMap::new()),
 			timer_counter: RwLock::new(USER_TIMER),
 			stats: stats,
-			pinned_nodes: Vec::new(),
+			reserved_nodes: RwLock::new(HashSet::new()),
 			num_sessions: AtomicUsize::new(0),
 			stopping: AtomicBool::new(false),
 		};
 
 		for n in boot_nodes {
-			// don't pin boot nodes.
-			host.add_node(&n, false);
+			host.add_node(&n);
 		}
 
 		for n in reserved_nodes {
-			host.add_node(&n, true);
+			if let Err(e) = host.add_reserved_node(&n) {
+				debug!(target: "network", "Error parsing node id: {}: {:?}", n, e);
+			}
 		}
 		Ok(host)
 	}
 
-	pub fn add_node(&mut self, id: &str, pin: bool) {
+	pub fn add_node(&mut self, id: &str) {
 		match Node::from_str(id) {
 			Err(e) => { debug!(target: "network", "Could not add node {}: {:?}", id, e); },
 			Ok(n) => {
 				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
-				if pin { self.pinned_nodes.push(n.id.clone()) }
 
 				self.nodes.write().unwrap().add_node(n);
 				if let Some(ref mut discovery) = *self.discovery.lock().unwrap() {
@@ -419,6 +422,56 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				}
 			}
 		}
+	}
+
+	pub fn add_reserved_node(&self, id: &str) -> Result<(), UtilError> {
+		let n = try!(Node::from_str(id));
+
+		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
+		self.reserved_nodes.write().unwrap().insert(n.id.clone());
+
+		if let Some(ref mut discovery) = *self.discovery.lock().unwrap() {
+			discovery.add_node(entry);
+		}
+
+		Ok(())
+	}
+
+	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage<Message>>) {
+		let mut info = self.info.write().unwrap();
+
+		if info.config.non_reserved_mode != mode {
+			info.config.non_reserved_mode = mode.clone();
+			drop(info);
+			if let NonReservedPeerMode::Deny = mode {
+				// disconnect all non-reserved peers here.
+				let reserved: HashSet<NodeId> = self.reserved_nodes.read().unwrap().clone();
+				let mut to_kill = Vec::new();
+				for e in self.sessions.write().unwrap().iter_mut() {
+					let mut s = e.lock().unwrap();
+					{
+						let id = s.id();
+						if id.is_some() && reserved.contains(id.unwrap()) {
+							continue;
+						}
+					}
+
+					s.disconnect(io, DisconnectReason::ClientQuit);
+					to_kill.push(s.token());
+				}
+				for p in to_kill {
+					trace!(target: "network", "Disconnecting on reserved-only mode: {}", p);
+					self.kill_connection(p, io, false);
+				}
+			}
+		}
+	}
+
+	pub fn remove_reserved_node(&self, id: &str) -> Result<(), UtilError> {
+		let n = try!(Node::from_str(id));
+		self.reserved_nodes.write().unwrap().remove(&n.id);
+
+		Ok(())
 	}
 
 	pub fn client_version() -> String {
@@ -483,7 +536,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		// Initialize discovery.
 		let discovery = {
 			let info = self.info.read().unwrap();
-			if info.config.discovery_enabled && !info.config.reserved_only {
+			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
 				Some(Discovery::new(&info.keys, public_endpoint.address.clone(), public_endpoint, DISCOVERY))
 			} else { None }
 		};
@@ -540,17 +593,26 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {
-		if self.info.read().unwrap().capabilities.is_empty() {
-			return;
-		}
-		let ideal_peers = { self.info.read().unwrap().config.ideal_peers };
-		let pin = { self.info.read().unwrap().config.reserved_only };
-		let session_count = self.session_count();
-		if session_count >= ideal_peers as usize + self.pinned_nodes.len() {
-			// check if all pinned nodes are connected.
-			if self.pinned_nodes.iter().all(|n| self.have_session(n) && self.connecting_to(n)) {
+		let (ideal_peers, mut pin) = {
+			let info = self.info.read().unwrap();
+			if info.capabilities.is_empty() {
 				return;
 			}
+			let config = &info.config;
+
+			(config.ideal_peers, config.non_reserved_mode == NonReservedPeerMode::Deny)
+		};
+
+		let session_count = self.session_count();
+		let reserved_nodes = self.reserved_nodes.read().unwrap();
+		if session_count >= ideal_peers as usize + reserved_nodes.len() {
+			// check if all pinned nodes are connected.
+			if reserved_nodes.iter().all(|n| self.have_session(n) && self.connecting_to(n)) {
+				return;
+			}
+
+			// if not, only attempt connect to reserved peers
+			pin = true;
 		}
 
 		let handshake_count = self.handshake_count();
@@ -562,7 +624,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 		// iterate over all nodes, reserved ones coming first.
 		// if we are pinned to only reserved nodes, ignore all others.
-		let nodes = self.pinned_nodes.iter().cloned().chain(if !pin {
+		let nodes = reserved_nodes.iter().cloned().chain(if !pin {
 			self.nodes.read().unwrap().nodes()
 		} else {
 			Vec::new()
@@ -696,11 +758,20 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 						if !s.info.originated {
 							let session_count = self.session_count();
-							let ideal_peers = { self.info.read().unwrap().config.ideal_peers };
-							if session_count >= ideal_peers as usize {
-								s.disconnect(io, DisconnectReason::TooManyPeers);
-								return;
+							let reserved_nodes = self.reserved_nodes.read().unwrap();
+							let (ideal_peers, reserved_only) = {
+								let info = self.info.read().unwrap();
+								(info.config.ideal_peers, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
+							};
+
+							if session_count >= ideal_peers as usize || reserved_only {
+								// only proceed if the connecting peer is reserved.
+								if !reserved_nodes.contains(s.id().unwrap()) {
+									s.disconnect(io, DisconnectReason::TooManyPeers);
+									return;
+								}
 							}
+
 							// Add it no node table
 							if let Ok(address) = s.remote_addr() {
 								let entry = NodeEntry { id: s.id().unwrap().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
@@ -735,14 +806,17 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if kill {
 			self.kill_connection(token, io, true);
 		}
+		let handlers = self.handlers.read().unwrap();
 		for p in ready_data {
-			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
+			let h = handlers.get(p).unwrap().clone();
 			self.stats.inc_sessions();
-			h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone()), &token);
+			let reserved = self.reserved_nodes.read().unwrap();
+			h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token);
 		}
 		for (p, packet_id, data) in packet_data {
-			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
-			h.read(&NetworkContext::new(io, p, session.clone(), self.sessions.clone()), &token, packet_id, &data[1..]);
+			let h = handlers.get(p).unwrap().clone();
+			let reserved = self.reserved_nodes.read().unwrap();
+			h.read(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token, packet_id, &data[1..]);
 		}
 	}
 
@@ -783,7 +857,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		for p in to_disconnect {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
-			h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone()), &token);
+			let reserved = self.reserved_nodes.read().unwrap();
+			h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone(), &reserved), &token);
 		}
 		if deregister {
 			io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
@@ -886,7 +961,10 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
 					None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
-					Some(h) => { h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone()), timer.token); }
+					Some(h) => {
+						let reserved = self.reserved_nodes.read().unwrap();
+						h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone(), &reserved), timer.token);
+					}
 				},
 				None => { warn!("Unknown timer token: {}", token); } // timer is not registerd through us
 			}
@@ -904,7 +982,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				ref versions
 			} => {
 				let h = handler.clone();
-				h.initialize(&NetworkContext::new(io, protocol, None, self.sessions.clone()));
+				let reserved = self.reserved_nodes.read().unwrap();
+				h.initialize(&NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved));
 				self.handlers.write().unwrap().insert(protocol, h);
 				let mut info = self.info.write().unwrap();
 				for v in versions {
@@ -946,8 +1025,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				self.kill_connection(*peer, io, false);
 			},
 			NetworkIoMessage::User(ref message) => {
+				let reserved = self.reserved_nodes.read().unwrap();
 				for (p, h) in self.handlers.read().unwrap().iter() {
-					h.message(&NetworkContext::new(io, p, None, self.sessions.clone()), &message);
+					h.message(&NetworkContext::new(io, p, None, self.sessions.clone(), &reserved), &message);
 				}
 			}
 		}
