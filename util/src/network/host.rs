@@ -837,9 +837,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				let mut s = session.lock().unwrap();
 				if !s.expired() {
 					if s.is_ready() {
+						self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
 						for (p, _) in self.handlers.read().unwrap().iter() {
 							if s.have_capability(p)  {
-								self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
 								to_disconnect.push(p);
 							}
 						}
