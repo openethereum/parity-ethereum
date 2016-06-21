@@ -531,10 +531,6 @@ impl ChainSync {
 		let header_rlp = try!(block_rlp.at(0));
 		let h = header_rlp.as_raw().sha3();
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		if self.state != SyncState::Idle {
-			trace!(target: "sync", "NewBlock ignored while seeking");
-			return Ok(());
-		}
 		let header: BlockHeader = try!(header_rlp.as_val());
 		let mut unknown = false;
 		{
@@ -542,35 +538,41 @@ impl ChainSync {
 			peer.latest_hash = header.hash();
 			peer.latest_number = Some(header.number());
 		}
-		if header.number <= self.last_imported_block + 1 {
+		if header.parent_hash() == &self.last_imported_hash {
 			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
-				Err(Error::Import(ImportError::AlreadyInChain)) => {
-					trace!(target: "sync", "New block already in chain {:?}", h);
-				},
-				Err(Error::Import(ImportError::AlreadyQueued)) => {
-					trace!(target: "sync", "New block already queued {:?}", h);
-				},
 				Ok(_) => {
-					if header.number == self.last_imported_block + 1 {
-						self.last_imported_block = header.number;
-						self.last_imported_hash = header.hash();
-					}
+					self.last_imported_block = header.number;
+					self.last_imported_hash = header.hash();
 					trace!(target: "sync", "New block queued {:?} ({})", h, header.number);
-				},
-				Err(Error::Block(BlockError::UnknownParent(p))) => {
-					unknown = true;
-					trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
 				},
 				Err(e) => {
 					debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
 					io.disable_peer(peer_id);
 				}
 			};
-		}
-		else {
-			unknown = true;
+		} else {
+			match io.chain().block_status(BlockID::Hash(h.clone())) {
+				BlockStatus::InChain  => {
+					trace!(target: "sync", "New block already in chain {:?}", h);
+				},
+				BlockStatus::Queued => {
+					trace!(target: "sync", "New block already queued {:?}", h);
+				},
+				BlockStatus::Unknown => {
+					unknown = true;
+				},
+				BlockStatus::Bad => {
+					debug!(target: "sync", "Bad new block {:?}", h);
+					io.disable_peer(peer_id);
+					return Ok(());
+				}
+			}
 		}
 		if unknown {
+			if self.state != SyncState::Idle {
+				trace!(target: "sync", "Ignored unkown NewBlock while downloading");
+				return Ok(());
+			}
 			trace!(target: "sync", "New unknown block {:?}", h);
 			//TODO: handle too many unknown blocks
 			let difficulty: U256 = try!(r.val_at(1));
