@@ -5,14 +5,16 @@ mod hash;
 mod id;
 mod kdf;
 mod key_file;
+mod presale;
 mod version;
 
 pub use self::cipher::{Cipher, CipherSer, CipherSerParams, Aes128Ctr};
 pub use self::crypto::Crypto;
 pub use self::error::Error;
-pub use self::hash::{H128, H160, H256};
+pub use self::hash::{H128, H160, H256, H768};
 pub use self::id::UUID;
 pub use self::kdf::{Kdf, KdfSer, Prf, Pbkdf2, Scrypt, KdfSerParams};
 pub use self::key_file::KeyFile;
+pub use self::presale::PresaleWallet;
 pub use self::version::Version;
 
