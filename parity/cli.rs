@@ -229,7 +229,7 @@ pub struct Args {
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
-	pub flag_assist_dao_attack: bool,
+	pub flag_dont_help_rescue_dao: bool,
 	pub flag_dogmatic: bool,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,

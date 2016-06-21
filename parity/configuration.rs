@@ -75,7 +75,7 @@ impl Configuration {
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
-		if self.args.flag_assist_dao_attack || self.args.flag_dogmatic {
+		if self.args.dont_help_rescue_dao || self.args.flag_dogmatic {
 			4_700_000.into()
 		} else {
 			let d = &self.args.flag_gas_floor_target;
