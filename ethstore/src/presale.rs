@@ -58,7 +58,6 @@ impl PresaleWallet {
 
 #[cfg(test)]
 mod tests {
-	use ethkey::Address;
 	use super::PresaleWallet;
 	use json;
 
@@ -74,7 +73,7 @@ mod tests {
 
 		let wallet = json::PresaleWallet::load(json.as_bytes()).unwrap();
 		let wallet = PresaleWallet::from(wallet);
-		let kp = wallet.decrypt("123").unwrap();
-		assert_eq!(kp.address(), Address::from(wallet.address));
+		assert!(wallet.decrypt("123").is_ok());
+		assert!(wallet.decrypt("124").is_err());
 	}
 }
