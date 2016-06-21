@@ -308,7 +308,6 @@ impl ChainSync {
 		}
 		self.syncing_difficulty = From::from(0u64);
 		self.state = SyncState::Idle;
-		self.blocks.clear();
 		self.active_peers = self.peers.keys().cloned().collect();
 	}
 
@@ -316,7 +315,6 @@ impl ChainSync {
 	pub fn restart(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Restarting");
 		self.reset();
-		self.start_sync_round(io);
 		self.continue_sync(io);
 	}
 
@@ -533,10 +531,6 @@ impl ChainSync {
 		let header_rlp = try!(block_rlp.at(0));
 		let h = header_rlp.as_raw().sha3();
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		if self.state != SyncState::Idle {
-			trace!(target: "sync", "NewBlock ignored while seeking");
-			return Ok(());
-		}
 		let header: BlockHeader = try!(header_rlp.as_val());
 		let mut unknown = false;
 		{
@@ -544,34 +538,29 @@ impl ChainSync {
 			peer.latest_hash = header.hash();
 			peer.latest_number = Some(header.number());
 		}
-		if header.number <= self.last_imported_block + 1 {
-			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
-				Err(Error::Import(ImportError::AlreadyInChain)) => {
-					trace!(target: "sync", "New block already in chain {:?}", h);
-				},
-				Err(Error::Import(ImportError::AlreadyQueued)) => {
-					trace!(target: "sync", "New block already queued {:?}", h);
-				},
-				Ok(_) => {
-					if header.number == self.last_imported_block + 1 {
-						self.last_imported_block = header.number;
-						self.last_imported_hash = header.hash();
-					}
-					trace!(target: "sync", "New block queued {:?} ({})", h, header.number);
-				},
-				Err(Error::Block(BlockError::UnknownParent(p))) => {
-					unknown = true;
-					trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
-				},
-				Err(e) => {
-					debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
-					io.disable_peer(peer_id);
+		match io.chain().import_block(block_rlp.as_raw().to_vec()) {
+			Err(Error::Import(ImportError::AlreadyInChain)) => {
+				trace!(target: "sync", "New block already in chain {:?}", h);
+			},
+			Err(Error::Import(ImportError::AlreadyQueued)) => {
+				trace!(target: "sync", "New block already queued {:?}", h);
+			},
+			Ok(_) => {
+				if header.number == self.last_imported_block + 1 {
+					self.last_imported_block = header.number;
+					self.last_imported_hash = header.hash();
 				}
-			};
-		}
-		else {
-			unknown = true;
-		}
+				trace!(target: "sync", "New block queued {:?} ({})", h, header.number);
+			},
+			Err(Error::Block(BlockError::UnknownParent(p))) => {
+				unknown = true;
+				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
+			},
+			Err(e) => {
+				debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
+				io.disable_peer(peer_id);
+			}
+		};
 		if unknown {
 			trace!(target: "sync", "New unknown block {:?}", h);
 			//TODO: handle too many unknown blocks
