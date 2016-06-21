@@ -43,8 +43,8 @@ Protocol Options:
   --identity NAME          Specify your node's name.
 
 DAO-Rescue Soft-fork Options:
-  --rescue-my-ether        Does nothing - on by default.
-  --assist-dao-attack      Votes against the DAO-rescue soft-fork, but supports
+  --help-rescue-dao        Does nothing - on by default.
+  --dont-help-rescue-dao   Votes against the DAO-rescue soft-fork, but supports
                            it if it is triggered anyway.
                            Equivalent to --gas-floor-target=3141592.
   --dogmatic               Ignores all DAO-rescue soft-fork behaviour. Even if
