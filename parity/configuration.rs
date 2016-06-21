@@ -200,7 +200,10 @@ impl Configuration {
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = self.init_reserved_nodes();
-		ret.reserved_only = self.args.flag_reserved_only;
+
+		if self.args.flag_reserved_only {
+			ret.non_reserved_mode = ::util::network::NonReservedPeerMode::Deny;
+		}
 		ret
 	}
 
