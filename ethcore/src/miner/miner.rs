@@ -376,13 +376,19 @@ impl MinerService for Miner {
 		*self.gas_floor_target.read().unwrap()
 	}
 
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
+	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transactions.into_iter()
-			.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
-			.collect()
+		let results: Vec<Result<TransactionImportResult, Error>> = {
+			let mut transaction_queue = self.transaction_queue.lock().unwrap();
+			transactions.into_iter()
+				.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
+				.collect()
+		};
+		if !results.is_empty() {
+			self.update_sealing(chain);
+		}
+		results
 	}
 
 	fn import_own_transaction<T>(
@@ -564,7 +570,7 @@ impl MinerService for Miner {
 				for tx in &txs {
 					let _sender = tx.sender();
 				}
-				let _ = self.import_transactions(txs, |a| AccountDetails {
+				let _ = self.import_transactions(chain, txs, |a| AccountDetails {
 					nonce: chain.latest_nonce(a),
 					balance: chain.latest_balance(a),
 				});

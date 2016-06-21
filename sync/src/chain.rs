@@ -95,7 +95,6 @@ use ethcore::views::{HeaderView, BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo};
 use ethcore::error::*;
-use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
 use io::SyncIo;
 use time;
@@ -940,15 +939,15 @@ impl ChainSync {
 			return Ok(());
 		}
 
-		let item_count = r.item_count();
+		let mut item_count = r.item_count();
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
-
+		item_count = min(item_count, MAX_TX_TO_IMPORT);
 		let mut transactions = Vec::with_capacity(item_count);
-		for i in 0 .. min(item_count, MAX_TX_TO_IMPORT) {
-			let tx: SignedTransaction = try!(r.val_at(i));
+		for i in 0 .. item_count {
+			let tx = try!(r.at(i)).as_raw().to_vec();
 			transactions.push(tx);
 		}
-		let _ = io.chain().import_transactions(transactions);
+		let _ = io.chain().queue_transactions(transactions);
 		Ok(())
 	}
 
@@ -1097,7 +1096,7 @@ impl ChainSync {
 		Ok(Some((RECEIPTS_PACKET, rlp_result)))
 	}
 
-	fn return_rlp<FRlp, FError>(&self, io: &mut SyncIo, rlp: &UntrustedRlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
+	fn return_rlp<FRlp, FError>(io: &mut SyncIo, rlp: &UntrustedRlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
 		where FRlp : Fn(&SyncIo, &UntrustedRlp, PeerId) -> RlpResponseResult,
 			FError : FnOnce(UtilError) -> String
 	{
@@ -1114,13 +1113,41 @@ impl ChainSync {
 	}
 
 	/// Dispatch incoming requests and responses
-	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
+		let result = match packet_id {
+			GET_BLOCK_BODIES_PACKET => ChainSync::return_rlp(io, &rlp, peer,
+				ChainSync::return_block_bodies,
+				|e| format!("Error sending block bodies: {:?}", e)),
 
+			GET_BLOCK_HEADERS_PACKET => ChainSync::return_rlp(io, &rlp, peer,
+				ChainSync::return_block_headers,
+				|e| format!("Error sending block headers: {:?}", e)),
+
+			GET_RECEIPTS_PACKET => ChainSync::return_rlp(io, &rlp, peer,
+				ChainSync::return_receipts,
+				|e| format!("Error sending receipts: {:?}", e)),
+
+			GET_NODE_DATA_PACKET => ChainSync::return_rlp(io, &rlp, peer,
+				ChainSync::return_node_data,
+				|e| format!("Error sending nodes: {:?}", e)),
+
+			_ => {
+				sync.write().unwrap().on_packet(io, peer, packet_id, data);
+				Ok(())
+			}
+		};
+		result.unwrap_or_else(|e| {
+			debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e);
+		})
+	}
+
+	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		if packet_id != STATUS_PACKET && !self.peers.contains_key(&peer) {
 			debug!(target:"sync", "Unexpected packet from unregistered peer: {}:{}", peer, io.peer_info(peer));
 			return;
 		}
+		let rlp = UntrustedRlp::new(data);
 		let result = match packet_id {
 			STATUS_PACKET => self.on_peer_status(io, peer, &rlp),
 			TRANSACTIONS_PACKET => self.on_peer_transactions(io, peer, &rlp),
@@ -1128,23 +1155,6 @@ impl ChainSync {
 			BLOCK_BODIES_PACKET => self.on_peer_block_bodies(io, peer, &rlp),
 			NEW_BLOCK_PACKET => self.on_peer_new_block(io, peer, &rlp),
 			NEW_BLOCK_HASHES_PACKET => self.on_peer_new_hashes(io, peer, &rlp),
-
-			GET_BLOCK_BODIES_PACKET => self.return_rlp(io, &rlp, peer,
-				ChainSync::return_block_bodies,
-				|e| format!("Error sending block bodies: {:?}", e)),
-
-			GET_BLOCK_HEADERS_PACKET => self.return_rlp(io, &rlp, peer,
-				ChainSync::return_block_headers,
-				|e| format!("Error sending block headers: {:?}", e)),
-
-			GET_RECEIPTS_PACKET => self.return_rlp(io, &rlp, peer,
-				ChainSync::return_receipts,
-				|e| format!("Error sending receipts: {:?}", e)),
-
-			GET_NODE_DATA_PACKET => self.return_rlp(io, &rlp, peer,
-				ChainSync::return_node_data,
-				|e| format!("Error sending nodes: {:?}", e)),
-
 			_ => {
 				debug!(target: "sync", "Unknown packet {}", packet_id);
 				Ok(())
@@ -1424,7 +1434,7 @@ mod tests {
 	fn return_receipts() {
 		let mut client = TestBlockChainClient::new();
 		let mut queue = VecDeque::new();
-		let mut sync = dummy_sync_with_peer(H256::new(), &client);
+		let sync = dummy_sync_with_peer(H256::new(), &client);
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		let mut receipt_list = RlpStream::new_list(4);
@@ -1445,7 +1455,7 @@ mod tests {
 		assert_eq!(603, rlp_result.unwrap().1.out().len());
 
 		io.sender = Some(2usize);
-		sync.on_packet(&mut io, 0usize, super::GET_RECEIPTS_PACKET, &receipts_request);
+		ChainSync::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, super::GET_RECEIPTS_PACKET, &receipts_request);
 		assert_eq!(1, io.queue.len());
 	}
 
@@ -1517,7 +1527,7 @@ mod tests {
 	fn return_nodes() {
 		let mut client = TestBlockChainClient::new();
 		let mut queue = VecDeque::new();
-		let mut sync = dummy_sync_with_peer(H256::new(), &client);
+		let sync = dummy_sync_with_peer(H256::new(), &client);
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		let mut node_list = RlpStream::new_list(3);
@@ -1537,7 +1547,8 @@ mod tests {
 		assert_eq!(34, rlp_result.unwrap().1.out().len());
 
 		io.sender = Some(2usize);
-		sync.on_packet(&mut io, 0usize, super::GET_NODE_DATA_PACKET, &node_request);
+
+		ChainSync::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, super::GET_NODE_DATA_PACKET, &node_request);
 		assert_eq!(1, io.queue.len());
 	}
 

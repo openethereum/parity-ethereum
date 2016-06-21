@@ -490,7 +490,13 @@ impl BlockChainClient for TestBlockChainClient {
 			balance: balances[a],
 		};
 
-		self.miner.import_transactions(transactions, &fetch_account)
+		self.miner.import_transactions(self, transactions, &fetch_account)
+	}
+
+	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+		// import right here
+		let tx = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		self.import_transactions(tx);
 	}
 
 	fn all_transactions(&self) -> Vec<SignedTransaction> {

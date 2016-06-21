@@ -19,8 +19,10 @@ extern crate ethstore;
 
 mod util;
 
+use std::str::FromStr;
 use ethstore::{SecretStore, EthStore};
-use ethstore::ethkey::{Random, Generator, Secret};
+use ethstore::ethkey::{Random, Generator, Secret, Address};
+use ethstore::dir::DiskDirectory;
 use util::TransientDir;
 
 #[test]
@@ -86,3 +88,40 @@ fn secret_store_remove_account() {
 	assert_eq!(store.accounts().len(), 0);
 	assert!(store.remove_account(&accounts[0], "").is_err());
 }
+
+fn test_path() -> &'static str {
+	match ::std::fs::metadata("ethstore") {
+		Ok(_) => "ethstore/tests/res/geth_keystore",
+ 		Err(_) => "tests/res/geth_keystore",
+	}
+}
+
+fn pat_path() -> &'static str {
+	match ::std::fs::metadata("ethstore") {
+		Ok(_) => "ethstore/tests/res/pat",
+		Err(_) => "tests/res/pat",
+	}
+}
+
+#[test]
+fn secret_store_laod_geth_files() {
+	let dir = DiskDirectory::at(test_path());
+	let store = EthStore::open(Box::new(dir)).unwrap();
+	assert_eq!(store.accounts(), vec![
+		Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap(),
+		Address::from_str("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf").unwrap(),
+		Address::from_str("63121b431a52f8043c16fcf0d1df9cb7b5f66649").unwrap(),
+	]);
+}
+
+#[test]
+fn secret_store_load_pat_files() {
+	let dir = DiskDirectory::at(pat_path());
+	let store = EthStore::open(Box::new(dir)).unwrap();
+	assert_eq!(store.accounts(), vec![
+		Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap(),
+		Address::from_str("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf").unwrap(),
+	]);
+}
+
+

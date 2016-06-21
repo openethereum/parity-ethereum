@@ -39,9 +39,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	}
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
-		match timer {
-			INFO_TIMER => { self.info.tick(&self.client, Some(&self.sync)); }
-			_ => {}
+		if let INFO_TIMER = timer {
+			self.info.tick(&self.client, Some(&self.sync));
 		}
 	}
 

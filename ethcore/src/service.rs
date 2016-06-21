@@ -41,6 +41,8 @@ pub enum SyncMessage {
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
+	/// New transaction RLPs are ready to be imported
+	NewTransactions(Vec<Bytes>),
 	/// Start network command.
 	StartNetwork,
 	/// Stop network command.
@@ -135,6 +137,9 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 			match *message {
 				SyncMessage::BlockVerified => {
 					self.client.import_verified_blocks(&io.channel());
+				},
+				SyncMessage::NewTransactions(ref transactions) => {
+					self.client.import_queued_transactions(&transactions);
 				},
 				_ => {}, // ignore other messages
 			}
