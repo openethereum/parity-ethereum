@@ -308,7 +308,6 @@ impl ChainSync {
 		}
 		self.syncing_difficulty = From::from(0u64);
 		self.state = SyncState::Idle;
-		self.blocks.clear();
 		self.active_peers = self.peers.keys().cloned().collect();
 	}
 
@@ -316,7 +315,6 @@ impl ChainSync {
 	pub fn restart(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Restarting");
 		self.reset();
-		self.start_sync_round(io);
 		self.continue_sync(io);
 	}
 

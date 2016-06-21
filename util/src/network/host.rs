@@ -191,7 +191,7 @@ pub struct NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'sta
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	session: Option<SharedSession>,
 	session_id: Option<StreamToken>,
-	reserved_peers: &'s HashSet<NodeId>,
+	_reserved_peers: &'s HashSet<NodeId>,
 }
 
 impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, {
@@ -207,7 +207,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 			session_id: id,
 			session: session,
 			sessions: sessions,
-			reserved_peers: reserved_peers,
+			_reserved_peers: reserved_peers,
 		}
 	}
 
