@@ -24,7 +24,7 @@ use std::str::FromStr;
 use docopt::Docopt;
 use ethstore::ethkey::{Secret, Address, Message};
 use ethstore::dir::{KeyDirectory, ParityDirectory, DiskDirectory, GethDirectory, DirectoryType};
-use ethstore::{EthStore, SecretStore, import_accounts, Error};
+use ethstore::{EthStore, SecretStore, import_accounts, Error, PresaleWallet};
 
 pub const USAGE: &'static str = r#"
 Ethereum key management.
@@ -35,6 +35,7 @@ Usage:
     ethstore change-pwd <address> <old-pwd> <new-pwd> [--dir DIR]
     ethstore list [--dir DIR]
     ethstore import [--src DIR] [--dir DIR]
+    ethstore import-wallet <path> <password> [--dir DIR]
     ethstore remove <address> <password> [--dir DIR]
     ethstore sign <address> <password> <message> [--dir DIR]
     ethstore [-h | --help]
@@ -53,6 +54,7 @@ Commands:
     change-pwd         Change password.
     list               List accounts.
     import             Import accounts from src.
+    import-wallet      Import presale wallet.
     remove             Remove account.
     sign               Sign message.
 "#;
@@ -63,6 +65,7 @@ struct Args {
 	cmd_change_pwd: bool,
 	cmd_list: bool,
 	cmd_import: bool,
+	cmd_import_wallet: bool,
 	cmd_remove: bool,
 	cmd_sign: bool,
 	arg_secret: String,
@@ -71,6 +74,7 @@ struct Args {
 	arg_new_pwd: String,
 	arg_address: String,
 	arg_message: String,
+	arg_path: String,
 	flag_src: String,
 	flag_dir: String,
 }
@@ -128,6 +132,11 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let dst = try!(key_dir(&args.flag_dir));
 		let accounts = try!(import_accounts(src.deref(), dst.deref()));
 		Ok(format_accounts(&accounts))
+	} else if args.cmd_import_wallet {
+		let wallet = try!(PresaleWallet::open(&args.arg_path));
+		let kp = try!(wallet.decrypt(&args.arg_password));
+		let address = try!(store.insert_account(kp.secret().clone(), &args.arg_password));
+		Ok(format!("{}", address))
 	} else if args.cmd_remove {
 		let address = try!(Address::from_str(&args.arg_address));
 		let ok = store.remove_account(&address, &args.arg_password).is_ok();

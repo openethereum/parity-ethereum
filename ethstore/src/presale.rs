@@ -43,7 +43,7 @@ impl PresaleWallet {
 		pbkdf2(&mut h_mac, password.as_bytes(), 2000, &mut derived_key);
 
 		let mut key = [0u8; 64];
-		crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key);
+		try!(crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword));
 
 		let secret = Secret::from(key.keccak256());
 		if let Ok(kp) = KeyPair::from_secret(secret) {

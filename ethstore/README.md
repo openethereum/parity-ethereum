@@ -20,6 +20,7 @@ Usage:
     ethstore change-pwd <address> <old-pwd> <new-pwd> [--dir DIR]
     ethstore list [--dir DIR]
     ethstore import [--src DIR] [--dir DIR]
+    ethstore import-wallet <path> <password> [--dir DIR]
     ethstore remove <address> <password> [--dir DIR]
     ethstore sign <address> <password> <message> [--dir DIR]
     ethstore [-h | --help]
@@ -38,6 +39,7 @@ Commands:
     change-pwd         Change account password.
     list               List accounts.
     import             Import accounts from src.
+    import-wallet      Import presale wallet.
     remove             Remove account.
     sign               Sign message.
 ```
@@ -115,6 +117,19 @@ ethstore list
 ```
  0: e6a3d25a7cb7cd21cb720df5b5e8afd154af1bbb
  1: 6edddfc6349aff20bc6467ccf276c5b52487f7a8
+```
+
+--
+
+#### `import-wallet <path> <password> [--dir DIR]`
+*Import account from presale wallet.*
+
+- `<path>` - presale wallet path
+- `<password>` - account password, any string
+- `[--dir DIR]` - secret store directory, It may be either parity, parity-test, geth, geth-test or a path. default: parity
+
+```
+e6a3d25a7cb7cd21cb720df5b5e8afd154af1bbb
 ```
 
 --
