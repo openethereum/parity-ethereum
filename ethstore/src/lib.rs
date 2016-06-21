@@ -37,6 +37,7 @@ mod crypto;
 mod error;
 mod ethstore;
 mod import;
+mod presale;
 mod random;
 mod secret_store;
 

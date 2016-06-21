@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
+use std::ops;
 use std::str::FromStr;
 use rustc_serialize::hex::{FromHex, ToHex};
 use serde::{Serialize, Serializer, Deserialize, Deserializer, Error as SerdeError};
@@ -22,8 +24,30 @@ use super::Error;
 
 macro_rules! impl_hash {
 	($name: ident, $size: expr) => {
-		#[derive(Debug, PartialEq)]
 		pub struct $name([u8; $size]);
+
+		impl fmt::Debug for $name {
+			fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+				let self_ref: &[u8] = &self.0;
+				write!(f, "{:?}", self_ref)
+			}
+		}
+
+		impl PartialEq for $name {
+			fn eq(&self, other: &Self) -> bool {
+				let self_ref: &[u8] = &self.0;
+				let other_ref: &[u8] = &other.0;
+				self_ref == other_ref
+			}
+		}
+
+		impl ops::Deref for $name {
+			type Target = [u8];
+
+			fn deref(&self) -> &Self::Target {
+				&self.0
+			}
+		}
 
 		impl Serialize for $name {
 			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
@@ -85,3 +109,4 @@ macro_rules! impl_hash {
 impl_hash!(H128, 16);
 impl_hash!(H160, 20);
 impl_hash!(H256, 32);
+impl_hash!(H768, 96);
