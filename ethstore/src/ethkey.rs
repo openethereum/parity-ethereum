@@ -31,3 +31,11 @@ impl From<json::H160> for Address {
 		From::from(a)
 	}
 }
+
+impl<'a> From<&'a json::H160> for Address {
+	fn from(json: &'a json::H160) -> Self {
+		let mut a = [0u8; 20];
+		a.copy_from_slice(json);
+		From::from(a)
+	}
+}
