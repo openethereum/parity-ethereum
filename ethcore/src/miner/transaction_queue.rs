@@ -686,14 +686,15 @@ impl TransactionQueue {
 		if let Some(order) = self.future.drop(&address, &nonce) {
 			// Let's insert that transaction to current (if it has higher gas_price)
 			let future_tx = self.by_hash.remove(&order.hash).unwrap();
-			try!(check_too_cheap(Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
+			// if transaction in `current` (then one we are importing) is replaced it means that it has to low gas_price
+			try!(check_too_cheap(!Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		}
 
 		// Also enforce the limit
 		let removed = self.current.enforce_limit(&mut self.by_hash);
 		// If some transaction were removed because of limit we need to update last_nonces also.
 		self.update_last_nonces(&removed);
-		// Trigger error if we were removed.
+		// Trigger error if the transaction we are importing was removed.
 		try!(check_if_removed(&address, &nonce, removed));
 
 		trace!(target: "miner", "status: {:?}", self.status());
@@ -937,7 +938,7 @@ mod test {
 		let res = txq.add(tx2.clone(), &default_nonce, TransactionOrigin::External);
 
 		// and then there should be only one transaction in current (the one with higher gas_price)
-		assert_eq!(unwrap_tx_err(res), TransactionError::TooCheapToReplace);
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		assert_eq!(txq.status().pending, 1);
 		assert_eq!(txq.status().future, 0);
 		assert_eq!(txq.current.by_priority.len(), 1);
