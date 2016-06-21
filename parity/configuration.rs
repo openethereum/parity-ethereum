@@ -155,7 +155,6 @@ impl Configuration {
 
 	pub fn init_reserved_nodes(&self) -> Vec<String> {
 		use std::fs::File;
-		use std::io::BufRead;
 
 		if let Some(ref path) = self.args.flag_reserved_peers {
 			let mut buffer = String::new();
