@@ -41,6 +41,8 @@ pub struct EthashParams {
 	pub registrar: Address,
 	/// Homestead transition block number.
 	pub frontier_compatibility_mode_limit: u64,
+	/// Enable the soft-fork logic.
+	pub dao_rescue_soft_fork: bool,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -53,6 +55,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.into(),
 			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.into(),
+			dao_rescue_soft_fork: p.dao_rescue_soft_fork.into(),
 		}
 	}
 }
@@ -102,8 +105,9 @@ impl Engine for Ethash {
 			Schedule::new_frontier()
 		} else {
 			let mut s = Schedule::new_homestead();
-			// TODO: make dependent on gaslimit > 4000000 of block 1760000.	
-			s.reject_dao_transactions = env_info.number >= 1760000;
+			if self.ethash_params.dao_rescue_soft_fork {
+				s.reject_dao_transactions = env_info.dao_rescue_block_gas_limit.map(|x| x <= 4_000_000.into()).unwrap_or(false);
+			}
 			s
 		}
 	}
@@ -319,7 +323,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, None, Address::zero(), 3141562.into(), vec![]).unwrap();
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -334,7 +338,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let mut b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, Address::zero(), 3141562.into(), vec![]).unwrap();
+		let mut b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, None, Address::zero(), 3141562.into(), vec![]).unwrap();
 		let mut uncle = Header::new();
 		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 		uncle.author = uncle_author.clone();
@@ -362,7 +366,8 @@ mod tests {
 			difficulty: 0.into(),
 			last_hashes: vec![],
 			gas_used: 0.into(),
-			gas_limit: 0.into()
+			gas_limit: 0.into(),
+			dao_rescue_block_gas_limit: None,
 		});
 
 		assert!(schedule.stack_limit > 0);
@@ -374,7 +379,8 @@ mod tests {
 			difficulty: 0.into(),
 			last_hashes: vec![],
 			gas_used: 0.into(),
-			gas_limit: 0.into()
+			gas_limit: 0.into(),
+			dao_rescue_block_gas_limit: None,
 		});
 
 		assert!(!schedule.have_delegate_call);

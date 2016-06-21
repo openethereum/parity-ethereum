@@ -42,7 +42,7 @@ use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use views::BlockView;
+use views::{HeaderView, BlockView};
 use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
@@ -224,6 +224,13 @@ pub trait BlockChainClient : Sync + Send {
 			Err(())
 		}
 	}
+
+
+	/// Get `Some` gas limit of block 1_760_000, or `None` if chain is not yet that long.
+	fn dao_rescue_block_gas_limit(&self) -> Option<U256> {
+		self.block_header(BlockID::Number(1_760_000))
+			.map(|header| HeaderView::new(&header).gas_limit())
+	}	
 }
 
 /// Extended client interface used for mining

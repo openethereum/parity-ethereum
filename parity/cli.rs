@@ -42,12 +42,20 @@ Protocol Options:
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
 
+DAO-Rescue Soft-fork Options:
+  --help-rescue-dao        Does nothing - on by default.
+  --dont-help-rescue-dao   Votes against the DAO-rescue soft-fork, but supports
+                           it if it is triggered anyway.
+                           Equivalent to --gas-floor-target=3141592.
+  --dogmatic               Ignores all DAO-rescue soft-fork behaviour. Even if
+                           it means losing mining rewards.
+
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
                            ACCOUNTS is a comma-delimited list of addresses.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
-  --keys-iterations NUM    Specify the number of iterations to use when
+  --keys-iterations NUM    Specify the number of iterations to use when 
                            deriving key from the password (bigger is more
                            secure) [default: 10240].
   --no-import-keys         Do not import keys from legacy clients.
@@ -228,6 +236,8 @@ pub struct Args {
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
+	pub flag_dont_help_rescue_dao: bool,
+	pub flag_dogmatic: bool,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,

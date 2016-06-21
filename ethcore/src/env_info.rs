@@ -39,6 +39,9 @@ pub struct EnvInfo {
 	pub last_hashes: LastHashes,
 	/// The gas used.
 	pub gas_used: U256,
+
+	/// Block gas limit at DAO rescue block #1760000 or None if not yet there.
+	pub dao_rescue_block_gas_limit: Option<U256>,
 }
 
 impl Default for EnvInfo {
@@ -51,6 +54,7 @@ impl Default for EnvInfo {
 			gas_limit: 0.into(),
 			last_hashes: vec![],
 			gas_used: 0.into(),
+			dao_rescue_block_gas_limit: None,
 		}
 	}
 }
@@ -66,6 +70,7 @@ impl From<ethjson::vm::Env> for EnvInfo {
 			timestamp: e.timestamp.into(),
 			last_hashes: (1..cmp::min(number + 1, 257)).map(|i| format!("{}", number - i).as_bytes().sha3()).collect(),
 			gas_used: U256::zero(),
+			dao_rescue_block_gas_limit: None,
 		}
 	}
 }

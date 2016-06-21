@@ -230,7 +230,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(), &self.vm_factory);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -486,6 +486,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
 			gas_limit: U256::max_value(),
+			dao_rescue_block_gas_limit: self.dao_rescue_block_gas_limit(),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state();
@@ -807,6 +808,7 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			self.state_db.lock().unwrap().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
 			self.build_last_hashes(h.clone()),
+			self.dao_rescue_block_gas_limit(),
 			author,
 			gas_floor_target,
 			extra_data,
