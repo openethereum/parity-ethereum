@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Network and general IO module. 
-//! 
+//! Network and general IO module.
+//!
 //! Example usage for craeting a network service and adding an IO handler:
 //!
 //! ```rust
@@ -112,3 +112,22 @@ pub trait NetworkProtocolHandler<Message>: Sync + Send where Message: Send + Syn
 	fn message(&self, _io: &NetworkContext<Message>, _message: &Message) {}
 }
 
+/// Non-reserved peer modes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum NonReservedPeerMode {
+	/// Accept them. This is the default.
+	Accept,
+	/// Deny them.
+	Deny,
+}
+
+impl NonReservedPeerMode {
+	/// Attempt to parse the peer mode from a string.
+	pub fn parse(s: &str) -> Option<Self> {
+		match s {
+			"accept" => Some(NonReservedPeerMode::Accept),
+			"deny" => Some(NonReservedPeerMode::Deny),
+			_ => None,
+		}
+	}
+}

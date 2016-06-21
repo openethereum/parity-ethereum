@@ -18,9 +18,9 @@ use std::sync::*;
 use error::*;
 use panics::*;
 use network::{NetworkProtocolHandler, NetworkConfiguration};
-use network::error::{NetworkError};
+use network::error::NetworkError;
 use network::host::{Host, NetworkIoMessage, ProtocolId};
-use network::stats::{NetworkStats};
+use network::stats::NetworkStats;
 use io::*;
 
 /// IO Service with networking
@@ -110,6 +110,35 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 		}
 		*host = None;
 		Ok(())
+	}
+
+	/// Try to add a reserved peer.
+	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), UtilError> {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			host.add_reserved_node(peer)
+		} else {
+			Ok(())
+		}
+	}
+
+	/// Try to remove a reserved peer.
+	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), UtilError> {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			host.remove_reserved_node(peer)
+		} else {
+			Ok(())
+		}
+	}
+
+	/// Set the non-reserved peer mode.
+	pub fn set_non_reserved_mode(&self, mode: ::network::NonReservedPeerMode) {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			let io_ctxt = IoContext::new(self.io_service.channel(), 0);
+			host.set_non_reserved_mode(mode, &io_ctxt);
+		}
 	}
 }
 

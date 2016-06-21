@@ -89,6 +89,7 @@ fn current_version(path: &PathBuf) -> Result<u32, Error> {
 /// Writes current database version to the file.
 /// Creates a new file if the version file does not exist yet.
 fn update_version(path: &PathBuf) -> Result<(), Error> {
+	try!(fs::create_dir_all(path));
 	let mut file = try!(File::create(version_file_path(path)));
 	try!(file.write_all(format!("{}", CURRENT_VERSION).as_bytes()));
 	Ok(())
