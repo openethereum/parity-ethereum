@@ -108,8 +108,7 @@ impl Miner {
 		trace!(target: "miner", "prepare_sealing: entering");
 
 		let (transactions, mut open_block) = {
-			let queue = self.transaction_queue.lock().unwrap();
-			let transactions = queue.top_transactions();
+			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
 			let mut sealing_work = self.sealing_work.lock().unwrap();
 			let best_hash = chain.best_block_header().sha3();
 /*
