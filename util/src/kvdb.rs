@@ -20,8 +20,8 @@ use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 
-const DB_FILE_SIZE_BASE: u64 = 100 * 1024 * 1024;
-const DB_FILE_SIZE_MULTIPLIER: i32 = 10;
+const DB_FILE_SIZE_BASE: u64 = 10 * 1024 * 1024;
+const DB_FILE_SIZE_MULTIPLIER: i32 = 5;
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
@@ -67,7 +67,7 @@ impl DatabaseConfig {
 		DatabaseConfig {
 			cache_size: Some(cache_size),
 			prefix_size: None,
-			max_open_files: 256
+			max_open_files: -1,
 		}
 	}
 }
@@ -77,7 +77,7 @@ impl Default for DatabaseConfig {
 		DatabaseConfig {
 			cache_size: None,
 			prefix_size: None,
-			max_open_files: 256
+			max_open_files: -1,
 		}
 	}
 }
