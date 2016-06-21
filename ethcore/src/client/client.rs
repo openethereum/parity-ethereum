@@ -381,7 +381,7 @@ impl<V> Client<V> where V: Verifier {
 			balance: self.latest_balance(a),
 		};
 		let tx = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
-		let results = self.miner.import_transactions(tx, fetch_account);
+		let results = self.miner.import_transactions(self, tx, fetch_account);
 		results.len()
 	}
 
@@ -771,7 +771,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			nonce: self.latest_nonce(a),
 			balance: self.latest_balance(a),
 		};
-		self.miner.import_transactions(transactions, fetch_account)
+		self.miner.import_transactions(self, transactions, fetch_account)
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
