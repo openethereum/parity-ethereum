@@ -936,7 +936,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-builtins"
 version = "0.5.1"
-source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#413ef9a6f9c46d16d578a48e39adb44d5650d7d7"
+source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#650b0d94d076635904b86c1fd45c5f4a2061463f"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -960,7 +960,7 @@ dependencies = [
 [[package]]
 name = "parity-minimal-sysui"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#4c704913f671060bb0e43b5ce4a68d02281115d5"
+source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#3c6ad40680126a760eb867b07b506ea996819ce3"
 
 [[package]]
 name = "phf"
