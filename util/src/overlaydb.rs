@@ -92,7 +92,7 @@ impl OverlayDB {
 	///
 	/// Returns either an error or the number of items changed in the backing database.
 	///
-	/// Will return an error if the number of `kill()`s ever exceeds the number of
+	/// Will return an error if the number of `remove()`s ever exceeds the number of
 	/// `insert()`s for any key. This will leave the database in an undeterminate
 	/// state. Don't ever let it happen.
 	///
@@ -104,15 +104,15 @@ impl OverlayDB {
 	/// fn main() {
 	///   let mut m = OverlayDB::new_temp();
 	///   let key = m.insert(b"foo");			// insert item.
-	///   assert!(m.exists(&key));				// key exists (in memory).
+	///   assert!(m.contains(&key));			// key exists (in memory).
 	///   assert_eq!(m.commit().unwrap(), 1);	// 1 item changed.
-	///   assert!(m.exists(&key));				// key still exists (in backing).
-	///   m.kill(&key);							// delete item.
-	///   assert!(!m.exists(&key));				// key "doesn't exist" (though still does in backing).
-	///   m.kill(&key);							// oh dear... more kills than inserts for the key...
+	///   assert!(m.contains(&key));			// key still exists (in backing).
+	///   m.remove(&key);							// delete item.
+	///   assert!(!m.contains(&key));			// key "doesn't exist" (though still does in backing).
+	///   m.remove(&key);							// oh dear... more removes than inserts for the key...
 	///   //m.commit().unwrap();				// this commit/unwrap would cause a panic.
-	///   m.revert();							// revert both kills.
-	///   assert!(m.exists(&key));				// key now still exists.
+	///   m.revert();							// revert both removes.
+	///   assert!(m.contains(&key));			// key now still exists.
 	/// }
 	/// ```
 	pub fn commit(&mut self) -> Result<u32, UtilError> {
@@ -224,7 +224,7 @@ impl HashDB for OverlayDB {
 		}
 		ret
 	}
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<&[u8]> {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.
 		let k = self.overlay.raw(key);
@@ -249,7 +249,7 @@ impl HashDB for OverlayDB {
 			}
 		}
 	}
-	fn exists(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256) -> bool {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.
 		let k = self.overlay.raw(key);
@@ -271,7 +271,7 @@ impl HashDB for OverlayDB {
 	}
 	fn insert(&mut self, value: &[u8]) -> H256 { self.overlay.insert(value) }
 	fn emplace(&mut self, key: H256, value: Bytes) { self.overlay.emplace(key, value); }
-	fn kill(&mut self, key: &H256) { self.overlay.kill(key); }
+	fn remove(&mut self, key: &H256) { self.overlay.remove(key); }
 }
 
 #[test]
