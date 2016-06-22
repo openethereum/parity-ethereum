@@ -121,8 +121,8 @@ impl Configuration {
 	}
 
 	pub fn extra_data(&self) -> Bytes {
-		if self.args.flag_help_rescue_dao {
-			b"rescuedao".to_owned()
+		if !self.args.flag_dont_help_rescue_dao {
+			(b"rescuedao"[..]).to_owned()
 		} else {
 			match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
 				Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
