@@ -36,7 +36,7 @@ below to build from source.
 
 ----
 
-## Building from source
+## Build dependencies
 
 Parity is fully compatible with Stable Rust.
 
@@ -55,7 +55,19 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	$ rustup default stable-x86_64-pc-windows-msvc
     ```
 
-Once you have rustup, download and build parity:
+Once you have rustup, install parity or download and build from source
+
+----
+
+## Quick install
+
+```bash
+cargo install --git https://github.com/ethcore/parity.git parity
+```
+
+----
+
+## Build from source
 
 ```bash
 # download Parity code
