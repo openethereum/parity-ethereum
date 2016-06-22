@@ -121,10 +121,14 @@ impl Configuration {
 	}
 
 	pub fn extra_data(&self) -> Bytes {
-		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
-			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
-			None => version_data(),
-			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+		if !self.args.flag_dont_help_rescue_dao {
+			(b"rescuedao"[..]).to_owned()
+		} else {
+			match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
+				Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
+				None => version_data(),
+				Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+			}
 		}
 	}
 

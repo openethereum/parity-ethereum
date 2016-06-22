@@ -657,8 +657,14 @@ impl TransactionQueue {
 			.cloned()
 			.map_or(state_nonce, |n| n + U256::one());
 
-		// Check height
-		if nonce > next_nonce {
+		// The transaction might be old, let's check that.
+		// This has to be the first test, otherwise calculating
+		// nonce height would result in overflow.
+		if nonce < state_nonce {
+			// Droping transaction
+			trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
+			return Err(TransactionError::Old);
+		} else if nonce > next_nonce {
 			// We have a gap - put to future.
 			// Update nonces of transactions in future (remove old transactions)
 			self.update_future(&address, state_nonce);
@@ -667,12 +673,7 @@ impl TransactionQueue {
 			// Return an error if this transaction is not imported because of limit.
 			try!(check_if_removed(&address, &nonce, self.future.enforce_limit(&mut self.by_hash)));
 			return Ok(TransactionImportResult::Future);
-		} else if nonce < state_nonce {
-			// Droping transaction
-			trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
-			return Err(TransactionError::Old);
 		}
-
 		try!(check_too_cheap(Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		// Keep track of highest nonce stored in current
 		let new_max = self.last_nonces.get(&address).map_or(nonce, |n| cmp::max(nonce, *n));
