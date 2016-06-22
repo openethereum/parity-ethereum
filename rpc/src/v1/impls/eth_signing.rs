@@ -27,6 +27,19 @@ use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, Bytes};
 use v1::impls::{default_gas_price, sign_and_dispatch};
 
+fn fill_optional_fields<C, M>(request: &mut TransactionRequest, client: &C, miner: &M)
+	where C: MiningBlockChainClient, M: MinerService {
+	if request.gas.is_none() {
+		request.gas = Some(miner.sensible_gas_limit());
+	}
+	if request.gas_price.is_none() {
+		request.gas_price = Some(default_gas_price(client, miner));
+	}
+	if request.data.is_none() {
+		request.data = Some(Bytes::new(Vec::new()));
+	}
+}
+
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	queue: Weak<ConfirmationsQueue>,
@@ -43,19 +56,6 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 			miner: Arc::downgrade(miner),
 		}
 	}
-
-	fn fill_optional_fields(&self, client: Arc<C>, miner: Arc<M>, mut request: TransactionRequest) -> TransactionRequest {
-		if let None = request.gas {
-			request.gas = Some(miner.sensible_gas_limit());
-		}
-		if let None = request.gas_price {
-			request.gas_price = Some(default_gas_price(&*client, &*miner));
-		}
-		if let None = request.data {
-			request.data = Some(Bytes::new(Vec::new()));
-		}
-		request
-	}
 }
 
 impl<C, M> EthSigning for EthSigningQueueClient<C, M>
@@ -70,11 +70,11 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(request, )| {
+			.and_then(|(mut request, )| {
 				let queue = take_weak!(self.queue);
 				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 
-				let request = self.fill_optional_fields(client, miner, request);
+				fill_optional_fields(&mut request, &*client, &*miner);
 				let id = queue.add_request(request);
 				let result = id.wait_with_timeout();
 				result.unwrap_or_else(|| to_value(&H256::new()))
