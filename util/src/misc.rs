@@ -76,7 +76,7 @@ pub fn version() -> String {
 	let date_dash = if commit_date.is_empty() { "" } else { "-" };
 	let env = Target::env();
 	let env_dash = if env.is_empty() { "" } else { "-" };
-	format!("Parity/v{}-beta{}{}{}{}/{}-{}{}{}/rustc{}", env!("CARGO_PKG_VERSION"), sha3_dash, sha3, date_dash, commit_date, Target::arch(), Target::os(), env_dash, env, rustc_version())
+	format!("Parity/v{}{}{}{}{}/{}-{}{}{}/rustc{}", env!("CARGO_PKG_VERSION"), sha3_dash, sha3, date_dash, commit_date, Target::arch(), Target::os(), env_dash, env, rustc_version())
 }
 
 /// Get the standard version data for this software.
