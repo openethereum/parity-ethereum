@@ -18,7 +18,8 @@ extern crate rustc_serialize;
 extern crate docopt;
 extern crate ethstore;
 
-use std::{env, process};
+use std::{env, process, fs};
+use std::io::Read;
 use std::ops::Deref;
 use std::str::FromStr;
 use docopt::Docopt;
@@ -109,6 +110,15 @@ fn format_accounts(accounts: &[Address]) -> String {
 		.join("\n")
 }
 
+fn load_password(path: &str) -> Result<String, Error> {
+	let mut file = try!(fs::File::open(path));
+	let mut password = String::new();
+	try!(file.read_to_string(&mut password));
+	// drop EOF
+	let _ = password.pop();
+	Ok(password)
+}
+
 fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.argv(command).decode())
@@ -118,11 +128,14 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	return if args.cmd_insert {
 		let secret = try!(Secret::from_str(&args.arg_secret));
-		let address = try!(store.insert_account(secret, &args.arg_password));
+		let password = try!(load_password(&args.arg_password));
+		let address = try!(store.insert_account(secret, &password));
 		Ok(format!("{}", address))
 	} else if args.cmd_change_pwd {
 		let address = try!(Address::from_str(&args.arg_address));
-		let ok = store.change_password(&address, &args.arg_old_pwd, &args.arg_new_pwd).is_ok();
+		let old_pwd = try!(load_password(&args.arg_old_pwd));
+		let new_pwd = try!(load_password(&args.arg_new_pwd));
+		let ok = store.change_password(&address, &old_pwd, &new_pwd).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_list {
 		let accounts = store.accounts();
@@ -134,17 +147,20 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import_wallet {
 		let wallet = try!(PresaleWallet::open(&args.arg_path));
-		let kp = try!(wallet.decrypt(&args.arg_password));
-		let address = try!(store.insert_account(kp.secret().clone(), &args.arg_password));
+		let password = try!(load_password(&args.arg_password));
+		let kp = try!(wallet.decrypt(&password));
+		let address = try!(store.insert_account(kp.secret().clone(), &password));
 		Ok(format!("{}", address))
 	} else if args.cmd_remove {
 		let address = try!(Address::from_str(&args.arg_address));
-		let ok = store.remove_account(&address, &args.arg_password).is_ok();
+		let password = try!(load_password(&args.arg_password));
+		let ok = store.remove_account(&address, &password).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_sign {
 		let address = try!(Address::from_str(&args.arg_address));
 		let message = try!(Message::from_str(&args.arg_message));
-		let signature = try!(store.sign(&address, &args.arg_password, &message));
+		let password = try!(load_password(&args.arg_password));
+		let signature = try!(store.sign(&address, &password, &message));
 		Ok(format!("{}", signature))
 	} else {
 		unreachable!();
