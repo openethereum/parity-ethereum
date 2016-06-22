@@ -93,7 +93,6 @@ impl Server {
 		let config = {
 			let mut config = ws::Settings::default();
 			// It's also used for handling min-sysui requests (browser can make many of them in paralel)
-			config.max_connections = 15;
 			config.method_strict = true;
 			// Was shutting down server when suspending on linux:
 			config.shutdown_on_interrupt = false;
