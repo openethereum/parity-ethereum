@@ -20,13 +20,13 @@ use bytes::*;
 use std::collections::HashMap;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
-pub trait HashDB : AsHashDB {
+pub trait HashDB: AsHashDB {
 	/// Get the keys in the database together with number of underlying references.
 	fn keys(&self) -> HashMap<H256, i32>;
 
 	/// Look up a given hash into the bytes that hash to it, returning None if the
 	/// hash is not known.
-    ///
+	///
 	/// # Examples
 	/// ```rust
 	/// extern crate ethcore_util;
@@ -42,7 +42,7 @@ pub trait HashDB : AsHashDB {
 	fn get(&self, key: &H256) -> Option<&[u8]>;
 
 	/// Check for the existance of a hash-key.
-    ///
+	///
 	/// # Examples
 	/// ```rust
 	/// extern crate ethcore_util;
@@ -59,7 +59,7 @@ pub trait HashDB : AsHashDB {
 	///   assert!(!m.contains(&key));
 	/// }
 	/// ```
-    fn contains(&self, key: &H256) -> bool;
+	fn contains(&self, key: &H256) -> bool;
 
 	/// Insert a datum item into the DB and return the datum's hash for a later lookup. Insertions
 	/// are counted and the equivalent number of `remove()`s must be performed before the data
@@ -84,7 +84,7 @@ pub trait HashDB : AsHashDB {
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB.
-    ///
+	///
 	/// # Examples
 	/// ```rust
 	/// extern crate ethcore_util;
@@ -103,7 +103,7 @@ pub trait HashDB : AsHashDB {
 	///   assert_eq!(m.get(key).unwrap(), d);
 	/// }
 	/// ```
-    fn remove(&mut self, key: &H256);
+	fn remove(&mut self, key: &H256);
 }
 
 /// Upcast trait.
@@ -115,6 +115,10 @@ pub trait AsHashDB {
 }
 
 impl<T: HashDB> AsHashDB for T {
-	fn as_hashdb(&self) -> &HashDB { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB { self }
+	fn as_hashdb(&self) -> &HashDB {
+		self
+	}
+	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+		self
+	}
 }
