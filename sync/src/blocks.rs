@@ -295,6 +295,10 @@ impl BlockCollection {
 		let old_subchains: HashSet<_> = { self.heads.iter().cloned().collect() };
 		for s in self.heads.drain(..) {
 			let mut h = s.clone();
+			if !self.blocks.contains_key(&h) {
+				new_heads.push(h);
+				continue;
+			}
 			loop {
 				match self.parents.get(&h) {
 					Some(next) => {
@@ -394,7 +398,7 @@ mod test {
 		assert_eq!(&bc.drain()[..], &blocks[6..16]);
 		assert_eq!(hashes[15], bc.heads[0]);
 
-		bc.insert_headers(headers[16..].to_vec());
+		bc.insert_headers(headers[15..].to_vec());
 		bc.drain();
 		assert!(bc.is_empty());
 	}
@@ -419,6 +423,25 @@ mod test {
 		bc.insert_headers(headers[0..2].to_vec());
 		assert!(bc.head.is_some());
 		assert_eq!(hashes[21], bc.heads[0]);
+	}
+
+	#[test]
+	fn insert_headers_no_gap() {
+		let mut bc = BlockCollection::new();
+		assert!(is_empty(&bc));
+		let client = TestBlockChainClient::new();
+		let nblocks = 200;
+		client.add_blocks(nblocks, EachBlockWith::Nothing);
+		let blocks: Vec<_> = (0 .. nblocks).map(|i| (&client as &BlockChainClient).block(BlockID::Number(i as BlockNumber)).unwrap()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
+		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
+		bc.reset_to(heads);
+
+		bc.insert_headers(headers[1..2].to_vec());
+		assert!(bc.drain().is_empty());
+		bc.insert_headers(headers[0..1].to_vec());
+		assert_eq!(bc.drain().len(), 2);
 	}
 }
 

@@ -100,6 +100,7 @@ use io::SyncIo;
 use time;
 use super::SyncConfig;
 use blocks::BlockCollection;
+use rand::{thread_rng, Rng};
 
 known_heap_size!(0, PeerInfo);
 
@@ -315,6 +316,7 @@ impl ChainSync {
 	pub fn restart(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Restarting");
 		self.reset();
+		self.start_sync_round(io);
 		self.continue_sync(io);
 	}
 
@@ -391,7 +393,7 @@ impl ChainSync {
 		self.clear_peer_download(peer_id);
 		let expected_hash = self.peers.get(&peer_id).and_then(|p| p.asking_hash);
 		let expected_asking = if self.state == SyncState::ChainHead { PeerAsking::Heads } else { PeerAsking::BlockHeaders };
-		if !self.reset_peer_asking(peer_id, expected_asking) {
+		if !self.reset_peer_asking(peer_id, expected_asking) || expected_hash.is_none() {
 			trace!(target: "sync", "Ignored unexpected headers");
 			self.continue_sync(io);
 			return Ok(());
@@ -562,17 +564,21 @@ impl ChainSync {
 			}
 		};
 		if unknown {
-			trace!(target: "sync", "New unknown block {:?}", h);
-			//TODO: handle too many unknown blocks
-			let difficulty: U256 = try!(r.val_at(1));
-			if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
-				if peer.difficulty.map_or(true, |pd| difficulty > pd) {
-					//self.state = SyncState::ChainHead;
-					peer.difficulty = Some(difficulty);
-					trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
+			if self.state != SyncState::Idle {
+				trace!(target: "sync", "NewBlock ignored while seeking");
+			} else {
+				trace!(target: "sync", "New unknown block {:?}", h);
+				//TODO: handle too many unknown blocks
+				let difficulty: U256 = try!(r.val_at(1));
+				if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+					if peer.difficulty.map_or(true, |pd| difficulty > pd) {
+						//self.state = SyncState::ChainHead;
+						peer.difficulty = Some(difficulty);
+						trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
+					}
 				}
+				self.sync_peer(io, peer_id, true);
 			}
-			self.sync_peer(io, peer_id, true);
 		}
 		Ok(())
 	}
@@ -650,7 +656,7 @@ impl ChainSync {
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
 		let mut peers: Vec<(PeerId, U256)> = self.peers.iter().map(|(k, p)| (*k, p.difficulty.unwrap_or_else(U256::zero))).collect();
-		peers.sort_by(|&(_, d1), &(_, d2)| d1.cmp(&d2).reverse()); //TODO: sort by rating
+		thread_rng().shuffle(&mut peers); //TODO: sort by rating
 		trace!(target: "sync", "Syncing with {}/{} peers", self.active_peers.len(), peers.len());
 		for (p, _) in peers {
 			if self.active_peers.contains(&p) {
@@ -676,7 +682,11 @@ impl ChainSync {
 	}
 
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
-	fn sync_peer(&mut self, io: &mut SyncIo,  peer_id: PeerId, force: bool) {
+	fn sync_peer(&mut self, io: &mut SyncIo, peer_id: PeerId, force: bool) {
+		if !self.active_peers.contains(&peer_id) {
+			trace!(target: "sync", "Skipping deactivated peer");
+			return;
+		}
 		let (peer_latest, peer_difficulty) = {
 			let peer = self.peers.get_mut(&peer_id).unwrap();
 			if peer.asking != PeerAsking::Nothing {
