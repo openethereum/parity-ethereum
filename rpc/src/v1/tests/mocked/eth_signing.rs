@@ -25,6 +25,7 @@ use ethcore::client::TestBlockChainClient;
 
 struct EthSigningTester {
 	pub queue: Arc<ConfirmationsQueue>,
+	pub client: Arc<TestBlockChainClient>,
 	pub miner: Arc<TestMinerService>,
 	pub io: IoHandler,
 }
@@ -39,6 +40,7 @@ impl Default for EthSigningTester {
 
 		EthSigningTester {
 			queue: queue,
+			client: client,
 			miner: miner,
 			io: io,
 		}
