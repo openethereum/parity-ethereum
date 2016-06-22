@@ -100,6 +100,7 @@ use io::SyncIo;
 use time;
 use super::SyncConfig;
 use blocks::BlockCollection;
+use rand::{thread_rng, Rng};
 
 known_heap_size!(0, PeerInfo);
 
@@ -308,7 +309,6 @@ impl ChainSync {
 		}
 		self.syncing_difficulty = From::from(0u64);
 		self.state = SyncState::Idle;
-		self.blocks.clear();
 		self.active_peers = self.peers.keys().cloned().collect();
 	}
 
@@ -393,7 +393,7 @@ impl ChainSync {
 		self.clear_peer_download(peer_id);
 		let expected_hash = self.peers.get(&peer_id).and_then(|p| p.asking_hash);
 		let expected_asking = if self.state == SyncState::ChainHead { PeerAsking::Heads } else { PeerAsking::BlockHeaders };
-		if !self.reset_peer_asking(peer_id, expected_asking) {
+		if !self.reset_peer_asking(peer_id, expected_asking) || expected_hash.is_none() {
 			trace!(target: "sync", "Ignored unexpected headers");
 			self.continue_sync(io);
 			return Ok(());
@@ -533,10 +533,6 @@ impl ChainSync {
 		let header_rlp = try!(block_rlp.at(0));
 		let h = header_rlp.as_raw().sha3();
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		if self.state != SyncState::Idle {
-			trace!(target: "sync", "NewBlock ignored while seeking");
-			return Ok(());
-		}
 		let header: BlockHeader = try!(header_rlp.as_val());
 		let mut unknown = false;
 		{
@@ -544,46 +540,45 @@ impl ChainSync {
 			peer.latest_hash = header.hash();
 			peer.latest_number = Some(header.number());
 		}
-		if header.number <= self.last_imported_block + 1 {
-			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
-				Err(Error::Import(ImportError::AlreadyInChain)) => {
-					trace!(target: "sync", "New block already in chain {:?}", h);
-				},
-				Err(Error::Import(ImportError::AlreadyQueued)) => {
-					trace!(target: "sync", "New block already queued {:?}", h);
-				},
-				Ok(_) => {
-					if header.number == self.last_imported_block + 1 {
-						self.last_imported_block = header.number;
-						self.last_imported_hash = header.hash();
-					}
-					trace!(target: "sync", "New block queued {:?} ({})", h, header.number);
-				},
-				Err(Error::Block(BlockError::UnknownParent(p))) => {
-					unknown = true;
-					trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
-				},
-				Err(e) => {
-					debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
-					io.disable_peer(peer_id);
+		match io.chain().import_block(block_rlp.as_raw().to_vec()) {
+			Err(Error::Import(ImportError::AlreadyInChain)) => {
+				trace!(target: "sync", "New block already in chain {:?}", h);
+			},
+			Err(Error::Import(ImportError::AlreadyQueued)) => {
+				trace!(target: "sync", "New block already queued {:?}", h);
+			},
+			Ok(_) => {
+				if header.number == self.last_imported_block + 1 {
+					self.last_imported_block = header.number;
+					self.last_imported_hash = header.hash();
 				}
-			};
-		}
-		else {
-			unknown = true;
-		}
-		if unknown {
-			trace!(target: "sync", "New unknown block {:?}", h);
-			//TODO: handle too many unknown blocks
-			let difficulty: U256 = try!(r.val_at(1));
-			if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
-				if peer.difficulty.map_or(true, |pd| difficulty > pd) {
-					//self.state = SyncState::ChainHead;
-					peer.difficulty = Some(difficulty);
-					trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
-				}
+				trace!(target: "sync", "New block queued {:?} ({})", h, header.number);
+			},
+			Err(Error::Block(BlockError::UnknownParent(p))) => {
+				unknown = true;
+				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
+			},
+			Err(e) => {
+				debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
+				io.disable_peer(peer_id);
 			}
-			self.sync_peer(io, peer_id, true);
+		};
+		if unknown {
+			if self.state != SyncState::Idle {
+				trace!(target: "sync", "NewBlock ignored while seeking");
+			} else {
+				trace!(target: "sync", "New unknown block {:?}", h);
+				//TODO: handle too many unknown blocks
+				let difficulty: U256 = try!(r.val_at(1));
+				if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+					if peer.difficulty.map_or(true, |pd| difficulty > pd) {
+						//self.state = SyncState::ChainHead;
+						peer.difficulty = Some(difficulty);
+						trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
+					}
+				}
+				self.sync_peer(io, peer_id, true);
+			}
 		}
 		Ok(())
 	}
@@ -661,7 +656,7 @@ impl ChainSync {
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
 		let mut peers: Vec<(PeerId, U256)> = self.peers.iter().map(|(k, p)| (*k, p.difficulty.unwrap_or_else(U256::zero))).collect();
-		peers.sort_by(|&(_, d1), &(_, d2)| d1.cmp(&d2).reverse()); //TODO: sort by rating
+		thread_rng().shuffle(&mut peers); //TODO: sort by rating
 		trace!(target: "sync", "Syncing with {}/{} peers", self.active_peers.len(), peers.len());
 		for (p, _) in peers {
 			if self.active_peers.contains(&p) {
@@ -687,7 +682,11 @@ impl ChainSync {
 	}
 
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
-	fn sync_peer(&mut self, io: &mut SyncIo,  peer_id: PeerId, force: bool) {
+	fn sync_peer(&mut self, io: &mut SyncIo, peer_id: PeerId, force: bool) {
+		if !self.active_peers.contains(&peer_id) {
+			trace!(target: "sync", "Skipping deactivated peer");
+			return;
+		}
 		let (peer_latest, peer_difficulty) = {
 			let peer = self.peers.get_mut(&peer_id).unwrap();
 			if peer.asking != PeerAsking::Nothing {
