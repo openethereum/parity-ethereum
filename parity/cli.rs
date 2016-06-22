@@ -25,6 +25,7 @@ Usage:
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
+  parity wallet import <path> --password FILE [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
@@ -223,6 +224,7 @@ Miscellaneous Options:
 pub struct Args {
 	pub cmd_daemon: bool,
 	pub cmd_account: bool,
+	pub cmd_wallet: bool,
 	pub cmd_new: bool,
 	pub cmd_list: bool,
 	pub cmd_export: bool,

@@ -43,7 +43,7 @@ impl PresaleWallet {
 		pbkdf2(&mut h_mac, password.as_bytes(), 2000, &mut derived_key);
 
 		let mut key = [0u8; 64];
-		crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key);
+		try!(crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword));
 
 		let secret = Secret::from(key.keccak256());
 		if let Ok(kp) = KeyPair::from_secret(secret) {
@@ -58,7 +58,6 @@ impl PresaleWallet {
 
 #[cfg(test)]
 mod tests {
-	use ethkey::Address;
 	use super::PresaleWallet;
 	use json;
 
@@ -74,7 +73,7 @@ mod tests {
 
 		let wallet = json::PresaleWallet::load(json.as_bytes()).unwrap();
 		let wallet = PresaleWallet::from(wallet);
-		let kp = wallet.decrypt("123").unwrap();
-		assert_eq!(kp.address(), Address::from(wallet.address));
+		assert!(wallet.decrypt("123").is_ok());
+		assert!(wallet.decrypt("124").is_err());
 	}
 }
