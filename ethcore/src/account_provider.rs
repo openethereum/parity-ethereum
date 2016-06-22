@@ -205,6 +205,13 @@ impl AccountProvider {
 		self.unlock_account(account, password, Unlock::Temp)
 	}
 
+	/// Checks if given account is unlocked
+	pub fn is_unlocked<A>(&self, account: A) -> bool where Address: From<A> {
+		let account = Address::from(account).into();
+		let unlocked = self.unlocked.read().unwrap();
+		unlocked.get(&account).is_some()
+	}
+
 	/// Signs the message. Account must be unlocked.
 	pub fn sign<A, M>(&self, account: A, message: M) -> Result<H520, Error> where Address: From<A>, Message: From<M> {
 		let account = Address::from(account).into();

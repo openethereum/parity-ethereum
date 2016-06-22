@@ -25,6 +25,7 @@ Usage:
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
+  parity wallet import <path> --password FILE [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
@@ -115,7 +116,7 @@ API and Console Options:
   --dapps-path PATH        Specify directory where dapps should be installed.
                            [default: $HOME/.parity/dapps]
 
-  --signer                 Enable Trusted Signer WebSocket endpoint used by
+  --signer-off             Disable Trusted Signer WebSocket endpoint used by
                            Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
@@ -223,6 +224,7 @@ Miscellaneous Options:
 pub struct Args {
 	pub cmd_daemon: bool,
 	pub cmd_account: bool,
+	pub cmd_wallet: bool,
 	pub cmd_new: bool,
 	pub cmd_list: bool,
 	pub cmd_export: bool,
@@ -272,7 +274,7 @@ pub struct Args {
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
-	pub flag_signer: bool,
+	pub flag_signer_off: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
 	pub flag_no_token: bool,

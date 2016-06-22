@@ -129,6 +129,11 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
+	if conf.args.cmd_wallet {
+		execute_wallet_cli(conf);
+		return;
+	}
+
 	if conf.args.cmd_export {
 		execute_export(conf);
 		return;
@@ -187,10 +192,16 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let sync_config = conf.sync_config(&spec);
 
 	// Create and display a new token for UIs.
-	if conf.args.flag_signer && !conf.args.flag_no_token {
+	if !conf.args.flag_signer_off && !conf.args.flag_no_token {
 		new_token(conf.directories().signer).unwrap_or_else(|e| {
 			die!("Error generating token: {:?}", e)
 		});
+	}
+
+	// Display warning about using unlock with signer
+	if conf.args.flag_signer && conf.args.flag_unlock.is_some() {
+		warn!("Using Trusted Signer and --unlock is not recommended!");
+		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
 	}
 
 	// Secret Store
@@ -532,6 +543,30 @@ fn execute_account_cli(conf: Configuration) {
 		}
 		println!("Imported {} keys", imported);
 	}
+}
+
+fn execute_wallet_cli(conf: Configuration) {
+	use ethcore::ethstore::{PresaleWallet, SecretStore, EthStore};
+	use ethcore::ethstore::dir::DiskDirectory;
+	use ethcore::account_provider::AccountProvider;
+
+	let wallet_path = conf.args.arg_path.first().unwrap();
+	let filename = conf.args.flag_password.first().unwrap();
+	let mut file = File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
+	let mut file_content = String::new();
+	file.read_to_string(&mut file_content).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
+
+	let dir = Box::new(DiskDirectory::create(conf.keys_path()).unwrap());
+	let iterations = conf.keys_iterations();
+	let store = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
+
+	// remove eof
+	let pass = &file_content[..file_content.len() - 1];
+	let wallet = PresaleWallet::open(wallet_path).unwrap_or_else(|_| die!("Unable to open presale wallet."));
+	let kp = wallet.decrypt(pass).unwrap_or_else(|_| die!("Invalid password"));
+	let address = store.insert_account(kp.secret().clone(), pass).unwrap();
+
+	println!("Imported account: {}", address);
 }
 
 fn wait_for_exit(
