@@ -657,7 +657,9 @@ impl TransactionQueue {
 			.cloned()
 			.map_or(state_nonce, |n| n + U256::one());
 
-		// Check height
+		// The transaction might be old, let's check that.
+		// This has to be the first test, otherwise calculating
+		// nonce height would result in overflow.
 		if nonce < state_nonce {
 			// Droping transaction
 			trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
