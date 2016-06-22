@@ -134,6 +134,14 @@ fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, a
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 
+fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockChainClient, M: MinerService {
+	client
+		.gas_price_statistics(100, 8)
+		.map(|x| x[4])
+		.unwrap_or_else(|_| miner.sensible_gas_price())
+}
+
+
 fn signing_error(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(error_codes::ACCOUNT_LOCKED),
