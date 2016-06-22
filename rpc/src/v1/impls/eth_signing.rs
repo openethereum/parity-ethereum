@@ -43,15 +43,17 @@ fn fill_optional_fields<C, M>(request: &mut TransactionRequest, client: &C, mine
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	queue: Weak<ConfirmationsQueue>,
+	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
 }
 
 impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates a new signing queue client given shared signing queue.
-	pub fn new(queue: &Arc<ConfirmationsQueue>, client: &Arc<C>, miner: &Arc<M>) -> Self {
+	pub fn new(queue: &Arc<ConfirmationsQueue>, client: &Arc<C>, miner: &Arc<M>, accounts: &Arc<AccountProvider>) -> Self {
 		EthSigningQueueClient {
 			queue: Arc::downgrade(queue),
+			accounts: Arc::downgrade(accounts),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 		}
@@ -71,9 +73,18 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(mut request, )| {
-				let queue = take_weak!(self.queue);
+				let accounts = take_weak!(self.accounts);
 				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 
+				if accounts.is_unlocked(request.from) {
+					let sender = request.from;
+					return match sign_and_dispatch(&*client, &*miner, request, &*accounts, sender) {
+						Ok(hash) => to_value(&hash),
+						_ => to_value(&H256::zero()),
+					}
+				}
+
+				let queue = take_weak!(self.queue);
 				fill_optional_fields(&mut request, &*client, &*miner);
 				let id = queue.add_request(request);
 				let result = id.wait_with_timeout();

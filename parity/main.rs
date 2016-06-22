@@ -198,6 +198,12 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		});
 	}
 
+	// Display warning about using unlock with signer
+	if conf.args.flag_signer && conf.args.flag_unlock.is_some() {
+		warn!("Using Trusted Signer and --unlock is not recommended!");
+		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
+	}
+
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
 
