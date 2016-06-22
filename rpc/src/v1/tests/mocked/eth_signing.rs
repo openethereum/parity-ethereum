@@ -21,9 +21,11 @@ use v1::traits::EthSigning;
 use v1::helpers::{ConfirmationsQueue, SigningQueue};
 use v1::tests::helpers::TestMinerService;
 use util::{Address, FixedHash};
+use ethcore::client::TestBlockChainClient;
 
 struct EthSigningTester {
 	pub queue: Arc<ConfirmationsQueue>,
+	pub client: Arc<TestBlockChainClient>,
 	pub miner: Arc<TestMinerService>,
 	pub io: IoHandler,
 }
@@ -31,12 +33,14 @@ struct EthSigningTester {
 impl Default for EthSigningTester {
 	fn default() -> Self {
 		let queue = Arc::new(ConfirmationsQueue::default());
+		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let io = IoHandler::new();
-		io.add_delegate(EthSigningQueueClient::new(&queue, &miner).to_delegate());
+		io.add_delegate(EthSigningQueueClient::new(&queue, &client, &miner).to_delegate());
 
 		EthSigningTester {
 			queue: queue,
+			client: client,
 			miner: miner,
 			io: io,
 		}
