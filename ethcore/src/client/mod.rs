@@ -228,6 +228,11 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get `Some` gas limit of block 1_760_000, or `None` if chain is not yet that long.
 	fn dao_rescue_block_gas_limit(&self, chain_hash: H256) -> Option<U256> {
+		// shortcut if the canon chain is already known.
+		if self.chain_info().best_block_number > 1_761_000 {
+			return self.block_header(BlockID::Number(1_760_000)).map(|header| HeaderView::new(&header).gas_limit());
+		}
+		// otherwise check according to `chain_hash`.
 		if let Some(mut header) = self.block_header(BlockID::Hash(chain_hash)) {
 			if HeaderView::new(&header).number() < 1_760_000 {
 				None
