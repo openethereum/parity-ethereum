@@ -227,9 +227,19 @@ pub trait BlockChainClient : Sync + Send {
 
 
 	/// Get `Some` gas limit of block 1_760_000, or `None` if chain is not yet that long.
-	fn dao_rescue_block_gas_limit(&self) -> Option<U256> {
-		self.block_header(BlockID::Number(1_760_000))
-			.map(|header| HeaderView::new(&header).gas_limit())
+	fn dao_rescue_block_gas_limit(&self, chain_hash: H256) -> Option<U256> {
+		if let Some(mut header) = self.block_header(BlockID::Hash(chain_hash)) {
+			if HeaderView::new(&header).number() < 1_760_000 {
+				None
+			} else {
+				while HeaderView::new(&header).number() != 1_760_000 {
+					header = self.block_header(BlockID::Hash(HeaderView::new(&header).parent_hash())).expect("chain is complete; parent of chain entry must be in chain; qed");
+				}
+				Some(HeaderView::new(&header).gas_limit())
+			}
+		} else {
+			None
+		}
 	}	
 }
 
