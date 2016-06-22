@@ -23,10 +23,19 @@ use ::{Bytes, FixedHash, HashDB, H256, SHA3_NULL_RLP};
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, View};
 
+use std::collections::VecDeque;
 use std::ops::{Index, IndexMut};
 
 /// For lookups into the Node storage buffer.
+/// This is deliberately non-copyable.
 struct StorageHandle(usize);
+
+fn empty_children() -> [Option<StorageHandle>; 16] {
+	[
+		None, None, None, None, None, None, None, None,
+		None, None, None, None, None, None, None, None,
+	]
+}
 
 /// Node types in the Trie.
 enum Node {
@@ -43,25 +52,6 @@ enum Node {
 	Extension(Bytes, StorageHandle),
 	/// A branch has up to 16 children and an optional value.
 	Branch([Option<StorageHandle>; 16], Option<Bytes>)
-}
-
-fn empty_children() -> [Option<StorageHandle>; 16] {
-	[
-		None, None, None, None, None, None, None, None,
-		None, None, None, None, None, None, None, None,
-	]
-}
-
-// attempt to add a child to this child array.
-fn add_child(children: &mut [Option<StorageHandle>; 16], storage: &mut NodeStorage, key: &NibbleSlice, value: Bytes) -> Option<Bytes> {
-	if key.is_empty() {
-		Some(value)
-	} else {
-		let idx = key.at(0);
-		let leaf = Node::Leaf(key.mid(1).encoded(true), value);
-		children[idx as usize] = Some(storage.insert(leaf));
-		None
-	}
 }
 
 impl Node {
@@ -83,7 +73,7 @@ impl Node {
 				let key = k.encoded(false);
 				let child_rlp = Node::get_raw_or_lookup(v, db);
 				let child_node = Node::from_rlp(child_rlp, db, storage);
-				Node::Extension(key, storage.insert(child_node))
+				Node::Extension(key, storage.alloc(child_node))
 			}
 			RlpNode::Branch(children_rlp, v) => {
 				let val = v.map(|x| x.to_owned());
@@ -95,7 +85,7 @@ impl Node {
 					if !child_rlp.is_empty()  {
 						let child_rlp = Node::get_raw_or_lookup(raw, db);
 						let child_node = Node::from_rlp(child_rlp, db, storage);
-						children[i] = Some(storage.insert(child_node));
+						children[i] = Some(storage.alloc(child_node));
 					}
 				}
 
@@ -135,79 +125,12 @@ impl Node {
 			}
 		}
 	}
-
-	// insert a key, value pair into the trie, creating new nodes if necessary.
-	fn insert(&mut self, key: NibbleSlice, value: Bytes, storage: &mut NodeStorage) {
-		let maybe_new = match *self {
-			Node::Empty => {
-				Some(Node::Leaf(key.encoded(true), value))
-			}
-			Node::Leaf(ref existing, ref mut data) => {
-				let existing_key = NibbleSlice::from_encoded(existing).0;
-				let cp = key.common_prefix(&existing_key);
-				if cp == existing_key.len() {
-					if cp == key.len() {
-						// equivalent leaf. replace
-						*data = value;
-					} else {
-						// shared prefix, make an extension.
-						// factor out the common prefix, and then build a branch.
-						// the data will be from the shorter of the two keys, and
-						// one child with the longer.
-						let remainder = key.mid(cp);
-						let idx = key.at(0);
-
-						let mut children = empty_children();
-						let leaf_node = Node::Leaf(key.mid(1).encoded(true), value);
-						children[idx as usize] = Some(storage.insert(leaf_node));
-						let branch = Node::Branch(children, data.clone());
-
-						Some(Node::Extension(existing_key.encoded(false), storage.insert(branch)))
-					}
-				} else {
-					// partially shared prefix. make an extension followed by a branch.
-					let mid_slice = key.encoded_leftmost(cp, false);
-					let key = key.mid(cp);
-					let existing_key_partial = existing_key.mid(cp);
-
-					let mut children = empty_children();
-					// it is impossible for existing_key_partial to be empty here. then cp
-					// would have been equal to existing_key.len(), and we wouldn't be in this branch.
-					add_child(&mut children, storage, &existing_key_partial, data.clone());
-					let branch = if let Some(value) = add_child(&mut children, storage, &key, value) {
-						// key is empty, value needs to be put in branch value.
-						Node::Branch(children, Some(value))
-					} else {
-						Node::Branch(children, None)
-					};
-
-					Some(Node::Extension(mid_slice, storage.insert(branch)))
-				}
-		}
-		Node::Extension(ref common, ref mut child_branch) => {
-			let common_key = NibbleSlice::from_encoded(common).0;
-			let cp = key.common_prefix(&common_key);
-			assert!(!common_key.is_empty(), "Extension nodes cannot have empty common prefixes");
-
-			if cp == 0 {
-				// make a branch, punting the extension's child branch into it.
-			} else if cp == common_key.len() {
-				// fully shared key.
-			} else {
-
-			}
-
-		}
-	};
-
-	if let Some(new_node) = maybe_new {
-		*self = new_node;
-	}
 }
 
 /// Compact and cache-friendly storage for Trie nodes.
 struct NodeStorage {
 	nodes: Vec<Node>,
+	free_indices: VecDeque<usize>,
 }
 
 impl NodeStorage {
@@ -215,6 +138,7 @@ impl NodeStorage {
 	fn empty() -> Self {
 		NodeStorage {
 			nodes: vec![Node::Empty],
+			free_indices: VecDeque::new(),
 		}
 	}
 
@@ -240,10 +164,115 @@ impl NodeStorage {
 		&mut self.nodes[0]
 	}
 
-	/// Insert a node into the storage, yielding a handle.
-	fn insert(&mut self, node: Node) -> StorageHandle {
-		self.nodes.push(node);
-		StorageHandle(self.nodes.len() - 1)
+	/// Allocate  a node in the storage, yielding a handle.
+	fn alloc(&mut self, node: Node) -> StorageHandle {
+		if let Some(idx) = self.free_indices.pop_front() {
+			self.nodes[idx] = node;
+			StorageHandle(idx)
+		} else {
+			self.nodes.push(node);
+			StorageHandle(self.nodes.len() - 1)
+		}
+	}
+
+	/// Remove a node from the storage, consuming the handle.
+	fn destroy(&mut self, handle: StorageHandle) -> Node {
+		let idx = handle.0;
+
+		self.free_indices.push_back(idx);
+		::std::mem::replace(&mut self.nodes[idx], Node::Empty)
+	}
+
+	/// insert a key, value pair into the trie, creating new nodes if necessary.
+	fn insert(&mut self, handle: StorageHandle, partial: NibbleSlice, value: Bytes) -> StorageHandle {
+		match self.destroy(handle) {
+			Node::Branch(mut children, mut stored_value) => {
+				if partial.is_empty() {
+					stored_value = Some(value);
+				} else {
+					let index = partial.at(0) as usize;
+					if let Some(child_handle) = children[index].take() {
+						// original had something there. continue to insert.
+						let partial = partial.mid(1);
+						children[index] = Some(self.insert(child_handle, partial, value));
+					} else {
+						// original had empty slot. place a leaf there.
+						let leaf = Node::Leaf(partial.encoded(true), value);
+						children[index] = Some(self.alloc(leaf));
+					}
+				}
+
+				self.alloc(Node::Branch(children, stored_value))
+			}
+			Node::Leaf(encoded_key, stored_value) => {
+				let (existing_key, _) = NibbleSlice::from_encoded(&encoded_key);
+				let cp = partial.common_prefix(&existing_key);
+				if cp == partial.len() && cp == existing_key.len() {
+					// equivalent leaf: replace
+					self.alloc(Node::Leaf(encoded_key.clone(), value))
+				} else if cp == 0 {
+					// make a branch.
+					let mut children = empty_children();
+					let branch = if existing_key.is_empty() {
+						Node::Branch(children, Some(stored_value))
+					} else {
+						let index = existing_key.at(0) as usize;
+						let leaf = Node::Leaf(existing_key.mid(1).encoded(true), stored_value);
+						children[index] = Some(self.alloc(leaf));
+						Node::Branch(children, None)
+					};
+
+					let temp_handle = self.alloc(branch);
+					self.insert(temp_handle, partial, value)
+				} else if cp == existing_key.len() {
+					// fully shared prefix.
+					// transform to an extension + augmented version of onward node.
+					let stub_branch = self.alloc(Node::Branch(empty_children(), Some(stored_value)));
+					let downstream = self.insert(stub_branch, partial.mid(cp), value);
+
+					self.alloc(Node::Extension(existing_key.encoded(false), downstream))
+				} else {
+					// partially-shared prefix
+					let low = self.alloc(Node::Leaf(existing_key.mid(cp).encoded(true), stored_value));
+					let augmented_low = self.insert(low, partial.mid(cp), value);
+
+					self.alloc(Node::Extension(existing_key.encoded_leftmost(cp, false), augmented_low))
+				}
+			}
+			Node::Extension(encoded_key, child_branch) => {
+				let (existing_key, _) = NibbleSlice::from_encoded(&encoded_key);
+				let cp = partial.common_prefix(&existing_key);
+				if cp == 0 {
+					// make a branch.
+					assert!(!existing_key.is_empty()); // extension nodes may not have empty partial keys.
+					let mut children = empty_children();
+					let index = existing_key.at(0) as usize;
+					if existing_key.len() == 1 {
+						// direct extension
+						children[index] = Some(child_branch);
+					} else {
+						let extension = Node::Extension(existing_key.mid(1).encoded(false), child_branch);
+						children[index] = Some(self.alloc(extension));
+					}
+
+					let temp_branch = self.alloc(Node::Branch(children, None));
+					self.insert(temp_branch, partial, value)
+				} else if cp == existing_key.len() {
+					// fully-shared prefix.
+					let downstream = self.insert(child_branch, partial.mid(cp), value);
+					self.alloc(Node::Extension(existing_key.encoded(false), downstream))
+				} else {
+					// partially-shared prefix
+					let low = self.alloc(Node::Extension(existing_key.mid(cp).encoded(false), child_branch));
+					let augmented_low = self.insert(low, partial.mid(cp), value);
+
+					self.alloc(Node::Extension(existing_key.encoded_leftmost(cp, false), augmented_low))
+				}
+			}
+			Node::Empty => {
+				self.alloc(Node::Leaf(partial.encoded(true), value))
+			}
+		}
 	}
 }
 
@@ -271,6 +300,7 @@ pub struct MemoryTrieDB<'a> {
 	storage: NodeStorage,
 	db: &'a mut HashDB,
 	root: &'a mut H256,
+	root_handle: StorageHandle,
 }
 
 impl<'a> MemoryTrieDB<'a> {
@@ -282,6 +312,7 @@ impl<'a> MemoryTrieDB<'a> {
 			storage: NodeStorage::empty(),
 			db: db,
 			root: root,
+			root_handle: StorageHandle(0),
 		}
 	}
 
@@ -301,6 +332,7 @@ impl<'a> MemoryTrieDB<'a> {
 			storage: storage,
 			db: db,
 			root: root,
+			root_handle: StorageHandle(0),
 		})
 	}
 }
@@ -329,6 +361,13 @@ impl<'a> Trie for MemoryTrieDB<'a> {
 
 impl<'a> TrieMut for MemoryTrieDB<'a> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
-		self.storage.root_mut().insert(NibbleSlice::new(key), value.to_owned(), &mut self.storage);
+		// TODO [rob]: find a way to do this that doesn't subvert the ownership
+		// semantics of StorageHandle
+		let root_handle = StorageHandle(self.root_handle.0);
+		self.root_handle = self.storage.insert(root_handle, NibbleSlice::new(key), value.to_owned());
+	}
+
+	fn remove(&mut self, key: &[u8]) {
+		unimplemented!()
 	}
 }
