@@ -75,11 +75,17 @@ impl Configuration {
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
-		let d = &self.args.flag_gas_floor_target;
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
-		})
+		if self.args.flag_dont_help_rescue_dao || self.args.flag_dogmatic {
+			4_700_000.into()
+		} else {
+			let d = &self.args.flag_gas_floor_target;
+			U256::from_dec_str(d).unwrap_or_else(|_| {
+				die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
+			})
+		}
 	}
+
+
 
 	pub fn gas_price(&self) -> U256 {
 		match self.args.flag_gasprice.as_ref() {
@@ -115,16 +121,20 @@ impl Configuration {
 	}
 
 	pub fn extra_data(&self) -> Bytes {
-		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
-			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
-			None => version_data(),
-			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+		if !self.args.flag_dont_help_rescue_dao {
+			(b"rescuedao"[..]).to_owned()
+		} else {
+			match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
+				Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
+				None => version_data(),
+				Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+			}
 		}
 	}
 
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(!self.args.flag_dogmatic),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
@@ -155,7 +165,6 @@ impl Configuration {
 
 	pub fn init_reserved_nodes(&self) -> Vec<String> {
 		use std::fs::File;
-		use std::io::BufRead;
 
 		if let Some(ref path) = self.args.flag_reserved_peers {
 			let mut buffer = String::new();

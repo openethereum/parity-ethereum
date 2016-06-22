@@ -425,12 +425,16 @@ macro_rules! uint_overflowing_mul_reg {
 				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
 				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
 
-				// Only single overflow possible here
-				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
-				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
+				// No overflow here
+				let res = (c_u >> 32) + (overflow_u << 32);
+				// possible overflows
+				let (res, o1) = res.overflowing_add(overflow_l);
+				let (res, o2) = res.overflowing_add(carry2);
+				let (res, o3) = res.overflowing_add(ret[i + j + 1]);
+				ret[i + j + 1] = res;
 
-				ret[i + j + 1] = carry;
-				carry2 = o as u64;
+				// Only single overflow possible there
+				carry2 = (o1 | o2 | o3) as u64;
 			}
 		}
 
@@ -1305,12 +1309,16 @@ impl U256 {
 				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
 				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
 
-				// Only single overflow possible here
-				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
-				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
+				// No overflow here
+				let res = (c_u >> 32) + (overflow_u << 32);
+				// possible overflows
+				let (res, o1) = res.overflowing_add(overflow_l);
+				let (res, o2) = res.overflowing_add(carry2);
+				let (res, o3) = res.overflowing_add(ret[i + j + 1]);
+				ret[i + j + 1] = res;
 
-				ret[i + j + 1] = carry;
-				carry2 = o as u64;
+				// Only single overflow possible there
+				carry2 = (o1 | o2 | o3) as u64;
 			}
 		}
 

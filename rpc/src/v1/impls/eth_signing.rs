@@ -25,38 +25,42 @@ use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, Bytes};
-use v1::impls::sign_and_dispatch;
+use v1::impls::{default_gas_price, sign_and_dispatch};
+
+fn fill_optional_fields<C, M>(request: &mut TransactionRequest, client: &C, miner: &M)
+	where C: MiningBlockChainClient, M: MinerService {
+	if request.gas.is_none() {
+		request.gas = Some(miner.sensible_gas_limit());
+	}
+	if request.gas_price.is_none() {
+		request.gas_price = Some(default_gas_price(client, miner));
+	}
+	if request.data.is_none() {
+		request.data = Some(Bytes::new(Vec::new()));
+	}
+}
 
 /// Implementation of functions that require signing when no trusted signer is used.
-pub struct EthSigningQueueClient<M: MinerService> {
+pub struct EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	queue: Weak<ConfirmationsQueue>,
+	client: Weak<C>,
 	miner: Weak<M>,
 }
 
-impl<M: MinerService> EthSigningQueueClient<M> {
+impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates a new signing queue client given shared signing queue.
-	pub fn new(queue: &Arc<ConfirmationsQueue>, miner: &Arc<M>) -> Self {
+	pub fn new(queue: &Arc<ConfirmationsQueue>, client: &Arc<C>, miner: &Arc<M>) -> Self {
 		EthSigningQueueClient {
 			queue: Arc::downgrade(queue),
+			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 		}
 	}
-
-	fn fill_optional_fields(&self, miner: Arc<M>, mut request: TransactionRequest) -> TransactionRequest {
-		if let None = request.gas {
-			request.gas = Some(miner.sensible_gas_limit());
-		}
-		if let None = request.gas_price {
-			request.gas_price = Some(miner.sensible_gas_price());
-		}
-		if let None = request.data {
-			request.data = Some(Bytes::new(Vec::new()));
-		}
-		request
-	}
 }
 
-impl<M: MinerService + 'static> EthSigning for EthSigningQueueClient<M>  {
+impl<C, M> EthSigning for EthSigningQueueClient<C, M>
+	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
+{
 
 	fn sign(&self, _params: Params) -> Result<Value, Error> {
 		warn!("Invoking eth_sign is not yet supported with signer enabled.");
@@ -66,10 +70,11 @@ impl<M: MinerService + 'static> EthSigning for EthSigningQueueClient<M>  {
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(request, )| {
+			.and_then(|(mut request, )| {
 				let queue = take_weak!(self.queue);
-				let miner = take_weak!(self.miner);
-				let request = self.fill_optional_fields(miner, request);
+				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+
+				fill_optional_fields(&mut request, &*client, &*miner);
 				let id = queue.add_request(request);
 				let result = id.wait_with_timeout();
 				result.unwrap_or_else(|| to_value(&H256::new()))

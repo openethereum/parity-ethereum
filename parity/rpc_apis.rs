@@ -150,7 +150,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 
 				if deps.signer_port.is_some() {
-					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue, &deps.miner).to_delegate());
+					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue, &deps.client, &deps.miner).to_delegate());
 				} else {
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
@@ -162,7 +162,8 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_queue).to_delegate());
 			},
 			Api::Ethcore => {
-				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+				let queue = deps.signer_port.map(|_| deps.signer_queue.clone());
+				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone(), queue).to_delegate())
 			},
 			Api::EthcoreSet => {
 				server.add_delegate(EthcoreSetClient::new(&deps.miner, &deps.net_service).to_delegate())

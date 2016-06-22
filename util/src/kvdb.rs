@@ -109,6 +109,7 @@ impl Database {
 	/// Open database file. Creates if it does not exist.
 	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
 		let mut opts = Options::new();
+		try!(opts.set_parsed_options("rate_limiter_bytes_per_sec=256000000"));
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);

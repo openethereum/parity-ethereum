@@ -106,34 +106,37 @@ impl Miner {
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
-		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
-		let mut sealing_work = self.sealing_work.lock().unwrap();
-		let best_hash = chain.best_block_header().sha3();
 
+		let (transactions, mut open_block) = {
+			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
+			let mut sealing_work = self.sealing_work.lock().unwrap();
+			let best_hash = chain.best_block_header().sha3();
 /*
-		// check to see if last ClosedBlock in would_seals is actually same parent block.
-		// if so
-		//   duplicate, re-open and push any new transactions.
-		//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
-		//   otherwise, leave everything alone.
-		// otherwise, author a fresh block.
+			// check to see if last ClosedBlock in would_seals is actually same parent block.
+			// if so
+			//   duplicate, re-open and push any new transactions.
+			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
+			//   otherwise, leave everything alone.
+			// otherwise, author a fresh block.
 */
-		let mut open_block = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
-			Some(old_block) => {
-				trace!(target: "miner", "Already have previous work; updating and returning");
-				// add transactions to old_block
-				let e = self.engine();
-				old_block.reopen(e, chain.vm_factory())
-			}
-			None => {
-				// block not found - create it.
-				trace!(target: "miner", "No existing work - making new block");
-				chain.prepare_open_block(
-					self.author(),
-					self.gas_floor_target(),
-					self.extra_data()
-				)
-			}
+			let open_block = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+				Some(old_block) => {
+					trace!(target: "miner", "Already have previous work; updating and returning");
+					// add transactions to old_block
+					let e = self.engine();
+					old_block.reopen(e, chain.vm_factory())
+				}
+				None => {
+					// block not found - create it.
+					trace!(target: "miner", "No existing work - making new block");
+					chain.prepare_open_block(
+						self.author(),
+						self.gas_floor_target(),
+						self.extra_data()
+					)
+				}
+			};
+			(transactions, open_block)
 		};
 
 		let mut invalid_transactions = HashSet::new();
@@ -163,14 +166,16 @@ impl Miner {
 
 		let block = open_block.close();
 
-		let mut queue = self.transaction_queue.lock().unwrap();
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: chain.latest_nonce(a),
 			balance: chain.latest_balance(a),
 		};
 
-		for hash in invalid_transactions.into_iter() {
-			queue.remove_invalid(&hash, &fetch_account);
+		{
+			let mut queue = self.transaction_queue.lock().unwrap();
+			for hash in invalid_transactions.into_iter() {
+				queue.remove_invalid(&hash, &fetch_account);
+			}
 		}
 
 		if !block.transactions().is_empty() {
@@ -196,6 +201,8 @@ impl Miner {
 				trace!(target: "miner", "prepare_sealing: unable to generate seal internally");
 			}
 		}
+
+		let mut sealing_work = self.sealing_work.lock().unwrap();
 		if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
 			trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
 			sealing_work.push(block);
@@ -267,6 +274,7 @@ impl MinerService for Miner {
 					last_hashes: last_hashes,
 					gas_used: U256::zero(),
 					gas_limit: U256::max_value(),
+					dao_rescue_block_gas_limit: chain.dao_rescue_block_gas_limit(),
 				};
 				// that's just a copy of the state.
 				let mut state = block.state().clone();
@@ -376,13 +384,19 @@ impl MinerService for Miner {
 		*self.gas_floor_target.read().unwrap()
 	}
 
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
+	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transactions.into_iter()
-			.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
-			.collect()
+		let results: Vec<Result<TransactionImportResult, Error>> = {
+			let mut transaction_queue = self.transaction_queue.lock().unwrap();
+			transactions.into_iter()
+				.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
+				.collect()
+		};
+		if !results.is_empty() {
+			self.update_sealing(chain);
+		}
+		results
 	}
 
 	fn import_own_transaction<T>(
@@ -564,7 +578,7 @@ impl MinerService for Miner {
 				for tx in &txs {
 					let _sender = tx.sender();
 				}
-				let _ = self.import_transactions(txs, |a| AccountDetails {
+				let _ = self.import_transactions(chain, txs, |a| AccountDetails {
 					nonce: chain.latest_nonce(a),
 					balance: chain.latest_balance(a),
 				});

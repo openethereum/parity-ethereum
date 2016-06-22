@@ -69,6 +69,12 @@ pub trait SigningQueue: Send + Sync {
 
 	/// Return copy of all the requests in the queue.
 	fn requests(&self) -> Vec<TransactionConfirmation>;
+
+	/// Returns number of transactions awaiting confirmation.
+	fn len(&self) -> usize;
+
+	/// Returns true if there are no transactions awaiting confirmation.
+	fn is_empty(&self) -> bool;
 }
 
 #[derive(Debug, PartialEq)]
@@ -276,6 +282,16 @@ impl SigningQueue for  ConfirmationsQueue {
 	fn requests(&self) -> Vec<TransactionConfirmation> {
 		let queue = self.queue.read().unwrap();
 		queue.values().map(|token| token.request.clone()).collect()
+	}
+
+	fn len(&self) -> usize {
+		let queue = self.queue.read().unwrap();
+		queue.len()
+	}
+
+	fn is_empty(&self) -> bool {
+		let queue = self.queue.read().unwrap();
+		queue.is_empty()
 	}
 }
 
