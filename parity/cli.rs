@@ -116,7 +116,7 @@ API and Console Options:
   --dapps-path PATH        Specify directory where dapps should be installed.
                            [default: $HOME/.parity/dapps]
 
-  --signer                 Enable Trusted Signer WebSocket endpoint used by
+  --signer-off             Disable Trusted Signer WebSocket endpoint used by
                            Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
@@ -274,7 +274,7 @@ pub struct Args {
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
-	pub flag_signer: bool,
+	pub flag_signer_off: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
 	pub flag_no_token: bool,

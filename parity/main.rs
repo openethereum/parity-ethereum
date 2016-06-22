@@ -192,7 +192,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let sync_config = conf.sync_config(&spec);
 
 	// Create and display a new token for UIs.
-	if conf.args.flag_signer && !conf.args.flag_no_token {
+	if !conf.args.flag_signer_off && !conf.args.flag_no_token {
 		new_token(conf.directories().signer).unwrap_or_else(|e| {
 			die!("Error generating token: {:?}", e)
 		});
