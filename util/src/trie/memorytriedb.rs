@@ -20,6 +20,7 @@ use super::{Trie, TrieError, TrieMut};
 use super::node::Node as RlpNode;
 
 use ::{Bytes, FixedHash, HashDB, H256, SHA3_NULL_RLP};
+use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, View};
 
@@ -31,9 +32,11 @@ use std::ops::{Index, IndexMut};
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
+#[derive(Debug)]
 struct StorageHandle(usize);
 
 // Handles to nodes in the trie.
+#[derive(Debug)]
 enum NodeHandle {
 	/// Loaded into memory.
 	InMemory(StorageHandle),
@@ -61,6 +64,7 @@ fn empty_children() -> [Option<NodeHandle>; 16] {
 }
 
 /// Node types in the Trie.
+#[derive(Debug)]
 enum Node {
 	/// Empty node.
 	Empty,
@@ -81,11 +85,11 @@ impl Node {
 	// load an inline node into memory or get the hash to do the lookup later.
 	fn inline_or_hash(node: &[u8], db: &HashDB, storage: &mut NodeStorage) -> NodeHandle {
 		let r = Rlp::new(node);
-		if r.is_data() && r.size() < 32 {
-			let child = Node::from_rlp(r.data(), db, storage);
-			NodeHandle::InMemory(storage.alloc(child))
-		} else {
+		if r.is_data() && r.size() == 32 {
 			NodeHandle::Hash(r.as_val::<H256>())
+		} else {
+			let child = Node::from_rlp(node, db, storage);
+			NodeHandle::InMemory(storage.alloc(child))
 		}
 	}
 
@@ -94,10 +98,10 @@ impl Node {
 		match RlpNode::decoded(rlp) {
 			RlpNode::Empty => Node::Empty,
 			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), v.to_owned()),
-			RlpNode::Extension(k, v) => {
-				let key = k.encoded(false);
+			RlpNode::Extension(partial, cb) => {
+				let key = partial.encoded(false);
 
-				Node::Extension(key, Self::inline_or_hash(v, db, storage))
+				Node::Extension(key, Self::inline_or_hash(cb, db, storage))
 			}
 			RlpNode::Branch(children_rlp, v) => {
 				let val = v.map(|x| x.to_owned());
@@ -379,7 +383,8 @@ impl<'a> MemoryTrieDB<'a> {
 	}
 
 	/// insert a key, value pair into the trie, creating new nodes if necessary.
-	fn insert(&mut self, handle: NodeHandle, partial: NibbleSlice, value: Bytes) -> StorageHandle {
+	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: Bytes) -> StorageHandle {
+		trace!(target: "trie", "insert_at (old: {:?}, partial: {:?}, value: {:?})", handle, partial, value.pretty());
 		let handle = match handle {
 			// load the node if we haven't already,
 			NodeHandle::Hash(hash) => {
@@ -392,6 +397,7 @@ impl<'a> MemoryTrieDB<'a> {
 
 		let new_node = match mem::replace(&mut self.storage[&handle], Node::Empty) {
 			Node::Branch(mut children, mut stored_value) => {
+				trace!(target: "trie", "branch: ROUTE,INSERT");
 				if partial.is_empty() {
 					stored_value = Some(value);
 				} else {
@@ -399,10 +405,10 @@ impl<'a> MemoryTrieDB<'a> {
 					if let Some(child_handle) = children[index].take() {
 						// original had something there. continue to insert.
 						let partial = partial.mid(1);
-						children[index] = Some(self.insert(child_handle, partial, value).into());
+						children[index] = Some(self.insert_at(child_handle, partial, value).into());
 					} else {
 						// original had empty slot. place a leaf there.
-						let leaf = Node::Leaf(partial.encoded(true), value);
+						let leaf = Node::Leaf(partial.mid(1).encoded(true), value);
 						children[index] = Some(self.storage.alloc(leaf).into());
 					}
 				}
@@ -413,10 +419,11 @@ impl<'a> MemoryTrieDB<'a> {
 				let (existing_key, _) = NibbleSlice::from_encoded(&encoded_key);
 				let cp = partial.common_prefix(&existing_key);
 				if cp == partial.len() && cp == existing_key.len() {
-					// equivalent leaf: replace
-					Node::Leaf(encoded_key.clone(), stored_value)
+					trace!(target: "trie", "equivalent-leaf: REPLACE");
+					Node::Leaf(encoded_key.clone(), value)
 				} else if cp == 0 {
 					// make a branch.
+					trace!(target: "trie", "no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,INSERT", existing_key.len(), partial.len());
 					let mut children = empty_children();
 					let branch = if existing_key.is_empty() {
 						Node::Branch(children, Some(stored_value))
@@ -429,19 +436,21 @@ impl<'a> MemoryTrieDB<'a> {
 
 					// replace this node with the new branch, and then walk it further.
 					self.storage[&handle] = branch;
-					return self.insert(handle.into(), partial, value);
+					return self.insert_at(handle.into(), partial, value);
 				} else if cp == existing_key.len() {
 					// fully shared prefix.
 					// transform to an extension + augmented version of onward node.
+					trace!(target: "trie", "complete-prefix (cp={:?}): INSERT-AT-END", cp);
 					let stub_branch = self.storage.alloc(Node::Branch(empty_children(), Some(stored_value)));
-					let downstream = self.insert(stub_branch.into(), partial.mid(cp), value);
+					let downstream = self.insert_at(stub_branch.into(), partial.mid(cp), value);
 
 					Node::Extension(existing_key.encoded(false), downstream.into())
 				} else {
 					// partially-shared prefix
 					let low = self.storage.alloc(Node::Leaf(existing_key.mid(cp).encoded(true), stored_value));
-					let augmented_low = self.insert(low.into(), partial.mid(cp), value);
+					let augmented_low = self.insert_at(low.into(), partial.mid(cp), value);
 
+					trace!(target: "trie", "create_extension partial: {:?}, downstream_node: {:?}", existing_key, &self.storage[&augmented_low]);
 					Node::Extension(existing_key.encoded_leftmost(cp, false), augmented_low.into())
 				}
 			}
@@ -450,6 +459,7 @@ impl<'a> MemoryTrieDB<'a> {
 				let cp = partial.common_prefix(&existing_key);
 				if cp == 0 {
 					// make a branch.
+					trace!(target: "trie", "no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,INSERT", existing_key.len(), partial.len());
 					assert!(!existing_key.is_empty()); // extension nodes may not have empty partial keys.
 					let mut children = empty_children();
 					let index = existing_key.at(0) as usize;
@@ -463,20 +473,23 @@ impl<'a> MemoryTrieDB<'a> {
 
 					// replace this node with a branch and walk it further.
 					self.storage[&handle] = Node::Branch(children, None);
-					return self.insert(handle.into(), partial, value);
+					return self.insert_at(handle.into(), partial, value);
 				} else if cp == existing_key.len() {
 					// fully-shared prefix.
-					let downstream = self.insert(child_branch, partial.mid(cp), value);
+					trace!(target: "trie", "complete-prefix (cp={:?}): INSERT-AT-END", cp);
+					let downstream = self.insert_at(child_branch, partial.mid(cp), value);
 					Node::Extension(existing_key.encoded(false), downstream.into())
 				} else {
 					// partially-shared prefix
 					let low = self.storage.alloc(Node::Extension(existing_key.mid(cp).encoded(false), child_branch));
-					let augmented_low = self.insert(low.into(), partial.mid(cp), value);
+					let augmented_low = self.insert_at(low.into(), partial.mid(cp), value);
+					trace!(target: "trie", "create_extension partial: {:?}, downstream_node: {:?}", existing_key, &self.storage[&augmented_low]);
 
 					Node::Extension(existing_key.encoded_leftmost(cp, false), augmented_low.into())
 				}
 			}
 			Node::Empty => {
+				trace!(target: "trie", "empty: COMPOSE");
 				Node::Leaf(partial.encoded(true), value)
 			}
 		};
@@ -486,7 +499,7 @@ impl<'a> MemoryTrieDB<'a> {
 	}
 
 	/// Remove a node from the trie based on key.
-	fn remove(&mut self, handle: NodeHandle, partial: NibbleSlice) -> Option<StorageHandle> {
+	fn remove_at(&mut self, handle: NodeHandle, partial: NibbleSlice) -> Option<StorageHandle> {
 		// load the node we're inspecting into memory if it isn't already.
 		let handle = match handle {
 			NodeHandle::Hash(hash) => {
@@ -504,7 +517,7 @@ impl<'a> MemoryTrieDB<'a> {
 			(Node::Branch(mut children, value), false) => {
 				let index = partial.at(0) as usize;
 				let temp = children[index]
-					.take().and_then(|child| self.remove(child, partial.mid(1)));
+					.take().and_then(|child| self.remove_at(child, partial.mid(1)));
 
 				children[index] = temp.map(|x| x.into());
 
@@ -526,7 +539,7 @@ impl<'a> MemoryTrieDB<'a> {
 					(existing_key.len(), existing_key.common_prefix(&partial))
 				};
 				if cp == existing_len {
-					match self.remove(child_branch, partial.mid(cp)) {
+					match self.remove_at(child_branch, partial.mid(cp)) {
 						Some(new_child) => self.fix(Node::Extension(encoded_key, new_child.into())),
 						None => panic!("extension child is a branch; remove on a branch node always returns Some; qed")
 					}
@@ -574,7 +587,7 @@ impl<'a> MemoryTrieDB<'a> {
 					(UsedIndex::One(i), None) => {
 						// turn into an extension and fix it (the onward node isn't necessarily a branch)
 						let onward = children[i].take().unwrap();
-						self.fix(Node::Extension(NibbleSlice::new(&[i as u8; 1]).encoded(false), onward))
+						self.fix(Node::Extension(NibbleSlice::new_offset(&[i as u8; 1], 1).encoded(false), onward))
 					}
 					(UsedIndex::None, Some(value)) => {
 						// turn into a leaf.
@@ -627,6 +640,8 @@ impl<'a> MemoryTrieDB<'a> {
 
 		*self.root = self.db.insert(&root_rlp);
 
+		trace!(target: "trie", "After commit, root-rlp: {:?}", root_rlp[..].to_owned().pretty());
+
 		// reload the root node from the rlp just in case someone keeps using this trie after
 		// commit.
 		let root_node = Node::from_rlp(&root_rlp, &*self.db, &mut self.storage);
@@ -665,12 +680,12 @@ impl<'a> Trie for MemoryTrieDB<'a> {
 impl<'a> TrieMut for MemoryTrieDB<'a> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		let root_handle = self.root_handle();
-		self.insert(root_handle.into(), NibbleSlice::new(key), value.to_owned());
+		self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
 	}
 
 	fn remove(&mut self, key: &[u8]) {
 		let root_handle = self.root_handle();
-		if self.remove(root_handle.into(), NibbleSlice::new(key)).is_none() {
+		if self.remove_at(root_handle.into(), NibbleSlice::new(key)).is_none() {
 			self.root_handle = self.storage.alloc(Node::Empty);
 		}
 	}
@@ -679,5 +694,353 @@ impl<'a> TrieMut for MemoryTrieDB<'a> {
 impl<'a> Drop for MemoryTrieDB<'a> {
 	fn drop(&mut self) {
 		self.commit();
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	extern crate json_tests;
+	use self::json_tests::{trie, execute_tests_from_directory};
+	use triehash::trie_root;
+	use hash::*;
+	use hashdb::*;
+	use memorydb::*;
+	use super::*;
+	use rlp::*;
+	use bytes::ToPretty;
+	use super::super::trietraits::*;
+	use super::super::standardmap::*;
+
+	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &[(Vec<u8>, Vec<u8>)]) -> MemoryTrieDB<'db> {
+		let mut t = MemoryTrieDB::new(db, root);
+		for i in 0..v.len() {
+			let key: &[u8]= &v[i].0;
+			let val: &[u8] = &v[i].1;
+			t.insert(&key, &val);
+		}
+		t
+	}
+
+	fn unpopulate_trie<'db>(t: &mut MemoryTrieDB<'db>, v: &[(Vec<u8>, Vec<u8>)]) {
+		for i in v {
+			let key: &[u8]= &i.0;
+			t.remove(&key);
+		}
+	}
+
+	#[test]
+	fn playpen() {
+		::log::init_log();
+
+		let mut seed = H256::new();
+		for test_i in 0..1 {
+			if test_i % 50 == 0 {
+				debug!("{:?} of 10000 stress tests done", test_i);
+			}
+			let x = StandardMap {
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				min_key: 5,
+				journal_key: 0,
+				value_mode: ValueMode::Index,
+				count: 100,
+			}.make_with(&mut seed);
+
+			let real = trie_root(x.clone());
+			let mut memdb = MemoryDB::new();
+			let mut root = H256::new();
+			let mut memtrie = populate_trie(&mut memdb, &mut root, &x);
+
+			memtrie.commit();
+			if *memtrie.root() != real {
+				println!("TRIE MISMATCH");
+				println!("");
+				println!("{:?} vs {:?}", memtrie.root(), real);
+				for i in &x {
+					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
+				}
+			}
+			assert_eq!(*memtrie.root(), real);
+			unpopulate_trie(&mut memtrie, &x);
+			memtrie.commit();
+			if *memtrie.root() != SHA3_NULL_RLP {
+				println!("- TRIE MISMATCH");
+				println!("");
+				println!("{:?} vs {:?}", memtrie.root(), real);
+				for i in &x {
+					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
+				}
+			}
+			assert_eq!(*memtrie.root(), SHA3_NULL_RLP);
+		}
+	}
+
+	#[test]
+	fn init() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let t = MemoryTrieDB::new(&mut memdb, &mut root);
+		assert_eq!(*t.root(), SHA3_NULL_RLP);
+	}
+
+	#[test]
+	fn insert_on_empty() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
+	}
+
+	#[test]
+	fn remove_to_empty() {
+		let big_value = b"00000000000000000000000000000000";
+
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t1 = MemoryTrieDB::new(&mut memdb, &mut root);
+		t1.insert(&[0x01, 0x23], &big_value.to_vec());
+		t1.insert(&[0x01, 0x34], &big_value.to_vec());
+		t1.commit();
+		let mut memdb2 = MemoryDB::new();
+		let mut root2 = H256::new();
+		let mut t2 = MemoryTrieDB::new(&mut memdb2, &mut root2);
+		t2.insert(&[0x01], &big_value.to_vec());
+		t2.insert(&[0x01, 0x23], &big_value.to_vec());
+		t2.insert(&[0x01, 0x34], &big_value.to_vec());
+		t2.remove(&[0x01]);
+		t2.commit();
+	}
+
+	#[test]
+	fn insert_replace_root() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
+	}
+
+	#[test]
+	fn insert_make_branch_root() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
+		]));
+	}
+
+	#[test]
+	fn insert_into_branch_root() {
+		::log::init_log();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+		]));
+	}
+
+	#[test]
+	fn insert_value_into_branch_root() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[], &[0x0]);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![], vec![0x0]),
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+		]));
+	}
+
+	#[test]
+	fn insert_split_leaf() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x01u8, 0x34], vec![0x01u8, 0x34]),
+		]));
+	}
+
+	#[test]
+	fn insert_split_extenstion() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
+		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
+		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01, 0x23, 0x45], vec![0x01]),
+			(vec![0x01, 0xf3, 0x45], vec![0x02]),
+			(vec![0x01, 0xf3, 0xf5], vec![0x03]),
+		]));
+	}
+
+	#[test]
+	fn insert_big_value() {
+		let big_value0 = b"00000000000000000000000000000000";
+		let big_value1 = b"11111111111111111111111111111111";
+
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], big_value0);
+		t.insert(&[0x11u8, 0x23], big_value1);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], big_value0.to_vec()),
+			(vec![0x11u8, 0x23], big_value1.to_vec())
+		]));
+	}
+
+	#[test]
+	fn insert_duplicate_value() {
+		let big_value = b"00000000000000000000000000000000";
+
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], big_value);
+		t.insert(&[0x11u8, 0x23], big_value);
+		t.commit();
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], big_value.to_vec()),
+			(vec![0x11u8, 0x23], big_value.to_vec())
+		]));
+	}
+
+	#[test]
+	fn test_at_empty() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let t = MemoryTrieDB::new(&mut memdb, &mut root);
+		assert_eq!(t.get(&[0x5]), None);
+	}
+
+	#[test]
+	fn test_at_one() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
+		t.commit();
+		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
+	}
+
+	#[test]
+	fn test_at_three() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
+		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
+		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x82, 0x23]), None);
+		t.commit();
+		assert_eq!(t.get(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
+		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
+		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x82, 0x23]), None);
+	}
+
+	#[test]
+	fn stress() {
+		let mut seed = H256::new();
+		for _ in 0..50 {
+			let x = StandardMap {
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				min_key: 5,
+				journal_key: 0,
+				value_mode: ValueMode::Index,
+				count: 4,
+			}.make_with(&mut seed);
+
+			let real = trie_root(x.clone());
+			let mut memdb = MemoryDB::new();
+			let mut root = H256::new();
+			let mut memtrie = populate_trie(&mut memdb, &mut root, &x);
+			let mut y = x.clone();
+			y.sort_by(|ref a, ref b| a.0.cmp(&b.0));
+			let mut memdb2 = MemoryDB::new();
+			let mut root2 = H256::new();
+			let mut memtrie_sorted = populate_trie(&mut memdb2, &mut root2, &y);
+			memtrie.commit();
+			memtrie_sorted.commit();
+			if *memtrie.root() != real || *memtrie_sorted.root() != real {
+				println!("TRIE MISMATCH");
+				println!("");
+				println!("ORIGINAL... {:?}", memtrie.root());
+				for i in &x {
+					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
+				}
+				println!("SORTED... {:?}", memtrie_sorted.root());
+				for i in &y {
+					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
+				}
+			}
+			assert_eq!(*memtrie.root(), real);
+			assert_eq!(*memtrie_sorted.root(), real);
+		}
+	}
+
+	#[test]
+	fn test_trie_json() {
+		println!("Json trie test: ");
+		execute_tests_from_directory::<trie::TrieTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
+			println!("file: {}", file);
+
+			let mut memdb = MemoryDB::new();
+			let mut root = H256::new();
+			let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
+			for operation in input.into_iter() {
+				match operation {
+					trie::Operation::Insert(key, value) => t.insert(&key, &value),
+					trie::Operation::Remove(key) => t.remove(&key)
+				}
+			}
+			t.commit();
+			assert_eq!(*t.root(), H256::from_slice(&output));
+		});
+	}
+
+	#[test]
+	fn test_trie_existing() {
+		let mut root = H256::new();
+		let mut db = MemoryDB::new();
+		{
+			let mut t = MemoryTrieDB::new(&mut db, &mut root);
+			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+			t.commit();
+		}
+
+		{
+		 	let _ = MemoryTrieDB::from_existing(&mut db, &mut root);
+		}
 	}
 }
