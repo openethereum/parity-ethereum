@@ -82,7 +82,7 @@ Networking Options:
   --reserved-only          Connect only to reserved nodes.
 
 API and Console Options:
-  --jsonrpc-off            Disable the JSON-RPC API server.
+  --no-jsonrpc             Disable the JSON-RPC API server.
   --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
                            [default: 8545].
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
@@ -95,13 +95,13 @@ API and Console Options:
                            ethcore, ethcore_set, traces.
                            [default: web3,eth,net,ethcore,personal,traces].
 
-  --ipc-off                Disable JSON-RPC over IPC service.
+  --no-ipc                 Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
                            IPC [default: web3,eth,net,ethcore,personal,traces,rpc].
 
-  --dapps-off              Disable the Dapps server (e.g. status page).
+  --no-dapps               Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
@@ -116,7 +116,7 @@ API and Console Options:
   --dapps-path PATH        Specify directory where dapps should be installed.
                            [default: $HOME/.parity/dapps]
 
-  --signer-off             Disable Trusted Signer WebSocket endpoint used by
+  --signer                 Enable Trusted Signer WebSocket endpoint used by
                            Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
@@ -160,7 +160,7 @@ Footprint Options:
                            light - early merges with partial tracking. Fast,
                            light, and experimental!
                            auto - use the method most recently synced or
-                           default to archive if none synced [default: auto].
+                           default to fast if none synced [default: auto].
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
                            bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
@@ -197,13 +197,16 @@ Legacy Options:
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   -j --jsonrpc             Does nothing; JSON-RPC is on by default now.
+  --jsonrpc-off            Equivalent to --no-jsonrpc.
   -w --webapp              Does nothing; dapps server is on by default now.
+  --dapps-off              Equivalent to --no-dapps.
   --rpc                    Does nothing; JSON-RPC is on by default now.
   --rpcaddr IP             Equivalent to --jsonrpc-interface IP.
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
-  --ipcdisable             Equivalent to --ipc-off.
+  --ipcdisable             Equivalent to --no-ipc.
+  --ipc-off                Equivalent to --no-ipc.
   --ipcapi APIS            Equivalent to --ipc-apis APIS.
   --ipcpath PATH           Equivalent to --ipc-path PATH.
   --gasprice WEI           Minimum amount of Wei per GAS to be paid for a
@@ -260,21 +263,21 @@ pub struct Args {
 	pub flag_cache_pref_size: usize,
 	pub flag_cache_max_size: usize,
 	pub flag_queue_max_size: usize,
-	pub flag_jsonrpc_off: bool,
+	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
 	pub flag_jsonrpc_port: u16,
 	pub flag_jsonrpc_cors: Option<String>,
 	pub flag_jsonrpc_apis: String,
-	pub flag_ipc_off: bool,
+	pub flag_no_ipc: bool,
 	pub flag_ipc_path: String,
 	pub flag_ipc_apis: String,
-	pub flag_dapps_off: bool,
+	pub flag_no_dapps: bool,
 	pub flag_dapps_port: u16,
 	pub flag_dapps_interface: String,
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
-	pub flag_signer_off: bool,
+	pub flag_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
 	pub flag_no_token: bool,
@@ -312,6 +315,9 @@ pub struct Args {
 	pub flag_testnet: bool,
 	pub flag_networkid: Option<String>,
 	pub flag_ipcdisable: bool,
+	pub flag_ipc_off: bool,
+	pub flag_jsonrpc_off: bool,
+	pub flag_dapps_off: bool,
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
 	pub flag_db_cache_size: Option<usize>,
