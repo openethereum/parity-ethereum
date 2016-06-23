@@ -96,7 +96,7 @@ pub trait Engine : Sync + Send {
 
 	/// Don't forget to call Super::populate_from_parent when subclassing & overriding.
 	// TODO: consider including State in the params.
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.difficulty = parent.difficulty;
 		header.gas_limit = parent.gas_limit;
 		header.note_dirty();

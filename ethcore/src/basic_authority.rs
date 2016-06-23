@@ -80,7 +80,7 @@ impl Engine for BasicAuthority {
 		Schedule::new_homestead()
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.difficulty = parent.difficulty;
 		header.gas_limit = {
 			let gas_limit = parent.gas_limit;

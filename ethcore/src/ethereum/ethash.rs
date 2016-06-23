@@ -112,15 +112,20 @@ impl Engine for Ethash {
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
 		header.difficulty = self.calculate_difficuty(header, parent);
 		header.gas_limit = {
 			let gas_limit = parent.gas_limit;
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+			} else if gas_limit > gas_ceil_target {
+				max(gas_ceil_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into() + (header.gas_used * 6.into() / 5.into()) / bound_divisor)
+				max(gas_ceil_target,
+					max(gas_floor_target,
+						gas_limit - gas_limit / bound_divisor + 1.into() +
+							(header.gas_used * 6.into() / 5.into()) / bound_divisor))
 			}
 		};
 		header.note_dirty();
@@ -237,8 +242,7 @@ impl Ethash {
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {
 				parent.difficulty - (parent.difficulty / difficulty_bound_divisor)
-			}
-			else {
+			} else {
 				parent.difficulty + (parent.difficulty / difficulty_bound_divisor)
 			}
 		}

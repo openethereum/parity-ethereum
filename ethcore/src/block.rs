@@ -222,7 +222,7 @@ impl<'x> OpenBlock<'x> {
 		last_hashes: LastHashes,
 		dao_rescue_block_gas_limit: Option<U256>,
 		author: Address,
-		gas_floor_target: U256,
+		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 	) -> Result<Self, Error> {
 		let state = try!(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce()));
@@ -241,7 +241,7 @@ impl<'x> OpenBlock<'x> {
 		r.block.base.header.extra_data = extra_data;
 		r.block.base.header.note_dirty();
 
-		engine.populate_from_parent(&mut r.block.base.header, parent, gas_floor_target);
+		engine.populate_from_parent(&mut r.block.base.header, parent, gas_range_target.0, gas_range_target.1);
 		engine.on_new_block(&mut r.block);
 		Ok(r)
 	}
@@ -480,7 +480,7 @@ pub fn enact(
 		}
 	}
 
-	let mut b = try!(OpenBlock::new(engine, vm_factory, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, header.author().clone(), 3141562.into(), header.extra_data().clone()));
+	let mut b = try!(OpenBlock::new(engine, vm_factory, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, header.author().clone(), (3141562.into(), 31415620.into()), header.extra_data().clone()));
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
