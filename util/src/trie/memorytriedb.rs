@@ -624,6 +624,11 @@ impl<'a> MemoryTrieDB<'a> {
 		let root_rlp = root_node.to_rlp(self.db, &mut self.storage);
 
 		*self.root = self.db.insert(&root_rlp);
+
+		// reload the root node from the rlp just in case someone keeps using this trie after
+		// commit.
+		let root_node = Node::from_rlp(&root_rlp, &*self.db, &mut self.storage);
+		self.storage[&root_handle] = root_node;
 	}
 
 	// a hack to get the root node's handle
