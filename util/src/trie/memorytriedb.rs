@@ -23,6 +23,8 @@ use ::{Bytes, FixedHash, HashDB, H256, SHA3_NULL_RLP};
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, View};
 
+use elastic_array::ElasticArray1024;
+
 use std::collections::VecDeque;
 use std::mem;
 use std::ops::{Index, IndexMut};
@@ -118,20 +120,20 @@ impl Node {
 	// encode them, and write them to the DB.
 	//
 	// TODO: parallelize
-	fn to_rlp(self, db: &mut HashDB, storage: &mut NodeStorage) -> Bytes {
+	fn to_rlp(self, db: &mut HashDB, storage: &mut NodeStorage) -> ElasticArray1024<u8> {
 		use ::rlp::{RlpStream, Stream};
 
 		match self {
 			Node::Empty => {
 				let mut stream = RlpStream::new();
 				stream.append_empty_data();
-				stream.out()
+				stream.drain()
 			}
 			Node::Leaf(k, v) => {
 				let mut stream = RlpStream::new_list(2);
 				stream.append(&k);
 				stream.append(&v);
-				stream.out()
+				stream.drain()
 			}
 			Node::Extension(partial, child_handle) => {
 				let mut stream = RlpStream::new_list(2);
@@ -153,7 +155,7 @@ impl Node {
 					}
 				}
 
-				stream.out()
+				stream.drain()
 			}
 			Node::Branch(mut children, value) => {
 				let mut stream = RlpStream::new_list(17);
@@ -184,7 +186,7 @@ impl Node {
 					None => stream.append_empty_data(),
 				};
 
-				stream.out()
+				stream.drain()
 			}
 		}
 	}
