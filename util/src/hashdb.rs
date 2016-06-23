@@ -20,12 +20,10 @@ use bytes::*;
 use std::collections::HashMap;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
-pub trait HashDB : AsHashDB {
+pub trait HashDB: AsHashDB {
 	/// Get the keys in the database together with number of underlying references.
 	fn keys(&self) -> HashMap<H256, i32>;
 
-	/// Deprecated. use `get`.
-	fn lookup(&self, key: &H256) -> Option<&[u8]>; // TODO: rename to get.
 	/// Look up a given hash into the bytes that hash to it, returning None if the
 	/// hash is not known.
 	///
@@ -41,10 +39,8 @@ pub trait HashDB : AsHashDB {
 	///   assert_eq!(m.get(&hash).unwrap(), hello_bytes);
 	/// }
 	/// ```
-	fn get(&self, key: &H256) -> Option<&[u8]> { self.lookup(key) }
+	fn get(&self, key: &H256) -> Option<&[u8]>;
 
-	/// Deprecated. Use `contains`.
-	fn exists(&self, key: &H256) -> bool; // TODO: rename to contains.
 	/// Check for the existance of a hash-key.
 	///
 	/// # Examples
@@ -63,10 +59,10 @@ pub trait HashDB : AsHashDB {
 	///   assert!(!m.contains(&key));
 	/// }
 	/// ```
-	fn contains(&self, key: &H256) -> bool { self.exists(key) }
+	fn contains(&self, key: &H256) -> bool;
 
 	/// Insert a datum item into the DB and return the datum's hash for a later lookup. Insertions
-	/// are counted and the equivalent number of `kill()`s must be performed before the data
+	/// are counted and the equivalent number of `remove()`s must be performed before the data
 	/// is considered dead.
 	///
 	/// # Examples
@@ -86,8 +82,6 @@ pub trait HashDB : AsHashDB {
 	/// Like `insert()` , except you provide the key and the data is all moved.
 	fn emplace(&mut self, key: H256, value: Bytes);
 
-	/// Deprecated - use `remove`.
-	fn kill(&mut self, key: &H256); // TODO: rename to remove.
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB.
 	///
@@ -109,7 +103,7 @@ pub trait HashDB : AsHashDB {
 	///   assert_eq!(m.get(key).unwrap(), d);
 	/// }
 	/// ```
-	fn remove(&mut self, key: &H256) { self.kill(key) }
+	fn remove(&mut self, key: &H256);
 }
 
 /// Upcast trait.
@@ -121,6 +115,10 @@ pub trait AsHashDB {
 }
 
 impl<T: HashDB> AsHashDB for T {
-	fn as_hashdb(&self) -> &HashDB { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB { self }
+	fn as_hashdb(&self) -> &HashDB {
+		self
+	}
+	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+		self
+	}
 }
