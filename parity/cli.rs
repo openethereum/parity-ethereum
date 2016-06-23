@@ -56,7 +56,7 @@ Account Options:
                            ACCOUNTS is a comma-delimited list of addresses.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
-  --keys-iterations NUM    Specify the number of iterations to use when 
+  --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) [default: 10240].
   --no-import-keys         Do not import keys from legacy clients.
@@ -99,7 +99,7 @@ API and Console Options:
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
-                           IPC [default: web3,eth,net,ethcore,personal,traces].
+                           IPC [default: web3,eth,net,ethcore,personal,traces,rpc].
 
   --dapps-off              Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
