@@ -20,8 +20,10 @@ use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 
-const DB_FILE_SIZE_BASE: u64 = 10 * 1024 * 1024;
-const DB_FILE_SIZE_MULTIPLIER: i32 = 5;
+const DB_FILE_SIZE_BASE: u64 = 128 * 1024 * 1024;
+const DB_FILE_SIZE_MULTIPLIER: i32 = 1;
+const DB_BACKGROUND_FLUSHES: i32 = 4;
+const DB_BACKGROUND_COMPACTIONS: i32 = 4;
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
@@ -116,6 +118,8 @@ impl Database {
 		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
 		opts.set_target_file_size_base(DB_FILE_SIZE_BASE);
 		opts.set_target_file_size_multiplier(DB_FILE_SIZE_MULTIPLIER);
+		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
+		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
 		if let Some(cache_size) = config.cache_size {
 			// half goes to read cache
 			opts.set_block_cache_size_mb(cache_size as u64 / 2);
