@@ -113,6 +113,81 @@ impl Node {
 			}
 		}
 	}
+
+	// encode a node to RLP. if it has child nodes, remove them from the storage,
+	// encode them, and write them to the DB.
+	//
+	// TODO: parallelize
+	fn to_rlp(self, db: &mut HashDB, storage: &mut NodeStorage) -> Bytes {
+		use ::rlp::{RlpStream, Stream};
+
+		match self {
+			Node::Empty => {
+				let mut stream = RlpStream::new();
+				stream.append_empty_data();
+				stream.out()
+			}
+			Node::Leaf(k, v) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&k);
+				stream.append(&v);
+				stream.out()
+			}
+			Node::Extension(partial, child_handle) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&partial);
+
+				match child_handle {
+					NodeHandle::InMemory(s_handle) => {
+						let node = storage.destroy(s_handle);
+						let rlp = node.to_rlp(db, storage);
+						if rlp.len() >= 32 {
+							let hash = db.insert(&rlp);
+							stream.append(&hash);
+						} else {
+							stream.append_raw(&rlp, 1);
+						}
+					}
+					NodeHandle::Hash(hash) => {
+						stream.append(&hash);
+					}
+				}
+
+				stream.out()
+			}
+			Node::Branch(mut children, value) => {
+				let mut stream = RlpStream::new_list(17);
+				// no moving iterators for arrays
+				for child in children.iter_mut().map(Option::take) {
+					match child {
+						Some(handle) => match handle {
+							NodeHandle::InMemory(s_handle) => {
+								let node = storage.destroy(s_handle);
+								let rlp = node.to_rlp(db, storage);
+								if rlp.len() >= 32 {
+									// too big,
+									let hash = db.insert(&rlp);
+									stream.append(&hash)
+								} else {
+									// inline node.
+									stream.append_raw(&rlp, 1)
+								}
+							}
+							NodeHandle::Hash(hash) => stream.append(&hash),
+						},
+						None => stream.append_empty_data(),
+					};
+				}
+
+				match value {
+					Some(value) => stream.append(&value),
+					None => stream.append_empty_data(),
+				};
+
+				stream.out()
+			}
+		}
+	}
 }
 
 /// Compact and cache-friendly storage for Trie nodes.
@@ -541,6 +616,16 @@ impl<'a> MemoryTrieDB<'a> {
 		}
 	}
 
+	/// Commit the in-memory changes to disk, freeing their storage and
+	/// updating the state root.
+	pub fn commit(&mut self) {
+		let root_handle = self.root_handle();
+		let root_node = mem::replace(&mut self.storage[&root_handle], Node::Empty);
+		let root_rlp = root_node.to_rlp(self.db, &mut self.storage);
+
+		*self.root = self.db.insert(&root_rlp);
+	}
+
 	// a hack to get the root node's handle
 	fn root_handle(&self) -> StorageHandle {
 		StorageHandle(self.root_handle.0)
@@ -548,7 +633,7 @@ impl<'a> MemoryTrieDB<'a> {
 }
 
 impl<'a> Trie for MemoryTrieDB<'a> {
-	// TODO [rob] do something about the root not being consistent with trie state.
+	// TODO [rob] do something about the root not being consistent with trie state until commit.
 	fn root(&self) -> &H256 {
 		&self.root
 	}
@@ -581,5 +666,11 @@ impl<'a> TrieMut for MemoryTrieDB<'a> {
 		if self.remove(root_handle.into(), NibbleSlice::new(key)).is_none() {
 			self.root_handle = self.storage.alloc(Node::Empty);
 		}
+	}
+}
+
+impl<'a> Drop for MemoryTrieDB<'a> {
+	fn drop(&mut self) {
+		self.commit();
 	}
 }
