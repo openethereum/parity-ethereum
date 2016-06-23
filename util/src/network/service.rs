@@ -18,9 +18,9 @@ use std::sync::*;
 use error::*;
 use panics::*;
 use network::{NetworkProtocolHandler, NetworkConfiguration};
-use network::error::{NetworkError};
+use network::error::NetworkError;
 use network::host::{Host, NetworkIoMessage, ProtocolId};
-use network::stats::{NetworkStats};
+use network::stats::NetworkStats;
 use io::*;
 
 /// IO Service with networking
@@ -28,33 +28,33 @@ use io::*;
 pub struct NetworkService<Message> where Message: Send + Sync + Clone + 'static {
 	io_service: IoService<NetworkIoMessage<Message>>,
 	host_info: String,
-	host: Arc<Host<Message>>,
+	host: RwLock<Option<Arc<Host<Message>>>>,
 	stats: Arc<NetworkStats>,
-	panic_handler: Arc<PanicHandler>
+	panic_handler: Arc<PanicHandler>,
+	config: NetworkConfiguration,
 }
 
 impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
-	pub fn start(config: NetworkConfiguration) -> Result<NetworkService<Message>, UtilError> {
+	pub fn new(config: NetworkConfiguration) -> Result<NetworkService<Message>, UtilError> {
 		let panic_handler = PanicHandler::new_in_arc();
-		let mut io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
+		let io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
 		panic_handler.forward_from(&io_service);
 
-		let host = Arc::new(try!(Host::new(config)));
-		let stats = host.stats().clone();
-		let host_info = host.client_version();
-		try!(io_service.register_handler(host.clone()));
+		let stats = Arc::new(NetworkStats::new());
+		let host_info = Host::<Message>::client_version();
 		Ok(NetworkService {
 			io_service: io_service,
 			host_info: host_info,
 			stats: stats,
 			panic_handler: panic_handler,
-			host: host,
+			host: RwLock::new(None),
+			config: config,
 		})
 	}
 
 	/// Regiter a new protocol handler with the event loop.
-	pub fn register_protocol(&mut self, handler: Arc<NetworkProtocolHandler<Message>+Send + Sync>, protocol: ProtocolId, versions: &[u8]) -> Result<(), NetworkError> {
+	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler<Message>+Send + Sync>, protocol: ProtocolId, versions: &[u8]) -> Result<(), NetworkError> {
 		try!(self.io_service.send_message(NetworkIoMessage::AddHandler {
 			handler: handler,
 			protocol: protocol,
@@ -69,8 +69,8 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 	}
 
 	/// Returns underlying io service.
-	pub fn io(&mut self) -> &mut IoService<NetworkIoMessage<Message>> {
-		&mut self.io_service
+	pub fn io(&self) -> &IoService<NetworkIoMessage<Message>> {
+		&self.io_service
 	}
 
 	/// Returns network statistics.
@@ -80,12 +80,65 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 
 	/// Returns external url if available.
 	pub fn external_url(&self) -> Option<String> {
-		self.host.external_url()
+		let host = self.host.read().unwrap();
+		host.as_ref().and_then(|h| h.external_url())
 	}
 
 	/// Returns external url if available.
-	pub fn local_url(&self) -> String {
-		self.host.local_url()
+	pub fn local_url(&self) -> Option<String> {
+		let host = self.host.read().unwrap();
+		host.as_ref().map(|h| h.local_url())
+	}
+
+	/// Start network IO
+	pub fn start(&self) -> Result<(), UtilError> {
+		let mut host = self.host.write().unwrap();
+		if host.is_none() {
+			let h = Arc::new(try!(Host::new(self.config.clone(), self.stats.clone())));
+			try!(self.io_service.register_handler(h.clone()));
+			*host = Some(h);
+		}
+		Ok(())
+	}
+
+	/// Stop network IO
+	pub fn stop(&self) -> Result<(), UtilError> {
+		let mut host = self.host.write().unwrap();
+		if let Some(ref host) = *host {
+			let io = IoContext::new(self.io_service.channel(), 0); //TODO: take token id from host
+			try!(host.stop(&io));
+		}
+		*host = None;
+		Ok(())
+	}
+
+	/// Try to add a reserved peer.
+	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), UtilError> {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			host.add_reserved_node(peer)
+		} else {
+			Ok(())
+		}
+	}
+
+	/// Try to remove a reserved peer.
+	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), UtilError> {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			host.remove_reserved_node(peer)
+		} else {
+			Ok(())
+		}
+	}
+
+	/// Set the non-reserved peer mode.
+	pub fn set_non_reserved_mode(&self, mode: ::network::NonReservedPeerMode) {
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = *host {
+			let io_ctxt = IoContext::new(self.io_service.channel(), 0);
+			host.set_non_reserved_mode(mode, &io_ctxt);
+		}
 	}
 }
 

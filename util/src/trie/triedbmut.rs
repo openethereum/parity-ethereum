@@ -87,7 +87,7 @@ impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and `root`.
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
-		if !db.exists(root) {
+		if !db.contains(root) {
 			Err(TrieError::InvalidStateRoot)
 		} else {
 			Ok(TrieDBMut {
@@ -142,7 +142,7 @@ impl<'db> TrieDBMut<'db> {
 	/// Set the trie to a new root node's RLP, inserting the new RLP into the backing database
 	/// and removing the old.
 	fn set_root_rlp(&mut self, root_data: &[u8]) {
-		self.db.kill(&self.root);
+		self.db.remove(&self.root);
 		*self.root = self.db.insert(root_data);
 		self.hash_count += 1;
 		trace!("set_root_rlp {:?} {:?}", root_data.pretty(), self.root);
@@ -178,7 +178,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Get the data of the root node.
 	fn root_data(&self) -> &[u8] {
-		self.db.lookup(&self.root).expect("Trie root not found!")
+		self.db.get(&self.root).expect("Trie root not found!")
 	}
 
 	/// Get the root node as a `Node`.
@@ -258,7 +258,7 @@ impl<'db> TrieDBMut<'db> {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&r.as_val::<H256>()).expect("Not found!"),
+			true => self.db.get(&r.as_val::<H256>()).expect("Not found!"),
 			false => node
 		}
 	}
@@ -339,7 +339,7 @@ impl<'db> TrieDBMut<'db> {
 		}
 		else if rlp.is_data() && rlp.size() == 32 {
 			let h = rlp.as_val();
-			let r = self.db.lookup(&h).unwrap_or_else(||{
+			let r = self.db.get(&h).unwrap_or_else(||{
 				println!("Node not found! rlp={:?}, node_hash={:?}", rlp.as_raw().pretty(), h);
 				println!("Journal: {:?}", journal);
 				panic!();

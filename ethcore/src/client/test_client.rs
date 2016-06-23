@@ -31,7 +31,7 @@ use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 
 use block_queue::BlockQueueInfo;
-use block::{SealedBlock, LockedBlock, OpenBlock};
+use block::OpenBlock;
 use executive::Executed;
 use error::{ExecutionError};
 use trace::LocalizedTrace;
@@ -187,7 +187,7 @@ impl TestBlockChainClient {
 					txs.append(&signed_tx);
 					txs.out()
 				},
-				_ => rlp::NULL_RLP.to_vec()
+				_ => rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
 			let mut rlp = RlpStream::new_list(3);
@@ -240,11 +240,6 @@ impl TestBlockChainClient {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
-	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
-		Err(block)
-	}
-
-
 	fn prepare_open_block(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes) -> OpenBlock {
 		unimplemented!();
 	}
@@ -495,7 +490,13 @@ impl BlockChainClient for TestBlockChainClient {
 			balance: balances[a],
 		};
 
-		self.miner.import_transactions(transactions, &fetch_account)
+		self.miner.import_transactions(self, transactions, &fetch_account)
+	}
+
+	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+		// import right here
+		let tx = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		self.import_transactions(tx);
 	}
 
 	fn all_transactions(&self) -> Vec<SignedTransaction> {

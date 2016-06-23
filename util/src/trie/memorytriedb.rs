@@ -371,7 +371,7 @@ impl<'a> MemoryTrieDB<'a> {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&r.as_val::<H256>()).expect("Not found!"),
+			true => self.db.get(&r.as_val::<H256>()).expect("Not found!"),
 			false => node
 		}
 	}
@@ -381,7 +381,7 @@ impl<'a> MemoryTrieDB<'a> {
 		let handle = match handle {
 			// load the node if we haven't already,
 			NodeHandle::Hash(hash) => {
-				let node_rlp = self.db.lookup(&hash).expect("Not found!");
+				let node_rlp = self.db.get(&hash).expect("Not found!");
 				let node = Node::from_rlp(node_rlp, &*self.db, &mut self.storage);
 				self.storage.alloc(node)
 			}
@@ -488,7 +488,7 @@ impl<'a> MemoryTrieDB<'a> {
 		// load the node we're inspecting into memory if it isn't already.
 		let handle = match handle {
 			NodeHandle::Hash(hash) => {
-				let node_rlp = self.db.lookup(&hash).expect("Not found!");
+				let node_rlp = self.db.get(&hash).expect("Not found!");
 				let node = Node::from_rlp(node_rlp, &*self.db, &mut self.storage);
 				self.storage.alloc(node)
 			}
@@ -585,7 +585,7 @@ impl<'a> MemoryTrieDB<'a> {
 				// load the child into memory if it isn't already.
 				let child = match child {
 					NodeHandle::Hash(hash) => {
-						let node_rlp = self.db.lookup(&hash).expect("Not found!");
+						let node_rlp = self.db.get(&hash).expect("Not found!");
 						Node::from_rlp(node_rlp, &*self.db, &mut self.storage)
 					}
 					NodeHandle::InMemory(h) => self.storage.destroy(h),

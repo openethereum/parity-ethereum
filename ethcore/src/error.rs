@@ -58,6 +58,8 @@ pub enum TransactionError {
 	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
+	/// Transaction is invalid for some other reason.
+	DAORescue,
 }
 
 impl fmt::Display for TransactionError {
@@ -76,6 +78,7 @@ impl fmt::Display for TransactionError {
 			GasLimitExceeded { limit, got } =>
 				format!("Gas limit exceeded. Limit={}, Given={}", limit, got),
 			InvalidGasLimit(ref err) => format!("Invalid gas limit. {}", err),
+			DAORescue => "Transaction is invalid due to the DAO rescue.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
@@ -225,7 +228,7 @@ pub enum Error {
 	/// The value of the nonce or mishash is invalid.
 	PowInvalid,
 	/// Error concerning TrieDBs
-	TrieError(TrieError),
+	Trie(TrieError),
 }
 
 impl fmt::Display for Error {
@@ -241,7 +244,7 @@ impl fmt::Display for Error {
 				f.write_fmt(format_args!("Unknown engine name ({})", name)),
 			Error::PowHashInvalid => f.write_str("Invalid or out of date PoW hash."),
 			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
-			Error::TrieError(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::Trie(ref err) => f.write_fmt(format_args!("{}", err)),
 		}
 	}
 }
@@ -305,7 +308,7 @@ impl From<IoError> for Error {
 
 impl From<TrieError> for Error {
 	fn from(err: TrieError) -> Error {
-		Error::TrieError(err)
+		Error::Trie(err)
 	}
 }
 

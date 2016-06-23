@@ -25,10 +25,12 @@ Usage:
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
+  parity wallet import <path> --password FILE [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
   parity [options]
+  parity ui [options]
 
 Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
@@ -41,6 +43,14 @@ Protocol Options:
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
 
+DAO-Rescue Soft-fork Options:
+  --help-rescue-dao        Does nothing - on by default.
+  --dont-help-rescue-dao   Votes against the DAO-rescue soft-fork, but supports
+                           it if it is triggered anyway.
+                           Equivalent to --gas-floor-target=3141592.
+  --dogmatic               Ignores all DAO-rescue soft-fork behaviour. Even if
+                           it means losing mining rewards.
+
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
                            ACCOUNTS is a comma-delimited list of addresses.
@@ -52,6 +62,7 @@ Account Options:
   --no-import-keys         Do not import keys from legacy clients.
 
 Networking Options:
+  --no-network             Disable p2p networking.
   --port PORT              Override the port on which the node should listen
                            [default: 30303].
   --peers NUM              Try to maintain that many peers [default: 25].
@@ -65,6 +76,10 @@ Networking Options:
   --no-discovery           Disable new peer discovery.
   --node-key KEY           Specify node secret key, either as 64-character hex
                            string or input to SHA3 operation.
+  --reserved-peers FILE    Provide a file containing enodes, one per line.
+                           These nodes will always have a reserved slot on top
+                           of the normal maximum peers.
+  --reserved-only          Connect only to reserved nodes.
 
 API and Console Options:
   --jsonrpc-off            Disable the JSON-RPC API server.
@@ -84,7 +99,7 @@ API and Console Options:
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
-                           IPC [default: web3,eth,net,ethcore,personal,traces].
+                           IPC [default: web3,eth,net,ethcore,personal,traces,rpc].
 
   --dapps-off              Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
@@ -101,12 +116,14 @@ API and Console Options:
   --dapps-path PATH        Specify directory where dapps should be installed.
                            [default: $HOME/.parity/dapps]
 
-  --signer                 Enable Trusted Signer WebSocket endpoint used by
+  --signer-off             Disable Trusted Signer WebSocket endpoint used by
                            Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
   --signer-path PATH       Specify directory where Signer UIs tokens should
                            be stored. [default: $HOME/.parity/signer]
+  --no-token               By default a new system UI security token will be
+                           output on start up. This will prevent it.
 
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
@@ -119,7 +136,7 @@ Sealing/Mining Options:
                            web service in turn and fallback on the last known
                            good value [default: auto].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
-                           block [default: 4712388].
+                           block [default: 3141592].
   --author ADDRESS         Specify the block author (aka "coinbase") address
                            for sending block rewards from sealed blocks
                            [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
@@ -153,6 +170,7 @@ Footprint Options:
   --cache MEGABYTES        Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
+  --db-cache-size MB       Database cache size.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -166,9 +184,10 @@ Virtual Machine Options:
   --jitvm                  Enable the JIT VM.
 
 Legacy Options:
-  --geth                   Run in Geth-compatibility mode. Currently just sets
-                           the IPC path to be the same as Geth's. Overrides
-                           the --ipc-path/--ipcpath options.
+  --geth                   Run in Geth-compatibility mode. Sets the IPC path
+                           to be the same as Geth's. Overrides the --ipc-path
+                           and --ipcpath options. Alters RPCs to reflect Geth
+                           bugs.
   --testnet                Geth-compatible testnet mode. Equivalent to --chain
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.
@@ -205,18 +224,22 @@ Miscellaneous Options:
 pub struct Args {
 	pub cmd_daemon: bool,
 	pub cmd_account: bool,
+	pub cmd_wallet: bool,
 	pub cmd_new: bool,
 	pub cmd_list: bool,
 	pub cmd_export: bool,
 	pub cmd_import: bool,
 	pub cmd_signer: bool,
 	pub cmd_new_token: bool,
+	pub cmd_ui: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
+	pub flag_dont_help_rescue_dao: bool,
+	pub flag_dogmatic: bool,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,
@@ -232,6 +255,8 @@ pub struct Args {
 	pub flag_no_discovery: bool,
 	pub flag_nat: String,
 	pub flag_node_key: Option<String>,
+	pub flag_reserved_peers: Option<String>,
+	pub flag_reserved_only: bool,
 	pub flag_cache_pref_size: usize,
 	pub flag_cache_max_size: usize,
 	pub flag_queue_max_size: usize,
@@ -249,9 +274,10 @@ pub struct Args {
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
-	pub flag_signer: bool,
+	pub flag_signer_off: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
+	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
 	pub flag_author: String,
 	pub flag_usd_per_tx: String,
@@ -266,6 +292,7 @@ pub struct Args {
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_no_color: bool,
+	pub flag_no_network: bool,
 	// legacy...
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,
@@ -287,6 +314,7 @@ pub struct Args {
 	pub flag_ipcdisable: bool,
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
+	pub flag_db_cache_size: Option<usize>,
 }
 
 pub fn print_version() {

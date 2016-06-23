@@ -151,10 +151,10 @@ pub mod io;
 pub mod network;
 pub mod log;
 pub mod panics;
-pub mod keys;
 pub mod table;
 pub mod network_settings;
 pub mod path;
+mod timer;
 
 pub use common::*;
 pub use misc::*;
@@ -176,6 +176,7 @@ pub use network::*;
 pub use io::*;
 pub use log::*;
 pub use kvdb::*;
+pub use timer::*;
 
 #[cfg(test)]
 mod tests {

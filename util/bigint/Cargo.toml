@@ -12,8 +12,6 @@ rustc_version = "0.1"
 
 [dependencies]
 rustc-serialize = "0.3"
-arrayvec = "0.3"
-rand = "0.3.12"
 serde = "0.7.0"
 heapsize = "0.3"
 

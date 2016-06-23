@@ -47,7 +47,7 @@ fn status_after_sync() {
 	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
-	let status = net.peer(0).sync.status();
+	let status = net.peer(0).sync.read().unwrap().status();
 	assert_eq!(status.state, SyncState::Idle);
 }
 
@@ -107,14 +107,14 @@ fn restart() {
 	assert!(net.peer(0).chain.chain_info().best_block_number > 100);
 	net.restart_peer(0);
 
-	let status = net.peer(0).sync.status();
+	let status = net.peer(0).sync.read().unwrap().status();
 	assert_eq!(status.state, SyncState::ChainHead);
 }
 
 #[test]
 fn status_empty() {
 	let net = TestNet::new(2);
-	assert_eq!(net.peer(0).sync.status().state, SyncState::Idle);
+	assert_eq!(net.peer(0).sync.read().unwrap().status().state, SyncState::Idle);
 }
 
 #[test]
@@ -185,6 +185,16 @@ fn restart_on_malformed_block() {
 
 #[test]
 fn restart_on_broken_chain() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.corrupt_block_parent(6);
+	net.sync_steps(20);
+
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
+}
+
+#[test]
+fn high_td_attach() {
 	let mut net = TestNet::new(2);
 	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
 	net.peer_mut(1).chain.corrupt_block_parent(6);
