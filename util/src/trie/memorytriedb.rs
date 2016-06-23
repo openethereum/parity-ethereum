@@ -464,9 +464,81 @@ impl<'a> MemoryTrieDB<'a> {
 		Some(handle)
 	}
 
-	// fix a potentially invalid node.
-	fn fix(&mut self, _node: Node) -> Node {
-		unimplemented!()
+	/// Given a node which may be in an _invalid state_, fix it such that it is then in a valid
+	/// state.
+	///
+	/// _invalid state_ means:
+	/// - Branch node where there is only a single entry;
+	/// - Extension node followed by anything other than a Branch node.
+	fn fix(&mut self, node: Node) -> Node {
+		match node {
+			Node::Branch(mut children, value) => {
+				#[derive(Debug)]
+				enum UsedIndex {
+					None,
+					One(usize),
+					Many,
+				}
+				let mut used_index = UsedIndex::None;
+				for i in 0..16 {
+					match (children[i].is_some(), &used_index) {
+						(false, _) => continue,
+						(true, &UsedIndex::None) => used_index = UsedIndex::One(i),
+						(true, &UsedIndex::One(_)) => {
+							used_index = UsedIndex::Many;
+							break;
+						}
+						_ => {}
+					}
+				}
+
+				match (used_index, value) {
+					(UsedIndex::None, None) => panic!("Branch with no subvalues. Something went wrong."),
+					(UsedIndex::One(i), None) => {
+						// turn into an extension and fix it (the onward node isn't necessarily a branch)
+						let onward = children[i].take().unwrap();
+						self.fix(Node::Extension(NibbleSlice::new(&[i as u8; 1]).encoded(false), onward))
+					}
+					(UsedIndex::None, Some(value)) => {
+						// turn into a leaf.
+						Node::Leaf(NibbleSlice::new(&[]).encoded(true), value)
+					}
+					(_, value) => Node::Branch(children, value) // all good here
+				}
+			}
+			Node::Extension(partial, child) => {
+				// load the child into memory if it isn't already.
+				let child = match child {
+					NodeHandle::Hash(hash) => {
+						let node_rlp = self.db.lookup(&hash).expect("Not found!");
+						Node::from_rlp(node_rlp, &*self.db, &mut self.storage)
+					}
+					NodeHandle::InMemory(h) => self.storage.destroy(h),
+				};
+
+				// inspect the child
+				match child {
+					Node::Extension(sub_partial, sub_child) => {
+						// combine with node below.
+						let partial = NibbleSlice::from_encoded(&partial).0;
+						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
+
+						let composed = Node::Extension(NibbleSlice::new_composed(&partial, &sub_partial).encoded(false), sub_child);
+						self.fix(composed)
+					}
+					Node::Leaf(sub_partial, sub_value) => {
+						// combine with node below.
+						let partial = NibbleSlice::from_encoded(&partial).0;
+						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
+						// combine with node below.
+						Node::Leaf(NibbleSlice::new_composed(&partial, &sub_partial).encoded(true), sub_value)
+					}
+					// nothing wrong here. reallocate the child and move on.
+					_ => Node::Extension(partial, self.storage.alloc(child).into()),
+				}
+			}
+			node => node,
+		}
 	}
 
 	// a hack to get the root node's handle
