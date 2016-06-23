@@ -490,6 +490,7 @@ pub fn enact(
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
+#[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact_bytes(
 	block_bytes: &[u8],
 	engine: &Engine,
@@ -506,6 +507,7 @@ pub fn enact_bytes(
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
+#[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact_verified(
 	block: &PreverifiedBlock,
 	engine: &Engine,
@@ -521,6 +523,7 @@ pub fn enact_verified(
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
+#[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact_and_seal(
 	block_bytes: &[u8],
 	engine: &Engine,
