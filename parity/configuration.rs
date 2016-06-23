@@ -265,7 +265,7 @@ impl Configuration {
 			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::Archive),
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
 
@@ -359,7 +359,7 @@ impl Configuration {
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
-			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
+			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
 			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
 		}
@@ -372,7 +372,7 @@ impl Configuration {
 			chain: self.chain(),
 			max_peers: self.max_peers(),
 			network_port: self.net_port(),
-			rpc_enabled: !self.args.flag_jsonrpc_off,
+			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
@@ -432,7 +432,7 @@ impl Configuration {
 	}
 
 	pub fn signer_port(&self) -> Option<u16> {
-		if self.args.flag_signer_off {
+		if !self.args.flag_signer {
 			None
 		} else {
 			Some(self.args.flag_signer_port)
