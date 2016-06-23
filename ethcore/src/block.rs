@@ -288,6 +288,7 @@ impl<'x> OpenBlock<'x> {
 	/// Get the environment info concerning this block.
 	pub fn env_info(&self) -> EnvInfo {
 		// TODO: memoise.
+		const SOFT_FORK_BLOCK: u64 = 1775000;
 		EnvInfo {
 			number: self.block.base.header.number,
 			author: self.block.base.header.author.clone(),
@@ -296,7 +297,7 @@ impl<'x> OpenBlock<'x> {
 			last_hashes: self.last_hashes.clone(),		// TODO: should be a reference.
 			gas_used: self.block.receipts.last().map_or(U256::zero(), |r| r.gas_used),
 			gas_limit: self.block.base.header.gas_limit.clone(),
-			dao_rescue_block_gas_limit: if self.block.base.header.number == 1760000 { Some(self.block.base.header.gas_limit) } else { self.dao_rescue_block_gas_limit },
+			dao_rescue_block_gas_limit: if self.block.base.header.number == SOFT_FORK_BLOCK { Some(self.block.base.header.gas_limit) } else { self.dao_rescue_block_gas_limit },
 		}
 	}
 
