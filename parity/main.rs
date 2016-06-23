@@ -547,7 +547,7 @@ fn execute_account_cli(conf: Configuration) {
 }
 
 fn execute_wallet_cli(conf: Configuration) {
-	use ethcore::ethstore::{PresaleWallet, SecretStore, EthStore};
+	use ethcore::ethstore::{PresaleWallet, EthStore};
 	use ethcore::ethstore::dir::DiskDirectory;
 	use ethcore::account_provider::AccountProvider;
 
