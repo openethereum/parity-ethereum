@@ -40,7 +40,7 @@ pub struct EnvInfo {
 	/// The gas used.
 	pub gas_used: U256,
 
-	/// Block gas limit at DAO rescue block #1760000 or None if not yet there.
+	/// Block gas limit at DAO rescue block SOFT_FORK_BLOCK or None if not yet there.
 	pub dao_rescue_block_gas_limit: Option<U256>,
 }
 
