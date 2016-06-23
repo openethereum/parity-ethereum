@@ -71,12 +71,12 @@ impl fmt::Display for Algorithm {
 }
 
 /// Create a new `JournalDB` trait object.
-pub fn new(path: &str, algorithm: Algorithm) -> Box<JournalDB> {
+pub fn new(path: &str, algorithm: Algorithm, cache_size: Option<usize>) -> Box<JournalDB> {
 	match algorithm {
-		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path)),
-		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(path)),
-		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(path)),
-		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(path)),
+		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path, cache_size)),
+		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(path, cache_size)),
+		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(path, cache_size)),
+		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(path, cache_size)),
 	}
 }
 

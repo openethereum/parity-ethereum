@@ -41,6 +41,8 @@ pub enum SyncMessage {
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
+	/// New transaction RLPs are ready to be imported
+	NewTransactions(Vec<Bytes>),
 	/// Start network command.
 	StartNetwork,
 	/// Stop network command.
@@ -136,6 +138,9 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 				SyncMessage::BlockVerified => {
 					self.client.import_verified_blocks(&io.channel());
 				},
+				SyncMessage::NewTransactions(ref transactions) => {
+					self.client.import_queued_transactions(&transactions);
+				},
 				_ => {}, // ignore other messages
 			}
 		}
@@ -154,9 +159,15 @@ mod tests {
 
 	#[test]
 	fn it_can_be_started() {
-		let spec = get_test_spec();
 		let temp_path = RandomTempPath::new();
-		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path(), Arc::new(Miner::with_spec(spec)), false);
+		let service = ClientService::start(
+			ClientConfig::default(),
+			get_test_spec(),
+			NetworkConfiguration::new_local(),
+			&temp_path.as_path(),
+			Arc::new(Miner::with_spec(get_test_spec())),
+			false
+		);
 		assert!(service.is_ok());
 	}
 }

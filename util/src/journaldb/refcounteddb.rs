@@ -46,11 +46,12 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(path: &str) -> RefCountedDB {
+	pub fn new(path: &str, cache_size: Option<usize>) -> RefCountedDB {
 		let opts = DatabaseConfig {
 			// this must match account_db prefix
 			prefix_size: Some(DB_PREFIX_LEN),
 			max_open_files: 256,
+			cache_size: cache_size,
 		};
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
@@ -81,17 +82,17 @@ impl RefCountedDB {
 	fn new_temp() -> RefCountedDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap())
+		Self::new(dir.to_str().unwrap(), None)
 	}
 }
 
 impl HashDB for RefCountedDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
-	fn lookup(&self, key: &H256) -> Option<&[u8]> { self.forward.lookup(key) }
-	fn exists(&self, key: &H256) -> bool { self.forward.exists(key) }
+	fn get(&self, key: &H256) -> Option<&[u8]> { self.forward.get(key) }
+	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
 	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
 	fn emplace(&mut self, key: H256, value: Bytes) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
-	fn kill(&mut self, key: &H256) { self.removes.push(key.clone()); }
+	fn remove(&mut self, key: &H256) { self.removes.push(key.clone()); }
 }
 
 impl JournalDB for RefCountedDB {
@@ -211,16 +212,16 @@ mod tests {
 		let mut jdb = RefCountedDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.remove(&h);
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(2, &b"2".sha3(), None).unwrap();
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
-		assert!(!jdb.exists(&h));
+		assert!(!jdb.contains(&h));
 	}
 
 	#[test]
@@ -250,34 +251,34 @@ mod tests {
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
 
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
 		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(!jdb.exists(&bar));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(!jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
 
 		jdb.remove(&foo);
 		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(!jdb.exists(&bar));
-		assert!(!jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(!jdb.contains(&bar));
+		assert!(!jdb.contains(&baz));
 
 		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
-		assert!(!jdb.exists(&foo));
-		assert!(!jdb.exists(&bar));
-		assert!(!jdb.exists(&baz));
+		assert!(!jdb.contains(&foo));
+		assert!(!jdb.contains(&bar));
+		assert!(!jdb.contains(&baz));
 	}
 
 	#[test]
@@ -288,8 +289,8 @@ mod tests {
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
@@ -298,13 +299,13 @@ mod tests {
 		jdb.remove(&bar);
 		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
 
 		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(!jdb.exists(&baz));
-		assert!(!jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(!jdb.contains(&baz));
+		assert!(!jdb.contains(&bar));
 	}
 }

@@ -71,6 +71,7 @@ mod error_codes {
 	pub const UNKNOWN_ERROR: i64 = -32002;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
+	pub const SIGNER_DISABLED: i64 = -32030;
 }
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
@@ -99,7 +100,7 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 
 		action: request.to.map_or(Action::Create, Action::Call),
 		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
-		gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
 		value: request.value.unwrap_or_else(U256::zero),
 		data: request.data.map_or_else(Vec::new, |b| b.to_vec()),
 	}
@@ -132,6 +133,14 @@ fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, a
 	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
+
+fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockChainClient, M: MinerService {
+	client
+		.gas_price_statistics(100, 8)
+		.map(|x| x[4])
+		.unwrap_or_else(|_| miner.sensible_gas_price())
+}
+
 
 fn signing_error(error: AccountError) -> Error {
 	Error {

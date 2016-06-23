@@ -49,7 +49,7 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 }
 
 fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-	Miner::with_accounts(true, spec, accounts)
+	Miner::new(true, spec, Some(accounts))
 }
 
 fn make_spec(chain: &BlockChain) -> Spec {
@@ -183,7 +183,8 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0xffffffffffffffff"
+				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
+				"daoRescueSoftFork": false
 			}
 		}
 	},

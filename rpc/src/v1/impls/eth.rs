@@ -37,7 +37,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::impls::{dispatch_transaction, error_codes};
+use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
 
 /// Eth rpc implementation.
@@ -153,23 +153,14 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 		}
 	}
 
-	fn default_gas_price(&self) -> Result<U256, Error> {
-		let miner = take_weak!(self.miner);
-		Ok(take_weak!(self.client)
-			.gas_price_statistics(100, 8)
-			.map(|x| x[4])
-			.unwrap_or_else(|_| miner.sensible_gas_price())
-		)
-	}
-
 	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
-		let client = take_weak!(self.client);
+		let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 		let from = request.from.unwrap_or(Address::zero());
 		Ok(EthTransaction {
 			nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
 			gas: request.gas.unwrap_or(U256::from(50_000_000)),
-			gas_price: request.gas_price.unwrap_or_else(|| self.default_gas_price().expect("call only fails if client or miner are unavailable; client and miner are both available to be here; qed")),
+			gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*client, &*miner)),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
@@ -296,7 +287,10 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&try!(self.default_gas_price())),
+			Params::None => {
+				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+				to_value(&default_gas_price(&*client, &*miner))
+			}
 			_ => Err(Error::invalid_params())
 		}
 	}

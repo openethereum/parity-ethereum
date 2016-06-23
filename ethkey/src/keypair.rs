@@ -1,8 +1,31 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::fmt;
 use secp256k1::key;
 use rustc_serialize::hex::ToHex;
 use keccak::Keccak256;
 use super::{Secret, Public, Address, SECP256K1, Error};
+
+pub fn public_to_address(public: &Public) -> Address {
+	let hash = public.keccak256();
+	let mut result = Address::default();
+	result.copy_from_slice(&hash[12..]);
+	result
+}
 
 /// secp256k1 key pair
 pub struct KeyPair {
@@ -60,10 +83,7 @@ impl KeyPair {
 	}
 
 	pub fn address(&self) -> Address {
-		let hash = self.public.keccak256();
-		let mut result = Address::default();
-		result.copy_from_slice(&hash[12..]);
-		result
+		public_to_address(&self.public)
 	}
 }
 

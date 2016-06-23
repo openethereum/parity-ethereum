@@ -42,6 +42,9 @@ pub struct EthashParams {
 	/// Homestead transition block number.
 	#[serde(rename="frontierCompatibilityModeLimit")]
 	pub frontier_compatibility_mode_limit: Uint,
+	/// DAO rescue soft-fork?
+	#[serde(rename="daoRescueSoftFork")]
+	pub dao_rescue_soft_fork: bool,
 }
 
 /// Ethash engine deserialization.
@@ -65,8 +68,9 @@ mod tests {
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
-				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit" : "0x42"
+				"registrar": "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
+				"frontierCompatibilityModeLimit": "0x42",
+				"daoRescueSoftFork": true
 			}
 		}"#;
 

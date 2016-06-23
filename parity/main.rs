@@ -129,6 +129,11 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
+	if conf.args.cmd_wallet {
+		execute_wallet_cli(conf);
+		return;
+	}
+
 	if conf.args.cmd_export {
 		execute_export(conf);
 		return;
@@ -186,6 +191,19 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
 
+	// Create and display a new token for UIs.
+	if conf.args.flag_signer && !conf.args.flag_no_token {
+		new_token(conf.directories().signer).unwrap_or_else(|e| {
+			die!("Error generating token: {:?}", e)
+		});
+	}
+
+	// Display warning about using unlock with signer
+	if conf.args.flag_signer && conf.args.flag_unlock.is_some() {
+		warn!("Using Trusted Signer and --unlock is not recommended!");
+		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
+	}
+
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
 
@@ -223,6 +241,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 		allow_pending_receipt_query: !conf.args.flag_geth,
+		net_service: service.network(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -245,7 +264,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {
-		enabled: !conf.args.flag_dapps_off,
+		enabled: !conf.args.flag_dapps_off && !conf.args.flag_no_dapps,
 		interface: conf.args.flag_dapps_interface.clone(),
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
@@ -272,7 +291,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
-		network: service.network(),
+		network: Arc::downgrade(&service.network()),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
@@ -308,10 +327,11 @@ fn execute_export(conf: Configuration) {
 		udp_port: None,
 		nat_enabled: false,
 		discovery_enabled: false,
-		pin: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
 		ideal_peers: 0,
+		reserved_nodes: Vec::new(),
+		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
 	};
 	let client_config = conf.client_config(&spec);
 
@@ -379,10 +399,11 @@ fn execute_import(conf: Configuration) {
 		udp_port: None,
 		nat_enabled: false,
 		discovery_enabled: false,
-		pin: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
 		ideal_peers: 0,
+		reserved_nodes: Vec::new(),
+		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
 	};
 	let client_config = conf.client_config(&spec);
 
@@ -478,7 +499,7 @@ fn execute_signer(conf: Configuration) {
 }
 
 fn execute_account_cli(conf: Configuration) {
-	use ethcore::ethstore::{SecretStore, EthStore, import_accounts};
+	use ethcore::ethstore::{EthStore, import_accounts};
 	use ethcore::ethstore::dir::DiskDirectory;
 	use ethcore::account_provider::AccountProvider;
 	use rpassword::read_password;
@@ -522,6 +543,30 @@ fn execute_account_cli(conf: Configuration) {
 		}
 		println!("Imported {} keys", imported);
 	}
+}
+
+fn execute_wallet_cli(conf: Configuration) {
+	use ethcore::ethstore::{PresaleWallet, EthStore};
+	use ethcore::ethstore::dir::DiskDirectory;
+	use ethcore::account_provider::AccountProvider;
+
+	let wallet_path = conf.args.arg_path.first().unwrap();
+	let filename = conf.args.flag_password.first().unwrap();
+	let mut file = File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
+	let mut file_content = String::new();
+	file.read_to_string(&mut file_content).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
+
+	let dir = Box::new(DiskDirectory::create(conf.keys_path()).unwrap());
+	let iterations = conf.keys_iterations();
+	let store = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
+
+	// remove eof
+	let pass = &file_content[..file_content.len() - 1];
+	let wallet = PresaleWallet::open(wallet_path).unwrap_or_else(|_| die!("Unable to open presale wallet."));
+	let kp = wallet.decrypt(pass).unwrap_or_else(|_| die!("Invalid password"));
+	let address = store.insert_account(kp.secret().clone(), pass).unwrap();
+
+	println!("Imported account: {}", address);
 }
 
 fn wait_for_exit(

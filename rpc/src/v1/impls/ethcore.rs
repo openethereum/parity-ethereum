@@ -26,6 +26,8 @@ use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use v1::traits::Ethcore;
 use v1::types::{Bytes};
+use v1::helpers::{SigningQueue, ConfirmationsQueue};
+use v1::impls::error_codes;
 
 /// Ethcore implementation.
 pub struct EthcoreClient<C, M> where
@@ -36,16 +38,18 @@ pub struct EthcoreClient<C, M> where
 	miner: Weak<M>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
+	confirmations_queue: Option<Arc<ConfirmationsQueue>>,
 }
 
 impl<C, M> EthcoreClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new `EthcoreClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>, queue: Option<Arc<ConfirmationsQueue>>) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			logger: logger,
 			settings: settings,
+			confirmations_queue: queue,
 		}
 	}
 }
@@ -118,6 +122,17 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 				_ => Err(Error::internal_error()),
 			},
 			_ => Err(Error::invalid_params()),
+		}
+	}
+
+	fn unsigned_transactions_count(&self, _params: Params) -> Result<Value, Error> {
+		match self.confirmations_queue {
+			None => Err(Error {
+				code: ErrorCode::ServerError(error_codes::SIGNER_DISABLED),
+				message: "Trusted Signer is disabled. This API is not available.".into(),
+				data: None
+			}),
+			Some(ref queue) => to_value(&queue.len()),
 		}
 	}
 }

@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use tiny_keccak::Keccak;
 use rcrypto::pbkdf2::pbkdf2;
 use rcrypto::scrypt::{scrypt, ScryptParams};
@@ -49,9 +65,9 @@ impl Keccak256<[u8; 32]> for [u8] {
 
 /// AES encryption
 pub mod aes {
-	use rcrypto::blockmodes::CtrMode;
-	use rcrypto::aessafe::AesSafe128Encryptor;
-	use rcrypto::symmetriccipher::{Encryptor, Decryptor};
+	use rcrypto::blockmodes::{CtrMode, CbcDecryptor, PkcsPadding};
+	use rcrypto::aessafe::{AesSafe128Encryptor, AesSafe128Decryptor};
+	use rcrypto::symmetriccipher::{Encryptor, Decryptor, SymmetricCipherError};
 	use rcrypto::buffer::{RefReadBuffer, RefWriteBuffer};
 
 	/// Encrypt a message
@@ -65,5 +81,13 @@ pub mod aes {
 		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
 	}
+
+	/// Decrypt a message using cbc mode
+	pub fn decrypt_cbc(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) -> Result<(), SymmetricCipherError> {
+		let mut encryptor = CbcDecryptor::new(AesSafe128Decryptor::new(k), PkcsPadding, iv.to_vec());
+		try!(encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true));
+		Ok(())
+	}
+
 }
 

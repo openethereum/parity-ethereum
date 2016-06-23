@@ -222,19 +222,25 @@ impl State {
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
-		let broken_dao = H256::from("7278d050619a624f84f51987149ddb439cdaadfba5966f7cfaea7ad44340a4ba");
+		let broken_dao = H256::from("6a5d24750f78441e56fec050dc52fe8e911976485b7472faac7464a176a67caa");
 
 		// dao attack soft fork
 		if engine.schedule(&env_info).reject_dao_transactions {
-			// collect all the addresses which have changed.
-			let addresses = self.cache.borrow().iter().map(|(addr, _)| addr.clone()).collect::<Vec<_>>();
+			let whitelisted = if let Action::Call(to) = t.action {
+				to == Address::from("Da4a4626d3E16e094De3225A751aAb7128e96526") ||
+				to == Address::from("2ba9D006C1D72E67A70b5526Fc6b4b0C0fd6D334")
+			} else { false };
+			if !whitelisted {
+				// collect all the addresses which have changed.
+				let addresses = self.cache.borrow().iter().map(|(addr, _)| addr.clone()).collect::<Vec<_>>();
 
-			for a in &addresses {
-				if self.code(a).map_or(false, |c| c.sha3() == broken_dao) {
-					// Figure out if the balance has been reduced.
-					let maybe_original = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR).get(&a).map(Account::from_rlp);
-					if maybe_original.map_or(false, |original| *original.balance() > self.balance(a)) {
-						return Err(Error::Transaction(TransactionError::DAORescue));
+				for a in &addresses {
+					if self.code(a).map_or(false, |c| c.sha3() == broken_dao) {
+						// Figure out if the balance has been reduced.
+						let maybe_original = SecTrieDB::new(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR).get(&a).map(Account::from_rlp);
+						if maybe_original.map_or(false, |original| *original.balance() > self.balance(a)) {
+							return Err(Error::Transaction(TransactionError::DAORescue));
+						}
 					}
 				}
 			}

@@ -42,7 +42,7 @@ use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use views::BlockView;
+use views::{HeaderView, BlockView};
 use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
@@ -193,6 +193,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// import transactions from network/other 3rd party
 	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>>;
 
+	/// Queue transactions for importing.
+	fn queue_transactions(&self, transactions: Vec<Bytes>);
+
 	/// list all transactions
 	fn all_transactions(&self) -> Vec<SignedTransaction>;
 
@@ -221,6 +224,28 @@ pub trait BlockChainClient : Sync + Send {
 			Err(())
 		}
 	}
+
+	/// Get `Some` gas limit of SOFT_FORK_BLOCK, or `None` if chain is not yet that long.
+	fn dao_rescue_block_gas_limit(&self, chain_hash: H256) -> Option<U256> {
+		const SOFT_FORK_BLOCK: u64 = 1775000;
+		// shortcut if the canon chain is already known.
+		if self.chain_info().best_block_number > SOFT_FORK_BLOCK + 1000 {
+			return self.block_header(BlockID::Number(SOFT_FORK_BLOCK)).map(|header| HeaderView::new(&header).gas_limit());
+		}
+		// otherwise check according to `chain_hash`.
+		if let Some(mut header) = self.block_header(BlockID::Hash(chain_hash)) {
+			if HeaderView::new(&header).number() < SOFT_FORK_BLOCK {
+				None
+			} else {
+				while HeaderView::new(&header).number() != SOFT_FORK_BLOCK {
+					header = self.block_header(BlockID::Hash(HeaderView::new(&header).parent_hash())).expect("chain is complete; parent of chain entry must be in chain; qed");
+				}
+				Some(HeaderView::new(&header).gas_limit())
+			}
+		} else {
+			None
+		}
+	}	
 }
 
 /// Extended client interface used for mining

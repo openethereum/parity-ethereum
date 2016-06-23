@@ -75,11 +75,17 @@ impl Configuration {
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
-		let d = &self.args.flag_gas_floor_target;
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
-		})
+		if self.args.flag_dont_help_rescue_dao || self.args.flag_dogmatic {
+			4_700_000.into()
+		} else {
+			let d = &self.args.flag_gas_floor_target;
+			U256::from_dec_str(d).unwrap_or_else(|_| {
+				die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
+			})
+		}
 	}
+
+
 
 	pub fn gas_price(&self) -> U256 {
 		match self.args.flag_gasprice.as_ref() {
@@ -115,16 +121,20 @@ impl Configuration {
 	}
 
 	pub fn extra_data(&self) -> Bytes {
-		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
-			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
-			None => version_data(),
-			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+		if !self.args.flag_dont_help_rescue_dao {
+			(b"rescuedao"[..]).to_owned()
+		} else {
+			match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
+				Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
+				None => version_data(),
+				Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+			}
 		}
 	}
 
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(!self.args.flag_dogmatic),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
@@ -150,6 +160,25 @@ impl Configuration {
 			}).collect(),
 			Some(_) => Vec::new(),
 			None => spec.nodes().clone(),
+		}
+	}
+
+	pub fn init_reserved_nodes(&self) -> Vec<String> {
+		use std::fs::File;
+
+		if let Some(ref path) = self.args.flag_reserved_peers {
+			let mut buffer = String::new();
+			let mut node_file = File::open(path).unwrap_or_else(|e| {
+				die!("Error opening reserved nodes file: {}", e);
+			});
+			node_file.read_to_string(&mut buffer).expect("Error reading reserved node file");
+			buffer.lines().map(|s| {
+				Self::normalize_enode(s).unwrap_or_else(|| {
+					die!("{}: Invalid node address format given for a reserved node.", s);
+				})
+			}).collect()
+		} else {
+			Vec::new()
 		}
 	}
 
@@ -179,6 +208,11 @@ impl Configuration {
 		let mut net_path = PathBuf::from(&self.path());
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
+		ret.reserved_nodes = self.init_reserved_nodes();
+
+		if self.args.flag_reserved_only {
+			ret.non_reserved_mode = ::util::network::NonReservedPeerMode::Deny;
+		}
 		ret
 	}
 
@@ -187,7 +221,7 @@ impl Configuration {
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
-			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i, None);
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
@@ -214,6 +248,8 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
+		// forced blockchain (blocks + extras) db cache size if provided
+		client_config.blockchain.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 2));
 
 		client_config.tracing.enabled = match self.args.flag_tracing.as_str() {
 			"auto" => Switch::Auto,
@@ -221,15 +257,20 @@ impl Configuration {
 			"off" => Switch::Off,
 			_ => { die!("Invalid tracing method given!") }
 		};
+		// forced trace db cache size if provided
+		client_config.tracing.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
 		client_config.pruning = match self.args.flag_pruning.as_str() {
 			"archive" => journaldb::Algorithm::Archive,
 			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::Archive),
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
+
+		// forced state db cache size if provided
+		client_config.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
 		if self.args.flag_jitvm {
 			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
@@ -263,16 +304,16 @@ impl Configuration {
 		}).collect::<Vec<_>>();
 
 		if !self.args.flag_no_import_keys {
-			let dir_type = match self.args.flag_testnet {
-				true => DirectoryType::Testnet,
-				false => DirectoryType::Main,
+			let dir_type = if self.args.flag_testnet {
+				DirectoryType::Testnet
+			} else {
+				DirectoryType::Main
 			};
 
 			let from = GethDirectory::open(dir_type);
 			let to = DiskDirectory::create(self.keys_path()).unwrap();
-			if let Err(e) = import_accounts(&from, &to) {
-				warn!("Could not import accounts {}", e);
-			}
+			// ignore error, cause geth may not exist
+			let _ = import_accounts(&from, &to);
 		}
 
 		let dir = Box::new(DiskDirectory::create(self.keys_path()).unwrap());
@@ -318,7 +359,7 @@ impl Configuration {
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
-			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
+			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
 			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
 		}
@@ -331,7 +372,7 @@ impl Configuration {
 			chain: self.chain(),
 			max_peers: self.max_peers(),
 			network_port: self.net_port(),
-			rpc_enabled: !self.args.flag_jsonrpc_off,
+			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
@@ -391,10 +432,10 @@ impl Configuration {
 	}
 
 	pub fn signer_port(&self) -> Option<u16> {
-		if self.args.flag_signer {
-			Some(self.args.flag_signer_port)
-		} else {
+		if !self.args.flag_signer {
 			None
+		} else {
+			Some(self.args.flag_signer_port)
 		}
 	}
 }

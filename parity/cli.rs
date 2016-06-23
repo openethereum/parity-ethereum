@@ -25,6 +25,7 @@ Usage:
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
+  parity wallet import <path> --password FILE [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
@@ -41,6 +42,14 @@ Protocol Options:
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
+
+DAO-Rescue Soft-fork Options:
+  --help-rescue-dao        Does nothing - on by default.
+  --dont-help-rescue-dao   Votes against the DAO-rescue soft-fork, but supports
+                           it if it is triggered anyway.
+                           Equivalent to --gas-floor-target=3141592.
+  --dogmatic               Ignores all DAO-rescue soft-fork behaviour. Even if
+                           it means losing mining rewards.
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
@@ -67,9 +76,13 @@ Networking Options:
   --no-discovery           Disable new peer discovery.
   --node-key KEY           Specify node secret key, either as 64-character hex
                            string or input to SHA3 operation.
+  --reserved-peers FILE    Provide a file containing enodes, one per line.
+                           These nodes will always have a reserved slot on top
+                           of the normal maximum peers.
+  --reserved-only          Connect only to reserved nodes.
 
 API and Console Options:
-  --jsonrpc-off            Disable the JSON-RPC API server.
+  --no-jsonrpc             Disable the JSON-RPC API server.
   --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
                            [default: 8545].
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
@@ -82,13 +95,13 @@ API and Console Options:
                            ethcore, ethcore_set, traces.
                            [default: web3,eth,net,ethcore,personal,traces].
 
-  --ipc-off                Disable JSON-RPC over IPC service.
+  --no-ipc                 Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
-                           IPC [default: web3,eth,net,ethcore,personal,traces].
+                           IPC [default: web3,eth,net,ethcore,personal,traces,rpc].
 
-  --dapps-off              Disable the Dapps server (e.g. status page).
+  --no-dapps               Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
@@ -109,6 +122,8 @@ API and Console Options:
                            [default: 8180].
   --signer-path PATH       Specify directory where Signer UIs tokens should
                            be stored. [default: $HOME/.parity/signer]
+  --no-token               By default a new system UI security token will be
+                           output on start up. This will prevent it.
 
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
@@ -145,7 +160,7 @@ Footprint Options:
                            light - early merges with partial tracking. Fast,
                            light, and experimental!
                            auto - use the method most recently synced or
-                           default to archive if none synced [default: auto].
+                           default to fast if none synced [default: auto].
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
                            bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
@@ -155,6 +170,7 @@ Footprint Options:
   --cache MEGABYTES        Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
+  --db-cache-size MB       Database cache size.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -181,13 +197,16 @@ Legacy Options:
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   -j --jsonrpc             Does nothing; JSON-RPC is on by default now.
+  --jsonrpc-off            Equivalent to --no-jsonrpc.
   -w --webapp              Does nothing; dapps server is on by default now.
+  --dapps-off              Equivalent to --no-dapps.
   --rpc                    Does nothing; JSON-RPC is on by default now.
   --rpcaddr IP             Equivalent to --jsonrpc-interface IP.
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
-  --ipcdisable             Equivalent to --ipc-off.
+  --ipcdisable             Equivalent to --no-ipc.
+  --ipc-off                Equivalent to --no-ipc.
   --ipcapi APIS            Equivalent to --ipc-apis APIS.
   --ipcpath PATH           Equivalent to --ipc-path PATH.
   --gasprice WEI           Minimum amount of Wei per GAS to be paid for a
@@ -208,6 +227,7 @@ Miscellaneous Options:
 pub struct Args {
 	pub cmd_daemon: bool,
 	pub cmd_account: bool,
+	pub cmd_wallet: bool,
 	pub cmd_new: bool,
 	pub cmd_list: bool,
 	pub cmd_export: bool,
@@ -221,6 +241,8 @@ pub struct Args {
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
+	pub flag_dont_help_rescue_dao: bool,
+	pub flag_dogmatic: bool,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,
@@ -236,18 +258,20 @@ pub struct Args {
 	pub flag_no_discovery: bool,
 	pub flag_nat: String,
 	pub flag_node_key: Option<String>,
+	pub flag_reserved_peers: Option<String>,
+	pub flag_reserved_only: bool,
 	pub flag_cache_pref_size: usize,
 	pub flag_cache_max_size: usize,
 	pub flag_queue_max_size: usize,
-	pub flag_jsonrpc_off: bool,
+	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
 	pub flag_jsonrpc_port: u16,
 	pub flag_jsonrpc_cors: Option<String>,
 	pub flag_jsonrpc_apis: String,
-	pub flag_ipc_off: bool,
+	pub flag_no_ipc: bool,
 	pub flag_ipc_path: String,
 	pub flag_ipc_apis: String,
-	pub flag_dapps_off: bool,
+	pub flag_no_dapps: bool,
 	pub flag_dapps_port: u16,
 	pub flag_dapps_interface: String,
 	pub flag_dapps_user: Option<String>,
@@ -256,6 +280,7 @@ pub struct Args {
 	pub flag_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
+	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
 	pub flag_author: String,
 	pub flag_usd_per_tx: String,
@@ -290,8 +315,12 @@ pub struct Args {
 	pub flag_testnet: bool,
 	pub flag_networkid: Option<String>,
 	pub flag_ipcdisable: bool,
+	pub flag_ipc_off: bool,
+	pub flag_jsonrpc_off: bool,
+	pub flag_dapps_off: bool,
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
+	pub flag_db_cache_size: Option<usize>,
 }
 
 pub fn print_version() {

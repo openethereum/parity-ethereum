@@ -3,7 +3,7 @@ name = "parity"
 version = "1.2.0"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/ethcore/rust-ctrlc.git)",
  "daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -67,9 +67,7 @@ dependencies = [
 name = "bigint"
 version = "0.1.0"
 dependencies = [
- "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -131,15 +129,15 @@ dependencies = [
 
 [[package]]
 name = "clippy"
-version = "0.0.76"
+version = "0.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "clippy_lints 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy_lints 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "clippy_lints"
-version = "0.0.76"
+version = "0.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -252,7 +250,7 @@ name = "ethcore"
 version = "1.2.0"
 dependencies = [
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.2.0",
@@ -277,7 +275,7 @@ dependencies = [
 name = "ethcore-dapps"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-rpc 1.2.0",
  "ethcore-util 1.2.0",
  "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
@@ -339,7 +337,7 @@ dependencies = [
 name = "ethcore-rpc"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.2.0",
  "ethcore 1.2.0",
  "ethcore-devtools 1.2.0",
@@ -362,7 +360,7 @@ dependencies = [
 name = "ethcore-signer"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-rpc 1.2.0",
  "ethcore-util 1.2.0",
@@ -381,7 +379,7 @@ dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "bigint 0.1.0",
  "chrono 0.2.22 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -426,7 +424,6 @@ dependencies = [
 name = "ethkey"
 version = "0.2.0"
 dependencies = [
- "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -438,7 +435,6 @@ dependencies = [
 name = "ethstore"
 version = "0.1.0"
 dependencies = [
- "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.2.0",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -455,7 +451,7 @@ dependencies = [
 name = "ethsync"
 version = "1.2.0"
 dependencies = [
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.2.0",
  "ethcore-util 1.2.0",
@@ -634,7 +630,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "5.1.0"
-source = "git+https://github.com/ethcore/jsonrpc-http-server.git#6117b1d77b5a60d6fa2dc884f12aa7f5fd4585ca"
+source = "git+https://github.com/ethcore/jsonrpc-http-server.git#0c99d308bc15e8fae50642eff77a3e1fd7610652"
 dependencies = [
  "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 2.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -926,7 +922,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-dapps"
 version = "0.3.0"
-source = "git+https://github.com/ethcore/parity-dapps-rs.git#1f065d93aa49338e4a453c77c839957f2db78895"
+source = "git+https://github.com/ethcore/parity-dapps-rs.git#8cc812c26c903cf5764ce0f4cc3f2a7c3ddb0dc2"
 dependencies = [
  "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -940,7 +936,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-builtins"
 version = "0.5.1"
-source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#413ef9a6f9c46d16d578a48e39adb44d5650d7d7"
+source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#650b0d94d076635904b86c1fd45c5f4a2061463f"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -964,7 +960,7 @@ dependencies = [
 [[package]]
 name = "parity-minimal-sysui"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#4c704913f671060bb0e43b5ce4a68d02281115d5"
+source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#3c6ad40680126a760eb867b07b506ea996819ce3"
 
 [[package]]
 name = "phf"
@@ -1107,7 +1103,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rocksdb"
 version = "0.4.5"
-source = "git+https://github.com/ethcore/rust-rocksdb#9140e37ce0fdb748097f85653c01b0f7e3736ea9"
+source = "git+https://github.com/ethcore/rust-rocksdb#6f3c68f5f075433d206be4af6a620651cd9f8541"
 dependencies = [
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb-sys 0.3.0 (git+https://github.com/ethcore/rust-rocksdb)",
@@ -1116,7 +1112,7 @@ dependencies = [
 [[package]]
 name = "rocksdb-sys"
 version = "0.3.0"
-source = "git+https://github.com/ethcore/rust-rocksdb#9140e37ce0fdb748097f85653c01b0f7e3736ea9"
+source = "git+https://github.com/ethcore/rust-rocksdb#6f3c68f5f075433d206be4af6a620651cd9f8541"
 dependencies = [
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",

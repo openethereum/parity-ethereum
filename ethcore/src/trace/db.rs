@@ -22,7 +22,7 @@ use std::sync::{RwLock, Arc};
 use std::path::Path;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use util::{H256, H264, Database, DBTransaction};
+use util::{H256, H264, Database, DatabaseConfig, DBTransaction};
 use header::BlockNumber;
 use trace::{BlockTraces, LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest,
 DatabaseExtras, Error};
@@ -118,7 +118,12 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	pub fn new(config: Config, path: &Path, extras: Arc<T>) -> Result<Self, Error> {
 		let mut tracedb_path = path.to_path_buf();
 		tracedb_path.push("tracedb");
-		let tracesdb = Database::open_default(tracedb_path.to_str().unwrap()).unwrap();
+		let tracesdb = match config.db_cache_size {
+			None => Database::open_default(tracedb_path.to_str().unwrap()).unwrap(),
+			Some(db_cache) => Database::open(
+				&DatabaseConfig::with_cache(db_cache),
+				tracedb_path.to_str().unwrap()).unwrap(),
+		};
 
 		// check if in previously tracing was enabled
 		let old_tracing = match tracesdb.get(b"enabled").unwrap() {

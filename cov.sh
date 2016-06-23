@@ -16,6 +16,8 @@ if ! type kcov > /dev/null; then
 fi
 
 cargo test \
+	-p ethkey \
+	-p ethstore \
 	-p ethash \
 	-p ethcore-util \
 	-p ethcore \
@@ -28,7 +30,9 @@ cargo test \
 rm -rf target/coverage
 mkdir -p target/coverage
 
-EXCLUDE="~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests"
+EXCLUDE="~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests,ethstore/tests"
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethkey-*
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethstore-*
 kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore-*
 kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethash-*
 kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore_util-*

@@ -44,14 +44,14 @@
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
 //! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
+//! 	let miner = Miner::new(false, ethereum::new_frontier(), None);
 //! 	let client = Client::new(
 //!			ClientConfig::default(),
-//!			ethereum::new_frontier(),
+//!			ethereum::new_frontier(true),
 //!			&dir,
-//!			Arc::new(Miner::new(false, ethereum::new_frontier(), None)),
+//!			Arc::new(miner),
 //!			service.io().channel()
 //!		).unwrap();
-//! 	let miner = Miner::new(false, ethereum::new_frontier(), None);
 //! 	let sync = EthSync::new(SyncConfig::default(), client);
 //! 	EthSync::register(&mut service, sync);
 //! }
@@ -175,7 +175,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	}
 
 	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		self.sync.write().unwrap().on_packet(&mut NetSyncIo::new(io, self.chain.deref()) , *peer, packet_id, data);
+		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, self.chain.deref()) , *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {

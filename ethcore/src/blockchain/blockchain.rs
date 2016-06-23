@@ -253,12 +253,22 @@ impl BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
-		let extras_db = Database::open_default(extras_path.to_str().unwrap()).unwrap();
+		let extras_db = match config.db_cache_size {
+			None => Database::open_default(extras_path.to_str().unwrap()).unwrap(),
+			Some(cache_size) => Database::open(
+				&DatabaseConfig::with_cache(cache_size/2),
+				extras_path.to_str().unwrap()).unwrap(),
+		};
 
 		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
-		let blocks_db = Database::open_default(blocks_path.to_str().unwrap()).unwrap();
+		let blocks_db = match config.db_cache_size {
+			None => Database::open_default(blocks_path.to_str().unwrap()).unwrap(),
+			Some(cache_size) => Database::open(
+				&DatabaseConfig::with_cache(cache_size/2),
+				blocks_path.to_str().unwrap()).unwrap(),
+		};
 
 		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));

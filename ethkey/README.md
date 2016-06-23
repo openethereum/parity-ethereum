@@ -21,7 +21,8 @@ Usage:
     ethkey generate prefix <prefix> <iterations> [options]
     ethkey generate brain <seed> [options]
     ethkey sign <secret> <message>
-    ethkey verify <public> <signature> <message>
+    ethkey verify public <public> <signature> <message>
+    ethkey verify address <address> <signature> <message>
     ethkey [-h | --help]
 
 Options:
@@ -126,15 +127,32 @@ c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8
 
 --
 
-#### `verify <public> <signature> <message>`
+#### `verify public <public> <signature> <message>`
 *Verify the signature.*
 
-- `<secret>` - ethereum public, 64 bytes long
+- `<public>` - ethereum public, 64 bytes long
 - `<signature>` - message signature, 65 bytes long
 - `<message>` - message, 32 bytes long
 
 ```
-ethkey verify 689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124 c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200 bd50b7370c3f96733b31744c6c45079e7ae6c8d299613246d28ebcef507ec987
+ethkey verify public 689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124 c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200 bd50b7370c3f96733b31744c6c45079e7ae6c8d299613246d28ebcef507ec987
+```
+
+```
+true
+```
+
+--
+
+#### `verify address <address> <signature> <message>`
+*Verify the signature.*
+
+- `<address>` - ethereum address, 20 bytes long
+- `<signature>` - message signature, 65 bytes long
+- `<message>` - message, 32 bytes long
+
+```
+ethkey verify address 689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124 c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200 bd50b7370c3f96733b31744c6c45079e7ae6c8d299613246d28ebcef507ec987
 ```
 
 ```
