@@ -23,6 +23,10 @@ after_test:
 artifacts:
   - path: nsis\installer.exe
     name: Windows Installer (x86_64)
+  - path: target\release\parity.exe
+    name: Windows Executable (x86_64)
+  - path: target\release\parity.pdb
+    name: Windows Executable Debug Symbols (x86_64)
 
 cache:
   - target
