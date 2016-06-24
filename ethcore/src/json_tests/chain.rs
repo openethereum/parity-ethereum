@@ -22,6 +22,7 @@ use tests::helpers::*;
 use devtools::*;
 use spec::Genesis;
 use ethjson;
+use ethjson::blockchain::BlockChain;
 use miner::Miner;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
@@ -41,7 +42,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			flush!("   - {}...", name);
 
-			let spec = || {
+			let spec = |blockchain: &BlockChain| {
 				let genesis = Genesis::from(blockchain.genesis());
 				let state = From::from(blockchain.pre_state.clone());
 				let mut spec = match era {
@@ -58,9 +59,9 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 			{
 				let client = Client::new(
 					ClientConfig::default(),
-					spec(),
+					spec(&blockchain),
 					temp.as_path(),
-					Arc::new(Miner::with_spec(spec())),
+					Arc::new(Miner::with_spec(spec(&blockchain))),
 					IoChannel::disconnected()
 				).unwrap();
 				for b in &blockchain.blocks_rlp() {
