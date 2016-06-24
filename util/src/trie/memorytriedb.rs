@@ -121,34 +121,39 @@ impl Node {
 	}
 
 	// encode a node to RLP. if it has child nodes, remove them from the storage,
-	// encode them, and write them to the DB.
+	// encode them, and write them to the DB. returns the rlp and the number of
+	// hash operations performed.
 	//
 	// TODO: parallelize
-	fn to_rlp(self, db: &mut HashDB, storage: &mut NodeStorage) -> ElasticArray1024<u8> {
+	fn to_rlp(self, db: &mut HashDB, storage: &mut NodeStorage) -> (ElasticArray1024<u8>, usize) {
 		use ::rlp::{RlpStream, Stream};
 
 		match self {
 			Node::Empty => {
 				let mut stream = RlpStream::new();
 				stream.append_empty_data();
-				stream.drain()
+				(stream.drain(), 0)
 			}
 			Node::Leaf(k, v) => {
 				let mut stream = RlpStream::new_list(2);
 				stream.append(&k);
 				stream.append(&v);
-				stream.drain()
+				(stream.drain(), 0)
 			}
 			Node::Extension(partial, child_handle) => {
 				let mut stream = RlpStream::new_list(2);
+				let mut hashes = 0;
+
 				stream.append(&partial);
 
 				match child_handle {
 					NodeHandle::InMemory(s_handle) => {
 						let node = storage.destroy(s_handle);
-						let rlp = node.to_rlp(db, storage);
+						let (rlp, h) = node.to_rlp(db, storage);
+						hashes += h;
 						if rlp.len() >= 32 {
 							let hash = db.insert(&rlp);
+							hashes += 1;
 							stream.append(&hash);
 						} else {
 							stream.append_raw(&rlp, 1);
@@ -159,20 +164,23 @@ impl Node {
 					}
 				}
 
-				stream.drain()
+				(stream.drain(), hashes)
 			}
 			Node::Branch(mut children, value) => {
 				let mut stream = RlpStream::new_list(17);
+				let mut hashes = 0;
 				// no moving iterators for arrays
 				for child in children.iter_mut().map(Option::take) {
 					match child {
 						Some(handle) => match handle {
 							NodeHandle::InMemory(s_handle) => {
 								let node = storage.destroy(s_handle);
-								let rlp = node.to_rlp(db, storage);
+								let (rlp, h) = node.to_rlp(db, storage);
+								hashes += h;
 								if rlp.len() >= 32 {
 									// too big,
 									let hash = db.insert(&rlp);
+									hashes += 1;
 									stream.append(&hash)
 								} else {
 									// inline node.
@@ -190,7 +198,7 @@ impl Node {
 					None => stream.append_empty_data(),
 				};
 
-				stream.drain()
+				(stream.drain(), hashes)
 			}
 		}
 	}
@@ -218,19 +226,9 @@ impl NodeStorage {
 
 		// decode and overwrite.
 		let root_node = Node::from_rlp(rlp, db, &mut storage);
-		*storage.root_mut() = root_node;
+		storage.nodes[0] = root_node;
 
 		storage
-	}
-
-	/// Get a reference to the root node.
-	fn root(&self) -> &Node {
-		&self.nodes[0]
-	}
-
-	/// Get a mutable reference to the root node.
-	fn root_mut(&mut self) -> &mut Node {
-		&mut self.nodes[0]
 	}
 
 	/// Allocate  a node in the storage, yielding a handle.
@@ -278,6 +276,10 @@ pub struct MemoryTrieDB<'a> {
 	db: &'a mut HashDB,
 	root: &'a mut H256,
 	root_handle: StorageHandle,
+	dirty: bool,
+	/// The number of hash operations this trie has performed.
+	/// Note that none are performed until changes are committed.
+	pub hash_count: usize,
 }
 
 impl<'a> MemoryTrieDB<'a> {
@@ -290,6 +292,8 @@ impl<'a> MemoryTrieDB<'a> {
 			db: db,
 			root: root,
 			root_handle: StorageHandle(0),
+			dirty: false,
+			hash_count: 0,
 		}
 	}
 
@@ -310,6 +314,8 @@ impl<'a> MemoryTrieDB<'a> {
 			db: db,
 			root: root,
 			root_handle: StorageHandle(0),
+			dirty: false,
+			hash_count: 0,
 		})
 	}
 
@@ -634,11 +640,14 @@ impl<'a> MemoryTrieDB<'a> {
 	/// Commit the in-memory changes to disk, freeing their storage and
 	/// updating the state root.
 	pub fn commit(&mut self) {
+		if !self.dirty { return }
 		let root_handle = self.root_handle();
+
 		let root_node = mem::replace(&mut self.storage[&root_handle], Node::Empty);
-		let root_rlp = root_node.to_rlp(self.db, &mut self.storage);
+		let (root_rlp, hash_count) = root_node.to_rlp(self.db, &mut self.storage);
 
 		*self.root = self.db.insert(&root_rlp);
+		self.hash_count += hash_count + 1;
 
 		trace!(target: "trie", "After commit, root-rlp: {:?}", root_rlp[..].to_owned().pretty());
 
@@ -646,6 +655,8 @@ impl<'a> MemoryTrieDB<'a> {
 		// commit.
 		let root_node = Node::from_rlp(&root_rlp, &*self.db, &mut self.storage);
 		self.storage[&root_handle] = root_node;
+
+		self.dirty = false;
 	}
 
 	// a hack to get the root node's handle
@@ -661,7 +672,7 @@ impl<'a> Trie for MemoryTrieDB<'a> {
 	}
 
 	fn is_empty(&self) -> bool {
-		match *self.storage.root() {
+		match self.storage[&self.root_handle] {
 			Node::Empty => true,
 			_ => false,
 		}
@@ -680,7 +691,8 @@ impl<'a> Trie for MemoryTrieDB<'a> {
 impl<'a> TrieMut for MemoryTrieDB<'a> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		let root_handle = self.root_handle();
-		self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
+		self.root_handle = self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
+		self.dirty = true;
 	}
 
 	fn remove(&mut self, key: &[u8]) {
@@ -688,6 +700,7 @@ impl<'a> TrieMut for MemoryTrieDB<'a> {
 		if self.remove_at(root_handle.into(), NibbleSlice::new(key)).is_none() {
 			self.root_handle = self.storage.alloc(Node::Empty);
 		}
+		self.dirty = true;
 	}
 }
 
