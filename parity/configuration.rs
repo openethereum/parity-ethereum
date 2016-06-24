@@ -447,6 +447,26 @@ impl Configuration {
 			Some(self.args.flag_signer_port)
 		}
 	}
+
+	pub fn rpc_interface(&self) -> String {
+		match self.network_settings().rpc_interface.as_str() {
+			"all" => "0.0.0.0",
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	pub fn dapps_interface(&self) -> String {
+		match self.args.flag_dapps_interface.as_str() {
+			"all" => "0.0.0.0",
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	pub fn dapps_enabled(&self) -> bool {
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps
+	}
 }
 
 #[cfg(test)]
