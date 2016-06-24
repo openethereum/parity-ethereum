@@ -288,7 +288,7 @@ impl<'x> OpenBlock<'x> {
 	/// Get the environment info concerning this block.
 	pub fn env_info(&self) -> EnvInfo {
 		// TODO: memoise.
-		const SOFT_FORK_BLOCK: u64 = 1775000;
+		const SOFT_FORK_BLOCK: u64 = 1_800_000;
 		EnvInfo {
 			number: self.block.base.header.number,
 			author: self.block.base.header.author.clone(),
