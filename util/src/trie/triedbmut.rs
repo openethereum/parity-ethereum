@@ -16,10 +16,10 @@
 
 //! In-memory trie representation.
 
-use super::{Trie, TrieError, TrieMut};
+use super::{TrieError, TrieMut};
 use super::node::Node as RlpNode;
 
-use ::{Bytes, FixedHash, HashDB, H256, SHA3_NULL_RLP};
+use ::{Bytes, HashDB, H256, SHA3_NULL_RLP};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, View};
@@ -695,9 +695,9 @@ impl<'a> TrieDBMut<'a> {
 	}
 }
 
-impl<'a> Trie for TrieDBMut<'a> {
-	fn root(&self) -> &H256 {
-		if self.dirty { panic!("Attempted to access root of trie with uncommitted changes") }
+impl<'a> TrieMut for TrieDBMut<'a> {
+	fn root(&mut self) -> &H256 {
+		self.commit();
 		&self.root
 	}
 
@@ -716,9 +716,7 @@ impl<'a> Trie for TrieDBMut<'a> {
 	fn contains(&self, key: &[u8]) -> bool {
 		self.get(key).is_some()
 	}
-}
 
-impl<'a> TrieMut for TrieDBMut<'a> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		let root_handle = self.root_handle();
 		self.root_handle = self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
@@ -821,7 +819,7 @@ mod tests {
 	fn init() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		assert_eq!(*t.root(), SHA3_NULL_RLP);
 	}
 
