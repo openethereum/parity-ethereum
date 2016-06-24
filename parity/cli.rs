@@ -152,7 +152,7 @@ Footprint Options:
                            off. auto uses last used value of this option (off
                            if it does not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
-                           may be one of auto, archive, fast, basic, light:
+                           may be one of auto, archive, fast:
                            archive - keep all state trie data. No pruning.
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
