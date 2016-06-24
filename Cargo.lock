@@ -936,7 +936,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-builtins"
 version = "0.5.1"
-source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#650b0d94d076635904b86c1fd45c5f4a2061463f"
+source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#7408838e8ca3b57c6b0cf5da2e31e0e275959955"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -952,7 +952,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-wallet"
 version = "0.6.1"
-source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#8923d4c73359c75ce04f0639bbcde46adb846b81"
+source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#867994fe25038f000f1cc09cd024a83700a03930"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -960,7 +960,7 @@ dependencies = [
 [[package]]
 name = "parity-minimal-sysui"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#3c6ad40680126a760eb867b07b506ea996819ce3"
+source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#cc5ea4bd786982f0509a8d3d5deb4217c659af85"
 
 [[package]]
 name = "phf"

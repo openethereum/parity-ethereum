@@ -85,7 +85,16 @@ impl Configuration {
 		}
 	}
 
-
+	pub fn gas_ceil_target(&self) -> U256 {
+		if self.args.flag_dont_help_rescue_dao || self.args.flag_dogmatic {
+			10_000_000.into()
+		} else {
+			let d = &self.args.flag_gas_cap;
+			U256::from_dec_str(d).unwrap_or_else(|_| {
+				die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
+			})
+		}
+	}
 
 	pub fn gas_price(&self) -> U256 {
 		match self.args.flag_gasprice.as_ref() {
