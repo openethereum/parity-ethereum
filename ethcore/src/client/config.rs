@@ -35,4 +35,6 @@ pub struct ClientConfig {
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
 	pub name: String,
+	/// State db cache-size if not default
+	pub db_cache_size: Option<usize>,
 }

@@ -16,10 +16,9 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use std::collections::HashMap;
 use jsonrpc_core::IoHandler;
 use util::numbers::*;
-use util::keys::{TestAccount, TestAccountProvider};
+use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use v1::{SignerClient, PersonalSigner};
@@ -30,7 +29,7 @@ use v1::types::TransactionRequest;
 
 struct PersonalSignerTester {
 	queue: Arc<ConfirmationsQueue>,
-	accounts: Arc<TestAccountProvider>,
+	accounts: Arc<AccountProvider>,
 	io: IoHandler,
 	miner: Arc<TestMinerService>,
 	// these unused fields are necessary to keep the data alive
@@ -43,10 +42,8 @@ fn blockchain_client() -> Arc<TestBlockChainClient> {
 	Arc::new(client)
 }
 
-fn accounts_provider() -> Arc<TestAccountProvider> {
-	let accounts = HashMap::new();
-	let ap = TestAccountProvider::new(accounts);
-	Arc::new(ap)
+fn accounts_provider() -> Arc<AccountProvider> {
+	Arc::new(AccountProvider::transient_provider())
 }
 
 fn miner_service() -> Arc<TestMinerService> {
@@ -146,16 +143,10 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 
 #[test]
 fn should_confirm_transaction_and_dispatch() {
-	// given
+	//// given
 	let tester = signer_tester();
-	let account = TestAccount::new("test");
-	let address = account.address();
-	let secret = account.secret.clone();
+	let address = tester.accounts.new_account("test").unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.accounts.accounts
-		.write()
-		.unwrap()
-		.insert(address, account);
 	tester.queue.add_request(TransactionRequest {
 		from: address,
 		to: Some(recipient),
@@ -165,6 +156,7 @@ fn should_confirm_transaction_and_dispatch() {
 		data: None,
 		nonce: None,
 	});
+
 	let t = Transaction {
 		nonce: U256::zero(),
 		gas_price: U256::from(0x1000),
@@ -172,7 +164,10 @@ fn should_confirm_transaction_and_dispatch() {
 		action: Action::Call(recipient),
 		value: U256::from(0x1),
 		data: vec![]
-	}.sign(&secret);
+	};
+	tester.accounts.unlock_account_temporarily(address, "test".into()).unwrap();
+	let signature = tester.accounts.sign(address, t.hash()).unwrap();
+	let t = t.with_signature(signature);
 
 	assert_eq!(tester.queue.requests().len(), 1);
 

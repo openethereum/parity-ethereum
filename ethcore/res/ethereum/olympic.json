@@ -9,7 +9,8 @@
 				"durationLimit": "0x08",
 				"blockReward": "0x14D1120D7B160000",
 				"registrar": "5e70c0bbcd5636e0f9f9316e9f8633feb64d4050",
-				"frontierCompatibilityModeLimit": "0xffffffffffffffff"
+				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
+				"daoRescueSoftFork": false
 			}
 		}
 	},

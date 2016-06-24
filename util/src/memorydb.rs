@@ -162,7 +162,7 @@ impl MemoryDB {
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
 
 impl HashDB for MemoryDB {
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<&[u8]> {
 		if key == &SHA3_NULL_RLP {
 			return Some(&NULL_RLP_STATIC);
 		}
@@ -176,7 +176,7 @@ impl HashDB for MemoryDB {
 		self.data.iter().filter_map(|(k, v)| if v.1 != 0 {Some((k.clone(), v.1))} else {None}).collect()
 	}
 
-	fn exists(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256) -> bool {
 		if key == &SHA3_NULL_RLP {
 			return true;
 		}
@@ -222,7 +222,7 @@ impl HashDB for MemoryDB {
 		self.data.insert(key, (value, 1));
 	}
 
-	fn kill(&mut self, key: &H256) {
+	fn remove(&mut self, key: &H256) {
 		if key == &SHA3_NULL_RLP {
 			return;
 		}

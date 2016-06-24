@@ -47,4 +47,14 @@ impl<S> Net for NetClient<S> where S: SyncProvider + 'static {
 		// right now (11 march 2016), we are always listening for incoming connections
 		Ok(Value::Bool(true))
 	}
+
+	fn start_network(&self, _: Params) -> Result<Value, Error> {
+		take_weak!(self.sync).start_network();
+		Ok(Value::Bool(true))
+	}
+
+	fn stop_network(&self, _: Params) -> Result<Value, Error> {
+		take_weak!(self.sync).stop_network();
+		Ok(Value::Bool(true))
+	}
 }

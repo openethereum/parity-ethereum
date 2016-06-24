@@ -48,6 +48,8 @@ pub struct Config {
 	pub enabled: Switch,
 	/// Traces blooms configuration.
 	pub blooms: BloomConfig,
+	/// Database cache-size if not default
+	pub db_cache_size: Option<usize>,
 }
 
 impl Default for Config {
@@ -57,7 +59,8 @@ impl Default for Config {
 			blooms: BloomConfig {
 				levels: 3,
 				elements_per_index: 16,
-			}
+			},
+			db_cache_size: None,
 		}
 	}
 }

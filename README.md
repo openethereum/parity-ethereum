@@ -36,27 +36,38 @@ below to build from source.
 
 ----
 
-## Building from source
+## Build dependencies
 
 Parity is fully compatible with Stable Rust.
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
 - Linux and OSX:
-```bash
-$ curl https://sh.rustup.rs -sSf | sh
-```
+	```bash
+	$ curl https://sh.rustup.rs -sSf | sh
+	```
 
 - Windows
 
-Make sure you have Visual Studio 2015 with C++ support installed, download and run [rustup](https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe) and use the following command to setup msvc toolchain:
+    Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from
+	https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe, start "VS2015 x64 Native Tools Command Prompt", and use the following command to install and set up the msvc toolchain:
+    ```
+	$ rustup default stable-x86_64-pc-windows-msvc
+    ```
 
+Once you have rustup, install parity or download and build from source
+
+----
+
+## Quick install
+
+```bash
+cargo install --git https://github.com/ethcore/parity.git parity
 ```
-rustup default stable-x86_64-pc-windows-msvc
-```
 
+----
 
-Then, download and build Parity:
+## Build from source
 
 ```bash
 # download Parity code
@@ -67,12 +78,11 @@ $ cd parity
 $ cargo build --release
 ```
 
-This will produce an executable in the `target/release` subdirectory.
-Either run `cd target/release`, or copy `target/release/parity` to another location.
+This will produce an executable in the `./target/release` subdirectory.
 
 To get started, just run
 ```bash
-$ parity
+$ ./target/release/parity
 ```
 
 and parity will begin syncing the Ethereum blockchain.

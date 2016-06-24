@@ -68,6 +68,7 @@ mod configuration;
 mod migration;
 mod signer;
 mod rpc_apis;
+mod url;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
@@ -79,7 +80,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
 use ethcore::error::{Error, ImportError};
@@ -109,6 +110,11 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
+	if conf.args.cmd_signer {
+		execute_signer(conf);
+		return;
+	}
+
 	let spec = conf.spec();
 	let client_config = conf.client_config(&spec);
 
@@ -123,6 +129,11 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
+	if conf.args.cmd_wallet {
+		execute_wallet_cli(conf);
+		return;
+	}
+
 	if conf.args.cmd_export {
 		execute_export(conf);
 		return;
@@ -130,11 +141,6 @@ fn execute(conf: Configuration) {
 
 	if conf.args.cmd_import {
 		execute_import(conf);
-		return;
-	}
-
-	if conf.args.cmd_signer {
-		execute_signer(conf);
 		return;
 	}
 
@@ -185,6 +191,19 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
 
+	// Create and display a new token for UIs.
+	if conf.args.flag_signer && !conf.args.flag_no_token {
+		new_token(conf.directories().signer).unwrap_or_else(|e| {
+			die!("Error generating token: {:?}", e)
+		});
+	}
+
+	// Display warning about using unlock with signer
+	if conf.args.flag_signer && conf.args.flag_unlock.is_some() {
+		warn!("Using Trusted Signer and --unlock is not recommended!");
+		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
+	}
+
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
 
@@ -198,7 +217,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Build client
 	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone()
+		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone(), !conf.args.flag_no_network
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -208,7 +227,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::register(service.network(), sync_config, client.clone());
+	let sync = EthSync::new(sync_config, client.clone());
+	EthSync::register(&*service.network(), sync.clone()).unwrap_or_else(|e| die_with_error("Error registering eth protocol handler", UtilError::from(e).into()));
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
@@ -220,6 +240,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: network_settings.clone(),
+		allow_pending_receipt_query: !conf.args.flag_geth,
+		net_service: service.network(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -242,7 +264,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {
-		enabled: !conf.args.flag_dapps_off,
+		enabled: !conf.args.flag_dapps_off && !conf.args.flag_no_dapps,
 		interface: conf.args.flag_dapps_interface.clone(),
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
@@ -269,8 +291,13 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
+		network: Arc::downgrade(&service.network()),
 	});
-	service.io().register_handler(io_handler).expect("Error registering IO handler");
+	service.register_io_handler(io_handler).expect("Error registering IO handler");
+
+	if conf.args.cmd_ui {
+		url::open("http://localhost:8080/")
+	}
 
 	// Handle exit
 	wait_for_exit(panic_handler, rpc_server, dapps_server, signer_server);
@@ -300,16 +327,17 @@ fn execute_export(conf: Configuration) {
 		udp_port: None,
 		nat_enabled: false,
 		discovery_enabled: false,
-		pin: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
 		ideal_peers: 0,
+		reserved_nodes: Vec::new(),
+		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
 	};
 	let client_config = conf.client_config(&spec);
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -371,16 +399,17 @@ fn execute_import(conf: Configuration) {
 		udp_port: None,
 		nat_enabled: false,
 		discovery_enabled: false,
-		pin: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
 		ideal_peers: 0,
+		reserved_nodes: Vec::new(),
+		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
 	};
 	let client_config = conf.client_config(&spec);
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()),
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -393,7 +422,9 @@ fn execute_import(conf: Configuration) {
 		Box::new(::std::io::stdin())
 	};
 
-	let mut first_bytes: Bytes = vec![0; 3];
+	const READAHEAD_BYTES: usize = 8;
+
+	let mut first_bytes: Bytes = vec![0; READAHEAD_BYTES];
 	let mut first_read = 0;
 
 	let format = match conf.args.flag_format {
@@ -433,13 +464,13 @@ fn execute_import(conf: Configuration) {
 	match format {
 		DataFormat::Binary => {
 			loop {
-				let mut bytes: Bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; 3]};
+				let mut bytes: Bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; READAHEAD_BYTES]};
 				let n = if first_read > 0 {first_read} else {instream.read(&mut(bytes[..])).unwrap_or_else(|_| die!("Error reading from the file/stream."))};
 				if n == 0 { break; }
 				first_read = 0;
 				let s = PayloadInfo::from(&(bytes[..])).unwrap_or_else(|e| die!("Invalid RLP in the file/stream: {:?}", e)).total();
 				bytes.resize(s, 0);
-				instream.read_exact(&mut(bytes[3..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
+				instream.read_exact(&mut(bytes[READAHEAD_BYTES..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
 				do_import(bytes);
 			}
 		}
@@ -468,9 +499,15 @@ fn execute_signer(conf: Configuration) {
 }
 
 fn execute_account_cli(conf: Configuration) {
-	use util::keys::store::SecretStore;
+	use ethcore::ethstore::{EthStore, import_accounts};
+	use ethcore::ethstore::dir::DiskDirectory;
+	use ethcore::account_provider::AccountProvider;
 	use rpassword::read_password;
-	let mut secret_store = SecretStore::with_security(Path::new(&conf.keys_path()), conf.keys_iterations());
+
+	let dir = Box::new(DiskDirectory::create(conf.keys_path()).unwrap());
+	let iterations = conf.keys_iterations();
+	let secret_store = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
+
 	if conf.args.cmd_new {
 		println!("Please note that password is NOT RECOVERABLE.");
 		print!("Type password: ");
@@ -488,17 +525,48 @@ fn execute_account_cli(conf: Configuration) {
 		println!("{:?}", new_address);
 		return;
 	}
+
 	if conf.args.cmd_list {
 		println!("Known addresses:");
-		for &(addr, _) in &secret_store.accounts().unwrap() {
+		for addr in &secret_store.accounts() {
 			println!("{:?}", addr);
 		}
 		return;
 	}
+
 	if conf.args.cmd_import {
-		let imported = util::keys::import_keys_paths(&mut secret_store, &conf.args.arg_path).unwrap();
+		let to = DiskDirectory::create(conf.keys_path()).unwrap();
+		let mut imported = 0;
+		for path in &conf.args.arg_path {
+			let from = DiskDirectory::at(path);
+			imported += import_accounts(&from, &to).unwrap_or_else(|e| die!("Could not import accounts {}", e)).len();
+		}
 		println!("Imported {} keys", imported);
 	}
+}
+
+fn execute_wallet_cli(conf: Configuration) {
+	use ethcore::ethstore::{PresaleWallet, EthStore};
+	use ethcore::ethstore::dir::DiskDirectory;
+	use ethcore::account_provider::AccountProvider;
+
+	let wallet_path = conf.args.arg_path.first().unwrap();
+	let filename = conf.args.flag_password.first().unwrap();
+	let mut file = File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
+	let mut file_content = String::new();
+	file.read_to_string(&mut file_content).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
+
+	let dir = Box::new(DiskDirectory::create(conf.keys_path()).unwrap());
+	let iterations = conf.keys_iterations();
+	let store = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
+
+	// remove eof
+	let pass = &file_content[..file_content.len() - 1];
+	let wallet = PresaleWallet::open(wallet_path).unwrap_or_else(|_| die!("Unable to open presale wallet."));
+	let kp = wallet.decrypt(pass).unwrap_or_else(|_| die!("Invalid password"));
+	let address = store.insert_account(kp.secret().clone(), pass).unwrap();
+
+	println!("Imported account: {}", address);
 }
 
 fn wait_for_exit(

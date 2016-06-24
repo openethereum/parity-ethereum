@@ -130,7 +130,9 @@ impl QueueSignal {
 		}
 
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
-			self.message_channel.send(UserMessage(SyncMessage::BlockVerified)).expect("Error sending BlockVerified message");
+			if let Err(e) = self.message_channel.send(UserMessage(SyncMessage::BlockVerified)) {
+				debug!("Error sending BlockVerified message: {:?}", e);
+			}
 		}
 	}
 

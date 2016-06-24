@@ -75,7 +75,7 @@ impl ws::Handler for Session {
 		let host = req.header("host").or_else(|| req.header("Host"));
 
 		// Check request origin and host header.
-		if !origin_is_allowed(&self.self_origin, origin) && !origin_is_allowed(&self.self_origin, host) {
+		if !origin_is_allowed(&self.self_origin, origin) && !(origin.is_none() && origin_is_allowed(&self.self_origin, host)) {
 			warn!(target: "signer", "Blocked connection to Signer API from untrusted origin.");
 			return Ok(ws::Response::forbidden(format!("You are not allowed to access system ui. Use: http://{}", self.self_origin)));
 		}

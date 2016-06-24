@@ -18,7 +18,7 @@ use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
 
 use util::*;
-use util::keys::store::{AccountProvider};
+use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use block::{ClosedBlock, IsBlock};
@@ -31,13 +31,14 @@ use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, Transac
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
+	// NOTE [ToDr]  When locking always lock in this order!
 	transaction_queue: Mutex<TransactionQueue>,
+	sealing_work: Mutex<UsingQueue<ClosedBlock>>,
 
 	// for sealing...
 	force_sealing: bool,
 	sealing_enabled: AtomicBool,
 	sealing_block_last_request: Mutex<u64>,
-	sealing_work: Mutex<UsingQueue<ClosedBlock>>,
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
@@ -105,34 +106,37 @@ impl Miner {
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
-		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
-		let mut sealing_work = self.sealing_work.lock().unwrap();
-		let best_hash = chain.best_block_header().sha3();
 
+		let (transactions, mut open_block) = {
+			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
+			let mut sealing_work = self.sealing_work.lock().unwrap();
+			let best_hash = chain.best_block_header().sha3();
 /*
-		// check to see if last ClosedBlock in would_seals is actually same parent block.
-		// if so
-		//   duplicate, re-open and push any new transactions.
-		//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
-		//   otherwise, leave everything alone.
-		// otherwise, author a fresh block.
+			// check to see if last ClosedBlock in would_seals is actually same parent block.
+			// if so
+			//   duplicate, re-open and push any new transactions.
+			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
+			//   otherwise, leave everything alone.
+			// otherwise, author a fresh block.
 */
-		let mut open_block = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
-			Some(old_block) => {
-				trace!(target: "miner", "Already have previous work; updating and returning");
-				// add transactions to old_block
-				let e = self.engine();
-				old_block.reopen(e, chain.vm_factory())
-			}
-			None => {
-				// block not found - create it.
-				trace!(target: "miner", "No existing work - making new block");
-				chain.prepare_open_block(
-					self.author(),
-					self.gas_floor_target(),
-					self.extra_data()
-				)
-			}
+			let open_block = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+				Some(old_block) => {
+					trace!(target: "miner", "Already have previous work; updating and returning");
+					// add transactions to old_block
+					let e = self.engine();
+					old_block.reopen(e, chain.vm_factory())
+				}
+				None => {
+					// block not found - create it.
+					trace!(target: "miner", "No existing work - making new block");
+					chain.prepare_open_block(
+						self.author(),
+						self.gas_floor_target(),
+						self.extra_data()
+					)
+				}
+			};
+			(transactions, open_block)
 		};
 
 		let mut invalid_transactions = HashSet::new();
@@ -162,14 +166,16 @@ impl Miner {
 
 		let block = open_block.close();
 
-		let mut queue = self.transaction_queue.lock().unwrap();
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: chain.latest_nonce(a),
 			balance: chain.latest_balance(a),
 		};
 
-		for hash in invalid_transactions.into_iter() {
-			queue.remove_invalid(&hash, &fetch_account);
+		{
+			let mut queue = self.transaction_queue.lock().unwrap();
+			for hash in invalid_transactions.into_iter() {
+				queue.remove_invalid(&hash, &fetch_account);
+			}
 		}
 
 		if !block.transactions().is_empty() {
@@ -195,6 +201,8 @@ impl Miner {
 				trace!(target: "miner", "prepare_sealing: unable to generate seal internally");
 			}
 		}
+
+		let mut sealing_work = self.sealing_work.lock().unwrap();
 		if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
 			trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
 			sealing_work.push(block);
@@ -266,6 +274,7 @@ impl MinerService for Miner {
 					last_hashes: last_hashes,
 					gas_used: U256::zero(),
 					gas_limit: U256::max_value(),
+					dao_rescue_block_gas_limit: chain.dao_rescue_block_gas_limit(header.parent_hash().clone()),
 				};
 				// that's just a copy of the state.
 				let mut state = block.state().clone();
@@ -375,18 +384,28 @@ impl MinerService for Miner {
 		*self.gas_floor_target.read().unwrap()
 	}
 
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
+	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transactions.into_iter()
-			.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
-			.collect()
+		let results: Vec<Result<TransactionImportResult, Error>> = {
+			let mut transaction_queue = self.transaction_queue.lock().unwrap();
+			transactions.into_iter()
+				.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
+				.collect()
+		};
+		if !results.is_empty() {
+			self.update_sealing(chain);
+		}
+		results
 	}
 
-	fn import_own_transaction<T>(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
-		Result<TransactionImportResult, Error>
-		where T: Fn(&Address) -> AccountDetails {
+	fn import_own_transaction<T>(
+		&self,
+		chain: &MiningBlockChainClient,
+		transaction: SignedTransaction,
+		fetch_account: T
+	) -> Result<TransactionImportResult, Error> where T: Fn(&Address) -> AccountDetails {
+
 		let hash = transaction.hash();
 		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
 
@@ -424,20 +443,20 @@ impl MinerService for Miner {
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
+		let queue = self.transaction_queue.lock().unwrap();
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
 			(true, Some(pending)) => pending.transactions().iter().map(|t| t.hash()).collect(),
 			_ => {
-				let queue = self.transaction_queue.lock().unwrap();
 				queue.pending_hashes()
 			}
 		}
 	}
 
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+		let queue = self.transaction_queue.lock().unwrap();
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
 			(true, Some(pending)) => pending.transactions().iter().find(|t| &t.hash() == hash).cloned(),
 			_ => {
-				let queue = self.transaction_queue.lock().unwrap();
 				queue.find(hash)
 			}
 		}
@@ -449,11 +468,11 @@ impl MinerService for Miner {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		let queue = self.transaction_queue.lock().unwrap();
 		// TODO: should only use the sealing_work when it's current (it could be an old block)
 		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
 			(true, Some(pending)) => pending.transactions().clone(),
 			_ => {
-				let queue = self.transaction_queue.lock().unwrap();
 				queue.top_transactions()
 			}
 		}
@@ -492,7 +511,7 @@ impl MinerService for Miner {
 				trace!(target: "miner", "Miner sleeping (current {}, last {})", current_no, last_request);
 				self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
 				self.sealing_work.lock().unwrap().reset();
-			} else if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			} else {
 				self.prepare_sealing(chain);
 			}
 		}
@@ -559,7 +578,7 @@ impl MinerService for Miner {
 				for tx in &txs {
 					let _sender = tx.sender();
 				}
-				let _ = self.import_transactions(txs, |a| AccountDetails {
+				let _ = self.import_transactions(chain, txs, |a| AccountDetails {
 					nonce: chain.latest_nonce(a),
 					balance: chain.latest_balance(a),
 				});

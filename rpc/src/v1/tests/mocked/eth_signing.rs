@@ -14,26 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::str::FromStr;
 use std::sync::Arc;
 use jsonrpc_core::IoHandler;
 use v1::impls::EthSigningQueueClient;
 use v1::traits::EthSigning;
 use v1::helpers::{ConfirmationsQueue, SigningQueue};
-use util::keys::TestAccount;
+use v1::tests::helpers::TestMinerService;
+use util::{Address, FixedHash};
+use util::numbers::{Uint, U256};
+use ethcore::account_provider::AccountProvider;
+use ethcore::client::TestBlockChainClient;
+use ethcore::transaction::{Transaction, Action};
 
 struct EthSigningTester {
 	pub queue: Arc<ConfirmationsQueue>,
+	pub client: Arc<TestBlockChainClient>,
+	pub miner: Arc<TestMinerService>,
+	pub accounts: Arc<AccountProvider>,
 	pub io: IoHandler,
 }
 
 impl Default for EthSigningTester {
 	fn default() -> Self {
 		let queue = Arc::new(ConfirmationsQueue::default());
+		let client = Arc::new(TestBlockChainClient::default());
+		let miner = Arc::new(TestMinerService::default());
+		let accounts = Arc::new(AccountProvider::transient_provider());
 		let io = IoHandler::new();
-		io.add_delegate(EthSigningQueueClient::new(&queue).to_delegate());
+		io.add_delegate(EthSigningQueueClient::new(&queue, &client, &miner, &accounts).to_delegate());
 
 		EthSigningTester {
 			queue: queue,
+			client: client,
+			miner: miner,
+			accounts: accounts,
 			io: io,
 		}
 	}
@@ -48,8 +63,7 @@ fn eth_signing() -> EthSigningTester {
 fn should_add_transaction_to_queue() {
 	// given
 	let tester = eth_signing();
-	let account = TestAccount::new("123");
-	let address = account.address();
+	let address = Address::random();
 	assert_eq!(tester.queue.requests().len(), 0);
 
 	// when
@@ -71,5 +85,41 @@ fn should_add_transaction_to_queue() {
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 1);
+}
 
+#[test]
+fn should_dispatch_transaction_if_account_is_unlocked() {
+	// given
+	let tester = eth_signing();
+	let acc = tester.accounts.new_account("test").unwrap();
+	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
+
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	let signature = tester.accounts.sign(acc, t.hash()).unwrap();
+	let t = t.with_signature(signature);
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", acc).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
 }
