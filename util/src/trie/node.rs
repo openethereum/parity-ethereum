@@ -138,3 +138,56 @@ impl<'a> Node<'a> {
 		}
 	}
 }
+
+mod tests {
+	use super::Node;
+	use ::nibbleslice::NibbleSlice;
+	use ::rlp::{encode, NULL_RLP};
+
+	#[test]
+	fn test_node_leaf() {
+		let k = vec![0x20u8, 0x01, 0x23, 0x45];
+		let v: Vec<u8> = From::from("cat");
+		let (slice, is_leaf) = NibbleSlice::from_encoded(&k);
+		assert_eq!(is_leaf, true);
+		let leaf = Node::Leaf(slice, &v);
+		let rlp = leaf.encoded();
+		let leaf2 = Node::decoded(&rlp);
+		assert_eq!(leaf, leaf2);
+	}
+
+	#[test]
+	fn test_node_extension() {
+		let k = vec![0x00u8, 0x01, 0x23, 0x45];
+		// in extension, value must be valid rlp
+		let v = encode(&"cat");
+		let (slice, is_leaf) = NibbleSlice::from_encoded(&k);
+		assert_eq!(is_leaf, false);
+		let ex = Node::Extension(slice, &v);
+		let rlp = ex.encoded();
+		let ex2 = Node::decoded(&rlp);
+		assert_eq!(ex, ex2);
+	}
+
+	#[test]
+	fn test_node_empty_branch() {
+		let null_rlp = NULL_RLP;
+		let branch = Node::Branch([&null_rlp; 16], None);
+		let rlp = branch.encoded();
+		let branch2 = Node::decoded(&rlp);
+		println!("{:?}", rlp);
+		assert_eq!(branch, branch2);
+	}
+
+	#[test]
+	fn test_node_branch() {
+		let k = encode(&"cat");
+		let mut nodes: [&[u8]; 16] = unsafe { ::std::mem::uninitialized() };
+		for i in 0..16 { nodes[i] = &k; }
+		let v: Vec<u8> = From::from("dog");
+		let branch = Node::Branch(nodes, Some(&v));
+		let rlp = branch.encoded();
+		let branch2 = Node::decoded(&rlp);
+		assert_eq!(branch, branch2);
+	}
+}

@@ -34,8 +34,6 @@ pub mod triedbmut;
 pub mod sectriedb;
 /// Export the sectriedbmut module.
 pub mod sectriedbmut;
-/// Export the memorytrie module.
-pub mod memorytriedb;
 
 pub use self::trietraits::{Trie, TrieMut};
 pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
@@ -43,7 +41,6 @@ pub use self::triedbmut::TrieDBMut;
 pub use self::triedb::TrieDB;
 pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
-pub use self::memorytriedb::MemoryTrieDB;
 
 /// Trie Errors
 #[derive(Debug)]
