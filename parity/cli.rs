@@ -155,10 +155,6 @@ Footprint Options:
                            may be one of auto, archive, fast, basic, light:
                            archive - keep all state trie data. No pruning.
                            fast - maintain journal overlay. Fast but 50MB used.
-                           basic - reference count in disk DB. Slow, light, and
-                           experimental!
-                           light - early merges with partial tracking. Fast,
-                           light, and experimental!
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
