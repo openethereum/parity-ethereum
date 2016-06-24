@@ -181,7 +181,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 			last_hashes.clone(),
 			None,
 			author.clone(),
-			3141562.into(),
+			(3141562.into(), 31415620.into()),
 			vec![]
 		).unwrap();
 		b.set_difficulty(U256::from(0x20000));

@@ -534,6 +534,9 @@ impl ChainSync {
 		let h = header_rlp.as_raw().sha3();
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
 		let header: BlockHeader = try!(header_rlp.as_val());
+		if header.number() > self.highest_block.unwrap_or(0) {
+			self.highest_block = Some(header.number());
+		}
 		let mut unknown = false;
 		{
 			let peer = self.peers.get_mut(&peer_id).unwrap();
@@ -587,6 +590,10 @@ impl ChainSync {
 	fn on_peer_new_hashes(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		if self.state != SyncState::Idle {
 			trace!(target: "sync", "Ignoring new hashes since we're already downloading.");
+			let max = r.iter().take(MAX_NEW_HASHES).map(|item| item.val_at::<BlockNumber>(1).unwrap_or(0)).fold(0u64, max);
+			if max > self.highest_block.unwrap_or(0) {
+				self.highest_block = Some(max);
+			}
 			return Ok(());
 		}
 		trace!(target: "sync", "{} -> NewHashes ({} entries)", peer_id, r.item_count());
@@ -596,6 +603,9 @@ impl ChainSync {
 		for (rh, rd) in hashes {
 			let h = try!(rh);
 			let d = try!(rd);
+			if d > self.highest_block.unwrap_or(0) {
+				self.highest_block = Some(d);
+			}
 			if self.blocks.is_downloading(&h) {
 				continue;
 			}
