@@ -467,6 +467,11 @@ impl Configuration {
 	pub fn dapps_enabled(&self) -> bool {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps
 	}
+
+	pub fn signer_enabled(&self) -> bool {
+		(self.args.cmd_ui && !self.args.flag_no_signer) ||
+		(!self.args.cmd_ui && self.args.flag_signer)
+	}
 }
 
 #[cfg(test)]

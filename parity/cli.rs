@@ -117,7 +117,9 @@ API and Console Options:
                            [default: $HOME/.parity/dapps]
 
   --signer                 Enable Trusted Signer WebSocket endpoint used by
-                           Signer UIs.
+                           Signer UIs. Default if no command is specified.
+  --no-signer              Disable Trusted Signer WebSocket endpoint used by
+                           Signer UIs. Default if run with ui command.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
   --signer-path PATH       Specify directory where Signer UIs tokens should
@@ -280,6 +282,7 @@ pub struct Args {
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
 	pub flag_signer: bool,
+	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
 	pub flag_no_token: bool,

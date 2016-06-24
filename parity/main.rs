@@ -192,14 +192,14 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let sync_config = conf.sync_config(&spec);
 
 	// Create and display a new token for UIs.
-	if conf.args.flag_signer && !conf.args.flag_no_token {
+	if conf.signer_enabled() && !conf.args.flag_no_token {
 		new_token(conf.directories().signer).unwrap_or_else(|e| {
 			die!("Error generating token: {:?}", e)
 		});
 	}
 
 	// Display warning about using unlock with signer
-	if conf.args.flag_signer && conf.args.flag_unlock.is_some() {
+	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
 		warn!("Using Trusted Signer and --unlock is not recommended!");
 		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
 	}
