@@ -98,7 +98,7 @@ impl HashDB for ArchiveDB {
 		ret
 	}
 
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.overlay.raw(key);
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
@@ -113,8 +113,8 @@ impl HashDB for ArchiveDB {
 		}
 	}
 
-	fn exists(&self, key: &H256) -> bool {
-		self.lookup(key).is_some()
+	fn contains(&self, key: &H256) -> bool {
+		self.get(key).is_some()
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
@@ -123,8 +123,8 @@ impl HashDB for ArchiveDB {
 	fn emplace(&mut self, key: H256, value: Bytes) {
 		self.overlay.emplace(key, value);
 	}
-	fn kill(&mut self, key: &H256) {
-		self.overlay.kill(key);
+	fn remove(&mut self, key: &H256) {
+		self.overlay.remove(key);
 	}
 }
 
@@ -207,7 +207,7 @@ mod tests {
 		jdb.commit(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
 		jdb.commit(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
 
-		assert!(jdb.exists(&x));
+		assert!(jdb.contains(&x));
 	}
 
 	#[test]
@@ -216,14 +216,14 @@ mod tests {
 		let mut jdb = ArchiveDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.remove(&h);
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(2, &b"2".sha3(), None).unwrap();
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
 	}
 
@@ -235,26 +235,26 @@ mod tests {
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
 
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
 		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&baz));
 
 		jdb.remove(&foo);
 		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 
 		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
 	}
@@ -267,8 +267,8 @@ mod tests {
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
@@ -277,12 +277,12 @@ mod tests {
 		jdb.remove(&bar);
 		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
 
 		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
@@ -292,16 +292,16 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 
 		jdb.remove(&foo);
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		jdb.insert(b"foo");
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 		jdb.commit(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
@@ -315,10 +315,10 @@ mod tests {
 
 		jdb.insert(b"foo");
 		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 
 		jdb.commit(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
@@ -344,8 +344,8 @@ mod tests {
 
 		{
 			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
-			assert!(jdb.exists(&foo));
-			assert!(jdb.exists(&bar));
+			assert!(jdb.contains(&foo));
+			assert!(jdb.contains(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		}
 	}
@@ -373,7 +373,7 @@ mod tests {
 			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			jdb.remove(&foo);
 			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
-			assert!(jdb.exists(&foo));
+			assert!(jdb.contains(&foo));
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
 			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
@@ -402,7 +402,7 @@ mod tests {
 		{
 			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), None);
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
-			assert!(jdb.exists(&foo));
+			assert!(jdb.contains(&foo));
 		}
 	}
 

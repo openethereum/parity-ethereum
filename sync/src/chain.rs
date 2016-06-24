@@ -946,7 +946,7 @@ impl ChainSync {
 			let tx = try!(r.at(i)).as_raw().to_vec();
 			transactions.push(tx);
 		}
-		let _ = io.chain().queue_transactions(transactions);
+		io.chain().queue_transactions(transactions);
 		Ok(())
 	}
 

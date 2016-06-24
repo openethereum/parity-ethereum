@@ -106,7 +106,7 @@ impl Engine for Ethash {
 		} else {
 			let mut s = Schedule::new_homestead();
 			if self.ethash_params.dao_rescue_soft_fork {
-				s.reject_dao_transactions = env_info.dao_rescue_block_gas_limit.map(|x| x <= 4_000_000.into()).unwrap_or(false);
+				s.reject_dao_transactions = env_info.dao_rescue_block_gas_limit.map_or(false, |x| x <= 4_000_000.into());
 			}
 			s
 		}

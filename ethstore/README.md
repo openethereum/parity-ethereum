@@ -20,6 +20,7 @@ Usage:
     ethstore change-pwd <address> <old-pwd> <new-pwd> [--dir DIR]
     ethstore list [--dir DIR]
     ethstore import [--src DIR] [--dir DIR]
+    ethstore import-wallet <path> <password> [--dir DIR]
     ethstore remove <address> <password> [--dir DIR]
     ethstore sign <address> <password> <message> [--dir DIR]
     ethstore [-h | --help]
@@ -38,6 +39,7 @@ Commands:
     change-pwd         Change account password.
     list               List accounts.
     import             Import accounts from src.
+    import-wallet      Import presale wallet.
     remove             Remove account.
     sign               Sign message.
 ```
@@ -48,11 +50,11 @@ Commands:
 *Encrypt secret with a password and save it in secret store.*
 
 - `<secret>` - ethereum secret, 32 bytes long
-- `<password>` - account password, any string
+- `<password>` - account password, file path
 - `[--dir DIR]` - secret store directory, It may be either parity, parity-test, geth, geth-test or a path. default: parity
 
 ```
-ethstore insert 7d29fab185a33e2cd955812397354c472d2b84615b645aa135ff539f6b0d70d5 "this is sparta"
+ethstore insert 7d29fab185a33e2cd955812397354c472d2b84615b645aa135ff539f6b0d70d5 password.txt
 ```
 
 ```
@@ -75,12 +77,12 @@ ethstore insert `ethkey generate random -s` "this is sparta"
 *Change account password.*
 
 - `<address>` - ethereum address, 20 bytes long
-- `<old-pwd>` - old account password, any string
-- `<new-pwd>` - new account password, any string
+- `<old-pwd>` - old account password, file path
+- `<new-pwd>` - new account password, file path
 - `[--dir DIR]` - secret store directory, It may be either parity, parity-test, geth, geth-test or a path. default: parity
 
 ```
-ethstore change-pwd a8fa5dd30a87bb9e3288d604eb74949c515ab66e "this is sparta" "hello world"
+ethstore change-pwd a8fa5dd30a87bb9e3288d604eb74949c515ab66e old_pwd.txt new_pwd.txt
 ```
 
 ```
@@ -113,8 +115,29 @@ ethstore list
 - `[--dir DIR]` - secret store directory, It may be either parity, parity-test, geth, geth-test or a path. default: parity
 
 ```
+ethstore import
+```
+
+```
  0: e6a3d25a7cb7cd21cb720df5b5e8afd154af1bbb
  1: 6edddfc6349aff20bc6467ccf276c5b52487f7a8
+```
+
+--
+
+#### `import-wallet <path> <password> [--dir DIR]`
+*Import account from presale wallet.*
+
+- `<path>` - presale wallet path
+- `<password>` - account password, file path
+- `[--dir DIR]` - secret store directory, It may be either parity, parity-test, geth, geth-test or a path. default: parity
+
+```
+ethstore import-wallet ethwallet.json password.txt
+```
+
+```
+e6a3d25a7cb7cd21cb720df5b5e8afd154af1bbb
 ```
 
 --
@@ -123,11 +146,11 @@ ethstore list
 *Remove account from secret store.*
 
 - `<address>` - ethereum address, 20 bytes long
-- `<password>` - account password, any string
+- `<password>` - account password, file path
 - `[--dir DIR]` - secret store directory, It may be either parity, parity-test, geth, geth-test or a path. default: parity
 
 ```
-ethstore remove a8fa5dd30a87bb9e3288d604eb74949c515ab66e "hello world"
+ethstore remove a8fa5dd30a87bb9e3288d604eb74949c515ab66e password.txt
 ```
 
 ```
@@ -140,12 +163,12 @@ true
 *Sign message with account's secret.*
 
 - `<address>` - ethereum address, 20 bytes long
-- `<password>` - account password, any string
+- `<password>` - account password, file path
 - `<message>` - message to sign, 32 bytes long
 - `[--dir DIR]` - secret store directory, It may be either parity, parity-test, geth, geth-test or a path. default: parity
 
 ```
-ethstore sign 24edfff680d536a5f6fe862d36df6f8f6f40f115 "this is sparta" 7d29fab185a33e2cd955812397354c472d2b84615b645aa135ff539f6b0d70d5
+ethstore sign 24edfff680d536a5f6fe862d36df6f8f6f40f115 password.txt 7d29fab185a33e2cd955812397354c472d2b84615b645aa135ff539f6b0d70d5
 ```
 
 ```

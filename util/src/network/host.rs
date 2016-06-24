@@ -735,6 +735,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		self.kill_connection(token, io, true);
 	}
 
+	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn session_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Vec<(ProtocolId, PacketId, Vec<u8>)> = Vec::new();
