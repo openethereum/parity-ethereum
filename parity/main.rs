@@ -278,7 +278,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Set up a signer
 	let signer_server = signer::start(signer::Configuration {
-		enabled: deps_for_rpc_apis.signer_port.is_some(),
+		enabled: conf.signer_enabled(),
 		port: conf.args.flag_signer_port,
 		signer_path: conf.directories().signer,
 	}, signer::Dependencies {

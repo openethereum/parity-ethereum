@@ -441,7 +441,7 @@ impl Configuration {
 	}
 
 	pub fn signer_port(&self) -> Option<u16> {
-		if !self.args.flag_signer {
+		if !self.signer_enabled() {
 			None
 		} else {
 			Some(self.args.flag_signer_port)
