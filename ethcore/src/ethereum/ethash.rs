@@ -122,7 +122,7 @@ impl Engine for Ethash {
 			} else if gas_limit > gas_ceil_target {
 				max(gas_ceil_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			} else {
-				max(gas_ceil_target,
+				min(gas_ceil_target,
 					max(gas_floor_target,
 						gas_limit - gas_limit / bound_divisor + 1.into() +
 							(header.gas_used * 6.into() / 5.into()) / bound_divisor))
