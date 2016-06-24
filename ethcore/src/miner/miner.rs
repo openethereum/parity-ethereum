@@ -39,7 +39,7 @@ pub struct Miner {
 	force_sealing: bool,
 	sealing_enabled: AtomicBool,
 	sealing_block_last_request: Mutex<u64>,
-	gas_floor_target: RwLock<U256>,
+	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
 	spec: Spec,
@@ -55,7 +55,7 @@ impl Default for Miner {
 			sealing_enabled: AtomicBool::new(false),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(UsingQueue::new(5)),
-			gas_floor_target: RwLock::new(U256::zero()),
+			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
@@ -73,7 +73,7 @@ impl Miner {
 			sealing_enabled: AtomicBool::new(force_sealing),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(UsingQueue::new(5)),
-			gas_floor_target: RwLock::new(U256::zero()),
+			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
@@ -89,7 +89,7 @@ impl Miner {
 			sealing_enabled: AtomicBool::new(force_sealing),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(UsingQueue::new(5)),
-			gas_floor_target: RwLock::new(U256::zero()),
+			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: Some(accounts),
@@ -131,7 +131,7 @@ impl Miner {
 					trace!(target: "miner", "No existing work - making new block");
 					chain.prepare_open_block(
 						self.author(),
-						self.gas_floor_target(),
+						(self.gas_floor_target(), self.gas_ceil_target()),
 						self.extra_data()
 					)
 				}
@@ -341,7 +341,11 @@ impl MinerService for Miner {
 
 	/// Set the gas limit we wish to target when sealing a new block.
 	fn set_gas_floor_target(&self, target: U256) {
-		*self.gas_floor_target.write().unwrap() = target;
+		self.gas_range_target.write().unwrap().0 = target;
+	}
+
+	fn set_gas_ceil_target(&self, target: U256) {
+		self.gas_range_target.write().unwrap().1 = target;
 	}
 
 	fn set_minimal_gas_price(&self, min_gas_price: U256) {
@@ -358,7 +362,7 @@ impl MinerService for Miner {
 	}
 
 	fn sensible_gas_limit(&self) -> U256 {
-		*self.gas_floor_target.read().unwrap() / 5.into()
+		self.gas_range_target.read().unwrap().0 / 5.into()
 	}
 
 	fn transactions_limit(&self) -> usize {
@@ -381,7 +385,12 @@ impl MinerService for Miner {
 
 	/// Get the gas limit we wish to target when sealing a new block.
 	fn gas_floor_target(&self) -> U256 {
-		*self.gas_floor_target.read().unwrap()
+		self.gas_range_target.read().unwrap().0
+	}
+
+	/// Get the gas limit we wish to target when sealing a new block.
+	fn gas_ceil_target(&self) -> U256 {
+		self.gas_range_target.read().unwrap().1
 	}
 
 	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->

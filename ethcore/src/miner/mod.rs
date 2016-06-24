@@ -81,11 +81,18 @@ pub trait MinerService : Send + Sync {
 	/// Set minimal gas price of transaction to be accepted for mining.
 	fn set_minimal_gas_price(&self, min_gas_price: U256);
 
-	/// Get the gas limit we wish to target when sealing a new block.
+	/// Get the lower bound of the gas limit we wish to target when sealing a new block.
 	fn gas_floor_target(&self) -> U256;
 
-	/// Set the gas limit we wish to target when sealing a new block.
+	/// Get the upper bound of the gas limit we wish to target when sealing a new block.
+	fn gas_ceil_target(&self) -> U256;
+
+	// TODO: coalesce into single set_range function.
+	/// Set the lower bound of gas limit we wish to target when sealing a new block.
 	fn set_gas_floor_target(&self, target: U256);
+
+	/// Set the upper bound of gas limit we wish to target when sealing a new block.
+	fn set_gas_ceil_target(&self, target: U256);
 
 	/// Get current transactions limit in queue.
 	fn transactions_limit(&self) -> usize;

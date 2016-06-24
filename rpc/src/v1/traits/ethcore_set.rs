@@ -28,6 +28,9 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 	/// Sets new gas floor target for mined blocks.
 	fn set_gas_floor_target(&self, _: Params) -> Result<Value, Error>;
 
+	/// Sets new gas ceiling target for mined blocks.
+	fn set_gas_ceil_target(&self, _: Params) -> Result<Value, Error>;
+
 	/// Sets new extra data for mined blocks.
 	fn set_extra_data(&self, _: Params) -> Result<Value, Error>;
 
@@ -54,6 +57,7 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("ethcore_setMinGasPrice", EthcoreSet::set_min_gas_price);
 		delegate.add_method("ethcore_setGasFloorTarget", EthcoreSet::set_gas_floor_target);
+		delegate.add_method("ethcore_setGasCeilTarget", EthcoreSet::set_gas_ceil_target);
 		delegate.add_method("ethcore_setExtraData", EthcoreSet::set_extra_data);
 		delegate.add_method("ethcore_setAuthor", EthcoreSet::set_author);
 		delegate.add_method("ethcore_setTransactionsLimit", EthcoreSet::set_transactions_limit);
