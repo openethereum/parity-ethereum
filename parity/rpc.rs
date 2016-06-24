@@ -66,13 +66,8 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Option<RpcServe
 		return None;
 	}
 
-	let interface = match conf.interface.as_str() {
-		"all" => "0.0.0.0",
-		"local" => "127.0.0.1",
-		x => x,
-	};
 	let apis = conf.apis.split(',').collect();
-	let url = format!("{}:{}", interface, conf.port);
+	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 
 	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))

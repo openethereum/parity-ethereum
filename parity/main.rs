@@ -252,7 +252,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Setup http rpc
 	let rpc_server = rpc::new_http(rpc::HttpConfiguration {
 		enabled: network_settings.rpc_enabled,
-		interface: network_settings.rpc_interface.clone(),
+		interface: conf.rpc_interface(),
 		port: network_settings.rpc_port,
 		apis: conf.rpc_apis(),
 		cors: conf.rpc_cors(),
@@ -265,7 +265,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {
 		enabled: !conf.args.flag_dapps_off && !conf.args.flag_no_dapps,
-		interface: conf.args.flag_dapps_interface.clone(),
+		interface: conf.dapps_interface(),
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
 		pass: conf.args.flag_dapps_pass.clone(),
@@ -296,7 +296,10 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
 	if conf.args.cmd_ui {
-		url::open("http://localhost:8080/")
+		if conf.args.flag_dapps_off {
+			die_with_message("Cannot use UI command with Dapps turned off.");
+		}
+		url::open(&format!("http://{}:{}/", conf.dapps_interface(), conf.args.flag_dapps_port));
 	}
 
 	// Handle exit
