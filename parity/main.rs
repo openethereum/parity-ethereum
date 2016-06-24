@@ -264,7 +264,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {
-		enabled: !conf.args.flag_dapps_off && !conf.args.flag_no_dapps,
+		enabled: conf.dapps_enabled(),
 		interface: conf.dapps_interface(),
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
@@ -296,7 +296,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
 	if conf.args.cmd_ui {
-		if conf.args.flag_dapps_off {
+		if !conf.dapps_enabled() {
 			die_with_message("Cannot use UI command with Dapps turned off.");
 		}
 		url::open(&format!("http://{}:{}/", conf.dapps_interface(), conf.args.flag_dapps_port));
