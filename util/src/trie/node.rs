@@ -139,6 +139,7 @@ impl<'a> Node<'a> {
 	}
 }
 
+#[cfg(test)]
 mod tests {
 	use super::Node;
 	use ::nibbleslice::NibbleSlice;
