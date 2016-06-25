@@ -20,10 +20,10 @@ use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 
-const DB_FILE_SIZE_BASE: u64 = 128 * 1024 * 1024;
-const DB_FILE_SIZE_MULTIPLIER: i32 = 1;
-const DB_BACKGROUND_FLUSHES: i32 = 4;
-const DB_BACKGROUND_COMPACTIONS: i32 = 4;
+const DB_FILE_SIZE_BASE: u64 = 16 * 1024 * 1024;
+const DB_FILE_SIZE_MULTIPLIER: i32 = 5;
+const DB_BACKGROUND_FLUSHES: i32 = 2;
+const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
