@@ -67,11 +67,12 @@ impl Configuration {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
 	}
 
-	pub fn author(&self) -> Address {
-		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
-		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
-		})
+	pub fn author(&self) -> Option<Address> {
+		self.args.flag_etherbase.as_ref()
+			.or(self.args.flag_author.as_ref())
+			.map(|d| Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
+				die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
+			}))
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
