@@ -227,7 +227,7 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get `Some` gas limit of SOFT_FORK_BLOCK, or `None` if chain is not yet that long.
 	fn dao_rescue_block_gas_limit(&self, chain_hash: H256) -> Option<U256> {
-		const SOFT_FORK_BLOCK: u64 = 1775000;
+		const SOFT_FORK_BLOCK: u64 = 1800000;
 		// shortcut if the canon chain is already known.
 		if self.chain_info().best_block_number > SOFT_FORK_BLOCK + 1000 {
 			return self.block_header(BlockID::Number(SOFT_FORK_BLOCK)).map(|header| HeaderView::new(&header).gas_limit());
@@ -251,6 +251,6 @@ pub trait BlockChainClient : Sync + Send {
 /// Extended client interface used for mining
 pub trait MiningBlockChainClient : BlockChainClient {
 	/// Returns OpenBlock prepared for closing.
-	fn prepare_open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes)
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes)
 		-> OpenBlock;
 }

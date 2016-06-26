@@ -30,6 +30,9 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns mining gas floor target.
 	fn gas_floor_target(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns mining gas floor cap.
+	fn gas_ceil_target(&self, _: Params) -> Result<Value, Error>;
+
 	/// Returns minimal gas price for transaction to be included in queue.
 	fn min_gas_price(&self, _: Params) -> Result<Value, Error>;
 
@@ -70,6 +73,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 
 		delegate.add_method("ethcore_extraData", Ethcore::extra_data);
 		delegate.add_method("ethcore_gasFloorTarget", Ethcore::gas_floor_target);
+		delegate.add_method("ethcore_gasCeilTarget", Ethcore::gas_ceil_target);
 		delegate.add_method("ethcore_minGasPrice", Ethcore::min_gas_price);
 		delegate.add_method("ethcore_transactionsLimit", Ethcore::transactions_limit);
 		delegate.add_method("ethcore_devLogs", Ethcore::dev_logs);

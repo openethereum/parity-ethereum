@@ -117,7 +117,9 @@ API and Console Options:
                            [default: $HOME/.parity/dapps]
 
   --signer                 Enable Trusted Signer WebSocket endpoint used by
-                           Signer UIs.
+                           Signer UIs. Default if run with ui command.
+  --no-signer              Disable Trusted Signer WebSocket endpoint used by
+                           Signer UIs. Default if no command is specified.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
   --signer-path PATH       Specify directory where Signer UIs tokens should
@@ -126,6 +128,9 @@ API and Console Options:
                            output on start up. This will prevent it.
 
 Sealing/Mining Options:
+  --author ADDRESS         Specify the block author (aka "coinbase") address
+                           for sending block rewards from sealed blocks.
+                           NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
@@ -137,9 +142,8 @@ Sealing/Mining Options:
                            good value [default: auto].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
                            block [default: 3141592].
-  --author ADDRESS         Specify the block author (aka "coinbase") address
-                           for sending block rewards from sealed blocks
-                           [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
+  --gas-cap GAS            A cap on how large we will raise the gas limit per
+                           block due to transaction volume [default: 3141592].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
   --tx-limit LIMIT         Limit of transactions kept in the queue (waiting to
@@ -152,13 +156,9 @@ Footprint Options:
                            off. auto uses last used value of this option (off
                            if it does not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
-                           may be one of auto, archive, fast, basic, light:
+                           may be one of auto, archive, fast:
                            archive - keep all state trie data. No pruning.
                            fast - maintain journal overlay. Fast but 50MB used.
-                           basic - reference count in disk DB. Slow, light, and
-                           experimental!
-                           light - early merges with partial tracking. Fast,
-                           light, and experimental!
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
@@ -278,14 +278,16 @@ pub struct Args {
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
 	pub flag_signer: bool,
+	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
 	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
-	pub flag_author: String,
+	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,
 	pub flag_gas_floor_target: String,
+	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
 	pub flag_tx_limit: usize,
 	pub flag_logging: Option<String>,

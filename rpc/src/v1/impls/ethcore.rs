@@ -72,6 +72,10 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 		to_value(&take_weak!(self.miner).gas_floor_target())
 	}
 
+	fn gas_ceil_target(&self, _: Params) -> Result<Value, Error> {
+		to_value(&take_weak!(self.miner).gas_ceil_target())
+	}
+
 	fn dev_logs(&self, _params: Params) -> Result<Value, Error> {
 		let logs = self.logger.logs();
 		to_value(&logs.deref().as_slice())

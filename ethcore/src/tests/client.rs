@@ -150,7 +150,7 @@ fn can_mine() {
 	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
 	let client = client_result.reference();
 
-	let b = client.prepare_open_block(Address::default(), 31415926.into(), vec![]).close();
+	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
 
 	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
 }
