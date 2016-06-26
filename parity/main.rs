@@ -209,7 +209,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Miner
 	let miner = Miner::with_accounts(conf.args.flag_force_sealing, conf.spec(), account_service.clone());
-	miner.set_author(conf.author());
+	miner.set_author(conf.author().unwrap_or(Default::default()));
 	miner.set_gas_floor_target(conf.gas_floor_target());
 	miner.set_gas_ceil_target(conf.gas_ceil_target());
 	miner.set_extra_data(conf.extra_data());
