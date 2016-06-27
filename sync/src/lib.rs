@@ -160,11 +160,13 @@ impl SyncProvider for EthSync {
 	}
 
 	fn start_network(&self) {
-		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StartNetwork)).expect("Error sending IO notification");
+		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StartNetwork))
+			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 	}
 
 	fn stop_network(&self) {
-		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StopNetwork)).expect("Error sending IO notification");
+		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StopNetwork))
+			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 	}
 }
 
