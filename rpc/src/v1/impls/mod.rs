@@ -68,7 +68,8 @@ mod error_codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
 	pub const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
 	pub const NO_WORK_CODE: i64 = -32001;
-	pub const UNKNOWN_ERROR: i64 = -32002;
+	pub const NO_AUTHOR_CODE: i64 = -32002;
+	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const SIGNER_DISABLED: i64 = -32030;

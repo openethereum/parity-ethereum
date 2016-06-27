@@ -67,11 +67,12 @@ impl Configuration {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
 	}
 
-	pub fn author(&self) -> Address {
-		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
-		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
-		})
+	pub fn author(&self) -> Option<Address> {
+		self.args.flag_etherbase.as_ref()
+			.or(self.args.flag_author.as_ref())
+			.map(|d| Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
+				die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
+			}))
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
@@ -85,7 +86,16 @@ impl Configuration {
 		}
 	}
 
-
+	pub fn gas_ceil_target(&self) -> U256 {
+		if self.args.flag_dont_help_rescue_dao || self.args.flag_dogmatic {
+			10_000_000.into()
+		} else {
+			let d = &self.args.flag_gas_cap;
+			U256::from_dec_str(d).unwrap_or_else(|_| {
+				die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
+			})
+		}
+	}
 
 	pub fn gas_price(&self) -> U256 {
 		match self.args.flag_gasprice.as_ref() {
@@ -121,14 +131,10 @@ impl Configuration {
 	}
 
 	pub fn extra_data(&self) -> Bytes {
-		if !self.args.flag_dont_help_rescue_dao {
-			(b"rescuedao"[..]).to_owned()
-		} else {
-			match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
-				Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
-				None => version_data(),
-				Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
-			}
+		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
+			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
+			None => version_data(),
+			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
 		}
 	}
 
@@ -432,11 +438,36 @@ impl Configuration {
 	}
 
 	pub fn signer_port(&self) -> Option<u16> {
-		if !self.args.flag_signer {
+		if !self.signer_enabled() {
 			None
 		} else {
 			Some(self.args.flag_signer_port)
 		}
+	}
+
+	pub fn rpc_interface(&self) -> String {
+		match self.network_settings().rpc_interface.as_str() {
+			"all" => "0.0.0.0",
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	pub fn dapps_interface(&self) -> String {
+		match self.args.flag_dapps_interface.as_str() {
+			"all" => "0.0.0.0",
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	pub fn dapps_enabled(&self) -> bool {
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps
+	}
+
+	pub fn signer_enabled(&self) -> bool {
+		(self.args.cmd_ui && !self.args.flag_no_signer) ||
+		(!self.args.cmd_ui && self.args.flag_signer)
 	}
 }
 

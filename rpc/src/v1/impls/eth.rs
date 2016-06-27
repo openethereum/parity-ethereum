@@ -225,6 +225,14 @@ fn no_work_err() -> Error {
 	}
 }
 
+fn no_author_err() -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::NO_AUTHOR_CODE),
+		message: "Author not configured. Run parity with --author to configure.".into(),
+		data: None
+	}
+}
+
 impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
@@ -474,6 +482,10 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 				}
 
 				let miner = take_weak!(self.miner);
+				if miner.author().is_zero() {
+					warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
+					return Err(no_author_err())
+				}
 				miner.map_sealing_work(client.deref(), |b| {
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());

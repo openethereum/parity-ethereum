@@ -797,7 +797,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 }
 
 impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
-	fn prepare_open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
 
@@ -810,7 +810,7 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			self.build_last_hashes(h.clone()),
 			self.dao_rescue_block_gas_limit(h.clone()),
 			author,
-			gas_floor_target,
+			gas_range_target,
 			extra_data,
 		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 

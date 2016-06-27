@@ -45,12 +45,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappSer
 		return None;
 	}
 
-	let interface = match configuration.interface.as_str() {
-		"all" => "0.0.0.0",
-		"local" => "127.0.0.1",
-		x => x,
-	};
-	let url = format!("{}:{}", interface, configuration.port);
+	let url = format!("{}:{}", configuration.interface, configuration.port);
 	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid Webapps listen host/port given.", url));
 
 	let auth = configuration.user.as_ref().map(|username| {
