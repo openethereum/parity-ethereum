@@ -47,7 +47,7 @@ mod external;
 mod transaction_queue;
 
 pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
-pub use self::miner::{Miner};
+pub use self::miner::{Miner, MinerOptions};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 
 use std::collections::BTreeMap;

@@ -133,6 +133,12 @@ Sealing/Mining Options:
                            NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
+  --reseal-on-txs          Specify which transactions should force the node
+                           to reseal a block. One of:
+                           none - never reseal on new transactions;
+                           own - reseal only on a new local transaction;
+                           ext - reseal only on a new external transaction;
+                           all - reseal on all new transactions [default: all].
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
                            [default: 0.005]. The minimum gas price is set
                            accordingly.
@@ -283,6 +289,7 @@ pub struct Args {
 	pub flag_signer_path: String,
 	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
+	pub flag_reseal_on_txs: String,
 	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,

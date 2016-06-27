@@ -29,6 +29,27 @@ use spec::Spec;
 use engine::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 
+/// Configures the behaviour of the miner.
+#[derive(Debug)]
+pub struct MinerOptions {
+	/// Force the miner to reseal, even when nobody has asked for work.
+	pub force_sealing: bool,
+	/// Reseal on receipt of new external transactions.
+	pub reseal_on_external_tx: bool,
+	/// Reseal on receipt of new local transactions.
+	pub reseal_on_own_tx: bool,
+}
+
+impl Default for MinerOptions {
+	fn default() -> Self {
+		MinerOptions {
+			force_sealing: false,
+			reseal_on_external_tx: true,
+			reseal_on_own_tx: true,
+		}
+	}
+}
+
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
@@ -36,7 +57,7 @@ pub struct Miner {
 	sealing_work: Mutex<UsingQueue<ClosedBlock>>,
 
 	// for sealing...
-	force_sealing: bool,
+	options: MinerOptions,
 	sealing_enabled: AtomicBool,
 	sealing_block_last_request: Mutex<u64>,
 	gas_range_target: RwLock<(U256, U256)>,
@@ -52,7 +73,7 @@ impl Miner {
 	pub fn with_spec(spec: Spec) -> Miner {
 		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
-			force_sealing: false,
+			options: Default::default(),
 			sealing_enabled: AtomicBool::new(false),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(UsingQueue::new(5)),
@@ -65,11 +86,11 @@ impl Miner {
 	}
 
 	/// Creates new instance of miner
-	pub fn new(force_sealing: bool, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
+	pub fn new(options: MinerOptions, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
-			force_sealing: force_sealing,
-			sealing_enabled: AtomicBool::new(force_sealing),
+			sealing_enabled: AtomicBool::new(options.force_sealing),
+			options: options,
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(UsingQueue::new(5)),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
@@ -385,7 +406,7 @@ impl MinerService for Miner {
 				.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
 				.collect()
 		};
-		if !results.is_empty() {
+		if !results.is_empty() && self.options.reseal_on_external_tx {
 			self.update_sealing(chain);
 		}
 		results
@@ -420,7 +441,7 @@ impl MinerService for Miner {
 			import
 		};
 
-		if imported.is_ok() {
+		if imported.is_ok() && self.options.reseal_on_own_tx {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing
 			let prepared = self.enable_and_prepare_sealing(chain);
@@ -494,7 +515,7 @@ impl MinerService for Miner {
 			let current_no = chain.chain_info().best_block_number;
 			let has_local_transactions = self.transaction_queue.lock().unwrap().has_local_pending_transactions();
 			let last_request = *self.sealing_block_last_request.lock().unwrap();
-			let should_disable_sealing = !self.force_sealing
+			let should_disable_sealing = !self.options.force_sealing
 				&& !has_local_transactions
 				&& current_no > last_request
 				&& current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;

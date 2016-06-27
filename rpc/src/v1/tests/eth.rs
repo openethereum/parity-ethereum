@@ -24,7 +24,7 @@ use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
-use ethcore::miner::{MinerService, ExternalMiner, Miner};
+use ethcore::miner::{MinerOptions, MinerService, ExternalMiner, Miner};
 use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
@@ -49,7 +49,15 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 }
 
 fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-	Miner::new(true, spec, Some(accounts))
+	Miner::new(
+		MinerOptions {
+			force_sealing: true,
+			reseal_on_external_tx: true,
+			reseal_on_own_tx: true,
+		},
+		spec,
+		Some(accounts)
+	)
 }
 
 fn make_spec(chain: &BlockChain) -> Spec {

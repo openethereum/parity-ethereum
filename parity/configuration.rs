@@ -27,6 +27,7 @@ use util::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 use ethcore::client::{append_path, get_db_path, ClientConfig, Switch, VMType};
+use ethcore::miner::MinerOptions;
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -65,6 +66,21 @@ impl Configuration {
 
 	fn max_peers(&self) -> u32 {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
+	}
+
+	pub fn miner_options(&self) -> MinerOptions {
+		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
+			"none" => (false, false),
+			"own" => (true, false),
+			"ext" => (false, true),
+			"all" => (true, true),
+			x => die!("{}: Invalid value for --reseal option. Use --help for more information.", x)
+		};
+		MinerOptions {
+			force_sealing: self.args.flag_force_sealing,
+			reseal_on_external_tx: ext,
+			reseal_on_own_tx: own,
+		}
 	}
 
 	pub fn author(&self) -> Option<Address> {

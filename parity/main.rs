@@ -208,7 +208,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let account_service = Arc::new(conf.account_service());
 
 	// Miner
-	let miner = Miner::new(conf.args.flag_force_sealing, conf.spec(), Some(account_service.clone()));
+	let miner = Miner::new(conf.miner_options(), conf.spec(), Some(account_service.clone()));
 	miner.set_author(conf.author().unwrap_or_default());
 	miner.set_gas_floor_target(conf.gas_floor_target());
 	miner.set_gas_ceil_target(conf.gas_ceil_target());
