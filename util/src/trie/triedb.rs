@@ -18,7 +18,7 @@ use common::*;
 use hashdb::*;
 use nibbleslice::*;
 use rlp::*;
-use super::trietraits::Trie;
+use super::trietraits::{Trie};
 use super::node::Node;
 use super::TrieError;
 
@@ -331,10 +331,16 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 
 impl<'db> TrieDB<'db> {
 	/// Get all keys/values stored in the trie.
-	pub fn iter(&self) -> TrieDBIterator { TrieDBIterator::new(self) }
+	pub fn iter(&self) -> TrieDBIterator {
+		TrieDBIterator::new(self)
+	}
 }
 
 impl<'db> Trie for TrieDB<'db> {
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = (Vec<u8>, &[u8])> + 'a> {
+		Box::new(TrieDB::iter(self))
+	}
+
 	fn root(&self) -> &H256 { &self.root }
 
 	fn contains(&self, key: &[u8]) -> bool {

@@ -50,6 +50,10 @@ impl<'db> SecTrieDB<'db> {
 }
 
 impl<'db> Trie for SecTrieDB<'db> {
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = (Vec<u8>, &[u8])> + 'a> {
+		Box::new(TrieDB::iter(&self.raw))
+	}
+
 	fn root(&self) -> &H256 { self.raw.root() }
 
 	fn contains(&self, key: &[u8]) -> bool {

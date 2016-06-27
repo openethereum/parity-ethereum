@@ -17,25 +17,28 @@
 use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
-use super::{TrieDB, Trie, TrieDBIterator, TrieError};
+use super::{TrieDBMut, Trie, TrieMut, TrieError};
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
-/// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDB` object.
-pub struct FatDB<'db> {
-	raw: TrieDB<'db>,
+/// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDBMut` object.
+pub struct FatDBMut<'db> {
+	raw: TrieDBMut<'db>,
 }
 
-impl<'db> FatDB<'db> {
+impl<'db> FatDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self, TrieError> {
-		let fatdb = FatDB {
-			raw: try!(TrieDB::new(db, root))
-		};
+	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
+		FatDBMut { raw: TrieDBMut::new(db, root) }
+	}
 
-		Ok(fatdb)
+	/// Create a new trie with the backing database `db` and `root`.
+	///
+	/// Returns an error if root does not exist.
+	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
+		Ok(FatDBMut { raw: try!(TrieDBMut::from_existing(db, root)) })
 	}
 
 	/// Get the backing database.
@@ -43,17 +46,13 @@ impl<'db> FatDB<'db> {
 		self.raw.db()
 	}
 
-	/// Iterator over all key / vlaues in the trie.
-	pub fn iter(&self) -> FatDBIterator {
-		FatDBIterator::new(&self.raw)
+	/// Get the backing database.
+	pub fn db_mut(&mut self) -> &mut HashDB {
+		self.raw.db_mut()
 	}
 }
 
-impl<'db> Trie for FatDB<'db> {
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = (Vec<u8>, &[u8])> + 'a> {
-		Box::new(FatDB::iter(self))
-	}
-
+impl<'db> Trie for FatDBMut<'db> {
 	fn root(&self) -> &H256 {
 		self.raw.root()
 	}
@@ -67,37 +66,23 @@ impl<'db> Trie for FatDB<'db> {
 	}
 }
 
-/// Itarator over inserted pairs of key values.
-pub struct FatDBIterator<'db> {
-	trie_iterator: TrieDBIterator<'db>,
-	trie: &'db TrieDB<'db>,
-}
-
-impl<'db> FatDBIterator<'db> {
-	/// Creates new iterator.
-	pub fn new(trie: &'db TrieDB) -> Self {
-		FatDBIterator {
-			trie_iterator: TrieDBIterator::new(trie),
-			trie: trie,
-		}
+impl<'db> TrieMut for FatDBMut<'db> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) {
+		let hash = key.sha3();
+		self.raw.insert(&hash, value);
+		let db = self.raw.db_mut();
+		db.insert_aux(hash.to_vec(), key.to_vec());
 	}
-}
 
-impl<'db> Iterator for FatDBIterator<'db> {
-	type Item = (Vec<u8>, &'db [u8]);
-
-	fn next(&mut self) -> Option<Self::Item> {
-		self.trie_iterator.next()
-			.map(|(hash, value)| {
-				(self.trie.db().get_aux(&hash).expect("Missing fatdb hash"), value)
-			})
+	fn remove(&mut self, key: &[u8]) {
+		self.raw.remove(&key.sha3());
 	}
 }
 
 #[test]
 fn fatdb_to_trie() {
 	use memorydb::MemoryDB;
-	use trie::{FatDBMut, TrieMut};
+	use super::TrieDB;
 
 	let mut memdb = MemoryDB::new();
 	let mut root = H256::default();
@@ -105,7 +90,6 @@ fn fatdb_to_trie() {
 		let mut t = FatDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 	}
-	let t = FatDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap(), &[0x01u8, 0x23]);
-	assert_eq!(t.iter().collect::<Vec<_>>(), vec![(vec![0x01u8, 0x23], &[0x01u8, 0x23] as &[u8])]);
+	let t = TrieDB::new(&memdb, &root).unwrap();
+	assert_eq!(t.get(&(&[0x01u8, 0x23]).sha3()).unwrap(), &[0x01u8, 0x23]);
 }

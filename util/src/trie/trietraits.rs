@@ -19,6 +19,9 @@ use rlp::SHA3_NULL_RLP;
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait Trie {
+	/// Returns an iterator over elements of trie.
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = (Vec<u8>, &[u8])> + 'a> { unimplemented!() }
+
 	/// Return the root of the trie.
 	fn root(&self) -> &H256;
 
