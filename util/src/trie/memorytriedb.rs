@@ -126,81 +126,7 @@ impl Node {
 	//
 	// TODO: parallelize
 	fn to_rlp(self, db: &mut HashDB, storage: &mut NodeStorage) -> (ElasticArray1024<u8>, usize) {
-		use ::rlp::{RlpStream, Stream};
-
-		match self {
-			Node::Empty => {
-				let mut stream = RlpStream::new();
-				stream.append_empty_data();
-				(stream.drain(), 0)
-			}
-			Node::Leaf(k, v) => {
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&k);
-				stream.append(&v);
-				(stream.drain(), 0)
-			}
-			Node::Extension(partial, child_handle) => {
-				let mut stream = RlpStream::new_list(2);
-				let mut hashes = 0;
-
-				stream.append(&partial);
-
-				match child_handle {
-					NodeHandle::InMemory(s_handle) => {
-						let node = storage.destroy(s_handle);
-						let (rlp, h) = node.to_rlp(db, storage);
-						hashes += h;
-						if rlp.len() >= 32 {
-							let hash = db.insert(&rlp);
-							hashes += 1;
-							stream.append(&hash);
-						} else {
-							stream.append_raw(&rlp, 1);
-						}
-					}
-					NodeHandle::Hash(hash) => {
-						stream.append(&hash);
-					}
-				}
-
-				(stream.drain(), hashes)
-			}
-			Node::Branch(mut children, value) => {
-				let mut stream = RlpStream::new_list(17);
-				let mut hashes = 0;
-				// no moving iterators for arrays
-				for child in children.iter_mut().map(Option::take) {
-					match child {
-						Some(handle) => match handle {
-							NodeHandle::InMemory(s_handle) => {
-								let node = storage.destroy(s_handle);
-								let (rlp, h) = node.to_rlp(db, storage);
-								hashes += h;
-								if rlp.len() >= 32 {
-									// too big,
-									let hash = db.insert(&rlp);
-									hashes += 1;
-									stream.append(&hash)
-								} else {
-									// inline node.
-									stream.append_raw(&rlp, 1)
-								}
-							}
-							NodeHandle::Hash(hash) => stream.append(&hash),
-						},
-						None => stream.append_empty_data(),
-					};
-				}
-
-				match value {
-					Some(value) => stream.append(&value),
-					None => stream.append_empty_data(),
-				};
-
-				(stream.drain(), hashes)
-			}
-		}
+		unimplemented!()
 	}
 }
 
@@ -220,14 +146,7 @@ enum Stored {
 	// A new node.
 	New(Node),
 	// A cached node, loaded from the DB.
-	Cached(Node, Hash),
-}
-
-// maybe changed handle, maybe not.
-enum MaybeChanged {
-	Same(StorageHandle),
-	Changed(StorageHandle),
-	Deleted,
+	Cached(Node, H256),
 }
 
 /// Compact and cache-friendly storage for Trie nodes.
@@ -256,12 +175,12 @@ impl NodeStorage {
 		}
 	}
 
-	/// Remove a node from the storage, consuming the handle.
-	fn destroy(&mut self, handle: StorageHandle) {
+	/// Remove a node from the storage, consuming the handle and returning the node.
+	fn destroy(&mut self, handle: StorageHandle) -> Stored {
 		let idx = handle.0;
 
 		self.free_indices.push_back(idx);
-		self.nodes[idx] = Stored::New(Node::Empty);
+		mem::replace(&mut self.nodes[idx], Stored::New(Node::Empty))
 	}
 
 	/// Borrow a "stored" instance mutably.
@@ -320,7 +239,7 @@ impl<'a> MemoryTrieDB<'a> {
 	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'a mut HashDB, root: &'a mut H256) -> Result<Self, TrieError> {
-		let mut storage = NodeStorage::new();
+		let mut storage = NodeStorage::empty();
 		let root_handle = {
 			let root_rlp = match db.get(root) {
 				Some(root_rlp) => root_rlp,
@@ -347,50 +266,6 @@ impl<'a> MemoryTrieDB<'a> {
 		let node_rlp = self.db.get(&hash).expect("Not found!");
 		let node = Node::from_rlp(node_rlp, &*self.db, &mut self.storage);
 		self.storage.alloc(Stored::Cached(node, hash))
-	}
-
-	// inspect a node, performing an action.
-	fn inspect_node<F>(&mut self, handle: NodeHandle, inspector: F) -> MaybeChanged
-		where F: FnOnce(&mut Self, Node) -> Action {
-		let s_handle = match handle {
-			NodeHandle::InMemory(h) => h,
-			NodeHandle::Hash(h) => self.cache(h),
-		};
-
-		let mut stored = mem::replace(self.storage.borrow_stored(&s_handle), Stored::New(Node::Empty));
-
-		match stored {
-			Stored::New(node) => match inspector(self, node) {
-				Action::Replace(node) => {
-					*self.storage.borrow_stored(&s_handle) = Stored::New(node);
-					MaybeChanged::Changed(s_handle)
-				}
-				Action::Restore(node) => {
-					*self.storage.borrow_stored(&s_handle) = Stored::New(node);
-					MaybeChanged::Same(s_handle)
-				}
-				Action::Delete => {
-					self.storage.destroy(s_handle);
-					MaybeChanged::Deleted
-				}
-			}
-			Stored::Cached(node, hash) => match inspector(self, node) {
-				Action::Replace(node) => {
-					self.death_row.push(hash);
-					*self.storage.borrow_stored(&s_handle) = Stored::New(node);
-					MaybeChanged::Changed(s_handle)
-				}
-				Action::Restore(node) => {
-					*self.storage.borrow_stored(&s_handle) = Stored::Cached(node, hash);
-					MaybeChanged::Same(s_handle)
-				}
-				Action::Delete => {
-					self.death_row.push(hash);
-					self.storage.destroy(s_handle);
-					MaybeChanged::Deleted
-				}
-			}
-		}
 	}
 
 	// walk the trie, attempting to find the key's node.
@@ -463,143 +338,8 @@ impl<'a> MemoryTrieDB<'a> {
 	}
 
 	/// insert a key, value pair into the trie, creating new nodes if necessary.
-	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: Bytes) -> MaybeChanged {
-		trace!(target: "trie", "insert_at (old: {:?}, partial: {:?}, value: {:?})", handle, partial, value.pretty());
-		self.inspect_node(handle, move |trie, node| match node {
-			Node::Empty => {
-				Action::Replace(Node::Leaf(partial.encoded(true), value))
-			}
-			Node::Branch(mut children, mut stored_value) => {
-				trace!(target: "trie", "branch: ROUTE,INSERT");
-				if partial.is_empty() {
-					if stored_value == value {
-						Action::Restore(Node::Branch(children, stored_value))
-					} else {
-						Action::Replace(Node::Branch(children, value))
-					}
-				} else {
-					let idx = partial.at(0) as usize;
-					if let Some(child_handle) = children[idx].take() {
-						// original had something there. continue insertion.
-						match trie.insert_at(child_handle, partial.mid(1), value) {
-							MaybeChanged::Same(handle) => {
-								children[idx] = Some(handle.into());
-								Action::Restore(Node::Branch(children, stored_value))
-							}
-							MaybeChanged::Changed(handle) => {
-								children[idx] = Some(handle.into());
-								Action::Replace(Node::Branch(children, stored_value))
-							}
-							MaybeChanged::Deleted => panic!("something went wrong: insertion deleted a node?"),
-						}
-					} else {
-						// original had an empty slot, insert a leaf.
-						let leaf = Node::Leaf(partial.mid(1).encode(true), value);
-						children[idx] = Some(trie.storage.alloc(Stored::New(leaf)).into());
-						Action::Replace(Node::Branch(children, stored_value))
-					}
-				}
-			}
-			Node::Leaf(encoded, existing_val) => {
-				let existing_key = NibbleSlice::from_encoded(&encoded).0;
-				let cp = partial.common_prefix(&existing_key);
-				if cp == partial.len() && cp == existing_key.len() {
-					trace!(target: "trie", "equivalent-leaf: REPLACE");
-					// equivalent leaf.
-					if existing_val == value {
-						Action::Restore(Node::Leaf(encoded.clone(), existing_val))
-					} else {
-						Action::Replace(Node::Leaf(encoded.clone(), value))
-					}
-				} else if cp == 0 {
-					// no common prefix. make a branch here.
-					let mut children = empty_children();
-					let branch = if existing_key.is_empty() {
-						Node::Branch(children, Some(stored_value))
-					} else {
-						let index = existing_key.at(0) as usize;
-						let leaf = Node::Leaf(existing_key.mid(1).encoded(true), stored_value);
-						children[index] = Some(trie.storage.alloc(Stored::New(leaf)).into());
-						Node::Branch(children, None)
-					};
-
-					// replace this node with the new branch, and then walk it further.
-					let handle = trie.storage.alloc(Stored::New(branch)).into();
-					match trie.insert_at(handle, partial, value) {
-						// we know it isn't the same node as the leaf we just tried to put in.
-						MaybeChanged::Same(h) | MaybeChanged::Changed(h) => Action::Replace(trie.storage.destroy(h)),
-						MaybeChanged::Deleted => panic!("something went wrong: insertion deleted a node?"),
-					}
-				} else if cp == existing_key.len() {
-					// fully-shared prefix.
-					let downstream = {
-						let branch = Node::Branch(empty_children(), existing_val);
-						let handle = trie.storage.alloc(Stored::new(branch));
-						match trie.insert_at(handle, partial.mid(cp), value) {
-							MaybeChanged::Same(h) | MaybeChange::Changed(h) => trie.storage.destroy(h),
-							MaybeChanged::Deleted => panic!("something went wrong: insertion deleted a node?"),
-						}
-					};
-
-					let ext = Node::Extension(existing_key.encoded(false), trie.storage.alloc(Stored::new(downstream)));
-					Action::Replace(ext)
-				} else {
-					// partially shared prefix. make a leaf
-					let low = Node::Leaf(existing_key.mid(cp).encoded(true), existing_val);
-					let low = trie.storage.alloc(Stored::new(low)).into();
-					let augmented = match trie.insert_at(low, partial.mid(cp), value) {
-						MaybeChanged::Same(h) | MaybeChanged::Changed(h) => h,
-						MaybeChanged::Deleted => panic!("something went wrong: insertion deleted a node?"),
-					};
-
-					let ext = Node::Extension(existing_key.encoded_leftmost(cp, false), augmented.into());
-					Action::Replace(ext)
-				}
-			}
-			Node::Extension(encoded, child_branch) => {
-				let existing_key = NibbleSlice::from_encoded(&encoded).0;
-				let cp = partial.common_prefix(&existing_key);
-				if cp == 0 {
-					// make a branch.
-					trace!(target: "trie", "no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,INSERT", existing_key.len(), partial.len());
-					assert!(!existing_key.is_empty()); // extension nodes may not have empty partial keys.
-					let mut children = empty_children();
-					let index = existing_key.at(0) as usize;
-					if existing_key.len() == 1 {
-						// direct extension
-						children[index] = Some(child_branch);
-					} else {
-						let extension = Node::Extension(existing_key.mid(1).encoded(false), child_branch);
-						children[index] = Some(trie.storage.alloc(Stored::new(extension)).into());
-					}
-
-					// replace this node with a branch and walk it further.
-					let handle = trie.storage.alloc(Stored::New(Node::Branch(children, None)));
-					match trie.insert_at(handle.into(), partial, value) {
-						MaybeChanged::Same(h) | MaybeChanged::Changed(h) => Action::Replace(trie.storage.destroy(h)),
-						MaybeChanged::Deleted => panic!("something went wrong: insertion deleted a node?"),
-					}
-				} else if cp == existing_key.len() {
-					// fully-shared prefix.
-					trace!(target: "trie", "complete-prefix (cp={:?}): INSERT-AT-END", cp);
-					let downstream = match trie.insert_at(child_branch, partial.mid(cp), value) {
-						MaybeChanged::Same(h) | MaybeChanged::Changed(h) => h,
-						MaybeChanged::Deleted => panic!("something went wrong: insertion deleted a node?"),
-					};
-					Node::Extension(existing_key.encoded(false), downstream.into())
-				} else {
-					// partially-shared prefix
-					let low = trie.storage.alloc(Node::Extension(existing_key.mid(cp).encoded(false), child_branch));
-					let augmented_low = match trie.insert_at(low.into(), partial.mid(cp), value) {
-						MaybeChanged::Same(h) | MaybeChanged::Changed(h) => Action::Replace(trie.storage.destroy(h)),
-						MaybeChanged::Deleted => panic!("something went wrong: insertion deleted a node?"),
-					};
-					trace!(target: "trie", "create_extension partial: {:?}, downstream_node: {:?}", existing_key, &self.storage[&augmented_low]);
-
-					Node::Extension(existing_key.encoded_leftmost(cp, false), augmented_low.into())
-				}
-			}
-		})
+	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: Bytes) -> StorageHandle {
+		unimplemented!()
 	}
 
 	/// Remove a node from the trie based on key.
@@ -614,74 +354,7 @@ impl<'a> MemoryTrieDB<'a> {
 	/// - Branch node where there is only a single entry;
 	/// - Extension node followed by anything other than a Branch node.
 	fn fix(&mut self, node: Node) -> Node {
-		match node {
-			Node::Branch(mut children, value) => {
-				#[derive(Debug)]
-				enum UsedIndex {
-					None,
-					One(usize),
-					Many,
-				}
-				let mut used_index = UsedIndex::None;
-				for i in 0..16 {
-					match (children[i].is_some(), &used_index) {
-						(false, _) => continue,
-						(true, &UsedIndex::None) => used_index = UsedIndex::One(i),
-						(true, &UsedIndex::One(_)) => {
-							used_index = UsedIndex::Many;
-							break;
-						}
-						_ => {}
-					}
-				}
-
-				match (used_index, value) {
-					(UsedIndex::None, None) => panic!("Branch with no subvalues. Something went wrong."),
-					(UsedIndex::One(i), None) => {
-						// turn into an extension and fix it (the onward node isn't necessarily a branch)
-						let onward = children[i].take().unwrap();
-						self.fix(Node::Extension(NibbleSlice::new_offset(&[i as u8; 1], 1).encoded(false), onward))
-					}
-					(UsedIndex::None, Some(value)) => {
-						// turn into a leaf.
-						Node::Leaf(NibbleSlice::new(&[]).encoded(true), value)
-					}
-					(_, value) => Node::Branch(children, value) // all good here
-				}
-			}
-			Node::Extension(partial, child) => {
-				// load the child into memory if it isn't already.
-				let child = match child {
-					NodeHandle::Hash(hash) => {
-						let node_rlp = self.db.get(&hash).expect("Not found!");
-						Node::from_rlp(node_rlp, &*self.db, &mut self.storage)
-					}
-					NodeHandle::InMemory(h) => self.storage.destroy(h),
-				};
-
-				// inspect the child
-				match child {
-					Node::Extension(sub_partial, sub_child) => {
-						// combine with node below.
-						let partial = NibbleSlice::from_encoded(&partial).0;
-						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
-
-						let composed = Node::Extension(NibbleSlice::new_composed(&partial, &sub_partial).encoded(false), sub_child);
-						self.fix(composed)
-					}
-					Node::Leaf(sub_partial, sub_value) => {
-						// combine with node below.
-						let partial = NibbleSlice::from_encoded(&partial).0;
-						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
-						// combine with node below.
-						Node::Leaf(NibbleSlice::new_composed(&partial, &sub_partial).encoded(true), sub_value)
-					}
-					// nothing wrong here. reallocate the child and move on.
-					_ => Node::Extension(partial, self.storage.alloc(child).into()),
-				}
-			}
-			node => node,
-		}
+		unimplemented!()
 	}
 
 	/// Commit the in-memory changes to disk, freeing their storage and
@@ -724,14 +397,17 @@ impl<'a> Trie for MemoryTrieDB<'a> {
 impl<'a> TrieMut for MemoryTrieDB<'a> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		let root_handle = self.root_handle();
-		self.root_handle = self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
+		self.root_handle = match self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned()) {
+			MaybeChanged::Same(h) | MaybeChanged::Changed(h) => h,
+			MaybeChanged::Deleted => self.storage.alloc(Stored::New(Node::Empty))
+		};
 		self.dirty = true;
 	}
 
 	fn remove(&mut self, key: &[u8]) {
 		let root_handle = self.root_handle();
 		if self.remove_at(root_handle.into(), NibbleSlice::new(key)).is_none() {
-			self.root_handle = self.storage.alloc(Node::Empty);
+			self.root_handle = self.storage.alloc(Stored::New(Node::Empty));
 		}
 		self.dirty = true;
 	}
