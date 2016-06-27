@@ -162,7 +162,7 @@ Sealing/Mining Options:
                            block due to transaction volume [default: 3141592].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
-  --tx-queue-size LIMIT    Maxmimum amount of transactions in the queue (waiting
+  --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) [default: 1024].
 
 Footprint Options:
