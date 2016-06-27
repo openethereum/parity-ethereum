@@ -28,7 +28,7 @@ use crypto::*;
 use rlp::*;
 use network::node_table::*;
 use network::error::NetworkError;
-use io::StreamToken;
+use io::{StreamToken, IoContext};
 
 use network::PROTOCOL_VERSION;
 
@@ -283,7 +283,7 @@ impl Discovery {
 		ret
 	}
 
-	pub fn writable(&mut self) {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) where Message: Send + Sync + Clone {
 		while !self.send_queue.is_empty() {
 			let data = self.send_queue.pop_front().unwrap();
 			match self.udp_socket.send_to(&data.payload, &data.address) {
@@ -302,15 +302,17 @@ impl Discovery {
 				}
 			}
 		}
+		io.update_registration(self.token).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 	}
 
 	fn send_to(&mut self, payload: Bytes, address: SocketAddr) {
 		self.send_queue.push_back(Datagramm { payload: payload, address: address });
 	}
 
-	pub fn readable(&mut self) -> Option<TableUpdates> {
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Option<TableUpdates> where Message: Send + Sync + Clone {
 		let mut buf: [u8; MAX_DATAGRAM_SIZE] = unsafe { mem::uninitialized() };
-		match self.udp_socket.recv_from(&mut buf) {
+		let writable = !self.send_queue.is_empty();
+		let res = match self.udp_socket.recv_from(&mut buf) {
 			Ok(Some((len, address))) => self.on_packet(&buf[0..len], address).unwrap_or_else(|e| {
 				debug!("Error processing UDP packet: {:?}", e);
 				None
@@ -320,7 +322,12 @@ impl Discovery {
 				debug!("Error reading UPD socket: {:?}", e);
 				None
 			}
+		};
+		let new_writable = !self.send_queue.is_empty();
+		if writable != new_writable {
+			io.update_registration(self.token).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 		}
+		res
 	}
 
 	fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
