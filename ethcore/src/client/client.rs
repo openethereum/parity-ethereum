@@ -360,7 +360,7 @@ impl<V> Client<V> where V: Verifier {
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
-				})).unwrap();
+				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 			}
 		}
 
