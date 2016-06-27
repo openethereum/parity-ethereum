@@ -44,7 +44,7 @@
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
 //! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let miner = Miner::new(MinerOptions::default(), ethereum::new_frontier(true), None);
+//! 	let miner = Miner::new(Default::default(), ethereum::new_frontier(true), None);
 //! 	let client = Client::new(
 //!			ClientConfig::default(),
 //!			ethereum::new_frontier(true),

@@ -133,8 +133,8 @@ Sealing/Mining Options:
                            NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
-  --reseal-on-txs          Specify which transactions should force the node
-                           to reseal a block. One of:
+  --reseal-on-txs SET      Specify which transactions should force the node
+                           to reseal a block. SET is one of:
                            none - never reseal on new transactions;
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
