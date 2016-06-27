@@ -305,7 +305,7 @@ impl<V> Client<V> where V: Verifier {
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
 				invalid_blocks.insert(header.hash());
-				break;
+				continue;
 			}
 			imported_blocks.push(header.hash());
 
@@ -368,7 +368,7 @@ impl<V> Client<V> where V: Verifier {
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
-				})).unwrap();
+				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 			}
 		}
 

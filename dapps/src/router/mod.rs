@@ -49,12 +49,12 @@ pub struct Router<A: Authorization + 'static> {
 	endpoints: Arc<Endpoints>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
-	handler: Box<server::Handler<HttpStream>>,
+	handler: Box<server::Handler<HttpStream> + Send>,
 }
 
 impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
-	fn on_request(&mut self, req: server::Request) -> Next {
+	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
 		// Check authorization
 		let auth = self.authorization.is_authorized(&req);
 
@@ -124,7 +124,7 @@ impl<A: Authorization> Router<A> {
 	}
 }
 
-fn extract_url(req: &server::Request) -> Option<Url> {
+fn extract_url(req: &server::Request<HttpStream>) -> Option<Url> {
 	match *req.uri() {
 		uri::RequestUri::AbsoluteUri(ref url) => {
 			match Url::from_generic_url(url.clone()) {
