@@ -172,11 +172,10 @@ Footprint Options:
                            options.
 
 Database Options:
-  --db-cache-size MB       Database cache size. Default if not specified.
-  --db-compaction TYPE     Database compaction type. TYPE may be one of default, hdd
-                           default - suitable for ssd backing storage/fast hdd
-                           hdd - sutable for slow storage
-                           [default: default].
+  --db-cache-size MB       Override RocksDB database cache size.
+  --db-compaction TYPE     Database compaction type. TYPE may be one of:
+                           ssd - suitable for SSDs and fast HDDs;
+                           hdd - suitable for slow HDDs [default: ssd].
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
