@@ -76,7 +76,7 @@ impl CompactionProfile {
 		CompactionProfile {
 			initial_file_size: 192 * 1024 * 1024,
 			file_size_multiplier: 1,
-			write_rate_limit: Some(128 * 1024 * 1024),
+			write_rate_limit: Some(8 * 1024 * 1024),
 		}
 	}
 }
@@ -100,11 +100,17 @@ impl DatabaseConfig {
 			cache_size: Some(cache_size),
 			prefix_size: None,
 			max_open_files: -1,
+			compaction: CompactionProfile::default(),
 		}
 	}
 
 	pub fn compaction(mut self, profile: CompactionProfile) -> Self {
 		self.compaction = profile;
+		self
+	}
+
+	pub fn prefix(mut self, prefix_size: usize) -> Self {
+		self.prefix_size = Some(prefix_size);
 		self
 	}
 }
@@ -115,6 +121,7 @@ impl Default for DatabaseConfig {
 			cache_size: None,
 			prefix_size: None,
 			max_open_files: -1,
+			compaction: CompactionProfile::default(),
 		}
 	}
 }
@@ -146,13 +153,18 @@ impl Database {
 	/// Open database file. Creates if it does not exist.
 	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
 		let mut opts = Options::new();
-		try!(opts.set_parsed_options("rate_limiter_bytes_per_sec=256000000"));
+		if let Some(rate_limit) = config.compaction.write_rate_limit {
+			try!(opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit)));
+		}
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
+
+		// compaction settings
 		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
-		opts.set_target_file_size_base(DB_FILE_SIZE_BASE);
-		opts.set_target_file_size_multiplier(DB_FILE_SIZE_MULTIPLIER);
+		opts.set_target_file_size_base(config.compaction.initial_file_size);
+		opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
+
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
 		if let Some(cache_size) = config.cache_size {
