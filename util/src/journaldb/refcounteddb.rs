@@ -77,7 +77,7 @@ impl RefCountedDB {
 	fn new_temp() -> RefCountedDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap(), None)
+		Self::new(dir.to_str().unwrap(), DatabaseConfig::default())
 	}
 }
 
