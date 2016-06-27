@@ -18,7 +18,7 @@
 
 use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
-	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
+	IndexType, Options, WriteOptions, DBCompactionStyle, BlockBasedOptions, Direction};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -169,6 +169,7 @@ impl Database {
 
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
+
 		if let Some(cache_size) = config.cache_size {
 			// half goes to read cache
 			opts.set_block_cache_size_mb(cache_size as u64 / 2);
@@ -200,7 +201,7 @@ impl Database {
 			opts.set_prefix_extractor_fixed_size(size);
 		}
 		let db = try!(DB::open(&opts, path));
-		Ok(Database { db: db })
+		Ok(Database { db: db, })
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
@@ -215,7 +216,9 @@ impl Database {
 
 	/// Commit transaction to database.
 	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
-		self.db.write(tr.batch)
+		let mut write_opts = WriteOptions::new();
+		write_opts.disable_wal(true);
+		self.db.write_opt(tr.batch, &write_opts)
 	}
 
 	/// Get value by key.
