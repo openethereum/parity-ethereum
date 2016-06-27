@@ -135,8 +135,9 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	}
 
 	/// Broadcast a message to other IO clients
-	pub fn message(&self, message: Message) {
-		self.channel.send(message).expect("Error seding message");
+	pub fn message(&self, message: Message) -> Result<(), UtilError> {
+		try!(self.channel.send(message));
+		Ok(())
 	}
 
 	/// Get message channel
@@ -351,7 +352,9 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, UtilError> {
 		let panic_handler = PanicHandler::new_in_arc();
-    	let mut event_loop = EventLoop::new().unwrap();
+		let mut config = EventLoopConfig::new();
+		config.messages_per_tick(1024);
+    	let mut event_loop = EventLoop::configured(config).expect("Error creating event loop");
         let channel = event_loop.channel();
 		let panic = panic_handler.clone();
 		let thread = thread::spawn(move || {
@@ -390,7 +393,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[IoService] Closing...");
-		self.host_channel.send(IoMessage::Shutdown).unwrap();
+		self.host_channel.send(IoMessage::Shutdown).unwrap_or_else(|e| warn!("Error on IO service shutdown: {:?}", e));
 		self.thread.take().unwrap().join().ok();
 		trace!(target: "shutdown", "[IoService] Closed.");
 	}
