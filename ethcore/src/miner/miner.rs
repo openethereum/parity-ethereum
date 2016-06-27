@@ -53,6 +53,8 @@ pub struct MinerOptions {
 	/// Specify maximum amount of gas to bother considering for block insertion.
 	/// If `None`, then no limit.
 	pub max_tx_gas: Option<U256>,
+	/// Maximum size of the transaction queue.
+	pub tx_queue_size: usize,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
 	pub pending_set: PendingSet,
 }
@@ -64,6 +66,7 @@ impl Default for MinerOptions {
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
 			max_tx_gas: None,
+			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
 		}
 	}
@@ -107,7 +110,7 @@ impl Miner {
 	/// Creates new instance of miner
 	pub fn new(options: MinerOptions, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		Arc::new(Miner {
-			transaction_queue: Mutex::new(TransactionQueue::new()),
+			transaction_queue: Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.max_tx_gas)),
 			sealing_enabled: AtomicBool::new(options.force_sealing),
 			options: options,
 			sealing_block_last_request: Mutex::new(0),
@@ -394,6 +397,10 @@ impl MinerService for Miner {
 
 	fn set_transactions_limit(&self, limit: usize) {
 		self.transaction_queue.lock().unwrap().set_limit(limit)
+	}
+
+	fn set_tx_gas_limit(&self, limit: Option<U256>) {
+		self.transaction_queue.lock().unwrap().set_tx_gas_limit(limit)
 	}
 
 	/// Get the author that we will seal blocks as.

@@ -334,6 +334,8 @@ const GAS_LIMIT_HYSTERESIS: usize = 10; // %
 pub struct TransactionQueue {
 	/// Gas Price threshold for transactions that can be imported to this queue (defaults to 0)
 	minimal_gas_price: U256,
+	/// If `Some`, then the maximum amount of gas any individual transaction may use.
+	tx_gas_limit: Option<U256>,
 	/// Current gas limit (block gas limit * factor). Transactions above the limit will not be accepted (default to !0)
 	gas_limit: U256,
 	/// Priority queue for transactions that can go to block
@@ -355,11 +357,11 @@ impl Default for TransactionQueue {
 impl TransactionQueue {
 	/// Creates new instance of this Queue
 	pub fn new() -> Self {
-		Self::with_limit(1024)
+		Self::with_limits(1024, None)
 	}
 
 	/// Create new instance of this Queue with specified limits
-	pub fn with_limit(limit: usize) -> Self {
+	pub fn with_limits(limit: usize, tx_gas_limit: Option<U256>) -> Self {
 		let current = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
@@ -374,6 +376,7 @@ impl TransactionQueue {
 
 		TransactionQueue {
 			minimal_gas_price: U256::zero(),
+			tx_gas_limit: tx_gas_limit,
 			gas_limit: !U256::zero(),
 			current: current,
 			future: future,
@@ -418,6 +421,12 @@ impl TransactionQueue {
 		};
 	}
 
+	/// Set the new limit for the amount of gas any individual transaction may have.
+	/// Any transaction already imported to the queue is not affected.
+	pub fn set_tx_gas_limit(&mut self, limit: Option<U256>) {
+		self.tx_gas_limit = limit;
+	}
+
 	/// Returns current status for this queue
 	pub fn status(&self) -> TransactionQueueStatus {
 		TransactionQueueStatus {
@@ -435,7 +444,9 @@ impl TransactionQueue {
 		if tx.gas_price < self.minimal_gas_price {
 			trace!(target: "miner",
 				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
-				tx.hash(), tx.gas_price, self.minimal_gas_price
+				tx.hash(),
+				tx.gas_price,
+				self.minimal_gas_price
 			);
 
 			return Err(Error::Transaction(TransactionError::InsufficientGasPrice {
@@ -446,10 +457,12 @@ impl TransactionQueue {
 
 		try!(tx.check_low_s());
 
-		if tx.gas > self.gas_limit {
+		if tx.gas > self.gas_limit || self.tx_gas_limit.map(|l| tx.gas > l).unwrap_or(false) {
 			trace!(target: "miner",
 				"Dropping transaction above gas limit: {:?} ({} > {})",
-				tx.hash(), tx.gas, self.gas_limit
+				tx.hash(),
+				tx.gas,
+				self.gas_limit
 			);
 
 			return Err(Error::Transaction(TransactionError::GasLimitExceeded {
@@ -463,8 +476,13 @@ impl TransactionQueue {
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
 		if client_account.balance < cost {
-			trace!(target: "miner", "Dropping transaction without sufficient balance: {:?} ({} < {})",
-				vtx.hash(), client_account.balance, cost);
+			trace!(target: "miner",
+				"Dropping transaction without sufficient balance: {:?} ({} < {})",
+				vtx.hash(),
+				client_account.balance,
+				cost
+			);
+
 			return Err(Error::Transaction(TransactionError::InsufficientBalance {
 				cost: cost,
 				balance: client_account.balance
@@ -1304,7 +1322,7 @@ mod test {
 	#[test]
 	fn should_drop_old_transactions_when_hitting_the_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limit(1);
+		let mut txq = TransactionQueue::with_limit(1, None);
 		let (tx, tx2) = new_txs(U256::one());
 		let sender = tx.sender().unwrap();
 		let nonce = tx.nonce;
@@ -1326,7 +1344,7 @@ mod test {
 	#[test]
 	fn should_return_correct_nonces_when_dropped_because_of_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limit(2);
+		let mut txq = TransactionQueue::with_limit(2, None);
 		let tx = new_tx();
 		let (tx1, tx2) = new_txs(U256::one());
 		let sender = tx1.sender().unwrap();
@@ -1347,7 +1365,7 @@ mod test {
 
 	#[test]
 	fn should_limit_future_transactions() {
-		let mut txq = TransactionQueue::with_limit(1);
+		let mut txq = TransactionQueue::with_limit(1, None);
 		txq.current.set_limit(10);
 		let (tx1, tx2) = new_txs_with_gas_price_diff(U256::from(4), U256::from(1));
 		let (tx3, tx4) = new_txs_with_gas_price_diff(U256::from(4), U256::from(2));
@@ -1607,7 +1625,7 @@ mod test {
 	#[test]
 	fn should_keep_right_order_in_future() {
 		// given
-		let mut txq = TransactionQueue::with_limit(1);
+		let mut txq = TransactionQueue::with_limit(1, None);
 		let (tx1, tx2) = new_txs(U256::from(1));
 		let prev_nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce - U256::one(), balance:
 			default_nonce(a).balance };

@@ -101,6 +101,9 @@ pub trait MinerService : Send + Sync {
 	/// Set maximal number of transactions kept in the queue (both current and future).
 	fn set_transactions_limit(&self, limit: usize);
 
+	/// Set maximum amount of gas allowed for any single transaction to mine.
+	fn set_tx_gas_limit(&self, limit: Option<U256>);
+
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
