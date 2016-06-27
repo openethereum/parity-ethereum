@@ -236,8 +236,8 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	}
 
 	/// Send an IO message
-	pub fn message(&self, msg: Message) {
-		self.io.message(NetworkIoMessage::User(msg));
+	pub fn message(&self, msg: Message) -> Result<(), UtilError> {
+		self.io.message(NetworkIoMessage::User(msg))
 	}
 
 	/// Get an IoChannel.
@@ -248,12 +248,14 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
 	pub fn disable_peer(&self, peer: PeerId) {
 		//TODO: remove capability, disconnect if no capabilities left
-		self.io.message(NetworkIoMessage::DisablePeer(peer));
+		self.io.message(NetworkIoMessage::DisablePeer(peer))
+			.unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 	}
 
 	/// Disconnect peer. Reconnect can be attempted later.
 	pub fn disconnect_peer(&self, peer: PeerId) {
-		self.io.message(NetworkIoMessage::Disconnect(peer));
+		self.io.message(NetworkIoMessage::Disconnect(peer))
+			.unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 	}
 
 	/// Check if the session is still active.
@@ -267,7 +269,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 			token: token,
 			delay: ms,
 			protocol: self.protocol,
-		});
+		}).unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 		Ok(())
 	}
 
@@ -714,7 +716,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				debug!(target: "network", "Can't accept connection: {:?}", e);
 			}
 		}
-		io.update_registration(TCP_ACCEPT).expect("Error registering TCP listener");
 	}
 
 	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -910,11 +911,10 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
 			DISCOVERY => {
-				let node_changes = { self.discovery.lock().unwrap().as_mut().unwrap().readable() };
+				let node_changes = { self.discovery.lock().unwrap().as_mut().unwrap().readable(io) };
 				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
-				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
 			TCP_ACCEPT => self.accept(io),
 			_ => panic!("Received unknown readable token"),
@@ -928,8 +928,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
 			DISCOVERY => {
-				self.discovery.lock().unwrap().as_mut().unwrap().writable();
-				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
+				self.discovery.lock().unwrap().as_mut().unwrap().writable(io);
 			}
 			_ => panic!("Received unknown writable token"),
 		}
@@ -946,14 +945,14 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
 				self.discovery.lock().unwrap().as_mut().unwrap().refresh();
-				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
+				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			DISCOVERY_ROUND => {
 				let node_changes = { self.discovery.lock().unwrap().as_mut().unwrap().round() };
 				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
-				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
+				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			NODE_TABLE => {
 				trace!(target: "network", "Refreshing node table");
@@ -1004,7 +1003,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					handler_token
 				};
 				self.timers.write().unwrap().insert(handler_token, ProtocolTimer { protocol: protocol, token: *token });
-				io.register_timer(handler_token, *delay).expect("Error registering timer");
+				io.register_timer(handler_token, *delay).unwrap_or_else(|e| debug!("Error registering timer {}: {:?}", token, e));
 			},
 			NetworkIoMessage::Disconnect(ref peer) => {
 				let session = { self.sessions.read().unwrap().get(*peer).cloned() };
