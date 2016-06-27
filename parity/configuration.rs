@@ -275,6 +275,14 @@ impl Configuration {
 			_ => { die!("Invalid pruning method given."); }
 		};
 
+		if self.args.flag_fatdb {
+			if let journaldb::Algorithm::Archive = client_config.pruning {
+				client_config.trie_spec = TrieSpec::Fat;
+			} else {
+				die!("Fatdb is supported only with pruning 'archive'.")
+			}
+		}
+
 		// forced state db cache size if provided
 		client_config.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 

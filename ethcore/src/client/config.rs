@@ -19,6 +19,7 @@ pub use blockchain::Config as BlockChainConfig;
 pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
 use util::journaldb;
+use util::trie::TrieSpec;
 
 /// Client configuration. Includes configs for all sub-systems.
 #[derive(Debug, Default)]
@@ -31,6 +32,8 @@ pub struct ClientConfig {
 	pub tracing: TraceConfig,
 	/// VM type.
 	pub vm_type: VMType,
+	/// Trie type.
+	pub trie_spec: TrieSpec,
 	/// The JournalDB ("pruning") algorithm to use.
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
