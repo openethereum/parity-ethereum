@@ -98,18 +98,13 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
 	/// Create a new instance from file
-	pub fn new(path: &str, cache_size: Option<usize>) -> OverlayRecentDB {
-		Self::from_prefs(path, cache_size)
+	pub fn new(path: &str, config: DatabaseConfig) -> OverlayRecentDB {
+		Self::from_prefs(path, config)
 	}
 
 	/// Create a new instance from file
-	pub fn from_prefs(path: &str, cache_size: Option<usize>) -> OverlayRecentDB {
-		let opts = DatabaseConfig {
-			// this must match account_db prefix
-			prefix_size: Some(DB_PREFIX_LEN),
-			max_open_files: 256,
-			cache_size: cache_size,
-		};
+	pub fn from_prefs(path: &str, config: DatabaseConfig) -> OverlayRecentDB {
+		let opts = config.prefix(DB_PREFIX_LEN);
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});

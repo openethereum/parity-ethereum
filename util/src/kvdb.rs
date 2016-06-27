@@ -104,11 +104,13 @@ impl DatabaseConfig {
 		}
 	}
 
+	/// Modify the compaction profile
 	pub fn compaction(mut self, profile: CompactionProfile) -> Self {
 		self.compaction = profile;
 		self
 	}
 
+	/// Modify the prefix of the db
 	pub fn prefix(mut self, prefix_size: usize) -> Self {
 		self.prefix_size = Some(prefix_size);
 		self
