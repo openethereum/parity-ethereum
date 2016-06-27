@@ -20,8 +20,6 @@ use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 
-const DB_FILE_SIZE_BASE: u64 = 32 * 1024 * 1024;
-const DB_FILE_SIZE_MULTIPLIER: i32 = 2;
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 
@@ -53,6 +51,36 @@ impl DBTransaction {
 	}
 }
 
+/// Compaction profile for the database settings
+pub struct CompactionProfile {
+	/// L0-L1 target file size
+	pub initial_file_size: u64,
+	/// L2-LN target file size multiplier
+	pub file_size_multiplier: i32,
+	/// rate limiter for background flushes and compactions, bytes/sec, if any
+	pub write_rate_limit: Option<u64>,
+}
+
+impl CompactionProfile {
+	/// Default profile suitable for most storage
+	pub fn default() -> CompactionProfile {
+		CompactionProfile {
+			initial_file_size: 32 * 1024 * 1024,
+			file_size_multiplier: 2,
+			write_rate_limit: None,
+		}
+	}
+
+	/// Slow hdd compaction profile
+	pub fn hdd(&self) -> CompactionProfile {
+		CompactionProfile {
+			initial_file_size: 192 * 1024 * 1024,
+			file_size_multiplier: 1,
+			write_rate_limit: Some(128 * 1024 * 1024),
+		}
+	}
+}
+
 /// Database configuration
 pub struct DatabaseConfig {
 	/// Optional prefix size in bytes. Allows lookup by partial key.
@@ -61,6 +89,8 @@ pub struct DatabaseConfig {
 	pub max_open_files: i32,
 	/// Cache-size
 	pub cache_size: Option<usize>,
+	/// Compaction profile
+	pub compaction: CompactionProfile,
 }
 
 impl DatabaseConfig {
@@ -71,6 +101,11 @@ impl DatabaseConfig {
 			prefix_size: None,
 			max_open_files: -1,
 		}
+	}
+
+	pub fn compaction(mut self, profile: CompactionProfile) -> Self {
+		self.compaction = profile;
+		self
 	}
 }
 
