@@ -150,7 +150,16 @@ impl Database {
 			opts.set_block_based_table_factory(&block_opts);
 			opts.set_prefix_extractor_fixed_size(size);
 		}
-		let db = try!(DB::open(&opts, path));
+		let db = match DB::open(&opts, path) {
+			Ok(db) => db,
+			Err(ref s) if s.starts_with("Corruption:") => {
+				info!("{}", s);
+				info!("Attempting DB repair for {}", path);
+				try!(DB::repair(&opts, path));
+				try!(DB::open(&opts, path))
+			},
+			Err(s) => { return Err(s); }
+		};
 		Ok(Database { db: db })
 	}
 
