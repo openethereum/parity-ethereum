@@ -278,6 +278,13 @@ impl Configuration {
 		// forced state db cache size if provided
 		client_config.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
+		// compaction profile
+		client_config.db_compaction_profile = match self.args.flag_db_compaction.as_str() {
+			"default" => DatabaseCompactionProfile::Default,
+			"hdd" => DatabaseCompactionProfile::HDD,
+			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/default."); }
+		};
+
 		if self.args.flag_jitvm {
 			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
 		}

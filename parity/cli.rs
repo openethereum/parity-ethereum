@@ -170,7 +170,13 @@ Footprint Options:
   --cache MEGABYTES        Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
-  --db-cache-size MB       Database cache size.
+
+Database Options:
+  --db-cache-size MB       Database cache size. Default if not specified.
+  --db-compaction TYPE     Database compaction type. TYPE may be one of default, hdd
+                           default - suitable for ssd backing storage/fast hdd
+                           hdd - sutable for slow storage
+                           [default: default].
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -323,6 +329,7 @@ pub struct Args {
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
 	pub flag_db_cache_size: Option<usize>,
+	pub flag_db_compaction: String,
 }
 
 pub fn print_version() {
