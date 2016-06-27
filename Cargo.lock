@@ -369,7 +369,7 @@ dependencies = [
  "parity-minimal-sysui 0.2.0 (git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.0 (git+https://github.com/ethcore/ws-rs.git?branch=testing)",
+ "ws 0.5.0 (git+https://github.com/ethcore/ws-rs.git?branch=stable)",
 ]
 
 [[package]]
@@ -1448,11 +1448,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ws"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/ws-rs.git?branch=testing#4623c51aedaea1ca0ecb34bd1a1aacb651760954"
+source = "git+https://github.com/ethcore/ws-rs.git?branch=stable#e2452450c830618aed30db02e63f3a68710cc40e"
 dependencies = [
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha1 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
