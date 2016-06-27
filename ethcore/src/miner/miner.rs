@@ -29,6 +29,18 @@ use spec::Spec;
 use engine::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 
+/// Different possible definitions for pending transaction set.
+#[derive(Debug)]
+pub enum PendingSet {
+	/// Always just the transactions in the queue. These have had only cheap checks.
+	AlwaysQueue,
+	/// Always just the transactions in the sealing block. These have had full checks but
+	/// may be empty if the node is not actively mining or has force_sealing enabled.
+	AlwaysSealing,
+	/// Try the sealing block, but if it is not currently sealing, fallback to the queue.
+	SealingOrElseQueue,
+}
+
 /// Configures the behaviour of the miner.
 #[derive(Debug)]
 pub struct MinerOptions {
@@ -42,7 +54,7 @@ pub struct MinerOptions {
 	/// If `None`, then no limit.
 	pub max_tx_gas: Option<U256>,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
-	pub strict_valid_pending: bool,
+	pub pending_set: PendingSet,
 }
 
 impl Default for MinerOptions {
@@ -52,7 +64,7 @@ impl Default for MinerOptions {
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
 			max_tx_gas: None,
-			strict_valid_pending: false,
+			pending_set: PendingSet::AlwaysQueue,
 		}
 	}
 }
@@ -462,24 +474,6 @@ impl MinerService for Miner {
 		imported
 	}
 
-	fn pending_transactions_hashes(&self) -> Vec<H256> {
-		let queue = self.transaction_queue.lock().unwrap();
-		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
-			(true, Some(pending)) => pending.transactions().iter().map(|t| t.hash()).collect(),
-			_ if self.options.strict_valid_pending => Vec::new(),
-			_ => queue.pending_hashes(),
-		}
-	}
-
-	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
-		let queue = self.transaction_queue.lock().unwrap();
-		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
-			(true, Some(pending)) => pending.transactions().iter().find(|t| &t.hash() == hash).cloned(),
-			_ if self.options.strict_valid_pending => None,
-			_ => queue.find(hash),
-		}
-	}
-
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
 		let queue = self.transaction_queue.lock().unwrap();
 		queue.top_transactions()
@@ -487,11 +481,41 @@ impl MinerService for Miner {
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		let queue = self.transaction_queue.lock().unwrap();
+		let sw = self.sealing_work.lock().unwrap();
 		// TODO: should only use the sealing_work when it's current (it could be an old block)
-		match (self.sealing_enabled.load(atomic::Ordering::Relaxed), self.sealing_work.lock().unwrap().peek_last_ref()) {
-			(true, Some(pending)) => pending.transactions().clone(),
-			_ if self.options.strict_valid_pending => Vec::new(),
-			_ => queue.top_transactions(),
+		let sealing_set = match self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			true => sw.peek_last_ref(),
+			false => None,
+		};
+		match (&self.options.pending_set, sealing_set) {
+			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.top_transactions(),
+			(_, sealing) => sealing.map(|s| s.transactions().clone()).unwrap_or(Vec::new()),
+		}
+	}
+
+	fn pending_transactions_hashes(&self) -> Vec<H256> {
+		let queue = self.transaction_queue.lock().unwrap();
+		let sw = self.sealing_work.lock().unwrap();
+		let sealing_set = match self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			true => sw.peek_last_ref(),
+			false => None,
+		};
+		match (&self.options.pending_set, sealing_set) {
+			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.pending_hashes(),
+			(_, sealing) => sealing.map(|s| s.transactions().iter().map(|t| t.hash()).collect()).unwrap_or(Vec::new()),
+		}
+	}
+
+	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+		let queue = self.transaction_queue.lock().unwrap();
+		let sw = self.sealing_work.lock().unwrap();
+		let sealing_set = match self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			true => sw.peek_last_ref(),
+			false => None,
+		};
+		match (&self.options.pending_set, sealing_set) {
+			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.find(hash),
+			(_, sealing) => sealing.and_then(|s| s.transactions().iter().find(|t| &t.hash() == hash).cloned()),
 		}
 	}
 

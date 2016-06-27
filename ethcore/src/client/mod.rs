@@ -197,7 +197,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn queue_transactions(&self, transactions: Vec<Bytes>);
 
 	/// list all transactions
-	fn all_transactions(&self) -> Vec<SignedTransaction>;
+	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
 	/// Get the gas price distribution.
 	fn gas_price_statistics(&self, sample_size: usize, distribution_size: usize) -> Result<Vec<U256>, ()> {

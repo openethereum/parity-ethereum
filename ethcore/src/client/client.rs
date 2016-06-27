@@ -792,8 +792,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		}
 	}
 
-	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.all_transactions()
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.pending_transactions()
 	}
 }
 

@@ -27,7 +27,7 @@ use util::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 use ethcore::client::{append_path, get_db_path, ClientConfig, Switch, VMType};
-use ethcore::miner::MinerOptions;
+use ethcore::miner::{MinerOptions, PendingSet};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -89,10 +89,11 @@ impl Configuration {
 			reseal_on_external_tx: ext,
 			reseal_on_own_tx: own,
 			max_tx_gas: self.args.flag_max_tx_gas.as_ref().map(|d| Self::decode_u256(d, "--max-tx-gas")),
-			strict_valid_pending: match self.args.flag_relay_validity.as_str() {
-				"cheap" => false,
-				"strict" => true,
-				x => die!("{}: Invalid value for --relay-validity option. Use --help for more information.", x)
+			pending_set: match self.args.flag_relay_set.as_str() {
+				"cheap" => PendingSet::AlwaysQueue,
+				"strict" => PendingSet::AlwaysSealing,
+				"lenient" => PendingSet::SealingOrElseQueue,
+				x => die!("{}: Invalid value for --relay-set option. Use --help for more information.", x)
 			},
 		}
 	}

@@ -141,9 +141,14 @@ Sealing/Mining Options:
                            all - reseal on all new transactions [default: all].
   --max-tx-gas GAS         Apply a limit of GAS as the maximum amount of gas
                            a single transaction may have for it to be mined.
-  --relay-validity REQ     Requirements for relaying. REQ may be:
-                           cheap - Relay only after cheap checks;
-                           strict - Relay only once executed [default: cheap].
+  --relay-set SET          Set of transactions to relay. SET may be:
+                           cheap - Relay any transaction in the queue (this
+                           may include invalid transactions);
+                           strict - Relay only executed transactions (this
+                           guarantees we don't relay invalid transactions, but
+                           means we relay nothing if not mining);
+                           lenient - Same as struct when mining, and cheap
+                           when not [default: cheap].
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
                            [default: 0.005]. The minimum gas price is set
                            accordingly.
@@ -296,7 +301,7 @@ pub struct Args {
 	pub flag_force_sealing: bool,
 	pub flag_reseal_on_txs: String,
 	pub flag_max_tx_gas: Option<String>,
-	pub flag_relay_validity: String,
+	pub flag_relay_set: String,
 	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,
