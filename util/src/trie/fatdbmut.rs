@@ -52,7 +52,7 @@ impl<'db> FatDBMut<'db> {
 	}
 }
 
-impl<'db> Trie for FatDBMut<'db> {
+impl<'db> TrieMut for FatDBMut<'db> {
 	fn root(&self) -> &H256 {
 		self.raw.root()
 	}
@@ -64,9 +64,7 @@ impl<'db> Trie for FatDBMut<'db> {
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
 		self.raw.get(&key.sha3())
 	}
-}
 
-impl<'db> TrieMut for FatDBMut<'db> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		let hash = key.sha3();
 		self.raw.insert(&hash, value);

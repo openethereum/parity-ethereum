@@ -66,6 +66,8 @@ impl fmt::Display for TrieError {
 /// Trie types
 #[derive(Debug, Clone)]
 pub enum TrieSpec {
+	/// Generic trie.
+	Generic,
 	/// Secure trie.
 	Secure,
 	///	Secure trie with fat database.
@@ -95,22 +97,25 @@ impl TrieFactory {
 	/// Create new immutable instance of Trie.
 	pub fn create<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<Box<Trie + 'db>, TrieError> {
 		match self.spec {
+			TrieSpec::Generic => Ok(Box::new(try!(TrieDB::new(db, root)))),
 			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDB::new(db, root)))),
 			TrieSpec::Fat => Ok(Box::new(try!(FatDB::new(db, root)))),
 		}
 	}
 
 	/// Create new mutable instance of Trie.
-	pub fn create_mut<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Result<Box<Trie + 'db>, TrieError> {
+	pub fn create_mut<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Box<TrieMut + 'db> {
 		match self.spec {
-			TrieSpec::Secure => Ok(Box::new(SecTrieDBMut::new(db, root))),
-			TrieSpec::Fat => Ok(Box::new(FatDBMut::new(db, root))),
+			TrieSpec::Generic => Box::new(TrieDBMut::new(db, root)),
+			TrieSpec::Secure => Box::new(SecTrieDBMut::new(db, root)),
+			TrieSpec::Fat => Box::new(FatDBMut::new(db, root)),
 		}
 	}
 
 	/// Create new mutable instance of trie and check for errors.
-	pub fn from_existing<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Result<Box<Trie + 'db>, TrieError> {
+	pub fn from_existing<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Result<Box<TrieMut + 'db>, TrieError> {
 		match self.spec {
+			TrieSpec::Generic => Ok(Box::new(try!(TrieDBMut::from_existing(db, root)))),
 			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDBMut::from_existing(db, root)))),
 			TrieSpec::Fat => Ok(Box::new(try!(FatDBMut::from_existing(db, root)))),
 		}

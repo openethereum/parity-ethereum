@@ -642,7 +642,7 @@ impl<'db> TrieDBMut<'db> {
 	}
 }
 
-impl<'db> Trie for TrieDBMut<'db> {
+impl<'db> TrieMut for TrieDBMut<'db> {
 	fn root(&self) -> &H256 { &self.root }
 
 	fn contains(&self, key: &[u8]) -> bool {
@@ -652,9 +652,7 @@ impl<'db> Trie for TrieDBMut<'db> {
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
 		self.do_lookup(&NibbleSlice::new(key))
 	}
-}
 
-impl<'db> TrieMut for TrieDBMut<'db> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		match value.is_empty() {
 			false => self.insert_ns(&NibbleSlice::new(key), value),

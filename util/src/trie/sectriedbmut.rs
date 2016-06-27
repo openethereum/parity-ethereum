@@ -50,7 +50,7 @@ impl<'db> SecTrieDBMut<'db> {
 	pub fn db_mut(&mut self) -> &mut HashDB { self.raw.db_mut() }
 }
 
-impl<'db> Trie for SecTrieDBMut<'db> {
+impl<'db> TrieMut for SecTrieDBMut<'db> {
 	fn root(&self) -> &H256 { self.raw.root() }
 
 	fn contains(&self, key: &[u8]) -> bool {
@@ -60,9 +60,7 @@ impl<'db> Trie for SecTrieDBMut<'db> {
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
 		self.raw.get(&key.sha3())
 	}
-}
 
-impl<'db> TrieMut for SecTrieDBMut<'db> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		self.raw.insert(&key.sha3(), value);
 	}
