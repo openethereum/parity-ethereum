@@ -26,7 +26,7 @@ use die::*;
 use util::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig, Switch, VMType};
+use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -227,7 +227,7 @@ impl Configuration {
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
-			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i, None);
+			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i, kvdb::DatabaseConfig::default());
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
@@ -279,7 +279,7 @@ impl Configuration {
 		client_config.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
 		// compaction profile
-		client_config.db_compaction_profile = match self.args.flag_db_compaction.as_str() {
+		client_config.db_compaction = match self.args.flag_db_compaction.as_str() {
 			"default" => DatabaseCompactionProfile::Default,
 			"hdd" => DatabaseCompactionProfile::HDD,
 			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/default."); }
