@@ -86,7 +86,7 @@ impl<T: Dapp> PageHandler<T> {
 }
 
 impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
-	fn on_request(&mut self, req: server::Request) -> Next {
+	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
 		self.file = match *req.uri() {
 			RequestUri::AbsolutePath(ref path) => {
 				self.app.file(&self.extract_path(path))
