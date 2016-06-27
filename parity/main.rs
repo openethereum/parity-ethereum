@@ -214,7 +214,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	miner.set_gas_ceil_target(conf.gas_ceil_target());
 	miner.set_extra_data(conf.extra_data());
 	miner.set_minimal_gas_price(conf.gas_price());
-	miner.set_transactions_limit(conf.args.flag_tx_limit);
+	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
 	// Build client
 	let mut service = ClientService::start(

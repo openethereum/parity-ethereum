@@ -68,6 +68,14 @@ impl Configuration {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
 	}
 
+	fn decode_u256(d: &str, argument: &str) -> U256 {
+		U256::from_dec_str(d).unwrap_or_else(|_|
+			U256::from_str(clean_0x(d)).unwrap_or_else(|_|
+				die!("{}: Invalid numeric value for {}. Must be either a decimal or a hex number.", d, argument)
+			)
+		)
+	}
+
 	pub fn miner_options(&self) -> MinerOptions {
 		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
 			"none" => (false, false),
@@ -80,6 +88,12 @@ impl Configuration {
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: ext,
 			reseal_on_own_tx: own,
+			max_tx_gas: self.args.flag_max_tx_gas.as_ref().map(|d| Self::decode_u256(d, "--max-tx-gas")),
+			strict_valid_pending: match self.args.flag_relay_validity.as_str() {
+				"cheap" => false,
+				"strict" => true,
+				x => die!("{}: Invalid value for --relay-validity option. Use --help for more information.", x)
+			},
 		}
 	}
 

@@ -583,6 +583,22 @@ impl TransactionQueue {
 			.collect()
 	}
 
+	/// Returns top transactions from the queue ordered by priority with a maximum gas limit.
+	pub fn top_transactions_with_limit(&self, max_tx_gas: &U256) -> Vec<SignedTransaction> {
+		self.current.by_priority
+			.iter()
+			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
+			.filter_map(|t| if &t.transaction.gas <= max_tx_gas { Some(t.transaction.clone()) } else { None })
+			.collect()
+	}
+
+	/// Returns top transactions from the queue ordered by priority with a maximum gas limit.
+	pub fn top_transactions_maybe_limit(&self, max_tx_gas: &Option<U256>) -> Vec<SignedTransaction> {
+		match *max_tx_gas {
+			None => self.top_transactions(),
+			Some(ref m) => self.top_transactions_with_limit(m),
+		}
+	}
 	/// Returns hashes of all transactions from current, ordered by priority.
 	pub fn pending_hashes(&self) -> Vec<H256> {
 		self.current.by_priority

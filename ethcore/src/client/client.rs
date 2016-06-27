@@ -149,7 +149,8 @@ impl<V> Client<V> where V: Verifier {
 		let mut state_db = journaldb::new(
 			&append_path(&path, "state"),
 			config.pruning,
-			config.db_cache_size);
+			config.db_cache_size
+		);
 
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
