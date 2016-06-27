@@ -26,7 +26,7 @@ use ::rlp::{Rlp, View};
 
 use elastic_array::ElasticArray1024;
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::mem;
 use std::ops::{Index, IndexMut};
 
@@ -89,7 +89,7 @@ impl Node {
 			NodeHandle::Hash(r.as_val::<H256>())
 		} else {
 			let child = Node::from_rlp(node, db, storage);
-			NodeHandle::InMemory(storage.alloc(child))
+			NodeHandle::InMemory(storage.alloc(Stored::New(child)))
 		}
 	}
 
@@ -212,7 +212,7 @@ pub struct MemoryTrieDB<'a> {
 	root: &'a mut H256,
 	root_handle: StorageHandle,
 	dirty: bool,
-	death_row: Vec<H256>,
+	death_row: HashSet<H256>,
 	/// The number of hash operations this trie has performed.
 	/// Note that none are performed until changes are committed.
 	pub hash_count: usize,
@@ -231,7 +231,7 @@ impl<'a> MemoryTrieDB<'a> {
 			root: root,
 			root_handle: root_handle,
 			dirty: false,
-			death_row: Vec::new(),
+			death_row: HashSet::new(),
 			hash_count: 0,
 		}
 	}
@@ -256,7 +256,7 @@ impl<'a> MemoryTrieDB<'a> {
 			root: root,
 			root_handle: root_handle,
 			dirty: false,
-			death_row: Vec::new(),
+			death_row: HashSet::new(),
 			hash_count: 0,
 		})
 	}
@@ -266,6 +266,27 @@ impl<'a> MemoryTrieDB<'a> {
 		let node_rlp = self.db.get(&hash).expect("Not found!");
 		let node = Node::from_rlp(node_rlp, &*self.db, &mut self.storage);
 		self.storage.alloc(Stored::Cached(node, hash))
+	}
+
+	fn inspect<F>(&mut self, stored: Stored, inspector: F) -> Option<Stored>
+	where F: FnOnce(&mut Self, Node) -> Action {
+		match stored {
+			Stored::New(node) => match inspector(self, node) {
+				Action::Restore(node) | Action::Replace(node) => Some(Stored::New(node)),
+				Action::Delete => None,
+			},
+			Stored::Cached(node, hash) => match inspector(self, node) {
+				Action::Restore(node) => Some(Stored::Cached(node, hash)),
+				Action::Replace(node) => {
+					self.death_row.insert(hash);
+					Some(Stored::New(node))
+				}
+				Action::Delete => {
+					self.death_row.insert(hash);
+					None
+				}
+			},
+		}
 	}
 
 	// walk the trie, attempting to find the key's node.
@@ -339,6 +360,20 @@ impl<'a> MemoryTrieDB<'a> {
 
 	/// insert a key, value pair into the trie, creating new nodes if necessary.
 	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: Bytes) -> StorageHandle {
+		let h = match handle {
+			NodeHandle::InMemory(h) => h,
+			NodeHandle::Hash(h) => self.cache(h)
+		};
+		let stored = self.storage.destroy(h);
+		let new_stored = self.inspect(stored, move |trie, stored| {
+			trie.insert_inspector(stored, partial, value)
+		}).expect("Insertion always makes a new node.");
+
+		self.storage.alloc(new_stored)
+	}
+
+	/// the insertion inspector.
+	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: Bytes) -> Action {
 		unimplemented!()
 	}
 
@@ -397,10 +432,7 @@ impl<'a> Trie for MemoryTrieDB<'a> {
 impl<'a> TrieMut for MemoryTrieDB<'a> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		let root_handle = self.root_handle();
-		self.root_handle = match self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned()) {
-			MaybeChanged::Same(h) | MaybeChanged::Changed(h) => h,
-			MaybeChanged::Deleted => self.storage.alloc(Stored::New(Node::Empty))
-		};
+		self.root_handle = self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
 		self.dirty = true;
 	}
 
