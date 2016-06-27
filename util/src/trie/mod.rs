@@ -95,7 +95,7 @@ impl TrieFactory {
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn create<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<Box<Trie + 'db>, TrieError> {
+	pub fn readonly<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<Box<Trie + 'db>, TrieError> {
 		match self.spec {
 			TrieSpec::Generic => Ok(Box::new(try!(TrieDB::new(db, root)))),
 			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDB::new(db, root)))),
@@ -104,7 +104,7 @@ impl TrieFactory {
 	}
 
 	/// Create new mutable instance of Trie.
-	pub fn create_mut<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Box<TrieMut + 'db> {
+	pub fn create<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Box<TrieMut + 'db> {
 		match self.spec {
 			TrieSpec::Generic => Box::new(TrieDBMut::new(db, root)),
 			TrieSpec::Secure => Box::new(SecTrieDBMut::new(db, root)),

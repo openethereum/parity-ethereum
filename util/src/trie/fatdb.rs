@@ -19,9 +19,10 @@ use sha3::Hashable;
 use hashdb::HashDB;
 use super::{TrieDB, Trie, TrieDBIterator, TrieError};
 
-/// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
+/// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
+/// Additionaly it stores inserted hash-key mappings for later retrieval.
 ///
-/// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDB` object.
+/// Use it as a `Trie` or `TrieMut` trait object.
 pub struct FatDB<'db> {
 	raw: TrieDB<'db>,
 }

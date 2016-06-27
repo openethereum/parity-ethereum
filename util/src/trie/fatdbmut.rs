@@ -20,8 +20,9 @@ use hashdb::HashDB;
 use super::{TrieDBMut, Trie, TrieMut, TrieError};
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
+/// Additionaly it stores inserted hash-key mappings for later retrieval.
 ///
-/// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDBMut` object.
+/// Use it as a `Trie` or `TrieMut` trait object.
 pub struct FatDBMut<'db> {
 	raw: TrieDBMut<'db>,
 }
