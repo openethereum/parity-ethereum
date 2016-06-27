@@ -136,16 +136,12 @@ impl MemoryDB {
 
 	/// Return the internal map of hashes to data, clearing the current state.
 	pub fn drain(&mut self) -> HashMap<H256, (Bytes, i32)> {
-		let mut data = HashMap::new();
-		mem::swap(&mut self.data, &mut data);
-		data
+		mem::replace(&mut self.data, HashMap::new())
 	}
 
 	/// Return the internal map of auxiliary data, clearing the current state.
 	pub fn drain_aux(&mut self) -> HashMap<Bytes, Bytes> {
-		let mut aux = HashMap::new();
-		mem::swap(&mut self.aux, &mut aux);
-		aux
+		mem::replace(&mut self.aux, HashMap::new())
 	}
 
 	/// Denote than an existing value has the given key. Used when a key gets removed without
@@ -249,6 +245,10 @@ impl HashDB for MemoryDB {
 
 	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
 		self.aux.get(hash).cloned()
+	}
+
+	fn remove_aux(&mut self, hash: &[u8]) {
+		self.aux.remove(hash);
 	}
 }
 

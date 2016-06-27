@@ -114,6 +114,11 @@ pub trait HashDB: AsHashDB {
 	fn get_aux(&self, _hash: &[u8]) -> Option<Vec<u8>> {
 		unimplemented!();
 	}
+
+	/// Removes auxiliary data from hashdb.
+	fn remove_aux(&mut self, _hash: &[u8]) {
+		unimplemented!();
+	}
 }
 
 /// Upcast trait.
