@@ -257,7 +257,7 @@ pub struct TrieDBIterator<'a> {
 
 impl<'a> TrieDBIterator<'a> {
 	/// Create a new iterator.
-	fn new(db: &'a TrieDB) -> TrieDBIterator<'a> {
+	pub fn new(db: &'a TrieDB) -> TrieDBIterator<'a> {
 		let mut r = TrieDBIterator {
 			db: db,
 			trail: vec![],

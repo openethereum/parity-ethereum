@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use hash::*;
-use sha3::*;
+use hash::H256;
+use sha3::Hashable;
 use hashdb::HashDB;
 use super::triedb::TrieDB;
 use super::trietraits::Trie;
@@ -68,7 +68,7 @@ fn trie_to_sectrie() {
 	use super::trietraits::TrieMut;
 
 	let mut memdb = MemoryDB::new();
-	let mut root = H256::new();
+	let mut root = H256::default();
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&(&[0x01u8, 0x23]).sha3(), &[0x01u8, 0x23]);

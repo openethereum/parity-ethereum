@@ -26,6 +26,8 @@ use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
+const AUX_FLAG: u8 = 255;
+
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
 ///
@@ -126,6 +128,23 @@ impl HashDB for ArchiveDB {
 	fn remove(&mut self, key: &H256) {
 		self.overlay.remove(key);
 	}
+
+	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
+		self.overlay.insert_aux(hash, value);
+	}
+
+	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
+		if let Some(res) = self.overlay.get_aux(hash) {
+			return Some(res)
+		}
+
+		let mut db_hash = hash.to_vec();
+		db_hash.push(AUX_FLAG);
+
+		self.backing.get(&db_hash)
+			.expect("Low-level database error. Some issue with your hard disk?")
+			.map(|v| v.to_vec())
+	}
 }
 
 impl JournalDB for ArchiveDB {
@@ -149,6 +168,7 @@ impl JournalDB for ArchiveDB {
 		let batch = DBTransaction::new();
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
+
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
@@ -161,6 +181,12 @@ impl JournalDB for ArchiveDB {
 				deletes += 1;
 			}
 		}
+
+		for (mut key, value) in self.overlay.drain_aux().into_iter() {
+			key.push(AUX_FLAG);
+			batch.put(&key, &value).expect("Low-level database error. Some issue with your hard disk?");
+		}
+
 		if self.latest_era.map_or(true, |e| now > e) {
 			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
 			self.latest_era = Some(now);

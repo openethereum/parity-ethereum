@@ -35,12 +35,15 @@ pub mod sectriedb;
 /// Export the sectriedbmut module.
 pub mod sectriedbmut;
 
+mod fatdb;
+
 pub use self::trietraits::{Trie, TrieMut};
 pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;
-pub use self::triedb::TrieDB;
+pub use self::triedb::{TrieDB, TrieDBIterator};
 pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
+pub use self::fatdb::{FatDB, FatDBIterator};
 
 /// Trie Errors
 #[derive(Debug)]

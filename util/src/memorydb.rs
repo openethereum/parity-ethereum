@@ -74,6 +74,7 @@ use std::default::Default;
 pub struct MemoryDB {
 	data: HashMap<H256, (Bytes, i32)>,
 	static_null_rlp: (Bytes, i32),
+	aux: HashMap<Bytes, Bytes>,
 }
 
 impl Default for MemoryDB {
@@ -88,6 +89,7 @@ impl MemoryDB {
 		MemoryDB {
 			data: HashMap::new(),
  			static_null_rlp: (vec![0x80u8; 1], 1),
+			aux: HashMap::new(),
 		}
 	}
 
@@ -137,6 +139,13 @@ impl MemoryDB {
 		let mut data = HashMap::new();
 		mem::swap(&mut self.data, &mut data);
 		data
+	}
+
+	/// Return the internal map of auxiliary data, clearing the current state.
+	pub fn drain_aux(&mut self) -> HashMap<Bytes, Bytes> {
+		let mut aux = HashMap::new();
+		mem::swap(&mut self.aux, &mut aux);
+		aux
 	}
 
 	/// Denote than an existing value has the given key. Used when a key gets removed without
@@ -232,6 +241,14 @@ impl HashDB for MemoryDB {
 		}{	// ... None falls through into...
 			self.data.insert(key.clone(), (Bytes::new(), -1));
 		}
+	}
+
+	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
+		self.aux.insert(hash, value);
+	}
+
+	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
+		self.aux.get(hash).cloned()
 	}
 }
 

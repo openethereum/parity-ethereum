@@ -99,12 +99,12 @@ impl<'db> TrieDBMut<'db> {
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB {
+	pub fn db(&self) -> &HashDB {
 		self.db
 	}
 
 	/// Get the backing database.
-	pub fn db_mut(&'db mut self) -> &'db mut HashDB {
+	pub fn db_mut(&mut self) -> &mut HashDB {
 		self.db
 	}
 
