@@ -20,6 +20,19 @@ pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
 use util::journaldb;
 
+/// Client state db compaction profile
+#[derive(Debug, PartialEq)]
+pub enum DatabaseCompactionProfile {
+	/// Default compaction profile
+	Default,
+	/// HDD or other slow storage io compaction profile
+	HDD,
+}
+
+impl Default for DatabaseCompactionProfile {
+	fn default() -> Self { DatabaseCompactionProfile::Default }
+}
+
 /// Client configuration. Includes configs for all sub-systems.
 #[derive(Debug, Default)]
 pub struct ClientConfig {
@@ -37,4 +50,6 @@ pub struct ClientConfig {
 	pub name: String,
 	/// State db cache-size if not default
 	pub db_cache_size: Option<usize>,
+	/// State db compaction profile
+	pub db_compaction: DatabaseCompactionProfile,
 }

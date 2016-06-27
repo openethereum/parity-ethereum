@@ -72,7 +72,7 @@ impl CompactionProfile {
 	}
 
 	/// Slow hdd compaction profile
-	pub fn hdd(&self) -> CompactionProfile {
+	pub fn hdd() -> CompactionProfile {
 		CompactionProfile {
 			initial_file_size: 192 * 1024 * 1024,
 			file_size_multiplier: 1,
