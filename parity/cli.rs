@@ -147,7 +147,7 @@ Sealing/Mining Options:
                            strict - Relay only executed transactions (this
                            guarantees we don't relay invalid transactions, but
                            means we relay nothing if not mining);
-                           lenient - Same as struct when mining, and cheap
+                           lenient - Same as strict when mining, and cheap
                            when not [default: cheap].
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
                            [default: 0.005]. The minimum gas price is set
