@@ -479,6 +479,12 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 						trace!(target: "miner", "Syncing. Cannot give any work.");
 						return Err(no_work_err());
 					}
+
+					// Otherwise spin until our submitted block has been included.
+					for _ in 0..10 {
+						if client.queue_info().total_queue_size() > 0 { break; }
+						std::thread::sleep(std::time::Duration::from_millis(100));
+					}
 				}
 
 				let miner = take_weak!(self.miner);
