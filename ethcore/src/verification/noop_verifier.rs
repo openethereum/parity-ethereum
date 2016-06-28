@@ -24,11 +24,11 @@ use super::Verifier;
 pub struct NoopVerifier;
 
 impl Verifier for NoopVerifier {
-	fn verify_block_family(_header: &Header, _bytes: &[u8], _engine: &Engine, _bc: &BlockProvider) -> Result<(), Error> {
+	fn verify_block_family(&self, _header: &Header, _bytes: &[u8], _engine: &Engine, _bc: &BlockProvider) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn verify_block_final(_expected: &Header, _got: &Header) -> Result<(), Error> {
+	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 }
