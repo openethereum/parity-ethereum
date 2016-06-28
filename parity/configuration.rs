@@ -275,7 +275,7 @@ impl Configuration {
 			_ => { die!("Invalid pruning method given."); }
 		};
 
-		if self.args.flag_fatdb {
+		if self.args.flag_fat_db {
 			if let journaldb::Algorithm::Archive = client_config.pruning {
 				client_config.trie_spec = TrieSpec::Fat;
 			} else {
