@@ -244,7 +244,7 @@ pub struct Args {
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
-	pub flag_policy: String,
+	pub flag_fork: String,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,

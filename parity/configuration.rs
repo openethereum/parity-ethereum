@@ -83,7 +83,7 @@ impl Configuration {
 	}
 
 	pub fn policy(&self) -> Policy {
-		match self.chain().as_str() {
+		match self.args.flag_fork.as_str() {
 			"dao-soft" => Policy::DaoSoft,
 			"normal" => Policy::Normal,
 			"dogmatic" => Policy::Dogmatic,
