@@ -954,7 +954,7 @@ mod tests {
 		::log::init_log();
 
 		let mut seed = H256::new();
-		for test_i in 0..10000 {
+		for test_i in 0..10 {
 			if test_i % 50 == 0 {
 				debug!("{:?} of 10000 stress tests done", test_i);
 			}
