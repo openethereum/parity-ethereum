@@ -31,7 +31,7 @@ pub enum VerifierType {
 	Canon,
 	/// Does not verify block at all.
 	/// Used in tests.
-	Noop
+	Noop,
 }
 
 impl Default for VerifierType {
