@@ -132,15 +132,10 @@ macro_rules! impl_hash {
 				$size
 			}
 
-			// TODO: remove once slice::clone_from_slice is stable
 			#[inline]
 			fn clone_from_slice(&mut self, src: &[u8]) -> usize {
-				let min = ::std::cmp::min($size, src.len());
-				let dst = &mut self.deref_mut()[.. min];
-				let src = &src[.. min];
-				for i in 0..min {
-					dst[i] = src[i];
-				}
+				let min = cmp::min($size, src.len());
+				self.0[..min].copy_from_slice(&src[..min]);
 				min
 			}
 
@@ -151,7 +146,7 @@ macro_rules! impl_hash {
 			}
 
 			fn copy_to(&self, dest: &mut[u8]) {
-				let min = ::std::cmp::min($size, dest.len());
+				let min = cmp::min($size, dest.len());
 				dest[..min].copy_from_slice(&self.0[..min]);
 			}
 
