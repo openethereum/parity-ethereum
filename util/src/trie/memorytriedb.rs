@@ -205,11 +205,6 @@ impl NodeStorage {
 		self.free_indices.push_back(idx);
 		mem::replace(&mut self.nodes[idx], Stored::New(Node::Empty))
 	}
-
-	/// Borrow a "stored" instance mutably.
-	fn borrow_stored(&mut self, handle: &StorageHandle) -> &mut Stored {
-		&mut self.nodes[handle.0]
-	}
 }
 
 impl<'a> Index<&'a StorageHandle> for NodeStorage {
@@ -642,7 +637,105 @@ impl<'a> MemoryTrieDB<'a> {
 	/// - Branch node where there is only a single entry;
 	/// - Extension node followed by anything other than a Branch node.
 	fn fix(&mut self, node: Node) -> Action {
-		unimplemented!()
+		match node {
+			Node::Branch(mut children, value) => {
+				// if only a single value, transmute to leaf/extension and feed through fixed.
+				#[derive(Debug)]
+				enum UsedIndex {
+					None,
+					One(u8),
+					Many,
+				};
+				let mut used_index = UsedIndex::None;
+				for i in 0..16 {
+					match (children[i].is_none(), &used_index) {
+						(false, &UsedIndex::None) => used_index = UsedIndex::One(i as u8),
+						(false, &UsedIndex::One(_)) => {
+							used_index = UsedIndex::Many;
+							break;
+						}
+						_ => continue,
+					}
+				}
+
+				match (used_index, value) {
+					(UsedIndex::None, None) => panic!("Branch with no subvalues. Something went wrong."),
+					(UsedIndex::One(a), None) => {
+						// one onward node. make an extension.
+						let new_partial = NibbleSlice::new_offset(&[a], 1).encoded(false);
+						let new_node = Node::Extension(new_partial, children[a as usize].take().unwrap());
+						match self.fix(new_node) {
+							// always replace, branch -> extension.
+							Action::Replace(n) | Action::Restore(n) => Action::Replace(n),
+							Action::Delete => Action::Delete,
+						}
+					}
+					(UsedIndex::None, Some(value)) => {
+						// make a leaf.
+						Action::Replace(Node::Leaf(NibbleSlice::new(&[]).encoded(true), value))
+					}
+					(_, value) => {
+						// all is well.
+						Action::Restore(Node::Branch(children, value))
+					}
+				}
+			}
+			Node::Extension(partial, child) => {
+				let stored = match child {
+					NodeHandle::InMemory(h) => self.storage.destroy(h),
+					NodeHandle::Hash(h) => {
+						let handle = self.cache(h);
+						self.storage.destroy(handle)
+					}
+				};
+
+				let (child_node, maybe_hash) = match stored {
+					Stored::New(node) => (node, None),
+					Stored::Cached(node, hash) => (node, Some(hash))
+				};
+
+				match child_node {
+					Node::Extension(sub_partial, sub_child) => {
+						// combine with node below.
+						if let Some(hash) = maybe_hash {
+							// delete the cached child since we are going to replace it.
+							self.death_row.insert(hash);
+						}
+						let partial = NibbleSlice::from_encoded(&partial).0;
+						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
+
+						let new_partial = NibbleSlice::new_composed(&partial, &sub_partial);
+						let node = Node::Extension(new_partial.encoded(false), sub_child);
+						Action::Replace(node)
+					}
+					Node::Leaf(sub_partial, value) => {
+						// combine with node below.
+						if let Some(hash) = maybe_hash {
+							// delete the cached child since we are going to replace it.
+							self.death_row.insert(hash);
+						}
+						let partial = NibbleSlice::from_encoded(&partial).0;
+						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
+
+						let new_partial = NibbleSlice::new_composed(&partial, &sub_partial);
+						let node = Node::Leaf(new_partial.encoded(true), value);
+						Action::Replace(node)
+					}
+					child_node => {
+						// reallocate the child node.
+						let stored = if let Some(hash) = maybe_hash {
+							Stored::Cached(child_node, hash)
+						} else {
+							Stored::New(child_node)
+						};
+
+						let ext = Node::Extension(partial, self.storage.alloc(stored).into());
+						Action::Restore(ext)
+					}
+				}
+			}
+			other => Action::Restore(other), // only ext and branch need fixing.
+		}
 	}
 
 	/// Commit the in-memory changes to disk, freeing their storage and
