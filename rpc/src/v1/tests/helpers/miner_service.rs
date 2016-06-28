@@ -43,7 +43,7 @@ pub struct TestMinerService {
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
 	limit: RwLock<usize>,
-	tx_gas_limit: RwLock<Option<U256>>,
+	tx_gas_limit: RwLock<U256>,
 }
 
 impl Default for TestMinerService {
@@ -59,7 +59,7 @@ impl Default for TestMinerService {
 			author: RwLock::new(Address::zero()),
 			extra_data: RwLock::new(vec![1, 2, 3, 4]),
 			limit: RwLock::new(1024),
-			tx_gas_limit: RwLock::new(None),
+			tx_gas_limit: RwLock::new(!U256::zero()),
 		}
 	}
 }
@@ -101,7 +101,7 @@ impl MinerService for TestMinerService {
 		*self.limit.write().unwrap() = limit;
 	}
 
-	fn set_tx_gas_limit(&self, limit: Option<U256>) {
+	fn set_tx_gas_limit(&self, limit: U256) {
 		*self.tx_gas_limit.write().unwrap() = limit;
 	}
 

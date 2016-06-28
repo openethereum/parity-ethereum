@@ -22,7 +22,7 @@ use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::service::SyncMessage;
 use v1::traits::EthcoreSet;
-use v1::types::{OptionalValue, Bytes};
+use v1::types::Bytes;
 
 /// Ethcore-specific rpc interface for operations altering the settings.
 pub struct EthcoreSetClient<M> where
@@ -87,7 +87,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_tx_gas_limit(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(OptionalValue<U256>,)>(params).and_then(|(limit,)| {
+		from_params::<(U256,)>(params).and_then(|(limit,)| {
 			take_weak!(self.miner).set_tx_gas_limit(limit.into());
 			to_value(&true)
 		})

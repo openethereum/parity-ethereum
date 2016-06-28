@@ -88,7 +88,7 @@ impl Configuration {
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: ext,
 			reseal_on_own_tx: own,
-			max_tx_gas: self.args.flag_max_tx_gas.as_ref().map(|d| Self::decode_u256(d, "--max-tx-gas")),
+			max_tx_gas: self.args.flag_max_tx_gas.as_ref().map_or(!U256::zero(), |d| Self::decode_u256(d, "--max-tx-gas")),
 			tx_queue_size: self.args.flag_tx_queue_size,
 			pending_set: match self.args.flag_relay_set.as_str() {
 				"cheap" => PendingSet::AlwaysQueue,

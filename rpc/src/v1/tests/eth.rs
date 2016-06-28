@@ -29,7 +29,7 @@ use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
 use util::io::IoChannel;
-use util::{U256, H256};
+use util::{U256, H256, Uint};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
@@ -54,7 +54,8 @@ fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			force_sealing: true,
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
-			max_tx_gas: None,
+			tx_queue_size: 1024,
+			max_tx_gas: !U256::zero(),
 			pending_set: PendingSet::SealingOrElseQueue,
 		},
 		spec,

@@ -50,9 +50,8 @@ pub struct MinerOptions {
 	pub reseal_on_external_tx: bool,
 	/// Reseal on receipt of new local transactions.
 	pub reseal_on_own_tx: bool,
-	/// Specify maximum amount of gas to bother considering for block insertion.
-	/// If `None`, then no limit.
-	pub max_tx_gas: Option<U256>,
+	/// Maximum amount of gas to bother considering for block insertion.
+	pub max_tx_gas: U256,
 	/// Maximum size of the transaction queue.
 	pub tx_queue_size: usize,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
@@ -65,7 +64,7 @@ impl Default for MinerOptions {
 			force_sealing: false,
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
-			max_tx_gas: None,
+			max_tx_gas: !U256::zero(),
 			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
 		}
@@ -134,7 +133,7 @@ impl Miner {
 		trace!(target: "miner", "prepare_sealing: entering");
 
 		let (transactions, mut open_block) = {
-			let transactions = {self.transaction_queue.lock().unwrap().top_transactions_maybe_limit(&self.options.max_tx_gas)};
+			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
 			let mut sealing_work = self.sealing_work.lock().unwrap();
 			let best_hash = chain.best_block_header().sha3();
 /*
@@ -399,7 +398,7 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().unwrap().set_limit(limit)
 	}
 
-	fn set_tx_gas_limit(&self, limit: Option<U256>) {
+	fn set_tx_gas_limit(&self, limit: U256) {
 		self.transaction_queue.lock().unwrap().set_tx_gas_limit(limit)
 	}
 
