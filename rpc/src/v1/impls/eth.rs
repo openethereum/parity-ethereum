@@ -19,7 +19,7 @@
 extern crate ethash;
 
 use std::thread;
-use std::time::Duration;
+use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
@@ -483,9 +483,9 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 					}
 
 					// Otherwise spin until our submitted block has been included.
-					for _ in 0..10 {
-						if client.queue_info().total_queue_size() > 0 { break; }
-						thread::sleep(Duration::from_millis(100));
+					let timeout = Instant::now() + Duration::from_millis(1000);
+					while Instant::now() < timeout && client.queue_info().total_queue_size() > 0 {
+						thread::sleep(Duration::from_millis(1));
 					}
 				}
 
