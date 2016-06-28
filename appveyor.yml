@@ -7,6 +7,14 @@ environment:
     secure: 0BgXJqxq9Ei34/hZ7121FQ==
   keyfile: C:\users\appveyor\Certificates.p12
 
+branches:
+  only:
+    - master
+    - /^beta-.*$/
+    - /^stable-.*$/
+    - /^beta$/
+    - /^stable$/
+
 install:
   - git submodule update --init --recursive
   - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-1.9.0-x86_64-pc-windows-msvc.exe"
