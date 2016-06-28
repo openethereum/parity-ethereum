@@ -140,6 +140,30 @@ enum Action {
 	Delete,
 }
 
+// post-insert action. Same as action without delete
+enum InsertAction {
+	// Replace a node with a new one.
+	Replace(Node),
+	// Restore the original node.
+	Restore(Node),
+}
+
+impl InsertAction {
+	fn as_action(self) -> Action {
+		match self {
+			InsertAction::Replace(n) => Action::Replace(n),
+			InsertAction::Restore(n) => Action::Restore(n),
+		}
+	}
+
+	// unwrap the node, disregarding replace or restore state.
+	fn unwrap_node(self) -> Node {
+		match self {
+			InsertAction::Replace(n) | InsertAction::Restore(n) => n,
+		}
+	}
+}
+
 // What kind of node is stored here.
 enum Stored {
 	// A new node.
@@ -368,26 +392,26 @@ impl<'a> MemoryTrieDB<'a> {
 		};
 		let stored = self.storage.destroy(h);
 		let (new_stored, changed) = self.inspect(stored, move |trie, stored| {
-			trie.insert_inspector(stored, partial, value)
+			trie.insert_inspector(stored, partial, value).as_action()
 		}).expect("Insertion never deletes.");
 
 		(self.storage.alloc(new_stored), changed)
 	}
 
 	/// the insertion inspector.
-	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: Bytes) -> Action {
+	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: Bytes) -> InsertAction {
 		match node {
 			Node::Empty => {
-				Action::Replace(Node::Leaf(partial.encoded(true), value))
+				InsertAction::Replace(Node::Leaf(partial.encoded(true), value))
 			}
 			Node::Branch(mut children, stored_value) => {
 				if partial.is_empty() {
 					let unchanged = stored_value.as_ref() == Some(&value);
 					if unchanged {
 						// no change required.
-						Action::Restore(Node::Branch(children, stored_value))
+						InsertAction::Restore(Node::Branch(children, stored_value))
 					} else {
-						Action::Replace(Node::Branch(children, Some(value)))
+						InsertAction::Replace(Node::Branch(children, Some(value)))
 					}
 				} else {
 					let idx = partial.at(0) as usize;
@@ -398,7 +422,7 @@ impl<'a> MemoryTrieDB<'a> {
 						children[idx] = Some(new_child.into());
 						if !changed {
 							// the new node we composed didn't change. that means our branch is untouched too.
-							return Action::Restore(Node::Branch(children, stored_value));
+							return InsertAction::Restore(Node::Branch(children, stored_value));
 						}
 					} else {
 						// original had nothing there. compose a leaf.
@@ -406,7 +430,7 @@ impl<'a> MemoryTrieDB<'a> {
 						children[idx] = Some(leaf.into());
 					}
 
-					Action::Replace(Node::Branch(children, stored_value))
+					InsertAction::Replace(Node::Branch(children, stored_value))
 				}
 			}
 			Node::Leaf(encoded, stored_value) => {
@@ -416,9 +440,9 @@ impl<'a> MemoryTrieDB<'a> {
 					// equivalent leaf.
 					if stored_value == value {
 						// unchanged. replace or restore.
-						Action::Restore(Node::Leaf(encoded.clone(), value))
+						InsertAction::Restore(Node::Leaf(encoded.clone(), value))
 					} else {
-						Action::Replace(Node::Leaf(encoded.clone(), value))
+						InsertAction::Replace(Node::Leaf(encoded.clone(), value))
 					}
 				} else if cp == 0 {
 					// one of us isn't empty: transmute to branch here
@@ -435,37 +459,29 @@ impl<'a> MemoryTrieDB<'a> {
 					};
 
 					// always replace because whatever we get out here is not the branch we started with.
-					match self.insert_inspector(branch, partial, value) {
-						Action::Replace(n) | Action::Restore(n) => Action::Replace(n),
-						Action::Delete => panic!("inserting into branch deleted node?")
-					}
+					InsertAction::Replace(self.insert_inspector(branch, partial, value).unwrap_node())
 				} else if cp == existing_key.len() {
 					// fully-shared prefix for an extension.
 					// make a stub branch and an extension.
 					let branch = Node::Branch(empty_children(), Some(stored_value));
 					// augment the new branch.
-					let branch = match self.insert_inspector(branch, partial.mid(cp), value) {
-						Action::Replace(n) | Action::Restore(n) => Stored::New(n),
-						Action::Delete => panic!("inserting into branch deleted node?")
-					};
+					let branch = self.insert_inspector(branch, partial.mid(cp), value).unwrap_node();
 
 					// always replace since we took a leaf and made an extension.
-					Action::Replace(Node::Extension(existing_key.encoded(false), self.storage.alloc(branch).into()))
+					let branch_handle = self.storage.alloc(Stored::New(branch)).into();
+					InsertAction::Replace(Node::Extension(existing_key.encoded(false), branch_handle))
 				} else {
 					// partially-shared prefix for an extension.
 					// start by making a leaf.
 					let low = Node::Leaf(existing_key.mid(cp).encoded(true), stored_value);
 					// augment it. this will result in the Leaf -> cp == 0 routine,
 					// which creates a branch.
-					let augmented_low = match self.insert_inspector(low, partial.mid(cp), value) {
-						Action::Replace(n) | Action::Restore(n) => Stored::New(n),
-						Action::Delete => panic!("inserting into leaf deleted node?")
-					};
+					let augmented_low = self.insert_inspector(low, partial.mid(cp), value).unwrap_node();
 
 					// make an extension using it. this is a replacement.
-					Action::Replace(Node::Extension(
+					InsertAction::Replace(Node::Extension(
 						existing_key.encoded_leftmost(cp, false),
-						self.storage.alloc(augmented_low).into()
+						self.storage.alloc(Stored::New(augmented_low)).into()
 					))
 				}
 			}
@@ -489,11 +505,7 @@ impl<'a> MemoryTrieDB<'a> {
 					};
 
 					// continue inserting.
-					match self.insert_inspector(Node::Branch(children, None), partial, value) {
-						// always replace since extension -> branch.
-						Action::Replace(n) | Action::Restore(n) => Action::Replace(n),
-						Action::Delete => panic!("inserting into branch deleted node?")
-					}
+					InsertAction::Replace(self.insert_inspector(Node::Branch(children, None), partial, value).unwrap_node())
 				} else if cp == existing_key.len() {
 					// fully-shared prefix.
 
@@ -501,25 +513,22 @@ impl<'a> MemoryTrieDB<'a> {
 					let (new_child, changed) = self.insert_at(child_branch, partial.mid(cp), value);
 					let new_ext = Node::Extension(existing_key.encoded(false), new_child.into());
 					if changed {
-						Action::Replace(new_ext)
+						InsertAction::Replace(new_ext)
 					} else {
 						// the child branch wasn't changed, meaning this extension remains the same.
-						Action::Restore(new_ext)
+						InsertAction::Restore(new_ext)
 					}
 				} else {
 					// partially-shared.
 					let low = Node::Extension(existing_key.mid(cp).encoded(false), child_branch);
 					// augment the extension. this will take the cp == 0 path, creating a branch.
-					let augmented_low = match self.insert_inspector(low, partial.mid(cp), value) {
-						Action::Replace(n) | Action::Restore(n) => Stored::New(n),
-						Action::Delete => panic!("inserting into extension deleted node?")
-					};
+					let augmented_low = self.insert_inspector(low, partial.mid(cp), value).unwrap_node();
 
 					// always replace, since this extension is not the one we started with.
 					// this is known because the partial key is only the common prefix.
-					Action::Replace(Node::Extension(
+					InsertAction::Replace(Node::Extension(
 						existing_key.encoded_leftmost(cp, false),
-						self.storage.alloc(augmented_low).into()
+						self.storage.alloc(Stored::New(augmented_low)).into()
 					))
 				}
 			}
