@@ -147,7 +147,7 @@ Sealing/Mining Options:
                            strict - Relay only executed transactions (this
                            guarantees we don't relay invalid transactions, but
                            means we relay nothing if not mining);
-                           lenient - Same as struct when mining, and cheap
+                           lenient - Same as strict when mining, and cheap
                            when not [default: cheap].
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
                            [default: 0.005]. The minimum gas price is set
@@ -162,7 +162,7 @@ Sealing/Mining Options:
                            block due to transaction volume [default: 3141592].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
-  --tx-queue-size LIMIT    Maxmimum amount of transactions in the queue (waiting
+  --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) [default: 1024].
 
 Footprint Options:
