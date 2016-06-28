@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+pub use std::time::Duration;
 pub use block_queue::BlockQueueConfig;
 pub use blockchain::Config as BlockChainConfig;
 pub use trace::{Config as TraceConfig, Switch};
@@ -31,6 +32,19 @@ pub enum DatabaseCompactionProfile {
 
 impl Default for DatabaseCompactionProfile {
 	fn default() -> Self { DatabaseCompactionProfile::Default }
+}
+
+/// Operating mode for the client.
+#[derive(Debug)]
+pub enum Mode {
+	/// Always on.
+	Active,
+	/// Goes offline after RLP is inactive for some (given) time.
+	Dark(Duration),
+}
+
+impl Default for Mode {
+	fn default() -> Self { Mode::Active }
 }
 
 /// Client configuration. Includes configs for all sub-systems.
@@ -52,4 +66,6 @@ pub struct ClientConfig {
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
+	/// Operating mode
+	pub mode: Mode,
 }

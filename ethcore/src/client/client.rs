@@ -18,7 +18,7 @@
 
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::time::{Instant, Duration};
+use std::time::Instant;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use util::panics::*;
@@ -39,7 +39,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
+use client::{BlockID, TransactionID, UncleID, TraceId, Mode, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -53,6 +53,7 @@ use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
+const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -85,6 +86,7 @@ impl ClientReport {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
+	mode: Mode,
 	chain: Arc<BlockChain>,
 	tracedb: Arc<TraceDB<BlockChain>>,
 	engine: Arc<Box<Engine>>,
@@ -173,6 +175,7 @@ impl<V> Client<V> where V: Verifier {
 		panic_handler.forward_from(&block_queue);
 
 		let client = Client {
+			mode: config.mode,
 			chain: chain,
 			tracedb: tracedb,
 			engine: engine,
@@ -450,12 +453,10 @@ impl<V> Client<V> where V: Verifier {
 		self.chain.collect_garbage();
 		self.block_queue.collect_garbage();
 
-		// seconds of inactivity before we go to sleep.
-		const SLEEP_TIMER: u64 = 60;
-
 		let last_activity = *self.last_activity.lock().unwrap();
-		if last_activity + Duration::from_secs(SLEEP_TIMER) < Instant::now() {
-			self.sleep();
+		match self.mode {
+			Mode::Dark(timeout) if Instant::now() > last_activity + timeout => { self.sleep(); }
+			_ => {}
 		}
 	}
 
@@ -505,7 +506,11 @@ impl<V> Client<V> where V: Verifier {
 		let mut liveness = self.liveness.lock().unwrap();
 		if *liveness {
 			*liveness = false;
-			self.io_channel.send(NetworkIoMessage::User(SyncMessage::StopNetwork)).unwrap();
+			// only sleep if the import queue is mostly empty.
+
+			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
+				self.io_channel.send(NetworkIoMessage::User(SyncMessage::StopNetwork)).unwrap();
+			}
 		}
 	}
 }
