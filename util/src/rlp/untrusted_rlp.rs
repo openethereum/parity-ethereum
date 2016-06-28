@@ -489,6 +489,23 @@ impl RlpDecodable for u8 {
 	}
 }
 
+impl<'a> Compressible for UntrustedRlp<'a> {
+	fn compress(&self) -> Self {
+		let RLP_SHA3_NULL_RLP = rlp::encode(&SHA3_NULL_RLP);
+    let RLP_SHA3_NULL_RLP = UntrustedRlp::new(&RLP_SHA3_NULL_RLP).as_raw();
+		let header = &self.bytes[..rlp.payload_info().unwrap().header_len];
+    let code_rlps = vec![[0x81, 0x00]];
+		let compact_rlp = self.iter()
+			.map(|subrlp| {
+        	let b = subrlp.as_raw();
+        	if b == RLP_SHA3_NULL_RLP { &code_rlps[0] }
+        	else { b }
+      	})
+  		.fold(header.to_vec(), |mut acc, slice| {acc.extend_from_slice(slice); acc});
+    UntrustedRlp::new(&compact_rlp)	
+	}
+}
+
 #[test]
 fn test_rlp_display() {
 	use rustc_serialize::hex::FromHex;
