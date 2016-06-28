@@ -24,8 +24,9 @@ test_script:
 
 after_test:
   - cargo build --verbose --release
-  - makensis.exe nsis\installer.nsi
   - ps: if($env:cert) { Start-FileDownload $env:cert -FileName $env:keyfile }
+  - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass target\release\parity.exe }
+  - makensis.exe nsis\installer.nsi
   - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass nsis\installer.exe }
 
 artifacts:
