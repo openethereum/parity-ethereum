@@ -500,7 +500,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.import_transactions(tx);
 	}
 
-	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.all_transactions()
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.pending_transactions()
 	}
 }

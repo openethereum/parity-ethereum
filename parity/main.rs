@@ -208,13 +208,13 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let account_service = Arc::new(conf.account_service());
 
 	// Miner
-	let miner = Miner::new(conf.args.flag_force_sealing, conf.spec(), Some(account_service.clone()));
+	let miner = Miner::new(conf.miner_options(), conf.spec(), Some(account_service.clone()));
 	miner.set_author(conf.author().unwrap_or_default());
 	miner.set_gas_floor_target(conf.gas_floor_target());
 	miner.set_gas_ceil_target(conf.gas_ceil_target());
 	miner.set_extra_data(conf.extra_data());
 	miner.set_minimal_gas_price(conf.gas_price());
-	miner.set_transactions_limit(conf.args.flag_tx_limit);
+	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
 	// Build client
 	let mut service = ClientService::start(
