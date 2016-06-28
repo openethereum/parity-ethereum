@@ -46,7 +46,8 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 		// optimize it later
 		.into_iter()
 		.enumerate()
-		.fold(BTreeMap::new(), | mut acc, (i, vec) | { acc.insert(rlp::encode(&i).to_vec(), vec); acc })
+		.map(|(i, vec)| (rlp::encode(&i).to_vec(), vec))
+		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )
@@ -78,10 +79,7 @@ pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
-		.fold(BTreeMap::new(), | mut acc, (k, v) | {
-			acc.insert(k, v);
-			acc
-		})
+		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )
@@ -113,10 +111,8 @@ pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
-		.fold(BTreeMap::new(), | mut acc, (k, v) | {
-			acc.insert(k.sha3().to_vec(), v);
-			acc
-		})
+		.map(|(k, v)| (k.sha3().to_vec(), v))
+		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )
