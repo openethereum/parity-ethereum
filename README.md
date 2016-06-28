@@ -31,12 +31,12 @@ In a near-future release, it will be easy to install Dapps and use them through 
 If you run into an issue while using parity, feel free to file one in this repository
 or hop on our [gitter chat room]([gitter-url]) to ask a question. We are glad to help!
 
-Parity's current release is 1.1. You can download it at https://ethcore.io/parity.html or follow the instructions
+Parity's current release is 1.2. You can download it at https://ethcore.io/parity.html or follow the instructions
 below to build from source.
 
 ----
 
-## Building from source
+## Build dependencies
 
 Parity is fully compatible with Stable Rust.
 
@@ -50,12 +50,24 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 - Windows
 
     Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from
-	https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe and use the following command to install and set up the msvc toolchain:
+	https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe, start "VS2015 x64 Native Tools Command Prompt", and use the following command to install and set up the msvc toolchain:
     ```
 	$ rustup default stable-x86_64-pc-windows-msvc
     ```
 
-Once you have rustup, download and build parity:
+Once you have rustup, install parity or download and build from source
+
+----
+
+## Quick install
+
+```bash
+cargo install --git https://github.com/ethcore/parity.git parity
+```
+
+----
+
+## Build from source
 
 ```bash
 # download Parity code

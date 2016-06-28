@@ -92,8 +92,10 @@ impl Server {
 	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
-			config.max_connections = 10;
+			// It's also used for handling min-sysui requests (browser can make many of them in paralel)
 			config.method_strict = true;
+			// Was shutting down server when suspending on linux:
+			config.shutdown_on_interrupt = false;
 			config
 		};
 
@@ -108,7 +110,17 @@ impl Server {
 		// Spawn a thread with event loop
 		let handle = thread::spawn(move || {
 			ph.catch_panic(move || {
-				ws.listen(addr).unwrap()
+				match ws.listen(addr).map_err(ServerError::from) {
+					Err(ServerError::IoError(io)) => die(format!(
+						"Signer: Could not start listening on specified address. Make sure that no other instance is running on Signer's port. Details: {:?}",
+						io
+					)),
+					Err(any_error) => die(format!(
+						"Signer: Unknown error occured when starting Signer. Details: {:?}",
+						any_error
+					)),
+					Ok(server) => server,
+				}
 			}).unwrap()
 		});
 
@@ -121,7 +133,11 @@ impl Server {
 					// TODO [ToDr] Some better structure here for messages.
 					broadcaster.send("new_message").unwrap();
 				}).expect("It's the only place we are running start_listening. It shouldn't fail.");
-				broadcaster.shutdown().expect("Broadcaster should close gently.")
+				let res = broadcaster.shutdown();
+
+				if let Err(e) = res {
+					warn!("Signer: Broadcaster was not closed cleanly. Details: {:?}", e);
+				}
 			}).unwrap()
 		});
 
@@ -146,5 +162,11 @@ impl Drop for Server {
 		self.queue.finish();
 		self.broadcaster_handle.take().unwrap().join().unwrap();
 		self.handle.take().unwrap().join().unwrap();
+
 	}
+}
+
+fn die(msg: String) -> ! {
+	println!("ERROR: {}", msg);
+	std::process::exit(1);
 }

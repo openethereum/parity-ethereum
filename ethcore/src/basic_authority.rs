@@ -17,7 +17,7 @@
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
 use common::*;
-use util::keys::store::AccountProvider;
+use account_provider::AccountProvider;
 use block::*;
 use spec::{CommonParams, Spec};
 use engine::*;
@@ -80,7 +80,7 @@ impl Engine for BasicAuthority {
 		Schedule::new_homestead()
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.difficulty = parent.difficulty;
 		header.gas_limit = {
 			let gas_limit = parent.gas_limit;
@@ -105,15 +105,13 @@ impl Engine for BasicAuthority {
 	/// be returned.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
 		if let Some(ap) = accounts {
-			// check to see if author is contained in self.our_params.authorities
-			if self.our_params.authorities.contains(block.header().author()) {
-				if let Ok(secret) = ap.account_secret(block.header().author()) {
-					return Some(block.header().author_seal(&secret));
-				} else {
-					trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
-				}
+			let header = block.header();
+			let message = header.bare_hash();
+			// account should be pernamently unlocked, otherwise sealing will fail
+			if let Ok(signature) = ap.sign(*block.header().author(), message) {
+				return Some(vec![encode(&signature).to_vec()]);
 			} else {
-				trace!(target: "basicauthority", "generate_seal: FAIL: block author {} isn't one of the authorized accounts {:?}", block.header().author(), self.our_params.authorities);
+				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
 		} else {
 			trace!(target: "basicauthority", "generate_seal: FAIL: accounts not provided");
@@ -176,16 +174,6 @@ impl Header {
 	pub fn signature(&self) -> H520 {
 		decode(&self.seal()[0])
 	}
-
-	/// Generate a seal for the block with the given `secret`.
-	pub fn author_seal(&self, secret: &Secret) -> Vec<Bytes> {
-		vec![encode(&ec::sign(secret, &self.bare_hash()).unwrap_or(Signature::new())).to_vec()]
-	}
-
-	/// Set the nonce and mix hash fields of the header.
-	pub fn sign(&mut self, secret: &Secret) {
-		self.seal = self.author_seal(secret);
-	}
 }
 
 /// Create a new test chain spec with `BasicAuthority` consensus engine.
@@ -197,7 +185,7 @@ mod tests {
 	use common::*;
 	use block::*;
 	use tests::helpers::*;
-	use util::keys::{TestAccountProvider, TestAccount};
+	use account_provider::AccountProvider;
 
 	#[test]
 	fn has_valid_metadata() {
@@ -215,8 +203,9 @@ mod tests {
 			timestamp: 0,
 			difficulty: 0.into(),
 			last_hashes: vec![],
+			dao_rescue_block_gas_limit: None,
 			gas_used: 0.into(),
-			gas_limit: 0.into()
+			gas_limit: 0.into(),
 		});
 
 		assert!(schedule.stack_limit > 0);
@@ -252,23 +241,10 @@ mod tests {
 	}
 
 	#[test]
-	fn can_do_signature_verification() {
-		let secret = "".sha3();
-		let addr = KeyPair::from_secret("".sha3()).unwrap().address();
-
-		let engine = new_test_authority().engine;
-		let mut header: Header = Header::default();
-		header.set_author(addr);
-		header.sign(&secret);
-
-		assert!(engine.verify_block_unordered(&header, None).is_ok());
-	}
-
-	#[test]
 	fn can_generate_seal() {
-		let addr = KeyPair::from_secret("".sha3()).unwrap().address();
-		let accounts = hash_map![addr => TestAccount{unlocked: true, password: Default::default(), secret: "".sha3()}];
-		let tap = TestAccountProvider::new(accounts);
+		let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account("".sha3(), "").unwrap();
+		tap.unlock_account_permanently(addr, "".into()).unwrap();
 
 		let spec = new_test_authority();
 		let engine = &spec.engine;
@@ -278,10 +254,9 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, addr.clone(), 3141562.into(), vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, None, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
-
 		assert!(b.try_seal(engine.deref(), seal).is_ok());
 	}
 }

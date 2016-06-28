@@ -3,7 +3,7 @@ description = "Ethcore Trusted Signer"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore-signer"
-version = "1.2.0"
+version = "1.3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
@@ -15,12 +15,12 @@ rand = "0.3.14"
 jsonrpc-core = "2.0"
 log = "0.3"
 env_logger = "0.3"
-ws = { git = "https://github.com/ethcore/ws-rs.git" }
+ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "stable" }
 ethcore-util = { path = "../util" }
 ethcore-rpc = { path = "../rpc" }
-parity-minimal-sysui = { git = "https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git" }
+parity-minimal-sysui = { git = "https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git", version = "0.2.0" }
 
-clippy = { version = "0.0.76", optional = true}
+clippy = { version = "0.0.77", optional = true}
 
 [features]
 dev = ["clippy"]

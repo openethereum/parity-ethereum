@@ -16,9 +16,8 @@
 
 //! Just in time compiler execution environment.
 use common::*;
-use trace::VMTracer;
 use evmjit;
-use evm::{self, Error, GasLeft};
+use evm::{self, GasLeft};
 
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {
@@ -303,7 +302,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 
 #[derive(Default)]
 pub struct JitEvm {
-	ctxt: Option<evmjit::ContextHandle>,
+	context: Option<evmjit::ContextHandle>,
 }
 
 impl evm::Evm for JitEvm {
@@ -347,7 +346,7 @@ impl evm::Evm for JitEvm {
 		data.timestamp = ext.env_info().timestamp as i64;
 
 		self.context = Some(unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) });
-		let context = self.context.as_ref_mut().unwrap();
+		let mut context = self.context.as_mut().unwrap();
 		let res = context.exec();
 
 		match res {

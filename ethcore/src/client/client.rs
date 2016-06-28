@@ -19,6 +19,7 @@
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::time::{Instant, Duration};
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use util::panics::*;
 use views::BlockView;
@@ -38,7 +39,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -50,6 +51,8 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
+
+const MAX_TX_QUEUE_SIZE: usize = 4096;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -95,7 +98,8 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	miner: Arc<Miner>,
 	last_activity: Mutex<Instant>,
 	liveness: Mutex<bool>,
-	io: IoChannel<NetSyncMessage>,
+	io_channel: IoChannel<NetSyncMessage>,
+	queue_transactions: AtomicUsize,
 }
 
 const HISTORY: u64 = 1200;
@@ -144,7 +148,19 @@ impl<V> Client<V> where V: Verifier {
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
 
-		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
+		let mut state_db_config = match config.db_cache_size {
+			None => DatabaseConfig::default(),
+			Some(cache_size) => DatabaseConfig::with_cache(cache_size),
+		};
+
+		if config.db_compaction == DatabaseCompactionProfile::HDD {
+			state_db_config = state_db_config.compaction(CompactionProfile::hdd());
+		}
+
+		let mut state_db = journaldb::new(
+			&append_path(&path, "state"),
+			config.pruning,
+			state_db_config);
 
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
@@ -170,7 +186,8 @@ impl<V> Client<V> where V: Verifier {
 			miner: miner,
 			last_activity: Mutex::new(Instant::now()),
 			liveness: Mutex::new(true),
-			io: message_channel,
+			io_channel: message_channel,
+			queue_transactions: AtomicUsize::new(0),
 		};
 
 		Ok(Arc::new(client))
@@ -226,7 +243,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -277,6 +294,7 @@ impl<V> Client<V> where V: Verifier {
 		let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 		let _import_lock = self.import_lock.lock();
+		let _timer = PerfTimer::new("import_verified_blocks");
 		let blocks = self.block_queue.drain(max_blocks_to_import);
 
 		let original_best = self.chain_info().best_block_hash;
@@ -291,7 +309,7 @@ impl<V> Client<V> where V: Verifier {
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
 				invalid_blocks.insert(header.hash());
-				break;
+				continue;
 			}
 			imported_blocks.push(header.hash());
 
@@ -354,7 +372,7 @@ impl<V> Client<V> where V: Verifier {
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
-				})).unwrap();
+				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 			}
 		}
 
@@ -365,6 +383,19 @@ impl<V> Client<V> where V: Verifier {
 		}
 
 		imported
+	}
+
+	/// Import transactions from the IO queue
+	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
+		let _timer = PerfTimer::new("import_queued_transactions");
+		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: self.latest_nonce(a),
+			balance: self.latest_balance(a),
+		};
+		let tx = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		let results = self.miner.import_transactions(self, tx, fetch_account);
+		results.len()
 	}
 
 	/// Attempt to get a copy of a specific block's state.
@@ -466,7 +497,7 @@ impl<V> Client<V> where V: Verifier {
 		let mut liveness = self.liveness.lock().unwrap();
 		if !*liveness {
 			*liveness = true;
-			self.io.send(NetworkIoMessage::User(SyncMessage::Resume)).unwrap();
+			self.io_channel.send(NetworkIoMessage::User(SyncMessage::StartNetwork)).unwrap();
 		}
 	}
 
@@ -474,7 +505,7 @@ impl<V> Client<V> where V: Verifier {
 		let mut liveness = self.liveness.lock().unwrap();
 		if *liveness {
 			*liveness = false;
-			self.io.send(NetworkIoMessage::User(SyncMessage::Suspend)).unwrap();
+			self.io_channel.send(NetworkIoMessage::User(SyncMessage::StopNetwork)).unwrap();
 		}
 	}
 }
@@ -492,6 +523,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
 			gas_limit: U256::max_value(),
+			dao_rescue_block_gas_limit: self.dao_rescue_block_gas_limit(view.parent_hash()),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state();
@@ -782,7 +814,23 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			nonce: self.latest_nonce(a),
 			balance: self.latest_balance(a),
 		};
-		self.miner.import_transactions(transactions, fetch_account)
+		self.miner.import_transactions(self, transactions, fetch_account)
+	}
+
+	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+		if self.queue_transactions.load(AtomicOrdering::Relaxed) > MAX_TX_QUEUE_SIZE {
+			debug!("Ignoring {} transactions: queue is full", transactions.len());
+		} else {
+			let len = transactions.len();
+			match self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewTransactions(transactions))) {
+				Ok(_) => {
+					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
+				}
+				Err(e) => {
+					debug!("Ignoring {} transactions: error queueing: {}", len, e);
+				}
+			}
+		}
 	}
 
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
@@ -791,7 +839,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 }
 
 impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
-	fn prepare_open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
 
@@ -802,11 +850,11 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			self.state_db.lock().unwrap().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
 			self.build_last_hashes(h.clone()),
+			self.dao_rescue_block_gas_limit(h.clone()),
 			author,
-			gas_floor_target,
+			gas_range_target,
 			extra_data,
-		).expect("OpenBlock::new only fails if parent state root invalid. State root of best block's header is never invalid. \
-		         Therefore creating an OpenBlock with the best block's header will not fail.");
+		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 
 		// Add uncles
 		self.chain

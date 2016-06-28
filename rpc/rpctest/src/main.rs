@@ -123,7 +123,7 @@ impl Configuration {
 			accs.insert(Address::from(1), TestAccount::new("test"));
 			let accounts = Arc::new(TestAccountProvider::new(accs));
 			let server = rpc::RpcServer::new();
-			server.add_delegate(EthClient::new(&client, &sync, &accounts, &miner).to_delegate());
+			server.add_delegate(EthClient::new(&client, &sync, &accounts, &miner, true).to_delegate());
 			server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 
 			let url = format!("{}:{}", self.args.flag_jsonrpc_addr, self.args.flag_jsonrpc_port);
