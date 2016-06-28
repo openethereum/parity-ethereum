@@ -459,10 +459,11 @@ impl TransactionQueue {
 
 		if tx.gas > self.gas_limit || self.tx_gas_limit.map(|l| tx.gas > l).unwrap_or(false) {
 			trace!(target: "miner",
-				"Dropping transaction above gas limit: {:?} ({} > {})",
+				"Dropping transaction above gas limit: {:?} ({} > min({}, {:?}))",
 				tx.hash(),
 				tx.gas,
-				self.gas_limit
+				self.gas_limit,
+				self.tx_gas_limit
 			);
 
 			return Err(Error::Transaction(TransactionError::GasLimitExceeded {
@@ -606,7 +607,7 @@ impl TransactionQueue {
 		self.current.by_priority
 			.iter()
 			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
-			.filter_map(|t| if &t.transaction.gas <= max_tx_gas { Some(t.transaction.clone()) } else { None })
+			.map(|t| &t.transaction).filter(|t| t.gas <= *max_tx_gas).cloned()
 			.collect()
 	}
 

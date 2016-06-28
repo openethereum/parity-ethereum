@@ -496,7 +496,7 @@ impl MinerService for Miner {
 		};
 		match (&self.options.pending_set, sealing_set) {
 			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.top_transactions(),
-			(_, sealing) => sealing.map(|s| s.transactions().clone()).unwrap_or(Vec::new()),
+			(_, sealing) => sealing.map_or_else(Vec::new, |s| s.transactions().clone()),
 		}
 	}
 
@@ -509,7 +509,7 @@ impl MinerService for Miner {
 		};
 		match (&self.options.pending_set, sealing_set) {
 			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.pending_hashes(),
-			(_, sealing) => sealing.map(|s| s.transactions().iter().map(|t| t.hash()).collect()).unwrap_or(Vec::new()),
+			(_, sealing) => sealing.map_or_else(Vec::new, |s| s.transactions().iter().map(|t| t.hash()).collect()),
 		}
 	}
 
