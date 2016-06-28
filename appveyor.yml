@@ -26,7 +26,7 @@ after_test:
   - cargo build --verbose --release
   - makensis.exe nsis\installer.nsi
   - ps: if($env:cert) { Start-FileDownload $env:cert -FileName $env:keyfile }
-  - ps: if($env:cert) { signtool /f $env:keyfile /p $env:certpass nsis\installer.exe }
+  - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass nsis\installer.exe }
 
 artifacts:
   - path: nsis\installer.exe
