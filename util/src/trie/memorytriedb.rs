@@ -536,8 +536,103 @@ impl<'a> MemoryTrieDB<'a> {
 	}
 
 	/// Remove a node from the trie based on key.
-	fn remove_at(&mut self, handle: NodeHandle, partial: NibbleSlice) -> Option<StorageHandle> {
-		unimplemented!()
+	fn remove_at(&mut self, handle: NodeHandle, partial: NibbleSlice) -> Option<(StorageHandle, bool)> {
+		let stored = match handle {
+			NodeHandle::InMemory(h) => self.storage.destroy(h),
+			NodeHandle::Hash(h) => {
+				let handle = self.cache(h);
+				self.storage.destroy(handle)
+			}
+		};
+
+		self.inspect(stored, move |trie, node| trie.remove_inspector(node, partial))
+			.map(|(new, changed)| (self.storage.alloc(new), changed))
+	}
+
+	/// the removal inspector
+	fn remove_inspector(&mut self, node: Node, partial: NibbleSlice) -> Action {
+		match (node, partial.is_empty()) {
+			(Node::Empty, _) => Action::Restore(Node::Empty),
+			(Node::Branch(c, None), true) => Action::Restore(Node::Branch(c, None)),
+			(Node::Branch(children, _), true) => {
+				match self.fix(Node::Branch(children, None)) {
+					// always replace since we took out the value.
+					Action::Replace(n) | Action::Restore(n) => Action::Replace(n),
+					Action::Delete => Action::Delete,
+				}
+			}
+			(Node::Branch(mut children, value), false) => {
+				let idx = partial.at(0) as usize;
+				if let Some(child) = children[idx].take() {
+					match self.remove_at(child, partial.mid(1)) {
+						Some((new, changed)) => {
+							children[idx] = Some(new.into());
+							let branch = Node::Branch(children, value);
+							if changed {
+								// child was changed, so we were.
+								Action::Replace(branch)
+							} else {
+								// unchanged, so we are too.
+								Action::Restore(branch)
+							}
+						}
+						None => {
+							// the child we took was deleted.
+							// the node may need fixing.
+							match self.fix(Node::Branch(children, value)) {
+								// can't restore since we did take a child.
+								Action::Replace(n) | Action::Restore(n) => Action::Replace(n),
+								Action::Delete => Action::Delete,
+							}
+						}
+					}
+				} else {
+					// no change needed.
+					Action::Restore(Node::Branch(children, value))
+				}
+			}
+			(Node::Leaf(encoded, value), _) => {
+				if NibbleSlice::from_encoded(&encoded).0 == partial {
+					// this is the node we were looking for. Let's delete it.
+					Action::Delete
+				} else {
+					// leaf the node alone.
+					Action::Restore(Node::Leaf(encoded, value))
+				}
+			}
+			(Node::Extension(encoded, child_branch), _) => {
+				let cp = NibbleSlice::from_encoded(&encoded).0.common_prefix(&partial);
+				if cp == partial.len() {
+					// try to remove from the child branch.
+					match self.remove_at(child_branch, partial.mid(cp)) {
+						Some((new_child, changed)) => {
+							let new_child = new_child.into();
+							if !changed {
+								// the branch we put in was unchanged.
+								// this means that the extension doesn't need changing either.
+								Action::Restore(Node::Extension(encoded, new_child))
+							} else {
+								// the new node may not be a branch.
+								let new_encoded = partial.encoded(false);
+								match self.fix(Node::Extension(new_encoded, new_child)) {
+									// always replace since we know the child branch was changed somehow
+									Action::Replace(n) | Action::Restore(n) => Action::Replace(n),
+									// our new extension was useless. propagate deletion.
+									Action::Delete => Action::Delete,
+								}
+							}
+						}
+						None => {
+							// the whole branch got deleted.
+							// that means that this extension is useless.
+							Action::Delete
+						}
+					}
+				} else {
+					Action::Restore(Node::Extension(encoded, child_branch))
+				}
+			}
+		}
 	}
 
 	/// Given a node which may be in an _invalid state_, fix it such that it is then in a valid
@@ -546,7 +641,7 @@ impl<'a> MemoryTrieDB<'a> {
 	/// _invalid state_ means:
 	/// - Branch node where there is only a single entry;
 	/// - Extension node followed by anything other than a Branch node.
-	fn fix(&mut self, node: Node) -> Node {
+	fn fix(&mut self, node: Node) -> Action {
 		unimplemented!()
 	}
 
