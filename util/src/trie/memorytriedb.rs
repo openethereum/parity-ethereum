@@ -599,44 +599,58 @@ impl<'a> MemoryTrieDB<'a> {
 	/// the removal inspector
 	fn remove_inspector(&mut self, node: Node, partial: NibbleSlice) -> Action {
 		match (node, partial.is_empty()) {
-			(Node::Empty, _) => Action::Restore(Node::Empty),
-			(Node::Branch(c, None), true) => Action::Restore(Node::Branch(c, None)),
+			(Node::Empty, _) => {
+				trace!(target: "trie", "Deleting empty, partial={:?}", partial);
+				Action::Delete
+			}
+			(Node::Branch(c, None), true) => {
+				trace!(target: "trie", "Restoring branch, partial={:?}", partial);
+				Action::Restore(Node::Branch(c, None))
+			}
 			(Node::Branch(children, _), true) => {
+				trace!(target: "trie", "removing value out of branch, partial={:?}", partial);
 				// always replace since we took the value out.
 				Action::Replace(self.fix(Node::Branch(children, None)))
 			}
 			(Node::Branch(mut children, value), false) => {
 				let idx = partial.at(0) as usize;
 				if let Some(child) = children[idx].take() {
+					trace!(target: "trie", "removing value out of branch child, partial={:?}", partial);
 					match self.remove_at(child, partial.mid(1)) {
 						Some((new, changed)) => {
 							children[idx] = Some(new.into());
 							let branch = Node::Branch(children, value);
 							if changed {
-								// child was changed, so we were.
+								// child was changed, so we were too.
+								trace!(target: "trie", "replacing branch child, partial={:?}", partial);
 								Action::Replace(branch)
 							} else {
 								// unchanged, so we are too.
+								trace!(target: "trie", "restoring branch child, partial={:?}", partial);
 								Action::Restore(branch)
 							}
 						}
 						None => {
 							// the child we took was deleted.
 							// the node may need fixing.
+							trace!(target: "trie", "branch child deleted, partial={:?}", partial);
 							Action::Replace(self.fix(Node::Branch(children, value)))
 						}
 					}
 				} else {
 					// no change needed.
+					trace!(target: "trie", "Restoring branch, partial={:?}", partial);
 					Action::Restore(Node::Branch(children, value))
 				}
 			}
 			(Node::Leaf(encoded, value), _) => {
 				if NibbleSlice::from_encoded(&encoded).0 == partial {
 					// this is the node we were looking for. Let's delete it.
+					trace!(target: "trie", "deleting leaf, partial={:?}", partial);
 					Action::Delete
 				} else {
 					// leaf the node alone.
+					trace!(target: "trie", "restoring leaf wrong partial, partial={:?}, existing={:?}", partial, NibbleSlice::from_encoded(&encoded).0);
 					Action::Restore(Node::Leaf(encoded, value))
 				}
 			}
@@ -647,28 +661,32 @@ impl<'a> MemoryTrieDB<'a> {
 				};
 				if cp == existing_len {
 					// try to remove from the child branch.
+					trace!(target: "trie", "removing from extension child, partial={:?}", partial);
 					match self.remove_at(child_branch, partial.mid(cp)) {
 						Some((new_child, changed)) => {
 							let new_child = new_child.into();
 							if !changed {
 								// the branch we put in was unchanged.
 								// this means that the extension doesn't need changing either.
+								trace!(target: "trie", "restoring extension, partial={:?}", partial);
 								Action::Restore(Node::Extension(encoded, new_child))
 							} else {
+								trace!(target: "trie", "replacing extension child, partial={:?}", partial);
 								// the new node may not be a branch.
-								let new_encoded = partial.encoded(false);
 								// always replace since the child was changed somehow.
-								Action::Replace(self.fix(Node::Extension(new_encoded, new_child)))
+								Action::Replace(self.fix(Node::Extension(encoded, new_child)))
 							}
 						}
 						None => {
 							// the whole branch got deleted.
 							// that means that this extension is useless.
+							trace!(target: "trie", "propagating branch delete to extension, partial={:?}", partial);
 							Action::Delete
 						}
 					}
 				} else {
 					// partway through an extension -- nothing to do here.
+					trace!(target: "trie", "restoring extension wrong partial, partial={:?}, existing={:?}", partial, NibbleSlice::from_encoded(&encoded).0);
 					Action::Restore(Node::Extension(encoded, child_branch))
 				}
 			}
@@ -713,10 +731,12 @@ impl<'a> MemoryTrieDB<'a> {
 					}
 					(UsedIndex::None, Some(value)) => {
 						// make a leaf.
+						trace!(target: "trie", "fixing: branch -> leaf");
 						Node::Leaf(NibbleSlice::new(&[]).encoded(true), value)
 					}
 					(_, value) => {
 						// all is well.
+						trace!(target: "trie", "fixing: restoring branch");
 						Node::Branch(children, value)
 					}
 				}
@@ -746,7 +766,8 @@ impl<'a> MemoryTrieDB<'a> {
 						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
 
 						let new_partial = NibbleSlice::new_composed(&partial, &sub_partial);
-						Node::Extension(new_partial.encoded(false), sub_child)
+						trace!(target: "trie", "fixing: extension combination. new_partial={:?}", new_partial);
+						self.fix(Node::Extension(new_partial.encoded(false), sub_child))
 					}
 					Node::Leaf(sub_partial, value) => {
 						// combine with node below.
@@ -758,9 +779,12 @@ impl<'a> MemoryTrieDB<'a> {
 						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
 
 						let new_partial = NibbleSlice::new_composed(&partial, &sub_partial);
+						trace!(target: "trie", "fixing: extension -> leaf. new_partial={:?}", new_partial);
 						Node::Leaf(new_partial.encoded(true), value)
 					}
 					child_node => {
+						trace!(target: "trie", "fixing: restoring extension");
+
 						// reallocate the child node.
 						let stored = if let Some(hash) = maybe_hash {
 							Stored::Cached(child_node, hash)
@@ -871,7 +895,9 @@ impl<'a> TrieMut for MemoryTrieDB<'a> {
 
 	fn remove(&mut self, key: &[u8]) {
 		let root_handle = self.root_handle();
-		match self.remove_at(root_handle.into(), NibbleSlice::new(key)) {
+		let key = NibbleSlice::new(key);
+		trace!(target: "trie", "Beginning remove, key={:?}", key);
+		match self.remove_at(root_handle.into(), key) {
 			Some((handle, changed)) => {
 				self.root_handle = handle;
 				self.dirty = self.dirty || changed;
@@ -881,6 +907,7 @@ impl<'a> TrieMut for MemoryTrieDB<'a> {
 				self.dirty = true;
 			}
 		};
+		trace!(target: "trie", "/");
 	}
 }
 
@@ -927,7 +954,7 @@ mod tests {
 		::log::init_log();
 
 		let mut seed = H256::new();
-		for test_i in 0..1 {
+		for test_i in 0..10000 {
 			if test_i % 50 == 0 {
 				debug!("{:?} of 10000 stress tests done", test_i);
 			}
