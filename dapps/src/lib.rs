@@ -132,9 +132,16 @@ impl Server {
 				special.clone(),
 				authorization.clone(),
 			))
-			.map(|l| Server {
-				server: Some(l),
-				panic_handler: panic_handler,
+			.map(|(l, srv)| {
+
+				::std::thread::spawn(move || {
+					srv.run();
+				});
+
+				Server {
+					server: Some(l),
+					panic_handler: panic_handler,
+				}
 			})
 			.map_err(ServerError::from)
 	}

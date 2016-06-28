@@ -22,6 +22,7 @@ use tests::helpers::*;
 use devtools::*;
 use spec::Genesis;
 use ethjson;
+use ethjson::blockchain::BlockChain;
 use miner::Miner;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
@@ -41,20 +42,28 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			flush!("   - {}...", name);
 
-			let mut spec = match era {
-				ChainEra::Frontier => ethereum::new_frontier_test(),
-				ChainEra::Homestead => ethereum::new_homestead_test(),
+			let spec = |blockchain: &BlockChain| {
+				let genesis = Genesis::from(blockchain.genesis());
+				let state = From::from(blockchain.pre_state.clone());
+				let mut spec = match era {
+					ChainEra::Frontier => ethereum::new_frontier_test(),
+					ChainEra::Homestead => ethereum::new_homestead_test(),
+				};
+				spec.set_genesis_state(state);
+				spec.overwrite_genesis_params(genesis);
+				assert!(spec.is_state_root_valid());
+				spec
 			};
-
-			let genesis = Genesis::from(blockchain.genesis());
-			let state = From::from(blockchain.pre_state.clone());
-			spec.set_genesis_state(state);
-			spec.overwrite_genesis_params(genesis);
-			assert!(spec.is_state_root_valid());
 
 			let temp = RandomTempPath::new();
 			{
-				let client = Client::new(ClientConfig::default(), spec, temp.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
+				let client = Client::new(
+					ClientConfig::default(),
+					spec(&blockchain),
+					temp.as_path(),
+					Arc::new(Miner::with_spec(spec(&blockchain))),
+					IoChannel::disconnected()
+				).unwrap();
 				for b in &blockchain.blocks_rlp() {
 					if Block::is_good(&b) {
 						let _ = client.import_block(b.clone());

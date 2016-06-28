@@ -42,11 +42,11 @@ pub struct EndpointInfo {
 pub trait Endpoint : Send + Sync {
 	fn info(&self) -> Option<&EndpointInfo> { None }
 
-	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<HttpStream>>;
+	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<HttpStream> + Send>;
 }
 
 pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
-pub type Handler = server::Handler<HttpStream>;
+pub type Handler = server::Handler<HttpStream> + Send;
 
 pub struct ContentHandler {
 	content: String,
@@ -65,7 +65,7 @@ impl ContentHandler {
 }
 
 impl server::Handler<HttpStream> for ContentHandler {
-	fn on_request(&mut self, _request: server::Request) -> Next {
+	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
 		Next::write()
 	}
 

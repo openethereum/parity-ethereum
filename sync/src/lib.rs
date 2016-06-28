@@ -44,8 +44,14 @@
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
 //! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(true), &dir, Arc::new(Miner::default()), service.io().channel()).unwrap();
-//! 	let miner = Miner::new(false, ethereum::new_frontier(true));
+//! 	let miner = Miner::new(false, ethereum::new_frontier(true), None);
+//! 	let client = Client::new(
+//!			ClientConfig::default(),
+//!			ethereum::new_frontier(true),
+//!			&dir,
+//!			miner,
+//!			service.io().channel()
+//!		).unwrap();
 //! 	let sync = EthSync::new(SyncConfig::default(), client);
 //! 	EthSync::register(&mut service, sync);
 //! }
@@ -154,11 +160,13 @@ impl SyncProvider for EthSync {
 	}
 
 	fn start_network(&self) {
-		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StartNetwork)).expect("Error sending IO notification");
+		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StartNetwork))
+			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 	}
 
 	fn stop_network(&self) {
-		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StopNetwork)).expect("Error sending IO notification");
+		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StopNetwork))
+			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 	}
 }
 

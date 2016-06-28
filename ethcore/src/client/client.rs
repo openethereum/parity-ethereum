@@ -38,7 +38,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -147,10 +147,19 @@ impl<V> Client<V> where V: Verifier {
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
 
+		let mut state_db_config = match config.db_cache_size {
+			None => DatabaseConfig::default(),
+			Some(cache_size) => DatabaseConfig::with_cache(cache_size),
+		};
+
+		if config.db_compaction == DatabaseCompactionProfile::HDD {
+			state_db_config = state_db_config.compaction(CompactionProfile::hdd());
+		}
+
 		let mut state_db = journaldb::new(
 			&append_path(&path, "state"),
 			config.pruning,
-			config.db_cache_size);
+			state_db_config);
 
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
@@ -298,7 +307,7 @@ impl<V> Client<V> where V: Verifier {
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
 				invalid_blocks.insert(header.hash());
-				break;
+				continue;
 			}
 			imported_blocks.push(header.hash());
 
@@ -361,7 +370,7 @@ impl<V> Client<V> where V: Verifier {
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
-				})).unwrap();
+				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 			}
 		}
 
