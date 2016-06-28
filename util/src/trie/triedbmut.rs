@@ -271,6 +271,7 @@ impl<'db> TrieDBMut<'db> {
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Journal = Journal::new();
 		let root_rlp = self.augmented(self.root_data(), key, value, &mut todo);
+		trace!(target: "trie", "root node rlp: {:?}", root_rlp.pretty());
 		self.apply(todo);
 		self.set_root_rlp(&root_rlp);
 		trace!("/");
@@ -364,12 +365,12 @@ impl<'db> TrieDBMut<'db> {
 	///
 	/// **This operation will not insert the new node nor destroy the original.**
 	fn augmented(&self, old: &[u8], partial: &NibbleSlice, value: &[u8], journal: &mut Journal) -> Bytes {
-		trace!("augmented (old: {:?}, partial: {:?}, value: {:?})", old.pretty(), partial, value.pretty());
+		trace!(target: "trie", "augmented (partial: {:?}, value: {:?})", partial, value.pretty());
 		// already have an extension. either fast_forward, cleve or transmute_to_branch.
 		let old_rlp = Rlp::new(old);
 		match old_rlp.prototype() {
 			Prototype::List(17) => {
-				trace!("branch: ROUTE,AUGMENT");
+				trace!(target: "trie", "branch: ROUTE,AUGMENT");
 				// already have a branch. route and augment.
 				let mut s = RlpStream::new_list(17);
 				let index = if partial.is_empty() {16} else {partial.at(0) as usize};
@@ -396,12 +397,12 @@ impl<'db> TrieDBMut<'db> {
 				match (is_leaf, partial.common_prefix(&existing_key)) {
 					(true, cp) if cp == existing_key.len() && partial.len() == existing_key.len() => {
 						// equivalent-leaf: replace
-						trace!("equivalent-leaf: REPLACE");
+						trace!(target: "trie", "equivalent-leaf: REPLACE");
 						Self::compose_leaf(partial, value)
 					},
 					(_, 0) => {
 						// one of us isn't empty: transmute to branch here
-						trace!("no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,AUGMENT", existing_key.len(), partial.len());
+						trace!(target: "trie", "no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,AUGMENT", existing_key.len(), partial.len());
 						assert!(is_leaf || !existing_key.is_empty());	// extension nodes are not allowed to have empty partial keys.
 						let mut s = RlpStream::new_list(17);
 						let index = if existing_key.is_empty() {16} else {existing_key.at(0)};
@@ -422,7 +423,7 @@ impl<'db> TrieDBMut<'db> {
 						self.augmented(&s.out(), partial, value, journal)
 					},
 					(_, cp) if cp == existing_key.len() => {
-						trace!("complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
+						trace!(target: "trie", "complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
 						// fully-shared prefix for this extension:
 						// transform to an extension + augmented version of onward node.
 						let downstream_node: Bytes = match is_leaf {
@@ -431,7 +432,6 @@ impl<'db> TrieDBMut<'db> {
 							false => self.augmented(self.take_node(&old_rlp.at(1), journal), &partial.mid(cp), value, journal),
 						};
 
-						trace!("create_extension partial: {:?}, downstream_node: {:?}", existing_key, downstream_node.pretty());
 						let mut s = RlpStream::new_list(2);
 						s.append(&existing_key.encoded(false));
 						journal.new_node(downstream_node, &mut s);
@@ -445,7 +445,7 @@ impl<'db> TrieDBMut<'db> {
 
 						// TODO: optimise by doing this without creating augmented_low.
 
-						trace!("partially-shared-prefix (exist={:?}; new={:?}; cp={:?}): AUGMENT-AT-END", existing_key.len(), partial.len(), cp);
+						trace!(target: "trie", "partially-shared-prefix (exist={:?}; new={:?}; cp={:?}): AUGMENT-AT-END", existing_key.len(), partial.len(), cp);
 
 						// low (farther from root)
 						let low = Self::compose_raw(&existing_key.mid(cp), old_rlp.at(1).as_raw(), is_leaf);
@@ -460,7 +460,7 @@ impl<'db> TrieDBMut<'db> {
 				}
 			},
 			Prototype::Data(0) => {
-				trace!("empty: COMPOSE");
+				trace!(target: "trie", "empty: COMPOSE");
 				Self::compose_leaf(partial, value)
 			},
 			_ => panic!("Invalid RLP for node: {:?}", old.pretty()),
@@ -725,6 +725,7 @@ mod tests {
 
 	#[test]
 	fn playpen() {
+		::log::init_log();
 
 		/*let maps = map!{
 			"six-low" => StandardMap{alphabet: Alphabet::Low, min_key: 6, journal_key: 0, count: 1000},
