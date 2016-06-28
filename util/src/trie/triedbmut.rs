@@ -678,8 +678,6 @@ impl<'db> fmt::Debug for TrieDBMut<'db> {
 
 #[cfg(test)]
 mod tests {
-	extern crate json_tests;
-	use self::json_tests::{trie, execute_tests_from_directory};
 	use triehash::*;
 	use hash::*;
 	use hashdb::*;
@@ -1062,26 +1060,6 @@ mod tests {
 			assert_eq!(*memtrie.root(), real);
 			assert_eq!(*memtrie_sorted.root(), real);
 		}
-	}
-
-	#[test]
-	fn test_trie_json() {
-		println!("Json trie test: ");
-		execute_tests_from_directory::<trie::TrieTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
-			println!("file: {}", file);
-
-			let mut memdb = MemoryDB::new();
-			let mut root = H256::new();
-			let mut t = TrieDBMut::new(&mut memdb, &mut root);
-			for operation in input.into_iter() {
-				match operation {
-					trie::Operation::Insert(key, value) => t.insert(&key, &value),
-					trie::Operation::Remove(key) => t.remove(&key)
-				}
-			}
-
-			assert_eq!(*t.root(), H256::from_slice(&output));
-		});
 	}
 
 	#[test]

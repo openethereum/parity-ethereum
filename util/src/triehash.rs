@@ -97,7 +97,7 @@ pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 /// use std::str::FromStr;
 /// use util::triehash::*;
 /// use util::hash::*;
-/// 
+///
 /// fn main() {
 /// 	let v = vec![
 /// 		(From::from("doe"), From::from("reindeer")),
@@ -324,10 +324,7 @@ fn test_hex_prefix_encode() {
 
 #[cfg(test)]
 mod tests {
-	extern crate json_tests;
-	use self::json_tests::*;
-	use hash::*;
-	use triehash::*;
+	use triehash::trie_root;
 
 	#[test]
 	fn test_triehash_out_of_order() {
@@ -341,13 +338,5 @@ mod tests {
 			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
 		]));
-	}
-
-	#[test]
-	fn test_triehash_json() {
-		execute_tests_from_directory::<trie::TriehashTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
-			println!("file: {}, output: {:?}", file, output);
-			assert_eq!(trie_root(input), H256::from_slice(&output));
-		});
 	}
 }
