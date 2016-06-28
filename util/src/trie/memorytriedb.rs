@@ -22,13 +22,13 @@ use super::node::Node as RlpNode;
 use ::{Bytes, FixedHash, HashDB, H256, SHA3_NULL_RLP};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
-use ::rlp::{Rlp, View};
+use ::rlp::{Rlp, RlpStream, View, Stream};
 
 use elastic_array::ElasticArray1024;
 
 use std::collections::{HashSet, VecDeque};
 use std::mem;
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -120,13 +120,47 @@ impl Node {
 		}
 	}
 
-	// encode a node to RLP. if it has child nodes, remove them from the storage,
-	// encode them, and write them to the DB. returns the rlp and the number of
-	// hash operations performed.
-	//
+	// encode a node to RLP
 	// TODO: parallelize
-	fn to_rlp(self, db: &mut HashDB, storage: &mut NodeStorage) -> (ElasticArray1024<u8>, usize) {
-		unimplemented!()
+	fn to_rlp<F>(self, mut child_cb: F) -> ElasticArray1024<u8>
+		where F: FnMut(NodeHandle, &mut RlpStream)
+	{
+		match self {
+			Node::Empty => {
+				let mut stream = RlpStream::new();
+				stream.append_empty_data();
+				stream.drain()
+			}
+			Node::Leaf(partial, value) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&partial);
+				stream.append(&value);
+				stream.drain()
+			}
+			Node::Extension(partial, child) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&partial);
+				child_cb(child, &mut stream);
+				stream.drain()
+			}
+			Node::Branch(mut children, value) => {
+				let mut stream = RlpStream::new_list(17);
+				for child in children.iter_mut().map(Option::take) {
+					if let Some(handle) = child {
+						child_cb(handle, &mut stream);
+					} else {
+						stream.append_empty_data();
+					}
+				}
+				if let Some(value) = value {
+					stream.append(&value);
+				} else {
+					stream.append_empty_data();
+				}
+
+				stream.drain()
+			}
+		}
 	}
 }
 
@@ -743,7 +777,49 @@ impl<'a> MemoryTrieDB<'a> {
 	pub fn commit(&mut self) {
 		if !self.dirty { return }
 
-		unimplemented!()
+		// kill all the nodes on death row.
+		for hash in self.death_row.drain() {
+			self.db.remove(&hash);
+		}
+
+		let root_handle = self.root_handle();
+		match self.storage.destroy(root_handle) {
+			Stored::New(node) => {
+				let root_rlp = node.to_rlp(|child, stream| self.commit_node(child, stream));
+				*self.root = self.db.insert(&root_rlp[..]);
+				self.hash_count += 1;
+
+				// restore the root node.
+				let root_node = Node::from_rlp(&root_rlp, &*self.db, &mut self.storage);
+				self.root_handle = self.storage.alloc(Stored::Cached(root_node, *self.root));
+			}
+			Stored::Cached(node, hash) => {
+				// probably won't happen, but update the root and move on.
+				*self.root = hash;
+				self.root_handle = self.storage.alloc(Stored::Cached(node, hash))
+			}
+		}
+	}
+
+	/// commit a node, hashing it, committing it to the db,
+	/// and writing it to the rlp stream as necessary.
+	fn commit_node(&mut self, handle: NodeHandle, stream: &mut RlpStream) {
+		match handle {
+			NodeHandle::Hash(h) => stream.append(&h),
+			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
+				Stored::Cached(_, h) => stream.append(&h),
+				Stored::New(node) => {
+					let node_rlp = node.to_rlp(|child, stream| self.commit_node(child, stream));
+					if node_rlp.len() >= 32 {
+						let hash = self.db.insert(&node_rlp[..]);
+						self.hash_count += 1;
+						stream.append(&hash)
+					} else {
+						stream.append_raw(&node_rlp, 1)
+					}
+				}
+			}
+		};
 	}
 
 	// a hack to get the root node's handle
