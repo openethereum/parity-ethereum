@@ -557,7 +557,7 @@ macro_rules! construct_uint {
 	($name:ident, $n_words:expr) => (
 		/// Little-endian large integer type
 		#[repr(C)]
-		#[derive(Copy, Clone, Eq, PartialEq)]
+		#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 		pub struct $name(pub [u64; $n_words]);
 
 		impl Uint for $name {
@@ -1124,14 +1124,6 @@ macro_rules! construct_uint {
 					}
 				}
 				Ok(())
-			}
-		}
-
-		#[cfg_attr(feature="dev", allow(derive_hash_xor_eq))] // We are pretty sure it's ok.
-		impl Hash for $name {
-			fn hash<H>(&self, state: &mut H) where H: Hasher {
-				unsafe { state.write(::std::slice::from_raw_parts(self.0.as_ptr() as *mut u8, self.0.len() * 8)); }
-				state.finish();
 			}
 		}
 	);

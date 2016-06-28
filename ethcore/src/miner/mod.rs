@@ -47,7 +47,7 @@ mod external;
 mod transaction_queue;
 
 pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
-pub use self::miner::{Miner};
+pub use self::miner::{Miner, MinerOptions, PendingSet};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 
 use std::collections::BTreeMap;
@@ -100,6 +100,9 @@ pub trait MinerService : Send + Sync {
 
 	/// Set maximal number of transactions kept in the queue (both current and future).
 	fn set_transactions_limit(&self, limit: usize);
+
+	/// Set maximum amount of gas allowed for any single transaction to mine.
+	fn set_tx_gas_limit(&self, limit: U256);
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->

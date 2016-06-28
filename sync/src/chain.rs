@@ -1314,7 +1314,7 @@ impl ChainSync {
 			return 0;
 		}
 
-		let mut transactions = io.chain().all_transactions();
+		let mut transactions = io.chain().pending_transactions();
 		if transactions.is_empty() {
 			return 0;
 		}
