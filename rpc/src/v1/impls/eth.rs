@@ -18,6 +18,8 @@
 
 extern crate ethash;
 
+use std::thread;
+use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
@@ -478,6 +480,12 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 					if /*sync.status().state != SyncState::Idle ||*/ client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
 						trace!(target: "miner", "Syncing. Cannot give any work.");
 						return Err(no_work_err());
+					}
+
+					// Otherwise spin until our submitted block has been included.
+					let timeout = Instant::now() + Duration::from_millis(1000);
+					while Instant::now() < timeout && client.queue_info().total_queue_size() > 0 {
+						thread::sleep(Duration::from_millis(1));
 					}
 				}
 

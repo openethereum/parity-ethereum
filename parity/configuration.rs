@@ -27,6 +27,7 @@ use util::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::miner::{MinerOptions, PendingSet};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -65,6 +66,37 @@ impl Configuration {
 
 	fn max_peers(&self) -> u32 {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
+	}
+
+	fn decode_u256(d: &str, argument: &str) -> U256 {
+		U256::from_dec_str(d).unwrap_or_else(|_|
+			U256::from_str(clean_0x(d)).unwrap_or_else(|_|
+				die!("{}: Invalid numeric value for {}. Must be either a decimal or a hex number.", d, argument)
+			)
+		)
+	}
+
+	pub fn miner_options(&self) -> MinerOptions {
+		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
+			"none" => (false, false),
+			"own" => (true, false),
+			"ext" => (false, true),
+			"all" => (true, true),
+			x => die!("{}: Invalid value for --reseal option. Use --help for more information.", x)
+		};
+		MinerOptions {
+			force_sealing: self.args.flag_force_sealing,
+			reseal_on_external_tx: ext,
+			reseal_on_own_tx: own,
+			tx_gas_limit: self.args.flag_tx_gas_limit.as_ref().map_or(!U256::zero(), |d| Self::decode_u256(d, "--tx-gas-limit")),
+			tx_queue_size: self.args.flag_tx_queue_size,
+			pending_set: match self.args.flag_relay_set.as_str() {
+				"cheap" => PendingSet::AlwaysQueue,
+				"strict" => PendingSet::AlwaysSealing,
+				"lenient" => PendingSet::SealingOrElseQueue,
+				x => die!("{}: Invalid value for --relay-set option. Use --help for more information.", x)
+			},
+		}
 	}
 
 	pub fn author(&self) -> Option<Address> {
