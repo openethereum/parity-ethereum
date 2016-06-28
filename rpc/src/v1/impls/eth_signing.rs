@@ -29,6 +29,9 @@ use v1::impls::{default_gas_price, sign_and_dispatch};
 
 fn fill_optional_fields<C, M>(request: &mut TransactionRequest, client: &C, miner: &M)
 	where C: MiningBlockChainClient, M: MinerService {
+	if request.value.is_none() {
+		request.value = Some(U256::zero());
+	}
 	if request.gas.is_none() {
 		request.gas = Some(miner.sensible_gas_limit());
 	}
