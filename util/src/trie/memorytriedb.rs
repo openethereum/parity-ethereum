@@ -599,16 +599,9 @@ impl<'a> MemoryTrieDB<'a> {
 	/// the removal inspector
 	fn remove_inspector(&mut self, node: Node, partial: NibbleSlice) -> Action {
 		match (node, partial.is_empty()) {
-			(Node::Empty, _) => {
-				trace!(target: "trie", "Deleting empty, partial={:?}", partial);
-				Action::Delete
-			}
-			(Node::Branch(c, None), true) => {
-				trace!(target: "trie", "Restoring branch, partial={:?}", partial);
-				Action::Restore(Node::Branch(c, None))
-			}
+			(Node::Empty, _) => Action::Delete,
+			(Node::Branch(c, None), true) => Action::Restore(Node::Branch(c, None)),
 			(Node::Branch(children, _), true) => {
-				trace!(target: "trie", "removing value out of branch, partial={:?}", partial);
 				// always replace since we took the value out.
 				Action::Replace(self.fix(Node::Branch(children, None)))
 			}
@@ -622,11 +615,9 @@ impl<'a> MemoryTrieDB<'a> {
 							let branch = Node::Branch(children, value);
 							if changed {
 								// child was changed, so we were too.
-								trace!(target: "trie", "replacing branch child, partial={:?}", partial);
 								Action::Replace(branch)
 							} else {
 								// unchanged, so we are too.
-								trace!(target: "trie", "restoring branch child, partial={:?}", partial);
 								Action::Restore(branch)
 							}
 						}
@@ -639,14 +630,12 @@ impl<'a> MemoryTrieDB<'a> {
 					}
 				} else {
 					// no change needed.
-					trace!(target: "trie", "Restoring branch, partial={:?}", partial);
 					Action::Restore(Node::Branch(children, value))
 				}
 			}
 			(Node::Leaf(encoded, value), _) => {
 				if NibbleSlice::from_encoded(&encoded).0 == partial {
 					// this is the node we were looking for. Let's delete it.
-					trace!(target: "trie", "deleting leaf, partial={:?}", partial);
 					Action::Delete
 				} else {
 					// leaf the node alone.
@@ -668,10 +657,8 @@ impl<'a> MemoryTrieDB<'a> {
 							if !changed {
 								// the branch we put in was unchanged.
 								// this means that the extension doesn't need changing either.
-								trace!(target: "trie", "restoring extension, partial={:?}", partial);
 								Action::Restore(Node::Extension(encoded, new_child))
 							} else {
-								trace!(target: "trie", "replacing extension child, partial={:?}", partial);
 								// the new node may not be a branch.
 								// always replace since the child was changed somehow.
 								Action::Replace(self.fix(Node::Extension(encoded, new_child)))
@@ -680,13 +667,11 @@ impl<'a> MemoryTrieDB<'a> {
 						None => {
 							// the whole branch got deleted.
 							// that means that this extension is useless.
-							trace!(target: "trie", "propagating branch delete to extension, partial={:?}", partial);
 							Action::Delete
 						}
 					}
 				} else {
 					// partway through an extension -- nothing to do here.
-					trace!(target: "trie", "restoring extension wrong partial, partial={:?}, existing={:?}", partial, NibbleSlice::from_encoded(&encoded).0);
 					Action::Restore(Node::Extension(encoded, child_branch))
 				}
 			}
@@ -896,7 +881,6 @@ impl<'a> TrieMut for MemoryTrieDB<'a> {
 	fn remove(&mut self, key: &[u8]) {
 		let root_handle = self.root_handle();
 		let key = NibbleSlice::new(key);
-		trace!(target: "trie", "Beginning remove, key={:?}", key);
 		match self.remove_at(root_handle.into(), key) {
 			Some((handle, changed)) => {
 				self.root_handle = handle;
@@ -907,13 +891,11 @@ impl<'a> TrieMut for MemoryTrieDB<'a> {
 				self.dirty = true;
 			}
 		};
-		trace!(target: "trie", "/");
 	}
 }
 
 impl<'a> Drop for MemoryTrieDB<'a> {
 	fn drop(&mut self) {
-		trace!(target: "trie", "dropping trie");
 		self.commit();
 	}
 }
