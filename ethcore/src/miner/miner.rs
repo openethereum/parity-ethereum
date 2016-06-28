@@ -51,7 +51,7 @@ pub struct MinerOptions {
 	/// Reseal on receipt of new local transactions.
 	pub reseal_on_own_tx: bool,
 	/// Maximum amount of gas to bother considering for block insertion.
-	pub max_tx_gas: U256,
+	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
 	pub tx_queue_size: usize,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
@@ -64,7 +64,7 @@ impl Default for MinerOptions {
 			force_sealing: false,
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
-			max_tx_gas: !U256::zero(),
+			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
 		}
@@ -109,7 +109,7 @@ impl Miner {
 	/// Creates new instance of miner
 	pub fn new(options: MinerOptions, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		Arc::new(Miner {
-			transaction_queue: Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.max_tx_gas)),
+			transaction_queue: Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)),
 			sealing_enabled: AtomicBool::new(options.force_sealing),
 			options: options,
 			sealing_block_last_request: Mutex::new(0),

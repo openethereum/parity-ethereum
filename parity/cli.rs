@@ -139,7 +139,7 @@ Sealing/Mining Options:
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
                            all - reseal on all new transactions [default: all].
-  --max-tx-gas GAS         Apply a limit of GAS as the maximum amount of gas
+  --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
                            a single transaction may have for it to be mined.
   --relay-set SET          Set of transactions to relay. SET may be:
                            cheap - Relay any transaction in the queue (this
@@ -305,7 +305,7 @@ pub struct Args {
 	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
 	pub flag_reseal_on_txs: String,
-	pub flag_max_tx_gas: Option<String>,
+	pub flag_tx_gas_limit: Option<String>,
 	pub flag_relay_set: String,
 	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
