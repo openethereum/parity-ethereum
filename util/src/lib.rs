@@ -117,6 +117,8 @@ extern crate libc;
 extern crate target_info;
 extern crate bigint;
 extern crate chrono;
+pub extern crate using_queue;
+pub extern crate table;
 
 pub mod standard;
 #[macro_use]
@@ -129,7 +131,6 @@ pub mod hash;
 pub mod bytes;
 pub mod rlp;
 pub mod misc;
-pub mod using_queue;
 mod json_aid;
 pub mod vector;
 pub mod sha3;
@@ -151,14 +152,12 @@ pub mod io;
 pub mod network;
 pub mod log;
 pub mod panics;
-pub mod table;
 pub mod network_settings;
 pub mod path;
 mod timer;
 
 pub use common::*;
 pub use misc::*;
-pub use using_queue::*;
 pub use json_aid::*;
 pub use rlp::*;
 pub use hashdb::*;

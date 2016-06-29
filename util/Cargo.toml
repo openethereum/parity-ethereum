@@ -37,6 +37,8 @@ vergen = "0.1"
 target_info = "0.1"
 bigint = { path = "bigint" }
 chrono = "0.2"
+using_queue = { path = "using_queue" }
+table = { path = "table" }
 
 [features]
 default = []

@@ -402,9 +402,11 @@ dependencies = [
  "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha3 0.1.0",
  "slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "table 0.1.0",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "using_queue 0.1.0",
  "vergen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1252,6 +1254,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "table"
+version = "0.1.0"
+
+[[package]]
 name = "target_info"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1387,6 +1393,10 @@ dependencies = [
  "idna 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "using_queue"
+version = "0.1.0"
 
 [[package]]
 name = "utf8-ranges"
