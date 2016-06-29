@@ -142,7 +142,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn queue_info(&self) -> BlockQueueInfo;
 
 	/// Clear block queue and abort all import activity.
-	fn clear_queue(&self);
+	fn clear_queue(&self) -> bool;
 
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
@@ -182,7 +182,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, String>>;
 
 	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>);
+	fn queue_transactions(&self, transactions: Vec<Bytes>) -> bool;
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;

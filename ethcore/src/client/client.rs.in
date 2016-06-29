@@ -505,7 +505,7 @@ impl Client {
 	}
 }
 
-//#[derive(Ipc)]
+#[derive(Ipc)]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -690,8 +690,9 @@ impl BlockChainClient for Client {
 		self.block_queue.queue_info()
 	}
 
-	fn clear_queue(&self) {
+	fn clear_queue(&self) -> bool {
 		self.block_queue.clear();
+		true
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
@@ -808,17 +809,20 @@ impl BlockChainClient for Client {
 			.collect::<Vec<Result<TransactionImportResult, String>>>()
 	}
 
-	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+	fn queue_transactions(&self, transactions: Vec<Bytes>) -> bool {
 		if self.queue_transactions.load(AtomicOrdering::Relaxed) > MAX_TX_QUEUE_SIZE {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
+			false
 		} else {
 			let len = transactions.len();
 			match self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewTransactions(transactions))) {
 				Ok(_) => {
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
+					true
 				}
 				Err(e) => {
 					debug!("Ignoring {} transactions: error queueing: {}", len, e);
+					false
 				}
 			}
 		}

@@ -455,7 +455,8 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn clear_queue(&self) {
+	fn clear_queue(&self) -> bool {
+		true
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
@@ -498,10 +499,11 @@ impl BlockChainClient for TestBlockChainClient {
 			.collect::<Vec<Result<TransactionImportResult, String>>>()
 	}
 
-	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+	fn queue_transactions(&self, transactions: Vec<Bytes>) -> bool {
 		// import right here
 		let tx = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
 		self.import_transactions(tx);
+		true
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
