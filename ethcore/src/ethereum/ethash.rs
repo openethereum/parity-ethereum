@@ -132,6 +132,24 @@ impl Engine for Ethash {
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
 
+	fn on_new_block(&self, block: &mut ExecutedBlock) {
+		let dao_fork_blknum = 2000000;
+		let main_dao = Address::from_str("bb9bc244d798123fde783fcc1c72d3bb8c189413").unwrap();
+		let child_daos: Vec<Address> = vec![];
+		let new_dao_code: Bytes = vec![];
+		// TODO: check trigger function
+		if block.fields().header.number == dao_fork_blknum {
+			if block.fields().header.gas_limit <= 4_000_000.into() {
+				let mut state = block.fields_mut().state;
+				for child in child_daos.iter() {
+					let b = state.balance(child);
+					state.transfer_balance(child, &main_dao, &b);
+				}
+				state.reset_code(&main_dao, new_dao_code);
+			}
+		}
+	}
+
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
