@@ -18,19 +18,11 @@ use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
 
-/// Block queue status
-#[derive(Debug, Binary)]
-pub struct BlockQueueInfo {
-	/// Number of queued blocks pending verification
-	pub unverified_queue_size: usize,
-	/// Number of verified queued blocks pending import
-	pub verified_queue_size: usize,
-	/// Number of blocks being verified
-	pub verifying_queue_size: usize,
-	/// Configured maximum number of blocks in the queue
-	pub max_queue_size: usize,
-	/// Configured maximum number of bytes to use
-	pub max_mem_use: usize,
-	/// Heap memory used in bytes
-	pub mem_used: usize,
+#[derive(Debug, PartialEq)]
+/// Represents the result of importing transaction.
+pub enum TransactionImportResult {
+	/// Transaction was imported to current queue.
+	Current,
+	/// Transaction was imported to future queue.
+	Future
 }
