@@ -441,7 +441,7 @@ impl TransactionQueue {
 
 		trace!(target: "miner", "Importing: {:?}", tx.hash());
 
-		if tx.gas_price < self.minimal_gas_price {
+		if tx.gas_price < self.minimal_gas_price && origin != TransactionOrigin::Local {
 			trace!(target: "miner",
 				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
 				tx.hash(),
@@ -1055,7 +1055,7 @@ mod test {
 	}
 
 	#[test]
-	fn should_not_import_transaction_below_min_gas_price_threshold() {
+	fn should_not_import_transaction_below_min_gas_price_threshold_if_external() {
 		// given
 		let mut txq = TransactionQueue::new();
 		let tx = new_tx();
@@ -1071,6 +1071,23 @@ mod test {
 		});
 		let stats = txq.status();
 		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.future, 0);
+	}
+
+	#[test]
+	fn should_import_transaction_below_min_gas_price_threshold_if_local() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		txq.set_minimal_gas_price(tx.gas_price + U256::one());
+
+		// when
+		let res = txq.add(tx, &default_nonce, TransactionOrigin::Local);
+
+		// then
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		let stats = txq.status();
+		assert_eq!(stats.pending, 1);
 		assert_eq!(stats.future, 0);
 	}
 
