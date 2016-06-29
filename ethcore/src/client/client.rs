@@ -863,7 +863,6 @@ impl MiningBlockChainClient for Client {
 			self.miner.update_sealing(self);
 		}
 
-		info!("Block {} ({}) submitted and imported.", h.hex(), number);
 		Ok(h)
 	}
 }
