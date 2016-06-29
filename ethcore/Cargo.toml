@@ -32,6 +32,10 @@ bloomchain = "0.1"
 rayon = "0.3.1"
 ethstore = { path = "../ethstore" }
 
+[dependencies.hyper]
+git = "https://github.com/ethcore/hyper"
+default-features = false
+
 [features]
 jit = ["evmjit"]
 evm-debug = []
