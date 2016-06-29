@@ -83,6 +83,10 @@ impl Configuration {
 		)
 	}
 
+	pub fn work_notify(&self) -> Vec<String> {
+		self.args.flag_work_notify.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
+	}
+
 	pub fn miner_options(&self) -> MinerOptions {
 		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
 			"none" => (false, false),
@@ -92,6 +96,7 @@ impl Configuration {
 			x => die!("{}: Invalid value for --reseal option. Use --help for more information.", x)
 		};
 		MinerOptions {
+			new_work_notify: self.work_notify(),
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: ext,
 			reseal_on_own_tx: own,
