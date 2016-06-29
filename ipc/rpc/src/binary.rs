@@ -19,7 +19,7 @@
 use util::bytes::Populatable;
 use util::numbers::{U256, U512, H256, H2048, Address};
 use std::mem;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, BTreeMap};
 use std::ops::Range;
 
 #[derive(Debug)]
@@ -132,6 +132,96 @@ impl<R: BinaryConvertable, E: BinaryConvertable> BinaryConvertable for Result<R,
 			1 => Ok(Err(try!(E::from_bytes(&buffer[1..], length_stack)))),
 			_ => Err(BinaryConvertError)
 		}
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
+impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Ord, V: BinaryConvertable {
+	fn size(&self) -> usize {
+		0usize + match K::len_params() {
+			0 => mem::size_of::<K>() * self.len(),
+			_ => self.iter().fold(0usize, |acc, (k, _)| acc + k.size())
+		}
+		+
+		match V::len_params() {
+			0 => mem::size_of::<V>() * self.len(),
+			_ => self.iter().fold(0usize, |acc, (_, v)| acc + v.size())
+		}
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		let mut offset = 0usize;
+		for (key, val) in self.iter() {
+			let key_size = match K::len_params() {
+				0 => mem::size_of::<K>(),
+				_ => { let size = key.size(); length_stack.push_back(size); size }
+			};
+			let val_size = match K::len_params() {
+				0 => mem::size_of::<V>(),
+				_ => { let size = val.size(); length_stack.push_back(size); size }
+			};
+
+			if key_size > 0 {
+				let item_end = offset + key_size;
+				try!(key.to_bytes(&mut buffer[offset..item_end], length_stack));
+				offset = item_end;
+			}
+
+			if val_size > 0 {
+				let item_end = offset + key_size;
+				try!(val.to_bytes(&mut buffer[offset..item_end], length_stack));
+				offset = item_end;
+			}
+		}
+		Ok(())
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize> ) -> Result<Self, BinaryConvertError> {
+		let mut index = 0;
+		let mut result = Self::new();
+
+		if buffer.len() == 0 { return Ok(result); }
+
+		loop {
+			let key_size = match K::len_params() {
+				0 => mem::size_of::<K>(),
+				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError)),
+			};
+			let key = if key_size == 0 {
+				try!(K::from_empty_bytes())
+			}
+			else {
+				try!(K::from_bytes(&buffer[index..index+key_size], length_stack))
+			};
+			index = index + key_size;
+
+			let val_size = match V::len_params() {
+				0 => mem::size_of::<V>(),
+				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError)),
+			};
+			let val = if val_size == 0 {
+				try!(V::from_empty_bytes())
+			}
+			else {
+				try!(V::from_bytes(&buffer[index..index+val_size], length_stack))
+			};
+			result.insert(key, val);
+			index = index + val_size;
+
+			if index == buffer.len() { break; }
+			if index > buffer.len() {
+				return Err(BinaryConvertError)
+			}
+		}
+
+		Ok(result)
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(Self::new())
 	}
 
 	fn len_params() -> usize {
