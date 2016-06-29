@@ -108,6 +108,12 @@ impl Account {
 		self.code_cache = code;
 	}
 
+	/// Reset this account's code to the given code.
+	pub fn reset_code(&mut self, code: Bytes) {
+		self.code_hash = None;
+		self.init_code(code);
+	}
+
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
 		self.storage_overlay.borrow_mut().insert(key, (Filth::Dirty, value));
