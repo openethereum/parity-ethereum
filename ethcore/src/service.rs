@@ -17,7 +17,7 @@
 //! Creates and registers client and network services.
 
 use util::*;
-use util::Colour::{Yellow, Green};
+use util::Colour::{Yellow, White};
 use util::panics::*;
 use spec::Spec;
 use error::*;
@@ -72,7 +72,7 @@ impl ClientService {
 			try!(net_service.start());
 		}
 
-		info!("Configured for {} using {} engine", paint(Green.bold(), spec.name.clone()), paint(Yellow.bold(), spec.engine.name().to_owned()));
+		info!("Configured for {} using {} engine", paint(White.bold(), spec.name.clone()), paint(Yellow.bold(), spec.engine.name().to_owned()));
 		let client = try!(Client::new(config, spec, db_path, miner, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
