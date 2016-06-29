@@ -319,6 +319,31 @@ impl BinaryConvertable for String {
 	}
 }
 
+impl<T> BinaryConvertable for Range<T> where T: BinaryConvertable {
+	fn size(&self) -> usize {
+		mem::size_of::<T>() * 2
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Err(BinaryConvertError)
+	}
+
+	fn to_bytes(&self, buffer: &mut[u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		try!(self.start.to_bytes(&mut buffer[..mem::size_of::<T>()], length_stack));
+		try!(self.end.to_bytes(&mut buffer[mem::size_of::<T>() + 1..], length_stack));
+		Ok(())
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		Ok(try!(T::from_bytes(&buffer[..mem::size_of::<T>()], length_stack))..try!(T::from_bytes(&buffer[mem::size_of::<T>()+1..], length_stack)))
+	}
+
+	fn len_params() -> usize {
+		assert_eq!(0, T::len_params());
+		0
+	}
+}
+
 impl<T> BinaryConvertable for ::std::cell::RefCell<T> where T: BinaryConvertable {
 	fn size(&self) -> usize {
 		self.borrow().size()
@@ -543,8 +568,6 @@ binary_fixed_size!(U512);
 binary_fixed_size!(H256);
 binary_fixed_size!(H2048);
 binary_fixed_size!(Address);
-binary_fixed_size!(Range<usize>);
-binary_fixed_size!(Range<u64>);
 
 #[test]
 fn vec_serialize() {

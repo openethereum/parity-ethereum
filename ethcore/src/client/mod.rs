@@ -27,7 +27,7 @@ pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockQueueConfig
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use self::trace::Filter as TraceFilter;
+pub use types::trace_filter::Filter as TraceFilter;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
 

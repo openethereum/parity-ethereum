@@ -20,6 +20,9 @@ use util::hash::*;
 use util::sha3::*;
 use client::BlockID;
 use log_entry::LogEntry;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// Blockchain Filter.
 pub struct Filter {
@@ -29,22 +32,27 @@ pub struct Filter {
 	/// Till this block.
 	pub to_block: BlockID,
 
-	/// Search addresses. 
-	/// 
+	/// Search addresses.
+	///
 	/// If None, match all.
 	/// If specified, log must be produced by one of these addresses.
 	pub address: Option<Vec<Address>>,
 
 	/// Search topics.
-	/// 
+	///
 	/// If None, match all.
 	/// If specified, log must contain one of these topics.
-	pub topics: [Option<Vec<H256>>; 4],
+	pub topics: Vec<Option<Vec<H256>>>,
 }
 
 impl Clone for Filter {
 	fn clone(&self) -> Self {
-		let mut topics = [None, None, None, None];
+		let mut topics = [
+			None,
+			None,
+			None,
+			None,
+		];
 		for i in 0..4 {
 			topics[i] = self.topics[i].clone();
 		}
@@ -53,13 +61,13 @@ impl Clone for Filter {
 			from_block: self.from_block.clone(),
 			to_block: self.to_block.clone(),
 			address: self.address.clone(),
-			topics: topics
+			topics: topics[..].to_vec()
 		}
 	}
 }
 
 impl Filter {
-	/// Returns combinations of each address and topic.	
+	/// Returns combinations of each address and topic.
 	pub fn bloom_possibilities(&self) -> Vec<H2048> {
 		let blooms = match self.address {
 			Some(ref addresses) if !addresses.is_empty() =>
@@ -71,7 +79,7 @@ impl Filter {
 			_ => vec![H2048::new()]
 		};
 
-		self.topics.iter().fold(blooms, | bs, topic | match *topic {
+		self.topics.iter().fold(blooms, |bs, topic| match *topic {
 			None => bs,
 			Some(ref topics) => bs.into_iter().flat_map(|bloom| {
 				topics.into_iter().map(|topic| {

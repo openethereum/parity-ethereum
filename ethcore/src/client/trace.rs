@@ -8,6 +8,7 @@ use trace::DatabaseExtras as TraceDatabaseExtras;
 use blockchain::{BlockChain, BlockProvider};
 use blockchain::extras::TransactionAddress;
 use super::BlockID;
+pub use types::trace_filter::Filter;
 
 impl TraceDatabaseExtras for BlockChain {
 	fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
@@ -25,14 +26,4 @@ impl TraceDatabaseExtras for BlockChain {
 			})
 			.map(|tx| tx.hash())
 	}
-}
-
-/// Easy to use trace filter.
-pub struct Filter {
-	/// Range of filtering.
-	pub range: Range<BlockID>,
-	/// From address.
-	pub from_address: Vec<Address>,
-	/// To address.
-	pub to_address: Vec<Address>,
 }

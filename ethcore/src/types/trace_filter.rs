@@ -14,18 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
-pub mod executed;
-pub mod block_status;
-pub mod account_diff;
-pub mod state_diff;
-pub mod block_queue_info;
-pub mod transaction_import_result;
-pub mod filter;
-pub mod trace_filter;
+use std::mem;
+use ipc::binary::{BinaryConvertError, BinaryConvertable};
+use std::collections::VecDeque;
+use std::ops::Range;
+use util::{Address, H256};
+use types::ids::BlockID;
+
+/// Easy to use trace filter.
+#[derive(Binary)]
+pub struct Filter {
+	/// Range of filtering.
+	pub range: Range<BlockID>,
+	/// From address.
+	pub from_address: Vec<Address>,
+	/// To address.
+	pub to_address: Vec<Address>,
+}

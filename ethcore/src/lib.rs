@@ -104,7 +104,6 @@ pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
-pub mod filter;
 pub mod header;
 pub mod service;
 pub mod trace;
