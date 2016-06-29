@@ -29,9 +29,10 @@ use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
+use spec::Spec;
 
 use block_queue::BlockQueueInfo;
-use block::{SealedBlock, LockedBlock, OpenBlock};
+use block::OpenBlock;
 use executive::Executed;
 use error::{ExecutionError};
 use trace::LocalizedTrace;
@@ -105,7 +106,7 @@ impl TestBlockChainClient {
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
 			queue_size: AtomicUsize::new(0),
-			miner: Arc::new(Miner::default()),
+			miner: Arc::new(Miner::with_spec(Spec::new_test())),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
@@ -187,7 +188,7 @@ impl TestBlockChainClient {
 					txs.append(&signed_tx);
 					txs.out()
 				},
-				_ => rlp::NULL_RLP.to_vec()
+				_ => rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
 			let mut rlp = RlpStream::new_list(3);
@@ -240,12 +241,7 @@ impl TestBlockChainClient {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
-	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
-		Err(block)
-	}
-
-
-	fn prepare_open_block(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, _author: Address, _gas_range_target: (U256, U256), _extra_data: Bytes) -> OpenBlock {
 		unimplemented!();
 	}
 }
@@ -495,11 +491,17 @@ impl BlockChainClient for TestBlockChainClient {
 			balance: balances[a],
 		};
 
-		self.miner.import_transactions(transactions, &fetch_account)
+		self.miner.import_transactions(self, transactions, &fetch_account)
 	}
 
-	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.all_transactions()
+	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+		// import right here
+		let tx = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		self.import_transactions(tx);
+	}
+
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.pending_transactions()
 	}
 
 	fn take_snapshot(&self, _root_dir: &Path) {

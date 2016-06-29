@@ -50,6 +50,12 @@ use std::cmp::*;
 use serde;
 use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
 
+/// Conversion from decimal string error
+#[derive(Debug, PartialEq)]
+pub enum FromDecStrErr {
+	/// Value does not fit into type
+	InvalidLength
+}
 
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
@@ -419,12 +425,16 @@ macro_rules! uint_overflowing_mul_reg {
 				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
 				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
 
-				// Only single overflow possible here
-				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
-				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
+				// No overflow here
+				let res = (c_u >> 32) + (overflow_u << 32);
+				// possible overflows
+				let (res, o1) = res.overflowing_add(overflow_l);
+				let (res, o2) = res.overflowing_add(carry2);
+				let (res, o3) = res.overflowing_add(ret[i + j + 1]);
+				ret[i + j + 1] = res;
 
-				ret[i + j + 1] = carry;
-				carry2 = o as u64;
+				// Only single overflow possible there
+				carry2 = (o1 | o2 | o3) as u64;
 			}
 		}
 
@@ -493,10 +503,8 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 	/// Returns the largest value that can be represented by this integer type.
 	fn max_value() -> Self;
 
-	/// Error type for converting from a decimal string.
-	type FromDecStrErr;
 	/// Convert from a decimal string.
-	fn from_dec_str(value: &str) -> Result<Self, Self::FromDecStrErr>;
+	fn from_dec_str(value: &str) -> Result<Self, FromDecStrErr>;
 
 	/// Conversion to u32
 	fn low_u32(&self) -> u32;
@@ -549,21 +557,26 @@ macro_rules! construct_uint {
 	($name:ident, $n_words:expr) => (
 		/// Little-endian large integer type
 		#[repr(C)]
-		#[derive(Copy, Clone, Eq, PartialEq)]
+		#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 		pub struct $name(pub [u64; $n_words]);
 
 		impl Uint for $name {
-			type FromDecStrErr = FromHexError;
 
 			/// TODO: optimize, throw appropriate err
-			fn from_dec_str(value: &str) -> Result<Self, Self::FromDecStrErr> {
-				Ok(value.bytes()
-				   .map(|b| b - 48)
-				   .fold($name::from(0u64), | acc, c |
-						 // fast multiplication by 10
-						 // (acc << 3) + (acc << 1) => acc * 10
-						 (acc << 3) + (acc << 1) + $name::from(c)
-					))
+			fn from_dec_str(value: &str) -> Result<Self, FromDecStrErr> {
+				let mut res = Self::default();
+				for b in value.bytes().map(|b| b - 48) {
+					let (r, overflow) = res.overflowing_mul_u32(10);
+					if overflow {
+						return Err(FromDecStrErr::InvalidLength);
+					}
+					let (r, overflow) = r.overflowing_add(b.into());
+					if overflow {
+						return Err(FromDecStrErr::InvalidLength);
+					}
+					res = r;
+				}
+				Ok(res)
 			}
 
 			#[inline]
@@ -1113,14 +1126,6 @@ macro_rules! construct_uint {
 				Ok(())
 			}
 		}
-
-		#[cfg_attr(feature="dev", allow(derive_hash_xor_eq))] // We are pretty sure it's ok.
-		impl Hash for $name {
-			fn hash<H>(&self, state: &mut H) where H: Hasher {
-				unsafe { state.write(::std::slice::from_raw_parts(self.0.as_ptr() as *mut u8, self.0.len() * 8)); }
-				state.finish();
-			}
-		}
 	);
 }
 
@@ -1296,12 +1301,16 @@ impl U256 {
 				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
 				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
 
-				// Only single overflow possible here
-				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
-				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
+				// No overflow here
+				let res = (c_u >> 32) + (overflow_u << 32);
+				// possible overflows
+				let (res, o1) = res.overflowing_add(overflow_l);
+				let (res, o2) = res.overflowing_add(carry2);
+				let (res, o3) = res.overflowing_add(ret[i + j + 1]);
+				ret[i + j + 1] = res;
 
-				ret[i + j + 1] = carry;
-				carry2 = o as u64;
+				// Only single overflow possible there
+				carry2 = (o1 | o2 | o3) as u64;
 			}
 		}
 
@@ -1433,6 +1442,7 @@ known_heap_size!(0, U128, U256);
 mod tests {
 	use uint::{Uint, U128, U256, U512};
 	use std::str::FromStr;
+	use super::FromDecStrErr;
 
 	#[test]
 	pub fn uint256_from() {
@@ -1802,6 +1812,7 @@ mod tests {
 	fn uint256_from_dec_str() {
 		assert_eq!(U256::from_dec_str("10").unwrap(), U256::from(10u64));
 		assert_eq!(U256::from_dec_str("1024").unwrap(), U256::from(1024u64));
+		assert_eq!(U256::from_dec_str("115792089237316195423570985008687907853269984665640564039457584007913129639936"), Err(FromDecStrErr::InvalidLength));
 	}
 
 	#[test]

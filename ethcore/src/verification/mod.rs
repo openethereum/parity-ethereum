@@ -17,11 +17,32 @@
 pub mod verification;
 pub mod verifier;
 mod canon_verifier;
-#[cfg(test)]
 mod noop_verifier;
 
 pub use self::verification::*;
 pub use self::verifier::Verifier;
 pub use self::canon_verifier::CanonVerifier;
-#[cfg(test)]
 pub use self::noop_verifier::NoopVerifier;
+
+/// Verifier type.
+#[derive(Debug)]
+pub enum VerifierType {
+	/// Verifies block normally.
+	Canon,
+	/// Does not verify block at all.
+	/// Used in tests.
+	Noop,
+}
+
+impl Default for VerifierType {
+	fn default() -> Self {
+		VerifierType::Canon
+	}
+}
+
+pub fn new(v: VerifierType) -> Box<Verifier> {
+	match v {
+		VerifierType::Canon => Box::new(CanonVerifier),
+		VerifierType::Noop => Box::new(NoopVerifier),
+	}
+}

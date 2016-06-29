@@ -28,6 +28,9 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 	/// Sets new gas floor target for mined blocks.
 	fn set_gas_floor_target(&self, _: Params) -> Result<Value, Error>;
 
+	/// Sets new gas ceiling target for mined blocks.
+	fn set_gas_ceil_target(&self, _: Params) -> Result<Value, Error>;
+
 	/// Sets new extra data for mined blocks.
 	fn set_extra_data(&self, _: Params) -> Result<Value, Error>;
 
@@ -37,14 +40,35 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 	/// Sets the limits for transaction queue.
 	fn set_transactions_limit(&self, _: Params) -> Result<Value, Error>;
 
+	/// Sets the maximum amount of gas a single transaction may consume.
+	fn set_tx_gas_limit(&self, _: Params) -> Result<Value, Error>;
+
+	/// Add a reserved peer.
+	fn add_reserved_peer(&self, _: Params) -> Result<Value, Error>;
+
+	/// Remove a reserved peer.
+	fn remove_reserved_peer(&self, _: Params) -> Result<Value, Error>;
+
+	/// Drop all non-reserved peers.
+	fn drop_non_reserved_peers(&self, _: Params) -> Result<Value, Error>;
+
+	/// Accept non-reserved peers (default behavior)
+	fn accept_non_reserved_peers(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("ethcore_setMinGasPrice", EthcoreSet::set_min_gas_price);
 		delegate.add_method("ethcore_setGasFloorTarget", EthcoreSet::set_gas_floor_target);
+		delegate.add_method("ethcore_setGasCeilTarget", EthcoreSet::set_gas_ceil_target);
 		delegate.add_method("ethcore_setExtraData", EthcoreSet::set_extra_data);
 		delegate.add_method("ethcore_setAuthor", EthcoreSet::set_author);
+		delegate.add_method("ethcore_setMaxTransactionGas", EthcoreSet::set_tx_gas_limit);
 		delegate.add_method("ethcore_setTransactionsLimit", EthcoreSet::set_transactions_limit);
+		delegate.add_method("ethcore_addReservedPeer", EthcoreSet::add_reserved_peer);
+		delegate.add_method("ethcore_removeReservedPeer", EthcoreSet::remove_reserved_peer);
+		delegate.add_method("ethcore_dropNonReservedPeers", EthcoreSet::drop_non_reserved_peers);
+		delegate.add_method("ethcore_acceptNonReservedPeers", EthcoreSet::accept_non_reserved_peers);
 
 		delegate
 	}

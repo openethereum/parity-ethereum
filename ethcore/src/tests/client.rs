@@ -24,7 +24,7 @@ use miner::Miner;
 #[test]
 fn imports_from_empty() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::with_spec(get_test_spec())), IoChannel::disconnected()).unwrap();
 	client.import_verified_blocks(&IoChannel::disconnected());
 	client.flush_queue();
 }
@@ -42,7 +42,7 @@ fn returns_state_root_basic() {
 #[test]
 fn imports_good_block() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::with_spec(get_test_spec())), IoChannel::disconnected()).unwrap();
 	let good_block = get_good_dummy_block();
 	if let Err(_) = client.import_block(good_block) {
 		panic!("error importing block being good by definition");
@@ -57,7 +57,7 @@ fn imports_good_block() {
 #[test]
 fn query_none_block() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::default()), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::with_spec(get_test_spec())), IoChannel::disconnected()).unwrap();
 
     let non_existant = client.block_header(BlockID::Number(188));
 	assert!(non_existant.is_none());
@@ -113,6 +113,19 @@ fn can_collect_garbage() {
 }
 
 #[test]
+#[cfg_attr(feature="dev", allow(useless_vec))]
+fn can_generate_gas_price_statistics() {
+	let client_result = generate_dummy_client_with_data(16, 1, &vec_into![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+	let client = client_result.reference();
+	let s = client.gas_price_statistics(8, 8).unwrap();
+	assert_eq!(s, vec_into![8, 8, 9, 10, 11, 12, 13, 14, 15]);
+	let s = client.gas_price_statistics(16, 8).unwrap();
+	assert_eq!(s, vec_into![0, 1, 3, 5, 7, 9, 11, 13, 15]);
+	let s = client.gas_price_statistics(32, 8).unwrap();
+	assert_eq!(s, vec_into![0, 1, 3, 5, 7, 9, 11, 13, 15]);
+}
+
+#[test]
 fn can_handle_long_fork() {
 	let client_result = generate_dummy_client(1200);
 	let client = client_result.reference();
@@ -137,8 +150,7 @@ fn can_mine() {
 	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
 	let client = client_result.reference();
 
-	let b = client.prepare_open_block(Address::default(), 31415926.into(), vec![]).close();
+	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
 
 	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
-	assert!(client.try_seal(b.lock(), vec![]).is_ok());
 }

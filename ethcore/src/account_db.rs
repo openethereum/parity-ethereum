@@ -37,18 +37,18 @@ impl<'db> HashDB for AccountDB<'db>{
 		unimplemented!()
 	}
 
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<&[u8]> {
 		if key == &SHA3_NULL_RLP {
 			return Some(&NULL_RLP_STATIC);
 		}
-		self.db.lookup(&combine_key(&self.address_hash, key))
+		self.db.get(&combine_key(&self.address_hash, key))
 	}
 
-	fn exists(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256) -> bool {
 		if key == &SHA3_NULL_RLP {
 			return true;
 		}
-		self.db.exists(&combine_key(&self.address_hash, key))
+		self.db.contains(&combine_key(&self.address_hash, key))
 	}
 
 	fn insert(&mut self, _value: &[u8]) -> H256 {
@@ -59,7 +59,7 @@ impl<'db> HashDB for AccountDB<'db>{
 		unimplemented!()
 	}
 
-	fn kill(&mut self, _key: &H256) {
+	fn remove(&mut self, _key: &H256) {
 		unimplemented!()
 	}
 }
@@ -95,18 +95,18 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		unimplemented!()
 	}
 
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<&[u8]> {
 		if key == &SHA3_NULL_RLP {
 			return Some(&NULL_RLP_STATIC);
 		}
-		self.db.lookup(&combine_key(&self.address_hash, key))
+		self.db.get(&combine_key(&self.address_hash, key))
 	}
 
-	fn exists(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256) -> bool {
 		if key == &SHA3_NULL_RLP {
 			return true;
 		}
-		self.db.exists(&combine_key(&self.address_hash, key))
+		self.db.contains(&combine_key(&self.address_hash, key))
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
@@ -127,12 +127,12 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		self.db.emplace(key, value.to_vec())
 	}
 
-	fn kill(&mut self, key: &H256) {
+	fn remove(&mut self, key: &H256) {
 		if key == &SHA3_NULL_RLP {
 			return;
 		}
 		let key = combine_key(&self.address_hash, key);
-		self.db.kill(&key)
+		self.db.remove(&key)
 	}
 }
 

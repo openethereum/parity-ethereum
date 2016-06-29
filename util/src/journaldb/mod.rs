@@ -17,6 +17,7 @@
 //! `JournalDB` interface and implementation.
 
 use common::*;
+use kvdb::DatabaseConfig;
 
 /// Export the journaldb module.
 pub mod traits;
@@ -71,11 +72,16 @@ impl fmt::Display for Algorithm {
 }
 
 /// Create a new `JournalDB` trait object.
-pub fn new(path: &str, algorithm: Algorithm) -> Box<JournalDB> {
+pub fn new(path: &str, algorithm: Algorithm, config: DatabaseConfig) -> Box<JournalDB> {
 	match algorithm {
-		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path)),
-		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(path)),
-		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(path)),
-		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(path)),
+		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path, config)),
+		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(path, config)),
+		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(path, config)),
+		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(path, config)),
 	}
 }
+
+// all keys must be at least 12 bytes
+const DB_PREFIX_LEN : usize = 12;
+const LATEST_ERA_KEY : [u8; DB_PREFIX_LEN] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
+const VERSION_KEY : [u8; DB_PREFIX_LEN] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];

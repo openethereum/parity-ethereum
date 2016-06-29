@@ -111,7 +111,7 @@ impl Handshake {
 		self.originated = originated;
 		io.register_timer(self.connection.token, HANDSHAKE_TIMEOUT).ok();
 		if originated {
-			try!(self.write_auth(host.secret(), host.id()));
+			try!(self.write_auth(io, host.secret(), host.id()));
 		}
 		else {
 			self.state = HandshakeState::ReadingAuth;
@@ -128,17 +128,16 @@ impl Handshake {
 	/// Readable IO handler. Drives the state change.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
 		if !self.expired() {
-			io.clear_timer(self.connection.token).unwrap();
 			match self.state {
 				HandshakeState::New => {}
 				HandshakeState::ReadingAuth => {
 					if let Some(data) = try!(self.connection.readable()) {
-						try!(self.read_auth(host.secret(), &data));
+						try!(self.read_auth(io, host.secret(), &data));
 					};
 				},
 				HandshakeState::ReadingAuthEip8 => {
 					if let Some(data) = try!(self.connection.readable()) {
-						try!(self.read_auth_eip8(host.secret(), &data));
+						try!(self.read_auth_eip8(io, host.secret(), &data));
 					};
 				},
 				HandshakeState::ReadingAck => {
@@ -151,10 +150,9 @@ impl Handshake {
 						try!(self.read_ack_eip8(host.secret(), &data));
 					};
 				},
-				HandshakeState::StartSession => {},
-			}
-			if self.state != HandshakeState::StartSession {
-				try!(io.update_registration(self.connection.token));
+				HandshakeState::StartSession => {
+					io.clear_timer(self.connection.token).ok();
+				},
 			}
 		}
 		Ok(())
@@ -163,11 +161,7 @@ impl Handshake {
 	/// Writabe IO handler.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
 		if !self.expired() {
-			io.clear_timer(self.connection.token).unwrap();
-			try!(self.connection.writable());
-			if self.state != HandshakeState::StartSession {
-				io.update_registration(self.connection.token).unwrap();
-			}
+			try!(self.connection.writable(io));
 		}
 		Ok(())
 	}
@@ -183,7 +177,7 @@ impl Handshake {
 	}
 
 	/// Parse, validate and confirm auth message
-	fn read_auth(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
+	fn read_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
 		trace!(target:"network", "Received handshake auth from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_AUTH_PACKET_SIZE {
 			debug!(target:"net", "Wrong auth packet size");
@@ -197,7 +191,7 @@ impl Handshake {
 				let (pubk, rest) = rest.split_at(64);
 				let (nonce, _) = rest.split_at(32);
 				try!(self.set_auth(secret, sig, pubk, nonce, PROTOCOL_VERSION));
-				try!(self.write_ack());
+				try!(self.write_ack(io));
 			}
 			Err(_) => {
 				// Try to interpret as EIP-8 packet
@@ -214,7 +208,7 @@ impl Handshake {
 		Ok(())
 	}
 
-	fn read_auth_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
+	fn read_auth_eip8<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
 		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.auth_cipher.extend_from_slice(data);
 		let auth = try!(ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..]));
@@ -224,13 +218,13 @@ impl Handshake {
 		let remote_nonce: H256 = try!(rlp.val_at(2));
 		let remote_version: u64 = try!(rlp.val_at(3));
 		try!(self.set_auth(secret, &signature, &remote_public, &remote_nonce, remote_version));
-		try!(self.write_ack_eip8());
+		try!(self.write_ack_eip8(io));
 		Ok(())
 	}
 
 	/// Parse and validate ack message
 	fn read_ack(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"network", "Received handshake auth to {:?}", self.connection.remote_addr_str());
+		trace!(target:"network", "Received handshake ack from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_ACK_PACKET_SIZE {
 			debug!(target:"net", "Wrong ack packet size");
 			return Err(From::from(NetworkError::BadProtocol));
@@ -270,7 +264,7 @@ impl Handshake {
 	}
 
 	/// Sends auth message
-	fn write_auth(&mut self, secret: &Secret, public: &Public) -> Result<(), UtilError> {
+	fn write_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, public: &Public) -> Result<(), UtilError> where Message: Send + Clone {
 		trace!(target:"network", "Sending handshake auth to {:?}", self.connection.remote_addr_str());
 		let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
 		let len = data.len();
@@ -290,14 +284,14 @@ impl Handshake {
 		}
 		let message = try!(crypto::ecies::encrypt(&self.id, &[], &data));
 		self.auth_cipher = message.clone();
-		self.connection.send(message);
+		self.connection.send(io, message);
 		self.connection.expect(V4_ACK_PACKET_SIZE);
 		self.state = HandshakeState::ReadingAck;
 		Ok(())
 	}
 
 	/// Sends ack message
-	fn write_ack(&mut self) -> Result<(), UtilError> {
+	fn write_ack<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
 		trace!(target:"network", "Sending handshake ack to {:?}", self.connection.remote_addr_str());
 		let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
 		let len = data.len();
@@ -310,13 +304,13 @@ impl Handshake {
 		}
 		let message = try!(crypto::ecies::encrypt(&self.id, &[], &data));
 		self.ack_cipher = message.clone();
-		self.connection.send(message);
+		self.connection.send(io, message);
 		self.state = HandshakeState::StartSession;
 		Ok(())
 	}
 
 	/// Sends EIP8 ack message
-	fn write_ack_eip8(&mut self) -> Result<(), UtilError> {
+	fn write_ack_eip8<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
 		trace!(target:"network", "Sending EIP8 handshake ack to {:?}", self.connection.remote_addr_str());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(self.ecdhe.public());
@@ -333,7 +327,7 @@ impl Handshake {
 		let message = try!(crypto::ecies::encrypt(&self.id, &prefix, &encoded));
 		self.ack_cipher.extend_from_slice(&prefix);
 		self.ack_cipher.extend_from_slice(&message);
-		self.connection.send(self.ack_cipher.clone());
+		self.connection.send(io, self.ack_cipher.clone());
 		self.state = HandshakeState::StartSession;
 		Ok(())
 	}
@@ -347,6 +341,7 @@ mod test {
 	use super::*;
 	use crypto::*;
 	use hash::*;
+	use io::*;
 	use std::net::SocketAddr;
 	use mio::tcp::TcpStream;
 	use network::stats::NetworkStats;
@@ -371,6 +366,10 @@ mod test {
 		Handshake::new(0, to, socket, &nonce, Arc::new(NetworkStats::new())).unwrap()
 	}
 
+	fn test_io() -> IoContext<i32> {
+		IoContext::new(IoChannel::disconnected(), 0)
+	}
+
 	#[test]
 	fn test_handshake_auth_plain() {
 		let mut h = create_handshake(None);
@@ -387,7 +386,7 @@ mod test {
 			a4592ee77e2bd94d0be3691f3b406f9bba9b591fc63facc016bfa8\
 			".from_hex().unwrap();
 
-		h.read_auth(&secret, &auth).unwrap();
+		h.read_auth(&test_io(), &secret, &auth).unwrap();
 		assert_eq!(h.state, super::HandshakeState::StartSession);
 		check_auth(&h, 4);
 	}
@@ -411,9 +410,9 @@ mod test {
 			3bf7678318e2d5b5340c9e488eefea198576344afbdf66db5f51204a6961a63ce072c8926c\
 			".from_hex().unwrap();
 
-		h.read_auth(&secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
+		h.read_auth(&test_io(), &secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::ReadingAuthEip8);
-		h.read_auth_eip8(&secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
+		h.read_auth_eip8(&test_io(), &secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::StartSession);
 		check_auth(&h, 4);
 	}
@@ -438,9 +437,9 @@ mod test {
 			d490\
 			".from_hex().unwrap();
 
-		h.read_auth(&secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
+		h.read_auth(&test_io(), &secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::ReadingAuthEip8);
-		h.read_auth_eip8(&secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
+		h.read_auth_eip8(&test_io(), &secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::StartSession);
 		check_auth(&h, 56);
 		let ack = h.ack_cipher.clone();

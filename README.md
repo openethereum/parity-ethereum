@@ -31,29 +31,43 @@ In a near-future release, it will be easy to install Dapps and use them through 
 If you run into an issue while using parity, feel free to file one in this repository
 or hop on our [gitter chat room]([gitter-url]) to ask a question. We are glad to help!
 
-Parity's current release is 1.1. You can download it at https://ethcore.io/parity.html or follow the instructions
+Parity's current release is 1.2. You can download it at https://ethcore.io/parity.html or follow the instructions
 below to build from source.
 
 ----
 
-## Building from source
+## Build dependencies
 
 Parity is fully compatible with Stable Rust.
 
-We recommend installing Rust through [multirust](https://github.com/brson/multirust). If you don't already have multirust, you can install it like this:
+We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
-- Linux:
+- Linux and OSX:
+	```bash
+	$ curl https://sh.rustup.rs -sSf | sh
+	```
+
+- Windows
+
+    Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from
+	https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe, start "VS2015 x64 Native Tools Command Prompt", and use the following command to install and set up the msvc toolchain:
+    ```
+	$ rustup default stable-x86_64-pc-windows-msvc
+    ```
+
+Once you have rustup, install parity or download and build from source
+
+----
+
+## Quick install
+
 ```bash
-$ curl -sf https://raw.githubusercontent.com/brson/multirust/master/quick-install.sh | sh
+cargo install --git https://github.com/ethcore/parity.git parity
 ```
 
-- OSX with Homebrew:
-```bash
-$ brew update && brew install multirust
-$ multirust default stable
-```
+----
 
-Then, download and build Parity:
+## Build from source
 
 ```bash
 # download Parity code
@@ -64,12 +78,11 @@ $ cd parity
 $ cargo build --release
 ```
 
-This will produce an executable in the `target/release` subdirectory.
-Either run `cd target/release`, or copy `target/release/parity` to another location.
+This will produce an executable in the `./target/release` subdirectory.
 
 To get started, just run
 ```bash
-$ parity
+$ ./target/release/parity
 ```
 
 and parity will begin syncing the Ethereum blockchain.

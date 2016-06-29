@@ -41,6 +41,8 @@ pub trait SyncIo {
 	fn is_chain_queue_empty(&self) -> bool {
 		self.chain().queue_info().is_empty()
 	}
+	/// Check if the session is expired
+	fn is_expired(&self) -> bool;
 }
 
 /// Wraps `NetworkContext` and the blockchain client
@@ -82,6 +84,10 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		self.network.peer_info(peer_id)
+	}
+
+	fn is_expired(&self) -> bool {
+		self.network.is_expired()
 	}
 }
 

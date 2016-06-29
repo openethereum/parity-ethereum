@@ -18,7 +18,21 @@ pub use block_queue::BlockQueueConfig;
 pub use blockchain::Config as BlockChainConfig;
 pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
+pub use verification::VerifierType;
 use util::journaldb;
+
+/// Client state db compaction profile
+#[derive(Debug, PartialEq)]
+pub enum DatabaseCompactionProfile {
+	/// Default compaction profile
+	Default,
+	/// HDD or other slow storage io compaction profile
+	HDD,
+}
+
+impl Default for DatabaseCompactionProfile {
+	fn default() -> Self { DatabaseCompactionProfile::Default }
+}
 
 /// Client configuration. Includes configs for all sub-systems.
 #[derive(Debug, Default)]
@@ -35,4 +49,10 @@ pub struct ClientConfig {
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
 	pub name: String,
+	/// State db cache-size if not default
+	pub db_cache_size: Option<usize>,
+	/// State db compaction profile
+	pub db_compaction: DatabaseCompactionProfile,
+	/// Type of block verifier used by client.
+	pub verifier_type: VerifierType,
 }

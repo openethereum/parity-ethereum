@@ -28,11 +28,12 @@
 //! extern crate ethcore;
 //! use std::env;
 //! use util::network::{NetworkService, NetworkConfiguration};
+//! use ethcore::ethereum;
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::default();
+//!		let miner: Miner = Miner::with_spec(ethereum::new_frontier(true));
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
@@ -46,7 +47,7 @@ mod external;
 mod transaction_queue;
 
 pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
-pub use self::miner::{Miner};
+pub use self::miner::{Miner, MinerOptions, PendingSet};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 
 use std::collections::BTreeMap;
@@ -81,11 +82,18 @@ pub trait MinerService : Send + Sync {
 	/// Set minimal gas price of transaction to be accepted for mining.
 	fn set_minimal_gas_price(&self, min_gas_price: U256);
 
-	/// Get the gas limit we wish to target when sealing a new block.
+	/// Get the lower bound of the gas limit we wish to target when sealing a new block.
 	fn gas_floor_target(&self) -> U256;
 
-	/// Set the gas limit we wish to target when sealing a new block.
+	/// Get the upper bound of the gas limit we wish to target when sealing a new block.
+	fn gas_ceil_target(&self) -> U256;
+
+	// TODO: coalesce into single set_range function.
+	/// Set the lower bound of gas limit we wish to target when sealing a new block.
 	fn set_gas_floor_target(&self, target: U256);
+
+	/// Set the upper bound of gas limit we wish to target when sealing a new block.
+	fn set_gas_ceil_target(&self, target: U256);
 
 	/// Get current transactions limit in queue.
 	fn transactions_limit(&self) -> usize;
@@ -93,8 +101,11 @@ pub trait MinerService : Send + Sync {
 	/// Set maximal number of transactions kept in the queue (both current and future).
 	fn set_transactions_limit(&self, limit: usize);
 
+	/// Set maximum amount of gas allowed for any single transaction to mine.
+	fn set_tx_gas_limit(&self, limit: U256);
+
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
+	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails, Self: Sized;
 

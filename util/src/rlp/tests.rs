@@ -429,3 +429,10 @@ fn test_rlp_nested_empty_list_encode() {
 	assert_eq!(stream.drain()[..], [0xc2u8, 0xc0u8, 40u8][..]);
 }
 
+#[test]
+fn test_rlp_list_length_overflow() {
+	let data: Vec<u8> = vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00];
+	let rlp = UntrustedRlp::new(&data);
+	let as_val: Result<String, DecoderError> = rlp.val_at(0);
+	assert_eq!(Err(DecoderError::RlpIsTooShort), as_val);
+}

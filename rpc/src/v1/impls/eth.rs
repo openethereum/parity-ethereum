@@ -18,6 +18,8 @@
 
 extern crate ethash;
 
+use std::thread;
+use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
@@ -26,7 +28,7 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use util::keys::store::AccountProvider;
+use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
@@ -37,35 +39,34 @@ use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::impls::dispatch_transaction;
+use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, A, M, EM> where
+pub struct EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
-	A: AccountProvider,
 	M: MinerService,
 	EM: ExternalMinerService {
 
 	client: Weak<C>,
 	sync: Weak<S>,
-	accounts: Weak<A>,
+	accounts: Weak<AccountProvider>,
 	miner: Weak<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
+	allow_pending_receipt_query: bool,
 }
 
-impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
+impl<C, S, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
-	A: AccountProvider,
 	M: MinerService,
 	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: &Arc<EM>)
-		-> EthClient<C, S, A, M, EM> {
+	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<AccountProvider>, miner: &Arc<M>, em: &Arc<EM>, allow_pending_receipt_query: bool)
+		-> EthClient<C, S, M, EM> {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
@@ -73,6 +74,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 			accounts: Arc::downgrade(accounts),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
+			allow_pending_receipt_query: allow_pending_receipt_query,
 		}
 	}
 
@@ -154,14 +156,13 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM> where
 	}
 
 	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
-		let client = take_weak!(self.client);
-		let miner = take_weak!(self.miner);
+		let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 		let from = request.from.unwrap_or(Address::zero());
 		Ok(EthTransaction {
 			nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
 			gas: request.gas.unwrap_or(U256::from(50_000_000)),
-			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+			gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*client, &*miner)),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
@@ -210,21 +211,33 @@ fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNum
 	}
 }
 
-// must be in range [-32099, -32000]
-const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
-
 fn make_unsupported_err() -> Error {
 	Error {
-		code: ErrorCode::ServerError(UNSUPPORTED_REQUEST_CODE),
+		code: ErrorCode::ServerError(error_codes::UNSUPPORTED_REQUEST_CODE),
 		message: "Unsupported request.".into(),
 		data: None
 	}
 }
 
-impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
+fn no_work_err() -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::NO_WORK_CODE),
+		message: "Still syncing.".into(),
+		data: None
+	}
+}
+
+fn no_author_err() -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::NO_AUTHOR_CODE),
+		message: "Author not configured. Run parity with --author to configure.".into(),
+		data: None
+	}
+}
+
+impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
-	A: AccountProvider + 'static,
 	M: MinerService + 'static,
 	EM: ExternalMinerService + 'static {
 
@@ -284,17 +297,17 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&take_weak!(self.miner).sensible_gas_price()),
+			Params::None => {
+				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+				to_value(&default_gas_price(&*client, &*miner))
+			}
 			_ => Err(Error::invalid_params())
 		}
 	}
 
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
-		match store.accounts() {
-			Ok(account_list) => to_value(&account_list),
-			Err(_) => Err(Error::internal_error())
-		}
+		to_value(&store.accounts())
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
@@ -408,9 +421,15 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 	fn transaction_receipt(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| {
-				let client = take_weak!(self.client);
-				let receipt = client.transaction_receipt(TransactionID::Hash(hash));
-				to_value(&receipt.map(Receipt::from))
+				let miner = take_weak!(self.miner);
+				match miner.pending_receipts().get(&hash) {
+					Some(receipt) if self.allow_pending_receipt_query => to_value(&Receipt::from(receipt.clone())),
+					_ => {
+						let client = take_weak!(self.client);
+						let receipt = client.transaction_receipt(TransactionID::Hash(hash));
+						to_value(&receipt.map(Receipt::from))
+					}
+				}
 			})
 	}
 
@@ -460,11 +479,21 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 					//let sync = take_weak!(self.sync);
 					if /*sync.status().state != SyncState::Idle ||*/ client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
 						trace!(target: "miner", "Syncing. Cannot give any work.");
-						return to_value(&(String::new(), String::new(), String::new()));
+						return Err(no_work_err());
+					}
+
+					// Otherwise spin until our submitted block has been included.
+					let timeout = Instant::now() + Duration::from_millis(1000);
+					while Instant::now() < timeout && client.queue_info().total_queue_size() > 0 {
+						thread::sleep(Duration::from_millis(1));
 					}
 				}
 
 				let miner = take_weak!(self.miner);
+				if miner.author().is_zero() {
+					warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
+					return Err(no_author_err())
+				}
 				miner.map_sealing_work(client.deref(), |b| {
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
@@ -499,7 +528,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM> where
 			.and_then(|(raw_transaction, )| {
 				let raw_transaction = raw_transaction.to_vec();
 				match UntrustedRlp::new(&raw_transaction).as_val() {
-					Ok(signed_transaction) => to_value(&dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction)),
+					Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction),
 					Err(_) => to_value(&H256::zero()),
 				}
 		})

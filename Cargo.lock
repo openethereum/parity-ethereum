@@ -1,26 +1,26 @@
 [root]
 name = "parity"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/ethcore/rust-ctrlc.git)",
  "daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 1.2.0",
- "ethcore-dapps 1.2.0",
- "ethcore-devtools 1.2.0",
- "ethcore-ipc 1.2.0",
- "ethcore-ipc-codegen 1.2.0",
- "ethcore-ipc-nano 1.2.0",
- "ethcore-rpc 1.2.0",
- "ethcore-signer 1.2.0",
- "ethcore-util 1.2.0",
- "ethsync 1.2.0",
+ "ethcore 1.3.0",
+ "ethcore-dapps 1.3.0",
+ "ethcore-devtools 1.3.0",
+ "ethcore-ipc 1.3.0",
+ "ethcore-ipc-codegen 1.3.0",
+ "ethcore-ipc-nano 1.3.0",
+ "ethcore-rpc 1.3.0",
+ "ethcore-signer 1.3.0",
+ "ethcore-util 1.3.0",
+ "ethsync 1.3.0",
  "fdlimit 0.1.0",
  "hyper 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "json-ipc-server 0.1.0 (git+https://github.com/ethcore/json-ipc-server.git)",
+ "json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "number_prefix 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -30,6 +30,7 @@ dependencies = [
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -66,12 +67,10 @@ dependencies = [
 name = "bigint"
 version = "0.1.0"
 dependencies = [
- "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -130,15 +129,15 @@ dependencies = [
 
 [[package]]
 name = "clippy"
-version = "0.0.76"
+version = "0.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "clippy_lints 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy_lints 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "clippy_lints"
-version = "0.0.76"
+version = "0.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -165,7 +164,7 @@ version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -179,7 +178,7 @@ version = "1.1.1"
 source = "git+https://github.com/ethcore/rust-ctrlc.git#f4927770f89eca80ec250911eea3adcbf579ac48"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -188,7 +187,7 @@ name = "daemonize"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -230,16 +229,16 @@ source = "git+https://github.com/ethcore/rust-secp256k1#b6fdd43bbcf6d46adb72a92d
 dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "ethash"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "primal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -248,24 +247,25 @@ dependencies = [
 
 [[package]]
 name = "ethcore"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethash 1.2.0",
- "ethcore-devtools 1.2.0",
- "ethcore-ipc 1.2.0",
- "ethcore-ipc-codegen 1.2.0",
- "ethcore-util 1.2.0",
+ "ethash 1.3.0",
+ "ethcore-devtools 1.3.0",
+ "ethcore-ipc 1.3.0",
+ "ethcore-ipc-codegen 1.3.0",
+ "ethcore-util 1.3.0",
  "ethjson 0.1.0",
+ "ethstore 0.1.0",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rust-crypto 0.2.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -273,50 +273,48 @@ dependencies = [
 
 [[package]]
 name = "ethcore-dapps"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-rpc 1.2.0",
- "ethcore-util 1.2.0",
- "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
- "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-rpc 1.3.0",
+ "ethcore-util 1.3.0",
+ "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
+ "jsonrpc-core 2.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
  "parity-dapps-builtins 0.5.1 (git+https://github.com/ethcore/parity-dapps-builtins-rs.git)",
- "parity-dapps-dao 0.4.0 (git+https://github.com/ethcore/parity-dapps-dao-rs.git)",
- "parity-dapps-makerotc 0.3.0 (git+https://github.com/ethcore/parity-dapps-makerotc-rs.git)",
  "parity-dapps-status 0.5.0 (git+https://github.com/ethcore/parity-dapps-status-rs.git)",
  "parity-dapps-wallet 0.6.1 (git+https://github.com/ethcore/parity-dapps-wallet-rs.git)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_codegen 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "ethcore-devtools"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "ethcore-ipc"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
- "ethcore-devtools 1.2.0",
- "ethcore-util 1.2.0",
+ "ethcore-devtools 1.3.0",
+ "ethcore-util 1.3.0",
  "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "ethcore-ipc-codegen"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -327,32 +325,32 @@ dependencies = [
 
 [[package]]
 name = "ethcore-ipc-nano"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
- "ethcore-ipc 1.2.0",
- "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-ipc 1.3.0",
+ "jsonrpc-core 2.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
 ]
 
 [[package]]
 name = "ethcore-rpc"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethash 1.2.0",
- "ethcore 1.2.0",
- "ethcore-devtools 1.2.0",
- "ethcore-util 1.2.0",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethash 1.3.0",
+ "ethcore 1.3.0",
+ "ethcore-devtools 1.3.0",
+ "ethcore-util 1.3.0",
  "ethjson 0.1.0",
- "ethsync 1.2.0",
- "json-ipc-server 0.1.0 (git+https://github.com/ethcore/json-ipc-server.git)",
- "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethsync 1.3.0",
+ "json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)",
+ "jsonrpc-core 2.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_codegen 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -360,48 +358,48 @@ dependencies = [
 
 [[package]]
 name = "ethcore-signer"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-rpc 1.2.0",
- "ethcore-util 1.2.0",
- "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-rpc 1.3.0",
+ "ethcore-util 1.3.0",
+ "jsonrpc-core 2.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-minimal-sysui 0.1.0 (git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git)",
+ "parity-minimal-sysui 0.2.0 (git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.4.6 (git+https://github.com/ethcore/ws-rs.git)",
+ "ws 0.5.0 (git+https://github.com/ethcore/ws-rs.git?branch=stable)",
 ]
 
 [[package]]
 name = "ethcore-util"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "bigint 0.1.0",
  "chrono 0.2.22 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
- "ethcore-devtools 1.2.0",
+ "ethcore-devtools 1.3.0",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "igd 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "json-tests 0.1.0",
- "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
  "nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb 0.4.5 (git+https://github.com/ethcore/rust-rocksdb)",
- "rust-crypto 0.2.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha3 0.1.0",
  "slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -414,22 +412,49 @@ dependencies = [
 name = "ethjson"
 version = "0.1.0"
 dependencies = [
- "ethcore-util 1.2.0",
+ "ethcore-util 1.3.0",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_codegen 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
-name = "ethsync"
-version = "1.2.0"
+name = "ethkey"
+version = "0.2.0"
 dependencies = [
- "clippy 0.0.76 (registry+https://github.com/rust-lang/crates.io-index)",
+ "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
+ "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethstore"
+version = "0.1.0"
+dependencies = [
+ "ethkey 0.2.0",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethsync"
+version = "1.3.0"
+dependencies = [
+ "clippy 0.0.77 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 1.2.0",
- "ethcore-util 1.2.0",
+ "ethcore 1.3.0",
+ "ethcore-util 1.3.0",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -440,7 +465,7 @@ dependencies = [
 name = "fdlimit"
 version = "0.1.0"
 dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -521,23 +546,22 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "0.9.3"
-source = "git+https://github.com/ethcore/hyper#dbb4cf160ebf242f7f0459d547c40e9e6877ccf4"
+version = "0.9.4"
+source = "git+https://github.com/ethcore/hyper#7ccfcb2aa7e6aa6300efa8cebd6a0e6ce55582ea"
 dependencies = [
  "cookie 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rotor 0.6.3 (git+https://github.com/ethcore/rotor)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "spmc 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "traitobject 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "typeable 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "vecio 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -570,12 +594,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "json-ipc-server"
-version = "0.1.0"
-source = "git+https://github.com/ethcore/json-ipc-server.git#4f9226c4f84dcce2385a188374e3b5fc66b63e68"
+version = "0.2.4"
+source = "git+https://github.com/ethcore/json-ipc-server.git#902b031b8f50a59ecb4f389cbec1d264a98556bc"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 2.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "miow 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -589,11 +617,11 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-core"
-version = "2.0.5"
+version = "2.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_codegen 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -601,10 +629,10 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "5.1.0"
-source = "git+https://github.com/ethcore/jsonrpc-http-server.git#6117b1d77b5a60d6fa2dc884f12aa7f5fd4585ca"
+source = "git+https://github.com/ethcore/jsonrpc-http-server.git#e59c2fbaca499620874023755cb91f05b858ffe7"
 dependencies = [
- "hyper 0.9.3 (git+https://github.com/ethcore/hyper)",
- "jsonrpc-core 2.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
+ "jsonrpc-core 2.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -629,17 +657,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "lazy_static"
-version = "0.1.16"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "libc"
-version = "0.2.10"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -657,7 +680,7 @@ name = "memchr"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -690,15 +713,15 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.5.0"
-source = "git+https://github.com/carllerche/mio.git#f4aa49a9d2c4507fb33a4533d5238e0365f67c99"
+version = "0.5.1"
+source = "git+https://github.com/ethcore/mio?branch=v0.5.x#3842d3b250ffd7bd9b16f9586b875ddcbac2b0dd"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
- "nix 0.5.0-pre (git+https://github.com/carllerche/nix-rust?rev=c4257f8a76)",
+ "nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -710,7 +733,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -736,7 +759,7 @@ name = "nanomsg"
 version = "0.5.1"
 source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
 dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
 ]
 
@@ -746,7 +769,7 @@ version = "0.5.0"
 source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
 dependencies = [
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -756,18 +779,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "nix"
-version = "0.5.0-pre"
-source = "git+https://github.com/carllerche/nix-rust?rev=c4257f8a76#c4257f8a76b69b0d2e9a001d83e4bef67c03b23f"
-dependencies = [
- "bitflags 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -776,7 +790,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -863,7 +877,7 @@ name = "num_cpus"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -882,7 +896,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-dapps"
 version = "0.3.0"
-source = "git+https://github.com/ethcore/parity-dapps-rs.git#1f065d93aa49338e4a453c77c839957f2db78895"
+source = "git+https://github.com/ethcore/parity-dapps-rs.git#8cc812c26c903cf5764ce0f4cc3f2a7c3ddb0dc2"
 dependencies = [
  "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -896,23 +910,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-builtins"
 version = "0.5.1"
-source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#b3970ff4686a12321365cfafba6552bfaa2e7874"
-dependencies = [
- "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
-]
-
-[[package]]
-name = "parity-dapps-dao"
-version = "0.4.0"
-source = "git+https://github.com/ethcore/parity-dapps-dao-rs.git#dd6b9ca7c18fbfa714183a4f570bd75b8391c13d"
-dependencies = [
- "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
-]
-
-[[package]]
-name = "parity-dapps-makerotc"
-version = "0.3.0"
-source = "git+https://github.com/ethcore/parity-dapps-makerotc-rs.git#33568ac7209aa765c498bb2322e848f552656303"
+source = "git+https://github.com/ethcore/parity-dapps-builtins-rs.git#7408838e8ca3b57c6b0cf5da2e31e0e275959955"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -920,7 +918,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-status"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/parity-dapps-status-rs.git#53e159f52013be5d2e8ba7eca35f605ad6e3bfa9"
+source = "git+https://github.com/ethcore/parity-dapps-status-rs.git#0cdd3512004e403aff7da3b8c16ba0bf5d6c911c"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
@@ -928,15 +926,15 @@ dependencies = [
 [[package]]
 name = "parity-dapps-wallet"
 version = "0.6.1"
-source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#8923d4c73359c75ce04f0639bbcde46adb846b81"
+source = "git+https://github.com/ethcore/parity-dapps-wallet-rs.git#867994fe25038f000f1cc09cd024a83700a03930"
 dependencies = [
  "parity-dapps 0.3.0 (git+https://github.com/ethcore/parity-dapps-rs.git)",
 ]
 
 [[package]]
 name = "parity-minimal-sysui"
-version = "0.1.0"
-source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#4c704913f671060bb0e43b5ce4a68d02281115d5"
+version = "0.2.0"
+source = "git+https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git#996c9f3f0ebedc727aecb4ece191154e956ae292"
 
 [[package]]
 name = "phf"
@@ -1033,7 +1031,7 @@ dependencies = [
 
 [[package]]
 name = "quick-error"
-version = "0.2.2"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -1046,7 +1044,7 @@ name = "rand"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1079,30 +1077,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rocksdb"
 version = "0.4.5"
-source = "git+https://github.com/ethcore/rust-rocksdb#8f6e43b2d8799578a378648bcb17c01fb431dbec"
+source = "git+https://github.com/ethcore/rust-rocksdb#9be41e05923616dfa28741c58b22776d479751e6"
 dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb-sys 0.3.0 (git+https://github.com/ethcore/rust-rocksdb)",
 ]
 
 [[package]]
 name = "rocksdb-sys"
 version = "0.3.0"
-source = "git+https://github.com/ethcore/rust-rocksdb#8f6e43b2d8799578a378648bcb17c01fb431dbec"
+source = "git+https://github.com/ethcore/rust-rocksdb#9be41e05923616dfa28741c58b22776d479751e6"
 dependencies = [
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rotor"
 version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/ethcore/rotor#e63d45137b2eb66d1e085a7c6321a5db8b187576"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "quick-error 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
+ "quick-error 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1112,18 +1109,18 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "termios 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rust-crypto"
-version = "0.2.35"
+version = "0.2.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1165,12 +1162,12 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "0.7.7"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "serde_codegen"
-version = "0.7.7"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1186,7 +1183,7 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "num-traits 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1247,7 +1244,7 @@ version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "term 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1273,7 +1270,7 @@ name = "termios"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1282,7 +1279,7 @@ version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1299,7 +1296,7 @@ version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1384,7 +1381,7 @@ dependencies = [
 
 [[package]]
 name = "url"
-version = "1.0.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "idna 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1448,16 +1445,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "ws"
-version = "0.4.6"
-source = "git+https://github.com/ethcore/ws-rs.git#5b28de58421b017b01f4565b2c35a46679707789"
+version = "0.5.0"
+source = "git+https://github.com/ethcore/ws-rs.git?branch=stable#a876fc115c3ef50a17c8822c9bd2f6e94473e005"
 dependencies = [
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.0 (git+https://github.com/carllerche/mio.git)",
+ "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha1 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

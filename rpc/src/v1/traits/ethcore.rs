@@ -30,6 +30,9 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns mining gas floor target.
 	fn gas_floor_target(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns mining gas floor cap.
+	fn gas_ceil_target(&self, _: Params) -> Result<Value, Error>;
+
 	/// Returns minimal gas price for transaction to be included in queue.
 	fn min_gas_price(&self, _: Params) -> Result<Value, Error>;
 
@@ -57,12 +60,20 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns default extra data
 	fn default_extra_data(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns distribution of gas price in latest blocks.
+	fn gas_price_statistics(&self, _: Params) -> Result<Value, Error>;
+
+	/// Returns number of unsigned transactions waiting in the signer queue (if signer enabled)
+	/// Returns error when signer is disabled
+	fn unsigned_transactions_count(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 
 		delegate.add_method("ethcore_extraData", Ethcore::extra_data);
 		delegate.add_method("ethcore_gasFloorTarget", Ethcore::gas_floor_target);
+		delegate.add_method("ethcore_gasCeilTarget", Ethcore::gas_ceil_target);
 		delegate.add_method("ethcore_minGasPrice", Ethcore::min_gas_price);
 		delegate.add_method("ethcore_transactionsLimit", Ethcore::transactions_limit);
 		delegate.add_method("ethcore_devLogs", Ethcore::dev_logs);
@@ -73,6 +84,8 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_rpcSettings", Ethcore::rpc_settings);
 		delegate.add_method("ethcore_nodeName", Ethcore::node_name);
 		delegate.add_method("ethcore_defaultExtraData", Ethcore::default_extra_data);
+		delegate.add_method("ethcore_gasPriceStatistics", Ethcore::gas_price_statistics);
+		delegate.add_method("ethcore_unsignedTransactionsCount", Ethcore::unsigned_transactions_count);
 
 		delegate
 	}

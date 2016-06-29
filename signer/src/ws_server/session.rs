@@ -62,6 +62,19 @@ fn auth_is_valid(codes: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 	}
 }
 
+fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
+	let content_len = format!("{}", response.len());
+	{
+		let mut headers = response.headers_mut();
+		headers.push(("X-Frame-Options".into(), b"SAMEORIGIN".to_vec()));
+		headers.push(("Server".into(), b"Parity/SignerUI".to_vec()));
+		headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
+		headers.push(("Content-Type".into(), mime.as_bytes().to_vec()));
+		headers.push(("Connection".into(), b"close".to_vec()));
+	}
+	response
+}
+
 pub struct Session {
 	out: ws::Sender,
 	self_origin: String,
@@ -75,7 +88,7 @@ impl ws::Handler for Session {
 		let host = req.header("host").or_else(|| req.header("Host"));
 
 		// Check request origin and host header.
-		if !origin_is_allowed(&self.self_origin, origin) && !origin_is_allowed(&self.self_origin, host) {
+		if !origin_is_allowed(&self.self_origin, origin) && !(origin.is_none() && origin_is_allowed(&self.self_origin, host)) {
 			warn!(target: "signer", "Blocked connection to Signer API from untrusted origin.");
 			return Ok(ws::Response::forbidden(format!("You are not allowed to access system ui. Use: http://{}", self.self_origin)));
 		}
@@ -98,26 +111,13 @@ impl ws::Handler for Session {
 		}
 
 		// Otherwise try to serve a page.
-		sysui::handle(req.resource())
+		Ok(sysui::handle(req.resource())
 			.map_or_else(
-				// return error
-				|| Ok(ws::Response::not_found("Page not found".into())),
+				// return 404 not found
+				|| add_headers(ws::Response::not_found("Not found".into()), "text/plain"),
 				// or serve the file
-				|f| {
-					let content_len = format!("{}", f.content.as_bytes().len());
-					let mut res = ws::Response::ok(f.content.into());
-					{
-						let mut headers = res.headers_mut();
-						headers.push(("Server".into(), b"Parity/SignerUI".to_vec()));
-						headers.push(("Connection".into(), b"Closed".to_vec()));
-						headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
-						headers.push(("Content-Type".into(), f.mime.as_bytes().to_vec()));
-						if !f.safe_to_embed {
-							headers.push(("X-Frame-Options".into(), b"SAMEORIGIN".to_vec()));
-						}
-					}
-					Ok(res)
-				})
+				|f| add_headers(ws::Response::ok(f.content.into()), &f.mime)
+			))
 	}
 
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {

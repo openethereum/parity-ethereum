@@ -1,7 +1,7 @@
 [package]
 description = "Ethcore client."
 name = "parity"
-version = "1.2.0"
+version = "1.3.0"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
@@ -19,11 +19,10 @@ docopt = "0.6"
 time = "0.1"
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
-daemonize = "0.2"
 num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
-clippy = { version = "0.0.76", optional = true}
+clippy = { version = "0.0.77", optional = true}
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
@@ -36,6 +35,12 @@ ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ansi_term = "0.7"
+
+[target.'cfg(windows)'.dependencies]
+winapi = "0.2"
+
+[target.'cfg(not(windows))'.dependencies]
+daemonize = "0.2"
 
 [dependencies.hyper]
 version = "0.8"

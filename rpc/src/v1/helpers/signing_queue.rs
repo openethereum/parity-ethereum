@@ -19,8 +19,11 @@ use std::time::{Instant, Duration};
 use std::sync::{mpsc, Mutex, RwLock, Arc};
 use std::collections::HashMap;
 use v1::types::{TransactionRequest, TransactionConfirmation};
-use util::{U256, H256};
+use util::U256;
+use jsonrpc_core;
 
+/// Result that can be returned from JSON RPC.
+pub type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
 
 /// Possible events happening in the queue that can be listened to.
 #[derive(Debug, PartialEq)]
@@ -59,13 +62,19 @@ pub trait SigningQueue: Send + Sync {
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that transaction was confirmed and given hash was assigned.
-	fn request_confirmed(&self, id: U256, hash: H256) -> Option<TransactionConfirmation>;
+	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<TransactionConfirmation>;
 
 	/// Returns a request if it is contained in the queue.
 	fn peek(&self, id: &U256) -> Option<TransactionConfirmation>;
 
 	/// Return copy of all the requests in the queue.
 	fn requests(&self) -> Vec<TransactionConfirmation>;
+
+	/// Returns number of transactions awaiting confirmation.
+	fn len(&self) -> usize;
+
+	/// Returns true if there are no transactions awaiting confirmation.
+	fn is_empty(&self) -> bool;
 }
 
 #[derive(Debug, PartialEq)]
@@ -75,7 +84,7 @@ enum ConfirmationResult {
 	/// The transaction has been rejected.
 	Rejected,
 	/// The transaction has been confirmed.
-	Confirmed(H256),
+	Confirmed(RpcResult),
 }
 
 /// Time you need to confirm the transaction in UI.
@@ -100,7 +109,7 @@ pub struct ConfirmationPromise {
 
 impl ConfirmationToken {
 	/// Submit solution to all listeners
-	fn resolve(&self, result: Option<H256>) {
+	fn resolve(&self, result: Option<RpcResult>) {
 		let mut res = self.result.lock().unwrap();
 		*res = result.map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
 		// Notify listener
@@ -119,8 +128,8 @@ impl ConfirmationPromise {
 	/// Blocks current thread and awaits for
 	/// resolution of the transaction (rejected / confirmed)
 	/// Returns `None` if transaction was rejected or timeout reached.
-	/// Returns `Some(hash)` if transaction was confirmed.
-	pub fn wait_with_timeout(&self) -> Option<H256> {
+	/// Returns `Some(result)` if transaction was confirmed.
+	pub fn wait_with_timeout(&self) -> Option<RpcResult> {
 		let timeout = Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC);
 		let deadline = Instant::now() + timeout;
 
@@ -137,7 +146,7 @@ impl ConfirmationPromise {
 			// Check the result
 			match *res {
 				ConfirmationResult::Rejected => return None,
-				ConfirmationResult::Confirmed(h) => return Some(h),
+				ConfirmationResult::Confirmed(ref h) => return Some(h.clone()),
 				ConfirmationResult::Waiting => continue,
 			}
 		}
@@ -204,12 +213,12 @@ impl ConfirmationsQueue {
 
 	/// Removes transaction from this queue and notifies `ConfirmationPromise` holders about the result.
 	/// Notifies also a receiver about that event.
-	fn remove(&self, id: U256, result: Option<H256>) -> Option<TransactionConfirmation> {
+	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<TransactionConfirmation> {
 		let token = self.queue.write().unwrap().remove(&id);
 
 		if let Some(token) = token {
 			// notify receiver about the event
-			self.notify(result.map_or_else(
+			self.notify(result.clone().map_or_else(
 				|| QueueEvent::RequestRejected(id),
 				|_| QueueEvent::RequestConfirmed(id)
 			));
@@ -265,14 +274,24 @@ impl SigningQueue for  ConfirmationsQueue {
 		self.remove(id, None)
 	}
 
-	fn request_confirmed(&self, id: U256, hash: H256) -> Option<TransactionConfirmation> {
+	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<TransactionConfirmation> {
 		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", id);
-		self.remove(id, Some(hash))
+		self.remove(id, Some(result))
 	}
 
 	fn requests(&self) -> Vec<TransactionConfirmation> {
 		let queue = self.queue.read().unwrap();
 		queue.values().map(|token| token.request.clone()).collect()
+	}
+
+	fn len(&self) -> usize {
+		let queue = self.queue.read().unwrap();
+		queue.len()
+	}
+
+	fn is_empty(&self) -> bool {
+		let queue = self.queue.read().unwrap();
+		queue.is_empty()
 	}
 }
 
@@ -286,6 +305,7 @@ mod test {
 	use util::numbers::{U256, H256};
 	use v1::types::TransactionRequest;
 	use super::*;
+	use jsonrpc_core::to_value;
 
 	fn request() -> TransactionRequest {
 		TransactionRequest {
@@ -317,10 +337,10 @@ mod test {
 			// Just wait for the other thread to start
 			thread::sleep(Duration::from_millis(100));
 		}
-		queue.request_confirmed(id, H256::from(1));
+		queue.request_confirmed(id, to_value(&H256::from(1)));
 
 		// then
-		assert_eq!(handle.join().expect("Thread should finish nicely"), H256::from(1));
+		assert_eq!(handle.join().expect("Thread should finish nicely"), to_value(&H256::from(1)));
 	}
 
 	#[test]

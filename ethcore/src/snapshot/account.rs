@@ -85,7 +85,7 @@ impl Account {
 		if self.code_hash == SHA3_EMPTY {
 			account_stream.append(&false).append_empty_data();
 		} else {
-			match acct_db.lookup(&self.code_hash) {
+			match acct_db.get(&self.code_hash) {
 				Some(c) => {
 					account_stream.append(&true).append(&c);
 				}

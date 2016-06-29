@@ -17,6 +17,7 @@
 use std::sync::Arc;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
@@ -60,45 +61,57 @@ pub struct GenericConnection<Socket: GenericSocket> {
 	interest: EventSet,
 	/// Shared network statistics
 	stats: Arc<NetworkStats>,
+	/// Registered flag
+	registered: AtomicBool,
 }
 
 impl<Socket: GenericSocket> GenericConnection<Socket> {
 	pub fn expect(&mut self, size: usize) {
+		trace!(target:"network", "Expect to read {} bytes", size);
 		if self.rec_size != self.rec_buf.len() {
-			warn!(target:"net", "Unexpected connection read start");
+			warn!(target:"network", "Unexpected connection read start");
 		}
-		unsafe { self.rec_buf.set_len(0) }
 		self.rec_size = size;
 	}
 
 	/// Readable IO handler. Called when there is some data to be read.
 	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
 		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
-			warn!(target:"net", "Unexpected connection read");
+			warn!(target:"network", "Unexpected connection read");
 		}
-		let max = self.rec_size - self.rec_buf.len();
-		// resolve "multiple applicable items in scope [E0034]" error
 		let sock_ref = <Socket as Read>::by_ref(&mut self.socket);
-		match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
-			Ok(Some(size)) if size != 0  => {
-				self.stats.inc_recv(size);
-				if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
-					self.rec_size = 0;
-					Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
-				} else { Ok(None) }
-			},
-			Ok(_) => Ok(None),
-			Err(e) => Err(e),
-		}
-	}
+		loop {
+			let max = self.rec_size - self.rec_buf.len();
+			match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
+				Ok(Some(size)) if size != 0  => {
+					self.stats.inc_recv(size);
+					trace!(target:"network", "{}: Read {} of {} bytes", self.token, self.rec_buf.len(), self.rec_size);
+					if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
+						self.rec_size = 0;
+						return Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
+					}
+					else if self.rec_buf.len() > self.rec_size {
+						warn!(target:"network", "Read past buffer {} bytes", self.rec_buf.len() - self.rec_size);
+						return Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
+                    }
+				},
+				Ok(_) => return Ok(None),
+				Err(e) => { 
+					debug!(target:"network", "Read error {} ({})", self.token, e);
+					return Err(e)
+				}
+			}
+        }
+	}	
 
 	/// Add a packet to send queue.
-	pub fn send(&mut self, data: Bytes) {
+	pub fn send<Message>(&mut self, io: &IoContext<Message>, data: Bytes) where Message: Send + Clone {
 		if !data.is_empty() {
 			self.send_queue.push_back(Cursor::new(data));
 		}
 		if !self.interest.is_writable() {
 			self.interest.insert(EventSet::writable());
+			io.update_registration(self.token).ok();
 		}
 	}
 
@@ -108,7 +121,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	}
 
 	/// Writable IO handler. Called when the socket is ready to send.
-	pub fn writable(&mut self) -> io::Result<WriteStatus> {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, UtilError> where Message: Send + Clone {
 		if self.send_queue.is_empty() {
 			return Ok(WriteStatus::Complete)
 		}
@@ -121,17 +134,17 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 			}
 			match self.socket.try_write_buf(buf) {
 				Ok(Some(size)) if (buf.position() as usize) < send_size => {
-					self.interest.insert(EventSet::writable());
 					self.stats.inc_send(size);
 					Ok(WriteStatus::Ongoing)
 				},
 				Ok(Some(size)) if (buf.position() as usize) == send_size => {
 					self.stats.inc_send(size);
+					trace!(target:"network", "{}: Wrote {} bytes", self.token, send_size);
 					Ok(WriteStatus::Complete)
 				},
 				Ok(Some(_)) => { panic!("Wrote past buffer");},
 				Ok(None) => Ok(WriteStatus::Ongoing),
-				Err(e) => Err(e)
+				Err(e) => try!(Err(e))
 			}
 		}.and_then(|r| {
 			if r == WriteStatus::Complete {
@@ -139,9 +152,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 			}
 			if self.send_queue.is_empty() {
 				self.interest.remove(EventSet::writable());
-			}
-			else {
-				self.interest.insert(EventSet::writable());
+				try!(io.update_registration(self.token));
 			}
 			Ok(r)
 		})
@@ -162,6 +173,7 @@ impl Connection {
 			rec_size: 0,
 			interest: EventSet::hup() | EventSet::readable(),
 			stats: stats,
+			registered: AtomicBool::new(false),
 		}
 	}
 
@@ -188,27 +200,36 @@ impl Connection {
 			rec_buf: Vec::new(),
 			rec_size: 0,
 			send_queue: self.send_queue.clone(),
-			interest: EventSet::hup() | EventSet::readable(),
+			interest: EventSet::hup(),
 			stats: self.stats.clone(),
+			registered: AtomicBool::new(false),
 		})
 	}
 
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+		if self.registered.load(AtomicOrdering::SeqCst) {
+			return Ok(());
+        }
 		trace!(target: "network", "connection register; token={:?}", reg);
 		if let Err(e) = event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() /* | PollOpt::oneshot() */) { // TODO: oneshot is broken on windows
 			trace!(target: "network", "Failed to register {:?}, {:?}", reg, e);
 		}
+		self.registered.store(true, AtomicOrdering::SeqCst);
 		Ok(())
 	}
 
 	/// Update connection registration. Should be called at the end of the IO handler.
 	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "network", "connection reregister; token={:?}", reg);
-		event_loop.reregister( &self.socket, reg, self.interest, PollOpt::edge() /* | PollOpt::oneshot() */ ).or_else(|e| {  // TODO: oneshot is broken on windows
-			trace!(target: "network", "Failed to reregister {:?}, {:?}", reg, e);
+		if !self.registered.load(AtomicOrdering::SeqCst) {
+			self.register_socket(reg, event_loop)
+        } else {
+			event_loop.reregister(&self.socket, reg, self.interest, PollOpt::edge() /* | PollOpt::oneshot() */ ).unwrap_or_else(|e| {  // TODO: oneshot is broken on windows
+				trace!(target: "network", "Failed to reregister {:?}, {:?}", reg, e);
+			});
 			Ok(())
-		})
+		}
 	}
 
 	/// Delete connection registration. Should be called at the end of the IO handler.
@@ -266,7 +287,7 @@ pub struct EncryptedConnection {
 }
 
 impl EncryptedConnection {
-	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
+	/// Create an encrypted connection out of the handshake.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, UtilError> {
 		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral));
 		let mut nonce_material = H512::new();
@@ -320,7 +341,7 @@ impl EncryptedConnection {
 	}
 
 	/// Send a packet
-	pub fn send_packet(&mut self, payload: &[u8]) -> Result<(), UtilError> {
+	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
 		let mut header = RlpStream::new();
 		let len = payload.len() as usize;
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
@@ -342,7 +363,7 @@ impl EncryptedConnection {
 		self.egress_mac.update(&packet[32..(32 + len + padding)]);
 		EncryptedConnection::update_mac(&mut self.egress_mac, &mut self.mac_encoder, &[0u8; 0]);
 		self.egress_mac.clone().finalize(&mut packet[(32 + len + padding)..]);
-		self.connection.send(packet);
+		self.connection.send(io, packet);
 		Ok(())
 	}
 
@@ -416,32 +437,30 @@ impl EncryptedConnection {
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, UtilError> where Message: Send + Clone{
-		io.clear_timer(self.connection.token).unwrap();
-		match self.read_state {
-			EncryptedConnectionState::Header => {
-				if let Some(data) = try!(self.connection.readable()) {
-					try!(self.read_header(&data));
-					try!(io.register_timer(self.connection.token, RECIEVE_PAYLOAD_TIMEOUT));
-				}
-				Ok(None)
-			},
-			EncryptedConnectionState::Payload => {
-				match try!(self.connection.readable()) {
-					Some(data)  => {
-						self.read_state = EncryptedConnectionState::Header;
-						self.connection.expect(ENCRYPTED_HEADER_LEN);
-						Ok(Some(try!(self.read_payload(&data))))
-					},
-					None => Ok(None)
-				}
+		try!(io.clear_timer(self.connection.token));
+		if let EncryptedConnectionState::Header = self.read_state {
+			if let Some(data) = try!(self.connection.readable()) {
+				try!(self.read_header(&data));
+				try!(io.register_timer(self.connection.token, RECIEVE_PAYLOAD_TIMEOUT));
 			}
+		};
+		if let EncryptedConnectionState::Payload = self.read_state {
+			match try!(self.connection.readable()) {
+				Some(data) => {
+					self.read_state = EncryptedConnectionState::Header;
+					self.connection.expect(ENCRYPTED_HEADER_LEN);
+					Ok(Some(try!(self.read_payload(&data))))
+				},
+				None => Ok(None)
+			}
+		} else {
+			Ok(None)
 		}
 	}
 
 	/// Writable IO handler. Processes send queeue.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
-		io.clear_timer(self.connection.token).unwrap();
-		try!(self.connection.writable());
+		try!(self.connection.writable(io));
 		Ok(())
 	}
 }
@@ -472,12 +491,14 @@ pub fn test_encryption() {
 mod tests {
 	use super::*;
 	use std::sync::*;
+	use std::sync::atomic::AtomicBool;
 	use super::super::stats::*;
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
 	use mio::{EventSet};
 	use std::collections::VecDeque;
 	use bytes::*;
 	use devtools::*;
+	use io::*;
 
 	impl GenericSocket for TestSocket {}
 
@@ -521,6 +542,7 @@ mod tests {
 				rec_size: 0,
 				interest: EventSet::hup() | EventSet::readable(),
 				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
+				registered: AtomicBool::new(false),
 			}
 		}
 	}
@@ -543,8 +565,13 @@ mod tests {
 				rec_size: 0,
 				interest: EventSet::hup() | EventSet::readable(),
 				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
+				registered: AtomicBool::new(false),
 			}
 		}
+	}
+
+	fn test_io() -> IoContext<i32> {
+		IoContext::new(IoChannel::disconnected(), 0)
 	}
 
 	#[test]
@@ -557,7 +584,7 @@ mod tests {
 	#[test]
 	fn connection_write_empty() {
 		let mut connection = TestConnection::new();
-		let status = connection.writable();
+		let status = connection.writable(&test_io());
 		assert!(status.is_ok());
 		assert!(WriteStatus::Complete == status.unwrap());
 	}
@@ -568,7 +595,7 @@ mod tests {
 		let data = Cursor::new(vec![0; 10240]);
 		connection.send_queue.push_back(data);
 
-		let status = connection.writable();
+		let status = connection.writable(&test_io());
 		assert!(status.is_ok());
 		assert!(WriteStatus::Complete == status.unwrap());
 		assert_eq!(10240, connection.socket.write_buffer.len());
@@ -581,7 +608,7 @@ mod tests {
 		let data = Cursor::new(vec![0; 10240]);
 		connection.send_queue.push_back(data);
 
-		let status = connection.writable();
+		let status = connection.writable(&test_io());
 
 		assert!(status.is_ok());
 		assert!(WriteStatus::Ongoing == status.unwrap());
@@ -594,7 +621,7 @@ mod tests {
 		let data = Cursor::new(vec![0; 10240]);
 		connection.send_queue.push_back(data);
 
-		let status = connection.writable();
+		let status = connection.writable(&test_io());
 
 		assert!(!status.is_ok());
 		assert_eq!(1, connection.send_queue.len());

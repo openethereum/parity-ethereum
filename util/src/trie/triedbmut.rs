@@ -87,7 +87,7 @@ impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and `root`.
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
-		if !db.exists(root) {
+		if !db.contains(root) {
 			Err(TrieError::InvalidStateRoot)
 		} else {
 			Ok(TrieDBMut {
@@ -143,7 +143,7 @@ impl<'db> TrieDBMut<'db> {
 	/// Set the trie to a new root node's RLP, inserting the new RLP into the backing database
 	/// and removing the old.
 	fn set_root_rlp(&mut self, root_data: &[u8]) {
-		self.db.kill(&self.root);
+		self.db.remove(&self.root);
 		*self.root = self.db.insert(root_data);
 		self.hash_count += 1;
 		trace!("set_root_rlp {:?} {:?}", root_data.pretty(), self.root);
@@ -174,7 +174,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Get the root node's RLP.
 	fn root_node(&self) -> Node {
-		Node::decoded(self.db.lookup(&self.root).expect("Trie root not found!"))
+		Node::decoded(self.db.get(&self.root).expect("Trie root not found!"))
 	}
 
 	/// Get the root node as a `Node`.
@@ -225,7 +225,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
 	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
 		self.get_from_node(&root_rlp, key)
 	}
 
@@ -254,7 +254,7 @@ impl<'db> TrieDBMut<'db> {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&r.as_val::<H256>()).expect("Not found!"),
+			true => self.db.get(&r.as_val::<H256>()).expect("Not found!"),
 			false => node
 		}
 	}
@@ -266,7 +266,7 @@ impl<'db> TrieDBMut<'db> {
 		trace!("ADD: {:?} {:?}", key, value.pretty());
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Journal = Journal::new();
-		let root_rlp = self.augmented(self.db.lookup(&self.root).expect("Trie root not found!"), key, value, &mut todo);
+		let root_rlp = self.augmented(self.db.get(&self.root).expect("Trie root not found!"), key, value, &mut todo);
 		self.apply(todo);
 		self.set_root_rlp(&root_rlp);
 		trace!("/");
@@ -279,7 +279,7 @@ impl<'db> TrieDBMut<'db> {
 		trace!("DELETE: {:?}", key);
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Journal = Journal::new();
-		match self.cleared_from_slice(self.db.lookup(&self.root).expect("Trie root not found!"), key, &mut todo) {
+		match self.cleared_from_slice(self.db.get(&self.root).expect("Trie root not found!"), key, &mut todo) {
 			Some(root_rlp) => {
 				self.apply(todo);
 				self.set_root_rlp(&root_rlp);
@@ -335,7 +335,7 @@ impl<'db> TrieDBMut<'db> {
 		}
 		else if rlp.is_data() && rlp.size() == 32 {
 			let h = rlp.as_val();
-			let r = self.db.lookup(&h).unwrap_or_else(||{
+			let r = self.db.get(&h).unwrap_or_else(||{
 				println!("Node not found! rlp={:?}, node_hash={:?}", rlp.as_raw().pretty(), h);
 				println!("Journal: {:?}", journal);
 				panic!();
@@ -670,7 +670,7 @@ impl<'db> TrieMut for TrieDBMut<'db> {
 impl<'db> fmt::Debug for TrieDBMut<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
 	}

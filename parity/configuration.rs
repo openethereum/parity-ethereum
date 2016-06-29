@@ -24,9 +24,10 @@ use docopt::Docopt;
 
 use die::*;
 use util::*;
-use util::keys::store::{ImportKeySet, AccountService};
+use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig, Switch, VMType};
+use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::miner::{MinerOptions, PendingSet};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -42,6 +43,13 @@ pub struct Directories {
 	pub db: String,
 	pub dapps: String,
 	pub signer: String,
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub enum Policy {
+	DaoSoft,
+	Normal,
+	Dogmatic,
 }
 
 impl Configuration {
@@ -67,18 +75,74 @@ impl Configuration {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
 	}
 
-	pub fn author(&self) -> Address {
-		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
-		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
-		})
+	fn decode_u256(d: &str, argument: &str) -> U256 {
+		U256::from_dec_str(d).unwrap_or_else(|_|
+			U256::from_str(clean_0x(d)).unwrap_or_else(|_|
+				die!("{}: Invalid numeric value for {}. Must be either a decimal or a hex number.", d, argument)
+			)
+		)
+	}
+
+	pub fn miner_options(&self) -> MinerOptions {
+		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
+			"none" => (false, false),
+			"own" => (true, false),
+			"ext" => (false, true),
+			"all" => (true, true),
+			x => die!("{}: Invalid value for --reseal option. Use --help for more information.", x)
+		};
+		MinerOptions {
+			force_sealing: self.args.flag_force_sealing,
+			reseal_on_external_tx: ext,
+			reseal_on_own_tx: own,
+			tx_gas_limit: self.args.flag_tx_gas_limit.as_ref().map_or(!U256::zero(), |d| Self::decode_u256(d, "--tx-gas-limit")),
+			tx_queue_size: self.args.flag_tx_queue_size,
+			pending_set: match self.args.flag_relay_set.as_str() {
+				"cheap" => PendingSet::AlwaysQueue,
+				"strict" => PendingSet::AlwaysSealing,
+				"lenient" => PendingSet::SealingOrElseQueue,
+				x => die!("{}: Invalid value for --relay-set option. Use --help for more information.", x)
+			},
+		}
+	}
+
+	pub fn author(&self) -> Option<Address> {
+		self.args.flag_etherbase.as_ref()
+			.or(self.args.flag_author.as_ref())
+			.map(|d| Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
+				die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
+			}))
+	}
+
+	pub fn policy(&self) -> Policy {
+		match self.args.flag_fork.as_str() {
+			"dao-soft" => Policy::DaoSoft,
+			"normal" => Policy::Normal,
+			"dogmatic" => Policy::Dogmatic,
+			x => die!("{}: Invalid value given for --policy option. Use --help for more info.", x)
+		}
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
-		let d = &self.args.flag_gas_floor_target;
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
-		})
+		if self.policy() == Policy::DaoSoft {
+			3_141_592.into()
+		} else {
+			let d = &self.args.flag_gas_floor_target;
+			U256::from_dec_str(d).unwrap_or_else(|_| {
+				die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
+			})
+		}
+	}
+
+	pub fn gas_ceil_target(&self) -> U256 {
+		if self.policy() == Policy::DaoSoft {
+			3_141_592.into()
+		} else {
+			let d = &self.args.flag_gas_cap;
+			U256::from_dec_str(d).unwrap_or_else(|_| {
+				die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
+			})
+		}
 	}
 
 	pub fn gas_price(&self) -> U256 {
@@ -124,7 +188,7 @@ impl Configuration {
 
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(self.policy() != Policy::Dogmatic),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
@@ -150,6 +214,25 @@ impl Configuration {
 			}).collect(),
 			Some(_) => Vec::new(),
 			None => spec.nodes().clone(),
+		}
+	}
+
+	pub fn init_reserved_nodes(&self) -> Vec<String> {
+		use std::fs::File;
+
+		if let Some(ref path) = self.args.flag_reserved_peers {
+			let mut buffer = String::new();
+			let mut node_file = File::open(path).unwrap_or_else(|e| {
+				die!("Error opening reserved nodes file: {}", e);
+			});
+			node_file.read_to_string(&mut buffer).expect("Error reading reserved node file");
+			buffer.lines().map(|s| {
+				Self::normalize_enode(s).unwrap_or_else(|| {
+					die!("{}: Invalid node address format given for a reserved node.", s);
+				})
+			}).collect()
+		} else {
+			Vec::new()
 		}
 	}
 
@@ -179,6 +262,11 @@ impl Configuration {
 		let mut net_path = PathBuf::from(&self.path());
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
+		ret.reserved_nodes = self.init_reserved_nodes();
+
+		if self.args.flag_reserved_only {
+			ret.non_reserved_mode = ::util::network::NonReservedPeerMode::Deny;
+		}
 		ret
 	}
 
@@ -187,7 +275,7 @@ impl Configuration {
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
-			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i, kvdb::DatabaseConfig::default());
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
@@ -214,6 +302,8 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
+		// forced blockchain (blocks + extras) db cache size if provided
+		client_config.blockchain.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 2));
 
 		client_config.tracing.enabled = match self.args.flag_tracing.as_str() {
 			"auto" => Switch::Auto,
@@ -221,14 +311,26 @@ impl Configuration {
 			"off" => Switch::Off,
 			_ => { die!("Invalid tracing method given!") }
 		};
+		// forced trace db cache size if provided
+		client_config.tracing.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
 		client_config.pruning = match self.args.flag_pruning.as_str() {
 			"archive" => journaldb::Algorithm::Archive,
 			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::Archive),
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
+		};
+
+		// forced state db cache size if provided
+		client_config.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
+
+		// compaction profile
+		client_config.db_compaction = match self.args.flag_db_compaction.as_str() {
+			"ssd" => DatabaseCompactionProfile::Default,
+			"hdd" => DatabaseCompactionProfile::HDD,
+			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/default."); }
 		};
 
 		if self.args.flag_jitvm {
@@ -249,7 +351,10 @@ impl Configuration {
 		sync_config
 	}
 
-	pub fn account_service(&self) -> AccountService {
+	pub fn account_service(&self) -> AccountProvider {
+		use ethcore::ethstore::{import_accounts, EthStore};
+		use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
+
 		// Secret Store
 		let passwords = self.args.flag_password.iter().flat_map(|filename| {
 			BufReader::new(&File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)))
@@ -258,18 +363,30 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-		let import_keys = match (self.args.flag_no_import_keys, self.args.flag_testnet) {
-			(true, _) => ImportKeySet::None,
-			(false, false) => ImportKeySet::Legacy,
-			(false, true) => ImportKeySet::LegacyTestnet,
-		};
-		let account_service = AccountService::with_security(Path::new(&self.keys_path()), self.keys_iterations(), import_keys);
+
+		if !self.args.flag_no_import_keys {
+			let dir_type = if self.args.flag_testnet {
+				DirectoryType::Testnet
+			} else {
+				DirectoryType::Main
+			};
+
+			let from = GethDirectory::open(dir_type);
+			let to = DiskDirectory::create(self.keys_path()).unwrap();
+			// ignore error, cause geth may not exist
+			let _ = import_accounts(&from, &to);
+		}
+
+		let dir = Box::new(DiskDirectory::create(self.keys_path()).unwrap());
+		let iterations = self.keys_iterations();
+		let account_service = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
+
 		if let Some(ref unlocks) = self.args.flag_unlock {
 			for d in unlocks.split(',') {
 				let a = Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
 					die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
 				});
-				if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
+				if passwords.iter().find(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()).is_none() {
 					die!("No password given to unlock account {}. Pass the password using `--password`.", a);
 				}
 			}
@@ -287,9 +404,14 @@ impl Configuration {
 	}
 
 	fn geth_ipc_path(&self) -> String {
-		if self.args.flag_testnet { path::ethereum::with_testnet("geth.ipc") }
-		else { path::ethereum::with_default("geth.ipc") }
-			.to_str().unwrap().to_owned()
+		if cfg!(windows) {
+			r"\\.\pipe\geth.ipc".to_owned()
+		}
+		else {
+			if self.args.flag_testnet { path::ethereum::with_testnet("geth.ipc") }
+			else { path::ethereum::with_default("geth.ipc") }
+				.to_str().unwrap().to_owned()
+		}
 	}
 
 	pub fn keys_iterations(&self) -> u32 {
@@ -298,7 +420,7 @@ impl Configuration {
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
-			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
+			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
 			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
 		}
@@ -311,7 +433,7 @@ impl Configuration {
 			chain: self.chain(),
 			max_peers: self.max_peers(),
 			network_port: self.net_port(),
-			rpc_enabled: !self.args.flag_jsonrpc_off,
+			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
@@ -357,16 +479,50 @@ impl Configuration {
 	}
 
 	fn ipc_path(&self) -> String {
-		if self.args.flag_geth { self.geth_ipc_path() }
-		else { Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())) }
+		if self.args.flag_geth {
+			self.geth_ipc_path()
+		} else if cfg!(windows) {
+			r"\\.\pipe\parity.jsonrpc".to_owned()
+		} else {
+			Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+		}
+	}
+
+	pub fn have_color(&self) -> bool {
+		!self.args.flag_no_color && !cfg!(windows)
 	}
 
 	pub fn signer_port(&self) -> Option<u16> {
-		if self.args.flag_signer {
-			Some(self.args.flag_signer_port)
-		} else {
+		if !self.signer_enabled() {
 			None
+		} else {
+			Some(self.args.flag_signer_port)
 		}
+	}
+
+	pub fn rpc_interface(&self) -> String {
+		match self.network_settings().rpc_interface.as_str() {
+			"all" => "0.0.0.0",
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	pub fn dapps_interface(&self) -> String {
+		match self.args.flag_dapps_interface.as_str() {
+			"all" => "0.0.0.0",
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	pub fn dapps_enabled(&self) -> bool {
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps
+	}
+
+	pub fn signer_enabled(&self) -> bool {
+		(self.args.cmd_ui && !self.args.flag_no_signer) ||
+		(!self.args.cmd_ui && self.args.flag_signer)
 	}
 }
 

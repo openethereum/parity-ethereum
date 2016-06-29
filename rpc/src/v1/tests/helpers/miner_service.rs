@@ -39,10 +39,11 @@ pub struct TestMinerService {
 	pub last_nonces: RwLock<HashMap<Address, U256>>,
 
 	min_gas_price: RwLock<U256>,
-	gas_floor_target: RwLock<U256>,
+	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
 	limit: RwLock<usize>,
+	tx_gas_limit: RwLock<U256>,
 }
 
 impl Default for TestMinerService {
@@ -54,10 +55,11 @@ impl Default for TestMinerService {
 			pending_receipts: Mutex::new(BTreeMap::new()),
 			last_nonces: RwLock::new(HashMap::new()),
 			min_gas_price: RwLock::new(U256::from(20_000_000)),
-			gas_floor_target: RwLock::new(U256::from(12345)),
+			gas_range_target: RwLock::new((U256::from(12345), U256::from(54321))),
 			author: RwLock::new(Address::zero()),
 			extra_data: RwLock::new(vec![1, 2, 3, 4]),
 			limit: RwLock::new(1024),
+			tx_gas_limit: RwLock::new(!U256::zero()),
 		}
 	}
 }
@@ -81,9 +83,14 @@ impl MinerService for TestMinerService {
 		*self.extra_data.write().unwrap() = extra_data;
 	}
 
-	/// Set the gas limit we wish to target when sealing a new block.
+	/// Set the lower gas limit we wish to target when sealing a new block.
 	fn set_gas_floor_target(&self, target: U256) {
-		*self.gas_floor_target.write().unwrap() = target;
+		self.gas_range_target.write().unwrap().0 = target;
+	}
+
+	/// Set the upper gas limit we wish to target when sealing a new block.
+	fn set_gas_ceil_target(&self, target: U256) {
+		self.gas_range_target.write().unwrap().1 = target;
 	}
 
 	fn set_minimal_gas_price(&self, min_gas_price: U256) {
@@ -92,6 +99,10 @@ impl MinerService for TestMinerService {
 
 	fn set_transactions_limit(&self, limit: usize) {
 		*self.limit.write().unwrap() = limit;
+	}
+
+	fn set_tx_gas_limit(&self, limit: U256) {
+		*self.tx_gas_limit.write().unwrap() = limit;
 	}
 
 	fn transactions_limit(&self) -> usize {
@@ -111,11 +122,15 @@ impl MinerService for TestMinerService {
 	}
 
 	fn gas_floor_target(&self) -> U256 {
-		*self.gas_floor_target.read().unwrap()
+		self.gas_range_target.read().unwrap().0
+	}
+
+	fn gas_ceil_target(&self) -> U256 {
+		self.gas_range_target.read().unwrap().1
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
+	fn import_transactions<T>(&self, _chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		// lets assume that all txs are valid

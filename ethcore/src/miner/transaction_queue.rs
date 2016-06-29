@@ -167,14 +167,15 @@ impl PartialOrd for TransactionOrder {
 
 impl Ord for TransactionOrder {
 	fn cmp(&self, b: &TransactionOrder) -> Ordering {
-		// Local transactions should always have priority
-		if self.origin != b.origin {
-			return self.origin.cmp(&b.origin);
-		}
-
 		// First check nonce_height
 		if self.nonce_height != b.nonce_height {
 			return self.nonce_height.cmp(&b.nonce_height);
+		}
+
+		// Local transactions should always have priority
+		// NOTE nonce has to be checked first, cause otherwise the order might be wrong.
+		if self.origin != b.origin {
+			return self.origin.cmp(&b.origin);
 		}
 
 		// Then compare gas_prices
@@ -235,22 +236,22 @@ impl TransactionSet {
 		self.by_priority.insert(order.clone());
 		let r = self.by_address.insert(sender, nonce, order);
 		// If transaction was replaced remove it from priority queue
-		if let Some(ref order) = r {
-			self.by_priority.remove(order);
+		if let Some(ref old_order) = r {
+			self.by_priority.remove(old_order);
 		}
+		assert_eq!(self.by_priority.len(), self.by_address.len());
 		r
 	}
 
 	/// Remove low priority transactions if there is more then specified by given `limit`.
 	///
 	/// It drops transactions from this set but also removes associated `VerifiedTransaction`.
-	/// Returns addresses and highes nonces of transactions removed because of limit.
+	/// Returns addresses and lowest nonces of transactions removed because of limit.
 	fn enforce_limit(&mut self, by_hash: &mut HashMap<H256, VerifiedTransaction>) -> Option<HashMap<Address, U256>> {
 		let len = self.by_priority.len();
 		if len <= self.limit {
 			return None;
 		}
-
 		let to_drop : Vec<(Address, U256)> = {
 			self.by_priority
 				.iter()
@@ -269,8 +270,8 @@ impl TransactionSet {
 				by_hash.remove(&order.hash)
 					.expect("Hash found in `by_priorty` matches the one dropped; so it is included in `by_hash`");
 
-				let max = removed.get(&sender).map_or(nonce, |val| cmp::max(*val, nonce));
-				removed.insert(sender, max);
+				let min = removed.get(&sender).map_or(nonce, |val| cmp::min(*val, nonce));
+				removed.insert(sender, min);
 				removed
 			}))
 	}
@@ -279,8 +280,10 @@ impl TransactionSet {
 	fn drop(&mut self, sender: &Address, nonce: &U256) -> Option<TransactionOrder> {
 		if let Some(tx_order) = self.by_address.remove(sender, nonce) {
 			self.by_priority.remove(&tx_order);
+			assert_eq!(self.by_priority.len(), self.by_address.len());
 			return Some(tx_order);
 		}
+		assert_eq!(self.by_priority.len(), self.by_address.len());
 		None
 	}
 
@@ -331,6 +334,8 @@ const GAS_LIMIT_HYSTERESIS: usize = 10; // %
 pub struct TransactionQueue {
 	/// Gas Price threshold for transactions that can be imported to this queue (defaults to 0)
 	minimal_gas_price: U256,
+	/// The maximum amount of gas any individual transaction may use.
+	tx_gas_limit: U256,
 	/// Current gas limit (block gas limit * factor). Transactions above the limit will not be accepted (default to !0)
 	gas_limit: U256,
 	/// Priority queue for transactions that can go to block
@@ -352,11 +357,11 @@ impl Default for TransactionQueue {
 impl TransactionQueue {
 	/// Creates new instance of this Queue
 	pub fn new() -> Self {
-		Self::with_limit(1024)
+		Self::with_limits(1024, !U256::zero())
 	}
 
 	/// Create new instance of this Queue with specified limits
-	pub fn with_limit(limit: usize) -> Self {
+	pub fn with_limits(limit: usize, tx_gas_limit: U256) -> Self {
 		let current = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
@@ -371,6 +376,7 @@ impl TransactionQueue {
 
 		TransactionQueue {
 			minimal_gas_price: U256::zero(),
+			tx_gas_limit: tx_gas_limit,
 			gas_limit: !U256::zero(),
 			current: current,
 			future: future,
@@ -415,6 +421,12 @@ impl TransactionQueue {
 		};
 	}
 
+	/// Set the new limit for the amount of gas any individual transaction may have.
+	/// Any transaction already imported to the queue is not affected.
+	pub fn set_tx_gas_limit(&mut self, limit: U256) {
+		self.tx_gas_limit = limit;
+	}
+
 	/// Returns current status for this queue
 	pub fn status(&self) -> TransactionQueueStatus {
 		TransactionQueueStatus {
@@ -425,14 +437,16 @@ impl TransactionQueue {
 
 	/// Add signed transaction to queue to be verified and imported
 	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_account: &T, origin: TransactionOrigin) -> Result<TransactionImportResult, Error>
-		where T: Fn(&Address) -> AccountDetails {
+	where T: Fn(&Address) -> AccountDetails {
 
 		trace!(target: "miner", "Importing: {:?}", tx.hash());
 
 		if tx.gas_price < self.minimal_gas_price {
 			trace!(target: "miner",
 				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
-				tx.hash(), tx.gas_price, self.minimal_gas_price
+				tx.hash(),
+				tx.gas_price,
+				self.minimal_gas_price
 			);
 
 			return Err(Error::Transaction(TransactionError::InsufficientGasPrice {
@@ -443,10 +457,13 @@ impl TransactionQueue {
 
 		try!(tx.check_low_s());
 
-		if tx.gas > self.gas_limit {
+		if tx.gas > self.gas_limit || tx.gas > self.tx_gas_limit {
 			trace!(target: "miner",
-				"Dropping transaction above gas limit: {:?} ({} > {})",
-				tx.hash(), tx.gas, self.gas_limit
+				"Dropping transaction above gas limit: {:?} ({} > min({}, {}))",
+				tx.hash(),
+				tx.gas,
+				self.gas_limit,
+				self.tx_gas_limit
 			);
 
 			return Err(Error::Transaction(TransactionError::GasLimitExceeded {
@@ -460,15 +477,22 @@ impl TransactionQueue {
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
 		if client_account.balance < cost {
-			trace!(target: "miner", "Dropping transaction without sufficient balance: {:?} ({} < {})",
-				vtx.hash(), client_account.balance, cost);
+			trace!(target: "miner",
+				"Dropping transaction without sufficient balance: {:?} ({} < {})",
+				vtx.hash(),
+				client_account.balance,
+				cost
+			);
+
 			return Err(Error::Transaction(TransactionError::InsufficientBalance {
 				cost: cost,
 				balance: client_account.balance
 			}));
 		}
 
-		self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction)
+		let r = self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction);
+		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
+		r
 	}
 
 	/// Removes all transactions from particular sender up to (excluding) given client (state) nonce.
@@ -484,6 +508,7 @@ impl TransactionQueue {
 		// And now lets check if there is some batch of transactions in future
 		// that should be placed in current. It should also update last_nonces.
 		self.move_matching_future_to_current(sender, client_nonce, client_nonce);
+		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 	}
 
 	/// Removes invalid transaction identified by hash from queue.
@@ -493,6 +518,8 @@ impl TransactionQueue {
 	/// If gap is introduced marks subsequent transactions as future
 	pub fn remove_invalid<T>(&mut self, transaction_hash: &H256, fetch_account: &T)
 		where T: Fn(&Address) -> AccountDetails {
+
+		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 		let transaction = self.by_hash.remove(transaction_hash);
 		if transaction.is_none() {
 			// We don't know this transaction
@@ -511,22 +538,17 @@ impl TransactionQueue {
 			// And now lets check if there is some chain of transactions in future
 			// that should be placed in current
 			self.move_matching_future_to_current(sender, current_nonce, current_nonce);
+			assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 			return;
 		}
 
 		// Remove from current
 		let order = self.current.drop(&sender, &nonce);
 		if order.is_some() {
-			// We will either move transaction to future or remove it completely
-			// so there will be no transactions from this sender in current
-			self.last_nonces.remove(&sender);
-			// First update height of transactions in future to avoid collisions
-			self.update_future(&sender, current_nonce);
-			// This should move all current transactions to future and remove old transactions
-			self.move_all_to_future(&sender, current_nonce);
-			// And now lets check if there is some chain of transactions in future
-			// that should be placed in current. It should also update last_nonces.
-			self.move_matching_future_to_current(sender, current_nonce, current_nonce);
+			// This will keep consistency in queue
+			// Moves all to future and then promotes a batch from current:
+			self.remove_all(sender, current_nonce);
+			assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 			return;
 		}
 	}
@@ -545,7 +567,7 @@ impl TransactionQueue {
 			} else {
 				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				// Remove the transaction completely
-				self.by_hash.remove(&order.hash);
+				self.by_hash.remove(&order.hash).expect("All transactions in `future` are also in `by_hash`");
 			}
 		}
 	}
@@ -565,7 +587,7 @@ impl TransactionQueue {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
 				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
-				self.by_hash.remove(&order.hash);
+				self.by_hash.remove(&order.hash).expect("All transactions in `future` are also in `by_hash`");
 			}
 		}
 		self.future.enforce_limit(&mut self.by_hash);
@@ -664,21 +686,27 @@ impl TransactionQueue {
 			.cloned()
 			.map_or(state_nonce, |n| n + U256::one());
 
-		// Check height
-		if nonce > next_nonce {
-			// We have a gap - put to future
-			try!(check_too_cheap(Self::replace_transaction(tx, next_nonce, &mut self.future, &mut self.by_hash)));
-			try!(check_if_removed(&address, &nonce, self.future.enforce_limit(&mut self.by_hash)));
-			return Ok(TransactionImportResult::Future);
-		} else if nonce < state_nonce {
+		// The transaction might be old, let's check that.
+		// This has to be the first test, otherwise calculating
+		// nonce height would result in overflow.
+		if nonce < state_nonce {
 			// Droping transaction
 			trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
 			return Err(TransactionError::Old);
+		} else if nonce > next_nonce {
+			// We have a gap - put to future.
+			// Update nonces of transactions in future (remove old transactions)
+			self.update_future(&address, state_nonce);
+			// Insert transaction (or replace old one with lower gas price)
+			try!(check_too_cheap(Self::replace_transaction(tx, state_nonce, &mut self.future, &mut self.by_hash)));
+			// Return an error if this transaction is not imported because of limit.
+			try!(check_if_removed(&address, &nonce, self.future.enforce_limit(&mut self.by_hash)));
+			return Ok(TransactionImportResult::Future);
 		}
-
 		try!(check_too_cheap(Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		// Keep track of highest nonce stored in current
-		self.last_nonces.insert(address, nonce);
+		let new_max = self.last_nonces.get(&address).map_or(nonce, |n| cmp::max(nonce, *n));
+		self.last_nonces.insert(address, new_max);
 		// Update nonces of transactions in future
 		self.update_future(&address, state_nonce);
 		// Maybe there are some more items waiting in future?
@@ -687,15 +715,16 @@ impl TransactionQueue {
 		// same (sender, nonce), but above function would not move it.
 		if let Some(order) = self.future.drop(&address, &nonce) {
 			// Let's insert that transaction to current (if it has higher gas_price)
-			let future_tx = self.by_hash.remove(&order.hash).unwrap();
-			try!(check_too_cheap(Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
+			let future_tx = self.by_hash.remove(&order.hash).expect("All transactions in `future` are always in `by_hash`.");
+			// if transaction in `current` (then one we are importing) is replaced it means that it has to low gas_price
+			try!(check_too_cheap(!Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		}
 
 		// Also enforce the limit
 		let removed = self.current.enforce_limit(&mut self.by_hash);
 		// If some transaction were removed because of limit we need to update last_nonces also.
 		self.update_last_nonces(&removed);
-		// Trigger error if we were removed.
+		// Trigger error if the transaction we are importing was removed.
 		try!(check_if_removed(&address, &nonce, removed));
 
 		trace!(target: "miner", "status: {:?}", self.status());
@@ -703,9 +732,9 @@ impl TransactionQueue {
 	}
 
 	/// Updates
-	fn update_last_nonces(&mut self, removed_max_nonces: &Option<HashMap<Address, U256>>) {
-		if let Some(ref max_nonces) = *removed_max_nonces {
-			for (sender, nonce) in max_nonces.iter() {
+	fn update_last_nonces(&mut self, removed_min_nonces: &Option<HashMap<Address, U256>>) {
+		if let Some(ref min_nonces) = *removed_min_nonces {
+			for (sender, nonce) in min_nonces.iter() {
 				if *nonce == U256::zero() {
 					self.last_nonces.remove(sender);
 				} else {
@@ -728,7 +757,9 @@ impl TransactionQueue {
 		let address = tx.sender();
 		let nonce = tx.nonce();
 
-		by_hash.insert(hash, tx);
+		let old_hash = by_hash.insert(hash, tx);
+		assert!(old_hash.is_none(), "Each hash has to be inserted exactly once.");
+
 
 		if let Some(old) = set.insert(address, nonce, order.clone()) {
 			// There was already transaction in queue. Let's check which one should stay
@@ -738,11 +769,11 @@ impl TransactionQueue {
 				// Put back old transaction since it has greater priority (higher gas_price)
 				set.insert(address, nonce, old);
 				// and remove new one
-				by_hash.remove(&hash);
+				by_hash.remove(&hash).expect("The hash has been just inserted and no other line is altering `by_hash`.");
 				false
 			} else {
 				// Make sure we remove old transaction entirely
-				by_hash.remove(&old.hash);
+				by_hash.remove(&old.hash).expect("The hash is coming from `future` so it has to be in `by_hash`.");
 				true
 			}
 		} else {
@@ -762,7 +793,7 @@ fn check_too_cheap(is_in: bool) -> Result<(), TransactionError> {
 fn check_if_removed(sender: &Address, nonce: &U256, dropped: Option<HashMap<Address, U256>>) -> Result<(), TransactionError> {
 	match dropped {
 		Some(ref dropped) => match dropped.get(sender) {
-			Some(max) if nonce <= max => {
+			Some(min) if nonce >= min => {
 				Err(TransactionError::LimitReached)
 			},
 			_ => Ok(()),
@@ -939,7 +970,7 @@ mod test {
 		let res = txq.add(tx2.clone(), &default_nonce, TransactionOrigin::External);
 
 		// and then there should be only one transaction in current (the one with higher gas_price)
-		assert_eq!(unwrap_tx_err(res), TransactionError::TooCheapToReplace);
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		assert_eq!(txq.status().pending, 1);
 		assert_eq!(txq.status().future, 0);
 		assert_eq!(txq.current.by_priority.len(), 1);
@@ -1087,7 +1118,28 @@ mod test {
 	}
 
 	#[test]
-	fn should_prioritize_local_transactions() {
+	fn should_prioritize_local_transactions_within_same_nonce_height() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		// the second one has same nonce but higher `gas_price`
+		let (_, tx2) = new_similar_txs();
+
+		// when
+		// first insert the one with higher gas price
+		txq.add(tx2.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+		// then the one with lower gas price, but local
+		txq.add(tx.clone(), &default_nonce, TransactionOrigin::Local).unwrap();
+
+		// then
+		let top = txq.top_transactions();
+		assert_eq!(top[0], tx); // local should be first
+		assert_eq!(top[1], tx2);
+		assert_eq!(top.len(), 2);
+	}
+
+	#[test]
+	fn should_not_prioritize_local_transactions_with_different_nonce_height() {
 		// given
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
@@ -1098,8 +1150,8 @@ mod test {
 
 		// then
 		let top = txq.top_transactions();
-		assert_eq!(top[0], tx2);
-		assert_eq!(top[1], tx);
+		assert_eq!(top[0], tx);
+		assert_eq!(top[1], tx2);
 		assert_eq!(top.len(), 2);
 	}
 
@@ -1255,7 +1307,7 @@ mod test {
 	#[test]
 	fn should_drop_old_transactions_when_hitting_the_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limit(1);
+		let mut txq = TransactionQueue::with_limits(1, !U256::zero());
 		let (tx, tx2) = new_txs(U256::one());
 		let sender = tx.sender().unwrap();
 		let nonce = tx.nonce;
@@ -1277,7 +1329,7 @@ mod test {
 	#[test]
 	fn should_return_correct_nonces_when_dropped_because_of_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limit(2);
+		let mut txq = TransactionQueue::with_limits(2, !U256::zero());
 		let tx = new_tx();
 		let (tx1, tx2) = new_txs(U256::one());
 		let sender = tx1.sender().unwrap();
@@ -1298,7 +1350,7 @@ mod test {
 
 	#[test]
 	fn should_limit_future_transactions() {
-		let mut txq = TransactionQueue::with_limit(1);
+		let mut txq = TransactionQueue::with_limits(1, !U256::zero());
 		txq.current.set_limit(10);
 		let (tx1, tx2) = new_txs_with_gas_price_diff(U256::from(4), U256::from(1));
 		let (tx3, tx4) = new_txs_with_gas_price_diff(U256::from(4), U256::from(2));
@@ -1553,6 +1605,56 @@ mod test {
 
 		// then
 		assert_eq!(txq.has_local_pending_transactions(), true);
+	}
+
+	#[test]
+	fn should_keep_right_order_in_future() {
+		// given
+		let mut txq = TransactionQueue::with_limits(1, !U256::zero());
+		let (tx1, tx2) = new_txs(U256::from(1));
+		let prev_nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce - U256::one(), balance:
+			default_nonce(a).balance };
+
+		// when
+		assert_eq!(txq.add(tx2, &prev_nonce, TransactionOrigin::External).unwrap(), TransactionImportResult::Future);
+		assert_eq!(txq.add(tx1.clone(), &prev_nonce, TransactionOrigin::External).unwrap(), TransactionImportResult::Future);
+
+		// then
+		assert_eq!(txq.future.by_priority.len(), 1);
+		assert_eq!(txq.future.by_priority.iter().next().unwrap().hash, tx1.hash());
+	}
+
+	#[test]
+	fn should_return_correct_last_nonce() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let (tx1, tx2, tx2_2, tx3) = {
+			let keypair = KeyPair::create().unwrap();
+			let secret = &keypair.secret();
+			let nonce = U256::from(123);
+			let tx = new_unsigned_tx(nonce);
+			let tx2 = new_unsigned_tx(nonce + 1.into());
+			let mut tx2_2 = new_unsigned_tx(nonce + 1.into());
+			tx2_2.gas_price = U256::from(5);
+			let tx3 = new_unsigned_tx(nonce + 2.into());
+
+
+			(tx.sign(secret), tx2.sign(secret), tx2_2.sign(secret), tx3.sign(secret))
+		};
+		let sender = tx1.sender().unwrap();
+		txq.add(tx1, &default_nonce, TransactionOrigin::Local).unwrap();
+		txq.add(tx2, &default_nonce, TransactionOrigin::Local).unwrap();
+		txq.add(tx3, &default_nonce, TransactionOrigin::Local).unwrap();
+		assert_eq!(txq.future.by_priority.len(), 0);
+		assert_eq!(txq.current.by_priority.len(), 3);
+
+		// when
+		let res = txq.add(tx2_2, &default_nonce, TransactionOrigin::Local);
+
+		// then
+		assert_eq!(txq.last_nonce(&sender).unwrap(), 125.into());
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(txq.current.by_priority.len(), 3);
 	}
 
 }
