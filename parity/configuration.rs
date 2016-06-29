@@ -83,8 +83,8 @@ impl Configuration {
 		)
 	}
 
-	pub fn work_notify(&self) -> Vec<String> {
-		self.args.flag_work_notify.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
+	fn work_notify(&self) -> Vec<String> {
+		self.args.flag_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
 	}
 
 	pub fn miner_options(&self) -> MinerOptions {

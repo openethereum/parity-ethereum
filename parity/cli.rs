@@ -313,7 +313,7 @@ pub struct Args {
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
 	pub flag_tx_queue_size: usize,
-	pub flag_work_notify: Option<String>,
+	pub flag_notify_work: Option<String>,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
 	pub flag_from: String,

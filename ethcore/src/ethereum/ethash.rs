@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethash;
-
-use self::ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
+use ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
 use spec::CommonParams;

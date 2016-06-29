@@ -261,6 +261,7 @@ dependencies = [
  "ethjson 0.1.0",
  "ethstore 0.1.0",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -547,7 +548,7 @@ dependencies = [
 [[package]]
 name = "hyper"
 version = "0.9.4"
-source = "git+https://github.com/ethcore/hyper#7ccfcb2aa7e6aa6300efa8cebd6a0e6ce55582ea"
+source = "git+https://github.com/ethcore/hyper#9e346c1d4bc30cd4142dea9d8a0b117d30858ca4"
 dependencies = [
  "cookie 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -556,7 +557,7 @@ dependencies = [
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor 0.6.3 (git+https://github.com/ethcore/rotor)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "spmc 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spmc 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "traitobject 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "typeable 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1222,7 +1223,7 @@ dependencies = [
 
 [[package]]
 name = "spmc"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]

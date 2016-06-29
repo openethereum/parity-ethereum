@@ -28,6 +28,7 @@ use receipt::{Receipt};
 use spec::Spec;
 use engine::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
+use miner::work_notify::WorkPoster;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug)]
@@ -90,6 +91,7 @@ pub struct Miner {
 	spec: Spec,
 
 	accounts: Option<Arc<AccountProvider>>,
+	work_poster: Option<WorkPoster>,
 }
 
 impl Miner {
@@ -106,14 +108,16 @@ impl Miner {
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
 			spec: spec,
+			work_poster: None,
 		}
 	}
 
 	/// Creates new instance of miner
 	pub fn new(options: MinerOptions, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
+		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)),
-			sealing_enabled: AtomicBool::new(options.force_sealing),
+			sealing_enabled: AtomicBool::new(options.force_sealing || !options.new_work_notify.is_empty()),
 			options: options,
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(UsingQueue::new(5)),
@@ -122,11 +126,16 @@ impl Miner {
 			extra_data: RwLock::new(Vec::new()),
 			accounts: accounts,
 			spec: spec,
+			work_poster: work_poster,
 		})
 	}
 
 	fn engine(&self) -> &Engine {
 		self.spec.engine.deref()
+	}
+
+	fn forced_sealing(&self) -> bool {
+		self.options.force_sealing || !self.options.new_work_notify.is_empty()
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
@@ -230,13 +239,22 @@ impl Miner {
 			}
 		}
 
-		let mut sealing_work = self.sealing_work.lock().unwrap();
-		if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
-			trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
-			sealing_work.push(block);
-		}
-
-		trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
+		let work = {
+			let mut sealing_work = self.sealing_work.lock().unwrap();
+			let work = if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
+				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
+				let pow_hash = block.block().fields().header.hash();
+				let number = block.block().fields().header.number();
+				let difficulty = *block.block().fields().header.difficulty();
+				sealing_work.push(block);
+				Some((pow_hash, difficulty, number))
+			} else {
+				None
+			};
+			trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
+			work
+		};
+		work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|ref p| p.notify(pow_hash, difficulty, number)));
 	}
 
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
@@ -552,7 +570,7 @@ impl MinerService for Miner {
 			let current_no = chain.chain_info().best_block_number;
 			let has_local_transactions = self.transaction_queue.lock().unwrap().has_local_pending_transactions();
 			let last_request = *self.sealing_block_last_request.lock().unwrap();
-			let should_disable_sealing = !self.options.force_sealing
+			let should_disable_sealing = !self.forced_sealing()
 				&& !has_local_transactions
 				&& current_no > last_request
 				&& current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;
