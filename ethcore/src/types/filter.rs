@@ -25,6 +25,7 @@ use std::mem;
 use std::collections::VecDeque;
 
 /// Blockchain Filter.
+#[derive(Binary)]
 pub struct Filter {
 	/// Blockchain will be searched from this block.
 	pub from_block: BlockID,

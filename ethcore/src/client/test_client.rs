@@ -20,7 +20,8 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID, TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics};
+use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
+	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -398,7 +399,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn import_block(&self, b: Bytes) -> ImportResult {
+	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
 		let h = header.hash();
 		let number: usize = header.number as usize;

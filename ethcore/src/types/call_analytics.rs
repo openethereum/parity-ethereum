@@ -14,20 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
-pub mod executed;
-pub mod block_status;
-pub mod account_diff;
-pub mod state_diff;
-pub mod block_queue_info;
-pub mod transaction_import_result;
-pub mod filter;
-pub mod trace_filter;
-pub mod call_analytics;
-pub mod block_import_error;
+use std::mem;
+use ipc::binary::{BinaryConvertError, BinaryConvertable};
+use std::collections::VecDeque;
+
+/// Options concerning what analytics we run on the call.
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug, Binary)]
+pub struct CallAnalytics {
+	/// Make a transaction trace.
+	pub transaction_tracing: bool,
+	/// Make a VM trace.
+	pub vm_tracing: bool,
+	/// Make a diff.
+	pub state_diffing: bool,
+}

@@ -49,17 +49,8 @@ use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
 use miner::{TransactionImportResult};
 use error::Error as EthError;
-
-/// Options concerning what analytics we run on the call.
-#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
-pub struct CallAnalytics {
-	/// Make a transaction trace.
-	pub transaction_tracing: bool,
-	/// Make a VM trace.
-	pub vm_tracing: bool,
-	/// Make a diff.
-	pub state_diffing: bool,
-}
+pub use types::call_analytics::CallAnalytics;
+pub use types::block_import_error::BlockImportError;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -145,7 +136,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> ImportResult;
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;

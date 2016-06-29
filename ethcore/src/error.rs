@@ -20,6 +20,8 @@ use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
+use client::BlockImportError;
+use ipc::binary::{BinaryConvertable, BinaryConvertError};
 
 pub use types::executed::ExecutionError;
 
@@ -194,6 +196,9 @@ pub enum ImportError {
 	KnownBad,
 }
 
+binary_fixed_size!(BlockError);
+binary_fixed_size!(ImportError);
+
 impl fmt::Display for ImportError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let msg = match *self {
@@ -309,6 +314,16 @@ impl From<IoError> for Error {
 impl From<TrieError> for Error {
 	fn from(err: TrieError) -> Error {
 		Error::Trie(err)
+	}
+}
+
+impl From<BlockImportError> for Error {
+	fn from(err: BlockImportError) -> Error {
+		match err {
+			BlockImportError::Block(e) => Error::Block(e),
+			BlockImportError::Import(e) => Error::Import(e),
+			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
+		}
 	}
 }
 

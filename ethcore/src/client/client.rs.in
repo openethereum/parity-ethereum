@@ -61,7 +61,9 @@ use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
+	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
+	TraceFilter, CallAnalytics, BlockImportError};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -671,17 +673,17 @@ impl BlockChainClient for Client {
 		self.chain.block_receipts(hash).map(|receipts| rlp::encode(&receipts).to_vec())
 	}
 
-	fn import_block(&self, bytes: Bytes) -> ImportResult {
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
 		{
 			let header = BlockView::new(&bytes).header_view();
 			if self.chain.is_known(&header.sha3()) {
-				return Err(ImportError::AlreadyInChain.into());
+				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
 			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
-				return Err(BlockError::UnknownParent(header.parent_hash()).into());
+				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash()));
 			}
 		}
-		self.block_queue.import_block(bytes)
+		Ok(try!(self.block_queue.import_block(bytes)))
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
