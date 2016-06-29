@@ -343,6 +343,21 @@ mod tests {
 	}
 
 	#[test]
+	fn reset_code() {
+		let mut a = Account::new_contract(69.into(), 0.into());
+		let mut db = MemoryDB::new();
+		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		a.init_code(vec![0x55, 0x44, 0xffu8]);
+		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		a.commit_code(&mut db);
+		assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
+		a.reset_code(vec![0x55]);
+		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		a.commit_code(&mut db);
+		assert_eq!(a.code_hash().hex(), "37bf2238b11b68cdc8382cece82651b59d3c3988873b6e0f33d79694aa45f1be");
+	}
+
+	#[test]
 	fn rlpio() {
 		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 		let b = Account::from_rlp(&a.rlp());
@@ -354,7 +369,6 @@ mod tests {
 
 	#[test]
 	fn new_account() {
-
 		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 		assert_eq!(a.balance(), &U256::from(69u8));
@@ -365,7 +379,6 @@ mod tests {
 
 	#[test]
 	fn create_account() {
-
 		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 	}
