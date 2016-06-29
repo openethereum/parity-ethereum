@@ -208,11 +208,16 @@ impl State {
 		self.require(a, false).set_storage(key, value)
 	}
 
-	/// Initialise the code of account `a` so that it is `value` for `key`.
+	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) {
 		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{}).init_code(code);
 	}
+
+	/// Reset the code of account `a` so that it is `code`.
+	pub fn reset_code(&mut self, a: &Address, code: Bytes) {
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{}).reset_code(code);
+	}	
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
