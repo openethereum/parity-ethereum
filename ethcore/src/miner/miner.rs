@@ -73,7 +73,7 @@ impl Default for MinerOptions {
 			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(0),
-			work_queue_size: 50,
+			work_queue_size: 20,
 		}
 	}
 }
@@ -106,7 +106,7 @@ impl Miner {
 			sealing_enabled: AtomicBool::new(false),
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(UsingQueue::new(50)),
+			sealing_work: Mutex::new(UsingQueue::new(20)),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
