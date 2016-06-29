@@ -16,6 +16,7 @@
 
 use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
+use std::time::{Instant, Duration};
 
 use util::*;
 use account_provider::AccountProvider;
@@ -50,12 +51,16 @@ pub struct MinerOptions {
 	pub reseal_on_external_tx: bool,
 	/// Reseal on receipt of new local transactions.
 	pub reseal_on_own_tx: bool,
+	/// Minimum period between transaction-inspired reseals.
+	pub reseal_min_period: Duration,
 	/// Maximum amount of gas to bother considering for block insertion.
 	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
 	pub tx_queue_size: usize,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
 	pub pending_set: PendingSet,
+	/// How many historical work packages can we store before running out?
+	pub work_queue_size: usize,
 }
 
 impl Default for MinerOptions {
@@ -67,6 +72,8 @@ impl Default for MinerOptions {
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
+			reseal_min_period: Duration::from_secs(0),
+			work_queue_size: 20,
 		}
 	}
 }
@@ -80,6 +87,7 @@ pub struct Miner {
 	// for sealing...
 	options: MinerOptions,
 	sealing_enabled: AtomicBool,
+	next_allowed_reseal: Mutex<Instant>,
 	sealing_block_last_request: Mutex<u64>,
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
@@ -96,8 +104,9 @@ impl Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			options: Default::default(),
 			sealing_enabled: AtomicBool::new(false),
+			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(UsingQueue::new(5)),
+			sealing_work: Mutex::new(UsingQueue::new(20)),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
@@ -111,13 +120,14 @@ impl Miner {
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)),
 			sealing_enabled: AtomicBool::new(options.force_sealing),
-			options: options,
+			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(UsingQueue::new(5)),
+			sealing_work: Mutex::new(UsingQueue::new(options.work_queue_size)),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: accounts,
+			options: options,
 			spec: spec,
 		})
 	}
@@ -261,6 +271,9 @@ impl Miner {
 		// Return if
 		!have_work
 	}
+
+	/// Are we allowed to do a non-mandatory reseal?
+	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock().unwrap() }
 }
 
 const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
@@ -431,7 +444,7 @@ impl MinerService for Miner {
 				.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
 				.collect()
 		};
-		if !results.is_empty() && self.options.reseal_on_external_tx {
+		if !results.is_empty() && self.options.reseal_on_external_tx && 	self.tx_reseal_allowed() {
 			self.update_sealing(chain);
 		}
 		results
@@ -466,7 +479,7 @@ impl MinerService for Miner {
 			import
 		};
 
-		if imported.is_ok() && self.options.reseal_on_own_tx {
+		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing
 			let prepared = self.enable_and_prepare_sealing(chain);
@@ -559,6 +572,7 @@ impl MinerService for Miner {
 				self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
 				self.sealing_work.lock().unwrap().reset();
 			} else {
+				*self.next_allowed_reseal.lock().unwrap() = Instant::now() + self.options.reseal_min_period;
 				self.prepare_sealing(chain);
 			}
 		}

@@ -515,9 +515,6 @@ impl BlockChainClient for Client {
 		ret
 	}
 
-	fn vm_factory(&self) -> &EvmFactory {
-		&self.vm_factory
-	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
@@ -828,6 +825,10 @@ impl MiningBlockChainClient for Client {
 			});
 
 		open_block
+	}
+
+	fn vm_factory(&self) -> &EvmFactory {
+		&self.vm_factory
 	}
 }
 
