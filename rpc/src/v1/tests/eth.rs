@@ -60,6 +60,7 @@ fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			pending_set: PendingSet::SealingOrElseQueue,
 			reseal_min_period: Duration::from_secs(0),
 			work_queue_size: 50,
+			new_work_notify: vec![],
 		},
 		spec,
 		Some(accounts)
