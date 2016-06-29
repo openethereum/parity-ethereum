@@ -184,7 +184,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging);
+	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.args.flag_no_color);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -320,6 +320,8 @@ fn execute_export(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.args.flag_no_color);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -392,6 +394,8 @@ fn execute_import(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.args.flag_no_color);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
