@@ -14,21 +14,263 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use common::*;
-use hashdb::*;
-use nibbleslice::*;
-use rlp::*;
-use super::node::Node;
-use super::journal::Journal;
-use super::trietraits::{Trie, TrieMut};
-use super::TrieError;
+//! In-memory trie representation.
+
+use super::{TrieError, TrieMut};
+use super::node::Node as RlpNode;
+
+use ::{Bytes, HashDB, H256, SHA3_NULL_RLP};
+use ::bytes::ToPretty;
+use ::nibbleslice::NibbleSlice;
+use ::rlp::{Rlp, View};
+
+use elastic_array::ElasticArray1024;
+
+use std::collections::VecDeque;
+use std::mem;
+use std::ops::{Index, IndexMut};
+
+// For lookups into the Node storage buffer.
+// This is deliberately non-copyable.
+#[derive(Debug)]
+struct StorageHandle(usize);
+
+// Handles to nodes in the trie.
+#[derive(Debug)]
+enum NodeHandle {
+	/// Loaded into memory.
+	InMemory(StorageHandle),
+	/// Either a hash or an inline node
+	Hash(H256),
+}
+
+impl From<StorageHandle> for NodeHandle {
+	fn from(handle: StorageHandle) -> Self {
+		NodeHandle::InMemory(handle)
+	}
+}
+
+impl From<H256> for NodeHandle {
+	fn from(hash: H256) -> Self {
+		NodeHandle::Hash(hash)
+	}
+}
+
+fn empty_children() -> [Option<NodeHandle>; 16] {
+	[
+		None, None, None, None, None, None, None, None,
+		None, None, None, None, None, None, None, None,
+	]
+}
+
+/// Node types in the Trie.
+#[derive(Debug)]
+enum Node {
+	/// Empty node.
+	Empty,
+	/// A leaf node contains the end of a key and a value.
+	/// This key is encoded from a `NibbleSlice`, meaning it contains
+	/// a flag indicating it is a leaf.
+	Leaf(Bytes, Bytes),
+	/// An extension contains a shared portion of a key and a child node.
+	/// The shared portion is encoded from a `NibbleSlice` meaning it contains
+	/// a flag indicating it is an extension.
+	/// The child node is always a branch.
+	Extension(Bytes, NodeHandle),
+	/// A branch has up to 16 children and an optional value.
+	Branch([Option<NodeHandle>; 16], Option<Bytes>)
+}
+
+impl Node {
+	// load an inline node into memory or get the hash to do the lookup later.
+	fn inline_or_hash(node: &[u8], db: &HashDB, storage: &mut NodeStorage) -> NodeHandle {
+		let r = Rlp::new(node);
+		if r.is_data() && r.size() == 32 {
+			NodeHandle::Hash(r.as_val::<H256>())
+		} else {
+			let child = Node::from_rlp(node, db, storage);
+			NodeHandle::InMemory(storage.alloc(child))
+		}
+	}
+
+	// decode a node from rlp without getting its children.
+	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
+		match RlpNode::decoded(rlp) {
+			RlpNode::Empty => Node::Empty,
+			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), v.to_owned()),
+			RlpNode::Extension(partial, cb) => {
+				let key = partial.encoded(false);
+
+				Node::Extension(key, Self::inline_or_hash(cb, db, storage))
+			}
+			RlpNode::Branch(children_rlp, v) => {
+				let val = v.map(|x| x.to_owned());
+				let mut children = empty_children();
+
+				for i in 0..16 {
+					let raw = children_rlp[i];
+					let child_rlp = Rlp::new(raw);
+					if !child_rlp.is_empty()  {
+						children[i] = Some(Self::inline_or_hash(raw, db, storage));
+					}
+				}
+
+				Node::Branch(children, val)
+			}
+		}
+	}
+
+	// encode a node to RLP. if it has child nodes, remove them from the storage,
+	// encode them, and write them to the DB. returns the rlp and the number of
+	// hash operations performed.
+	//
+	// TODO: parallelize
+	fn to_rlp(self, db: &mut HashDB, storage: &mut NodeStorage) -> (ElasticArray1024<u8>, usize) {
+		use ::rlp::{RlpStream, Stream};
+
+		match self {
+			Node::Empty => {
+				let mut stream = RlpStream::new();
+				stream.append_empty_data();
+				(stream.drain(), 0)
+			}
+			Node::Leaf(k, v) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&k);
+				stream.append(&v);
+				(stream.drain(), 0)
+			}
+			Node::Extension(partial, child_handle) => {
+				let mut stream = RlpStream::new_list(2);
+				let mut hashes = 0;
+
+				stream.append(&partial);
+
+				match child_handle {
+					NodeHandle::InMemory(s_handle) => {
+						let node = storage.destroy(s_handle);
+						let (rlp, h) = node.to_rlp(db, storage);
+						hashes += h;
+						if rlp.len() >= 32 {
+							let hash = db.insert(&rlp);
+							hashes += 1;
+							stream.append(&hash);
+						} else {
+							stream.append_raw(&rlp, 1);
+						}
+					}
+					NodeHandle::Hash(hash) => {
+						stream.append(&hash);
+					}
+				}
+
+				(stream.drain(), hashes)
+			}
+			Node::Branch(mut children, value) => {
+				let mut stream = RlpStream::new_list(17);
+				let mut hashes = 0;
+				// no moving iterators for arrays
+				for child in children.iter_mut().map(Option::take) {
+					match child {
+						Some(handle) => match handle {
+							NodeHandle::InMemory(s_handle) => {
+								let node = storage.destroy(s_handle);
+								let (rlp, h) = node.to_rlp(db, storage);
+								hashes += h;
+								if rlp.len() >= 32 {
+									// too big,
+									let hash = db.insert(&rlp);
+									hashes += 1;
+									stream.append(&hash)
+								} else {
+									// inline node.
+									stream.append_raw(&rlp, 1)
+								}
+							}
+							NodeHandle::Hash(hash) => stream.append(&hash),
+						},
+						None => stream.append_empty_data(),
+					};
+				}
+
+				match value {
+					Some(value) => stream.append(&value),
+					None => stream.append_empty_data(),
+				};
+
+				(stream.drain(), hashes)
+			}
+		}
+	}
+}
+
+/// Compact and cache-friendly storage for Trie nodes.
+struct NodeStorage {
+	nodes: Vec<Node>,
+	free_indices: VecDeque<usize>,
+}
+
+impl NodeStorage {
+	/// Create a new storage with empty root.
+	fn empty() -> Self {
+		NodeStorage {
+			nodes: vec![Node::Empty],
+			free_indices: VecDeque::new(),
+		}
+	}
+
+	/// Create storage from root rlp.
+	fn from_root_rlp(rlp: &[u8], db: &HashDB) -> Self {
+		// reserve a slot for the root.
+		let mut storage = NodeStorage::empty();
+
+		// decode and overwrite.
+		let root_node = Node::from_rlp(rlp, db, &mut storage);
+		storage.nodes[0] = root_node;
+
+		storage
+	}
+
+	/// Allocate  a node in the storage, yielding a handle.
+	fn alloc(&mut self, node: Node) -> StorageHandle {
+		if let Some(idx) = self.free_indices.pop_front() {
+			self.nodes[idx] = node;
+			StorageHandle(idx)
+		} else {
+			self.nodes.push(node);
+			StorageHandle(self.nodes.len() - 1)
+		}
+	}
+
+	/// Remove a node from the storage, consuming the handle.
+	fn destroy(&mut self, handle: StorageHandle) -> Node {
+		let idx = handle.0;
+
+		self.free_indices.push_back(idx);
+		mem::replace(&mut self.nodes[idx], Node::Empty)
+	}
+}
+
+impl<'a> Index<&'a StorageHandle> for NodeStorage {
+	type Output = Node;
+
+	fn index(&self, x: &'a StorageHandle) -> &Node {
+		&self.nodes[x.0]
+	}
+}
+
+impl<'a> IndexMut<&'a StorageHandle> for NodeStorage {
+	fn index_mut(&mut self, x: &'a StorageHandle) -> &mut Node {
+		&mut self.nodes[x.0]
+	}
+}
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
-/// Use it as a `Trie` trait object. You can use `db()` to get the backing database object, `keys`
-/// to get the keys belonging to the trie in the backing database, and `db_items_remaining()` to get
-/// which items in the backing database do not belong to this trie. If this is the only trie in the
-/// backing database, then `db_items_remaining()` should be empty.
+/// Use it as a `TrieMut` trait object. You can use `db()` to get the backing database object and `keys`
+/// to get the keys belonging to the trie in the backing database. Changes are stored in-memory
+/// until explicitly committed to memory through `commit()` or dropping the trie.
+/// Attempting to query the root before committing will lead to a panic.
 ///
 /// # Example
 /// ```
@@ -44,204 +286,121 @@ use super::TrieError;
 ///   let mut root = H256::new();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
+///   t.commit();
 ///   assert_eq!(*t.root(), SHA3_NULL_RLP);
 ///   t.insert(b"foo", b"bar");
 ///   assert!(t.contains(b"foo"));
 ///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
-///   assert!(t.db_items_remaining().is_empty());
 ///   t.remove(b"foo");
 ///   assert!(!t.contains(b"foo"));
-///   assert!(t.db_items_remaining().is_empty());
 /// }
 /// ```
-pub struct TrieDBMut<'db> {
-	db: &'db mut HashDB,
-	root: &'db mut H256,
-	/// The number of hashes performed so far in operations on this trie.
+pub struct TrieDBMut<'a> {
+	storage: NodeStorage,
+	db: &'a mut HashDB,
+	root: &'a mut H256,
+	root_handle: StorageHandle,
+	dirty: bool,
+	/// The number of hash operations this trie has performed.
+	/// Note that none are performed until changes are committed.
 	pub hash_count: usize,
 }
 
-/// Option-like type allowing either a Node object passthrough or Bytes in the case of data alteration.
-enum MaybeChanged<'a> {
-	Same(Node<'a>),
-	Changed(Bytes),
-}
+impl<'a> TrieDBMut<'a> {
+	/// Create a new trie with backing database `db` and empty `root`.
+	pub fn new(db: &'a mut HashDB, root: &'a mut H256) -> Self {
+		*root = SHA3_NULL_RLP;
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
-impl<'db> TrieDBMut<'db> {
-	/// Create a new trie with the backing database `db` and empty `root`
-	/// Initialise to the state entailed by the genesis block.
-	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
-		let mut r = TrieDBMut{
+		TrieDBMut {
+			storage: NodeStorage::empty(),
 			db: db,
 			root: root,
-			hash_count: 0
-		};
-
-		// set root rlp
-		*r.root = SHA3_NULL_RLP.clone();
-		r
+			root_handle: StorageHandle(0),
+			dirty: false,
+			hash_count: 0,
+		}
 	}
 
-	/// Create a new trie with the backing database `db` and `root`.
+	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
-	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
-		if !db.contains(root) {
-			Err(TrieError::InvalidStateRoot)
-		} else {
-			Ok(TrieDBMut {
-				db: db,
-				root: root,
-				hash_count: 0
-			})
-		}
-	}
-
-	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB {
-		self.db
-	}
-
-	/// Get the backing database.
-	pub fn db_mut(&'db mut self) -> &'db mut HashDB {
-		self.db
-	}
-
-	/// Determine all the keys in the backing database that belong to the trie.
-	pub fn keys(&self) -> Vec<H256> {
-		let mut ret: Vec<H256> = Vec::new();
-		ret.push(self.root.clone());
-		self.accumulate_keys(self.root_node(), &mut ret);
-		ret
-	}
-
-	/// Convert a vector of hashes to a hashmap of hash to occurances.
-	pub fn to_map(hashes: Vec<H256>) -> HashMap<H256, u32> {
-		let mut r: HashMap<H256, u32> = HashMap::new();
-		for h in hashes.into_iter() {
-			let c = *r.get(&h).unwrap_or(&0);
-			r.insert(h, c + 1);
-		}
-		r
-	}
-
-	/// Determine occurances of items in the backing database which are not related to this
-	/// trie.
-	pub fn db_items_remaining(&self) -> HashMap<H256, i32> {
-		let mut ret = self.db.keys();
-		for (k, v) in Self::to_map(self.keys()).into_iter() {
-			let keycount = *ret.get(&k).unwrap_or(&0);
-			match keycount <= v as i32 {
-				true => ret.remove(&k),
-				_ => ret.insert(k, keycount - v as i32),
+	pub fn from_existing(db: &'a mut HashDB, root: &'a mut H256) -> Result<Self, TrieError> {
+		let storage = {
+			let root_rlp = match db.get(root) {
+				Some(root_rlp) => root_rlp,
+				None => return Err(TrieError::InvalidStateRoot),
 			};
-		}
-		ret
-	}
 
-	/// Set the trie to a new root node's RLP, inserting the new RLP into the backing database
-	/// and removing the old.
-	fn set_root_rlp(&mut self, root_data: &[u8]) {
-		self.db.remove(&self.root);
-		*self.root = self.db.insert(root_data);
-		self.hash_count += 1;
-		trace!("set_root_rlp {:?} {:?}", root_data.pretty(), self.root);
-	}
-
-	/// Apply the items in `journal` into the backing database.
-	fn apply(&mut self, journal: Journal) {
-		self.hash_count += journal.apply(self.db).inserts;
-	}
-
-	/// Recursion helper for `keys`.
-	fn accumulate_keys(&self, node: Node, acc: &mut Vec<H256>) {
-		let mut handle_payload = |payload| {
-			let p = Rlp::new(payload);
-			if p.is_data() && p.size() == 32 {
-				acc.push(p.as_val());
-			}
-
-			self.accumulate_keys(self.get_node(payload), acc);
+			NodeStorage::from_root_rlp(root_rlp, db)
 		};
 
-		match node {
-			Node::Extension(_, payload) => handle_payload(payload),
-			Node::Branch(payloads, _) => for payload in &payloads { handle_payload(payload) },
-			_ => {},
-		}
+		Ok(TrieDBMut {
+			storage: storage,
+			db: db,
+			root: root,
+			root_handle: StorageHandle(0),
+			dirty: false,
+			hash_count: 0,
+		})
 	}
 
-	/// Get the root node's RLP.
-	fn root_node(&self) -> Node {
-		Node::decoded(self.db.get(&self.root).expect("Trie root not found!"))
-	}
+	/// Access the underlying database.
+	pub fn db(&self) -> &HashDB { &*self.db }
 
-	/// Get the root node as a `Node`.
-	fn get_node<'a>(&'a self, node: &'a [u8]) -> Node {
-		Node::decoded(self.get_raw_or_lookup(node))
-	}
+	/// Access the underlying database mutably.
+	pub fn db_mut(&mut self) -> &mut HashDB { &mut *self.db }
 
-	/// Indentation helper for `formal_all`.
-	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
-		for _ in 0..size {
-			try!(write!(f, "  "));
-		}
-		Ok(())
-	}
-
-	/// Recursion helper for implementation of formatting trait.
-	fn fmt_all(&self, node: Node, f: &mut fmt::Formatter, deepness: usize) -> fmt::Result {
-		match node {
-			Node::Leaf(slice, value) => try!(writeln!(f, "'{:?}: {:?}.", slice, value.pretty())),
-			Node::Extension(ref slice, ref item) => {
-				try!(write!(f, "'{:?} ", slice));
-				try!(self.fmt_all(self.get_node(item), f, deepness));
-			},
-			Node::Branch(ref nodes, ref value) => {
-				try!(writeln!(f, ""));
-				if let Some(v) = *value {
-					try!(self.fmt_indent(f, deepness + 1));
-					try!(writeln!(f, "=: {:?}", v.pretty()))
-				}
-				for i in 0..16 {
-					match self.get_node(nodes[i]) {
-						Node::Empty => {},
-						n => {
-							try!(self.fmt_indent(f, deepness + 1));
-							try!(write!(f, "'{:x} ", i));
-							try!(self.fmt_all(n, f, deepness + 1));
-						}
+	// walk the trie, attempting to find the key's node.
+	fn lookup<'x, 'key>(&'x self, partial: NibbleSlice<'key>, handle: &NodeHandle) -> Option<&'x [u8]>
+	where 'x: 'key {
+		match *handle {
+			NodeHandle::Hash(ref hash) => self.do_db_lookup(hash, partial),
+			NodeHandle::InMemory(ref handle) => match self.storage[handle] {
+				Node::Empty => None,
+				Node::Leaf(ref key, ref value) => {
+					if NibbleSlice::from_encoded(key).0 == partial {
+						Some(value)
+					} else {
+						None
 					}
 				}
-			},
-			// empty
-			Node::Empty => {
-				try!(writeln!(f, "<empty>"));
+				Node::Extension(ref slice, ref child) => {
+					let slice = NibbleSlice::from_encoded(slice).0;
+					if partial.starts_with(&slice) {
+						self.lookup(partial.mid(slice.len()), child)
+					} else {
+						None
+					}
+				}
+				Node::Branch(ref children, ref value) => {
+					if partial.is_empty() {
+						value.as_ref().map(|v| &v[..])
+					} else {
+						let idx = partial.at(0);
+						(&children[idx as usize]).as_ref().and_then(|child| self.lookup(partial.mid(1), child))
+					}
+				}
 			}
-		};
-		Ok(())
+		}
 	}
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
-		self.get_from_node(&root_rlp, key)
+	fn do_db_lookup<'x, 'key>(&'x self, hash: &H256, key: NibbleSlice<'key>) -> Option<&'x [u8]> where 'x: 'key {
+		self.db.get(hash).and_then(|node_rlp| self.get_from_db_node(&node_rlp, key))
 	}
 
 	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
 	/// value exists for the key.
 	///
 	/// Note: Not a public API; use Trie trait functions.
-	fn get_from_node<'a, 'key>(&'a self, node: &'a [u8], key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		match Node::decoded(node) {
-			Node::Leaf(ref slice, ref value) if key == slice => Some(value),
-			Node::Extension(ref slice, ref item) if key.starts_with(slice) => {
-				self.get_from_node(self.get_raw_or_lookup(item), &key.mid(slice.len()))
+	fn get_from_db_node<'x, 'key>(&'x self, node: &'x [u8], key: NibbleSlice<'key>) -> Option<&'x [u8]> where 'x: 'key {
+		match RlpNode::decoded(node) {
+			RlpNode::Leaf(ref slice, ref value) if &key == slice => Some(value),
+			RlpNode::Extension(ref slice, ref item) if key.starts_with(slice) => {
+				self.get_from_db_node(self.get_raw_or_lookup(item), key.mid(slice.len()))
 			},
-			Node::Branch(ref nodes, value) => match key.is_empty() {
+			RlpNode::Branch(ref nodes, value) => match key.is_empty() {
 				true => value,
-				false => self.get_from_node(self.get_raw_or_lookup(nodes[key.at(0) as usize]), &key.mid(1))
+				false => self.get_from_db_node(self.get_raw_or_lookup(nodes[key.at(0) as usize]), key.mid(1))
 			},
 			_ => None
 		}
@@ -250,7 +409,7 @@ impl<'db> TrieDBMut<'db> {
 	/// Given some node-describing data `node`, return the actual node RLP.
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
-	fn get_raw_or_lookup<'a>(&'a self, node: &'a [u8]) -> &'a [u8] {
+	fn get_raw_or_lookup<'x>(&'x self, node: &'x [u8]) -> &'x [u8] {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
@@ -259,420 +418,323 @@ impl<'db> TrieDBMut<'db> {
 		}
 	}
 
-	/// Insert a `key` and `value` pair into the trie.
-	///
-	/// Note: Not a public API; use Trie trait functions.
-	fn insert_ns(&mut self, key: &NibbleSlice, value: &[u8]) {
-		trace!("ADD: {:?} {:?}", key, value.pretty());
-		// determine what the new root is, insert new nodes and remove old as necessary.
-		let mut todo: Journal = Journal::new();
-		let root_rlp = self.augmented(self.db.get(&self.root).expect("Trie root not found!"), key, value, &mut todo);
-		self.apply(todo);
-		self.set_root_rlp(&root_rlp);
-		trace!("/");
-	}
-
-	/// Remove a `key` and `value` pair from the trie.
-	///
-	/// Note: Not a public API; use Trie trait functions.
-	fn remove_ns(&mut self, key: &NibbleSlice) {
-		trace!("DELETE: {:?}", key);
-		// determine what the new root is, insert new nodes and remove old as necessary.
-		let mut todo: Journal = Journal::new();
-		match self.cleared_from_slice(self.db.get(&self.root).expect("Trie root not found!"), key, &mut todo) {
-			Some(root_rlp) => {
-				self.apply(todo);
-				self.set_root_rlp(&root_rlp);
-			},
-			None => {
-				trace!("no change needed");
+	/// insert a key, value pair into the trie, creating new nodes if necessary.
+	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: Bytes) -> StorageHandle {
+		trace!(target: "trie", "insert_at (old: {:?}, partial: {:?}, value: {:?})", handle, partial, value.pretty());
+		let handle = match handle {
+			// load the node if we haven't already,
+			NodeHandle::Hash(hash) => {
+				let node_rlp = self.db.get(&hash).expect("Not found!");
+				let node = Node::from_rlp(node_rlp, &*self.db, &mut self.storage);
+				self.storage.alloc(node)
 			}
-		}
-		trace!("/");
-	}
+			NodeHandle::InMemory(h) => h,
+		};
 
-	/// Compose a leaf node in RLP given the `partial` key and `value`.
-	fn compose_leaf(partial: &NibbleSlice, value: &[u8]) -> Bytes {
-		trace!("compose_leaf {:?} {:?} ({:?})", partial, value.pretty(), partial.encoded(true).pretty());
-		let mut s = RlpStream::new_list(2);
-		s.append(&partial.encoded(true));
-		s.append(&value);
-		let r = s.out();
-		trace!("compose_leaf: -> {:?}", r.pretty());
-		r
-	}
-
-	/// Compose a raw extension/leaf node in RLP given the `partial` key, `raw_payload` and whether it `is_leaf`.
-	fn compose_raw(partial: &NibbleSlice, raw_payload: &[u8], is_leaf: bool) -> Bytes {
-		trace!("compose_raw {:?} {:?} {:?} ({:?})", partial, raw_payload.pretty(), is_leaf, partial.encoded(is_leaf));
-		let mut s = RlpStream::new_list(2);
-		s.append(&partial.encoded(is_leaf));
-		s.append_raw(raw_payload, 1);
-		let r = s.out();
-		trace!("compose_raw: -> {:?}", r.pretty());
-		r
-	}
-
-	/// Compose a branch node in RLP with a particular `value` sitting in the value position (17th place).
-	fn compose_stub_branch(value: &[u8]) -> Bytes {
-		let mut s = RlpStream::new_list(17);
-		for _ in 0..16 { s.append_empty_data(); }
-		s.append(&value);
-		s.out()
-	}
-
-	/// Compose an extension node's RLP with the `partial` key and `raw_payload`.
-	fn compose_extension(partial: &NibbleSlice, raw_payload: &[u8]) -> Bytes {
-		Self::compose_raw(partial, raw_payload, false)
-	}
-
-	/// Return the bytes encoding the node represented by `rlp`. `journal` will record necessary
-	/// removal instructions from the backing database.
-	fn take_node<'a, 'rlp_view>(&'a self, rlp: &'rlp_view Rlp<'a>, journal: &mut Journal) -> &'a [u8] where 'a: 'rlp_view {
-		if rlp.is_list() {
-			trace!("take_node {:?} (inline)", rlp.as_raw().pretty());
-			rlp.as_raw()
-		}
-		else if rlp.is_data() && rlp.size() == 32 {
-			let h = rlp.as_val();
-			let r = self.db.get(&h).unwrap_or_else(||{
-				println!("Node not found! rlp={:?}, node_hash={:?}", rlp.as_raw().pretty(), h);
-				println!("Journal: {:?}", journal);
-				panic!();
-			});
-			trace!("take_node {:?} (indirect for {:?})", rlp.as_raw().pretty(), r);
-			journal.delete_node_sha3(h);
-			r
-		}
-		else {
-			trace!("take_node {:?} (???)", rlp.as_raw().pretty());
-			panic!("Empty or invalid node given?");
-		}
-	}
-
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
-	/// Determine the RLP of the node, assuming we're inserting `partial` into the
-	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
-	/// it will just return the new RLP that includes the new node.
-	///
-	/// `journal` will record the database updates so as to make the returned RLP valid through inserting
-	/// and deleting nodes as necessary.
-	///
-	/// **This operation will not insert the new node nor destroy the original.**
-	fn augmented(&self, old: &[u8], partial: &NibbleSlice, value: &[u8], journal: &mut Journal) -> Bytes {
-		trace!("augmented (old: {:?}, partial: {:?}, value: {:?})", old.pretty(), partial, value.pretty());
-		// already have an extension. either fast_forward, cleve or transmute_to_branch.
-		let old_rlp = Rlp::new(old);
-		match old_rlp.prototype() {
-			Prototype::List(17) => {
-				trace!("branch: ROUTE,AUGMENT");
-				// already have a branch. route and augment.
-				let mut s = RlpStream::new_list(17);
-				let index = if partial.is_empty() {16} else {partial.at(0) as usize};
-				for i in 0..17 {
-					match index == i {
-						// not us - leave alone.
-						false => { s.append_raw(old_rlp.at(i).as_raw(), 1); },
-						// branch-leaf entry - just replace.
-						true if i == 16 => { s.append(&value); },
-						// original had empty slot - place a leaf there.
-						true if old_rlp.at(i).is_empty() => journal.new_node(Self::compose_leaf(&partial.mid(1), value), &mut s),
-						// original has something there already; augment.
-						true => {
-							let new = self.augmented(self.take_node(&old_rlp.at(i), journal), &partial.mid(1), value, journal);
-							journal.new_node(new, &mut s);
-						}
+		let new_node = match mem::replace(&mut self.storage[&handle], Node::Empty) {
+			Node::Branch(mut children, mut stored_value) => {
+				trace!(target: "trie", "branch: ROUTE,INSERT");
+				if partial.is_empty() {
+					stored_value = Some(value);
+				} else {
+					let index = partial.at(0) as usize;
+					if let Some(child_handle) = children[index].take() {
+						// original had something there. continue to insert.
+						let partial = partial.mid(1);
+						children[index] = Some(self.insert_at(child_handle, partial, value).into());
+					} else {
+						// original had empty slot. place a leaf there.
+						let leaf = Node::Leaf(partial.mid(1).encoded(true), value);
+						children[index] = Some(self.storage.alloc(leaf).into());
 					}
 				}
-				s.out()
-			},
-			Prototype::List(2) => {
-				let existing_key_rlp = old_rlp.at(0);
-				let (existing_key, is_leaf) = NibbleSlice::from_encoded(existing_key_rlp.data());
-				match (is_leaf, partial.common_prefix(&existing_key)) {
-					(true, cp) if cp == existing_key.len() && partial.len() == existing_key.len() => {
-						// equivalent-leaf: replace
-						trace!("equivalent-leaf: REPLACE");
-						Self::compose_leaf(partial, value)
-					},
-					(_, 0) => {
-						// one of us isn't empty: transmute to branch here
-						trace!("no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,AUGMENT", existing_key.len(), partial.len());
-						assert!(is_leaf || !existing_key.is_empty());	// extension nodes are not allowed to have empty partial keys.
-						let mut s = RlpStream::new_list(17);
-						let index = if existing_key.is_empty() {16} else {existing_key.at(0)};
-						for i in 0..17 {
-							match is_leaf {
-								// not us - empty.
-								_ if index != i => { s.append_empty_data(); },
-								// branch-value: just replace.
-								true if i == 16 => { s.append_raw(old_rlp.at(1).as_raw(), 1); },
-								// direct extension: just replace.
-								false if existing_key.len() == 1 => { s.append_raw(old_rlp.at(1).as_raw(), 1); },
-								// original has empty slot.
-								true => journal.new_node(Self::compose_leaf(&existing_key.mid(1), old_rlp.at(1).data()), &mut s),
-								// additional work required after branching.
-								false => journal.new_node(Self::compose_extension(&existing_key.mid(1), old_rlp.at(1).as_raw()), &mut s),
-							}
-						};
-						self.augmented(&s.out(), partial, value, journal)
-					},
-					(_, cp) if cp == existing_key.len() => {
-						trace!("complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
-						// fully-shared prefix for this extension:
-						// transform to an extension + augmented version of onward node.
-						let downstream_node: Bytes = match is_leaf {
-							// no onward node because we're a leaf - create fake stub and use that.
-							true => self.augmented(&Self::compose_stub_branch(old_rlp.at(1).data()), &partial.mid(cp), value, journal),
-							false => self.augmented(self.take_node(&old_rlp.at(1), journal), &partial.mid(cp), value, journal),
-						};
 
-						trace!("create_extension partial: {:?}, downstream_node: {:?}", existing_key, downstream_node.pretty());
-						let mut s = RlpStream::new_list(2);
-						s.append(&existing_key.encoded(false));
-						journal.new_node(downstream_node, &mut s);
-						s.out()
-					},
-					(_, cp) => {
-						// partially-shared prefix for this extension:
-						// split into two extensions, high and low, pass the
-						// low through augment with the value before inserting the result
-						// into high to create the new.
-
-						// TODO: optimise by doing this without creating augmented_low.
-
-						trace!("partially-shared-prefix (exist={:?}; new={:?}; cp={:?}): AUGMENT-AT-END", existing_key.len(), partial.len(), cp);
-
-						// low (farther from root)
-						let low = Self::compose_raw(&existing_key.mid(cp), old_rlp.at(1).as_raw(), is_leaf);
-						let augmented_low = self.augmented(&low, &partial.mid(cp), value, journal);
-
-						// high (closer to root)
-						let mut s = RlpStream::new_list(2);
-						s.append(&existing_key.encoded_leftmost(cp, false));
-						journal.new_node(augmented_low, &mut s);
-						s.out()
-					},
-				}
-			},
-			Prototype::Data(0) => {
-				trace!("empty: COMPOSE");
-				Self::compose_leaf(partial, value)
-			},
-			_ => panic!("Invalid RLP for node: {:?}", old.pretty()),
-		}
-	}
-
-	/// Given a `MaybeChanged` result `n`, return the node's RLP regardless of whether it changed.
-	fn encoded(n: MaybeChanged) -> Bytes {
-		match n {
-			MaybeChanged::Same(n) => n.encoded(),
-			MaybeChanged::Changed(b) => b,
-		}
-	}
-
-	/// Fix the node payload's sizes in `n`, replacing any over-size payloads with the hashed reference
-	/// and placing the payload DB insertions in the `journal`.
-	fn fixed_indirection<'a>(n: Node<'a>, journal: &mut Journal) -> MaybeChanged<'a> {
-		match n {
-			Node::Extension(partial, payload) if payload.len() >= 32 && Rlp::new(payload).is_list() => {
-				// make indirect
-				MaybeChanged::Changed(Node::Extension(partial, &Node::decoded(payload).encoded_and_added(journal)).encoded())
-			},
-			Node::Branch(payloads, value) => {
-				// check each child isn't too big
-				// TODO OPTIMISE - should really check at the point of (re-)constructing the branch.
-				for i in 0..16 {
-					if payloads[i].len() >= 32 && Rlp::new(payloads[i]).is_list() {
-						let n = Node::decoded(payloads[i]).encoded_and_added(journal);
-						let mut new_nodes = payloads;
-						new_nodes[i] = &n;
-						return MaybeChanged::Changed(Node::Branch(new_nodes, value).encoded())
-					}
-				}
-				MaybeChanged::Same(n)
+				Node::Branch(children, stored_value)
 			}
-			_ => MaybeChanged::Same(n),
-		}
+			Node::Leaf(encoded_key, stored_value) => {
+				let (existing_key, _) = NibbleSlice::from_encoded(&encoded_key);
+				let cp = partial.common_prefix(&existing_key);
+				if cp == partial.len() && cp == existing_key.len() {
+					trace!(target: "trie", "equivalent-leaf: REPLACE");
+					Node::Leaf(encoded_key.clone(), value)
+				} else if cp == 0 {
+					// make a branch.
+					trace!(target: "trie", "no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,INSERT", existing_key.len(), partial.len());
+					let mut children = empty_children();
+					let branch = if existing_key.is_empty() {
+						Node::Branch(children, Some(stored_value))
+					} else {
+						let index = existing_key.at(0) as usize;
+						let leaf = Node::Leaf(existing_key.mid(1).encoded(true), stored_value);
+						children[index] = Some(self.storage.alloc(leaf).into());
+						Node::Branch(children, None)
+					};
+
+					// replace this node with the new branch, and then walk it further.
+					self.storage[&handle] = branch;
+					return self.insert_at(handle.into(), partial, value);
+				} else if cp == existing_key.len() {
+					// fully shared prefix.
+					// transform to an extension + augmented version of onward node.
+					trace!(target: "trie", "complete-prefix (cp={:?}): INSERT-AT-END", cp);
+					let stub_branch = self.storage.alloc(Node::Branch(empty_children(), Some(stored_value)));
+					let downstream = self.insert_at(stub_branch.into(), partial.mid(cp), value);
+
+					Node::Extension(existing_key.encoded(false), downstream.into())
+				} else {
+					// partially-shared prefix
+					let low = self.storage.alloc(Node::Leaf(existing_key.mid(cp).encoded(true), stored_value));
+					let augmented_low = self.insert_at(low.into(), partial.mid(cp), value);
+
+					trace!(target: "trie", "create_extension partial: {:?}, downstream_node: {:?}", existing_key, &self.storage[&augmented_low]);
+					Node::Extension(existing_key.encoded_leftmost(cp, false), augmented_low.into())
+				}
+			}
+			Node::Extension(encoded_key, child_branch) => {
+				let (existing_key, _) = NibbleSlice::from_encoded(&encoded_key);
+				let cp = partial.common_prefix(&existing_key);
+				if cp == 0 {
+					// make a branch.
+					trace!(target: "trie", "no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,INSERT", existing_key.len(), partial.len());
+					assert!(!existing_key.is_empty()); // extension nodes may not have empty partial keys.
+					let mut children = empty_children();
+					let index = existing_key.at(0) as usize;
+					if existing_key.len() == 1 {
+						// direct extension
+						children[index] = Some(child_branch);
+					} else {
+						let extension = Node::Extension(existing_key.mid(1).encoded(false), child_branch);
+						children[index] = Some(self.storage.alloc(extension).into());
+					}
+
+					// replace this node with a branch and walk it further.
+					self.storage[&handle] = Node::Branch(children, None);
+					return self.insert_at(handle.into(), partial, value);
+				} else if cp == existing_key.len() {
+					// fully-shared prefix.
+					trace!(target: "trie", "complete-prefix (cp={:?}): INSERT-AT-END", cp);
+					let downstream = self.insert_at(child_branch, partial.mid(cp), value);
+					Node::Extension(existing_key.encoded(false), downstream.into())
+				} else {
+					// partially-shared prefix
+					let low = self.storage.alloc(Node::Extension(existing_key.mid(cp).encoded(false), child_branch));
+					let augmented_low = self.insert_at(low.into(), partial.mid(cp), value);
+					trace!(target: "trie", "create_extension partial: {:?}, downstream_node: {:?}", existing_key, &self.storage[&augmented_low]);
+
+					Node::Extension(existing_key.encoded_leftmost(cp, false), augmented_low.into())
+				}
+			}
+			Node::Empty => {
+				trace!(target: "trie", "empty: COMPOSE");
+				Node::Leaf(partial.encoded(true), value)
+			}
+		};
+
+		self.storage[&handle] = new_node;
+		handle
 	}
 
-	/// Given a node `n` which may be in an _invalid state_, fix it such that it is then in a valid
+	/// Remove a node from the trie based on key.
+	fn remove_at(&mut self, handle: NodeHandle, partial: NibbleSlice) -> Option<StorageHandle> {
+		// load the node we're inspecting into memory if it isn't already.
+		let handle = match handle {
+			NodeHandle::Hash(hash) => {
+				let node_rlp = self.db.get(&hash).expect("Not found!");
+				let node = Node::from_rlp(node_rlp, &*self.db, &mut self.storage);
+				self.storage.alloc(node)
+			}
+			NodeHandle::InMemory(h) => h,
+		};
+
+		let new_node = match (mem::replace(&mut self.storage[&handle], Node::Empty), partial.is_empty()) {
+			(Node::Empty, _) => Node::Empty,
+			(Node::Branch(children, None), true) => Node::Branch(children, None), // already gone.
+			(Node::Branch(children, _), true) => self.fix(Node::Branch(children, None)),
+			(Node::Branch(mut children, value), false) => {
+				let index = partial.at(0) as usize;
+				let temp = children[index]
+					.take().and_then(|child| self.remove_at(child, partial.mid(1)));
+
+				children[index] = temp.map(|x| x.into());
+
+				self.fix(Node::Branch(children, value))
+			}
+			(Node::Leaf(encoded_key, value), _) => {
+				if NibbleSlice::from_encoded(&encoded_key).0 == partial {
+					// this is the node we were trying to delete. delete it.
+					self.storage.destroy(handle);
+					return None;
+				} else {
+					// leaf the node alone
+					Node::Leaf(encoded_key, value)
+				}
+			}
+			(Node::Extension(encoded_key, child_branch), _) => {
+				let (existing_len, cp) = {
+					let existing_key = NibbleSlice::from_encoded(&encoded_key).0;
+					(existing_key.len(), existing_key.common_prefix(&partial))
+				};
+				if cp == existing_len {
+					match self.remove_at(child_branch, partial.mid(cp)) {
+						Some(new_child) => self.fix(Node::Extension(encoded_key, new_child.into())),
+						None => panic!("extension child is a branch; remove on a branch node always returns Some; qed")
+					}
+				} else {
+					// key in the middle of an extension. ignore and return old node
+					Node::Extension(encoded_key, child_branch)
+				}
+			}
+		};
+
+		self.storage[&handle] = new_node;
+		Some(handle)
+	}
+
+	/// Given a node which may be in an _invalid state_, fix it such that it is then in a valid
 	/// state.
 	///
 	/// _invalid state_ means:
 	/// - Branch node where there is only a single entry;
 	/// - Extension node followed by anything other than a Branch node.
-	/// - Extension node with a child which has too many bytes to be inline.
-	///
-	/// `journal` will record the database updates so as to make the returned RLP valid through inserting
-	/// and deleting nodes as necessary.
-	///
-	/// **This operation will not insert the new node nor destroy the original.**
-	fn fixed<'a, 'b>(&'a self, n: Node<'b>, journal: &mut Journal) -> MaybeChanged<'b> where 'a: 'b {
-		trace!("fixed node={:?}", n);
-		match n {
-			Node::Branch(nodes, node_value) => {
-				// if only a single value, transmute to leaf/extension and feed through fixed.
+	fn fix(&mut self, node: Node) -> Node {
+		match node {
+			Node::Branch(mut children, value) => {
 				#[derive(Debug)]
 				enum UsedIndex {
 					None,
-					One(u8),
+					One(usize),
 					Many,
-				};
+				}
 				let mut used_index = UsedIndex::None;
 				for i in 0..16 {
-					match (nodes[i] == NULL_RLP, &used_index) {
-						(false, &UsedIndex::None) => used_index = UsedIndex::One(i as u8),
-						(false, &UsedIndex::One(_)) => used_index = UsedIndex::Many,
-						(_, _) => {},
+					match (children[i].is_some(), &used_index) {
+						(false, _) => continue,
+						(true, &UsedIndex::None) => used_index = UsedIndex::One(i),
+						(true, &UsedIndex::One(_)) => {
+							used_index = UsedIndex::Many;
+							break;
+						}
+						_ => {}
 					}
 				}
-				trace!("branch: used_index={:?}, node_value={:?}", used_index, node_value);
-				match (used_index, node_value) {
+
+				match (used_index, value) {
 					(UsedIndex::None, None) => panic!("Branch with no subvalues. Something went wrong."),
-					(UsedIndex::One(a), None) => {		// one onward node
-						// transmute to extension.
-						// TODO: OPTIMISE: - don't call fixed again but put the right node in straight away here.
-						// call fixed again since the transmute may cause invalidity.
-						let new_partial: [u8; 1] = [a; 1];
-						MaybeChanged::Changed(Self::encoded(self.fixed(Node::Extension(NibbleSlice::new_offset(&new_partial[..], 1), nodes[a as usize]), journal)))
-					},
-					(UsedIndex::None, Some(value)) => {		// one leaf value
-						// transmute to leaf.
-						// call fixed again since the transmute may cause invalidity.
-						MaybeChanged::Changed(Self::encoded(self.fixed(Node::Leaf(NibbleSlice::new(&b""[..]), value), journal)))
+					(UsedIndex::One(i), None) => {
+						// turn into an extension and fix it (the onward node isn't necessarily a branch)
+						let onward = children[i].take().unwrap();
+						self.fix(Node::Extension(NibbleSlice::new_offset(&[i as u8; 1], 1).encoded(false), onward))
 					}
-					_ => {						// onwards node(s) and/or leaf
-						// no transmute needed, but should still fix the indirection.
-						trace!("no-transmute: FIXINDIRECTION");
-						Self::fixed_indirection(Node::Branch(nodes, node_value), journal)
-					},
+					(UsedIndex::None, Some(value)) => {
+						// turn into a leaf.
+						Node::Leaf(NibbleSlice::new(&[]).encoded(true), value)
+					}
+					(_, value) => Node::Branch(children, value) // all good here
 				}
-			},
-			Node::Extension(partial, payload) => {
-				match Node::decoded(self.get_raw_or_lookup(payload)) {
-					Node::Extension(sub_partial, sub_payload) => {
-						// combine with node below
-						journal.delete_node(payload);
-						MaybeChanged::Changed(Self::encoded(Self::fixed_indirection(Node::Extension(NibbleSlice::new_composed(&partial, &sub_partial), sub_payload), journal)))
-					},
+			}
+			Node::Extension(partial, child) => {
+				// load the child into memory if it isn't already.
+				let child = match child {
+					NodeHandle::Hash(hash) => {
+						let node_rlp = self.db.get(&hash).expect("Not found!");
+						Node::from_rlp(node_rlp, &*self.db, &mut self.storage)
+					}
+					NodeHandle::InMemory(h) => self.storage.destroy(h),
+				};
+
+				// inspect the child
+				match child {
+					Node::Extension(sub_partial, sub_child) => {
+						// combine with node below.
+						let partial = NibbleSlice::from_encoded(&partial).0;
+						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
+
+						let composed = Node::Extension(NibbleSlice::new_composed(&partial, &sub_partial).encoded(false), sub_child);
+						self.fix(composed)
+					}
 					Node::Leaf(sub_partial, sub_value) => {
-						// combine with node below
-						journal.delete_node(payload);
-						MaybeChanged::Changed(Self::encoded(Self::fixed_indirection(Node::Leaf(NibbleSlice::new_composed(&partial, &sub_partial), sub_value), journal)))
-					},
-					// no change, might still have an oversize node inline - fix indirection
-					_ => Self::fixed_indirection(n, journal),
+						// combine with node below.
+						let partial = NibbleSlice::from_encoded(&partial).0;
+						let sub_partial = NibbleSlice::from_encoded(&sub_partial).0;
+						// combine with node below.
+						Node::Leaf(NibbleSlice::new_composed(&partial, &sub_partial).encoded(true), sub_value)
+					}
+					// nothing wrong here. reallocate the child and move on.
+					_ => Node::Extension(partial, self.storage.alloc(child).into()),
 				}
-			},
-			// leaf or empty. no change.
-			n => { MaybeChanged::Same(n) }
+			}
+			node => node,
 		}
 	}
 
-	/// Determine the RLP of the node, assuming we're removing `partial` from the
-	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
-	/// it will just return the new RLP that represents the new node.
-	/// `None` may be returned should no change be needed.
-	///
-	/// `journal` will record the database updates so as to make the returned RLP valid through inserting
-	/// and deleting nodes as necessary.
-	///
-	/// **This operation will not insert the new node nor destroy the original.**
-	fn cleared_from_slice(&self, old: &[u8], partial: &NibbleSlice, journal: &mut Journal) -> Option<Bytes> {
-		self.cleared(Node::decoded(old), partial, journal)
+	/// Commit the in-memory changes to disk, freeing their storage and
+	/// updating the state root.
+	pub fn commit(&mut self) {
+		if !self.dirty { return }
+		let root_handle = self.root_handle();
+
+		let root_node = mem::replace(&mut self.storage[&root_handle], Node::Empty);
+		let (root_rlp, hash_count) = root_node.to_rlp(self.db, &mut self.storage);
+
+		*self.root = self.db.insert(&root_rlp);
+		self.hash_count += hash_count + 1;
+
+		trace!(target: "trie", "After commit, root-rlp: {:?}", root_rlp[..].to_owned().pretty());
+
+		// reload the root node from the rlp just in case someone keeps using this trie after
+		// commit.
+		let root_node = Node::from_rlp(&root_rlp, &*self.db, &mut self.storage);
+		self.storage[&root_handle] = root_node;
+
+		self.dirty = false;
 	}
 
-	/// Compose the RLP of the node equivalent to `n` except with the `partial` key removed from its (sub-)trie.
-	///
-	/// `journal` will record the database updates so as to make the returned RLP valid through inserting
-	/// and deleting nodes as necessary.
-	///
-	/// **This operation will not insert the new node nor destroy the original.**
-	fn cleared(&self, n: Node, partial: &NibbleSlice, journal: &mut Journal) -> Option<Bytes> {
-		trace!("cleared old={:?}, partial={:?})", n, partial);
-
-		match (n, partial.is_empty()) {
-			(Node::Empty, _) => None,
-			(Node::Branch(_, None), true) => { None },
-			(Node::Branch(payloads, _), true) => Some(Self::encoded(self.fixed(Node::Branch(payloads, None), journal))),	// matched as leaf-branch - give back fixed branch with it.
-			(Node::Branch(payloads, value), false) => {
-				// Branch with partial left - route, clear, fix.
-				let i: usize = partial.at(0) as usize;
-				trace!("branch-with-partial node[{:?}]={:?}", i, payloads[i].pretty());
-				self.cleared(self.get_node(payloads[i]), &partial.mid(1), journal).map(|new_payload| {
-					trace!("branch-new-payload={:?}; delete-old={:?}", new_payload.pretty(), payloads[i].pretty());
-
-					// downsteam node needed to be changed.
-					journal.delete_node(payloads[i]);
-					// return fixed up new node.
-					let mut new_payloads = payloads;
-					new_payloads[i] = &new_payload;
-					Self::encoded(self.fixed(Node::Branch(new_payloads, value), journal))
-				})
-			},
-			(Node::Leaf(node_partial, _), _) => {
-				trace!("leaf partial={:?}", node_partial);
-				match node_partial.common_prefix(partial) {
-					cp if cp == partial.len() => {		// leaf to be deleted - delete it :)
-						trace!("matched-prefix (cp={:?}): REPLACE-EMPTY", cp);
-						Some(Node::Empty.encoded())
-					},
-					_ => None,												// anything else and the key doesn't exit - no change.
-				}
-			},
-			(Node::Extension(node_partial, node_payload), _) => {
-				trace!("extension partial={:?}, payload={:?}", node_partial, node_payload.pretty());
-				match node_partial.common_prefix(partial) {
-					cp if cp == node_partial.len() => {
-						trace!("matching-prefix (cp={:?}): SKIP,CLEAR,FIXUP", cp);
-						// key at end of extension - skip, clear, fix
-						self.cleared(self.get_node(node_payload), &partial.mid(node_partial.len()), journal).map(|new_payload| {
-							trace!("extension-new-payload={:?}; delete-old={:?}", new_payload.pretty(), node_payload.pretty());
-							// downsteam node needed to be changed.
-							journal.delete_node(node_payload);
-							// return fixed up new node.
-							Self::encoded(self.fixed(Node::Extension(node_partial, &new_payload), journal))
-						})
-					},
-					_ => None,	// key in the middle of an extension - doesn't exist.
-				}
-			},
-		}
+	// a hack to get the root node's handle
+	fn root_handle(&self) -> StorageHandle {
+		StorageHandle(self.root_handle.0)
 	}
 }
 
-impl<'db> Trie for TrieDBMut<'db> {
-	fn root(&self) -> &H256 { &self.root }
+impl<'a> TrieMut for TrieDBMut<'a> {
+	fn root(&mut self) -> &H256 {
+		self.commit();
+		&self.root
+	}
+
+	fn is_empty(&self) -> bool {
+		match self.storage[&self.root_handle] {
+			Node::Empty => true,
+			_ => false,
+		}
+	}
+
+	fn get<'b, 'key>(&'b self, key: &'key [u8]) -> Option<&'b [u8]> where 'b: 'key {
+		let root_handle = self.root_handle();
+		self.lookup(NibbleSlice::new(key), &NodeHandle::InMemory(root_handle))
+	}
 
 	fn contains(&self, key: &[u8]) -> bool {
 		self.get(key).is_some()
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
-		self.do_lookup(&NibbleSlice::new(key))
-	}
-}
-
-impl<'db> TrieMut for TrieDBMut<'db> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
-		match value.is_empty() {
-			false => self.insert_ns(&NibbleSlice::new(key), value),
-			true => self.remove_ns(&NibbleSlice::new(key)),
-		}
+		let root_handle = self.root_handle();
+		self.root_handle = self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
+		self.dirty = true;
 	}
 
 	fn remove(&mut self, key: &[u8]) {
-		self.remove_ns(&NibbleSlice::new(key));
+		let root_handle = self.root_handle();
+		if self.remove_at(root_handle.into(), NibbleSlice::new(key)).is_none() {
+			self.root_handle = self.storage.alloc(Node::Empty);
+		}
+		self.dirty = true;
 	}
 }
 
-impl<'db> fmt::Debug for TrieDBMut<'db> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		try!(writeln!(f, "c={:?} [", self.hash_count));
-		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
-		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
-		writeln!(f, "]")
+impl<'a> Drop for TrieDBMut<'a> {
+	fn drop(&mut self) {
+		self.commit();
 	}
 }
 
@@ -680,15 +742,13 @@ impl<'db> fmt::Debug for TrieDBMut<'db> {
 mod tests {
 	extern crate json_tests;
 	use self::json_tests::{trie, execute_tests_from_directory};
-	use triehash::*;
+	use triehash::trie_root;
 	use hash::*;
 	use hashdb::*;
 	use memorydb::*;
 	use super::*;
-	use nibbleslice::*;
 	use rlp::*;
 	use bytes::ToPretty;
-	use super::super::node::*;
 	use super::super::trietraits::*;
 	use super::super::standardmap::*;
 
@@ -709,31 +769,9 @@ mod tests {
 		}
 	}
 
-	macro_rules! map({$($key:expr => $value:expr),+ } => {
-		{
-			let mut m = ::std::collections::HashMap::new();
-			$(
-				m.insert($key, $value);
-			)+
-			m
-		}
-	};);
-
 	#[test]
 	fn playpen() {
-
-		/*let maps = map!{
-			"six-low" => StandardMap{alphabet: Alphabet::Low, min_key: 6, journal_key: 0, count: 1000},
-			"six-mid" => StandardMap{alphabet: Alphabet::Mid, min_key: 6, journal_key: 0, count: 1000},
-			"six-all" => StandardMap{alphabet: Alphabet::All, min_key: 6, journal_key: 0, count: 1000},
-			"mix-mid" => StandardMap{alphabet: Alphabet::Mid, min_key: 1, journal_key: 5, count: 1000}
-		};
-		for sm in maps {
-			let m = sm.1.make();
-			let t = populate_trie(&m);
-			println!("{:?}: root={:?}, hash_count={:?}", sm.0, t.root(), t.hash_count);
-		};*/
-//		panic!();
+		::log::init_log();
 
 		let mut seed = H256::new();
 		for test_i in 0..1 {
@@ -752,30 +790,28 @@ mod tests {
 			let mut memdb = MemoryDB::new();
 			let mut root = H256::new();
 			let mut memtrie = populate_trie(&mut memdb, &mut root, &x);
-			if *memtrie.root() != real || !memtrie.db_items_remaining().is_empty() {
+
+			memtrie.commit();
+			if *memtrie.root() != real {
 				println!("TRIE MISMATCH");
 				println!("");
 				println!("{:?} vs {:?}", memtrie.root(), real);
 				for i in &x {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
-				println!("{:?}", memtrie);
 			}
 			assert_eq!(*memtrie.root(), real);
-			assert!(memtrie.db_items_remaining().is_empty());
 			unpopulate_trie(&mut memtrie, &x);
-			if *memtrie.root() != SHA3_NULL_RLP || !memtrie.db_items_remaining().is_empty() {
+			memtrie.commit();
+			if *memtrie.root() != SHA3_NULL_RLP {
 				println!("- TRIE MISMATCH");
 				println!("");
-				println!("remaining: {:?}", memtrie.db_items_remaining());
 				println!("{:?} vs {:?}", memtrie.root(), real);
 				for i in &x {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
-				println!("{:?}", memtrie);
 			}
 			assert_eq!(*memtrie.root(), SHA3_NULL_RLP);
-			assert!(memtrie.db_items_remaining().is_empty());
 		}
 	}
 
@@ -783,9 +819,8 @@ mod tests {
 	fn init() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		assert_eq!(*t.root(), SHA3_NULL_RLP);
-		assert!(t.is_empty());
 	}
 
 	#[test]
@@ -794,6 +829,7 @@ mod tests {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
 	}
 
@@ -806,8 +842,7 @@ mod tests {
 		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
 		t1.insert(&[0x01, 0x23], &big_value.to_vec());
 		t1.insert(&[0x01, 0x34], &big_value.to_vec());
-		println!("********************** keys remaining {:?}", t1.db_items_remaining());
-		assert!(t1.db_items_remaining().is_empty());
+		t1.commit();
 		let mut memdb2 = MemoryDB::new();
 		let mut root2 = H256::new();
 		let mut t2 = TrieDBMut::new(&mut memdb2, &mut root2);
@@ -815,11 +850,7 @@ mod tests {
 		t2.insert(&[0x01, 0x23], &big_value.to_vec());
 		t2.insert(&[0x01, 0x34], &big_value.to_vec());
 		t2.remove(&[0x01]);
-		assert!(t2.db_items_remaining().is_empty());
-		/*if t1.root() != t2.root()*/ {
-			trace!("{:?}", t1);
-			trace!("{:?}", t2);
-		}
+		t2.commit();
 	}
 
 	#[test]
@@ -829,6 +860,7 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
 	}
 
@@ -839,6 +871,7 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
@@ -847,12 +880,14 @@ mod tests {
 
 	#[test]
 	fn insert_into_branch_root() {
+		::log::init_log();
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
@@ -867,6 +902,7 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[], &[0x0]);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![], vec![0x0]),
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
@@ -880,6 +916,7 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x01u8, 0x34], vec![0x01u8, 0x34]),
@@ -894,6 +931,7 @@ mod tests {
 		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
 		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
 		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01, 0x23, 0x45], vec![0x01]),
 			(vec![0x01, 0xf3, 0x45], vec![0x02]),
@@ -911,6 +949,7 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value0);
 		t.insert(&[0x11u8, 0x23], big_value1);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], big_value0.to_vec()),
 			(vec![0x11u8, 0x23], big_value1.to_vec())
@@ -926,57 +965,11 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value);
 		t.insert(&[0x11u8, 0x23], big_value);
+		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], big_value.to_vec()),
 			(vec![0x11u8, 0x23], big_value.to_vec())
 		]));
-	}
-
-	#[test]
-	fn test_node_leaf() {
-		let k = vec![0x20u8, 0x01, 0x23, 0x45];
-		let v: Vec<u8> = From::from("cat");
-		let (slice, is_leaf) = NibbleSlice::from_encoded(&k);
-		assert_eq!(is_leaf, true);
-		let leaf = Node::Leaf(slice, &v);
-		let rlp = leaf.encoded();
-		let leaf2 = Node::decoded(&rlp);
-		assert_eq!(leaf, leaf2);
-	}
-
-	#[test]
-	fn test_node_extension() {
-		let k = vec![0x00u8, 0x01, 0x23, 0x45];
-		// in extension, value must be valid rlp
-		let v = encode(&"cat");
-		let (slice, is_leaf) = NibbleSlice::from_encoded(&k);
-		assert_eq!(is_leaf, false);
-		let ex = Node::Extension(slice, &v);
-		let rlp = ex.encoded();
-		let ex2 = Node::decoded(&rlp);
-		assert_eq!(ex, ex2);
-	}
-
-	#[test]
-	fn test_node_empty_branch() {
-		let null_rlp = NULL_RLP;
-		let branch = Node::Branch([&null_rlp; 16], None);
-		let rlp = branch.encoded();
-		let branch2 = Node::decoded(&rlp);
-		println!("{:?}", rlp);
-		assert_eq!(branch, branch2);
-	}
-
-	#[test]
-	fn test_node_branch() {
-		let k = encode(&"cat");
-		let mut nodes: [&[u8]; 16] = unsafe { ::std::mem::uninitialized() };
-		for i in 0..16 { nodes[i] = &k; }
-		let v: Vec<u8> = From::from("dog");
-		let branch = Node::Branch(nodes, Some(&v));
-		let rlp = branch.encoded();
-		let branch2 = Node::decoded(&rlp);
-		assert_eq!(branch, branch2);
 	}
 
 	#[test]
@@ -994,6 +987,8 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
+		t.commit();
+		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
 	}
 
 	#[test]
@@ -1008,20 +1003,11 @@ mod tests {
 		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
 		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
 		assert_eq!(t.get(&[0x82, 0x23]), None);
-	}
-
-	#[test]
-	fn test_print_trie() {
-		let mut memdb = MemoryDB::new();
-		let mut root = H256::new();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0x02u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
-		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
-		println!("trie:");
-		println!("{:?}", t);
-		//assert!(false);
+		t.commit();
+		assert_eq!(t.get(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
+		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
+		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x82, 0x23]), None);
 	}
 
 	#[test]
@@ -1039,12 +1025,14 @@ mod tests {
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::new();
 			let mut root = H256::new();
-			let memtrie = populate_trie(&mut memdb, &mut root, &x);
+			let mut memtrie = populate_trie(&mut memdb, &mut root, &x);
 			let mut y = x.clone();
 			y.sort_by(|ref a, ref b| a.0.cmp(&b.0));
 			let mut memdb2 = MemoryDB::new();
 			let mut root2 = H256::new();
-			let memtrie_sorted = populate_trie(&mut memdb2, &mut root2, &y);
+			let mut memtrie_sorted = populate_trie(&mut memdb2, &mut root2, &y);
+			memtrie.commit();
+			memtrie_sorted.commit();
 			if *memtrie.root() != real || *memtrie_sorted.root() != real {
 				println!("TRIE MISMATCH");
 				println!("");
@@ -1052,12 +1040,10 @@ mod tests {
 				for i in &x {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
-				println!("{:?}", memtrie);
 				println!("SORTED... {:?}", memtrie_sorted.root());
 				for i in &y {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
-				println!("{:?}", memtrie_sorted);
 			}
 			assert_eq!(*memtrie.root(), real);
 			assert_eq!(*memtrie_sorted.root(), real);
@@ -1079,7 +1065,7 @@ mod tests {
 					trie::Operation::Remove(key) => t.remove(&key)
 				}
 			}
-
+			t.commit();
 			assert_eq!(*t.root(), H256::from_slice(&output));
 		});
 	}
@@ -1091,6 +1077,7 @@ mod tests {
 		{
 			let mut t = TrieDBMut::new(&mut db, &mut root);
 			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+			t.commit();
 		}
 
 		{

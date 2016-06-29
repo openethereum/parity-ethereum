@@ -33,7 +33,19 @@ pub trait Trie {
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
-pub trait TrieMut: Trie {
+pub trait TrieMut {
+	/// Return the root of the trie.
+	fn root(&mut self) -> &H256;
+
+	/// Is the trie empty?
+	fn is_empty(&self) -> bool;
+
+	/// Does the trie contain a given key?
+	fn contains(&self, key: &[u8]) -> bool;
+
+	/// What is the value of the given key in this trie?
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
+
 	/// Insert a `key`/`value` pair into the trie. An `empty` value is equivalent to removing
 	/// `key` from the trie.
 	fn insert(&mut self, key: &[u8], value: &[u8]);

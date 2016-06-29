@@ -25,7 +25,6 @@ use test::Bencher;
 use ethcore_util::hash::*;
 use ethcore_util::bytes::*;
 use ethcore_util::trie::*;
-use ethcore_util::hashdb::*;
 use ethcore_util::memorydb::*;
 use ethcore_util::triehash::*;
 use ethcore_util::sha3::*;
