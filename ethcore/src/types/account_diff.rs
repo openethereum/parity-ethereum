@@ -46,7 +46,7 @@ impl<T> Diff<T> where T: Eq + BinaryConvertable {
 	pub fn is_same(&self) -> bool { match *self { Diff::Same => true, _ => false }}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Binary)]
 /// Account diff.
 pub struct AccountDiff {
 	/// Change in balance, allowed to be `Diff::Same`.
@@ -59,7 +59,7 @@ pub struct AccountDiff {
 	pub storage: BTreeMap<H256, Diff<H256>>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Binary)]
 /// Change in existance type.
 // TODO: include other types of change.
 pub enum Existance {

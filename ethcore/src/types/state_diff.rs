@@ -19,7 +19,7 @@
 use util::*;
 use account_diff::*;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Binary)]
 /// Expression for the delta between two system states. Encoded the
 /// delta of every altered account.
 pub struct StateDiff {
