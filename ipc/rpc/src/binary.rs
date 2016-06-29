@@ -742,3 +742,18 @@ fn serialize_err_opt_vec_in_out() {
 
 	assert!(vec.is_ok());
 }
+
+#[test]
+fn serialize_btree() {
+	use std::io::{Cursor, SeekFrom, Seek};
+
+	let mut buff = Cursor::new(Vec::new());
+	let mut btree = BTreeMap::new();
+	btree.insert(1u64, 5u64);
+	serialize_into(&btree, &mut buff).unwrap();
+
+	buff.seek(SeekFrom::Start(0)).unwrap();
+	let res = deserialize_from::<BTreeMap<u64, u64>, _>(&mut buff).unwrap();
+
+	assert_eq!(res[&1u64], 5u64);
+}
