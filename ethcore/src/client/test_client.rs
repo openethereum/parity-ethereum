@@ -244,6 +244,10 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, _author: Address, _gas_range_target: (U256, U256), _extra_data: Bytes) -> OpenBlock {
 		unimplemented!();
 	}
+	
+	fn vm_factory(&self) -> &EvmFactory {
+		unimplemented!();
+	}
 }
 
 impl BlockChainClient for TestBlockChainClient {
@@ -461,10 +465,6 @@ impl BlockChainClient for TestBlockChainClient {
 			best_block_hash: self.last_hash.read().unwrap().clone(),
 			best_block_number: self.blocks.read().unwrap().len() as BlockNumber - 1,
 		}
-	}
-
-	fn vm_factory(&self) -> &EvmFactory {
-		unimplemented!();
 	}
 
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
