@@ -45,6 +45,13 @@ pub struct Directories {
 	pub signer: String,
 }
 
+#[derive(Eq, PartialEq, Debug)]
+pub enum Policy {
+	DaoSoft,
+	Normal,
+	Dogmatic,
+}
+
 impl Configuration {
 	pub fn parse() -> Self {
 		Configuration {
@@ -107,9 +114,18 @@ impl Configuration {
 			}))
 	}
 
+	pub fn policy(&self) -> Policy {
+		match self.args.flag_fork.as_str() {
+			"dao-soft" => Policy::DaoSoft,
+			"normal" => Policy::Normal,
+			"dogmatic" => Policy::Dogmatic,
+			x => die!("{}: Invalid value given for --policy option. Use --help for more info.", x)
+		}
+	}
+
 	pub fn gas_floor_target(&self) -> U256 {
-		if self.args.flag_dont_help_rescue_dao || self.args.flag_dogmatic {
-			4_700_000.into()
+		if self.policy() == Policy::DaoSoft {
+			3_141_592.into()
 		} else {
 			let d = &self.args.flag_gas_floor_target;
 			U256::from_dec_str(d).unwrap_or_else(|_| {
@@ -119,8 +135,8 @@ impl Configuration {
 	}
 
 	pub fn gas_ceil_target(&self) -> U256 {
-		if self.args.flag_dont_help_rescue_dao || self.args.flag_dogmatic {
-			10_000_000.into()
+		if self.policy() == Policy::DaoSoft {
+			3_141_592.into()
 		} else {
 			let d = &self.args.flag_gas_cap;
 			U256::from_dec_str(d).unwrap_or_else(|_| {
@@ -172,7 +188,7 @@ impl Configuration {
 
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(!self.args.flag_dogmatic),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(self.policy() != Policy::Dogmatic),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
