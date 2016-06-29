@@ -498,13 +498,12 @@ impl BlockChainClient for TestBlockChainClient {
 		// import right here
 		let tx = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
 		self.import_transactions(tx);
+
+	fn take_snapshot(&self, _root_dir: &Path) {
+		unimplemented!()
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.pending_transactions()
-	}
-
-	fn take_snapshot(&self, _root_dir: &Path) {
-		unimplemented!()
 	}
 }
