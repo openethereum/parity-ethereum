@@ -16,6 +16,7 @@
 
 use std::env;
 use std::fs::File;
+use std::time::Duration;
 use std::io::{BufRead, BufReader};
 use std::net::{SocketAddr, IpAddr};
 use std::path::PathBuf;
@@ -108,6 +109,8 @@ impl Configuration {
 				"lenient" => PendingSet::SealingOrElseQueue,
 				x => die!("{}: Invalid value for --relay-set option. Use --help for more information.", x)
 			},
+			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
+			work_queue_size: self.args.flag_work_queue_size,
 		}
 	}
 

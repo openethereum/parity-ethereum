@@ -17,6 +17,7 @@
 //! rpc integration tests.
 use std::sync::Arc;
 use std::str::FromStr;
+use std::time::Duration;
 
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ids::BlockID;
@@ -57,6 +58,8 @@ fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			tx_queue_size: 1024,
 			tx_gas_limit: !U256::zero(),
 			pending_set: PendingSet::SealingOrElseQueue,
+			reseal_min_period: Duration::from_secs(0),
+			work_queue_size: 50,
 		},
 		spec,
 		Some(accounts)
