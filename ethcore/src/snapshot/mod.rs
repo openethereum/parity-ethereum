@@ -292,6 +292,7 @@ impl StateRebuilder {
 	pub fn feed(&mut self, compressed: &[u8]) -> Result<(), Error> {
 		let len = try!(snappy::decompress_into(compressed, &mut self.snappy_buffer));
 		let rlp = UntrustedRlp::new(&self.snappy_buffer[..len]);
+		let mut pairs = Vec::with_capacity(rlp.item_count());
 
 		for account_pair in rlp.iter() {
 			let hash: H256 = try!(account_pair.val_at(0));
@@ -305,12 +306,20 @@ impl StateRebuilder {
 				acc.to_thin_rlp()
 			};
 
+			pairs.push((hash, thin_rlp));
+		}
+
+		// batch trie writes
+		{
 			let mut account_trie = if self.state_root != H256::zero() {
 				try!(TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root))
 			} else {
 				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
 			};
-			account_trie.insert(&hash, &thin_rlp);
+
+			for (hash, thin_rlp) in pairs {
+				account_trie.insert(&hash, &thin_rlp);
+			}
 		}
 
 		try!(self.db.commit(0, &H256::zero(), None));
