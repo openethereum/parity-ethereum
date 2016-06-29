@@ -42,14 +42,12 @@ Protocol Options:
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
-
-DAO-Rescue Soft-fork Options:
-  --help-rescue-dao        Does nothing - on by default.
-  --dont-help-rescue-dao   Votes against the DAO-rescue soft-fork, but supports
-                           it if it is triggered anyway.
-                           Equivalent to --gas-floor-target=3141592.
-  --dogmatic               Ignores all DAO-rescue soft-fork behaviour. Even if
-                           it means losing mining rewards.
+  --fork POLICY            Specifies the client's fork policy. POLICY must be
+                           one of:
+                           dogmatic - sticks rigidly to the standard chain.
+                           dao-soft - votes for the DAO-rescue soft-fork.
+                           normal - goes with whatever fork is decided but
+                           votes for none. [default: normal].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
@@ -157,9 +155,9 @@ Sealing/Mining Options:
                            web service in turn and fallback on the last known
                            good value [default: auto].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
-                           block [default: 3141592].
+                           block [default: 4700000].
   --gas-cap GAS            A cap on how large we will raise the gas limit per
-                           block due to transaction volume [default: 3141592].
+                           block due to transaction volume [default: 6283184].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
@@ -262,8 +260,7 @@ pub struct Args {
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
-	pub flag_dont_help_rescue_dao: bool,
-	pub flag_dogmatic: bool,
+	pub flag_fork: String,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,
