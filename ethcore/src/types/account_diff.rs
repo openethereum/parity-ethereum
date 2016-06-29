@@ -17,10 +17,11 @@
 //! Diff between two accounts.
 
 use util::*;
+use ipc::binary::{BinaryConvertError, BinaryConvertable};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Binary)]
 /// Diff type for specifying a change (or not).
-pub enum Diff<T> where T: Eq {
+pub enum Diff<T> where T: Eq + BinaryConvertable {
 	/// Both sides are the same.
 	Same,
 	/// Left (pre, source) side doesn't include value, right side (post, destination) does.
@@ -31,7 +32,7 @@ pub enum Diff<T> where T: Eq {
 	Died(T),
 }
 
-impl<T> Diff<T> where T: Eq {
+impl<T> Diff<T> where T: Eq + BinaryConvertable {
 	/// Construct new object with given `pre` and `post`.
 	pub fn new(pre: T, post: T) -> Self { if pre == post { Diff::Same } else { Diff::Changed(pre, post) } }
 
@@ -59,7 +60,7 @@ pub struct AccountDiff {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-/// Change in existance type. 
+/// Change in existance type.
 // TODO: include other types of change.
 pub enum Existance {
 	/// Item came into existance.

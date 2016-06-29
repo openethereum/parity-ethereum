@@ -22,18 +22,21 @@ use account_diff::*;
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// Expression for the delta between two system states. Encoded the
 /// delta of every altered account.
-pub struct StateDiff (pub BTreeMap<Address, AccountDiff>);
+pub struct StateDiff {
+	/// Raw diff key-value
+	pub raw: BTreeMap<Address, AccountDiff>
+}
 
 impl StateDiff {
 	/// Get the actual data.
 	pub fn get(&self) -> &BTreeMap<Address, AccountDiff> {
-		&self.0
+		&self.raw
 	}
 }
 
 impl fmt::Display for StateDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for (add, acc) in &self.0 {
+		for (add, acc) in &self.raw {
 			try!(write!(f, "{} {}: {}", acc.existance(), add, acc));
 		}
 		Ok(())
@@ -44,6 +47,6 @@ impl Deref for StateDiff {
 	type Target = BTreeMap<Address, AccountDiff>;
 
 	fn deref(&self) -> &Self::Target {
-		&self.0
+		&self.raw
 	}
 }
