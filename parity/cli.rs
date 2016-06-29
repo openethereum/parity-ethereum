@@ -137,6 +137,13 @@ Sealing/Mining Options:
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
                            all - reseal on all new transactions [default: all].
+  --reseal-min-period MS   Specify the minimum time between reseals from 
+                           incoming transactions. MS is time measured in
+                           milliseconds [default: 2000].
+  --work-queue-size ITEMS  Specify the number of historical work packages
+                           which are kept cached lest a solution is found for 
+                           them later. High values take more memory but result
+                           in fewer unusable solutions [default: 20].
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
                            a single transaction may have for it to be mined.
   --relay-set SET          Set of transactions to relay. SET may be:
@@ -302,6 +309,8 @@ pub struct Args {
 	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
 	pub flag_reseal_on_txs: String,
+	pub flag_reseal_min_period: u64,
+	pub flag_work_queue_size: usize,
 	pub flag_tx_gas_limit: Option<String>,
 	pub flag_relay_set: String,
 	pub flag_author: Option<String>,
