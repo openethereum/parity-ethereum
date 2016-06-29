@@ -441,7 +441,7 @@ impl TransactionQueue {
 
 		trace!(target: "miner", "Importing: {:?}", tx.hash());
 
-		if tx.gas_price < self.minimal_gas_price {
+		if tx.gas_price < self.minimal_gas_price && origin != TransactionOrigin::Local {
 			trace!(target: "miner",
 				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
 				tx.hash(),
