@@ -169,6 +169,8 @@ Sealing/Mining Options:
                            more than 32 characters.
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) [default: 1024].
+  --notify-work URLS       URLs to which work package notifications are pushed.
+                           URLS should be a comma-delimited list of HTTP URLs.
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
@@ -320,6 +322,7 @@ pub struct Args {
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
 	pub flag_tx_queue_size: usize,
+	pub flag_work_notify: Option<String>,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
 	pub flag_from: String,

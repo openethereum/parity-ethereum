@@ -45,6 +45,8 @@ pub enum PendingSet {
 /// Configures the behaviour of the miner.
 #[derive(Debug)]
 pub struct MinerOptions {
+	/// URLs to notify when there is new work.
+	pub new_work_notify: Vec<String>,
 	/// Force the miner to reseal, even when nobody has asked for work.
 	pub force_sealing: bool,
 	/// Reseal on receipt of new external transactions.
@@ -66,6 +68,7 @@ pub struct MinerOptions {
 impl Default for MinerOptions {
 	fn default() -> Self {
 		MinerOptions {
+			new_work_notify: vec![],
 			force_sealing: false,
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
