@@ -92,10 +92,10 @@ impl PartialEq for Header {
 impl Default for Header {
 	fn default() -> Self {
 		Header {
-			parent_hash: ZERO_H256.clone(),
+			parent_hash: H256::default(),
 			timestamp: 0,
 			number: 0,
-			author: ZERO_ADDRESS.clone(),
+			author: Address::default(),
 
 			transactions_root: SHA3_NULL_RLP,
 			uncles_hash: SHA3_EMPTY_LIST_RLP,
@@ -104,10 +104,10 @@ impl Default for Header {
 			state_root: SHA3_NULL_RLP,
 			receipts_root: SHA3_NULL_RLP,
 			log_bloom: ZERO_LOGBLOOM.clone(),
-			gas_used: ZERO_U256,
-			gas_limit: ZERO_U256,
+			gas_used: U256::default(),
+			gas_limit: U256::default(),
 
-			difficulty: ZERO_U256,
+			difficulty: U256::default(),
 			seal: vec![],
 			hash: RefCell::new(None),
 			bare_hash: RefCell::new(None),

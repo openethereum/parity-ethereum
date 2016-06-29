@@ -654,7 +654,7 @@ macro_rules! construct_uint {
 			fn exp10(n: usize) -> Self {
 				match n {
 					0 => Self::from(1u64),
-					_ => Self::exp10(n - 1) * Self::from(10u64)
+					_ => Self::exp10(n - 1).mul_u32(10)
 				}
 			}
 
@@ -801,8 +801,8 @@ macro_rules! construct_uint {
 				let mut bytes = [0u8; 8 * $n_words];
 				self.to_raw_bytes(&mut bytes);
 				let len = cmp::max((self.bits() + 7) / 8, 1);
-				hex.push_str(bytes[bytes.len() - len..].to_hex().as_ref());
-				serializer.serialize_str(hex.as_ref())
+				hex.push_str(&bytes[bytes.len() - len..].to_hex());
+				serializer.serialize_str(&hex)
 			}
 		}
 
@@ -824,7 +824,7 @@ macro_rules! construct_uint {
 					}
 
 					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
-						self.visit_str(value.as_ref())
+						self.visit_str(&value)
 					}
 				}
 
@@ -1432,12 +1432,6 @@ impl From<U256> for u32 {
 		value.as_u32()
 	}
 }
-
-/// Constant value of `U256::zero()` that can be used for a reference saving an additional instance creation.
-pub const ZERO_U256: U256 = U256([0x00u64; 4]);
-/// Constant value of `U256::one()` that can be used for a reference saving an additional instance creation.
-pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
-
 
 known_heap_size!(0, U128, U256);
 

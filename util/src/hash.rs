@@ -532,17 +532,6 @@ impl From<H256> for H64 {
 	}
 }
 
-/*
-impl<'a> From<&'a H256> for Address {
-	fn from(value: &'a H256) -> Address {
-			let mut ret = Address::new();
-			ret.0.copy_from_slice(&value[12..32]);
-			ret
-		}
-	}
-}
-*/
-
 impl From<Address> for H256 {
 	fn from(value: Address) -> H256 {
 		let mut ret = H256::new();
@@ -595,11 +584,6 @@ impl_hash!(H512, 64);
 impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
-
-/// Constant address for point 0. Often used as a default.
-pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
-/// Constant 256-bit datum for 0. Often used as a default.
-pub static ZERO_H256: H256 = H256([0x00; 32]);
 
 #[cfg(test)]
 mod tests {
