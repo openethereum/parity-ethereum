@@ -617,7 +617,7 @@ impl MinerService for Miner {
 					Err(Error::PowInvalid)
 				}
 				Ok(sealed) => {
-					info!(target: "miner", "New block mined, hash: {}", sealed.header().hash().hex());
+					info!(target: "miner", "New solution received for #{}: {}", sealed.header().number(), sealed.header().hash());
 					Ok(sealed)
 				}
 			}
@@ -626,7 +626,10 @@ impl MinerService for Miner {
 			Err(Error::PowHashInvalid)
 		};
 		result.and_then(|sealed| {
+			let n = sealed.header().number();
+			let h = sealed.header().hash();
 			try!(chain.import_sealed_block(sealed));
+			info!("Mined block imported OK. #{}: {}", n, h.hex());
 			Ok(())
 		})
 	}
