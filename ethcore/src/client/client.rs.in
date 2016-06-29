@@ -39,6 +39,8 @@ use util::journaldb::JournalDB;
 use util::kvdb::*;
 use util::Itertools;
 use util::PerfTimer;
+use util::View;
+use util::Stream;
 
 // other
 use views::BlockView;
@@ -501,7 +503,7 @@ impl Client {
 	}
 }
 
-#[derive(Ipc)]
+//#[derive(Ipc)]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -798,8 +800,9 @@ impl BlockChainClient for Client {
 			nonce: self.latest_nonce(a),
 			balance: self.latest_balance(a),
 		};
-		self.miner.import_transactions(self, transactions, fetch_account).iter()
-			.map(|res| res.map_err(|e| format!("{:?}", e)))
+		self.miner.import_transactions(self, transactions, fetch_account)
+			.iter()
+			.map(|res| match res { &Ok(ref t) => Ok(t.clone()), &Err(ref e) => Err(format!("{:?}", e)) })
 			.collect::<Vec<Result<TransactionImportResult, String>>>()
 	}
 

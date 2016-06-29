@@ -483,7 +483,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>> {
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, String>> {
 		let nonces = self.nonces.read().unwrap();
 		let balances = self.balances.read().unwrap();
 		let fetch_account = |a: &Address| AccountDetails {
@@ -491,7 +491,10 @@ impl BlockChainClient for TestBlockChainClient {
 			balance: balances[a],
 		};
 
-		self.miner.import_transactions(self, transactions, &fetch_account)
+		self.miner.import_transactions(self, transactions, fetch_account)
+			.iter()
+			.map(|res| match res { &Ok(ref t) => Ok(t.clone()), &Err(ref e) => Err(format!("{:?}", e)) })
+			.collect::<Vec<Result<TransactionImportResult, String>>>()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {

@@ -18,7 +18,7 @@ use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 /// Represents the result of importing transaction.
 pub enum TransactionImportResult {
 	/// Transaction was imported to current queue.
