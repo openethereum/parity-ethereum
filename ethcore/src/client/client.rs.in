@@ -477,7 +477,7 @@ impl Client {
 	}
 }
 
-#[derive(Ipc)]
+//#[derive(Ipc)]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -577,8 +577,8 @@ impl BlockChainClient for Client {
 	}
 
 	fn uncle(&self, id: UncleID) -> Option<Header> {
-		let index = id.1;
-		self.block(id.0).and_then(|block| BlockView::new(&block).uncle_at(index))
+		let index = id.position;
+		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_at(index))
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
