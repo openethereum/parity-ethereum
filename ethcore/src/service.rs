@@ -36,6 +36,8 @@ pub enum SyncMessage {
 		retracted: Vec<H256>,
 		/// Hashes of blocks that are now included in cannonical chain
 		enacted: Vec<H256>,
+		/// Hashes of blocks that are sealed by this node
+		sealed: Vec<H256>,
 	},
 	/// Best Block Hash in chain has been changed
 	NewChainHead,

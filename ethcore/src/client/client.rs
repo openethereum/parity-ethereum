@@ -249,7 +249,7 @@ impl Client {
 		Ok(locked_block)
 	}
 
-	fn calculate_enacted_retracted(&self, import_results: Vec<ImportRoute>) -> (Vec<H256>, Vec<H256>) {
+	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
 		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
 			map.into_iter().map(|(k, _v)| k).collect()
 		}
@@ -259,12 +259,12 @@ impl Client {
 		// could be retracted in import `k+1`. This is why to understand if after all inserts
 		// the block is enacted or retracted we iterate over all routes and at the end final state
 		// will be in the hashmap
-		let map = import_results.into_iter().fold(HashMap::new(), |mut map, route| {
-			for hash in route.enacted {
-				map.insert(hash, true);
+		let map = import_results.iter().fold(HashMap::new(), |mut map, route| {
+			for hash in &route.enacted {
+				map.insert(hash.clone(), true);
 			}
-			for hash in route.retracted {
-				map.insert(hash, false);
+			for hash in &route.retracted {
+				map.insert(hash.clone(), false);
 			}
 			map
 		});
@@ -301,36 +301,10 @@ impl Client {
 				invalid_blocks.insert(header.hash());
 				continue;
 			}
+			let closed_block = closed_block.unwrap();
 			imported_blocks.push(header.hash());
 
-			// Are we committing an era?
-			let ancient = if header.number() >= HISTORY {
-				let n = header.number() - HISTORY;
-				Some((n, self.chain.block_hash(n).unwrap()))
-			} else {
-				None
-			};
-
-			// Commit results
-			let closed_block = closed_block.unwrap();
-			let receipts = closed_block.block().receipts().clone();
-			let traces = From::from(closed_block.block().traces().clone().unwrap_or_else(Vec::new));
-
-			closed_block.drain()
-				.commit(header.number(), &header.hash(), ancient)
-				.expect("State DB commit failed.");
-
-			// And update the chain after commit to prevent race conditions
-			// (when something is in chain but you are not able to fetch details)
-			let route = self.chain.insert_block(&block.bytes, receipts);
-			self.tracedb.import(TraceImportRequest {
-				traces: traces,
-				block_hash: header.hash(),
-				block_number: header.number(),
-				enacted: route.enacted.clone(),
-				retracted: route.retracted.len()
-			});
-
+			let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
 			import_results.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
@@ -351,7 +325,7 @@ impl Client {
 
 		{
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
-				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
+				let (enacted, retracted) = self.calculate_enacted_retracted(&import_results);
 
 				if self.queue_info().is_empty() {
 					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
@@ -362,17 +336,45 @@ impl Client {
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
+					sealed: Vec::new(),
 				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 			}
 		}
 
-		{
-			if self.chain_info().best_block_hash != original_best {
-				self.miner.update_sealing(self);
-			}
+		if self.chain_info().best_block_hash != original_best {
+			self.miner.update_sealing(self);
 		}
 
 		imported
+	}
+
+	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &Bytes) -> ImportRoute where B: IsBlock + Drain {
+		let number = block.header().number();
+		// Are we committing an era?
+		let ancient = if number >= HISTORY {
+			let n = number - HISTORY;
+			Some((n, self.chain.block_hash(n).unwrap()))
+		} else {
+			None
+		};
+
+		// Commit results
+		let receipts = block.receipts().clone();
+		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
+
+		block.drain().commit(number, hash, ancient).expect("State DB commit failed.");
+
+		// And update the chain after commit to prevent race conditions
+		// (when something is in chain but you are not able to fetch details)
+		let route = self.chain.insert_block(block_data, receipts);
+		self.tracedb.import(TraceImportRequest {
+			traces: traces,
+			block_hash: hash.clone(),
+			block_number: number,
+			enacted: route.enacted.clone(),
+			retracted: route.retracted.len()
+		});
+		route
 	}
 
 	/// Import transactions from the IO queue
@@ -829,6 +831,40 @@ impl MiningBlockChainClient for Client {
 
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.vm_factory
+	}
+
+	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
+		let _import_lock = self.import_lock.lock();
+		let _timer = PerfTimer::new("import_sealed_block");
+
+		let original_best = self.chain_info().best_block_hash;
+
+		let h = block.header().hash();
+		let number = block.header().number();
+
+		let block_data = block.rlp_bytes();
+		let route = self.commit_block(block, &h, &block_data);
+		trace!(target: "client", "Imported sealed block #{} ({})", number, h);
+
+		{
+			let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
+			self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
+
+			self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
+				imported: vec![h.clone()],
+				invalid: vec![],
+				enacted: enacted,
+				retracted: retracted,
+				sealed: vec![h.clone()],
+			})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+		}
+
+		if self.chain_info().best_block_hash != original_best {
+			self.miner.update_sealing(self);
+		}
+
+		info!("Block {} ({}) submitted and imported.", h.hex(), number);
+		Ok(h)
 	}
 }
 
