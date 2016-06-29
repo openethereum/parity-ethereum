@@ -106,7 +106,7 @@ impl EarlyMergeDB {
 	}
 
 	fn morph_key(key: &H256, index: u8) -> Bytes {
-		let mut ret = key.bytes().to_owned();
+		let mut ret = key.to_bytes();
 		ret.push(index);
 		ret
 	}
@@ -130,7 +130,7 @@ impl EarlyMergeDB {
 			}
 
 			// this is the first entry for this node in the journal.
-			if backing.get(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?").is_some() {
+			if backing.get(h).expect("Low-level database error. Some issue with your hard disk?").is_some() {
 				// already in the backing DB. start counting, and remember it was already in.
 				Self::set_already_in(batch, &h);
 				refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: true});
@@ -143,7 +143,7 @@ impl EarlyMergeDB {
 			// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
 			//Self::reset_already_in(&h);
 			assert!(!Self::is_already_in(backing, &h));
-			batch.put(&h.bytes(), d).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(h, d).expect("Low-level database error. Some issue with your hard disk?");
 			refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: false});
 			if trace {
 				trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
@@ -204,7 +204,7 @@ impl EarlyMergeDB {
 				}
 				Some(RefInfo{queue_refs: 1, in_archive: false}) => {
 					refs.remove(h);
-					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+					batch.delete(h).expect("Low-level database error. Some issue with your hard disk?");
 					if trace {
 						trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
 					}
@@ -212,7 +212,7 @@ impl EarlyMergeDB {
 				None => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
-					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+					batch.delete(h).expect("Low-level database error. Some issue with your hard disk?");
 					if trace {
 						trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
 					}
@@ -237,7 +237,7 @@ impl EarlyMergeDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 
 	fn read_refs(db: &Database) -> (Option<u64>, HashMap<H256, RefInfo>) {

@@ -506,13 +506,13 @@ impl<'a> From<&'a U256> for H256 {
 
 impl From<H256> for U256 {
 	fn from(value: H256) -> U256 {
-		U256::from(value.bytes())
+		U256::from(value.as_slice())
 	}
 }
 
 impl<'a> From<&'a H256> for U256 {
 	fn from(value: &'a H256) -> U256 {
-		U256::from(value.bytes())
+		U256::from(value.as_slice())
 	}
 }
 

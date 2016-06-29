@@ -53,8 +53,10 @@ use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
 /// Conversion from decimal string error
 #[derive(Debug, PartialEq)]
 pub enum FromDecStrErr {
+	/// Char not from range 0-9
+	InvalidCharacter,
 	/// Value does not fit into type
-	InvalidLength
+	InvalidLength,
 }
 
 macro_rules! impl_map_from {
@@ -562,8 +564,11 @@ macro_rules! construct_uint {
 
 		impl Uint for $name {
 
-			/// TODO: optimize, throw appropriate err
 			fn from_dec_str(value: &str) -> Result<Self, FromDecStrErr> {
+				if value.bytes().any(|b| b < 48 && b > 57) {
+					return Err(FromDecStrErr::InvalidCharacter)
+				}
+
 				let mut res = Self::default();
 				for b in value.bytes().map(|b| b - 48) {
 					let (r, overflow) = res.overflowing_mul_u32(10);
@@ -757,16 +762,16 @@ macro_rules! construct_uint {
 		}
 
 		impl $name {
-			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Multiplication by u32
+			#[allow(dead_code)] // not used when multiplied with inline assembly
 			fn mul_u32(self, other: u32) -> Self {
 				let (ret, overflow) = self.overflowing_mul_u32(other);
 				panic_on_overflow!(overflow);
 				ret
 			}
 
-			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Overflowing multiplication by u32
+			#[allow(dead_code)] // not used when multiplied with inline assembly
 			fn overflowing_mul_u32(self, other: u32) -> (Self, bool) {
 				let $name(ref arr) = self;
 				let mut ret = [0u64; $n_words];
@@ -958,8 +963,6 @@ macro_rules! construct_uint {
 				self - (times * other)
 			}
 		}
-
-		// TODO: optimise and traitify.
 
 		impl BitAnd<$name> for $name {
 			type Output = $name;
@@ -1578,7 +1581,13 @@ mod tests {
 		assert_eq!(U256::from(105u8) / U256::from(5u8), U256::from(21u8));
 		let div = mult / U256::from(300u16);
 		assert_eq!(div, U256([0x9F30411021524112u64, 0x0001BD5B7DDFBD5A, 0, 0]));
-		//// TODO: bit inversion
+
+		let a = U256::from_str("ff000000000000000000000000000000000000000000000000000000000000d1").unwrap();
+		let b = U256::from_str("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff2e").unwrap();
+		println!("{:x}", a);
+		println!("{:x}", b);
+		assert_eq!(!a, b);
+		assert_eq!(a, !b);
 	}
 
 	#[test]
