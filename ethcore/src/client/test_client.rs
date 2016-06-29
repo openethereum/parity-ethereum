@@ -294,7 +294,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn uncle(&self, _id: UncleID) -> Option<BlockHeader> {
+	fn uncle(&self, _id: UncleID) -> Option<Bytes> {
 		unimplemented!();
 	}
 

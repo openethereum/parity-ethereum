@@ -126,7 +126,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
 
 	/// Get uncle with given id.
-	fn uncle(&self, id: UncleID) -> Option<Header>;
+	fn uncle(&self, id: UncleID) -> Option<Bytes>;
 
 	/// Get transaction receipt with given hash.
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt>;

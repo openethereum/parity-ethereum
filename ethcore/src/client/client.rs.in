@@ -48,6 +48,7 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
+use basic_types::*;
 
 use ipc::IpcConfig;
 use ipc::binary::{BinaryConvertable, BinaryConvertError};
@@ -576,9 +577,9 @@ impl BlockChainClient for Client {
 		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
 	}
 
-	fn uncle(&self, id: UncleID) -> Option<Header> {
+	fn uncle(&self, id: UncleID) -> Option<Bytes> {
 		let index = id.position;
-		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_at(index))
+		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_at(index).and_then(|u| Some(u.rlp(Seal::With))))
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
