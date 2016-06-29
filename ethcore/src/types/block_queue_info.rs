@@ -14,15 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
-pub mod executed;
-pub mod block_status;
-pub mod account_diff;
-pub mod state_diff;
-pub mod block_queue_info;
+/// Block queue status
+#[derive(Debug, Binary)]
+pub struct BlockQueueInfo {
+	/// Number of queued blocks pending verification
+	pub unverified_queue_size: usize,
+	/// Number of verified queued blocks pending import
+	pub verified_queue_size: usize,
+	/// Number of blocks being verified
+	pub verifying_queue_size: usize,
+	/// Configured maximum number of blocks in the queue
+	pub max_queue_size: usize,
+	/// Configured maximum number of bytes to use
+	pub max_mem_use: usize,
+	/// Heap memory used in bytes
+	pub mem_used: usize,
+}
