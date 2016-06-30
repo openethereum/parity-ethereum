@@ -362,6 +362,9 @@ impl Client {
 		let receipts = block.receipts().clone();
 		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
+		// CHECK! I *think* this is fine, even if the state_root is equal to another
+		// already-imported block of the same number.
+		// TODO: Prove it with a test.
 		block.drain().commit(number, hash, ancient).expect("State DB commit failed.");
 
 		// And update the chain after commit to prevent race conditions

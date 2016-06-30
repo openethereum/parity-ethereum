@@ -111,6 +111,7 @@ impl Configuration {
 			},
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
+			enable_resubmission: !self.args.flag_remove_solved,
 		}
 	}
 
