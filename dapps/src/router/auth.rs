@@ -27,13 +27,13 @@ pub enum Authorized {
 	/// Authorization was successful.
 	Yes,
 	/// Unsuccessful authorization. Handler for further work is returned.
-	No(Box<server::Handler<HttpStream>>),
+	No(Box<server::Handler<HttpStream> + Send>),
 }
 
 /// Authorization interface
 pub trait Authorization : Send + Sync {
 	/// Checks if authorization is valid.
-	fn is_authorized(&self, req: &server::Request)-> Authorized;
+	fn is_authorized(&self, req: &server::Request<HttpStream>)-> Authorized;
 }
 
 /// HTTP Basic Authorization handler
@@ -45,13 +45,13 @@ pub struct HttpBasicAuth {
 pub struct NoAuth;
 
 impl Authorization for NoAuth {
-	fn is_authorized(&self, _req: &server::Request)-> Authorized {
+	fn is_authorized(&self, _req: &server::Request<HttpStream>)-> Authorized {
 		Authorized::Yes
 	}
 }
 
 impl Authorization for HttpBasicAuth {
-	fn is_authorized(&self, req: &server::Request) -> Authorized {
+	fn is_authorized(&self, req: &server::Request<HttpStream>) -> Authorized {
 		let auth = self.check_auth(&req);
 
 		match auth {
@@ -89,7 +89,7 @@ impl HttpBasicAuth {
 		self.users.get(&username.to_owned()).map_or(false, |pass| pass == password)
 	}
 
-	fn check_auth(&self, req: &server::Request) -> Access {
+	fn check_auth(&self, req: &server::Request<HttpStream>) -> Access {
 		match req.headers().get::<header::Authorization<header::Basic>>() {
 			Some(&header::Authorization(
 				header::Basic { ref username, password: Some(ref password) }
@@ -105,7 +105,7 @@ pub struct UnauthorizedHandler {
 }
 
 impl server::Handler<HttpStream> for UnauthorizedHandler {
-	fn on_request(&mut self, _request: server::Request) -> Next {
+	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
 		Next::write()
 	}
 
@@ -141,7 +141,7 @@ impl server::Handler<HttpStream> for UnauthorizedHandler {
 pub struct AuthRequiredHandler;
 
 impl server::Handler<HttpStream> for AuthRequiredHandler {
-	fn on_request(&mut self, _request: server::Request) -> Next {
+	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
 		Next::write()
 	}
 

@@ -20,8 +20,6 @@ use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 
-const DB_FILE_SIZE_BASE: u64 = 16 * 1024 * 1024;
-const DB_FILE_SIZE_MULTIPLIER: i32 = 5;
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 
@@ -53,6 +51,36 @@ impl DBTransaction {
 	}
 }
 
+/// Compaction profile for the database settings
+pub struct CompactionProfile {
+	/// L0-L1 target file size
+	pub initial_file_size: u64,
+	/// L2-LN target file size multiplier
+	pub file_size_multiplier: i32,
+	/// rate limiter for background flushes and compactions, bytes/sec, if any
+	pub write_rate_limit: Option<u64>,
+}
+
+impl CompactionProfile {
+	/// Default profile suitable for most storage
+	pub fn default() -> CompactionProfile {
+		CompactionProfile {
+			initial_file_size: 32 * 1024 * 1024,
+			file_size_multiplier: 2,
+			write_rate_limit: None,
+		}
+	}
+
+	/// Slow hdd compaction profile
+	pub fn hdd() -> CompactionProfile {
+		CompactionProfile {
+			initial_file_size: 192 * 1024 * 1024,
+			file_size_multiplier: 1,
+			write_rate_limit: Some(8 * 1024 * 1024),
+		}
+	}
+}
+
 /// Database configuration
 pub struct DatabaseConfig {
 	/// Optional prefix size in bytes. Allows lookup by partial key.
@@ -61,6 +89,8 @@ pub struct DatabaseConfig {
 	pub max_open_files: i32,
 	/// Cache-size
 	pub cache_size: Option<usize>,
+	/// Compaction profile
+	pub compaction: CompactionProfile,
 }
 
 impl DatabaseConfig {
@@ -69,8 +99,21 @@ impl DatabaseConfig {
 		DatabaseConfig {
 			cache_size: Some(cache_size),
 			prefix_size: None,
-			max_open_files: -1,
+			max_open_files: 256,
+			compaction: CompactionProfile::default(),
 		}
+	}
+
+	/// Modify the compaction profile
+	pub fn compaction(mut self, profile: CompactionProfile) -> Self {
+		self.compaction = profile;
+		self
+	}
+
+	/// Modify the prefix of the db
+	pub fn prefix(mut self, prefix_size: usize) -> Self {
+		self.prefix_size = Some(prefix_size);
+		self
 	}
 }
 
@@ -79,7 +122,8 @@ impl Default for DatabaseConfig {
 		DatabaseConfig {
 			cache_size: None,
 			prefix_size: None,
-			max_open_files: -1,
+			max_open_files: 256,
+			compaction: CompactionProfile::default(),
 		}
 	}
 }
@@ -111,13 +155,18 @@ impl Database {
 	/// Open database file. Creates if it does not exist.
 	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
 		let mut opts = Options::new();
-		try!(opts.set_parsed_options("rate_limiter_bytes_per_sec=256000000"));
+		if let Some(rate_limit) = config.compaction.write_rate_limit {
+			try!(opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit)));
+		}
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
+
+		// compaction settings
 		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
-		opts.set_target_file_size_base(DB_FILE_SIZE_BASE);
-		opts.set_target_file_size_multiplier(DB_FILE_SIZE_MULTIPLIER);
+		opts.set_target_file_size_base(config.compaction.initial_file_size);
+		opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
+
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
 		if let Some(cache_size) = config.cache_size {
@@ -150,7 +199,16 @@ impl Database {
 			opts.set_block_based_table_factory(&block_opts);
 			opts.set_prefix_extractor_fixed_size(size);
 		}
-		let db = try!(DB::open(&opts, path));
+		let db = match DB::open(&opts, path) {
+			Ok(db) => db,
+			Err(ref s) if s.starts_with("Corruption:") => {
+				info!("{}", s);
+				info!("Attempting DB repair for {}", path);
+				try!(DB::repair(&opts, path));
+				try!(DB::open(&opts, path))
+			},
+			Err(s) => { return Err(s); }
+		};
 		Ok(Database { db: db })
 	}
 
@@ -244,10 +302,10 @@ mod tests {
 		let path = RandomTempPath::create_dir();
 		let smoke = Database::open_default(path.as_path().to_str().unwrap()).unwrap();
 		assert!(smoke.is_empty());
-		test_db(&DatabaseConfig { prefix_size: None, max_open_files: 256, cache_size: None, });
-		test_db(&DatabaseConfig { prefix_size: Some(1), max_open_files: 256, cache_size: None,  });
-		test_db(&DatabaseConfig { prefix_size: Some(8), max_open_files: 256, cache_size: None,  });
-		test_db(&DatabaseConfig { prefix_size: Some(32), max_open_files: 256, cache_size: None,  });
+		test_db(&DatabaseConfig::default());
+		test_db(&DatabaseConfig::default().prefix(12));
+		test_db(&DatabaseConfig::default().prefix(22));
+		test_db(&DatabaseConfig::default().prefix(8));
 	}
 }
 

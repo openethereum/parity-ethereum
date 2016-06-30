@@ -15,10 +15,10 @@ rand = "0.3.14"
 jsonrpc-core = "2.0"
 log = "0.3"
 env_logger = "0.3"
-ws = { git = "https://github.com/ethcore/ws-rs.git" }
+ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "stable" }
 ethcore-util = { path = "../util" }
 ethcore-rpc = { path = "../rpc" }
-parity-minimal-sysui = { git = "https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git" }
+parity-minimal-sysui = { git = "https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git", version = "0.2.0" }
 
 clippy = { version = "0.0.77", optional = true}
 

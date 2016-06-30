@@ -20,7 +20,7 @@ use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::PathBuf;
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, MigrationIterator};
-use util::kvdb::{Database, DatabaseConfig};
+use util::kvdb::{Database, DatabaseConfig, CompactionProfile};
 use ethcore::migrations;
 
 /// Database is assumed to be at default version, when no version file is found.
@@ -163,6 +163,7 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 			prefix_size: None,
 			max_open_files: 64,
 			cache_size: None,
+			compaction: CompactionProfile::default(),
 		};
 
 		// open old database

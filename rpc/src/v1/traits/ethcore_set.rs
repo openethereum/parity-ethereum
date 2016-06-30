@@ -40,6 +40,9 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 	/// Sets the limits for transaction queue.
 	fn set_transactions_limit(&self, _: Params) -> Result<Value, Error>;
 
+	/// Sets the maximum amount of gas a single transaction may consume.
+	fn set_tx_gas_limit(&self, _: Params) -> Result<Value, Error>;
+
 	/// Add a reserved peer.
 	fn add_reserved_peer(&self, _: Params) -> Result<Value, Error>;
 
@@ -60,6 +63,7 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_setGasCeilTarget", EthcoreSet::set_gas_ceil_target);
 		delegate.add_method("ethcore_setExtraData", EthcoreSet::set_extra_data);
 		delegate.add_method("ethcore_setAuthor", EthcoreSet::set_author);
+		delegate.add_method("ethcore_setMaxTransactionGas", EthcoreSet::set_tx_gas_limit);
 		delegate.add_method("ethcore_setTransactionsLimit", EthcoreSet::set_transactions_limit);
 		delegate.add_method("ethcore_addReservedPeer", EthcoreSet::add_reserved_peer);
 		delegate.add_method("ethcore_removeReservedPeer", EthcoreSet::remove_reserved_peer);
