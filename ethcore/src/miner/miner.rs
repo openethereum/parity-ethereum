@@ -263,6 +263,7 @@ impl Miner {
 				let number = block.block().fields().header.number();
 				let difficulty = *block.block().fields().header.difficulty();
 				sealing_work.push(block);
+				// If push notifications are enabled we assume all work items are used.
 				if self.work_poster.is_some() {
 					sealing_work.use_last_ref();
 				}
