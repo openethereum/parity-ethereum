@@ -59,6 +59,23 @@ pub fn main() {
 	}
 
 	// rpc pass
+	if {
+		let src = Path::new("with_attrs.rs.in");
+		let dst = Path::new(&out_dir).join("with_attrs_ipc.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).is_ok()
+	}
+	// serialization pass
+	{
+		let src = Path::new(&out_dir).join("with_attrs_ipc.rs");
+		let dst = Path::new(&out_dir).join("with_attrs_cg.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
+
+	// rpc pass
 	{
 		let src = Path::new("binary.rs.in");
 		let dst = Path::new(&out_dir).join("binary.rs");

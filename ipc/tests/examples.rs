@@ -86,7 +86,7 @@ mod tests {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				4, 0, 0, 0, 0, 0, 0, 0,
 				5, 0, 0, 0],
-			service_client.socket().borrow().write_buffer.clone());
+			service_client.socket().write().unwrap().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
@@ -103,7 +103,7 @@ mod tests {
 			1, 0, 0, 0, 0, 0, 0, 0,
 			4, 0, 0, 0, 0, 0, 0, 0,
 			8, 0, 0, 0, 0, 0, 0, 0,
-			5, 0, 0, 0, 10, 0, 0, 0], service_client.socket().borrow().write_buffer.clone());
+			5, 0, 0, 0, 10, 0, 0, 0], service_client.socket().write().unwrap().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
@@ -145,7 +145,7 @@ mod tests {
 			// items
 			3, 0, 0, 0, 0, 0, 0, 0,
 			11, 0, 0, 0, 0, 0, 0, 0],
-			service_client.socket().borrow().write_buffer.clone());
+			service_client.socket().write().unwrap().write_buffer.clone());
 		assert_eq!(true, result);
 	}
 

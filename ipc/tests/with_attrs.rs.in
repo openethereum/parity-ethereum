@@ -14,18 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(dead_code)]
+use std::sync::RwLock;
+use std::ops::*;
+use ipc::IpcConfig;
+use std::mem;
+use ipc::binary::BinaryConvertError;
+use std::collections::VecDeque;
 
-extern crate ethcore_ipc as ipc;
-extern crate ethcore_devtools as devtools;
-extern crate semver;
-extern crate nanomsg;
-extern crate ethcore_ipc_nano as nanoipc;
-extern crate ethcore_util as util;
+pub struct BadlyNamedService;
 
-pub mod service;
-mod examples;
-mod over_nano;
-mod nested;
-mod binary;
-mod with_attrs;
+#[derive(Ipc)]
+#[ipc(client_ident="PrettyNamedClient")]
+impl  BadlyNamedService {
+	fn is_zero(&self, x: u64) -> bool {
+		x == 0
+	}
+}
+
+impl ::ipc::IpcConfig for BadlyNamedService {}
+
+#[test]
+fn invoke() {
+
+}
