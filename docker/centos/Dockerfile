@@ -20,7 +20,7 @@ g++ -v
 # build parity
 RUN git clone https://github.com/ethcore/parity && \
 	cd parity&&\
-	git checkout master && \
+	git checkout beta && \
         git pull && \
         ls -a&&\
         cargo build --release --verbose && \
