@@ -38,7 +38,11 @@ Operating Options:
                            dark - Parity syncs only when an external interface
                            is active. [default: active].
   --mode-timeout SECS      Specify the number of seconds before inactivity
-                           timeout occurs when --mode=dark [default: 60].
+                           timeout occurs when mode is dark or passive
+                           [default: 300].
+  --mode-alarm SECS        Specify the number of seconds before auto sleep
+                           reawake timeout occurs when mode is passive
+                           [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, or testnet
@@ -278,6 +282,7 @@ pub struct Args {
 	pub arg_path: Vec<String>,
 	pub flag_mode: String,
 	pub flag_mode_timeout: u64,
+	pub flag_mode_alarm: u64,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,

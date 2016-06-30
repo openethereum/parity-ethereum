@@ -64,10 +64,8 @@ impl Configuration {
 	pub fn mode(&self) -> Mode {
 		match &(self.args.flag_mode[..]) {
 			"active" => Mode::Active,
-			"passive" => die!("--mode passive is not yet implemented. Please use active or dark."),
-			"dark" => {
-				Mode::Dark(Duration::from_secs(self.args.flag_mode_timeout))
-			},
+			"passive" => Mode::Passive(Duration::from_secs(self.args.flag_mode_timeout), Duration::from_secs(self.args.flag_mode_alarm)),
+			"dark" => Mode::Dark(Duration::from_secs(self.args.flag_mode_timeout)),
 			_ => die!("{}: Invalid address for --mode. Must be one of active, passive or dark.", self.args.flag_mode),
 		}
 	}

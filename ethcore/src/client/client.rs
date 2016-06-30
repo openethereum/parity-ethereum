@@ -18,7 +18,7 @@
 
 use std::path::PathBuf;
 use std::time::Instant;
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use util::panics::*;
 use views::BlockView;
@@ -98,8 +98,9 @@ pub struct Client {
 	verifier: Box<Verifier>,
 	vm_factory: Arc<EvmFactory>,
 	miner: Arc<Miner>,
-	last_activity: Mutex<Instant>,
-	liveness: Mutex<bool>,
+	last_activity: Mutex<Option<Instant>>,
+	last_autosleep: Mutex<Option<Instant>>,
+	liveness: AtomicBool,
 	io_channel: IoChannel<NetSyncMessage>,
 	queue_transactions: AtomicUsize,
 }
@@ -169,6 +170,8 @@ impl Client {
 		panic_handler.forward_from(&block_queue);
 
 		let client = Client {
+			last_activity: Mutex::new(match config.mode { Mode::Dark(..) => None, _ => Some(Instant::now()) }),
+			last_autosleep: Mutex::new(match config.mode { Mode::Dark(..) => Some(Instant::now()), _ => None }),
 			mode: config.mode,
 			chain: chain,
 			tracedb: tracedb,
@@ -181,8 +184,7 @@ impl Client {
 			verifier: verification::new(config.verifier_type),
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
 			miner: miner,
-			last_activity: Mutex::new(Instant::now()),
-			liveness: Mutex::new(true),
+			liveness: AtomicBool::new(true),
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
 		};
@@ -448,13 +450,37 @@ impl Client {
 	}
 
 	/// Tick the client.
+	// TODO: manage by real events.
 	pub fn tick(&self) {
 		self.chain.collect_garbage();
 		self.block_queue.collect_garbage();
-
-		let last_activity = *self.last_activity.lock().unwrap();
+		
 		match self.mode {
-			Mode::Dark(timeout) if Instant::now() > last_activity + timeout => { self.sleep(); }
+			Mode::Dark(timeout) => {
+				if let Some(t) = *self.last_activity.lock().unwrap() {
+					if Instant::now() > t + timeout { 
+						self.sleep();
+						*self.last_activity.lock().unwrap() = None;
+					}
+				}
+			}
+			Mode::Passive(timeout, wakeup_after) => {
+				let now = Instant::now();
+				if let Some(t) = *self.last_activity.lock().unwrap() {
+					if now > t + timeout { 
+						self.sleep();
+						*self.last_activity.lock().unwrap() = None;
+						*self.last_autosleep.lock().unwrap() = Some(now);
+					}
+				}
+				if let Some(t) = *self.last_autosleep.lock().unwrap() { 
+					if now > t + wakeup_after { 
+						self.wake_up();
+						*self.last_activity.lock().unwrap() = Some(now);
+						*self.last_autosleep.lock().unwrap() = None;
+					}
+				}
+			}
 			_ => {}
 		}
 	}
@@ -494,21 +520,24 @@ impl Client {
 	}
 
 	fn wake_up(&self) {
-		let mut liveness = self.liveness.lock().unwrap();
-		if !*liveness {
-			*liveness = true;
+		if !self.liveness.load(AtomicOrdering::Relaxed) {
+			self.liveness.store(true, AtomicOrdering::Relaxed);
 			self.io_channel.send(NetworkIoMessage::User(SyncMessage::StartNetwork)).unwrap();
+			trace!(target: "mode", "wake_up: Waking.");
 		}
 	}
 
 	fn sleep(&self) {
-		let mut liveness = self.liveness.lock().unwrap();
-		if *liveness {
-			*liveness = false;
+		if self.liveness.load(AtomicOrdering::Relaxed) {
 			// only sleep if the import queue is mostly empty.
-
 			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
+				self.liveness.store(false, AtomicOrdering::Relaxed);
 				self.io_channel.send(NetworkIoMessage::User(SyncMessage::StopNetwork)).unwrap();
+				trace!(target: "mode", "sleep: Sleeping.");
+			} else {
+				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
+				// TODO: Consider uncommenting.
+				//*self.last_activity.lock().unwrap() = Some(Instant::now());
 			}
 		}
 	}
@@ -553,10 +582,11 @@ impl BlockChainClient for Client {
 		ret
 	}
 
-
 	fn keep_alive(&self) {
-		*self.last_activity.lock().unwrap() = Instant::now();
-		self.wake_up();
+		if self.mode != Mode::Active {
+			self.wake_up();
+			*self.last_activity.lock().unwrap() = Some(Instant::now());
+		}
 	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {

@@ -36,11 +36,15 @@ impl Default for DatabaseCompactionProfile {
 }
 
 /// Operating mode for the client.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Mode {
 	/// Always on.
 	Active,
-	/// Goes offline after RLP is inactive for some (given) time.
+	/// Goes offline after RLP is inactive for some (given) time, but
+	/// comes back online after a while of inactivity.
+	Passive(Duration, Duration),
+	/// Goes offline after RLP is inactive for some (given) time and
+	/// stays inactive.
 	Dark(Duration),
 }
 

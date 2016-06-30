@@ -82,7 +82,7 @@ use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, paint, Colour, version};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
+use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path};
 use ethcore::error::{Error, ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -220,7 +220,12 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Build client
 	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone(), conf.mode() != Mode::Dark && !conf.args.flag_no_network
+		client_config,
+		spec,
+		net_settings,
+		Path::new(&conf.path()),
+		miner.clone(),
+		match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
