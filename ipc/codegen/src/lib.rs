@@ -50,12 +50,11 @@ include!("lib.rs.in");
 
 #[cfg(feature = "with-syntex")]
 pub fn register(reg: &mut syntex::Registry) {
-	/// Strip the serde attributes from the crate.
+	use syntax::{ast, fold};
+
 	#[cfg(feature = "with-syntex")]
 	fn strip_attributes(krate: ast::Crate) -> ast::Crate {
-		/// Helper folder that strips the serde attributes after the extensions have been expanded.
 		struct StripAttributeFolder;
-
 		impl fold::Folder for StripAttributeFolder {
 			fn fold_attribute(&mut self, attr: ast::Attribute) -> Option<ast::Attribute> {
 				match attr.node.value.node {
