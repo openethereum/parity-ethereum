@@ -173,6 +173,6 @@ impl TestNet {
 
 	pub fn trigger_chain_new_blocks(&mut self, peer_id: usize) {
 		let mut peer = self.peer_mut(peer_id);
-		peer.sync.write().unwrap().chain_new_blocks(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None), &[], &[], &[], &[]);
+		peer.sync.write().unwrap().chain_new_blocks(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None), &[], &[], &[], &[], &[]);
 	}
 }

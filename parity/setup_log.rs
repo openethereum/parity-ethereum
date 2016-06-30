@@ -19,10 +19,10 @@ use std::env;
 use std::sync::Arc;
 use time;
 use env_logger::LogBuilder;
-use util::{RotatingLogger};
+use util::RotatingLogger;
 
 /// Sets up the logger
-pub fn setup_log(init: &Option<String>) -> Arc<RotatingLogger> {
+pub fn setup_log(init: &Option<String>, enable_color: bool) -> Arc<RotatingLogger> {
 	use rlog::*;
 
 	let mut levels = String::new();
@@ -43,7 +43,7 @@ pub fn setup_log(init: &Option<String>) -> Arc<RotatingLogger> {
 		builder.parse(s);
 	}
 
-	let logs = Arc::new(RotatingLogger::new(levels));
+	let logs = Arc::new(RotatingLogger::new(levels, enable_color));
 	let logger = logs.clone();
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();

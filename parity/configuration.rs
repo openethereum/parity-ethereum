@@ -16,6 +16,7 @@
 
 use std::env;
 use std::fs::File;
+use std::time::Duration;
 use std::io::{BufRead, BufReader};
 use std::net::{SocketAddr, IpAddr};
 use std::path::PathBuf;
@@ -24,6 +25,7 @@ use docopt::Docopt;
 
 use die::*;
 use util::*;
+use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
@@ -83,6 +85,10 @@ impl Configuration {
 		)
 	}
 
+	fn work_notify(&self) -> Vec<String> {
+		self.args.flag_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
+	}
+
 	pub fn miner_options(&self) -> MinerOptions {
 		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
 			"none" => (false, false),
@@ -92,6 +98,7 @@ impl Configuration {
 			x => die!("{}: Invalid value for --reseal option. Use --help for more information.", x)
 		};
 		MinerOptions {
+			new_work_notify: self.work_notify(),
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: ext,
 			reseal_on_own_tx: own,
@@ -103,6 +110,9 @@ impl Configuration {
 				"lenient" => PendingSet::SealingOrElseQueue,
 				x => die!("{}: Invalid value for --relay-set option. Use --help for more information.", x)
 			},
+			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
+			work_queue_size: self.args.flag_work_queue_size,
+			enable_resubmission: !self.args.flag_remove_solved,
 		}
 	}
 
@@ -172,7 +182,7 @@ impl Configuration {
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!("Using a conversion rate of Ξ1 = US${} ({} wei/gas)", usd_per_eth, wei_per_gas);
+				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", paint(White.bold(), format!("US${}", usd_per_eth)), paint(Yellow.bold(), format!("{}", wei_per_gas)));
 				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 			}
 		}

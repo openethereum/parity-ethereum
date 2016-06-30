@@ -37,7 +37,7 @@ use util::numbers::U256;
 use util::Itertools;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::OpenBlock;
+use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
@@ -244,4 +244,7 @@ pub trait MiningBlockChainClient : BlockChainClient {
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
+
+	/// Import sealed block. Skips all verifications.
+	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
 }

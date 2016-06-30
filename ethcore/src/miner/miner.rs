@@ -16,8 +16,10 @@
 
 use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
+use std::time::{Instant, Duration};
 
 use util::*;
+use util::Colour::White;
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
@@ -28,6 +30,7 @@ use receipt::{Receipt};
 use spec::Spec;
 use engine::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
+use miner::work_notify::WorkPoster;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug)]
@@ -44,29 +47,41 @@ pub enum PendingSet {
 /// Configures the behaviour of the miner.
 #[derive(Debug)]
 pub struct MinerOptions {
+	/// URLs to notify when there is new work.
+	pub new_work_notify: Vec<String>,
 	/// Force the miner to reseal, even when nobody has asked for work.
 	pub force_sealing: bool,
 	/// Reseal on receipt of new external transactions.
 	pub reseal_on_external_tx: bool,
 	/// Reseal on receipt of new local transactions.
 	pub reseal_on_own_tx: bool,
+	/// Minimum period between transaction-inspired reseals.
+	pub reseal_min_period: Duration,
 	/// Maximum amount of gas to bother considering for block insertion.
 	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
 	pub tx_queue_size: usize,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
 	pub pending_set: PendingSet,
+	/// How many historical work packages can we store before running out?
+	pub work_queue_size: usize,
+	/// Can we submit two different solutions for the same block and expect both to result in an import?
+	pub enable_resubmission: bool,
 }
 
 impl Default for MinerOptions {
 	fn default() -> Self {
 		MinerOptions {
+			new_work_notify: vec![],
 			force_sealing: false,
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
+			reseal_min_period: Duration::from_secs(0),
+			work_queue_size: 20,
+			enable_resubmission: true,
 		}
 	}
 }
@@ -80,6 +95,7 @@ pub struct Miner {
 	// for sealing...
 	options: MinerOptions,
 	sealing_enabled: AtomicBool,
+	next_allowed_reseal: Mutex<Instant>,
 	sealing_block_last_request: Mutex<u64>,
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
@@ -87,6 +103,7 @@ pub struct Miner {
 	spec: Spec,
 
 	accounts: Option<Arc<AccountProvider>>,
+	work_poster: Option<WorkPoster>,
 }
 
 impl Miner {
@@ -96,34 +113,43 @@ impl Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			options: Default::default(),
 			sealing_enabled: AtomicBool::new(false),
+			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(UsingQueue::new(5)),
+			sealing_work: Mutex::new(UsingQueue::new(20)),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
 			spec: spec,
+			work_poster: None,
 		}
 	}
 
 	/// Creates new instance of miner
 	pub fn new(options: MinerOptions, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
+		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)),
-			sealing_enabled: AtomicBool::new(options.force_sealing),
-			options: options,
+			sealing_enabled: AtomicBool::new(options.force_sealing || !options.new_work_notify.is_empty()),
+			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(UsingQueue::new(5)),
+			sealing_work: Mutex::new(UsingQueue::new(options.work_queue_size)),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
+			options: options,
 			accounts: accounts,
 			spec: spec,
+			work_poster: work_poster,
 		})
 	}
 
 	fn engine(&self) -> &Engine {
 		self.spec.engine.deref()
+	}
+
+	fn forced_sealing(&self) -> bool {
+		self.options.force_sealing || !self.options.new_work_notify.is_empty()
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
@@ -132,9 +158,10 @@ impl Miner {
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
 
-		let (transactions, mut open_block) = {
+		let (transactions, mut open_block, last_work_hash) = {
 			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
 			let mut sealing_work = self.sealing_work.lock().unwrap();
+			let last_work_hash = sealing_work.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			let best_hash = chain.best_block_header().sha3();
 /*
 			// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -161,7 +188,7 @@ impl Miner {
 					)
 				}
 			};
-			(transactions, open_block)
+			(transactions, open_block, last_work_hash)
 		};
 
 		let mut invalid_transactions = HashSet::new();
@@ -227,13 +254,23 @@ impl Miner {
 			}
 		}
 
-		let mut sealing_work = self.sealing_work.lock().unwrap();
-		if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
-			trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
-			sealing_work.push(block);
-		}
-
-		trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
+		let work = {
+			let mut sealing_work = self.sealing_work.lock().unwrap();
+			trace!(target: "miner", "Checking whether we need to reseal: last={:?}, this={:?}", last_work_hash, block.block().fields().header.hash());
+			let work = if last_work_hash.map_or(true, |h| h != block.block().fields().header.hash()) {
+				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
+				let pow_hash = block.block().fields().header.hash();
+				let number = block.block().fields().header.number();
+				let difficulty = *block.block().fields().header.difficulty();
+				sealing_work.push(block);
+				Some((pow_hash, difficulty, number))
+			} else {
+				None
+			};
+			trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
+			work
+		};
+		work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|ref p| p.notify(pow_hash, difficulty, number)));
 	}
 
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
@@ -261,6 +298,9 @@ impl Miner {
 		// Return if
 		!have_work
 	}
+
+	/// Are we allowed to do a non-mandatory reseal?
+	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock().unwrap() }
 }
 
 const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
@@ -431,7 +471,7 @@ impl MinerService for Miner {
 				.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
 				.collect()
 		};
-		if !results.is_empty() && self.options.reseal_on_external_tx {
+		if !results.is_empty() && self.options.reseal_on_external_tx && 	self.tx_reseal_allowed() {
 			self.update_sealing(chain);
 		}
 		results
@@ -466,7 +506,7 @@ impl MinerService for Miner {
 			import
 		};
 
-		if imported.is_ok() && self.options.reseal_on_own_tx {
+		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing
 			let prepared = self.enable_and_prepare_sealing(chain);
@@ -549,7 +589,7 @@ impl MinerService for Miner {
 			let current_no = chain.chain_info().best_block_number;
 			let has_local_transactions = self.transaction_queue.lock().unwrap().has_local_pending_transactions();
 			let last_request = *self.sealing_block_last_request.lock().unwrap();
-			let should_disable_sealing = !self.options.force_sealing
+			let should_disable_sealing = !self.forced_sealing()
 				&& !has_local_transactions
 				&& current_no > last_request
 				&& current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;
@@ -559,6 +599,7 @@ impl MinerService for Miner {
 				self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
 				self.sealing_work.lock().unwrap().reset();
 			} else {
+				*self.next_allowed_reseal.lock().unwrap() = Instant::now() + self.options.reseal_min_period;
 				self.prepare_sealing(chain);
 			}
 		}
@@ -575,26 +616,22 @@ impl MinerService for Miner {
 	}
 
 	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
-			match b.lock().try_seal(self.engine(), seal) {
-				Err(_) => {
-					info!(target: "miner", "Mined block rejected, PoW was invalid.");
-					Err(Error::PowInvalid)
-				}
-				Ok(sealed) => {
-					info!(target: "miner", "New block mined, hash: {}", sealed.header().hash());
-					// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-					let b = sealed.rlp_bytes();
-					let h = b.sha3();
-					try!(chain.import_block(b));
-					info!("Block {} submitted and imported.", h);
-					Ok(())
-				}
-			}
+		let result = if let Some(b) = self.sealing_work.lock().unwrap().get_used_if(if self.options.enable_resubmission { GetAction::Clone } else { GetAction::Take }, |b| &b.hash() == &pow_hash) {
+			b.lock().try_seal(self.engine(), seal).or_else(|_| {
+				warn!(target: "miner", "Mined solution rejected: Invalid.");
+				Err(Error::PowInvalid)
+			})
 		} else {
-			info!(target: "miner", "Mined block rejected, PoW hash invalid or out of date.");
+			warn!(target: "miner", "Mined solution rejected: Block unknown or out of date.");
 			Err(Error::PowHashInvalid)
-		}
+		};
+		result.and_then(|sealed| {
+			let n = sealed.header().number();
+			let h = sealed.header().hash();
+			try!(chain.import_sealed_block(sealed));
+			info!(target: "miner", "Mined block imported OK. #{}: {}", paint(White.bold(), format!("{}", n)), paint(White.bold(), h.hex()));
+			Ok(())
+		})
 	}
 
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
