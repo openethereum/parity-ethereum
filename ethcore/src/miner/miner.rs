@@ -263,6 +263,9 @@ impl Miner {
 				let number = block.block().fields().header.number();
 				let difficulty = *block.block().fields().header.difficulty();
 				sealing_work.push(block);
+				if self.work_poster.is_some() {
+					sealing_work.use_last_ref();
+				}
 				Some((pow_hash, difficulty, number))
 			} else {
 				None
