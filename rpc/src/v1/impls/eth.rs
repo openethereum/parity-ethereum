@@ -435,12 +435,12 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| self.uncle(UncleID(BlockID::Hash(hash), index.value())))
+			.and_then(|(hash, index)| self.uncle(UncleID { block: BlockID::Hash(hash), position: index.value() }))
 	}
 
 	fn uncle_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
-			.and_then(|(number, index)| self.uncle(UncleID(number.into(), index.value())))
+			.and_then(|(number, index)| self.uncle(UncleID { block: number.into(), position: index.value() }))
 	}
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {

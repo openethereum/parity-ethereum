@@ -85,7 +85,7 @@ impl Into<EthFilter> for Filter {
 					VariadicValue::Single(t) => Some(vec![t]),
 					VariadicValue::Multiple(t) => Some(t)
 				}).filter_map(|m| m).collect()).into_iter();
-				[iter.next(), iter.next(), iter.next(), iter.next()]
+				vec![iter.next(), iter.next(), iter.next(), iter.next()]
 			}
 		}
 	}
