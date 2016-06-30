@@ -36,7 +36,7 @@ ENV CC arm-linux-gnueabihf-gcc
 # build parity
 RUN git clone https://github.com/ethcore/parity && \
         cd parity && \
-        git checkout master && \
+        git checkout beta && \
         git pull && \
         mkdir -p .cargo && \
         echo '[target.armv7-unknown-linux-gnueabihf]\n\
