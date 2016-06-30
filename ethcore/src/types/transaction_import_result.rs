@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::mem;
+//! Transaction import result related types
+
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
 

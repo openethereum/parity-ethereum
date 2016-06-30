@@ -20,7 +20,7 @@ use std::mem;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use std::collections::VecDeque;
 use std::ops::Range;
-use util::{Address, H256};
+use util::{Address};
 use types::ids::BlockID;
 
 /// Easy to use trace filter.

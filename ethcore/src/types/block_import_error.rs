@@ -22,6 +22,7 @@ use std::collections::VecDeque;
 use error::{ImportError, BlockError, Error};
 use std::convert::From;
 
+/// Error dedicated to import block function
 #[derive(Binary, Debug)]
 pub enum BlockImportError {
 	/// Import error
