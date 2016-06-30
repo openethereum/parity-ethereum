@@ -282,7 +282,9 @@ impl Miner {
 			trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
 			(work, is_new)
 		};
-		work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|ref p| p.notify(pow_hash, difficulty, number)));
+		if is_new {
+			work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|ref p| p.notify(pow_hash, difficulty, number)));
+		}
 	}
 
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
