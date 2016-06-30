@@ -589,26 +589,25 @@ impl MinerService for Miner {
 	}
 
 	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
+		let result = if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
 			match b.lock().try_seal(self.engine(), seal) {
 				Err(_) => {
 					info!(target: "miner", "Mined block rejected, PoW was invalid.");
 					Err(Error::PowInvalid)
 				}
 				Ok(sealed) => {
-					info!(target: "miner", "New block mined, hash: {}", sealed.header().hash());
-					// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-					let b = sealed.rlp_bytes();
-					let h = b.sha3();
-					try!(chain.import_block(b));
-					info!("Block {} submitted and imported.", h);
-					Ok(())
+					info!(target: "miner", "New block mined, hash: {}", sealed.header().hash().hex());
+					Ok(sealed)
 				}
 			}
 		} else {
 			info!(target: "miner", "Mined block rejected, PoW hash invalid or out of date.");
 			Err(Error::PowHashInvalid)
-		}
+		};
+		result.and_then(|sealed| {
+			try!(chain.import_sealed_block(sealed));
+			Ok(())
+		})
 	}
 
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
