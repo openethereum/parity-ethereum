@@ -36,7 +36,7 @@ ENV CC aarch64-linux-gnu-gcc
 # build parity
 RUN git clone https://github.com/ethcore/parity && \
         cd parity && \
-        git checkout master && \
+        git checkout beta && \
         git pull && \
         mkdir -p .cargo && \
         echo '[target.aarch64-unknown-linux-gnu]\n\
