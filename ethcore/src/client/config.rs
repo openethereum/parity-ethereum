@@ -19,6 +19,7 @@ pub use block_queue::BlockQueueConfig;
 pub use blockchain::Config as BlockChainConfig;
 pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
+pub use verification::VerifierType;
 use util::journaldb;
 
 /// Client state db compaction profile
@@ -68,4 +69,6 @@ pub struct ClientConfig {
 	pub db_compaction: DatabaseCompactionProfile,
 	/// Operating mode
 	pub mode: Mode,
+	/// Type of block verifier used by client.
+	pub verifier_type: VerifierType,
 }
