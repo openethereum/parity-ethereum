@@ -220,7 +220,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Build client
 	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone(), !conf.args.flag_no_network
+		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone(), conf.mode() != Mode::Dark && !conf.args.flag_no_network
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
