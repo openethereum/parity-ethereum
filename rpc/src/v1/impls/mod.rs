@@ -53,7 +53,8 @@ pub use self::ethcore_set::EthcoreSetClient;
 pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
-use v1::types::TransactionRequest;
+use v1::helpers::TransactionRequest;
+use v1::types::H256 as NH256;
 use ethcore::error::Error as EthcoreError;
 use ethcore::miner::{AccountDetails, MinerService};
 use ethcore::client::MiningBlockChainClient;
@@ -77,7 +78,7 @@ mod error_codes {
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
-	let hash = signed_transaction.hash();
+	let hash = NH256::from(signed_transaction.hash());
 
 	let import = miner.import_own_transaction(client, signed_transaction, |a: &Address| {
 		AccountDetails {

@@ -17,10 +17,9 @@
 use serde::{Deserialize, Deserializer, Error};
 use serde_json::value;
 use jsonrpc_core::Value;
-use util::numbers::*;
-use v1::types::BlockNumber;
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockID;
+use v1::types::{BlockNumber, H160, H256};
 
 /// Variadic value
 #[derive(Debug, PartialEq, Clone)]
@@ -49,7 +48,7 @@ impl<T> Deserialize for VariadicValue<T> where T: Deserialize {
 }
 
 /// Filter Address
-pub type FilterAddress = VariadicValue<Address>;
+pub type FilterAddress = VariadicValue<H160>;
 /// Topic
 pub type Topic = VariadicValue<H256>;
 
@@ -76,14 +75,14 @@ impl Into<EthFilter> for Filter {
 			to_block: self.to_block.map_or_else(|| BlockID::Latest, Into::into),
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
-				VariadicValue::Single(a) => Some(vec![a]),
-				VariadicValue::Multiple(a) => Some(a)
+				VariadicValue::Single(a) => Some(vec![a.into()]),
+				VariadicValue::Multiple(a) => Some(a.into_iter().map(Into::into).collect())
 			}),
 			topics: {
 				let mut iter = self.topics.map_or_else(Vec::new, |topics| topics.into_iter().take(4).map(|topic| match topic {
 					VariadicValue::Null => None,
-					VariadicValue::Single(t) => Some(vec![t]),
-					VariadicValue::Multiple(t) => Some(t)
+					VariadicValue::Single(t) => Some(vec![t.into()]),
+					VariadicValue::Multiple(t) => Some(t.into_iter().map(Into::into).collect())
 				}).filter_map(|m| m).collect()).into_iter();
 				[iter.next(), iter.next(), iter.next(), iter.next()]
 			}
@@ -104,11 +103,11 @@ mod tests {
 		let s = r#"["0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b", null, ["0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b", "0x0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc"]]"#;
 		let deserialized: Vec<Topic> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![
-				   VariadicValue::Single(H256::from_str("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap()),
+				   VariadicValue::Single(H256::from_str("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap().into()),
 				   VariadicValue::Null,
 				   VariadicValue::Multiple(vec![
-								   H256::from_str("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap(),
-								   H256::from_str("0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc").unwrap()
+								   H256::from_str("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap().into(),
+								   H256::from_str("0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc").unwrap().into(),
 				   ])
 		]);
 	}

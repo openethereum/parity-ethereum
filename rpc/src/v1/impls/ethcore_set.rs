@@ -15,14 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Ethcore-specific rpc interface for operations altering the settings.
-use util::{U256, Address};
+use util::U256;
 use util::network::{NetworkService, NonReservedPeerMode};
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::service::SyncMessage;
 use v1::traits::EthcoreSet;
-use v1::types::Bytes;
+use v1::types::{Bytes, H160};
 
 /// Ethcore-specific rpc interface for operations altering the settings.
 pub struct EthcoreSetClient<M> where
@@ -73,8 +73,8 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_author(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address,)>(params).and_then(|(author,)| {
-			take_weak!(self.miner).set_author(author);
+		from_params::<(H160,)>(params).and_then(|(author,)| {
+			take_weak!(self.miner).set_author(author.into());
 			to_value(&true)
 		})
 	}

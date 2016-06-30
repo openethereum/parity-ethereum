@@ -25,7 +25,7 @@ use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockID};
 use v1::traits::EthFilter;
-use v1::types::{BlockNumber, Index, Filter, Log};
+use v1::types::{BlockNumber, Index, Filter, Log, H256 as NH256};
 use v1::helpers::{PollFilter, PollManager};
 use v1::impls::eth::pending_logs;
 
@@ -106,7 +106,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							let hashes = (*block_number..current_number).into_iter()
 								.map(BlockID::Number)
 								.filter_map(|id| client.block_hash(id))
-								.collect::<Vec<H256>>();
+								.map(Into::into)
+								.collect::<Vec<NH256>>();
 
 							*block_number = current_number;
 
@@ -125,7 +126,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 									.iter()
 									.filter(|hash| !previous_hashes_set.contains(hash))
 									.cloned()
-									.collect::<Vec<H256>>()
+									.map(Into::into)
+									.collect::<Vec<NH256>>()
 							};
 
 							// save all hashes of pending transactions

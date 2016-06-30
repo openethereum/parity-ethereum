@@ -19,7 +19,7 @@
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::PersonalSigner;
-use v1::types::TransactionModification;
+use v1::types::{TransactionModification, TransactionConfirmation};
 use v1::impls::unlock_sign_and_dispatch;
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use ethcore::account_provider::AccountProvider;
@@ -52,7 +52,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 
 	fn transactions_to_confirm(&self, _params: Params) -> Result<Value, Error> {
 		let queue = take_weak!(self.queue);
-		to_value(&queue.requests())
+		to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<TransactionConfirmation>>())
 	}
 
 	fn confirm_transaction(&self, params: Params) -> Result<Value, Error> {

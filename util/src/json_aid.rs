@@ -104,29 +104,11 @@ fn u256_from_json() {
 }
 
 #[test]
-fn h256_from_json() {
-	let j = Json::from_str("{ \"with\": \"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\", \"without\": \"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\" }").unwrap();
-
-	let v: H256 = xjson!(&j["with"]);
-	assert_eq!(H256::from_str("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").unwrap(), v);
-	let v: H256 = xjson!(&j["without"]);
-	assert_eq!(H256::from_str("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").unwrap(), v);
-}
-
-#[test]
 fn vec_u256_from_json() {
 	let j = Json::from_str("{ \"array\": [ \"10\", \"0x0a\", 10] }").unwrap();
 
 	let v: Vec<U256> = xjson!(&j["array"]);
 	assert_eq!(vec![U256::from(10); 3], v);
-}
-
-#[test]
-fn vec_h256_from_json() {
-	let j = Json::from_str("{ \"array\": [ \"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\", \"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\"] }").unwrap();
-
-	let v: Vec<H256> = xjson!(&j["array"]);
-	assert_eq!(vec![H256::from_str("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").unwrap(); 2], v);
 }
 
 #[test]

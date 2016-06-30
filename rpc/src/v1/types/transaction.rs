@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::*;
+use util::U256;
 use ethcore::contract_address;
 use ethcore::transaction::{LocalizedTransaction, Action, SignedTransaction};
-use v1::types::{Bytes, OptionalValue};
+use v1::types::{Bytes, H160, H256};
 
 /// Transaction
 #[derive(Debug, Default, Serialize)]
@@ -28,17 +28,17 @@ pub struct Transaction {
 	pub nonce: U256,
 	/// Block hash
 	#[serde(rename="blockHash")]
-	pub block_hash: OptionalValue<H256>,
+	pub block_hash: Option<H256>,
 	/// Block number
 	#[serde(rename="blockNumber")]
-	pub block_number: OptionalValue<U256>,
+	pub block_number: Option<U256>,
 	/// Transaction Index
 	#[serde(rename="transactionIndex")]
-	pub transaction_index: OptionalValue<U256>,
+	pub transaction_index: Option<U256>,
 	/// Sender
-	pub from: Address,
+	pub from: H160,
 	/// Recipient
-	pub to: OptionalValue<Address>,
+	pub to: Option<H160>,
 	/// Transfered value
 	pub value: U256,
 	/// Gas Price
@@ -49,29 +49,29 @@ pub struct Transaction {
 	/// Data
 	pub input: Bytes,
 	/// Creates contract
-	pub creates: OptionalValue<Address>,
+	pub creates: Option<H160>,
 }
 
 impl From<LocalizedTransaction> for Transaction {
 	fn from(t: LocalizedTransaction) -> Transaction {
 		Transaction {
-			hash: t.hash(),
+			hash: t.hash().into(),
 			nonce: t.nonce,
-			block_hash: OptionalValue::Value(t.block_hash.clone()),
-			block_number: OptionalValue::Value(U256::from(t.block_number)),
-			transaction_index: OptionalValue::Value(U256::from(t.transaction_index)),
-			from: t.sender().unwrap(),
+			block_hash: Some(t.block_hash.clone().into()),
+			block_number: Some(t.block_number.into()),
+			transaction_index: Some(t.transaction_index.into()),
+			from: t.sender().unwrap().into(),
 			to: match t.action {
-				Action::Create => OptionalValue::Null,
-				Action::Call(ref address) => OptionalValue::Value(address.clone())
+				Action::Create => None,
+				Action::Call(ref address) => Some(address.clone().into())
 			},
 			value: t.value,
 			gas_price: t.gas_price,
 			gas: t.gas,
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => OptionalValue::Value(contract_address(&t.sender().unwrap(), &t.nonce)),
-				Action::Call(_) => OptionalValue::Null,
+				Action::Create => Some(contract_address(&t.sender().unwrap(), &t.nonce).into()),
+				Action::Call(_) => None,
 			},
 		}
 	}
@@ -80,23 +80,23 @@ impl From<LocalizedTransaction> for Transaction {
 impl From<SignedTransaction> for Transaction {
 	fn from(t: SignedTransaction) -> Transaction {
 		Transaction {
-			hash: t.hash(),
+			hash: t.hash().into(),
 			nonce: t.nonce,
-			block_hash: OptionalValue::Null,
-			block_number: OptionalValue::Null,
-			transaction_index: OptionalValue::Null,
-			from: t.sender().unwrap(),
+			block_hash: None,
+			block_number: None,
+			transaction_index: None,
+			from: t.sender().unwrap().into(),
 			to: match t.action {
-				Action::Create => OptionalValue::Null,
-				Action::Call(ref address) => OptionalValue::Value(address.clone())
+				Action::Create => None,
+				Action::Call(ref address) => Some(address.clone().into())
 			},
 			value: t.value,
 			gas_price: t.gas_price,
 			gas: t.gas,
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => OptionalValue::Value(contract_address(&t.sender().unwrap(), &t.nonce)),
-				Action::Call(_) => OptionalValue::Null,
+				Action::Create => Some(contract_address(&t.sender().unwrap(), &t.nonce).into()),
+				Action::Call(_) => None,
 			},
 		}
 	}
