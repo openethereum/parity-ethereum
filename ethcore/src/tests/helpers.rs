@@ -17,7 +17,7 @@
 use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;
-use block::{OpenBlock};
+use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use state::*;
 use evm::Schedule;

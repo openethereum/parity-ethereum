@@ -169,6 +169,12 @@ Sealing/Mining Options:
                            more than 32 characters.
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) [default: 1024].
+  --remove-solved          Move solved blocks from the work package queue
+                           instead of cloning them. This gives a slightly
+                           faster import speed, but means that extra solutions
+                           submitted for the same work package will go unused.
+  --notify-work URLS       URLs to which work package notifications are pushed.
+                           URLS should be a comma-delimited list of HTTP URLs.
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
@@ -311,6 +317,7 @@ pub struct Args {
 	pub flag_reseal_on_txs: String,
 	pub flag_reseal_min_period: u64,
 	pub flag_work_queue_size: usize,
+	pub flag_remove_solved: bool,
 	pub flag_tx_gas_limit: Option<String>,
 	pub flag_relay_set: String,
 	pub flag_author: Option<String>,
@@ -320,6 +327,7 @@ pub struct Args {
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
 	pub flag_tx_queue_size: usize,
+	pub flag_notify_work: Option<String>,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
 	pub flag_from: String,

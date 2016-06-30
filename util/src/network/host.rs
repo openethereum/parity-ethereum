@@ -32,6 +32,8 @@ use misc::version;
 use crypto::*;
 use sha3::Hashable;
 use rlp::*;
+use log::Colour::White;
+use log::paint;
 use network::session::{Session, SessionData};
 use error::*;
 use io::*;
@@ -343,6 +345,7 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	reserved_nodes: RwLock<HashSet<NodeId>>,
 	num_sessions: AtomicUsize,
 	stopping: AtomicBool,
+	first_time: AtomicBool,
 }
 
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
@@ -398,6 +401,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			reserved_nodes: RwLock::new(HashSet::new()),
 			num_sessions: AtomicUsize::new(0),
 			stopping: AtomicBool::new(false),
+			first_time: AtomicBool::new(true),
 		};
 
 		for n in boot_nodes {
@@ -533,7 +537,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		};
 
 		self.info.write().unwrap().public_endpoint = Some(public_endpoint.clone());
-		info!("Public node URL: {}", self.external_url().unwrap());
+
+		if self.first_time.load(AtomicOrdering::Relaxed) {
+			info!("Public node URL: {}", paint(White.bold(), format!("{}", self.external_url().unwrap())));
+			self.first_time.store(false, AtomicOrdering::Relaxed);
+		}
 
 		// Initialize discovery.
 		let discovery = {
