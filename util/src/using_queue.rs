@@ -74,6 +74,12 @@ impl<T> UsingQueue<T> where T: Clone {
 		self.in_use.iter().position(|r| predicate(r)).map(|i| self.in_use.remove(i))
 	}
 
+	/// Returns `Some` item which is the first that `f` returns `true` with a reference to it
+	/// as a parameter or `None` if no such item exists in the queue.
+	pub fn clone_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+		self.in_use.iter().find(|r| predicate(r)).cloned()
+	}
+
 	/// Returns the most recently pushed block if `f` returns `true` with a reference to it as
 	/// a parameter, otherwise `None`.
 	/// Will not destroy a block if a reference to it has previously been returned by `use_last_ref`,
@@ -94,10 +100,17 @@ impl<T> UsingQueue<T> where T: Clone {
 }
 
 #[test]
-fn should_find_when_pushed() {
+fn should_not_find_when_pushed() {
 	let mut q = UsingQueue::new(2);
 	q.push(1);
 	assert!(q.take_used_if(|i| i == &1).is_none());
+}
+
+#[test]
+fn should_not_find_when_pushed_with_clone() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	assert!(q.clone_used_if(|i| i == &1).is_none());
 }
 
 #[test]
@@ -105,7 +118,34 @@ fn should_find_when_pushed_and_used() {
 	let mut q = UsingQueue::new(2);
 	q.push(1);
 	q.use_last_ref();
-	assert!(q.take_used_if(|i| i == &1).is_some());
+	assert!(q.take_used_if(|i| i == &1).unwrap() == 1);
+}
+
+#[test]
+fn should_find_when_pushed_and_used_with_clone() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	q.use_last_ref();
+	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
+}
+
+#[test]
+fn should_not_find_again_when_pushed_and_taken() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	q.use_last_ref();
+	assert!(q.take_used_if(|i| i == &1).unwrap() == 1);
+	assert!(q.clone_used_if(|i| i == &1).is_none());
+}
+
+#[test]
+fn should_find_again_when_pushed_and_cloned() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	q.use_last_ref();
+	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
+	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
+	assert!(q.take_used_if(|i| i == &1).unwrap() == 1);
 }
 
 #[test]
