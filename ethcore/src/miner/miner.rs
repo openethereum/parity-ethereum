@@ -157,9 +157,10 @@ impl Miner {
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
 
-		let (transactions, mut open_block) = {
+		let (transactions, mut open_block, last_work_hash) = {
 			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
 			let mut sealing_work = self.sealing_work.lock().unwrap();
+			let last_work_hash = sealing_work.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			let best_hash = chain.best_block_header().sha3();
 /*
 			// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -186,7 +187,7 @@ impl Miner {
 					)
 				}
 			};
-			(transactions, open_block)
+			(transactions, open_block, last_work_hash)
 		};
 
 		let mut invalid_transactions = HashSet::new();
@@ -254,7 +255,6 @@ impl Miner {
 
 		let work = {
 			let mut sealing_work = self.sealing_work.lock().unwrap();
-			let last_work_hash = sealing_work.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			trace!(target: "miner", "Checking whether we need to reseal: last={:?}, this={:?}", last_work_hash, block.block().fields().header.hash());
 			let work = if last_work_hash.map_or(true, |h| h != block.block().fields().header.hash()) {
 				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
