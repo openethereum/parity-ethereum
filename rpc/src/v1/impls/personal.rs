@@ -43,22 +43,31 @@ impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService
 			signer_port: signer_port,
 		}
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	fn signer_enabled(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		self.signer_port
 			.map(|v| to_value(&v))
 			.unwrap_or_else(|| to_value(&false))
 	}
 
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		let store = take_weak!(self.accounts);
 		to_value(&store.accounts())
 	}
 
 	fn new_account(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(String, )>(params).and_then(
 			|(pass, )| {
 				let store = take_weak!(self.accounts);
@@ -71,6 +80,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 	}
 
 	fn unlock_account(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Address, String, u64)>(params).and_then(
 			|(account, account_pass, _)|{
 				let store = take_weak!(self.accounts);
@@ -82,6 +92,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 	}
 
 	fn sign_and_send_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(TransactionRequest, String)>(params)
 			.and_then(|(request, password)| {
 				let sender = request.from;

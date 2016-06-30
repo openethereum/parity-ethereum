@@ -61,6 +61,12 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 			miner: Arc::downgrade(miner),
 		}
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C, M> EthSigning for EthSigningQueueClient<C, M>
@@ -68,12 +74,14 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 {
 
 	fn sign(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		warn!("Invoking eth_sign is not yet supported with signer enabled.");
 		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
 		rpc_unimplemented!()
 	}
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(mut request, )| {
 				let accounts = take_weak!(self.accounts);
@@ -118,6 +126,12 @@ impl<C, M> EthSigningUnsafeClient<C, M> where
 			accounts: Arc::downgrade(accounts),
 		}
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
@@ -125,12 +139,14 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 	M: MinerService + 'static {
 
 	fn sign(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Address, H256)>(params).and_then(|(addr, msg)| {
 			to_value(&take_weak!(self.accounts).sign(addr, msg).unwrap_or(H520::zero()))
 		})
 	}
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
 				let sender = request.from;

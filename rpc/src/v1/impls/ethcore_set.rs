@@ -20,31 +20,46 @@ use util::network::{NetworkService, NonReservedPeerMode};
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
+use ethcore::client::MiningBlockChainClient;
 use ethcore::service::SyncMessage;
 use v1::traits::EthcoreSet;
 use v1::types::Bytes;
 
 /// Ethcore-specific rpc interface for operations altering the settings.
-pub struct EthcoreSetClient<M> where
+pub struct EthcoreSetClient<C, M> where
+	C: MiningBlockChainClient,
 	M: MinerService {
 
+	client: Weak<C>,
 	miner: Weak<M>,
 	net: Weak<NetworkService<SyncMessage>>,
 }
 
-impl<M> EthcoreSetClient<M> where M: MinerService {
+impl<C, M> EthcoreSetClient<C, M> where
+	C: MiningBlockChainClient,
+	M: MinerService {
 	/// Creates new `EthcoreSetClient`.
-	pub fn new(miner: &Arc<M>, net: &Arc<NetworkService<SyncMessage>>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<NetworkService<SyncMessage>>) -> Self {
 		EthcoreSetClient {
+			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			net: Arc::downgrade(net),
 		}
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
-impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
+impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
+	C: MiningBlockChainClient + 'static,
+	M: MinerService + 'static {
 
 	fn set_min_gas_price(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(gas_price,)| {
 			take_weak!(self.miner).set_minimal_gas_price(gas_price);
 			to_value(&true)
@@ -52,6 +67,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_gas_floor_target(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(target,)| {
 			take_weak!(self.miner).set_gas_floor_target(target);
 			to_value(&true)
@@ -59,6 +75,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_gas_ceil_target(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(target,)| {
 			take_weak!(self.miner).set_gas_ceil_target(target);
 			to_value(&true)
@@ -66,6 +83,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_extra_data(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Bytes,)>(params).and_then(|(extra_data,)| {
 			take_weak!(self.miner).set_extra_data(extra_data.to_vec());
 			to_value(&true)
@@ -73,6 +91,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_author(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Address,)>(params).and_then(|(author,)| {
 			take_weak!(self.miner).set_author(author);
 			to_value(&true)
@@ -80,6 +99,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_transactions_limit(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(usize,)>(params).and_then(|(limit,)| {
 			take_weak!(self.miner).set_transactions_limit(limit);
 			to_value(&true)
@@ -87,6 +107,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_tx_gas_limit(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(limit,)| {
 			take_weak!(self.miner).set_tx_gas_limit(limit.into());
 			to_value(&true)
@@ -94,6 +115,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn add_reserved_peer(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(String,)>(params).and_then(|(peer,)| {
 			match take_weak!(self.net).add_reserved_peer(&peer) {
 				Ok(()) => to_value(&true),
@@ -103,6 +125,7 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn remove_reserved_peer(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(String,)>(params).and_then(|(peer,)| {
 			match take_weak!(self.net).remove_reserved_peer(&peer) {
 				Ok(()) => to_value(&true),
@@ -112,11 +135,13 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn drop_non_reserved_peers(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		take_weak!(self.net).set_non_reserved_mode(NonReservedPeerMode::Deny);
 		to_value(&true)
 	}
 
 	fn accept_non_reserved_peers(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		take_weak!(self.net).set_non_reserved_mode(NonReservedPeerMode::Accept);
 		to_value(&true)
 	}

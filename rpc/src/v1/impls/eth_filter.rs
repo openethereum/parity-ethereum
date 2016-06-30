@@ -52,6 +52,12 @@ impl<C, M> EthFilterClient<C, M> where
 			polls: Mutex::new(PollManager::new()),
 		}
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C, M> EthFilter for EthFilterClient<C, M> where
@@ -59,6 +65,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	M: MinerService + 'static {
 
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
 				let mut polls = self.polls.lock().unwrap();
@@ -69,6 +76,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	}
 
 	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
@@ -80,6 +88,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	}
 
 	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
@@ -93,6 +102,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	}
 
 	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
@@ -181,6 +191,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	}
 
 	fn filter_logs(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
 				let mut polls = self.polls.lock().unwrap();
@@ -206,6 +217,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	}
 
 	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
 				self.polls.lock().unwrap().remove_poll(&index.value());
