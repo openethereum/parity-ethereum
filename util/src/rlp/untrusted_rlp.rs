@@ -360,10 +360,17 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				}
 				let d = &bytes[1..last_index_of];
 				if l == 0x81 && d[0] < 0x80 {
-					return Err(DecoderError::RlpInvalidIndirection);
+					// Check for compression placeholders
+					if d[0] == 0x00 {
+						//Ok(SHA3_NULL_RLP as T)
+						Ok(try!(f(&bytes)))
+					} else {
+						// It was not a placeholder
+						Err(DecoderError::RlpInvalidIndirection)
+					}
+				} else {
+					Ok(try!(f(d)))
 				}
-
-				Ok(try!(f(d)))
 			},
 			// longer than 55 bytes
 			Some(l @ 0xb8...0xbf) => {
@@ -489,6 +496,35 @@ impl RlpDecodable for u8 {
 	}
 }
 
+/// Stores valid RLPs that should be compressed
+struct InvalidRlpSwapper {
+	valid_rlps: Vec<Vec<u8>>,
+	invalid_rlps: Vec<Vec<u8>>,
+}
+
+impl InvalidRlpSwapper {
+	/// Construct a swapper from a list of common RLPs
+	pub fn new(rlps_to_swap: Vec<Vec<u8>>) -> Self {
+		match rlps_to_swap.len() {
+			l @ 0...0x80 => {
+				InvalidRlpSwapper {
+					valid_rlps: rlps_to_swap,
+					invalid_rlps: (0..l as u8).map(|i| vec!(0x81, i)).collect()
+				}
+			},
+			_ => panic!()
+		}
+	}
+	/// Get a valid RLP corresponding to an invalid one
+	pub fn get_valid(&self, invalid_rlp: &[u8]) -> Option<&[u8]> {
+		self.valid_rlps.get(invalid_rlp[1] as usize).map(|v| v.as_slice())
+	}
+	/// Get an invalid RLP corresponding to a valid one
+	pub fn get_invalid(&self, valid_rlp: &[u8]) -> Option<&[u8]> {
+		self.valid_rlps.iter().position(|r| r.as_slice() == valid_rlp).map(|us| self.invalid_rlps[us].as_slice())
+	}
+}
+
 impl<'a> Compressible for UntrustedRlp<'a> {
 	fn compress(&self) -> ElasticArray1024<u8> {
 		if self.is_data() { panic!() };
@@ -508,6 +544,10 @@ impl<'a> Compressible for UntrustedRlp<'a> {
   	compact_rlp.append_raw(&compact_raw_rlp, self.item_count());
   	compact_rlp.drain()
 	}
+
+	fn decompress(&self) -> ElasticArray1024<u8> {
+		panic!()
+	}
 }
 
 #[test]
@@ -518,3 +558,10 @@ fn test_rlp_display() {
 	assert_eq!(format!("{}", rlp), "[\"0x05\", \"0x010efbef67941f79b2\", \"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421\", \"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470\"]");
 }
 
+#[test]
+fn invalid_rlp_swapper() {
+	let swapper = InvalidRlpSwapper::new(vec!(vec!(0x83, b'c', b'a', b't'), vec!(0x83, b'd', b'o', b'g')));
+	let invalid_rlp = vec!(0x81, 0x00);
+	assert_eq!(Some(invalid_rlp.as_slice()), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
+	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
+}
