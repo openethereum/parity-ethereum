@@ -43,14 +43,19 @@ impl WorkPoster {
 				}
 			}
 		}).collect();
-		let client = Client::<PostHandler>::configure()
-			.keep_alive(false)
-			.build().expect("Error creating HTTP client");
+		let client = WorkPoster::create_client();
 		WorkPoster {
 			client: Mutex::new(client),
 			urls: urls,
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 		}
+	}
+
+	fn create_client() -> Client<PostHandler> {
+		let client = Client::<PostHandler>::configure()
+			.keep_alive(true)
+			.build().expect("Error creating HTTP client") as Client<PostHandler>;
+		client
 	}
 
 	pub fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
@@ -60,10 +65,15 @@ impl WorkPoster {
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		let body = format!(r#"{{ "result": ["0x{}","0x{}","0x{}","0x{:x}"] }}"#,
 			pow_hash.hex(), seed_hash.hex(), target.hex(), number);
-		let client = self.client.lock().unwrap();
+		let mut client = self.client.lock().unwrap();
 		for u in &self.urls {
 			if let Err(e) = client.request(u.clone(), PostHandler { body: body.clone() }) {
-				warn!("Error sending HTTP notification to {} : {}", u, e);
+				warn!("Error sending HTTP notification to {} : {}, retrying", u, e);
+				// TODO: remove this once https://github.com/hyperium/hyper/issues/848 is fixed
+				*client = WorkPoster::create_client();
+				if let Err(e) = client.request(u.clone(), PostHandler { body: body.clone() }) {
+					warn!("Error sending HTTP notification to {} : {}", u, e);
+				}
 			}
 		}
 	}
