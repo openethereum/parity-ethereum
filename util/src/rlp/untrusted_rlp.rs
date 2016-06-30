@@ -18,7 +18,7 @@ use std::cell::Cell;
 use std::fmt;
 use rustc_serialize::hex::ToHex;
 use rlp::bytes::{FromBytes, FromBytesResult, FromBytesError};
-use rlp::{View, Decoder, Decodable, DecoderError, RlpDecodable};
+use rlp::{View, Decoder, Decodable, DecoderError, RlpDecodable, Compressible, SHA3_NULL_RLP, encode, ElasticArray1024, Stream, RlpStream};
 
 /// rlp offset
 #[derive(Copy, Clone, Debug)]
@@ -490,19 +490,23 @@ impl RlpDecodable for u8 {
 }
 
 impl<'a> Compressible for UntrustedRlp<'a> {
-	fn compress(&self) -> Self {
-		let RLP_SHA3_NULL_RLP = rlp::encode(&SHA3_NULL_RLP);
+	fn compress(&self) -> ElasticArray1024<u8> {
+		if self.is_data() { panic!() };
+		let RLP_SHA3_NULL_RLP = encode(&SHA3_NULL_RLP);
     let RLP_SHA3_NULL_RLP = UntrustedRlp::new(&RLP_SHA3_NULL_RLP).as_raw();
-		let header = &self.bytes[..rlp.payload_info().unwrap().header_len];
+    println!("{:?}", RLP_SHA3_NULL_RLP);
     let code_rlps = vec![[0x81, 0x00]];
-		let compact_rlp = self.iter()
+    println!("{:?}", code_rlps[0]);
+		let compact_raw_rlp: ElasticArray1024<_> = self.iter()
 			.map(|subrlp| {
         	let b = subrlp.as_raw();
-        	if b == RLP_SHA3_NULL_RLP { &code_rlps[0] }
+        	if b == RLP_SHA3_NULL_RLP { println!("Replaced!"); &code_rlps[0] }
         	else { b }
       	})
-  		.fold(header.to_vec(), |mut acc, slice| {acc.extend_from_slice(slice); acc});
-    UntrustedRlp::new(&compact_rlp)	
+    	.fold(ElasticArray1024::new(), |mut acc, slice| {acc.append_slice(slice); acc});
+  	let mut compact_rlp = RlpStream::new_list(self.item_count());
+  	compact_rlp.append_raw(&compact_raw_rlp, self.item_count());
+  	compact_rlp.drain()
 	}
 }
 
