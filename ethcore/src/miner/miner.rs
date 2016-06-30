@@ -263,7 +263,7 @@ impl Miner {
 				let pow_hash = block.block().fields().header.hash();
 				let number = block.block().fields().header.number();
 				let difficulty = *block.block().fields().header.difficulty();
-				let is_new = original_work_hash.map_or(false, |h| block.block().fields().header.hash() == h);
+				let is_new = original_work_hash.map_or(true, |h| block.block().fields().header.hash() != h);
 				sealing_work.push(block);
 				(Some((pow_hash, difficulty, number)), is_new)
 			} else {
