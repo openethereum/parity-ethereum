@@ -17,8 +17,6 @@
 use util::numbers::{U256,H256};
 use header::BlockNumber;
 
-use util::bytes::{FromRawBytesVariable, FromBytesError, ToBytesWithMap};
-
 /// Brief info about inserted block.
 #[derive(Clone)]
 pub struct BlockInfo {

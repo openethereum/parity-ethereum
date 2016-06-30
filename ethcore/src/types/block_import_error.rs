@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Block import error related types
+
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
@@ -22,8 +24,11 @@ use std::convert::From;
 
 #[derive(Binary, Debug)]
 pub enum BlockImportError {
+	/// Import error
 	Import(ImportError),
+	/// Block error
 	Block(BlockError),
+	/// Other error
 	Other(String),
 }
 

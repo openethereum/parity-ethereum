@@ -38,7 +38,7 @@ use util::Itertools;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
-use header::{BlockNumber, Header};
+use header::{BlockNumber};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
@@ -48,7 +48,6 @@ use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
 use miner::{TransactionImportResult};
-use error::Error as EthError;
 pub use types::call_analytics::CallAnalytics;
 pub use types::block_import_error::BlockImportError;
 

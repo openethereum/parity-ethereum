@@ -1,13 +1,11 @@
 
 //! Bridge between Tracedb and Blockchain.
 
-use std::ops::Range;
-use util::{Address, H256};
+use util::{H256};
 use header::BlockNumber;
 use trace::DatabaseExtras as TraceDatabaseExtras;
 use blockchain::{BlockChain, BlockProvider};
 use blockchain::extras::TransactionAddress;
-use super::BlockID;
 pub use types::trace_filter::Filter;
 
 impl TraceDatabaseExtras for BlockChain {

@@ -35,11 +35,10 @@ use spec::Spec;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
-use error::{ExecutionError};
+use error::ExecutionError;
 use trace::LocalizedTrace;
 
 use miner::{TransactionImportResult, AccountDetails};
-use error::Error as EthError;
 
 /// Test client.
 pub struct TestBlockChainClient {

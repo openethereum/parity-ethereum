@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Trace filter related types
+
 use std::mem;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use std::collections::VecDeque;
