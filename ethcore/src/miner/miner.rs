@@ -65,6 +65,8 @@ pub struct MinerOptions {
 	pub pending_set: PendingSet,
 	/// How many historical work packages can we store before running out?
 	pub work_queue_size: usize,
+	/// Can we submit two different solutions for the same block and expect both to result in an import?
+	pub enable_resubmission: bool,
 }
 
 impl Default for MinerOptions {
@@ -79,6 +81,7 @@ impl Default for MinerOptions {
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(0),
 			work_queue_size: 20,
+			enable_resubmission: true,
 		}
 	}
 }
@@ -155,9 +158,10 @@ impl Miner {
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
 
-		let (transactions, mut open_block) = {
+		let (transactions, mut open_block, last_work_hash) = {
 			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
 			let mut sealing_work = self.sealing_work.lock().unwrap();
+			let last_work_hash = sealing_work.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			let best_hash = chain.best_block_header().sha3();
 /*
 			// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -184,7 +188,7 @@ impl Miner {
 					)
 				}
 			};
-			(transactions, open_block)
+			(transactions, open_block, last_work_hash)
 		};
 
 		let mut invalid_transactions = HashSet::new();
@@ -252,7 +256,8 @@ impl Miner {
 
 		let work = {
 			let mut sealing_work = self.sealing_work.lock().unwrap();
-			let work = if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
+			trace!(target: "miner", "Checking whether we need to reseal: last={:?}, this={:?}", last_work_hash, block.block().fields().header.hash());
+			let work = if last_work_hash.map_or(true, |h| h != block.block().fields().header.hash()) {
 				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
 				let pow_hash = block.block().fields().header.hash();
 				let number = block.block().fields().header.number();
@@ -611,7 +616,7 @@ impl MinerService for Miner {
 	}
 
 	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		let result = if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
+		let result = if let Some(b) = self.sealing_work.lock().unwrap().get_used_if(if self.options.enable_resubmission { GetAction::Clone } else { GetAction::Take }, |b| &b.hash() == &pow_hash) {
 			b.lock().try_seal(self.engine(), seal).or_else(|_| {
 				warn!(target: "miner", "Mined solution rejected: Invalid.");
 				Err(Error::PowInvalid)

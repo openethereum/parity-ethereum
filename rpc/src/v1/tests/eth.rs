@@ -52,6 +52,7 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 	Miner::new(
 		MinerOptions {
+			new_work_notify: vec![],
 			force_sealing: true,
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
@@ -60,7 +61,7 @@ fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			pending_set: PendingSet::SealingOrElseQueue,
 			reseal_min_period: Duration::from_secs(0),
 			work_queue_size: 50,
-			new_work_notify: vec![],
+			enable_resubmission: true,
 		},
 		spec,
 		Some(accounts)
