@@ -497,7 +497,7 @@ impl RlpDecodable for u8 {
 }
 
 /// Stores valid RLPs that should be compressed
-struct InvalidRlpSwapper {
+pub struct InvalidRlpSwapper {
 	valid_rlps: Vec<Vec<u8>>,
 	invalid_rlps: Vec<Vec<u8>>,
 }
