@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
 use std::cell::Cell;
 use std::fmt;
 use rustc_serialize::hex::ToHex;
@@ -496,52 +497,66 @@ impl RlpDecodable for u8 {
 	}
 }
 
-/// Stores valid RLPs that should be compressed
-pub struct InvalidRlpSwapper {
-	valid_rlps: Vec<Vec<u8>>,
-	invalid_rlps: Vec<Vec<u8>>,
+/// Stores RLPs used for compression
+struct InvalidRlpSwapper {
+	invalid_to_valid: HashMap<Vec<u8>, Vec<u8>>,
+	valid_to_invalid: HashMap<Vec<u8>, Vec<u8>>,
 }
 
 impl InvalidRlpSwapper {
 	/// Construct a swapper from a list of common RLPs
-	pub fn new(rlps_to_swap: Vec<Vec<u8>>) -> Self {
+	fn new(rlps_to_swap: Vec<Vec<u8>>) -> Self {
 		match rlps_to_swap.len() {
-			l @ 0...0x80 => {
+			0...0x80 => {
+				let mut invalid_to_valid = HashMap::new();
+				let mut valid_to_invalid = HashMap::new();
+				for (i, rlp) in rlps_to_swap.iter().enumerate() {
+					let invalid = vec!(0x81, i as u8); 	
+					invalid_to_valid.insert(invalid.clone(), rlp.clone());
+					valid_to_invalid.insert(rlp.to_owned(), invalid);
+				}
 				InvalidRlpSwapper {
-					valid_rlps: rlps_to_swap,
-					invalid_rlps: (0..l as u8).map(|i| vec!(0x81, i)).collect()
+					invalid_to_valid: invalid_to_valid,
+					valid_to_invalid: valid_to_invalid
 				}
 			},
 			_ => panic!()
 		}
 	}
 	/// Get a valid RLP corresponding to an invalid one
-	pub fn get_valid(&self, invalid_rlp: &[u8]) -> Option<&[u8]> {
-		self.valid_rlps.get(invalid_rlp[1] as usize).map(|v| v.as_slice())
+	fn get_valid(&self, invalid_rlp: &[u8]) -> Option<&[u8]> {
+		self.invalid_to_valid.get(invalid_rlp).map(|v| v.as_slice())
 	}
 	/// Get an invalid RLP corresponding to a valid one
-	pub fn get_invalid(&self, valid_rlp: &[u8]) -> Option<&[u8]> {
-		self.valid_rlps.iter().position(|r| r.as_slice() == valid_rlp).map(|us| self.invalid_rlps[us].as_slice())
+	fn get_invalid(&self, valid_rlp: &[u8]) -> Option<&[u8]> {
+		self.valid_to_invalid.get(valid_rlp).map(|v| v.as_slice())
 	}
 }
 
+lazy_static! {
+	static ref INVALID_RLP_SWAPPER: InvalidRlpSwapper = InvalidRlpSwapper::new(vec![encode(&SHA3_NULL_RLP).to_vec()]);
+}
+
 impl<'a> Compressible for UntrustedRlp<'a> {
-	fn compress(&self) -> ElasticArray1024<u8> {
+	fn transform<F>(&self, swapper: F) -> ElasticArray1024<u8>
+	where F: Fn(&[u8]) -> Option<&[u8]> {
 		if self.is_data() { panic!() };
-		let swapper = InvalidRlpSwapper::new(vec!(encode(&SHA3_NULL_RLP).to_vec()));
-		let compact_raw_rlp = self.iter()
+		let raw_rlp = self.iter()
 			.map(|subrlp| {
 					let b = subrlp.as_raw();
-					swapper.get_invalid(b).unwrap_or(b)
+					swapper(b).unwrap_or(b)
       	})
     	.fold(ElasticArray1024::new(), |mut acc, slice| { acc.append_slice(slice); acc });
-  	let mut compact_rlp = RlpStream::new_list(self.item_count());
-  	compact_rlp.append_raw(&compact_raw_rlp, self.item_count());
-  	compact_rlp.drain()
+  	let mut rlp = RlpStream::new_list(self.item_count());
+  	rlp.append_raw(&raw_rlp, self.item_count());
+  	rlp.drain()
 	}
 
+	fn compress(&self) -> ElasticArray1024<u8> {
+		self.transform(|b| INVALID_RLP_SWAPPER.get_invalid(b))
+	}
 	fn decompress(&self) -> ElasticArray1024<u8> {
-		panic!()
+		self.transform(|b| INVALID_RLP_SWAPPER.get_valid(b))
 	}
 }
 
@@ -555,9 +570,9 @@ fn test_rlp_display() {
 
 #[test]
 fn invalid_rlp_swapper() {
-	let swapper = InvalidRlpSwapper::new(vec!(vec!(0x83, b'c', b'a', b't'), vec!(0x83, b'd', b'o', b'g')));
-	let invalid_rlp = vec!(vec!(0x81, 0x00), vec!(0x81, 0x01));
+	let swapper = InvalidRlpSwapper::new(vec![vec![0x83, b'c', b'a', b't'], vec![0x83, b'd', b'o', b'g']]);
+	let invalid_rlp = vec![vec![0x81, 0x00], vec![0x81, 0x01]];
 	assert_eq!(Some(invalid_rlp[0].as_slice()), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
 	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
-	assert_eq!(Some(vec!(0x83, b'd', b'o', b'g').as_slice()), swapper.get_valid(invalid_rlp[1].as_slice()));
+	assert_eq!(Some(vec![0x83, b'd', b'o', b'g'].as_slice()), swapper.get_valid(invalid_rlp[1].as_slice()));
 }
