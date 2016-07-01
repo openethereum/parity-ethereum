@@ -173,6 +173,7 @@ impl Client {
 		let client = Client {
 			last_activity: Mutex::new(match config.mode { Mode::Dark(..) => None, _ => Some(Instant::now()) }),
 			last_autosleep: Mutex::new(match config.mode { Mode::Dark(..) => Some(Instant::now()), _ => None }),
+			liveness: AtomicBool::new(match config.mode { Mode::Dark(..) => false, _ => true }),
 			mode: config.mode,
 			chain: chain,
 			tracedb: tracedb,
@@ -186,7 +187,6 @@ impl Client {
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
 			trie_factory: TrieFactory::new(config.trie_spec),
 			miner: miner,
-			liveness: AtomicBool::new(true),
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
 		};
