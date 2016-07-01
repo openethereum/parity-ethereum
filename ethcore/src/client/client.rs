@@ -348,7 +348,7 @@ impl Client {
 		imported
 	}
 
-	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &Bytes) -> ImportRoute where B: IsBlock + Drain {
+	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
 		let number = block.header().number();
 		// Are we committing an era?
 		let ancient = if number >= HISTORY {

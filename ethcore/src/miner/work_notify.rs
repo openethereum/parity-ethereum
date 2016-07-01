@@ -52,10 +52,10 @@ impl WorkPoster {
 	}
 
 	fn create_client() -> Client<PostHandler> {
-		let client = Client::<PostHandler>::configure()
+		Client::<PostHandler>::configure()
 			.keep_alive(true)
-			.build().expect("Error creating HTTP client") as Client<PostHandler>;
-		client
+			.build()
+			.expect("Error creating HTTP client")
 	}
 
 	pub fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
