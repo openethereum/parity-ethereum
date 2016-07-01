@@ -88,7 +88,7 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 
 	/// Timer function called after a timeout created with `NetworkContext::timeout`.
 	fn timeout(&self, io: &NetworkContext<TestProtocolMessage>, timer: TimerToken) {
-		io.message(TestProtocolMessage { payload: 22 });
+		io.message(TestProtocolMessage { payload: 22 }).unwrap();
 		assert_eq!(timer, 0);
 		self.got_timeout.store(true, AtomicOrdering::Relaxed);
 	}

@@ -514,7 +514,8 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 					let seed_hash = &self.seed_compute.lock().unwrap().get_seedhash(b.block().header().number());
-					to_value(&(NH256::from(pow_hash), NH256::from(H256::from_slice(&seed_hash[..])), NH256::from(target)))
+					let block_number = U256::from(b.block().header().number());
+					to_value(&(NH256::from(pow_hash), NH256::from(seed_hash), NH256::from(target), block_number))
 				}).unwrap_or(Err(Error::internal_error()))	// no work found.
 			},
 			_ => Err(Error::invalid_params())

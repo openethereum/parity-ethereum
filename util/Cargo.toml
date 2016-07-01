@@ -39,6 +39,7 @@ bigint = { path = "bigint" }
 chrono = "0.2"
 using_queue = { path = "using_queue" }
 table = { path = "table" }
+ansi_term = "0.7"
 
 [features]
 default = []

@@ -80,7 +80,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, paint, Colour, version};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
 use ethcore::error::{Error, ImportError};
@@ -184,9 +184,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging);
+	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
+
+	info!("Starting {}", paint(Colour::White.bold(), format!("{}", version())));
 
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
@@ -320,6 +322,8 @@ fn execute_export(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -392,6 +396,8 @@ fn execute_import(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 

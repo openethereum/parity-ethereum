@@ -45,6 +45,7 @@
 mod miner;
 mod external;
 mod transaction_queue;
+mod work_notify;
 
 pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 pub use self::miner::{Miner, MinerOptions, PendingSet};

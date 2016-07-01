@@ -119,6 +119,7 @@ extern crate bigint;
 extern crate chrono;
 pub extern crate using_queue;
 pub extern crate table;
+extern crate ansi_term;
 
 pub mod standard;
 #[macro_use]
