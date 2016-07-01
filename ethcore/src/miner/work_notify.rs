@@ -63,8 +63,10 @@ impl WorkPoster {
 		let target = Ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = &self.seed_compute.lock().unwrap().get_seedhash(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
-		let body = format!(r#"{{ "result": ["0x{}","0x{}","0x{}","0x{:x}"] }}"#,
-			pow_hash.hex(), seed_hash.hex(), target.hex(), number);
+		let body = format!(
+			r#"{{ "result": ["0x{}","0x{}","0x{}","0x{:x}"] }}"#,
+			pow_hash.hex(), seed_hash.hex(), target.hex(), number
+		);
 		let mut client = self.client.lock().unwrap();
 		for u in &self.urls {
 			if let Err(e) = client.request(u.clone(), PostHandler { body: body.clone() }) {
@@ -104,12 +106,12 @@ impl hyper::client::Handler<HttpStream> for PostHandler {
 	}
 
 	fn on_response_readable(&mut self, _decoder: &mut hyper::Decoder<HttpStream>) -> Next {
-        Next::end()
+		Next::end()
 	}
 
-    fn on_error(&mut self, err: hyper::Error) -> Next {
+	fn on_error(&mut self, err: hyper::Error) -> Next {
 		trace!("Error posting work data: {}", err);
 		Next::end()
-    }
+	}
 }
 
