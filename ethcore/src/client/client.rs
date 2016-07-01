@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use util::panics::*;
 use views::BlockView;
-use error::{Error, ImportError, ExecutionError, BlockError, ImportResult};
+use error::{ImportError, ExecutionError, BlockError, ImportResult};
 use header::{BlockNumber};
 use state::State;
 use spec::Spec;
@@ -779,7 +779,11 @@ impl BlockChainClient for Client {
 			nonce: self.latest_nonce(a),
 			balance: self.latest_balance(a),
 		};
-		self.miner.import_transactions(self, transactions, fetch_account)
+
+		self.miner.import_transactions(self, transactions, &fetch_account)
+			.into_iter()
+			.map(|res| res.map_err(|e| e.into()))
+			.collect()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {

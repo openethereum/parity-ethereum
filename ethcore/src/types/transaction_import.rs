@@ -20,6 +20,7 @@ use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use std::collections::VecDeque;
 use error::{TransactionError, Error};
 use std::mem;
+use util::Populatable;
 
 #[derive(Debug, Clone, PartialEq)]
 /// Represents the result of importing transaction.
@@ -32,9 +33,12 @@ pub enum TransactionImportResult {
 
 binary_fixed_size!(TransactionImportResult);
 
+/// Api-level error for transaction import
 #[derive(Debug, Clone, Binary)]
 pub enum TransactionImportError {
+	/// Transaction error
 	Transaction(TransactionError),
+	/// Other error
 	Other(String),
 }
 

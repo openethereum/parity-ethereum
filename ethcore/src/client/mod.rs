@@ -47,7 +47,6 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
-use error::Error as EthError;
 pub use block_import_error::BlockImportError;
 pub use transaction_import::{TransactionImportResult, TransactionImportError};
 

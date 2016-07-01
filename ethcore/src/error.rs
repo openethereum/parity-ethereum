@@ -22,10 +22,9 @@ use basic_types::LogBloom;
 use client::Error as ClientError;
 pub use types::executed::ExecutionError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
-use types::transaction_import::TransactionImportError;
 use types::block_import_error::BlockImportError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.
 pub enum TransactionError {
 	/// Transaction is already imported to the queue

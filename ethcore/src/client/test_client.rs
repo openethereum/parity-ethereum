@@ -40,7 +40,6 @@ use error::{ExecutionError};
 use trace::LocalizedTrace;
 
 use miner::{TransactionImportResult, AccountDetails};
-use error::Error as EthError;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -498,6 +497,9 @@ impl BlockChainClient for TestBlockChainClient {
 		};
 
 		self.miner.import_transactions(self, transactions, &fetch_account)
+			.into_iter()
+			.map(|res| res.map_err(|e| e.into()))
+			.collect()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
