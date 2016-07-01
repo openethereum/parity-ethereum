@@ -20,7 +20,7 @@ use self::json_tests::rlp as rlptest;
 use std::{fmt, cmp};
 use std::str::FromStr;
 use rlp;
-use rlp::{UntrustedRlp, RlpStream, View, Stream, DecoderError};
+use rlp::{UntrustedRlp, RlpStream, View, Stream, DecoderError, Compressible};
 use bigint::uint::U256;
 
 #[test]
@@ -436,3 +436,24 @@ fn test_rlp_list_length_overflow() {
 	let as_val: Result<String, DecoderError> = rlp.val_at(0);
 	assert_eq!(Err(DecoderError::RlpIsTooShort), as_val);
 }
+
+#[test]
+fn rlp_compression() {
+	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	let rlp = UntrustedRlp::new(&data);
+	let bat = vec![0x83, b'b', b'a', b't'];
+	let cat = vec![0x83, b'c', b'a', b't'];
+	let bat_cat = |b: &[u8]| -> Option<&[u8]> {
+		match b == &cat {
+			true => Some(&bat),
+		  false => None,
+		}
+	};
+	let cat_bat = |b| match b == &bat {
+			true => Some(&cat),
+		  false => None,
+		};
+	let compressed_rlp = &rlp.transform(bat_cat);
+	assert_eq!(
+		data,
+		UntrustedRlp::new(&compressed_rlp).transform(cat_bat).to_vec())}
