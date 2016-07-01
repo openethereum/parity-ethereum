@@ -158,7 +158,7 @@ impl Miner {
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
 
-		let (transactions, mut open_block, last_work_hash) = {
+		let (transactions, mut open_block, original_work_hash) = {
 			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
 			let mut sealing_work = self.sealing_work.lock().unwrap();
 			let last_work_hash = sealing_work.peek_last_ref().map(|pb| pb.block().fields().header.hash());
@@ -254,23 +254,27 @@ impl Miner {
 			}
 		}
 
-		let work = {
+		let (work, is_new) = {
 			let mut sealing_work = self.sealing_work.lock().unwrap();
-			trace!(target: "miner", "Checking whether we need to reseal: last={:?}, this={:?}", last_work_hash, block.block().fields().header.hash());
-			let work = if last_work_hash.map_or(true, |h| h != block.block().fields().header.hash()) {
+			let last_work_hash = sealing_work.peek_last_ref().map(|pb| pb.block().fields().header.hash());
+			trace!(target: "miner", "Checking whether we need to reseal: orig={:?} last={:?}, this={:?}", original_work_hash, last_work_hash, block.block().fields().header.hash());
+			let (work, is_new) = if last_work_hash.map_or(true, |h| h != block.block().fields().header.hash()) {
 				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
 				let pow_hash = block.block().fields().header.hash();
 				let number = block.block().fields().header.number();
 				let difficulty = *block.block().fields().header.difficulty();
+				let is_new = original_work_hash.map_or(true, |h| block.block().fields().header.hash() != h);
 				sealing_work.push(block);
-				Some((pow_hash, difficulty, number))
+				(Some((pow_hash, difficulty, number)), is_new)
 			} else {
-				None
+				(None, false)
 			};
 			trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
-			work
+			(work, is_new)
 		};
-		work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|ref p| p.notify(pow_hash, difficulty, number)));
+		if is_new {
+			work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|ref p| p.notify(pow_hash, difficulty, number)));
+		}
 	}
 
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
