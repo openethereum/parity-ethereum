@@ -42,7 +42,7 @@ use std::fmt;
 
 use std::str::{FromStr};
 use std::convert::From;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::ops::*;
 use std::cmp::*;
 
