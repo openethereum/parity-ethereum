@@ -22,7 +22,7 @@ use util::*;
 use util::panics::*;
 use views::BlockView;
 use error::{Error, ImportError, ExecutionError, BlockError, ImportResult};
-use header::{BlockNumber, Header};
+use header::{BlockNumber};
 use state::State;
 use spec::Spec;
 use engine::Engine;
@@ -50,6 +50,7 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
+use basic_types::*;
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 
@@ -579,9 +580,9 @@ impl BlockChainClient for Client {
 		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
 	}
 
-	fn uncle(&self, id: UncleID) -> Option<Header> {
-		let index = id.1;
-		self.block(id.0).and_then(|block| BlockView::new(&block).uncle_at(index))
+	fn uncle(&self, id: UncleID) -> Option<Bytes> {
+		let index = id.position;
+		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_at(index).and_then(|u| Some(u.rlp(Seal::With))))
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
