@@ -17,6 +17,7 @@
 //! rpc integration tests.
 use std::sync::Arc;
 use std::str::FromStr;
+use std::time::Duration;
 
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ids::BlockID;
@@ -24,12 +25,12 @@ use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
-use ethcore::miner::{MinerService, ExternalMiner, Miner};
+use ethcore::miner::{MinerOptions, MinerService, ExternalMiner, Miner, PendingSet};
 use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
 use util::io::IoChannel;
-use util::{U256, H256};
+use util::{U256, H256, Uint};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
@@ -49,7 +50,22 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 }
 
 fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-	Miner::with_accounts(true, spec, accounts)
+	Miner::new(
+		MinerOptions {
+			new_work_notify: vec![],
+			force_sealing: true,
+			reseal_on_external_tx: true,
+			reseal_on_own_tx: true,
+			tx_queue_size: 1024,
+			tx_gas_limit: !U256::zero(),
+			pending_set: PendingSet::SealingOrElseQueue,
+			reseal_min_period: Duration::from_secs(0),
+			work_queue_size: 50,
+			enable_resubmission: true,
+		},
+		spec,
+		Some(accounts)
+	)
 }
 
 fn make_spec(chain: &BlockChain) -> Spec {

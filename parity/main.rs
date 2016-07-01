@@ -80,7 +80,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, paint, Colour, version};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
 use ethcore::error::{Error, ImportError};
@@ -184,22 +184,24 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging);
+	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
+
+	info!("Starting {}", paint(Colour::White.bold(), format!("{}", version())));
 
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
 
 	// Create and display a new token for UIs.
-	if conf.args.flag_signer && !conf.args.flag_no_token {
+	if conf.signer_enabled() && !conf.args.flag_no_token {
 		new_token(conf.directories().signer).unwrap_or_else(|e| {
 			die!("Error generating token: {:?}", e)
 		});
 	}
 
 	// Display warning about using unlock with signer
-	if conf.args.flag_signer && conf.args.flag_unlock.is_some() {
+	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
 		warn!("Using Trusted Signer and --unlock is not recommended!");
 		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
 	}
@@ -208,13 +210,13 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let account_service = Arc::new(conf.account_service());
 
 	// Miner
-	let miner = Miner::with_accounts(conf.args.flag_force_sealing, conf.spec(), account_service.clone());
-	miner.set_author(conf.author());
+	let miner = Miner::new(conf.miner_options(), conf.spec(), Some(account_service.clone()));
+	miner.set_author(conf.author().unwrap_or_default());
 	miner.set_gas_floor_target(conf.gas_floor_target());
 	miner.set_gas_ceil_target(conf.gas_ceil_target());
 	miner.set_extra_data(conf.extra_data());
 	miner.set_minimal_gas_price(conf.gas_price());
-	miner.set_transactions_limit(conf.args.flag_tx_limit);
+	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
 	// Build client
 	let mut service = ClientService::start(
@@ -253,7 +255,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Setup http rpc
 	let rpc_server = rpc::new_http(rpc::HttpConfiguration {
 		enabled: network_settings.rpc_enabled,
-		interface: network_settings.rpc_interface.clone(),
+		interface: conf.rpc_interface(),
 		port: network_settings.rpc_port,
 		apis: conf.rpc_apis(),
 		cors: conf.rpc_cors(),
@@ -265,8 +267,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {
-		enabled: !conf.args.flag_dapps_off && !conf.args.flag_no_dapps,
-		interface: conf.args.flag_dapps_interface.clone(),
+		enabled: conf.dapps_enabled(),
+		interface: conf.dapps_interface(),
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
 		pass: conf.args.flag_dapps_pass.clone(),
@@ -278,7 +280,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Set up a signer
 	let signer_server = signer::start(signer::Configuration {
-		enabled: deps_for_rpc_apis.signer_port.is_some(),
+		enabled: conf.signer_enabled(),
 		port: conf.args.flag_signer_port,
 		signer_path: conf.directories().signer,
 	}, signer::Dependencies {
@@ -297,7 +299,10 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
 	if conf.args.cmd_ui {
-		url::open("http://localhost:8080/")
+		if !conf.dapps_enabled() {
+			die_with_message("Cannot use UI command with Dapps turned off.");
+		}
+		url::open(&format!("http://{}:{}/", conf.dapps_interface(), conf.args.flag_dapps_port));
 	}
 
 	// Handle exit
@@ -317,6 +322,8 @@ fn execute_export(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -338,7 +345,7 @@ fn execute_export(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -389,6 +396,8 @@ fn execute_import(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -410,7 +419,7 @@ fn execute_import(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);

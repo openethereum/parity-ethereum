@@ -73,13 +73,8 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl EarlyMergeDB {
 	/// Create a new instance from file
-	pub fn new(path: &str, cache_size: Option<usize>) -> EarlyMergeDB {
-		let opts = DatabaseConfig {
-			// this must match account_db prefix
-			prefix_size: Some(DB_PREFIX_LEN),
-			max_open_files: 256,
-			cache_size: cache_size,
-		};
+	pub fn new(path: &str, config: DatabaseConfig) -> EarlyMergeDB {
+		let opts = config.prefix(DB_PREFIX_LEN);
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
@@ -107,7 +102,7 @@ impl EarlyMergeDB {
 	fn new_temp() -> EarlyMergeDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap(), None)
+		Self::new(dir.to_str().unwrap(), DatabaseConfig::default())
 	}
 
 	fn morph_key(key: &H256, index: u8) -> Bytes {
@@ -537,6 +532,7 @@ mod tests {
 	use super::super::traits::JournalDB;
 	use hashdb::*;
 	use log::init_log;
+	use kvdb::DatabaseConfig;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -714,7 +710,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -742,7 +738,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -770,7 +766,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -808,7 +804,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -818,14 +814,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -840,7 +836,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -869,7 +865,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -918,7 +914,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		// history is 1
 		let foo = jdb.insert(b"foo");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
@@ -949,7 +945,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -989,7 +985,7 @@ mod tests {
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -1010,7 +1006,7 @@ mod tests {
 			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
@@ -1018,14 +1014,14 @@ mod tests {
 			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -1038,7 +1034,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -1056,7 +1052,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));

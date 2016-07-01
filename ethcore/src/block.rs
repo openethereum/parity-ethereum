@@ -164,6 +164,12 @@ pub trait IsBlock {
 	fn uncles(&self) -> &Vec<Header> { &self.block().base.uncles }
 }
 
+/// Trait for a object that has a state database.
+pub trait Drain {
+	/// Drop this object and return the underlieing database.
+	fn drain(self) -> Box<JournalDB>;
+}
+
 impl IsBlock for ExecutedBlock {
 	fn block(&self) -> &ExecutedBlock { self }
 }
@@ -288,7 +294,7 @@ impl<'x> OpenBlock<'x> {
 	/// Get the environment info concerning this block.
 	pub fn env_info(&self) -> EnvInfo {
 		// TODO: memoise.
-		const SOFT_FORK_BLOCK: u64 = 1775000;
+		const SOFT_FORK_BLOCK: u64 = 1_800_000;
 		EnvInfo {
 			number: self.block.base.header.number,
 			author: self.block.base.header.author.clone(),
@@ -436,9 +442,11 @@ impl LockedBlock {
 			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
 		}
 	}
+}
 
+impl Drain for LockedBlock {
 	/// Drop this object and return the underlieing database.
-	pub fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
+	fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
 }
 
 impl SealedBlock {
@@ -450,9 +458,11 @@ impl SealedBlock {
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
 	}
+}
 
+impl Drain for SealedBlock {
 	/// Drop this object and return the underlieing database.
-	pub fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
+	fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
 }
 
 impl IsBlock for SealedBlock {
