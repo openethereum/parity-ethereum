@@ -497,7 +497,7 @@ impl RlpDecodable for u8 {
 }
 
 /// Stores valid RLPs that should be compressed
-struct InvalidRlpSwapper {
+pub struct InvalidRlpSwapper {
 	valid_rlps: Vec<Vec<u8>>,
 	invalid_rlps: Vec<Vec<u8>>,
 }
@@ -528,18 +528,13 @@ impl InvalidRlpSwapper {
 impl<'a> Compressible for UntrustedRlp<'a> {
 	fn compress(&self) -> ElasticArray1024<u8> {
 		if self.is_data() { panic!() };
-		let RLP_SHA3_NULL_RLP = encode(&SHA3_NULL_RLP);
-    let RLP_SHA3_NULL_RLP = UntrustedRlp::new(&RLP_SHA3_NULL_RLP).as_raw();
-    println!("{:?}", RLP_SHA3_NULL_RLP);
-    let code_rlps = vec![[0x81, 0x00]];
-    println!("{:?}", code_rlps[0]);
-		let compact_raw_rlp: ElasticArray1024<_> = self.iter()
+		let swapper = InvalidRlpSwapper::new(vec!(encode(&SHA3_NULL_RLP).to_vec()));
+		let compact_raw_rlp = self.iter()
 			.map(|subrlp| {
-        	let b = subrlp.as_raw();
-        	if b == RLP_SHA3_NULL_RLP { println!("Replaced!"); &code_rlps[0] }
-        	else { b }
+					let b = subrlp.as_raw();
+					swapper.get_invalid(b).unwrap_or(b)
       	})
-    	.fold(ElasticArray1024::new(), |mut acc, slice| {acc.append_slice(slice); acc});
+    	.fold(ElasticArray1024::new(), |mut acc, slice| { acc.append_slice(slice); acc });
   	let mut compact_rlp = RlpStream::new_list(self.item_count());
   	compact_rlp.append_raw(&compact_raw_rlp, self.item_count());
   	compact_rlp.drain()
