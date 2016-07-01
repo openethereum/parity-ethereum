@@ -22,7 +22,7 @@ use util::*;
 use util::panics::*;
 use views::BlockView;
 use error::{Error, ImportError, ExecutionError, BlockError, ImportResult};
-use header::{BlockNumber, Header};
+use header::{BlockNumber};
 use state::State;
 use spec::Spec;
 use engine::Engine;
@@ -585,9 +585,9 @@ impl BlockChainClient for Client {
 		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
 	}
 
-	fn uncle(&self, id: UncleID) -> Option<Header> {
-		let index = id.1;
-		self.block(id.0).and_then(|block| BlockView::new(&block).uncle_at(index))
+	fn uncle(&self, id: UncleID) -> Option<Bytes> {
+		let index = id.position;
+		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_rlp_at(index))
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
