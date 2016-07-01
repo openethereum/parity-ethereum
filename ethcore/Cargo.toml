@@ -18,7 +18,7 @@ evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
 num_cpus = "0.2"
 clippy = { version = "0.0.64", optional = true}
-crossbeam = "0.1.5"
+crossbeam = "0.2"
 lazy_static = "0.1"
 ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }

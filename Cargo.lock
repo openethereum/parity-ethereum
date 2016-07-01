@@ -166,11 +166,6 @@ dependencies = [
 
 [[package]]
 name = "crossbeam"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "crossbeam"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
@@ -253,7 +248,7 @@ version = "1.1.0"
 dependencies = [
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
- "crossbeam 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.1.0",
  "ethcore-devtools 1.1.0",
