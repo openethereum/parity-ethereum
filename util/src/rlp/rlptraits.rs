@@ -365,3 +365,11 @@ pub trait Stream: Sized {
 	/// panic! if stream is not finished.
 	fn out(self) -> Vec<u8>;
 }
+
+/// Trait for compressing and decompressing RLP by replacement of common terms.
+pub trait Compressible: Sized {
+	/// Replace common RLPs with invalid shorter ones.
+	fn compress(&self) -> ElasticArray1024<u8>;
+	/// Recover valid RLP from a compressed form.
+	fn decompress(&self) -> ElasticArray1024<u8>;
+}
