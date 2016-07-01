@@ -17,41 +17,46 @@
 use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
-use super::triedbmut::TrieDBMut;
-use super::trietraits::{Trie, TrieMut};
-use super::TrieError;
+use super::{TrieDBMut, Trie, TrieMut, TrieError};
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
+/// Additionaly it stores inserted hash-key mappings for later retrieval.
 ///
-/// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDBMut` object.
-pub struct SecTrieDBMut<'db> {
-	raw: TrieDBMut<'db>
+/// Use it as a `Trie` or `TrieMut` trait object.
+pub struct FatDBMut<'db> {
+	raw: TrieDBMut<'db>,
 }
 
-impl<'db> SecTrieDBMut<'db> {
+impl<'db> FatDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
-		SecTrieDBMut { raw: TrieDBMut::new(db, root) }
+		FatDBMut { raw: TrieDBMut::new(db, root) }
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
-		Ok(SecTrieDBMut { raw: try!(TrieDBMut::from_existing(db, root)) })
+		Ok(FatDBMut { raw: try!(TrieDBMut::from_existing(db, root)) })
 	}
 
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB { self.raw.db() }
+	pub fn db(&self) -> &HashDB {
+		self.raw.db()
+	}
 
 	/// Get the backing database.
-	pub fn db_mut(&mut self) -> &mut HashDB { self.raw.db_mut() }
+	pub fn db_mut(&mut self) -> &mut HashDB {
+		self.raw.db_mut()
+	}
 }
 
-impl<'db> TrieMut for SecTrieDBMut<'db> {
-	fn root(&self) -> &H256 { self.raw.root() }
+impl<'db> TrieMut for FatDBMut<'db> {
+	fn root(&self) -> &H256 {
+		self.raw.root()
+	}
 
 	fn contains(&self, key: &[u8]) -> bool {
 		self.raw.contains(&key.sha3())
@@ -62,7 +67,10 @@ impl<'db> TrieMut for SecTrieDBMut<'db> {
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
-		self.raw.insert(&key.sha3(), value);
+		let hash = key.sha3();
+		self.raw.insert(&hash, value);
+		let db = self.raw.db_mut();
+		db.insert_aux(hash.to_vec(), key.to_vec());
 	}
 
 	fn remove(&mut self, key: &[u8]) {
@@ -71,14 +79,14 @@ impl<'db> TrieMut for SecTrieDBMut<'db> {
 }
 
 #[test]
-fn sectrie_to_trie() {
-	use memorydb::*;
-	use super::triedb::*;
+fn fatdb_to_trie() {
+	use memorydb::MemoryDB;
+	use super::TrieDB;
 
 	let mut memdb = MemoryDB::new();
 	let mut root = H256::default();
 	{
-		let mut t = SecTrieDBMut::new(&mut memdb, &mut root);
+		let mut t = FatDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 	}
 	let t = TrieDB::new(&memdb, &root).unwrap();
