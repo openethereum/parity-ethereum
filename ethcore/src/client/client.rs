@@ -582,7 +582,7 @@ impl BlockChainClient for Client {
 
 	fn uncle(&self, id: UncleID) -> Option<Bytes> {
 		let index = id.position;
-		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_at(index).and_then(|u| Some(u.rlp(Seal::With))))
+		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_rlp_at(index))
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
