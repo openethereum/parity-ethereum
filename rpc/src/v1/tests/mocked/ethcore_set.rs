@@ -38,7 +38,7 @@ fn network_service() -> Arc<NetworkService<SyncMessage>> {
 	Arc::new(NetworkService::new(NetworkConfiguration::new()).unwrap())
 }
 
-fn ethcore_set_client(client: &Arc<TestClientService>, miner: &Arc<TestMinerService>, net: &Arc<NetworkService<SyncMessage>>) -> EthcoreSetClient<TestMinerService> {
+fn ethcore_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>, net: &Arc<NetworkService<SyncMessage>>) -> EthcoreSetClient<TestBlockChainClient, TestMinerService> {
 	EthcoreSetClient::new(client, miner, net)
 }
 
