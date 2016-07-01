@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use serde::{Serialize, Serializer};
-use util::U256;
-use v1::types::{Bytes, Transaction, H160, H256, H2048};
+use v1::types::{Bytes, Transaction, H160, H256, H2048, U256};
 
 /// Block Transactions
 #[derive(Debug)]
@@ -95,9 +94,8 @@ pub struct Block {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use util::U256;
-	use v1::types::{Transaction, H160, H256, H2048, Bytes};
-	use super::*;
+	use v1::types::{Transaction, H160, H256, H2048, Bytes, U256};
+	use super::{Block, BlockTransactions};
 
 	#[test]
 	fn test_serialize_block_transactions() {

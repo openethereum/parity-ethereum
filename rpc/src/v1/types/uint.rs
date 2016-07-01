@@ -22,6 +22,7 @@ use util::{U256 as EU256, Uint};
 
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
+		/// Uint serialization.
 		#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 		pub struct $name($other);
 

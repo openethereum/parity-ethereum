@@ -39,7 +39,6 @@
 #[cfg(all(asm_available, target_arch="x86_64"))]
 use std::mem;
 use std::fmt;
-use std::cmp;
 
 use std::str::{FromStr};
 use std::convert::From;
@@ -47,8 +46,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::*;
 use std::cmp::*;
 
-use serde;
-use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
+use rustc_serialize::hex::{FromHex, FromHexError};
 
 /// Conversion from decimal string error
 #[derive(Debug, PartialEq)]
@@ -791,44 +789,6 @@ macro_rules! construct_uint {
 		impl Default for $name {
 			fn default() -> Self {
 				$name::zero()
-			}
-		}
-
-		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
-			where S: serde::Serializer {
-				let mut hex = "0x".to_owned();
-				let mut bytes = [0u8; 8 * $n_words];
-				self.to_raw_bytes(&mut bytes);
-				let len = cmp::max((self.bits() + 7) / 8, 1);
-				hex.push_str(&bytes[bytes.len() - len..].to_hex());
-				serializer.serialize_str(&hex)
-			}
-		}
-
-		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error>
-			where D: serde::Deserializer {
-				struct UintVisitor;
-
-				impl serde::de::Visitor for UintVisitor {
-					type Value = $name;
-
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
-						// 0x + len
-						if value.len() > 2 + $n_words * 16 || value.len() < 2 {
-							return Err(serde::Error::custom("Invalid length."));
-						}
-
-						$name::from_str(&value[2..]).map_err(|_| serde::Error::custom("Invalid hex value."))
-					}
-
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
-						self.visit_str(&value)
-					}
-				}
-
-				deserializer.deserialize(UintVisitor)
 			}
 		}
 

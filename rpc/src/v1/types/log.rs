@@ -14,15 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//use util::numbers::*;
-use util::U256;
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
-use v1::types::{Bytes, H160, H256};
+use v1::types::{Bytes, H160, H256, U256};
 
 /// Log
 #[derive(Debug, Serialize, PartialEq, Eq, Hash, Clone)]
 pub struct Log {
-	/// Address
+	/// H160
 	pub address: H160,
 	/// Topics
 	pub topics: Vec<H256>,
@@ -84,23 +82,22 @@ impl From<LogEntry> for Log {
 mod tests {
 	use serde_json;
 	use std::str::FromStr;
-	use util::numbers::*;
-	use v1::types::Log;
+	use v1::types::{Log, H160, H256, U256};
 
 	#[test]
 	fn log_serialization() {
 		let s = r#"{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"data":"0x","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00","logIndex":"0x01","type":"mined"}"#;
 
 		let log = Log {
-			address: Address::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap().into(),
+			address: H160::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),
 			topics: vec![
-				H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap().into(),
-				H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap().into(),
+				H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(),
+				H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap(),
 			],
 			data: vec![].into(),
-			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap().into()),
+			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
 			block_number: Some(U256::from(0x4510c)),
-			transaction_hash: Some(H256::default().into()),
+			transaction_hash: Some(H256::default()),
 			transaction_index: Some(U256::default()),
 			log_index: Some(U256::from(1)),
 			log_type: "mined".to_owned(),

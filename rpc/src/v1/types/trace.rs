@@ -15,14 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::{U256, Uint};
 use serde::{Serialize, Serializer};
 use ethcore::trace::trace;
 use ethcore::trace::{Trace as EthTrace, LocalizedTrace as EthLocalizedTrace};
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
-use v1::types::{Bytes, H160, H256};
+use util::Uint;
+use v1::types::{Bytes, H160, H256, U256};
 
 #[derive(Debug, Serialize)]
 /// A diff of some chunk of memory.
@@ -54,8 +54,8 @@ pub struct StorageDiff {
 impl From<et::StorageDiff> for StorageDiff {
 	fn from(c: et::StorageDiff) -> Self {
 		StorageDiff {
-			key: c.location,
-			val: c.value,
+			key: c.location.into(),
+			val: c.value.into(),
 		}
 	}
 }
@@ -80,9 +80,9 @@ impl From<et::VMExecutedOperation> for VMExecutedOperation {
 	fn from(c: et::VMExecutedOperation) -> Self {
 		VMExecutedOperation {
 			used: c.gas_used.low_u64(),
-			push: c.stack_push,
-			mem: c.mem_diff.map(From::from),
-			store: c.store_diff.map(From::from),
+			push: c.stack_push.into_iter().map(Into::into).collect(),
+			mem: c.mem_diff.map(Into::into),
+			store: c.store_diff.map(Into::into),
 		}
 	}
 }
@@ -105,8 +105,8 @@ impl From<(et::VMOperation, Option<et::VMTrace>)> for VMOperation {
 		VMOperation {
 			pc: c.0.pc,
 			cost: c.0.gas_cost.low_u64(),
-			ex: c.0.executed.map(From::from),
-			sub: c.1.map(From::from),
+			ex: c.0.executed.map(Into::into),
+			sub: c.1.map(Into::into),
 		}
 	}
 }
@@ -226,8 +226,8 @@ impl From<trace::Create> for Create {
 	fn from(c: trace::Create) -> Self {
 		Create {
 			from: c.from.into(),
-			value: c.value,
-			gas: c.gas,
+			value: c.value.into(),
+			gas: c.gas.into(),
 			init: Bytes::new(c.init),
 		}
 	}
@@ -253,9 +253,9 @@ impl From<trace::Call> for Call {
 		Call {
 			from: c.from.into(),
 			to: c.to.into(),
-			value: c.value,
-			gas: c.gas,
-			input: Bytes::new(c.input),
+			value: c.value.into(),
+			gas: c.gas.into(),
+			input: c.input.into(),
 		}
 	}
 }
@@ -293,8 +293,8 @@ pub struct CallResult {
 impl From<trace::CallResult> for CallResult {
 	fn from(c: trace::CallResult) -> Self {
 		CallResult {
-			gas_used: c.gas_used,
-			output: Bytes::new(c.output),
+			gas_used: c.gas_used.into(),
+			output: c.output.into(),
 		}
 	}
 }
@@ -314,8 +314,8 @@ pub struct CreateResult {
 impl From<trace::CreateResult> for CreateResult {
 	fn from(c: trace::CreateResult) -> Self {
 		CreateResult {
-			gas_used: c.gas_used,
-			code: Bytes::new(c.code),
+			gas_used: c.gas_used.into(),
+			code: c.code.into(),
 			address: c.address.into(),
 		}
 	}
@@ -357,7 +357,7 @@ pub struct LocalizedTrace {
 	/// Result
 	result: Res,
 	/// Trace address
-	#[serde(rename="traceAddress")]
+	#[serde(rename="traceH160")]
 	trace_address: Vec<U256>,
 	/// Subtraces
 	subtraces: U256,
@@ -380,7 +380,7 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 		LocalizedTrace {
 			action: t.action.into(),
 			result: t.result.into(),
-			trace_address: t.trace_address.into_iter().map(From::from).collect(),
+			trace_address: t.trace_address.into_iter().map(Into::into).collect(),
 			subtraces: t.subtraces.into(),
 			transaction_position: t.transaction_number.into(),
 			transaction_hash: t.transaction_hash.into(),
@@ -409,7 +409,7 @@ impl From<EthTrace> for Trace {
 			depth: t.depth.into(),
 			action: t.action.into(),
 			result: t.result.into(),
-			subtraces: t.subs.into_iter().map(From::from).collect(),
+			subtraces: t.subs.into_iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -418,33 +418,32 @@ impl From<EthTrace> for Trace {
 mod tests {
 	use serde_json;
 	use std::collections::BTreeMap;
-	use util::{U256, H256, Address};
-	use v1::types::Bytes;
+	use v1::types::{Bytes, U256, H256, H160};
 	use super::*;
 
 	#[test]
 	fn test_trace_serialize() {
 		let t = LocalizedTrace {
 			action: Action::Call(Call {
-				from: Address::from(4).into(),
-				to: Address::from(5).into(),
+				from: H160::from(4),
+				to: H160::from(5),
 				value: U256::from(6),
 				gas: U256::from(7),
 				input: Bytes::new(vec![0x12, 0x34]),
 			}),
 			result: Res::Call(CallResult {
 				gas_used: U256::from(8),
-				output: Bytes::new(vec![0x56, 0x78]),
+				output: vec![0x56, 0x78].into(),
 			}),
 			trace_address: vec![U256::from(10)],
 			subtraces: U256::from(1),
 			transaction_position: U256::from(11),
-			transaction_hash: H256::from(12).into(),
+			transaction_hash: H256::from(12),
 			block_number: U256::from(13),
-			block_hash: H256::from(14).into(),
+			block_hash: H256::from(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"action":{"call":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","input":"0x1234"}},"result":{"call":{"gasUsed":"0x08","output":"0x5678"}},"traceAddress":["0x0a"],"subtraces":"0x01","transactionPosition":"0x0b","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0x0d","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"action":{"call":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","input":"0x1234"}},"result":{"call":{"gasUsed":"0x08","output":"0x5678"}},"traceH160":["0x0a"],"subtraces":"0x01","transactionPosition":"0x0b","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0x0d","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -493,15 +492,15 @@ mod tests {
 	#[test]
 	fn test_statediff_serialize() {
 		let t = StateDiff(map![
-			Address::from(42).into() => AccountDiff {
+			42.into() => AccountDiff {
 				balance: Diff::Same,
 				nonce: Diff::Born(1.into()),
 				code: Diff::Same,
 				storage: map![
-					H256::from(42).into() => Diff::Same
+					42.into() => Diff::Same
 				]
 			},
-			Address::from(69).into() => AccountDiff {
+			69.into() => AccountDiff {
 				balance: Diff::Same,
 				nonce: Diff::Changed(ChangedType { from: 1.into(), to: 0.into() }),
 				code: Diff::Died(vec![96].into()),
@@ -515,16 +514,16 @@ mod tests {
 	#[test]
 	fn test_action_serialize() {
 		let actions = vec![Action::Call(Call {
-			from: Address::from(1).into(),
-			to: Address::from(2).into(),
+			from: H160::from(1),
+			to: H160::from(2),
 			value: U256::from(3),
 			gas: U256::from(4),
-			input: Bytes::new(vec![0x12, 0x34]),
+			input: vec![0x12, 0x34].into(),
 		}), Action::Create(Create {
-			from: Address::from(5).into(),
+			from: H160::from(5),
 			value: U256::from(6),
 			gas: U256::from(7),
-			init: Bytes::new(vec![0x56, 0x78]),
+			init: vec![0x56, 0x78].into(),
 		})];
 
 		let serialized = serde_json::to_string(&actions).unwrap();
@@ -536,12 +535,12 @@ mod tests {
 		let results = vec![
 			Res::Call(CallResult {
 				gas_used: U256::from(1),
-				output: Bytes::new(vec![0x12, 0x34]),
+				output: vec![0x12, 0x34].into(),
 			}),
 			Res::Create(CreateResult {
 				gas_used: U256::from(2),
-				code: Bytes::new(vec![0x45, 0x56]),
-				address: Address::from(3).into(),
+				code: vec![0x45, 0x56].into(),
+				address: H160::from(3),
 			}),
 			Res::FailedCall,
 			Res::FailedCreate,

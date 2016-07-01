@@ -38,7 +38,7 @@ use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, Index, Filter, Log, Receipt, H64 as NH64, H256 as NH256, H160 as NH160};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, Index, Filter, Log, Receipt, H64 as NH64, H256 as NH256, H160 as NH160, U256 as NU256};
 use v1::helpers::CallRequest as CRequest;
 use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
@@ -95,12 +95,12 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 					transactions_root: view.transactions_root().into(),
 					receipts_root: view.receipts_root().into(),
 					number: Some(view.number().into()),
-					gas_used: view.gas_used(),
-					gas_limit: view.gas_limit(),
+					gas_used: view.gas_used().into(),
+					gas_limit: view.gas_limit().into(),
 					logs_bloom: view.log_bloom().into(),
 					timestamp: view.timestamp().into(),
-					difficulty: view.difficulty(),
-					total_difficulty: total_difficulty,
+					difficulty: view.difficulty().into(),
+					total_difficulty: total_difficulty.into(),
 					seal_fields: view.seal().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
 					uncles: block_view.uncle_hashes().into_iter().map(Into::into).collect(),
 					transactions: {
@@ -138,12 +138,12 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 					state_root: uncle.state_root.into(),
 					transactions_root: uncle.transactions_root.into(),
 					number: Some(uncle.number.into()),
-					gas_used: uncle.gas_used,
-					gas_limit: uncle.gas_limit,
+					gas_used: uncle.gas_used.into(),
+					gas_limit: uncle.gas_limit.into(),
 					logs_bloom: uncle.log_bloom.into(),
 					timestamp: uncle.timestamp.into(),
-					difficulty: uncle.difficulty,
-					total_difficulty: uncle.difficulty + parent_difficulty,
+					difficulty: uncle.difficulty.into(),
+					total_difficulty: (uncle.difficulty + parent_difficulty).into(),
 					receipts_root: uncle.receipts_root.into(),
 					extra_data: uncle.extra_data.into(),
 					seal_fields: uncle.seal.into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
@@ -257,15 +257,17 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 					SyncState::Idle => SyncStatus::None,
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => {
 						let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
+						let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
 
-						let info = SyncInfo {
-							starting_block: U256::from(status.start_block_number),
-							current_block: current_block,
-							highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
-						};
-						match info.highest_block > info.current_block + U256::from(6) {
-							true => SyncStatus::Info(info),
-							false => SyncStatus::None,
+						if highest_block > current_block + U256::from(6) {
+							let info = SyncInfo {
+								starting_block: status.start_block_number.into(),
+								current_block: current_block.into(),
+								highest_block: highest_block.into(),
+							};
+							SyncStatus::Info(info)
+						} else {
+							SyncStatus::None
 						}
 					}
 				};
@@ -291,7 +293,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&self.external_miner.hashrate()),
+			Params::None => to_value(&NU256::from(self.external_miner.hashrate())),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -300,7 +302,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		match params {
 			Params::None => {
 				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
-				to_value(&default_gas_price(&*client, &*miner))
+				to_value(&NU256::from(default_gas_price(&*client, &*miner)))
 			}
 			_ => Err(Error::invalid_params())
 		}
@@ -313,7 +315,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&U256::from(take_weak!(self.client).chain_info().best_block_number)),
+			Params::None => to_value(&NU256::from(take_weak!(self.client).chain_info().best_block_number)),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -323,20 +325,21 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(address, block_number,)| {
 				let address: Address = NH160::into(address);
 				match block_number {
-					BlockNumber::Pending => to_value(&take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address)),
-					id => to_value(&try!(take_weak!(self.client).balance(&address, id.into()).ok_or_else(make_unsupported_err))),
+					BlockNumber::Pending => to_value(&NU256::from(take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address))),
+					id => to_value(&NU256::from(try!(take_weak!(self.client).balance(&address, id.into()).ok_or_else(make_unsupported_err)))),
 				}
 			})
 	}
 
 	fn storage_at(&self, params: Params) -> Result<Value, Error> {
-		from_params_default_third::<NH160, U256>(params)
+		from_params_default_third::<NH160, NU256>(params)
 			.and_then(|(address, position, block_number,)| {
 				let address: Address = NH160::into(address);
+				let position: U256 = NU256::into(position);
 				match block_number {
-					BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)))),
+					BlockNumber::Pending => to_value(&NU256::from(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)))),
 					id => match take_weak!(self.client).storage_at(&address, &H256::from(position), id.into()) {
-						Some(s) => to_value(&U256::from(s)),
+						Some(s) => to_value(&NU256::from(s)),
 						None => Err(make_unsupported_err()), // None is only returned on unsupported requests.
 					}
 				}
@@ -349,8 +352,8 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(address, block_number,)| {
 				let address: Address = NH160::into(address);
 				match block_number {
-					BlockNumber::Pending => to_value(&take_weak!(self.miner).nonce(take_weak!(self.client).deref(), &address)),
-					id => to_value(&take_weak!(self.client).nonce(&address, id.into())),
+					BlockNumber::Pending => to_value(&NU256::from(take_weak!(self.miner).nonce(take_weak!(self.client).deref(), &address))),
+					id => to_value(&take_weak!(self.client).nonce(&address, id.into()).map(NU256::from)),
 				}
 			})
 	}
@@ -359,17 +362,17 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		from_params::<(NH256,)>(params)
 			.and_then(|(hash,)| // match
 				take_weak!(self.client).block(BlockID::Hash(hash.into()))
-					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count()))))
+					.map_or(Ok(Value::Null), |bytes| to_value(&NU256::from(BlockView::new(&bytes).transactions_count()))))
 	}
 
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
 				BlockNumber::Pending => to_value(
-					&U256::from(take_weak!(self.miner).status().transactions_in_pending_block)
+					&NU256::from(take_weak!(self.miner).status().transactions_in_pending_block)
 				),
 				_ => take_weak!(self.client).block(block_number.into())
-						.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count())))
+						.map_or(Ok(Value::Null), |bytes| to_value(&NU256::from(BlockView::new(&bytes).transactions_count())))
 			})
 	}
 
@@ -377,15 +380,15 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		from_params::<(NH256,)>(params)
 			.and_then(|(hash,)|
 				take_weak!(self.client).block(BlockID::Hash(hash.into()))
-					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count()))))
+					.map_or(Ok(Value::Null), |bytes| to_value(&NU256::from(BlockView::new(&bytes).uncles_count()))))
 	}
 
 	fn block_uncles_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&U256::from(0)),
+				BlockNumber::Pending => to_value(&NU256::from(0)),
 				_ => take_weak!(self.client).block(block_number.into())
-						.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count())))
+						.map_or(Ok(Value::Null), |bytes| to_value(&NU256::from(BlockView::new(&bytes).uncles_count())))
 			})
 	}
 
@@ -514,7 +517,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 					let seed_hash = self.seed_compute.lock().unwrap().get_seedhash(b.block().header().number());
-					let block_number = U256::from(b.block().header().number());
+					let block_number = NU256::from(b.block().header().number());
 					to_value(&(NH256::from(pow_hash), NH256::from(seed_hash), NH256::from(target), block_number))
 				}).unwrap_or(Err(Error::internal_error()))	// no work found.
 			},
@@ -537,8 +540,8 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn submit_hashrate(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(U256, NH256)>(params).and_then(|(rate, id)| {
-			self.external_miner.submit_hashrate(rate, id.into());
+		from_params::<(NU256, NH256)>(params).and_then(|(rate, id)| {
+			self.external_miner.submit_hashrate(rate.into(), id.into());
 			to_value(&true)
 		})
 	}
@@ -579,7 +582,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 					BlockNumber::Latest => take_weak!(self.client).call(&signed, Default::default()),
 					_ => return Err(Error::invalid_params()),
 				};
-				to_value(&r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0)))
+				to_value(&NU256::from(r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0))))
 			})
 	}
 

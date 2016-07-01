@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::U256;
-use v1::types::{Log, H160, H256};
+use v1::types::{Log, H160, H256, U256};
 use ethcore::receipt::{Receipt as EthReceipt, LocalizedReceipt};
 
 /// Receipt
@@ -50,13 +49,13 @@ impl From<LocalizedReceipt> for Receipt {
 	fn from(r: LocalizedReceipt) -> Self {
 		Receipt {
 			transaction_hash: Some(r.transaction_hash.into()),
-			transaction_index: Some(U256::from(r.transaction_index)),
+			transaction_index: Some(r.transaction_index.into()),
 			block_hash: Some(r.block_hash.into()),
-			block_number: Some(U256::from(r.block_number)),
-			cumulative_gas_used: r.cumulative_gas_used,
-			gas_used: r.gas_used,
+			block_number: Some(r.block_number.into()),
+			cumulative_gas_used: r.cumulative_gas_used.into(),
+			gas_used: r.gas_used.into(),
 			contract_address: r.contract_address.map(Into::into),
-			logs: r.logs.into_iter().map(From::from).collect(),
+			logs: r.logs.into_iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -68,10 +67,10 @@ impl From<EthReceipt> for Receipt {
 			transaction_index: None,
 			block_hash: None,
 			block_number: None,
-			cumulative_gas_used: r.gas_used,
-			gas_used: r.gas_used,
+			cumulative_gas_used: r.gas_used.into(),
+			gas_used: r.gas_used.into(),
 			contract_address: None,
-			logs: r.logs.into_iter().map(From::from).collect(),
+			logs: r.logs.into_iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -80,33 +79,32 @@ impl From<EthReceipt> for Receipt {
 mod tests {
 	use serde_json;
 	use std::str::FromStr;
-	use util::numbers::*;
-	use v1::types::{Log, Receipt};
+	use v1::types::{Log, Receipt, U256, H256, H160};
 
 	#[test]
 	fn receipt_serialization() {
 		let s = r#"{"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","cumulativeGasUsed":"0x20","gasUsed":"0x10","contractAddress":null,"logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"data":"0x","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00","logIndex":"0x01","type":"mined"}]}"#;
 
 		let receipt = Receipt {
-			transaction_hash: Some(H256::from(0).into()),
-			transaction_index: Some(U256::from(0).into()),
-			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap().into()),
+			transaction_hash: Some(H256::from(0)),
+			transaction_index: Some(U256::from(0)),
+			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
 			block_number: Some(U256::from(0x4510c)),
 			cumulative_gas_used: U256::from(0x20),
 			gas_used: U256::from(0x10),
 			contract_address: None,
 			logs: vec![Log {
-				address: Address::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap().into(),
+				address: H160::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),
 				topics: vec![
-					H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap().into(),
-					H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap().into(),
+					H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(),
+					H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap(),
 				],
 				data: vec![].into(),
-				block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap().into()),
+				block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
 				block_number: Some(U256::from(0x4510c)),
-				transaction_hash: Some(H256::default().into()),
-				transaction_index: Some(U256::zero()),
-				log_index: Some(U256::one()),
+				transaction_hash: Some(H256::default()),
+				transaction_index: Some(U256::default()),
+				log_index: Some(U256::from(1)),
 				log_type: "mined".to_owned(),
 			}]
 		};

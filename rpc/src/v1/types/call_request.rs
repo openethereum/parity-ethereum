@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::U256;
 use v1::helpers::CallRequest as Request;
-use v1::types::{Bytes, H160};
+use v1::types::{Bytes, H160, U256};
 
 /// Call request
 #[derive(Debug, Default, PartialEq, Deserialize)]
@@ -43,11 +42,11 @@ impl Into<Request> for CallRequest {
 		Request {
 			from: self.from.map(Into::into),
 			to: self.to.map(Into::into),
-			gas_price: self.gas_price,
-			gas: self.gas,
-			value: self.value,
+			gas_price: self.gas_price.map(Into::into),
+			gas: self.gas.map(Into::into),
+			value: self.value.map(Into::into),
 			data: self.data.map(Into::into),
-			nonce: self.nonce,
+			nonce: self.nonce.map(Into::into),
 		}
 	}
 }
@@ -57,9 +56,8 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use serde_json;
-	use util::numbers::{U256};
-	use util::hash::Address;
-	use super::*;
+	use v1::types::{U256, H160};
+	use super::CallRequest;
 
 	#[test]
 	fn call_request_deserialize() {
@@ -75,8 +73,8 @@ mod tests {
 		let deserialized: CallRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, CallRequest {
-			from: Some(Address::from(1).into()),
-			to: Some(Address::from(2).into()),
+			from: Some(H160::from(1)),
+			to: Some(H160::from(2)),
 			gas_price: Some(U256::from(1)),
 			gas: Some(U256::from(2)),
 			value: Some(U256::from(3)),
@@ -98,8 +96,8 @@ mod tests {
 		let deserialized: CallRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, CallRequest {
-			from: Some(Address::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap().into()),
-			to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap().into()),
+			from: Some(H160::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap()),
+			to: Some(H160::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 			gas_price: Some(U256::from_str("9184e72a000").unwrap()),
 			gas: Some(U256::from_str("76c0").unwrap()),
 			value: Some(U256::from_str("9184e72a").unwrap()),
@@ -114,7 +112,7 @@ mod tests {
 		let deserialized: CallRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, CallRequest {
-			from: Some(Address::from(1).into()),
+			from: Some(H160::from(1)),
 			to: None,
 			gas_price: None,
 			gas: None,

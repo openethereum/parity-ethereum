@@ -15,14 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Ethcore-specific rpc interface for operations altering the settings.
-use util::U256;
-use util::network::{NetworkService, NonReservedPeerMode};
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::service::SyncMessage;
+use util::network::{NetworkService, NonReservedPeerMode};
 use v1::traits::EthcoreSet;
-use v1::types::{Bytes, H160};
+use v1::types::{Bytes, H160, U256};
 
 /// Ethcore-specific rpc interface for operations altering the settings.
 pub struct EthcoreSetClient<M> where
@@ -46,21 +45,21 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 
 	fn set_min_gas_price(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(U256,)>(params).and_then(|(gas_price,)| {
-			take_weak!(self.miner).set_minimal_gas_price(gas_price);
+			take_weak!(self.miner).set_minimal_gas_price(gas_price.into());
 			to_value(&true)
 		})
 	}
 
 	fn set_gas_floor_target(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(U256,)>(params).and_then(|(target,)| {
-			take_weak!(self.miner).set_gas_floor_target(target);
+			take_weak!(self.miner).set_gas_floor_target(target.into());
 			to_value(&true)
 		})
 	}
 
 	fn set_gas_ceil_target(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(U256,)>(params).and_then(|(target,)| {
-			take_weak!(self.miner).set_gas_ceil_target(target);
+			take_weak!(self.miner).set_gas_ceil_target(target.into());
 			to_value(&true)
 		})
 	}
