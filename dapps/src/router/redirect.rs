@@ -33,7 +33,7 @@ impl Redirection {
 }
 
 impl server::Handler<HttpStream> for Redirection {
-	fn on_request(&mut self, _request: server::Request) -> Next {
+	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
 		Next::write()
 	}
 

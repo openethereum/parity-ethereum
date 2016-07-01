@@ -42,14 +42,12 @@ Protocol Options:
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
-
-DAO-Rescue Soft-fork Options:
-  --help-rescue-dao        Does nothing - on by default.
-  --dont-help-rescue-dao   Votes against the DAO-rescue soft-fork, but supports
-                           it if it is triggered anyway.
-                           Equivalent to --gas-floor-target=3141592.
-  --dogmatic               Ignores all DAO-rescue soft-fork behaviour. Even if
-                           it means losing mining rewards.
+  --fork POLICY            Specifies the client's fork policy. POLICY must be
+                           one of:
+                           dogmatic - sticks rigidly to the standard chain.
+                           dao-soft - votes for the DAO-rescue soft-fork.
+                           normal - goes with whatever fork is decided but
+                           votes for none. [default: normal].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
@@ -133,6 +131,29 @@ Sealing/Mining Options:
                            NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
+  --reseal-on-txs SET      Specify which transactions should force the node
+                           to reseal a block. SET is one of:
+                           none - never reseal on new transactions;
+                           own - reseal only on a new local transaction;
+                           ext - reseal only on a new external transaction;
+                           all - reseal on all new transactions [default: all].
+  --reseal-min-period MS   Specify the minimum time between reseals from 
+                           incoming transactions. MS is time measured in
+                           milliseconds [default: 2000].
+  --work-queue-size ITEMS  Specify the number of historical work packages
+                           which are kept cached lest a solution is found for 
+                           them later. High values take more memory but result
+                           in fewer unusable solutions [default: 20].
+  --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
+                           a single transaction may have for it to be mined.
+  --relay-set SET          Set of transactions to relay. SET may be:
+                           cheap - Relay any transaction in the queue (this
+                           may include invalid transactions);
+                           strict - Relay only executed transactions (this
+                           guarantees we don't relay invalid transactions, but
+                           means we relay nothing if not mining);
+                           lenient - Same as strict when mining, and cheap
+                           when not [default: cheap].
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
                            [default: 0.005]. The minimum gas price is set
                            accordingly.
@@ -141,13 +162,19 @@ Sealing/Mining Options:
                            web service in turn and fallback on the last known
                            good value [default: auto].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
-                           block [default: 3141592].
+                           block [default: 4700000].
   --gas-cap GAS            A cap on how large we will raise the gas limit per
-                           block due to transaction volume [default: 3141592].
+                           block due to transaction volume [default: 6283184].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
-  --tx-limit LIMIT         Limit of transactions kept in the queue (waiting to
-                           be included in next block) [default: 1024].
+  --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
+                           to be included in next block) [default: 1024].
+  --remove-solved          Move solved blocks from the work package queue
+                           instead of cloning them. This gives a slightly
+                           faster import speed, but means that extra solutions
+                           submitted for the same work package will go unused.
+  --notify-work URLS       URLs to which work package notifications are pushed.
+                           URLS should be a comma-delimited list of HTTP URLs.
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
@@ -170,7 +197,12 @@ Footprint Options:
   --cache MEGABYTES        Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
-  --db-cache-size MB       Database cache size.
+
+Database Options:
+  --db-cache-size MB       Override RocksDB database cache size.
+  --db-compaction TYPE     Database compaction type. TYPE may be one of:
+                           ssd - suitable for SSDs and fast HDDs;
+                           hdd - suitable for slow HDDs [default: ssd].
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -241,8 +273,7 @@ pub struct Args {
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
-	pub flag_dont_help_rescue_dao: bool,
-	pub flag_dogmatic: bool,
+	pub flag_fork: String,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,
@@ -283,13 +314,20 @@ pub struct Args {
 	pub flag_signer_path: String,
 	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
+	pub flag_reseal_on_txs: String,
+	pub flag_reseal_min_period: u64,
+	pub flag_work_queue_size: usize,
+	pub flag_remove_solved: bool,
+	pub flag_tx_gas_limit: Option<String>,
+	pub flag_relay_set: String,
 	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,
 	pub flag_gas_floor_target: String,
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
-	pub flag_tx_limit: usize,
+	pub flag_tx_queue_size: usize,
+	pub flag_notify_work: Option<String>,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
 	pub flag_from: String,
@@ -323,6 +361,7 @@ pub struct Args {
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
 	pub flag_db_cache_size: Option<usize>,
+	pub flag_db_compaction: String,
 }
 
 pub fn print_version() {

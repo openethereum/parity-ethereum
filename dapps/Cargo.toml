@@ -22,8 +22,8 @@ ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 parity-dapps = { git = "https://github.com/ethcore/parity-dapps-rs.git", version = "0.3" }
 # List of apps
-parity-dapps-status = { git = "https://github.com/ethcore/parity-dapps-status-rs.git", version = "0.5.0" }
-parity-dapps-builtins = { git = "https://github.com/ethcore/parity-dapps-builtins-rs.git", version = "0.5.0" }
+parity-dapps-status = { git = "https://github.com/ethcore/parity-dapps-status-rs.git", version = "0.5.1" }
+parity-dapps-builtins = { git = "https://github.com/ethcore/parity-dapps-builtins-rs.git", version = "0.5.2" }
 parity-dapps-wallet = { git = "https://github.com/ethcore/parity-dapps-wallet-rs.git", version = "0.6.0", optional = true }
 parity-dapps-dao = { git = "https://github.com/ethcore/parity-dapps-dao-rs.git", version = "0.4.0", optional = true }
 parity-dapps-makerotc = { git = "https://github.com/ethcore/parity-dapps-makerotc-rs.git", version = "0.3.0", optional = true }

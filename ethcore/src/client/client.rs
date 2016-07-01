@@ -16,7 +16,6 @@
 
 //! Blockchain database client.
 
-use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
@@ -30,7 +29,8 @@ use engine::Engine;
 use views::HeaderView;
 use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
-use verification::*;
+use verification;
+use verification::{PreverifiedBlock, Verifier};
 use block::*;
 use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
@@ -38,7 +38,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -83,7 +83,7 @@ impl ClientReport {
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
-pub struct Client<V = CanonVerifier> where V: Verifier {
+pub struct Client {
 	chain: Arc<BlockChain>,
 	tracedb: Arc<TraceDB<BlockChain>>,
 	engine: Arc<Box<Engine>>,
@@ -92,7 +92,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
-	verifier: PhantomData<V>,
+	verifier: Box<Verifier>,
 	vm_factory: Arc<EvmFactory>,
 	miner: Arc<Miner>,
 	io_channel: IoChannel<NetSyncMessage>,
@@ -106,13 +106,6 @@ const HISTORY: u64 = 1200;
 // Instead, add/upgrade the version string of the individual JournalDB-derived database
 // of which you actually want force an upgrade.
 const CLIENT_DB_VER_STR: &'static str = "5.3";
-
-impl Client<CanonVerifier> {
-	/// Create a new client with given spec and DB path.
-	pub fn new(config: ClientConfig, spec: Spec, path: &Path, miner: Arc<Miner>, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, ClientError> {
-		Client::<CanonVerifier>::new_with_verifier(config, spec, path, miner, message_channel)
-	}
-}
 
 /// Get the path for the databases given the root path and information on the databases.
 pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf {
@@ -131,25 +124,35 @@ pub fn append_path(path: &Path, item: &str) -> String {
 	p.to_str().unwrap().to_owned()
 }
 
-impl<V> Client<V> where V: Verifier {
+impl Client {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(
+	pub fn new(
 		config: ClientConfig,
 		spec: Spec,
 		path: &Path,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<NetSyncMessage>)
-		-> Result<Arc<Client<V>>, ClientError>
+		-> Result<Arc<Client>, ClientError>
 	{
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
 
+		let mut state_db_config = match config.db_cache_size {
+			None => DatabaseConfig::default(),
+			Some(cache_size) => DatabaseConfig::with_cache(cache_size),
+		};
+
+		if config.db_compaction == DatabaseCompactionProfile::HDD {
+			state_db_config = state_db_config.compaction(CompactionProfile::hdd());
+		}
+
 		let mut state_db = journaldb::new(
 			&append_path(&path, "state"),
 			config.pruning,
-			config.db_cache_size);
+			state_db_config
+		);
 
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
@@ -170,7 +173,7 @@ impl<V> Client<V> where V: Verifier {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
-			verifier: PhantomData,
+			verifier: verification::new(config.verifier_type),
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
 			miner: miner,
 			io_channel: message_channel,
@@ -212,7 +215,7 @@ impl<V> Client<V> where V: Verifier {
 		}
 
 		// Verify Block Family
-		let verify_family_result = V::verify_block_family(&header, &block.bytes, engine, self.chain.deref());
+		let verify_family_result = self.verifier.verify_block_family(&header, &block.bytes, engine, self.chain.deref());
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -238,7 +241,7 @@ impl<V> Client<V> where V: Verifier {
 
 		// Final Verification
 		let locked_block = enact_result.unwrap();
-		if let Err(e) = V::verify_block_final(&header, locked_block.block().header()) {
+		if let Err(e) = self.verifier.verify_block_final(&header, locked_block.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
@@ -246,7 +249,7 @@ impl<V> Client<V> where V: Verifier {
 		Ok(locked_block)
 	}
 
-	fn calculate_enacted_retracted(&self, import_results: Vec<ImportRoute>) -> (Vec<H256>, Vec<H256>) {
+	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
 		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
 			map.into_iter().map(|(k, _v)| k).collect()
 		}
@@ -256,12 +259,12 @@ impl<V> Client<V> where V: Verifier {
 		// could be retracted in import `k+1`. This is why to understand if after all inserts
 		// the block is enacted or retracted we iterate over all routes and at the end final state
 		// will be in the hashmap
-		let map = import_results.into_iter().fold(HashMap::new(), |mut map, route| {
-			for hash in route.enacted {
-				map.insert(hash, true);
+		let map = import_results.iter().fold(HashMap::new(), |mut map, route| {
+			for hash in &route.enacted {
+				map.insert(hash.clone(), true);
 			}
-			for hash in route.retracted {
-				map.insert(hash, false);
+			for hash in &route.retracted {
+				map.insert(hash.clone(), false);
 			}
 			map
 		});
@@ -296,38 +299,12 @@ impl<V> Client<V> where V: Verifier {
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
 				invalid_blocks.insert(header.hash());
-				break;
+				continue;
 			}
+			let closed_block = closed_block.unwrap();
 			imported_blocks.push(header.hash());
 
-			// Are we committing an era?
-			let ancient = if header.number() >= HISTORY {
-				let n = header.number() - HISTORY;
-				Some((n, self.chain.block_hash(n).unwrap()))
-			} else {
-				None
-			};
-
-			// Commit results
-			let closed_block = closed_block.unwrap();
-			let receipts = closed_block.block().receipts().clone();
-			let traces = From::from(closed_block.block().traces().clone().unwrap_or_else(Vec::new));
-
-			closed_block.drain()
-				.commit(header.number(), &header.hash(), ancient)
-				.expect("State DB commit failed.");
-
-			// And update the chain after commit to prevent race conditions
-			// (when something is in chain but you are not able to fetch details)
-			let route = self.chain.insert_block(&block.bytes, receipts);
-			self.tracedb.import(TraceImportRequest {
-				traces: traces,
-				block_hash: header.hash(),
-				block_number: header.number(),
-				enacted: route.enacted.clone(),
-				retracted: route.retracted.len()
-			});
-
+			let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
 			import_results.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
@@ -348,7 +325,7 @@ impl<V> Client<V> where V: Verifier {
 
 		{
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
-				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
+				let (enacted, retracted) = self.calculate_enacted_retracted(&import_results);
 
 				if self.queue_info().is_empty() {
 					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
@@ -359,17 +336,48 @@ impl<V> Client<V> where V: Verifier {
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
-				})).unwrap();
+					sealed: Vec::new(),
+				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 			}
 		}
 
-		{
-			if self.chain_info().best_block_hash != original_best {
-				self.miner.update_sealing(self);
-			}
+		if self.chain_info().best_block_hash != original_best {
+			self.miner.update_sealing(self);
 		}
 
 		imported
+	}
+
+	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &Bytes) -> ImportRoute where B: IsBlock + Drain {
+		let number = block.header().number();
+		// Are we committing an era?
+		let ancient = if number >= HISTORY {
+			let n = number - HISTORY;
+			Some((n, self.chain.block_hash(n).unwrap()))
+		} else {
+			None
+		};
+
+		// Commit results
+		let receipts = block.receipts().clone();
+		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
+
+		// CHECK! I *think* this is fine, even if the state_root is equal to another
+		// already-imported block of the same number.
+		// TODO: Prove it with a test.
+		block.drain().commit(number, hash, ancient).expect("State DB commit failed.");
+
+		// And update the chain after commit to prevent race conditions
+		// (when something is in chain but you are not able to fetch details)
+		let route = self.chain.insert_block(block_data, receipts);
+		self.tracedb.import(TraceImportRequest {
+			traces: traces,
+			block_hash: hash.clone(),
+			block_number: number,
+			enacted: route.enacted.clone(),
+			retracted: route.retracted.len()
+		});
+		route
 	}
 
 	/// Import transactions from the IO queue
@@ -473,7 +481,7 @@ impl<V> Client<V> where V: Verifier {
 	}
 }
 
-impl<V> BlockChainClient for Client<V> where V: Verifier {
+impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
 		let view = HeaderView::new(&header);
@@ -512,9 +520,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		ret
 	}
 
-	fn vm_factory(&self) -> &EvmFactory {
-		&self.vm_factory
-	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
@@ -791,12 +796,12 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		}
 	}
 
-	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.all_transactions()
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.pending_transactions()
 	}
 }
 
-impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
+impl MiningBlockChainClient for Client {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
@@ -825,6 +830,43 @@ impl<V> MiningBlockChainClient for Client<V> where V: Verifier {
 			});
 
 		open_block
+	}
+
+	fn vm_factory(&self) -> &EvmFactory {
+		&self.vm_factory
+	}
+
+	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
+		let _import_lock = self.import_lock.lock();
+		let _timer = PerfTimer::new("import_sealed_block");
+
+		let original_best = self.chain_info().best_block_hash;
+
+		let h = block.header().hash();
+		let number = block.header().number();
+
+		let block_data = block.rlp_bytes();
+		let route = self.commit_block(block, &h, &block_data);
+		trace!(target: "client", "Imported sealed block #{} ({})", number, h);
+
+		{
+			let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
+			self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
+
+			self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
+				imported: vec![h.clone()],
+				invalid: vec![],
+				enacted: enacted,
+				retracted: retracted,
+				sealed: vec![h.clone()],
+			})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+		}
+
+		if self.chain_info().best_block_hash != original_best {
+			self.miner.update_sealing(self);
+		}
+
+		Ok(h)
 	}
 }
 

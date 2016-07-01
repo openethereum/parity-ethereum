@@ -14,35 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod verification;
-pub mod verifier;
-mod canon_verifier;
-mod noop_verifier;
+//! Block oriented views onto rlp.
 
-pub use self::verification::*;
-pub use self::verifier::Verifier;
-pub use self::canon_verifier::CanonVerifier;
-pub use self::noop_verifier::NoopVerifier;
+mod block;
+mod header;
+mod transaction;
 
-/// Verifier type.
-#[derive(Debug)]
-pub enum VerifierType {
-	/// Verifies block normally.
-	Canon,
-	/// Does not verify block at all.
-	/// Used in tests.
-	Noop,
-}
-
-impl Default for VerifierType {
-	fn default() -> Self {
-		VerifierType::Canon
-	}
-}
-
-pub fn new(v: VerifierType) -> Box<Verifier> {
-	match v {
-		VerifierType::Canon => Box::new(CanonVerifier),
-		VerifierType::Noop => Box::new(NoopVerifier),
-	}
-}
+pub use self::block::BlockView;
+pub use self::header::HeaderView;
+pub use self::transaction::TransactionView;

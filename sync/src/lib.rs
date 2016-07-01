@@ -44,8 +44,14 @@
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
 //! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(true), &dir, Arc::new(Miner::default()), service.io().channel()).unwrap();
-//! 	let miner = Miner::new(false, ethereum::new_frontier(true));
+//! 	let miner = Miner::new(Default::default(), ethereum::new_frontier(true), None);
+//! 	let client = Client::new(
+//!			ClientConfig::default(),
+//!			ethereum::new_frontier(true),
+//!			&dir,
+//!			miner,
+//!			service.io().channel()
+//!		).unwrap();
 //! 	let sync = EthSync::new(SyncConfig::default(), client);
 //! 	EthSync::register(&mut service, sync);
 //! }
@@ -154,11 +160,13 @@ impl SyncProvider for EthSync {
 	}
 
 	fn start_network(&self) {
-		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StartNetwork)).expect("Error sending IO notification");
+		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StartNetwork))
+			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 	}
 
 	fn stop_network(&self) {
-		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StopNetwork)).expect("Error sending IO notification");
+		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StopNetwork))
+			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 	}
 }
 
@@ -188,9 +196,9 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
 		match *message {
-			SyncMessage::NewChainBlocks { ref imported, ref invalid, ref enacted, ref retracted } => {
+			SyncMessage::NewChainBlocks { ref imported, ref invalid, ref enacted, ref retracted, ref sealed } => {
 				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
-				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, imported, invalid, enacted, retracted);
+				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, imported, invalid, enacted, retracted, sealed);
 			},
 			_ => {/* Ignore other messages */},
 		}

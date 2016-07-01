@@ -27,6 +27,14 @@ pub struct UsingQueue<T> where T: Clone {
 	max_size: usize,
 }
 
+/// Take an item or just clone it?
+pub enum GetAction {
+	/// Remove the item, faster but you can't get it back.
+	Take,
+	/// Clone the item, slower but you can get it again.
+	Clone,
+}
+
 impl<T> UsingQueue<T> where T: Clone {
 	/// Create a new struct with a maximum size of `max_size`.
 	pub fn new(max_size: usize) -> UsingQueue<T> {
@@ -74,6 +82,20 @@ impl<T> UsingQueue<T> where T: Clone {
 		self.in_use.iter().position(|r| predicate(r)).map(|i| self.in_use.remove(i))
 	}
 
+	/// Returns `Some` item which is the first that `f` returns `true` with a reference to it
+	/// as a parameter or `None` if no such item exists in the queue.
+	pub fn clone_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+		self.in_use.iter().find(|r| predicate(r)).cloned()
+	}
+
+	/// Fork-function for `take_used_if` and `clone_used_if`.
+	pub fn get_used_if<P>(&mut self, action: GetAction, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+		match action {
+			GetAction::Take => self.take_used_if(predicate),
+			GetAction::Clone => self.clone_used_if(predicate),
+		}
+	}
+
 	/// Returns the most recently pushed block if `f` returns `true` with a reference to it as
 	/// a parameter, otherwise `None`.
 	/// Will not destroy a block if a reference to it has previously been returned by `use_last_ref`,
@@ -94,10 +116,17 @@ impl<T> UsingQueue<T> where T: Clone {
 }
 
 #[test]
-fn should_find_when_pushed() {
+fn should_not_find_when_pushed() {
 	let mut q = UsingQueue::new(2);
 	q.push(1);
 	assert!(q.take_used_if(|i| i == &1).is_none());
+}
+
+#[test]
+fn should_not_find_when_pushed_with_clone() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	assert!(q.clone_used_if(|i| i == &1).is_none());
 }
 
 #[test]
@@ -105,7 +134,48 @@ fn should_find_when_pushed_and_used() {
 	let mut q = UsingQueue::new(2);
 	q.push(1);
 	q.use_last_ref();
-	assert!(q.take_used_if(|i| i == &1).is_some());
+	assert!(q.take_used_if(|i| i == &1).unwrap() == 1);
+}
+
+#[test]
+fn should_have_same_semantics_for_get_take_clone() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	assert!(q.get_used_if(GetAction::Clone, |i| i == &1).is_none());
+	assert!(q.get_used_if(GetAction::Take, |i| i == &1).is_none());
+	q.use_last_ref();
+	assert!(q.get_used_if(GetAction::Clone, |i| i == &1).unwrap() == 1);
+	assert!(q.get_used_if(GetAction::Clone, |i| i == &1).unwrap() == 1);
+	assert!(q.get_used_if(GetAction::Take, |i| i == &1).unwrap() == 1);
+	assert!(q.get_used_if(GetAction::Clone, |i| i == &1).is_none());
+	assert!(q.get_used_if(GetAction::Take, |i| i == &1).is_none());
+}
+
+#[test]
+fn should_find_when_pushed_and_used_with_clone() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	q.use_last_ref();
+	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
+}
+
+#[test]
+fn should_not_find_again_when_pushed_and_taken() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	q.use_last_ref();
+	assert!(q.take_used_if(|i| i == &1).unwrap() == 1);
+	assert!(q.clone_used_if(|i| i == &1).is_none());
+}
+
+#[test]
+fn should_find_again_when_pushed_and_cloned() {
+	let mut q = UsingQueue::new(2);
+	q.push(1);
+	q.use_last_ref();
+	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
+	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
+	assert!(q.take_used_if(|i| i == &1).unwrap() == 1);
 }
 
 #[test]

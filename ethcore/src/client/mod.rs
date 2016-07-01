@@ -23,7 +23,7 @@ mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch, VMType};
+pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
@@ -37,7 +37,7 @@ use util::numbers::U256;
 use util::Itertools;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::OpenBlock;
+use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
@@ -172,9 +172,6 @@ pub trait BlockChainClient : Sync + Send {
 	// TODO: should be able to accept blockchain location for call.
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
 
-	/// Returns EvmFactory.
-	fn vm_factory(&self) -> &EvmFactory;
-
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
 
@@ -197,7 +194,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn queue_transactions(&self, transactions: Vec<Bytes>);
 
 	/// list all transactions
-	fn all_transactions(&self) -> Vec<SignedTransaction>;
+	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
 	/// Get the gas price distribution.
 	fn gas_price_statistics(&self, sample_size: usize, distribution_size: usize) -> Result<Vec<U256>, ()> {
@@ -245,7 +242,7 @@ pub trait BlockChainClient : Sync + Send {
 		} else {
 			None
 		}
-	}	
+	}
 }
 
 /// Extended client interface used for mining
@@ -253,4 +250,10 @@ pub trait MiningBlockChainClient : BlockChainClient {
 	/// Returns OpenBlock prepared for closing.
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes)
 		-> OpenBlock;
+
+	/// Returns EvmFactory.
+	fn vm_factory(&self) -> &EvmFactory;
+
+	/// Import sealed block. Skips all verifications.
+	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
 }
