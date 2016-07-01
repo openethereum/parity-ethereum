@@ -23,7 +23,7 @@ use util::*;
 use util::panics::*;
 use views::BlockView;
 use error::{Error, ImportError, ExecutionError, BlockError, ImportResult};
-use header::{BlockNumber, Header};
+use header::{BlockNumber};
 use state::State;
 use spec::Spec;
 use engine::Engine;
@@ -97,6 +97,7 @@ pub struct Client {
 	panic_handler: Arc<PanicHandler>,
 	verifier: Box<Verifier>,
 	vm_factory: Arc<EvmFactory>,
+	trie_factory: TrieFactory,
 	miner: Arc<Miner>,
 	last_activity: Mutex<Option<Instant>>,
 	last_autosleep: Mutex<Option<Instant>>,
@@ -183,6 +184,7 @@ impl Client {
 			panic_handler: panic_handler,
 			verifier: verification::new(config.verifier_type),
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
+			trie_factory: TrieFactory::new(config.trie_spec),
 			miner: miner,
 			liveness: AtomicBool::new(true),
 			io_channel: message_channel,
@@ -242,7 +244,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -357,7 +359,7 @@ impl Client {
 		imported
 	}
 
-	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &Bytes) -> ImportRoute where B: IsBlock + Drain {
+	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
 		let number = block.header().number();
 		// Are we committing an era?
 		let ancient = if number >= HISTORY {
@@ -427,13 +429,17 @@ impl Client {
 
 			let root = HeaderView::new(&header).state_root();
 
-			State::from_existing(db, root, self.engine.account_start_nonce()).ok()
+			State::from_existing(db, root, self.engine.account_start_nonce(), self.trie_factory.clone()).ok()
 		})
 	}
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(self.state_db.lock().unwrap().boxed_clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(
+			self.state_db.lock().unwrap().boxed_clone(),
+			HeaderView::new(&self.best_block_header()).state_root(),
+			self.engine.account_start_nonce(),
+			self.trie_factory.clone())
 			.expect("State root of best block header always valid.")
 	}
 
@@ -647,9 +653,9 @@ impl BlockChainClient for Client {
 		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
 	}
 
-	fn uncle(&self, id: UncleID) -> Option<Header> {
-		let index = id.1;
-		self.block(id.0).and_then(|block| BlockView::new(&block).uncle_at(index))
+	fn uncle(&self, id: UncleID) -> Option<Bytes> {
+		let index = id.position;
+		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_rlp_at(index))
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
@@ -877,6 +883,7 @@ impl MiningBlockChainClient for Client {
 		let mut open_block = OpenBlock::new(
 			engine,
 			&self.vm_factory,
+			self.trie_factory.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),

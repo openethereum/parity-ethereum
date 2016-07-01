@@ -139,6 +139,11 @@ impl<'a> BlockView<'a> {
 	pub fn uncle_at(&self, index: usize) -> Option<Header> {
 		self.rlp.at(2).iter().nth(index).map(|rlp| rlp.as_val())
 	}
+
+	/// Return nth uncle rlp.
+	pub fn uncle_rlp_at(&self, index: usize) -> Option<Bytes> {
+		self.rlp.at(2).iter().nth(index).map(|rlp| rlp.as_raw().to_vec())
+	}
 }
 
 impl<'a> Hashable for BlockView<'a> {
