@@ -50,7 +50,6 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
-use basic_types::*;
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 
