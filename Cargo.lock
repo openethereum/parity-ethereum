@@ -401,7 +401,6 @@ dependencies = [
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha3 0.1.0",
  "slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "table 0.1.0",

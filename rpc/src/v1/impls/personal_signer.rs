@@ -66,7 +66,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 						let mut request = confirmation.transaction;
 						// apply modification
 						if let Some(gas_price) = modification.gas_price {
-							request.gas_price = Some(gas_price);
+							request.gas_price = Some(gas_price.into());
 						}
 
 						let sender = request.from;

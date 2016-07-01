@@ -14,10 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::U256;
 use ethcore::contract_address;
 use ethcore::transaction::{LocalizedTransaction, Action, SignedTransaction};
-use v1::types::{Bytes, H160, H256};
+use v1::types::{Bytes, H160, H256, U256};
 
 /// Transaction
 #[derive(Debug, Default, Serialize)]
@@ -56,7 +55,7 @@ impl From<LocalizedTransaction> for Transaction {
 	fn from(t: LocalizedTransaction) -> Transaction {
 		Transaction {
 			hash: t.hash().into(),
-			nonce: t.nonce,
+			nonce: t.nonce.into(),
 			block_hash: Some(t.block_hash.clone().into()),
 			block_number: Some(t.block_number.into()),
 			transaction_index: Some(t.transaction_index.into()),
@@ -65,9 +64,9 @@ impl From<LocalizedTransaction> for Transaction {
 				Action::Create => None,
 				Action::Call(ref address) => Some(address.clone().into())
 			},
-			value: t.value,
-			gas_price: t.gas_price,
-			gas: t.gas,
+			value: t.value.into(),
+			gas_price: t.gas_price.into(),
+			gas: t.gas.into(),
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
 				Action::Create => Some(contract_address(&t.sender().unwrap(), &t.nonce).into()),
@@ -81,7 +80,7 @@ impl From<SignedTransaction> for Transaction {
 	fn from(t: SignedTransaction) -> Transaction {
 		Transaction {
 			hash: t.hash().into(),
-			nonce: t.nonce,
+			nonce: t.nonce.into(),
 			block_hash: None,
 			block_number: None,
 			transaction_index: None,
@@ -90,9 +89,9 @@ impl From<SignedTransaction> for Transaction {
 				Action::Create => None,
 				Action::Call(ref address) => Some(address.clone().into())
 			},
-			value: t.value,
-			gas_price: t.gas_price,
-			gas: t.gas,
+			value: t.value.into(),
+			gas_price: t.gas_price.into(),
+			gas: t.gas.into(),
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
 				Action::Create => Some(contract_address(&t.sender().unwrap(), &t.nonce).into()),
@@ -104,7 +103,7 @@ impl From<SignedTransaction> for Transaction {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::Transaction;
 	use serde_json;
 
 	#[test]

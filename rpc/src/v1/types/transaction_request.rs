@@ -16,8 +16,7 @@
 
 //! `TransactionRequest` type
 
-use util::U256;
-use v1::types::{Bytes, H160};
+use v1::types::{Bytes, H160, U256};
 use v1::helpers::{TransactionRequest as Request, TransactionConfirmation as Confirmation};
 
 /// Transaction request coming from RPC
@@ -45,11 +44,11 @@ impl From<Request> for TransactionRequest {
 		TransactionRequest {
 			from: r.from.into(),
 			to: r.to.map(Into::into),
-			gas_price: r.gas_price,
-			gas: r.gas,
-			value: r.value,
+			gas_price: r.gas_price.map(Into::into),
+			gas: r.gas.map(Into::into),
+			value: r.value.map(Into::into),
 			data: r.data.map(Into::into),
-			nonce: r.nonce
+			nonce: r.nonce.map(Into::into),
 		}
 	}
 }
@@ -59,11 +58,11 @@ impl Into<Request> for TransactionRequest {
 		Request {
 			from: self.from.into(),
 			to: self.to.map(Into::into),
-			gas_price: self.gas_price,
-			gas: self.gas,
-			value: self.value,
+			gas_price: self.gas_price.map(Into::into),
+			gas: self.gas.map(Into::into),
+			value: self.value.map(Into::into),
 			data: self.data.map(Into::into),
-			nonce: self.nonce
+			nonce: self.nonce.map(Into::into),
 		}
 	}
 }
@@ -80,7 +79,7 @@ pub struct TransactionConfirmation {
 impl From<Confirmation> for TransactionConfirmation {
 	fn from(c: Confirmation) -> Self {
 		TransactionConfirmation {
-			id: c.id,
+			id: c.id.into(),
 			transaction: c.transaction.into(),
 		}
 	}
@@ -100,7 +99,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use serde_json;
-	use util::{U256, Address};
+	use v1::types::{U256, H160};
 	use super::*;
 
 	#[test]
@@ -117,8 +116,8 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from(1).into(),
-			to: Some(Address::from(2).into()),
+			from: H160::from(1),
+			to: Some(H160::from(2)),
 			gas_price: Some(U256::from(1)),
 			gas: Some(U256::from(2)),
 			value: Some(U256::from(3)),
@@ -140,8 +139,8 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap().into(),
-			to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap().into()),
+			from: H160::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap(),
+			to: Some(H160::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 			gas_price: Some(U256::from_str("9184e72a000").unwrap()),
 			gas: Some(U256::from_str("76c0").unwrap()),
 			value: Some(U256::from_str("9184e72a").unwrap()),
@@ -156,7 +155,7 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from(1).into(),
+			from: H160::from(1).into(),
 			to: None,
 			gas_price: None,
 			gas: None,
@@ -179,8 +178,8 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap().into(),
-			to: Some(Address::from_str("895d32f2db7d01ebb50053f9e48aacf26584fe40").unwrap().into()),
+			from: H160::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap(),
+			to: Some(H160::from_str("895d32f2db7d01ebb50053f9e48aacf26584fe40").unwrap()),
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: Some(U256::from_str("2fd618").unwrap()),
 			value: None,

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
+use std::str::FromStr;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use serde;
@@ -39,9 +40,17 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl From<$other> for $name {
-			fn from(h: $other) -> Self {
-				$name(h.0)
+		impl<T> From<T> for $name where $other: From<T> {
+			fn from(o: T) -> Self {
+				$name($other::from(o).0)
+			}
+		}
+
+		impl FromStr for $name {
+			type Err = <$other as FromStr>::Err;
+
+			fn from_str(s: &str) -> Result<Self, Self::Err> {
+				$other::from_str(s).map(|x| $name(x.0))
 			}
 		}
 

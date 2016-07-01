@@ -108,7 +108,6 @@ extern crate secp256k1;
 extern crate arrayvec;
 extern crate elastic_array;
 extern crate crossbeam;
-extern crate serde;
 #[macro_use]
 extern crate log as rlog;
 extern crate igd;
