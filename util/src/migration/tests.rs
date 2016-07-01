@@ -15,18 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use migration::{Error, Destination, Migration, Manager, Config};
+use migration::{Error, Destination, Migration, Config, SimpleMigration};
 
 impl Destination for BTreeMap<Vec<u8>, Vec<u8>> {
-	fn commit(&mut self, batch: BTreeMap<Vec<u8>, Vec<u8>>) -> Result<(), Error> {
-		self.extend(batch);
+	fn commit(&mut self, batch: &BTreeMap<Vec<u8>, Vec<u8>>) -> Result<(), Error> {
+		self.extend(batch.cloned());
 		Ok(())
 	}
 }
 
 struct Migration0;
 
-impl Migration for Migration0 {
+impl SimpleMigration for Migration0 {
 	fn version(&self) -> u32 {
 		1
 	}
@@ -42,7 +42,7 @@ impl Migration for Migration0 {
 
 struct Migration1;
 
-impl Migration for Migration1 {
+impl SimpleMigration for Migration1 {
 	fn version(&self) -> u32 {
 		2
 	}

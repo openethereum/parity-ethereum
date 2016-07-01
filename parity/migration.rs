@@ -19,7 +19,7 @@ use std::fs::File;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::PathBuf;
 use std::fmt::{Display, Formatter, Error as FmtError};
-use util::migration::{Manager as MigrationManager, Config as MigrationConfig, MigrationIterator};
+use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError};
 use util::kvdb::{Database, DatabaseConfig, CompactionProfile};
 use ethcore::migrations;
 
@@ -62,6 +62,16 @@ impl Display for Error {
 impl From<IoError> for Error {
 	fn from(err: IoError) -> Self {
 		Error::Io(err)
+	}
+}
+
+impl From<MigrationError> for Error {
+	fn from(err: MigrationError) -> Self {
+		match err {
+			MigrationError::Io(e) => Error::Io(e),
+			_ => Error::MigrationFailed,
+
+		}
 	}
 }
 
@@ -109,14 +119,6 @@ fn extras_database_path(path: &PathBuf) -> PathBuf {
 	extras_path
 }
 
-/// Temporary database path used for migration.
-fn temp_database_path(path: &PathBuf) -> PathBuf {
-	let mut temp_path = path.clone();
-	temp_path.pop();
-	temp_path.push("temp_migration");
-	temp_path
-}
-
 /// Database backup
 fn backup_database_path(path: &PathBuf) -> PathBuf {
 	let mut backup_path = path.clone();
@@ -152,29 +154,13 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 		return Ok(())
 	}
 
-	let temp_path = temp_database_path(&path);
 	let backup_path = backup_database_path(&path);
-	// remote the dir if it exists
+	// remove the dir if it exists
 	let _ = fs::remove_dir_all(&temp_path);
 	let _ = fs::remove_dir_all(&backup_path);
 
-	{
-		let db_config = DatabaseConfig {
-			prefix_size: None,
-			max_open_files: 64,
-			cache_size: None,
-			compaction: CompactionProfile::default(),
-		};
-
-		// open old database
-		let old = try!(Database::open(&db_config, path.to_str().unwrap()).map_err(|_| Error::MigrationFailed));
-
-		// create new database
-		let mut temp = try!(Database::open(&db_config, temp_path.to_str().unwrap()).map_err(|_| Error::MigrationFailed));
-
-		// migrate old database to the new one
-		try!(migrations.execute(MigrationIterator::from(old.iter()), version, &mut temp).map_err(|_| Error::MigrationFailed));
-	}
+	// migrate old database to the new one
+	let temp_path = try!(migrations.execute(version));
 
 	// create backup
 	try!(fs::rename(&path, &backup_path));
@@ -183,7 +169,7 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 	if let Err(err) = fs::rename(&temp_path, &path) {
 		// if something went wrong, bring back backup
 		try!(fs::rename(&backup_path, path));
-		return Err(From::from(err));
+		return Err(err.into());
 	}
 
 	// remove backup

@@ -1,4 +1,4 @@
-use util::migration::Migration;
+use util::migration::SimpleMigration;
 
 /// This migration reduces the sizes of keys and moves `ExtrasIndex` byte from back to the front.
 pub struct ToV6;
@@ -17,7 +17,7 @@ impl ToV6 {
 	}
 }
 
-impl Migration for ToV6 {
+impl SimpleMigration for ToV6 {
 	fn version(&self) -> u32 {
 		6
 	}
