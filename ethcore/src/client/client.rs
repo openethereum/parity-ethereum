@@ -190,7 +190,6 @@ impl Client {
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
 		};
-
 		Ok(Arc::new(client))
 	}
 
