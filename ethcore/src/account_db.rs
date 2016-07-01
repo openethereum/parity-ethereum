@@ -3,24 +3,30 @@ use util::*;
 
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
 
+#[inline]
+fn combine_key<'a>(address_hash: &'a H256, key: &'a H256) -> H256 {
+	address_hash ^ key
+}
+
 // TODO: introduce HashDBMut?
 /// DB backend wrapper for Account trie
 /// Transforms trie node keys for the database
 pub struct AccountDB<'db> {
 	db: &'db HashDB,
-	address: H256,
-}
-
-#[inline]
-fn combine_key<'a>(address: &'a H256, key: &'a H256) -> H256 {
-	address ^ key
+	address_hash: H256,
 }
 
 impl<'db> AccountDB<'db> {
-	pub fn new(db: &'db HashDB, address: &Address) -> AccountDB<'db> {
+	/// Create a new AccountDB from an address.
+	pub fn new(db: &'db HashDB, address: &Address) -> Self {
+		Self::from_hash(db, address.sha3())
+	}
+
+	/// Create a new AcountDB from an address' hash.
+	pub fn from_hash(db: &'db HashDB, address_hash: H256) -> Self {
 		AccountDB {
 			db: db,
-			address: address.into(),
+			address_hash: address_hash,
 		}
 	}
 }
@@ -34,14 +40,14 @@ impl<'db> HashDB for AccountDB<'db>{
 		if key == &SHA3_NULL_RLP {
 			return Some(&NULL_RLP_STATIC);
 		}
-		self.db.get(&combine_key(&self.address, key))
+		self.db.get(&combine_key(&self.address_hash, key))
 	}
 
 	fn contains(&self, key: &H256) -> bool {
 		if key == &SHA3_NULL_RLP {
 			return true;
 		}
-		self.db.contains(&combine_key(&self.address, key))
+		self.db.contains(&combine_key(&self.address_hash, key))
 	}
 
 	fn insert(&mut self, _value: &[u8]) -> H256 {
@@ -60,20 +66,26 @@ impl<'db> HashDB for AccountDB<'db>{
 /// DB backend wrapper for Account trie
 pub struct AccountDBMut<'db> {
 	db: &'db mut HashDB,
-	address: H256,
+	address_hash: H256,
 }
 
 impl<'db> AccountDBMut<'db> {
-	pub fn new(db: &'db mut HashDB, address: &Address) -> AccountDBMut<'db> {
+	/// Create a new AccountDB from an address.
+	pub fn new(db: &'db mut HashDB, address: &Address) -> Self {
+		Self::from_hash(db, address.sha3())
+	}
+
+	/// Create a new AcountDB from an address' hash.
+	pub fn from_hash(db: &'db mut HashDB, address_hash: H256) -> Self {
 		AccountDBMut {
 			db: db,
-			address: address.into(),
+			address_hash: address_hash,
 		}
 	}
 
 	#[allow(dead_code)]
 	pub fn immutable(&'db self) -> AccountDB<'db> {
-		AccountDB { db: self.db, address: self.address.clone() }
+		AccountDB { db: self.db, address_hash: self.address_hash.clone() }
 	}
 }
 
@@ -86,14 +98,14 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		if key == &SHA3_NULL_RLP {
 			return Some(&NULL_RLP_STATIC);
 		}
-		self.db.get(&combine_key(&self.address, key))
+		self.db.get(&combine_key(&self.address_hash, key))
 	}
 
 	fn contains(&self, key: &H256) -> bool {
 		if key == &SHA3_NULL_RLP {
 			return true;
 		}
-		self.db.contains(&combine_key(&self.address, key))
+		self.db.contains(&combine_key(&self.address_hash, key))
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
@@ -101,7 +113,7 @@ impl<'db> HashDB for AccountDBMut<'db>{
 			return SHA3_NULL_RLP.clone();
 		}
 		let k = value.sha3();
-		let ak = combine_key(&self.address, &k);
+		let ak = combine_key(&self.address_hash, &k);
 		self.db.emplace(ak, value.to_vec());
 		k
 	}
@@ -110,7 +122,7 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		if key == SHA3_NULL_RLP {
 			return;
 		}
-		let key = combine_key(&self.address, &key);
+		let key = combine_key(&self.address_hash, &key);
 		self.db.emplace(key, value.to_vec())
 	}
 
@@ -118,7 +130,7 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		if key == &SHA3_NULL_RLP {
 			return;
 		}
-		let key = combine_key(&self.address, key);
+		let key = combine_key(&self.address_hash, key);
 		self.db.remove(&key)
 	}
 }
