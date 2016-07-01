@@ -29,8 +29,10 @@ use transaction::SignedTransaction;
 use receipt::{Receipt};
 use spec::Spec;
 use engine::Engine;
-use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
+use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionOrigin};
 use miner::work_notify::WorkPoster;
+use client::TransactionImportResult;
+
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug)]

@@ -20,8 +20,10 @@ use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
-
 pub use types::executed::ExecutionError;
+use ipc::binary::{BinaryConvertError, BinaryConvertable};
+use types::transaction_import::TransactionImportError;
+use types::block_import_error::BlockImportError;
 
 #[derive(Debug, PartialEq)]
 /// Errors concerning transaction processing.
@@ -250,7 +252,7 @@ impl fmt::Display for Error {
 }
 
 /// Result of import block operation.
-pub type ImportResult = Result<H256, BlockImportError>;
+pub type ImportResult = Result<H256, Error>;
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {

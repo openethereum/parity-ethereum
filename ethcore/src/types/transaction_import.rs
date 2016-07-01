@@ -16,8 +16,10 @@
 
 //! Transaction import result related types
 
-use ipc::binary::BinaryConvertError;
+use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use std::collections::VecDeque;
+use error::{TransactionError, Error};
+use std::mem;
 
 #[derive(Debug, Clone, PartialEq)]
 /// Represents the result of importing transaction.
@@ -36,10 +38,10 @@ pub enum TransactionImportError {
 	Other(String),
 }
 
-impl From<Error> for BlockImportError {
+impl From<Error> for TransactionImportError {
 	fn from(e: Error) -> Self {
 		match e {
-			Error::Transaction(transaction_error) => TransactionImportError::Transaction(block_error),
+			Error::Transaction(transaction_error) => TransactionImportError::Transaction(transaction_error),
 			_ => TransactionImportError::Other(format!("other block import error: {:?}", e)),
 		}
 	}

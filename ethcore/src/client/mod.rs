@@ -47,7 +47,6 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
-use miner::{TransactionImportResult};
 use error::Error as EthError;
 pub use block_import_error::BlockImportError;
 pub use transaction_import::{TransactionImportResult, TransactionImportError};
@@ -147,7 +146,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> ImportResult;
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
