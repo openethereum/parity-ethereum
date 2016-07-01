@@ -164,6 +164,12 @@ pub trait IsBlock {
 	fn uncles(&self) -> &Vec<Header> { &self.block().base.uncles }
 }
 
+/// Trait for a object that has a state database.
+pub trait Drain {
+	/// Drop this object and return the underlieing database.
+	fn drain(self) -> Box<JournalDB>;
+}
+
 impl IsBlock for ExecutedBlock {
 	fn block(&self) -> &ExecutedBlock { self }
 }
@@ -436,9 +442,11 @@ impl LockedBlock {
 			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
 		}
 	}
+}
 
+impl Drain for LockedBlock {
 	/// Drop this object and return the underlieing database.
-	pub fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
+	fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
 }
 
 impl SealedBlock {
@@ -450,9 +458,11 @@ impl SealedBlock {
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
 	}
+}
 
+impl Drain for SealedBlock {
 	/// Drop this object and return the underlieing database.
-	pub fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
+	fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
 }
 
 impl IsBlock for SealedBlock {
