@@ -203,6 +203,7 @@ Database Options:
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs [default: ssd].
+  --fat-db                 Fat database.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -362,6 +363,7 @@ pub struct Args {
 	pub flag_ipcapi: Option<String>,
 	pub flag_db_cache_size: Option<usize>,
 	pub flag_db_compaction: String,
+	pub flag_fat_db: bool,
 }
 
 pub fn print_version() {

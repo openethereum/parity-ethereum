@@ -16,5 +16,5 @@ ethcore-ipc-nano = { path = "../nano" }
 ethcore-util = { path = "../../util" }
 
 [build-dependencies]
-syntex = "*"
+syntex = "0.33"
 ethcore-ipc-codegen = { path = "../codegen" }
