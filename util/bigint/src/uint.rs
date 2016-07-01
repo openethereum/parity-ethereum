@@ -1031,7 +1031,7 @@ macro_rules! construct_uint {
 
 				// shift
 				for i in word_shift..$n_words {
-					ret[i] += original[i - word_shift] << bit_shift;
+					ret[i] = original[i - word_shift] << bit_shift;
 				}
 				// carry
 				if bit_shift > 0 {
@@ -1052,14 +1052,18 @@ macro_rules! construct_uint {
 				let word_shift = shift / 64;
 				let bit_shift = shift % 64;
 
+				// shift
 				for i in word_shift..$n_words {
-					// Shift
-					ret[i - word_shift] += original[i] >> bit_shift;
-					// Carry
-					if bit_shift > 0 && i < $n_words - 1 {
-						ret[i - word_shift] += original[i + 1] << (64 - bit_shift);
+					ret[i - word_shift] = original[i] >> bit_shift;
+				}
+
+				// Carry
+				if bit_shift > 0 {
+					for i in word_shift+1..$n_words {
+						ret[i - word_shift - 1] += original[i] << (64 - bit_shift);
 					}
 				}
+
 				$name(ret)
 			}
 		}
