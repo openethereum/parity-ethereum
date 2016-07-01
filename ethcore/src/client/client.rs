@@ -94,6 +94,7 @@ pub struct Client {
 	panic_handler: Arc<PanicHandler>,
 	verifier: Box<Verifier>,
 	vm_factory: Arc<EvmFactory>,
+	trie_factory: TrieFactory,
 	miner: Arc<Miner>,
 	io_channel: IoChannel<NetSyncMessage>,
 	queue_transactions: AtomicUsize,
@@ -175,6 +176,7 @@ impl Client {
 			panic_handler: panic_handler,
 			verifier: verification::new(config.verifier_type),
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
+			trie_factory: TrieFactory::new(config.trie_spec),
 			miner: miner,
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
@@ -233,7 +235,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -418,13 +420,17 @@ impl Client {
 
 			let root = HeaderView::new(&header).state_root();
 
-			State::from_existing(db, root, self.engine.account_start_nonce()).ok()
+			State::from_existing(db, root, self.engine.account_start_nonce(), self.trie_factory.clone()).ok()
 		})
 	}
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(self.state_db.lock().unwrap().boxed_clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(
+			self.state_db.lock().unwrap().boxed_clone(),
+			HeaderView::new(&self.best_block_header()).state_root(),
+			self.engine.account_start_nonce(),
+			self.trie_factory.clone())
 			.expect("State root of best block header always valid.")
 	}
 
@@ -809,6 +815,7 @@ impl MiningBlockChainClient for Client {
 		let mut open_block = OpenBlock::new(
 			engine,
 			&self.vm_factory,
+			self.trie_factory.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
