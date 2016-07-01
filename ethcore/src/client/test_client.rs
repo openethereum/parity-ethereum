@@ -32,7 +32,7 @@ use miner::{Miner, MinerService};
 use spec::Spec;
 
 use block_queue::BlockQueueInfo;
-use block::OpenBlock;
+use block::{OpenBlock, SealedBlock};
 use executive::Executed;
 use error::{ExecutionError};
 use trace::LocalizedTrace;
@@ -242,6 +242,14 @@ impl TestBlockChainClient {
 
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, _author: Address, _gas_range_target: (U256, U256), _extra_data: Bytes) -> OpenBlock {
+		unimplemented!();
+	}
+	
+	fn vm_factory(&self) -> &EvmFactory {
+		unimplemented!();
+	}
+
+	fn import_sealed_block(&self, _block: SealedBlock) -> ImportResult {
 		unimplemented!();
 	}
 }
@@ -463,10 +471,6 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn vm_factory(&self) -> &EvmFactory {
-		unimplemented!();
-	}
-
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
 		unimplemented!();
 	}
@@ -500,7 +504,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.import_transactions(tx);
 	}
 
-	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.all_transactions()
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		self.miner.pending_transactions()
 	}
 }

@@ -258,14 +258,7 @@ impl <T>FromBytes for T where T: FixedHash {
 			Ordering::Equal => ()
 		};
 
-		unsafe {
-			use std::{mem, ptr};
-
-			let mut res: T = mem::uninitialized();
-			ptr::copy(bytes.as_ptr(), res.as_slice_mut().as_mut_ptr(), T::len());
-
-			Ok(res)
-		}
+		Ok(T::from_slice(bytes))
 	}
 }
 

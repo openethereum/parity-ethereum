@@ -120,7 +120,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 			.filter_map(|f| String::from_utf8(f.to_vec()).ok())
 			.collect::<Vec<String>>()
 			.join("-");
-		info!(target: "signer", "New authentication token generated.");
+		trace!(target: "signer", "New authentication token generated.");
 		self.codes.push(code);
 		Ok(readable_code)
 	}
