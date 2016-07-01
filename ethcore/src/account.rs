@@ -272,13 +272,12 @@ mod tests {
 	fn account_compress() {
     let raw = Account::new_basic(2.into(), 4.into()).rlp();
     let rlp = UntrustedRlp::new(&raw);
-    println!("{:?}", rlp);
-    let compact_slice = rlp.compress();
-    let compact_rlp = UntrustedRlp::new(&compact_slice);
-    println!("{:?}", compact_rlp);
-    for r in compact_rlp.iter() { println!("{:?}", r) };
-    let a = Account::from_rlp(&compact_slice);
-    println!("{:?}", a.storage_root().unwrap().hex());
+    let compact_vec = rlp.compress().to_vec();
+    assert!(raw != compact_vec);
+    let again_raw = UntrustedRlp::new(&compact_vec).decompress();
+    assert_eq!(raw, again_raw.to_vec());
+    //let a = Account::from_rlp(&compact_slice);
+    //println!("{:?}", UntrustedRlp::new(&a).storage_root().unwrap().hex());
   }
 
 	#[test]
