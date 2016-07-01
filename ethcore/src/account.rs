@@ -269,6 +269,19 @@ mod tests {
 	use account_db::*;
 
 	#[test]
+	fn account_compress() {
+    let raw = Account::new_basic(2.into(), 4.into()).rlp();
+    let rlp = UntrustedRlp::new(&raw);
+    println!("{:?}", rlp);
+    let compact_slice = rlp.compress();
+    let compact_rlp = UntrustedRlp::new(&compact_slice);
+    println!("{:?}", compact_rlp);
+    for r in compact_rlp.iter() { println!("{:?}", r) };
+    let a = Account::from_rlp(&compact_slice);
+    println!("{:?}", a.storage_root().unwrap().hex());
+  }
+
+	#[test]
 	fn storage_at() {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
