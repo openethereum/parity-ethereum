@@ -250,7 +250,7 @@ impl fmt::Display for Error {
 }
 
 /// Result of import block operation.
-pub type ImportResult = Result<H256, Error>;
+pub type ImportResult = Result<H256, BlockImportError>;
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {
@@ -311,6 +311,21 @@ impl From<TrieError> for Error {
 		Error::Trie(err)
 	}
 }
+
+impl From<BlockImportError> for Error {
+	fn from(err: BlockImportError) -> Error {
+		match err {
+			BlockImportError::Block(e) => Error::Block(e),
+			BlockImportError::Import(e) => Error::Import(e),
+			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
+		}
+	}
+}
+
+binary_fixed_size!(BlockError);
+binary_fixed_size!(ImportError);
+binary_fixed_size!(TransactionError);
+
 
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
 /*#![feature(concat_idents)]
