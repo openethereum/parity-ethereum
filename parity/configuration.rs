@@ -337,7 +337,7 @@ impl Configuration {
 			if let journaldb::Algorithm::Archive = client_config.pruning {
 				client_config.trie_spec = TrieSpec::Fat;
 			} else {
-				die!("Fatdb is supported only with pruning 'archive'.")
+				die!("Fatdb is not supported. Please rerun with --pruning=archive")
 			}
 		}
 
