@@ -17,7 +17,7 @@
 use common::*;
 use super::u256_to_address;
 use evm::{self, CostType};
-use evm::instructions::{self, Instruction};
+use evm::instructions::{self, Instruction, InstructionInfo};
 use evm::interpreter::stack::Stack;
 
 macro_rules! overflowing {
@@ -59,25 +59,11 @@ impl<Gas: CostType> Gasometer<Gas> {
 		&mut self,
 		ext: &evm::Ext,
 		instruction: Instruction,
+		info: &InstructionInfo,
 		stack: &Stack<U256>,
 		current_mem_size: usize,
 	) -> evm::Result<(Gas, usize)> {
 		let schedule = ext.schedule();
-		let info = instructions::get_info(instruction);
-
-		if !schedule.have_delegate_call && instruction == instructions::DELEGATECALL {
-			return Err(evm::Error::BadInstruction {
-				instruction: instruction
-			});
-		}
-		if info.tier == instructions::GasPriceTier::Invalid {
-			return Err(evm::Error::BadInstruction {
-				instruction: instruction
-			});
-		}
-
-		try!(self.verify_instructions_requirements(&info, schedule.stack_limit, stack));
-
 		let tier = instructions::get_tier_idx(info.tier);
 		let default_gas = Gas::from(schedule.tier_step_gas[tier]);
 
@@ -189,29 +175,6 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let gas = overflowing!(gas.overflow_add(mem_gas));
 				Ok((gas, new_mem_size))
 			}
-		}
-	}
-
-	fn verify_instructions_requirements(
-		&self,
-		info: &instructions::InstructionInfo,
-		stack_limit: usize,
-		stack: &Stack<U256>
-	) -> evm::Result<()> {
-		if !stack.has(info.args) {
-			Err(evm::Error::StackUnderflow {
-				instruction: info.name,
-				wanted: info.args,
-				on_stack: stack.size()
-			})
-		} else if stack.size() - info.args + info.ret > stack_limit {
-			Err(evm::Error::OutOfStack {
-				instruction: info.name,
-				wanted: info.ret - info.args,
-				limit: stack_limit
-			})
-		} else {
-			Ok(())
 		}
 	}
 

@@ -38,8 +38,7 @@ use self::memory::Memory;
 
 use std::marker::PhantomData;
 use common::*;
-use super::instructions;
-use super::instructions::{Instruction, get_info};
+use super::instructions::{self, Instruction, InstructionInfo};
 use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType};
 
 #[cfg(feature = "evm-debug")]
@@ -108,14 +107,15 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 
 		while reader.position < code.len() {
 			let instruction = code[reader.position];
+			reader.position += 1;
+
+			let info = instructions::get_info(instruction);
+			try!(self.verify_instruction(ext, instruction, &info, &stack));
 
 			// Calculate gas cost
-			let (gas_cost, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, &stack, self.mem.size()));
-
+			let (gas_cost, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, &info, &stack, self.mem.size()));
 			// TODO: make compile-time removable if too much of a performance hit.
-			let trace_executed = ext.trace_prepare_execute(reader.position, instruction, &gas_cost.as_u256());
-
-			reader.position += 1;
+			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &gas_cost.as_u256());
 
 			try!(gasometer.verify_gas(&gas_cost));
 			self.mem.expand(mem_size);
@@ -124,7 +124,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			evm_debug!({
 				println!("[0x{:x}][{}(0x{:x}) Gas: {:x}\n  Gas Before: {:x}",
 					reader.position,
-					color(instruction, instructions::get_info(instruction).name),
+					color(instruction, info.name),
 					instruction,
 					gas_cost,
 					gasometer.current_gas + gas_cost
@@ -142,7 +142,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			));
 
 			if trace_executed {
-				ext.trace_executed(gasometer.current_gas.as_u256(), stack.peek_top(get_info(instruction).ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
+				ext.trace_executed(gasometer.current_gas.as_u256(), stack.peek_top(info.ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
 			}
 
 			// Advance
@@ -173,6 +173,37 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 }
 
 impl<Cost: CostType> Interpreter<Cost> {
+
+	fn verify_instruction(&self, ext: &evm::Ext, instruction: Instruction, info: &InstructionInfo, stack: &Stack<U256>) -> evm::Result<()> {
+		let schedule = ext.schedule();
+
+		if !schedule.have_delegate_call && instruction == instructions::DELEGATECALL {
+			return Err(evm::Error::BadInstruction {
+				instruction: instruction
+			});
+		}
+		if info.tier == instructions::GasPriceTier::Invalid {
+			return Err(evm::Error::BadInstruction {
+				instruction: instruction
+			});
+		}
+
+		if !stack.has(info.args) {
+			Err(evm::Error::StackUnderflow {
+				instruction: info.name,
+				wanted: info.args,
+				on_stack: stack.size()
+			})
+		} else if stack.size() - info.args + info.ret > schedule.stack_limit {
+			Err(evm::Error::OutOfStack {
+				instruction: info.name,
+				wanted: info.ret - info.args,
+				limit: schedule.stack_limit
+			})
+		} else {
+			Ok(())
+		}
+	}
 
 	fn mem_written(
 		instruction: Instruction,
