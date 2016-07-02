@@ -273,11 +273,9 @@ mod tests {
     let raw = Account::new_basic(2.into(), 4.into()).rlp();
     let rlp = UntrustedRlp::new(&raw);
     let compact_vec = rlp.compress().to_vec();
-    assert!(raw != compact_vec);
+    assert!(raw.len() > compact_vec.len());
     let again_raw = UntrustedRlp::new(&compact_vec).decompress();
     assert_eq!(raw, again_raw.to_vec());
-    //let a = Account::from_rlp(&compact_slice);
-    //println!("{:?}", UntrustedRlp::new(&a).storage_root().unwrap().hex());
   }
 
 	#[test]

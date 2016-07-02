@@ -574,5 +574,16 @@ fn invalid_rlp_swapper() {
 	let invalid_rlp = vec![vec![0x81, 0x00], vec![0x81, 0x01]];
 	assert_eq!(Some(invalid_rlp[0].as_slice()), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
 	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
-	assert_eq!(Some(vec![0x83, b'd', b'o', b'g'].as_slice()), swapper.get_valid(invalid_rlp[1].as_slice()));
+	assert_eq!(Some(vec![0x83, b'd', b'o', b'g'].as_slice()), swapper.get_valid(&invalid_rlp[1]));
 }
+
+#[test]
+fn rlp_compression() {
+	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	let rlp = UntrustedRlp::new(&data);
+	let swapper = InvalidRlpSwapper::new(vec![vec![0x83, b'c', b'a', b't']]);
+	let compressed_rlp = &rlp.transform(|b| swapper.get_invalid(b));
+	assert_eq!(&compressed_rlp.to_vec(), &vec![0xc6, 0x81, 0x00, 0x83, b'd', b'o', b'g']);
+	assert_eq!(
+		data,
+		UntrustedRlp::new(&compressed_rlp).transform(|b| swapper.get_valid(b)).to_vec());}
