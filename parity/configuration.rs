@@ -475,6 +475,9 @@ impl Configuration {
 		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
 		::std::fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
+		if self.args.flag_geth {
+			::std::fs::create_dir_all(path::ethereum::default()).unwrap_or_else(|e| die_with_io_error("main", e));
+		}
 
 		Directories {
 			keys: keys_path,
