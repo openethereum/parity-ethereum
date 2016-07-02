@@ -348,7 +348,7 @@ impl Configuration {
 		client_config.db_compaction = match self.args.flag_db_compaction.as_str() {
 			"ssd" => DatabaseCompactionProfile::Default,
 			"hdd" => DatabaseCompactionProfile::HDD,
-			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/default."); }
+			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/ssd (default)."); }
 		};
 
 		if self.args.flag_jitvm {
