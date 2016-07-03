@@ -539,8 +539,8 @@ impl Configuration {
 	}
 
 	pub fn signer_enabled(&self) -> bool {
-		(self.args.cmd_ui && !self.args.flag_no_signer) ||
-		(!self.args.cmd_ui && self.args.flag_signer)
+		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
+		self.args.flag_force_signer
 	}
 }
 
