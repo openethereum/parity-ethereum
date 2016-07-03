@@ -478,7 +478,7 @@ impl Configuration {
 		if self.args.flag_geth {
 			let geth_path = path::ethereum::default();
 			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
-				|e| die!("error {}: {}", &geth_path.to_str().unwrap(), e));
+				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
 		}
 
 		Directories {
