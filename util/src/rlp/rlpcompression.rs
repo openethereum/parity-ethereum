@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use sha3::SHA3_EMPTY;
+use rustc_serialize::hex::ToHex;
 use rlp::untrusted_rlp::BasicDecoder;
 use rlp::{UntrustedRlp, View, PayloadInfo, DecoderError, Decoder, Compressible, SHA3_NULL_RLP, encode, ElasticArray1024, Stream, RlpStream};
 
@@ -138,4 +139,18 @@ fn invalid_rlp_swapper() {
 	assert_eq!(Some(invalid_rlp[0].as_slice()), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
 	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
 	assert_eq!(Some(vec![0x83, b'd', b'o', b'g'].as_slice()), swapper.get_valid(&invalid_rlp[1]));
+}
+
+#[test]
+fn decompressing_decoder() {
+	let basic_account_rlp = vec![248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
+	let compressed = UntrustedRlp::new(&basic_account_rlp).compress().to_vec();
+	assert_eq!(compressed, vec![198, 4, 2, 129, 0, 129, 1]);
+	let compressed_rlp = UntrustedRlp::new(&compressed);
+	let f = | b: &[u8] | Ok(b.to_vec());
+	let decoded: Vec<_> = compressed_rlp.iter().map(|v| DecompressingDecoder::new(v).read_value(&f).expect("")).collect();
+	assert_eq!(decoded[0], vec![4]);
+	assert_eq!(decoded[1], vec![2]);
+	assert_eq!(decoded[2].to_hex(), SHA3_NULL_RLP.hex());
+	assert_eq!(decoded[3].to_hex(), SHA3_EMPTY.hex());
 }

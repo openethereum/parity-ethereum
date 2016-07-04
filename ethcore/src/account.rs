@@ -271,6 +271,7 @@ mod tests {
 	#[test]
 	fn decompressing_decoder() {
     let raw = Account::new_basic(2.into(), 4.into()).rlp();
+    println!("{:?}", raw);
     let rlp = UntrustedRlp::new(&raw);
     let compact_vec = rlp.compress().to_vec();
     assert!(raw.len() > compact_vec.len());
