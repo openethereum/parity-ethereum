@@ -539,7 +539,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		self.info.write().unwrap().public_endpoint = Some(public_endpoint.clone());
 
 		if self.first_time.load(AtomicOrdering::Relaxed) {
-			info!("Public node URL: {}", paint(White.bold(), format!("{}", self.external_url().unwrap())));
+			info!("Public node URL: {}", paint(White.bold(), self.external_url().unwrap()));
 			self.first_time.store(false, AtomicOrdering::Relaxed);
 		}
 

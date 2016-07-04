@@ -55,10 +55,10 @@ pub struct TraceId {
 }
 
 /// Uniquely identifies Uncle.
-#[derive(Debug)]
-pub struct UncleID (
+#[derive(Debug, Binary)]
+pub struct UncleID {
 	/// Block id.
-	pub BlockID,
+	pub block: BlockID,
 	/// Position in block.
-	pub usize
-);
+	pub position: usize
+}
