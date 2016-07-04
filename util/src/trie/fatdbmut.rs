@@ -17,7 +17,7 @@
 use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
-use super::{TrieDBMut, Trie, TrieMut, TrieError};
+use super::{TrieDBMut, TrieMut, TrieError};
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
@@ -82,6 +82,7 @@ impl<'db> TrieMut for FatDBMut<'db> {
 fn fatdb_to_trie() {
 	use memorydb::MemoryDB;
 	use super::TrieDB;
+	use super::Trie;
 
 	let mut memdb = MemoryDB::new();
 	let mut root = H256::default();

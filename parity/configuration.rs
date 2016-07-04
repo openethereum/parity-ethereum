@@ -475,6 +475,11 @@ impl Configuration {
 		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
 		::std::fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
+		if self.args.flag_geth {
+			let geth_path = path::ethereum::default();
+			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
+				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+		}
 
 		Directories {
 			keys: keys_path,
