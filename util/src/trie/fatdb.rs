@@ -52,7 +52,7 @@ impl<'db> FatDB<'db> {
 }
 
 impl<'db> Trie for FatDB<'db> {
-	fn iter<'a>(&'a self) -> Box<Iterator<Item=TrieItem> + 'a> {
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
 		Box::new(FatDB::iter(self))
 	}
 

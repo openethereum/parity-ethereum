@@ -50,7 +50,7 @@ impl<'db> SecTrieDB<'db> {
 }
 
 impl<'db> Trie for SecTrieDB<'db> {
-	fn iter<'a>(&'a self) -> Box<Iterator<Item=TrieItem> + 'a> {
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
 		Box::new(TrieDB::iter(&self.raw))
 	}
 
