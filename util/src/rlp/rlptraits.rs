@@ -26,8 +26,8 @@ use sha3::*;
 /// Type is able to decode RLP.
 pub trait Decoder: Sized {
 	/// Read a value from the RLP into a given type.
-	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
-		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
+	fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
+		where F: Fn(&[u8]) -> Result<T, DecoderError>;
 
 	/// Get underlying `UntrustedRLP` object.
 	fn as_rlp(&self) -> &UntrustedRlp;
@@ -373,6 +373,6 @@ pub trait Compressible: Sized {
 	/// Recover valid RLP from a compressed form.
 	fn decompress(&self) -> ElasticArray1024<u8>;
 	/// Generic RLP substitiution
-	fn transform<F>(&self, swapper: F) -> ElasticArray1024<u8>
+	fn swap<F>(&self, swapper: F) -> ElasticArray1024<u8>
 		where F: Fn(&[u8]) -> Option<&[u8]>;
 }
