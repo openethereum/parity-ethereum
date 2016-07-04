@@ -48,7 +48,7 @@ use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
 pub use block_import_error::BlockImportError;
-pub use transaction_import::{TransactionImportResult, TransactionImportError};
+pub use transaction_import::TransactionImportResult;
 
 /// Options concerning what analytics we run on the call.
 #[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
@@ -191,9 +191,6 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
-
-	/// import transactions from network/other 3rd party
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>>;
 
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>);
