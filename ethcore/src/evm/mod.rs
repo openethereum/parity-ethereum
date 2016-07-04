@@ -28,6 +28,8 @@ mod jit;
 
 #[cfg(test)]
 mod tests;
+#[cfg(all(feature="benches", test))]
+mod benches;
 
 pub use self::evm::{Evm, Error, Finalize, GasLeft, Result, CostType};
 pub use self::ext::{Ext, ContractCreateResult, MessageCallResult};

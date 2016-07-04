@@ -18,18 +18,18 @@ use common::*;
 use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult};
 use std::fmt::Debug;
 
-struct FakeLogEntry {
+pub struct FakeLogEntry {
 	topics: Vec<H256>,
 	data: Bytes
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
-enum FakeCallType {
+pub enum FakeCallType {
 	Call, Create
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
-struct FakeCall {
+pub struct FakeCall {
 	call_type: FakeCallType,
 	gas: U256,
 	sender_address: Option<Address>,
@@ -43,7 +43,7 @@ struct FakeCall {
 ///
 /// Can't do recursive calls.
 #[derive(Default)]
-struct FakeExt {
+pub struct FakeExt {
 	sstore_clears: usize,
 	depth: usize,
 	store: HashMap<H256, H256>,
@@ -67,7 +67,7 @@ fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
 }
 
 impl FakeExt {
-	fn new() -> Self {
+	pub fn new() -> Self {
 		FakeExt::default()
 	}
 }

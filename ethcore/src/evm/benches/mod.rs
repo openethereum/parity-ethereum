@@ -25,26 +25,33 @@ extern crate test;
 use self::test::{Bencher, black_box};
 
 use common::*;
-use super::{Factory, VMType};
-use super::tests::FakeExt;
+use evm::{Factory, VMType};
+use evm::tests::FakeExt;
 
 #[bench]
-fn mem_gas_calculation_same(b: &mut Bencher) {
-	let vm = Factory::new(VMType::Interpreter).create();
+fn mem_gas_calculation_same_usize(b: &mut Bencher) {
+	mem_gas_calculation_same(U256::from(::std::usize::MAX), b)
+}
+
+#[bench]
+fn mem_gas_calculation_same_u256(b: &mut Bencher) {
+	mem_gas_calculation_same(!U256::zero(), b)
+}
+
+fn mem_gas_calculation_same(gas: U256, b: &mut Bencher) {
+	let mut vm = Factory::new(VMType::Interpreter).create(gas);
 
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let mut ext = FakeExt::new();
 
 	b.iter(|| {
-		let n = black_box(0xff);
-
-		let code = format!(
-			"6110006001556001546000555b61{0:04x}805560016000540380600055600c57", n
-		).from_hex().unwrap();
+		let code = black_box(
+			"6110006001556001546000555b610fff805560016000540380600055600c57".from_hex().unwrap()
+		);
 
 		let mut params = ActionParams::default();
 		params.address = address.clone();
-		params.gas = !U256::zero(); // to infinity and beyond!
+		params.gas = gas;
 		params.code = Some(code.clone());
 
 		vm.exec(params, &mut ext).unwrap();
@@ -52,22 +59,29 @@ fn mem_gas_calculation_same(b: &mut Bencher) {
 }
 
 #[bench]
-fn mem_gas_calculation_increasing(b: &mut Bencher) {
-	let vm = Factory::new(VMType::Interpreter).create();
+fn mem_gas_calculation_increasing_usize(b: &mut Bencher) {
+	mem_gas_calculation_increasing(U256::from(::std::usize::MAX), b)
+}
+
+#[bench]
+fn mem_gas_calculation_increasing_u256(b: &mut Bencher) {
+	mem_gas_calculation_increasing(!U256::zero(), b)
+}
+
+fn mem_gas_calculation_increasing(gas: U256, b: &mut Bencher) {
+	let mut vm = Factory::new(VMType::Interpreter).create(gas);
 
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let mut ext = FakeExt::new();
 
 	b.iter(|| {
-		let n = black_box(0xff);
-
-		let code = format!(
-			"6110006001556001546000555b61{0:04x}60005401805560016000540380600055600c57", n
-		).from_hex().unwrap();
+		let code = black_box(
+			"6110006001556001546000555b610fff60005401805560016000540380600055600c57".from_hex().unwrap()
+		);
 
 		let mut params = ActionParams::default();
 		params.address = address.clone();
-		params.gas = !U256::zero(); // to infinity and beyond!
+		params.gas = gas;
 		params.code = Some(code.clone());
 
 		vm.exec(params, &mut ext).unwrap();
