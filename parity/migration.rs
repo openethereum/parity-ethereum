@@ -17,7 +17,7 @@
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, MigrationIterator};
 use util::kvdb::{Database, DatabaseConfig, CompactionProfile};
@@ -26,7 +26,7 @@ use ethcore::migrations;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 6;
+const CURRENT_VERSION: u32 = 7;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -66,15 +66,15 @@ impl From<IoError> for Error {
 }
 
 /// Returns the version file path.
-fn version_file_path(path: &PathBuf) -> PathBuf {
-	let mut file_path = path.clone();
+fn version_file_path(path: &Path) -> PathBuf {
+	let mut file_path = path.to_owned();
 	file_path.push(VERSION_FILE_NAME);
 	file_path
 }
 
 /// Reads current database version from the file at given path.
 /// If the file does not exist returns `DEFAULT_VERSION`.
-fn current_version(path: &PathBuf) -> Result<u32, Error> {
+fn current_version(path: &Path) -> Result<u32, Error> {
 	match File::open(version_file_path(path)) {
 		Err(ref err) if err.kind() == ErrorKind::NotFound => Ok(DEFAULT_VERSION),
 		Err(_) => Err(Error::UnknownDatabaseVersion),
@@ -88,7 +88,7 @@ fn current_version(path: &PathBuf) -> Result<u32, Error> {
 
 /// Writes current database version to the file.
 /// Creates a new file if the version file does not exist yet.
-fn update_version(path: &PathBuf) -> Result<(), Error> {
+fn update_version(path: &Path) -> Result<(), Error> {
 	try!(fs::create_dir_all(path));
 	let mut file = try!(File::create(version_file_path(path)));
 	try!(file.write_all(format!("{}", CURRENT_VERSION).as_bytes()));
@@ -96,30 +96,37 @@ fn update_version(path: &PathBuf) -> Result<(), Error> {
 }
 
 /// Blocks database path.
-fn blocks_database_path(path: &PathBuf) -> PathBuf {
-	let mut blocks_path = path.clone();
+fn blocks_database_path(path: &Path) -> PathBuf {
+	let mut blocks_path = path.to_owned();
 	blocks_path.push("blocks");
 	blocks_path
 }
 
 /// Extras database path.
-fn extras_database_path(path: &PathBuf) -> PathBuf {
-	let mut extras_path = path.clone();
+fn extras_database_path(path: &Path) -> PathBuf {
+	let mut extras_path = path.to_owned();
 	extras_path.push("extras");
 	extras_path
 }
 
+/// Extras database path.
+fn state_database_path(path: &Path) -> PathBuf {
+	let mut state_path = path.to_owned();
+	state_path.push("state");
+	state_path
+}
+
 /// Temporary database path used for migration.
-fn temp_database_path(path: &PathBuf) -> PathBuf {
-	let mut temp_path = path.clone();
+fn temp_database_path(path: &Path) -> PathBuf {
+	let mut temp_path = path.to_owned();
 	temp_path.pop();
 	temp_path.push("temp_migration");
 	temp_path
 }
 
 /// Database backup
-fn backup_database_path(path: &PathBuf) -> PathBuf {
-	let mut backup_path = path.clone();
+fn backup_database_path(path: &Path) -> PathBuf {
+	let mut backup_path = path.to_owned();
 	backup_path.pop();
 	backup_path.push("temp_backup");
 	backup_path
@@ -132,16 +139,23 @@ fn default_migration_settings() -> MigrationConfig {
 	}
 }
 
-/// Migrations on blocks database.
+/// Migrations on the blocks database.
 fn blocks_database_migrations() -> Result<MigrationManager, Error> {
 	let manager = MigrationManager::new(default_migration_settings());
 	Ok(manager)
 }
 
-/// Migrations on extras database.
+/// Migrations on the extras database.
 fn extras_database_migrations() -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings());
 	try!(manager.add_migration(migrations::extras::ToV6).map_err(|_| Error::MigrationImpossible));
+	Ok(manager)
+}
+
+/// Migrations on the state database.
+fn state_database_migrations() -> Result<MigrationManager, Error> {
+	let mut manager = MigrationManager::new(default_migration_settings());
+	try!(manager.add_migration(migrations::state::ToV7).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
@@ -192,12 +206,12 @@ fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -
 	Ok(())
 }
 
-fn exists(path: &PathBuf) -> bool {
+fn exists(path: &Path) -> bool {
 	fs::metadata(path).is_ok()
 }
 
 /// Migrates the database.
-pub fn migrate(path: &PathBuf) -> Result<(), Error> {
+pub fn migrate(path: &Path) -> Result<(), Error> {
 	// read version file.
 	let version = try!(current_version(path));
 
@@ -207,6 +221,7 @@ pub fn migrate(path: &PathBuf) -> Result<(), Error> {
 		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
 		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
 		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
+		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations())));
 		println!("Migration finished");
 	}
 
