@@ -24,7 +24,7 @@ use util::{U256, Address, H256};
 use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationsQueue, TransactionRequest as TRequest};
 use v1::traits::EthSigning;
-use v1::types::{TransactionRequest, H160 as NH160, H256 as NH256, H520 as NH520};
+use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520};
 use v1::impls::{default_gas_price, sign_and_dispatch};
 
 fn fill_optional_fields<C, M>(request: &mut TRequest, client: &C, miner: &M)
@@ -84,7 +84,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 					let sender = request.from;
 					return match sign_and_dispatch(&*client, &*miner, request, &*accounts, sender) {
 						Ok(hash) => to_value(&hash),
-						_ => to_value(&NH256::default()),
+						_ => to_value(&RpcH256::default()),
 					}
 				}
 
@@ -92,7 +92,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 				fill_optional_fields(&mut request, &*client, &*miner);
 				let id = queue.add_request(request);
 				let result = id.wait_with_timeout();
-				result.unwrap_or_else(|| to_value(&NH256::default()))
+				result.unwrap_or_else(|| to_value(&RpcH256::default()))
 		})
 	}
 }
@@ -126,10 +126,10 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 	M: MinerService + 'static {
 
 	fn sign(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(NH160, NH256)>(params).and_then(|(address, msg)| {
+		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
 			let address: Address = address.into();
 			let msg: H256 = msg.into();
-			to_value(&take_weak!(self.accounts).sign(address, msg).ok().map_or_else(NH520::default, Into::into))
+			to_value(&take_weak!(self.accounts).sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))
 		})
 	}
 
@@ -140,7 +140,7 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 				let sender = request.from;
 				match sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender) {
 					Ok(hash) => to_value(&hash),
-					_ => to_value(&NH256::default()),
+					_ => to_value(&RpcH256::default()),
 				}
 		})
 	}

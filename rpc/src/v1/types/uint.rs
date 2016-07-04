@@ -18,7 +18,7 @@ use std::cmp;
 use std::str::FromStr;
 use rustc_serialize::hex::ToHex;
 use serde;
-use util::{U256 as EU256, Uint};
+use util::{U256 as EthU256, Uint};
 
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
@@ -86,4 +86,4 @@ macro_rules! impl_uint {
 	}
 }
 
-impl_uint!(U256, EU256, 4);
+impl_uint!(U256, EthU256, 4);

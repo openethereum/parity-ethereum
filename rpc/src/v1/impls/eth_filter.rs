@@ -25,7 +25,7 @@ use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockID};
 use v1::traits::EthFilter;
-use v1::types::{BlockNumber, Index, Filter, Log, H256 as NH256, U256 as NU256};
+use v1::types::{BlockNumber, Index, Filter, Log, H256 as RpcH256, U256 as RpcU256};
 use v1::helpers::{PollFilter, PollManager};
 use v1::impls::eth::pending_logs;
 
@@ -64,7 +64,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 				let mut polls = self.polls.lock().unwrap();
 				let block_number = take_weak!(self.client).chain_info().best_block_number;
 				let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
-				to_value(&NU256::from(id))
+				to_value(&RpcU256::from(id))
 			})
 	}
 
@@ -73,7 +73,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
 				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
-				to_value(&NU256::from(id))
+				to_value(&RpcU256::from(id))
 			},
 			_ => Err(Error::invalid_params())
 		}
@@ -86,7 +86,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
 				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
 
-				to_value(&NU256::from(id))
+				to_value(&RpcU256::from(id))
 			},
 			_ => Err(Error::invalid_params())
 		}
@@ -107,7 +107,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 								.map(BlockID::Number)
 								.filter_map(|id| client.block_hash(id))
 								.map(Into::into)
-								.collect::<Vec<NH256>>();
+								.collect::<Vec<RpcH256>>();
 
 							*block_number = current_number;
 
@@ -127,7 +127,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 									.filter(|hash| !previous_hashes_set.contains(hash))
 									.cloned()
 									.map(Into::into)
-									.collect::<Vec<NH256>>()
+									.collect::<Vec<RpcH256>>()
 							};
 
 							// save all hashes of pending transactions
