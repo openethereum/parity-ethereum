@@ -4,8 +4,18 @@ use util::*;
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
 
 #[inline]
+// combines a key with an address hash to ensure uniqueness.
+// leaves the first 96 bits untouched in order to support partial key lookup.
 fn combine_key<'a>(address_hash: &'a H256, key: &'a H256) -> H256 {
-	address_hash ^ key
+	let mut dst = key.clone();
+	{
+		let last_dst: &mut [u8] = &mut *dst;
+		let last_src: &[u8] = &*address_hash;
+		for (k, a) in last_dst[8..].iter_mut().zip(&last_src[8..]) {
+			*k ^= *a
+		}
+	}
+	dst
 }
 
 // TODO: introduce HashDBMut?
