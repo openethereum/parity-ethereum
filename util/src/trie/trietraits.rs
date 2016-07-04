@@ -17,6 +17,9 @@
 use hash::H256;
 use rlp::SHA3_NULL_RLP;
 
+/// Trie-Item type.
+pub type TrieItem<'a> = (Vec<u8>, &'a[u8]);
+
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait Trie {
 	/// Return the root of the trie.
@@ -32,7 +35,7 @@ pub trait Trie {
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
 
 	/// Returns an iterator over elements of trie.
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = (Vec<u8>, &[u8])> + 'a>;
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a>;
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
