@@ -99,7 +99,7 @@ impl DatabaseConfig {
 		DatabaseConfig {
 			cache_size: Some(cache_size),
 			prefix_size: None,
-			max_open_files: -1,
+			max_open_files: 256,
 			compaction: CompactionProfile::default(),
 		}
 	}
@@ -122,7 +122,7 @@ impl Default for DatabaseConfig {
 		DatabaseConfig {
 			cache_size: None,
 			prefix_size: None,
-			max_open_files: -1,
+			max_open_files: 256,
 			compaction: CompactionProfile::default(),
 		}
 	}

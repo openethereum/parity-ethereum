@@ -37,6 +37,7 @@ vergen = "0.1"
 target_info = "0.1"
 bigint = { path = "bigint" }
 chrono = "0.2"
+ansi_term = "0.7"
 
 [features]
 default = []

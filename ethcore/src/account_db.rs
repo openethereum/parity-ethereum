@@ -3,6 +3,11 @@ use util::*;
 
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
 
+#[inline]
+fn combine_key<'a>(address_hash: &'a H256, key: &'a H256) -> H256 {
+	address_hash ^ key
+}
+
 // TODO: introduce HashDBMut?
 /// DB backend wrapper for Account trie
 /// Transforms trie node keys for the database
@@ -11,23 +16,17 @@ pub struct AccountDB<'db> {
 	address_hash: H256,
 }
 
-// used to ensure that account storage keys are unique in the database.
-#[inline]
-fn combine_key<'a>(address: &'a H256, key: &'a H256) -> H256 {
-	address ^ key
-}
-
 impl<'db> AccountDB<'db> {
-	/// Create an AccountDB from an address.
-	pub fn new(db: &'db HashDB, address: &Address) -> AccountDB<'db> {
+	/// Create a new AccountDB from an address.
+	pub fn new(db: &'db HashDB, address: &Address) -> Self {
 		Self::from_hash(db, address.sha3())
 	}
 
-	/// Create an AccountDB from an address' hash.
-	pub fn from_hash(db: &'db HashDB, address_hash: H256) -> AccountDB<'db> {
+	/// Create a new AcountDB from an address' hash.
+	pub fn from_hash(db: &'db HashDB, address_hash: H256) -> Self {
 		AccountDB {
 			db: db,
-			address_hash: address_hash
+			address_hash: address_hash,
 		}
 	}
 }
@@ -71,13 +70,13 @@ pub struct AccountDBMut<'db> {
 }
 
 impl<'db> AccountDBMut<'db> {
-	/// Create an AccountDBMut from an address.
-	pub fn new(db: &'db mut HashDB, address: &Address) -> AccountDBMut<'db> {
+	/// Create a new AccountDB from an address.
+	pub fn new(db: &'db mut HashDB, address: &Address) -> Self {
 		Self::from_hash(db, address.sha3())
 	}
 
-	/// Create an AccountDBMut from an address' hash.
-	pub fn from_hash(db: &'db mut HashDB, address_hash: H256) -> AccountDBMut<'db> {
+	/// Create a new AcountDB from an address' hash.
+	pub fn from_hash(db: &'db mut HashDB, address_hash: H256) -> Self {
 		AccountDBMut {
 			db: db,
 			address_hash: address_hash,

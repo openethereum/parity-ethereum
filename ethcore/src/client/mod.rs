@@ -38,7 +38,7 @@ use util::numbers::U256;
 use util::Itertools;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::OpenBlock;
+use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
@@ -173,9 +173,6 @@ pub trait BlockChainClient : Sync + Send {
 	// TODO: should be able to accept blockchain location for call.
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
 
-	/// Returns EvmFactory.
-	fn vm_factory(&self) -> &EvmFactory;
-
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
 
@@ -258,4 +255,10 @@ pub trait MiningBlockChainClient : BlockChainClient {
 	/// Returns OpenBlock prepared for closing.
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes)
 		-> OpenBlock;
+
+	/// Returns EvmFactory.
+	fn vm_factory(&self) -> &EvmFactory;
+
+	/// Import sealed block. Skips all verifications.
+	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
 }
