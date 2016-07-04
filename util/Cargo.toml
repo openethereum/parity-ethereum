@@ -28,7 +28,7 @@ crossbeam = "0.2"
 slab = "0.2"
 sha3 = { path = "sha3" }
 clippy = { version = "0.0.77", optional = true}
-igd = "0.4.2"
+igd = { git = "https://github.com/ethcore/rust-igd" }
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 vergen = "0.1"
