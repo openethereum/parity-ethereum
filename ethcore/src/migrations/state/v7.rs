@@ -1,4 +1,4 @@
-use util::hash::{FixedHash, H256};
+use util::hash::{Address, FixedHash, H256};
 use util::migration::SimpleMigration;
 use util::sha3::Hashable;
 
@@ -31,12 +31,14 @@ impl SimpleMigration for ToV7 {
 				return Some((key, value));
 			}
 
-			let address_hash = address.sha3();
+			let address_hash = Address::from(address).sha3();
 
 			// create the xor'd key in place.
 			key.copy_from_slice(&*val_hash);
-			let last_dst: &[u8] = &*address_hash;
-			for (k, a) in key[12..].iter_mut().zip(&last_dst[12..]) {
+			assert_eq!(key, &*val_hash);
+
+			let last_src: &[u8] = &*address_hash;
+			for (k, a) in key[12..].iter_mut().zip(&last_src[12..]) {
 				*k ^= *a;
 			}
 		}
