@@ -254,7 +254,7 @@ impl Configuration {
 			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
 			Some(SocketAddr::new(host, port))
 		} else {
-			listen_address
+			None
 		};
 		(listen_address, public_address)
 	}
