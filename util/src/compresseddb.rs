@@ -22,11 +22,28 @@ use hash::H256;
 use rlp::*;
 use bytes::Bytes;
 use sha3::*;
+use MemoryDB;
+
+pub struct CompressedDB<T: HashDB> {
+	overlay: MemoryDB,
+	backing: T,
+}
+
+impl<T: HashDB> CompressedDB<T> {
+	pub fn new<D: HashDB + Default>() -> CompressedDB<D> {
+		CompressedDB {
+			overlay: MemoryDB::new(),
+			backing: D::default(),
+		}
+	}
+}
 
 /// `HashDB` wrapper which keeps the RLP values compressed.
-pub trait CompressedDB: HashDB {
+impl<T: HashDB> HashDB for CompressedDB<T> {
 	/// Get the keys in the database together with number of underlying references.
-	fn keys(&self) -> HashMap<H256, i32>;
+	fn keys(&self) -> HashMap<H256, i32> {
+		self.backing.keys()
+	}
 
 	/// Look up a given hash into the bytes that hash to it, returning None if the
 	/// hash is not known.
@@ -43,14 +60,19 @@ pub trait CompressedDB: HashDB {
 	///   assert_eq!(m.get(&hash).unwrap(), hello_bytes);
 	/// }
 	/// ```
-	fn get(&self, key: &H256) -> Option<ElasticArray1024<u8>> {
-		self.as_hashdb()
-			.get(key)
-			.map(|compressed| UntrustedRlp::new(compressed).decompress())
+	fn get(&self, key: &H256) -> Option<&[u8]> {
+		self.overlay.get(key).or(self.backing.get(key).map(|v| {
+			let decompressed = UntrustedRlp::new(v).decompress().to_vec();
+			self.overlay.emplace(key.clone(), decompressed);
+			// Makes it possible to return a reference.
+			self.overlay.get(key).expect("Just inserted into DB.")
+		}))
 	}
 
 	/// Check for the existance of a hash-key.
-	fn contains(&self, key: &H256) -> bool;
+	fn contains(&self, key: &H256) -> bool {
+		self.overlay.contains(key) || self.backing.contains(key)
+	}
 
 	/// Insert a datum item into the DB and return the datum's hash for a later lookup. Insertions
 	/// are counted and the equivalent number of `remove()`s must be performed before the data
@@ -69,32 +91,41 @@ pub trait CompressedDB: HashDB {
 	/// }
 	/// ```
 	fn insert(&mut self, value: &[u8]) -> H256 {
+		if value == &NULL_RLP {
+			return SHA3_NULL_RLP.clone();
+		}
 		let key = value.sha3();
-		self.as_hashdb_mut().emplace(key, UntrustedRlp::new(value).compress().to_vec());
+		self.backing.emplace(key, UntrustedRlp::new(value).compress().to_vec());
 		key
 	}
 
 	/// Like `insert()` , except you provide the key and the data is all moved.
 	fn emplace(&mut self, key: H256, value: Bytes) {
-		self.as_hashdb_mut().emplace(key, UntrustedRlp::new(&value).compress().to_vec())
+		self.backing.emplace(key, UntrustedRlp::new(&value).compress().to_vec())
 	}	
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB.
-	fn remove(&mut self, key: &H256);
+	fn remove(&mut self, key: &H256) { self.backing.remove(key); self.overlay.remove(key) }
 
 	/// Insert auxiliary data into hashdb.
-	fn insert_aux(&mut self, _hash: Vec<u8>, _value: Vec<u8>) {
-		unimplemented!();
+	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
+		self.backing.insert_aux(hash, value)
 	}
 
 	/// Get auxiliary data from hashdb.
-	fn get_aux(&self, _hash: &[u8]) -> Option<Vec<u8>> {
-		unimplemented!();
+	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
+		self.backing.get_aux(hash)
 	}
 
 	/// Removes auxiliary data from hashdb.
-	fn remove_aux(&mut self, _hash: &[u8]) {
-		unimplemented!();
+	fn remove_aux(&mut self, hash: &[u8]) {
+		self.remove_aux(hash)
 	}
+}
+
+#[test]
+fn compressed_db() {
+	let db: CompressedDB<MemoryDB> = CompressedDB::new();
+
 }
