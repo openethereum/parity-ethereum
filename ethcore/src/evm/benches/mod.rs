@@ -25,8 +25,37 @@ extern crate test;
 use self::test::{Bencher, black_box};
 
 use common::*;
-use evm::{Factory, VMType};
+use evm::{self, Factory, VMType};
 use evm::tests::FakeExt;
+
+#[bench]
+fn simple_loop_log0_usize(b: &mut Bencher) {
+	simple_loop_log0(U256::from(::std::usize::MAX), b)
+}
+
+#[bench]
+fn simple_loop_log0_u256(b: &mut Bencher) {
+	simple_loop_log0(!U256::zero(), b)
+}
+
+fn simple_loop_log0(gas: U256, b: &mut Bencher) {
+	let mut vm = Factory::new(VMType::Interpreter).create(gas);
+	let mut ext = FakeExt::new();
+
+	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+	let code = black_box(
+		"62ffffff5b600190036000600fa0600357".from_hex().unwrap()
+	);
+
+	b.iter(|| {
+		let mut params = ActionParams::default();
+		params.address = address.clone();
+		params.gas = gas;
+		params.code = Some(code.clone());
+
+		result(vm.exec(params, &mut ext))
+	});
+}
 
 #[bench]
 fn mem_gas_calculation_same_usize(b: &mut Bencher) {
@@ -40,9 +69,9 @@ fn mem_gas_calculation_same_u256(b: &mut Bencher) {
 
 fn mem_gas_calculation_same(gas: U256, b: &mut Bencher) {
 	let mut vm = Factory::new(VMType::Interpreter).create(gas);
+	let mut ext = FakeExt::new();
 
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-	let mut ext = FakeExt::new();
 
 	b.iter(|| {
 		let code = black_box(
@@ -54,7 +83,7 @@ fn mem_gas_calculation_same(gas: U256, b: &mut Bencher) {
 		params.gas = gas;
 		params.code = Some(code.clone());
 
-		vm.exec(params, &mut ext).unwrap();
+		result(vm.exec(params, &mut ext))
 	});
 }
 
@@ -70,9 +99,9 @@ fn mem_gas_calculation_increasing_u256(b: &mut Bencher) {
 
 fn mem_gas_calculation_increasing(gas: U256, b: &mut Bencher) {
 	let mut vm = Factory::new(VMType::Interpreter).create(gas);
+	let mut ext = FakeExt::new();
 
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-	let mut ext = FakeExt::new();
 
 	b.iter(|| {
 		let code = black_box(
@@ -84,7 +113,14 @@ fn mem_gas_calculation_increasing(gas: U256, b: &mut Bencher) {
 		params.gas = gas;
 		params.code = Some(code.clone());
 
-		vm.exec(params, &mut ext).unwrap();
+		result(vm.exec(params, &mut ext))
 	});
 }
 
+fn result(r: evm::Result<evm::GasLeft>) -> U256 {
+	match r {
+		Ok(evm::GasLeft::Known(v)) => v,
+		Ok(evm::GasLeft::NeedsReturn(v, _)) => v,
+		_ => U256::zero(),
+	}
+}
