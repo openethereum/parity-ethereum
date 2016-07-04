@@ -244,7 +244,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, _author: Address, _gas_range_target: (U256, U256), _extra_data: Bytes) -> OpenBlock {
 		unimplemented!();
 	}
-	
+
 	fn vm_factory(&self) -> &EvmFactory {
 		unimplemented!();
 	}
@@ -298,7 +298,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn uncle(&self, _id: UncleID) -> Option<BlockHeader> {
+	fn uncle(&self, _id: UncleID) -> Option<Bytes> {
 		unimplemented!();
 	}
 

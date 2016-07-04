@@ -42,6 +42,7 @@ use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncIn
 use v1::helpers::CallRequest as CRequest;
 use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
+use ethcore::header::Header as BlockHeader;
 
 /// Eth rpc implementation.
 pub struct EthClient<C, S, M, EM> where
@@ -127,33 +128,37 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 
 	fn uncle(&self, id: UncleID) -> Result<Value, Error> {
 		let client = take_weak!(self.client);
-		match client.uncle(id).and_then(|u| client.block_total_difficulty(BlockID::Hash(u.parent_hash().clone())).map(|diff| (diff, u))) {
-			Some((parent_difficulty, uncle)) => {
-				let block = Block {
-					hash: Some(uncle.hash().into()),
-					parent_hash: uncle.parent_hash.into(),
-					uncles_hash: uncle.uncles_hash.into(),
-					author: uncle.author.into(),
-					miner: uncle.author.into(),
-					state_root: uncle.state_root.into(),
-					transactions_root: uncle.transactions_root.into(),
-					number: Some(uncle.number.into()),
-					gas_used: uncle.gas_used.into(),
-					gas_limit: uncle.gas_limit.into(),
-					logs_bloom: uncle.log_bloom.into(),
-					timestamp: uncle.timestamp.into(),
-					difficulty: uncle.difficulty.into(),
-					total_difficulty: (uncle.difficulty + parent_difficulty).into(),
-					receipts_root: uncle.receipts_root.into(),
-					extra_data: uncle.extra_data.into(),
-					seal_fields: uncle.seal.into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
-					uncles: vec![],
-					transactions: BlockTransactions::Hashes(vec![]),
-				};
-				to_value(&block)
-			},
-			None => Ok(Value::Null)
-		}
+		let uncle: BlockHeader = match client.uncle(id) {
+			Some(rlp) => decode(&rlp),
+			None => { return Ok(Value::Null); }
+		};
+		let parent_difficulty = match client.block_total_difficulty(BlockID::Hash(uncle.parent_hash().clone())) {
+			Some(difficulty) => difficulty,
+			None => { return Ok(Value::Null); }
+		};
+
+		let block = Block {
+			hash: Some(uncle.hash().into()),
+			parent_hash: uncle.parent_hash.into(),
+			uncles_hash: uncle.uncles_hash.into(),
+			author: uncle.author.into(),
+			miner: uncle.author.into(),
+			state_root: uncle.state_root.into(),
+			transactions_root: uncle.transactions_root.into(),
+			number: Some(uncle.number.into()),
+			gas_used: uncle.gas_used.into(),
+			gas_limit: uncle.gas_limit.into(),
+			logs_bloom: uncle.log_bloom.into(),
+			timestamp: uncle.timestamp.into(),
+			difficulty: uncle.difficulty.into(),
+			total_difficulty: (uncle.difficulty + parent_difficulty).into(),
+			receipts_root: uncle.receipts_root.into(),
+			extra_data: uncle.extra_data.into(),
+			seal_fields: uncle.seal.into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
+			uncles: vec![],
+			transactions: BlockTransactions::Hashes(vec![]),
+		};
+		to_value(&block)
 	}
 
 	fn sign_call(&self, request: CRequest) -> Result<SignedTransaction, Error> {
@@ -454,12 +459,12 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(NH256, Index)>(params)
-			.and_then(|(hash, index)| self.uncle(UncleID(BlockID::Hash(hash.into()), index.value())))
+			.and_then(|(hash, index)| self.uncle(UncleID { block: BlockID::Hash(hash.into()), position: index.value() }))
 	}
 
 	fn uncle_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
-			.and_then(|(number, index)| self.uncle(UncleID(number.into(), index.value())))
+			.and_then(|(number, index)| self.uncle(UncleID { block: number.into(), position: index.value() }))
 	}
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {

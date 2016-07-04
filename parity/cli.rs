@@ -52,12 +52,21 @@ Protocol Options:
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
                            ACCOUNTS is a comma-delimited list of addresses.
+                           Implies --no-signer.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
   --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) [default: 10240].
   --no-import-keys         Do not import keys from legacy clients.
+  --force-signer           Enable Trusted Signer WebSocket endpoint used by
+                           Signer UIs, even when --unlock is in use.
+  --no-signer              Disable Trusted Signer WebSocket endpoint used by
+                           Signer UIs.
+  --signer-port PORT       Specify the port of Trusted Signer server
+                           [default: 8180].
+  --signer-path PATH       Specify directory where Signer UIs tokens should
+                           be stored. [default: $HOME/.parity/signer]
 
 Networking Options:
   --no-network             Disable p2p networking.
@@ -113,17 +122,6 @@ API and Console Options:
                            conjunction with --dapps-user.
   --dapps-path PATH        Specify directory where dapps should be installed.
                            [default: $HOME/.parity/dapps]
-
-  --signer                 Enable Trusted Signer WebSocket endpoint used by
-                           Signer UIs. Default if run with ui command.
-  --no-signer              Disable Trusted Signer WebSocket endpoint used by
-                           Signer UIs. Default if no command is specified.
-  --signer-port PORT       Specify the port of Trusted Signer server
-                           [default: 8180].
-  --signer-path PATH       Specify directory where Signer UIs tokens should
-                           be stored. [default: $HOME/.parity/signer]
-  --no-token               By default a new system UI security token will be
-                           output on start up. This will prevent it.
 
 Sealing/Mining Options:
   --author ADDRESS         Specify the block author (aka "coinbase") address
@@ -203,6 +201,7 @@ Database Options:
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs [default: ssd].
+  --fat-db                 Fat database.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -308,11 +307,10 @@ pub struct Args {
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
-	pub flag_signer: bool,
+	pub flag_force_signer: bool,
 	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
-	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
 	pub flag_reseal_on_txs: String,
 	pub flag_reseal_min_period: u64,
@@ -362,6 +360,7 @@ pub struct Args {
 	pub flag_ipcapi: Option<String>,
 	pub flag_db_cache_size: Option<usize>,
 	pub flag_db_compaction: String,
+	pub flag_fat_db: bool,
 }
 
 pub fn print_version() {
