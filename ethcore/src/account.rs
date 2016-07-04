@@ -269,6 +269,17 @@ mod tests {
 	use account_db::*;
 
 	#[test]
+	fn decompressing_decoder() {
+    let raw = Account::new_basic(2.into(), 4.into()).rlp();
+    let rlp = UntrustedRlp::new(&raw);
+    let compact_vec = rlp.compress().to_vec();
+    assert!(raw.len() > compact_vec.len());
+    let again_raw = Account::from_rlp(&compact_vec);
+    println!("{:?}", again_raw);
+    //assert_eq!(raw, again_raw.to_vec());
+  }
+
+	#[test]
 	fn account_compress() {
     let raw = Account::new_basic(2.into(), 4.into()).rlp();
     let rlp = UntrustedRlp::new(&raw);

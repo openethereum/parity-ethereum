@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::cell::Cell;
 use std::fmt;
 use rustc_serialize::hex::ToHex;
+use sha3::SHA3_EMPTY;
 use rlp::bytes::{FromBytes, FromBytesResult, FromBytesError};
 use rlp::{View, Decoder, Decodable, DecoderError, RlpDecodable, Compressible, SHA3_NULL_RLP, encode, ElasticArray1024, Stream, RlpStream};
 
@@ -343,15 +344,15 @@ impl<'a> BasicDecoder<'a> {
 }
 
 impl<'a> Decoder for BasicDecoder<'a> {
-	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
-		where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
+	fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
+		where F: Fn(&[u8]) -> Result<T, DecoderError> {
 
 		let bytes = self.rlp.as_raw();
 
 		match bytes.first().cloned() {
-			// rlp is too short
+			// RLP is too short.
 			None => Err(DecoderError::RlpIsTooShort),
-			// single byt value
+			// Single byte value.
 			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
 			Some(l @ 0x80...0xb7) => {
@@ -361,19 +362,11 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				}
 				let d = &bytes[1..last_index_of];
 				if l == 0x81 && d[0] < 0x80 {
-					// Check for compression placeholders
-					if d[0] == 0x00 {
-						//Ok(SHA3_NULL_RLP as T)
-						Ok(try!(f(&bytes)))
-					} else {
-						// It was not a placeholder
-						Err(DecoderError::RlpInvalidIndirection)
-					}
-				} else {
-					Ok(try!(f(d)))
+					return Err(DecoderError::RlpInvalidIndirection);
 				}
+				Ok(try!(f(d)))
 			},
-			// longer than 55 bytes
+			// Longer than 55 bytes.
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
 				let begin_of_value = 1 as usize + len_of_len;
@@ -388,7 +381,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				}
 				Ok(try!(f(&bytes[begin_of_value..last_index_of_value])))
 			}
-			// we are reading value, not a list!
+			// We are reading value, not a list!
 			_ => Err(DecoderError::RlpExpectedToBeData)
 		}
 	}
@@ -402,11 +395,56 @@ impl<'a> Decoder for BasicDecoder<'a> {
 	}
 }
 
+struct DecompressingDecoder<'a> {
+	decoder: BasicDecoder<'a>,
+	swapper: &'a INVALID_RLP_SWAPPER,
+}
+
+impl<'a> DecompressingDecoder<'a> {
+	pub fn new(rlp: UntrustedRlp<'a>) -> DecompressingDecoder<'a> {
+		DecompressingDecoder {
+			decoder: BasicDecoder::new(rlp),
+			swapper: &INVALID_RLP_SWAPPER,
+		}
+	}
+
+	/// Return first item info.
+	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
+		let item = try!(PayloadInfo::from(bytes));
+		match item.header_len.checked_add(item.value_len) { 
+			Some(x) if x <= bytes.len() => Ok(item), 
+			_ => Err(DecoderError::RlpIsTooShort), 
+		}
+	}
+}
+
+impl<'a> Decoder for DecompressingDecoder<'a> {
+	fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
+	where F: Fn(&[u8]) -> Result<T, DecoderError> {
+		match self.decoder.read_value(f) {
+			// Try again with decompression.
+			Err(DecoderError::RlpInvalidIndirection) => {
+				let decompressed = self.decoder.rlp.decompress();
+				BasicDecoder::new(UntrustedRlp::new(&decompressed)).read_value(f)
+			},
+			// Just return on valid RLP.
+			x => x,
+		}
+	}
+
+	fn as_raw(&self) -> &[u8] {
+		self.decoder.rlp.as_raw()
+	}
+
+	fn as_rlp(&self) -> &UntrustedRlp {
+		&self.decoder.rlp
+	}
+}
+
 impl<T> Decodable for T where T: FromBytes {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_value(| bytes | {
-			Ok(try!(T::from_bytes(bytes)))
-		})
+		let f = | bytes: &[u8] | Ok(try!(T::from_bytes(bytes)));
+		decoder.read_value(&f)
 	}
 }
 
@@ -424,11 +462,8 @@ impl<T> Decodable for Option<T> where T: Decodable {
 
 impl Decodable for Vec<u8> {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_value(| bytes | {
-			let mut res = vec![];
-			res.extend_from_slice(bytes);
-			Ok(res)
-		})
+		let f = | bytes: &[u8] | Ok(bytes.to_vec());
+		decoder.read_value(&f)
 	}
 }
 
@@ -506,21 +541,19 @@ struct InvalidRlpSwapper {
 impl InvalidRlpSwapper {
 	/// Construct a swapper from a list of common RLPs
 	fn new(rlps_to_swap: Vec<Vec<u8>>) -> Self {
-		match rlps_to_swap.len() {
-			0...0x80 => {
-				let mut invalid_to_valid = HashMap::new();
-				let mut valid_to_invalid = HashMap::new();
-				for (i, rlp) in rlps_to_swap.iter().enumerate() {
-					let invalid = vec!(0x81, i as u8); 	
-					invalid_to_valid.insert(invalid.clone(), rlp.clone());
-					valid_to_invalid.insert(rlp.to_owned(), invalid);
-				}
-				InvalidRlpSwapper {
-					invalid_to_valid: invalid_to_valid,
-					valid_to_invalid: valid_to_invalid
-				}
-			},
-			_ => panic!()
+		if rlps_to_swap.len() > 0x80 {
+			panic!("Invalid usage, only 128 RLPs can be swappable.");
+		}
+		let mut invalid_to_valid = HashMap::new();
+		let mut valid_to_invalid = HashMap::new();
+		for (i, rlp) in rlps_to_swap.iter().enumerate() {
+			let invalid = vec!(0x81, i as u8); 	
+			invalid_to_valid.insert(invalid.clone(), rlp.clone());
+			valid_to_invalid.insert(rlp.to_owned(), invalid);
+		}
+		InvalidRlpSwapper {
+			invalid_to_valid: invalid_to_valid,
+			valid_to_invalid: valid_to_invalid
 		}
 	}
 	/// Get a valid RLP corresponding to an invalid one
@@ -534,13 +567,18 @@ impl InvalidRlpSwapper {
 }
 
 lazy_static! {
-	static ref INVALID_RLP_SWAPPER: InvalidRlpSwapper = InvalidRlpSwapper::new(vec![encode(&SHA3_NULL_RLP).to_vec()]);
+	static ref INVALID_RLP_SWAPPER: InvalidRlpSwapper = InvalidRlpSwapper::new(vec![encode(&SHA3_NULL_RLP).to_vec(), encode(&SHA3_EMPTY).to_vec()]);
 }
 
 impl<'a> Compressible for UntrustedRlp<'a> {
-	fn transform<F>(&self, swapper: F) -> ElasticArray1024<u8>
+	fn swap<F>(&self, swapper: F) -> ElasticArray1024<u8>
 	where F: Fn(&[u8]) -> Option<&[u8]> {
-		if self.is_data() { panic!() };
+		if self.is_data() {
+			let raw = self.as_raw();
+			let mut result = ElasticArray1024::new();
+			result.append_slice(swapper(raw).unwrap_or(raw));
+			return result;
+		};
 		let raw_rlp = self.iter()
 			.map(|subrlp| {
 					let b = subrlp.as_raw();
@@ -553,10 +591,10 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 	}
 
 	fn compress(&self) -> ElasticArray1024<u8> {
-		self.transform(|b| INVALID_RLP_SWAPPER.get_invalid(b))
+		self.swap(|b| INVALID_RLP_SWAPPER.get_invalid(b))
 	}
 	fn decompress(&self) -> ElasticArray1024<u8> {
-		self.transform(|b| INVALID_RLP_SWAPPER.get_valid(b))
+		self.swap(|b| INVALID_RLP_SWAPPER.get_valid(b))
 	}
 }
 
@@ -576,14 +614,3 @@ fn invalid_rlp_swapper() {
 	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
 	assert_eq!(Some(vec![0x83, b'd', b'o', b'g'].as_slice()), swapper.get_valid(&invalid_rlp[1]));
 }
-
-#[test]
-fn rlp_compression() {
-	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
-	let rlp = UntrustedRlp::new(&data);
-	let swapper = InvalidRlpSwapper::new(vec![vec![0x83, b'c', b'a', b't']]);
-	let compressed_rlp = &rlp.transform(|b| swapper.get_invalid(b));
-	assert_eq!(&compressed_rlp.to_vec(), &vec![0xc6, 0x81, 0x00, 0x83, b'd', b'o', b'g']);
-	assert_eq!(
-		data,
-		UntrustedRlp::new(&compressed_rlp).transform(|b| swapper.get_valid(b)).to_vec());}
