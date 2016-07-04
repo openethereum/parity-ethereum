@@ -86,6 +86,7 @@ pub struct TrieFactory {
 	spec: TrieSpec,
 }
 
+#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl TrieFactory {
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {
