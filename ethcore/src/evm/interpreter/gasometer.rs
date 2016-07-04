@@ -209,14 +209,16 @@ impl<Gas: CostType> Gasometer<Gas> {
 		};
 		let current_mem_size = Gas::from(current_mem_size);
 		let req_mem_size_rounded = (overflowing!(mem_size.overflow_add(Gas::from(31 as usize))) >> 5) << 5;
-		let new_mem_gas = try!(gas_for_mem(req_mem_size_rounded));
-		let current_mem_gas = try!(gas_for_mem(current_mem_size));
 
-		Ok((if req_mem_size_rounded > current_mem_size {
+		let mem_gas_cost = if req_mem_size_rounded > current_mem_size {
+			let new_mem_gas = try!(gas_for_mem(req_mem_size_rounded));
+			let current_mem_gas = try!(gas_for_mem(current_mem_size));
 			new_mem_gas - current_mem_gas
 		} else {
 			Gas::from(0)
-		}, req_mem_size_rounded.as_usize()))
+		};
+
+		Ok((mem_gas_cost, req_mem_size_rounded.as_usize()))
 	}
 
 }
