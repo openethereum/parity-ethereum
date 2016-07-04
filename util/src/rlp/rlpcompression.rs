@@ -16,7 +16,6 @@
 
 use std::collections::HashMap;
 use sha3::SHA3_EMPTY;
-use rustc_serialize::hex::ToHex;
 use rlp::untrusted_rlp::BasicDecoder;
 use rlp::{UntrustedRlp, View, PayloadInfo, DecoderError, Decoder, Compressible, SHA3_NULL_RLP, encode, ElasticArray1024, Stream, RlpStream};
 
@@ -55,6 +54,7 @@ impl InvalidRlpSwapper {
 }
 
 lazy_static! {
+	/// Swapper with common long RLPs, up to 128 can be added.
 	static ref INVALID_RLP_SWAPPER: InvalidRlpSwapper = InvalidRlpSwapper::new(vec![encode(&SHA3_NULL_RLP).to_vec(), encode(&SHA3_EMPTY).to_vec()]);
 }
 
@@ -143,6 +143,7 @@ fn invalid_rlp_swapper() {
 
 #[test]
 fn decompressing_decoder() {
+	use rustc_serialize::hex::ToHex;
 	let basic_account_rlp = vec![248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
 	let compressed = UntrustedRlp::new(&basic_account_rlp).compress().to_vec();
 	assert_eq!(compressed, vec![198, 4, 2, 129, 0, 129, 1]);
