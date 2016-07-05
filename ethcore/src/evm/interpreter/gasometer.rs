@@ -220,7 +220,6 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 		Ok((mem_gas_cost, req_mem_size_rounded.as_usize()))
 	}
-
 }
 
 #[inline]
