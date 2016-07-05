@@ -21,7 +21,8 @@ use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
-	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError};
+	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics,
+	TransactionImportError, BlockImportError};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -488,7 +489,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, String>> {
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>> {
 		let nonces = self.nonces.read().unwrap();
 		let balances = self.balances.read().unwrap();
 		let fetch_account = |a: &Address| AccountDetails {
@@ -496,10 +497,10 @@ impl BlockChainClient for TestBlockChainClient {
 			balance: balances[a],
 		};
 
-		self.miner.import_transactions(self, transactions, fetch_account)
-			.iter()
-			.map(|res| match res { &Ok(ref t) => Ok(t.clone()), &Err(ref e) => Err(format!("{:?}", e)) })
-			.collect::<Vec<Result<TransactionImportResult, String>>>()
+		self.miner.import_transactions(self, transactions, &fetch_account)
+			.into_iter()
+			.map(|res| res.map_err(|e| e.into()))
+			.collect()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) -> bool {

@@ -122,6 +122,7 @@ pub struct Client {
 	panic_handler: Arc<PanicHandler>,
 	verifier: Box<Verifier>,
 	vm_factory: Arc<EvmFactory>,
+	trie_factory: TrieFactory,
 	miner: Arc<Miner>,
 	io_channel: IoChannel<NetSyncMessage>,
 	queue_transactions: AtomicUsize,
@@ -203,6 +204,7 @@ impl Client {
 			panic_handler: panic_handler,
 			verifier: verification::new(config.verifier_type),
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
+			trie_factory: TrieFactory::new(config.trie_spec),
 			miner: miner,
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
@@ -261,7 +263,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -376,7 +378,7 @@ impl Client {
 		imported
 	}
 
-	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &Bytes) -> ImportRoute where B: IsBlock + Drain {
+	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
 		let number = block.header().number();
 		// Are we committing an era?
 		let ancient = if number >= HISTORY {
@@ -446,13 +448,17 @@ impl Client {
 
 			let root = HeaderView::new(&header).state_root();
 
-			State::from_existing(db, root, self.engine.account_start_nonce()).ok()
+			State::from_existing(db, root, self.engine.account_start_nonce(), self.trie_factory.clone()).ok()
 		})
 	}
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(self.state_db.lock().unwrap().boxed_clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(
+			self.state_db.lock().unwrap().boxed_clone(),
+			HeaderView::new(&self.best_block_header()).state_root(),
+			self.engine.account_start_nonce(),
+			self.trie_factory.clone())
 			.expect("State root of best block header always valid.")
 	}
 
@@ -509,7 +515,6 @@ impl Client {
 	}
 }
 
-#[derive(Ipc)]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -610,7 +615,7 @@ impl BlockChainClient for Client {
 
 	fn uncle(&self, id: UncleID) -> Option<Bytes> {
 		let index = id.position;
-		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_at(index).and_then(|u| Some(u.rlp(Seal::With))))
+		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_rlp_at(index))
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
@@ -684,7 +689,7 @@ impl BlockChainClient for Client {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
 			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash()));
+				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
 		Ok(try!(self.block_queue.import_block(bytes)))
@@ -694,9 +699,8 @@ impl BlockChainClient for Client {
 		self.block_queue.queue_info()
 	}
 
-	fn clear_queue(&self) -> bool {
+	fn clear_queue(&self) {
 		self.block_queue.clear();
-		true
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
@@ -742,8 +746,8 @@ impl BlockChainClient for Client {
 						receipt.logs.into_iter()
 							.enumerate()
 							.filter(|tuple| filter.matches(&tuple.1))
-							.map(|(i, log)| LocalizedLogEntry {
-								entry: log,
+						 	.map(|(i, log)| LocalizedLogEntry {
+							 	entry: log,
 								block_hash: hash.clone(),
 								block_number: number,
 								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
@@ -802,31 +806,29 @@ impl BlockChainClient for Client {
 		self.build_last_hashes(self.chain.best_block_hash())
 	}
 
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, String>> {
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>> {
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: self.latest_nonce(a),
 			balance: self.latest_balance(a),
 		};
-		self.miner.import_transactions(self, transactions, fetch_account)
-			.iter()
-			.map(|res| match res { &Ok(ref t) => Ok(t.clone()), &Err(ref e) => Err(format!("{:?}", e)) })
-			.collect::<Vec<Result<TransactionImportResult, String>>>()
+
+		self.miner.import_transactions(self, transactions, &fetch_account)
+			.into_iter()
+			.map(|res| res.map_err(|e| e.into()))
+			.collect()
 	}
 
-	fn queue_transactions(&self, transactions: Vec<Bytes>) -> bool {
+	fn queue_transactions(&self, transactions: Vec<Bytes>) {
 		if self.queue_transactions.load(AtomicOrdering::Relaxed) > MAX_TX_QUEUE_SIZE {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
-			false
 		} else {
 			let len = transactions.len();
 			match self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewTransactions(transactions))) {
 				Ok(_) => {
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
-					true
 				}
 				Err(e) => {
 					debug!("Ignoring {} transactions: error queueing: {}", len, e);
-					false
 				}
 			}
 		}
@@ -845,6 +847,7 @@ impl MiningBlockChainClient for Client {
 		let mut open_block = OpenBlock::new(
 			engine,
 			&self.vm_factory,
+			self.trie_factory.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),

@@ -18,3 +18,4 @@
 
 #![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
 include!(concat!(env!("OUT_DIR"), "/client.ipc.rs"));
+

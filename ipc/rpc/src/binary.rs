@@ -144,10 +144,8 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 		0usize + match K::len_params() {
 			0 => mem::size_of::<K>() * self.len(),
 			_ => self.iter().fold(0usize, |acc, (k, _)| acc + k.size())
-		}
-		+
-		match V::len_params() {
-			0 => mem::size_of::<V>() * self.len(),
+		} + match V::len_params() {
+			0 => mem::size_of::<V>() * self.len(), 0 => mem::size_of::<V>() * self.len(),
 			_ => self.iter().fold(0usize, |acc, (_, v)| acc + v.size())
 		}
 	}
@@ -179,7 +177,7 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 		Ok(())
 	}
 
-	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize> ) -> Result<Self, BinaryConvertError> {
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
 		let mut index = 0;
 		let mut result = Self::new();
 
@@ -192,8 +190,7 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 			};
 			let key = if key_size == 0 {
 				try!(K::from_empty_bytes())
-			}
-			else {
+			} else {
 				try!(K::from_bytes(&buffer[index..index+key_size], length_stack))
 			};
 			index = index + key_size;
@@ -204,8 +201,7 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 			};
 			let val = if val_size == 0 {
 				try!(V::from_empty_bytes())
-			}
-			else {
+			} else {
 				try!(V::from_bytes(&buffer[index..index+val_size], length_stack))
 			};
 			result.insert(key, val);

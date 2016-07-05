@@ -90,7 +90,11 @@ use util::hash::{Address, H256};
 use util::table::*;
 use transaction::*;
 use error::{Error, TransactionError};
+<<<<<<< HEAD
 pub use types::transaction_import_result::TransactionImportResult;
+=======
+use client::TransactionImportResult;
+>>>>>>> master
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -805,6 +809,7 @@ mod test {
 	use error::{Error, TransactionError};
 	use super::*;
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
+	use client::TransactionImportResult;
 
 	fn unwrap_tx_err(err: Result<TransactionImportResult, Error>) -> TransactionError {
 		match err.unwrap_err() {

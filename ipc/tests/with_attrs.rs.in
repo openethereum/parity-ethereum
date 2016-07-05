@@ -14,16 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Transaction import result related types
-
+use std::sync::RwLock;
+use std::ops::*;
+use ipc::IpcConfig;
+use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
 
-#[derive(Debug, Clone, PartialEq, Binary)]
-/// Represents the result of importing transaction.
-pub enum TransactionImportResult {
-	/// Transaction was imported to current queue.
-	Current,
-	/// Transaction was imported to future queue.
-	Future
+pub struct BadlyNamedService;
+
+#[derive(Ipc)]
+#[ipc(client_ident="PrettyNamedClient")]
+impl BadlyNamedService {
+	fn is_zero(&self, x: u64) -> bool {
+		x == 0
+	}
 }
+
+impl ::ipc::IpcConfig for BadlyNamedService {}
