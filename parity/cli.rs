@@ -35,6 +35,8 @@ Usage:
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
                            active - Parity continuously syncs the chain.
+                           passive - Parity syncs initially, then sleeps and
+                           wakes regularly to resync. 
                            dark - Parity syncs only when an external interface
                            is active. [default: active].
   --mode-timeout SECS      Specify the number of seconds before inactivity
