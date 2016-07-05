@@ -23,7 +23,7 @@ mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
+pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
@@ -63,6 +63,11 @@ pub struct CallAnalytics {
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
+	
+	/// Should be called by any external-facing interface when actively using the client.
+	/// To minimise chatter, there's no need to call more than once every 30s.
+	fn keep_alive(&self) {}
+
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockID) -> Option<Bytes>;
 

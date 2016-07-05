@@ -55,10 +55,17 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(TraceFilter,)>(params)
 			.and_then(|(filter, )| {
 				let client = take_weak!(self.client);
@@ -69,6 +76,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn block_traces(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| {
 				let client = take_weak!(self.client);
@@ -79,6 +87,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn transaction_traces(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(H256,)>(params)
 			.and_then(|(transaction_hash,)| {
 				let client = take_weak!(self.client);
@@ -89,6 +98,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn trace(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(H256, Vec<Index>)>(params)
 			.and_then(|(transaction_hash, address)| {
 				let client = take_weak!(self.client);
@@ -103,6 +113,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		trace!(target: "jsonrpc", "call: {:?}", params);
 		from_params(params)
 			.and_then(|(request, flags)| {

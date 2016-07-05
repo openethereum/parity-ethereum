@@ -46,16 +46,24 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 			miner: Arc::downgrade(miner),
 		}
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	fn transactions_to_confirm(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		let queue = take_weak!(self.queue);
 		to_value(&queue.requests())
 	}
 
 	fn confirm_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(U256, TransactionModification, String)>(params).and_then(
 			|(id, modification, pass)| {
 				let accounts = take_weak!(self.accounts);
@@ -87,6 +95,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 	}
 
 	fn reject_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(U256, )>(params).and_then(
 			|(id, )| {
 				let queue = take_weak!(self.queue);
