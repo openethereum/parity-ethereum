@@ -31,6 +31,7 @@
 #![cfg_attr(feature="dev", allow(needless_borrow))]
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
 
+#![cfg_attr(feature="benches", feature(test))]
 
 //! Ethcore library
 //!
