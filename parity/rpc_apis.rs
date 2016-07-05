@@ -18,7 +18,6 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use die::*;
 use ethsync::EthSync;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;

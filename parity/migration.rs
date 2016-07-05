@@ -19,6 +19,7 @@ use std::fs::File;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
+use util::journaldb::Algorithm;
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError};
 use ethcore::migrations;
 
@@ -153,9 +154,12 @@ fn extras_database_migrations() -> Result<MigrationManager, Error> {
 }
 
 /// Migrations on the state database.
-fn state_database_migrations() -> Result<MigrationManager, Error> {
+fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings());
-	try!(manager.add_migration(migrations::state::ToV7).map_err(|_| Error::MigrationImpossible));
+	match pruning {
+		Algorithm::Archive => try!(manager.add_migration(migrations::state::ArchiveV7).map_err(|_| Error::MigrationImpossible)),
+		_ => die!("Unsupported pruning method for migration. Delete DB and resync"),
+	}
 	Ok(manager)
 }
 
@@ -194,7 +198,7 @@ fn exists(path: &Path) -> bool {
 }
 
 /// Migrates the database.
-pub fn migrate(path: &Path) -> Result<(), Error> {
+pub fn migrate(path: &Path, pruning: Algorithm) -> Result<(), Error> {
 	// read version file.
 	let version = try!(current_version(path));
 
@@ -204,7 +208,7 @@ pub fn migrate(path: &Path) -> Result<(), Error> {
 		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
 		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
 		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
-		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations())));
+		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations(pruning))));
 		println!("Migration finished");
 	}
 

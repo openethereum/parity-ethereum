@@ -3,10 +3,10 @@ use util::migration::SimpleMigration;
 use util::sha3::Hashable;
 
 /// This migration migrates the state db to use an accountdb which ensures uniqueness
-/// using an address' hash as opposed to the address itself.
-pub struct ToV7;
+/// using an address' hash as opposed to the address itself. Works only for ArchiveDB.
+pub struct ArchiveV7;
 
-impl SimpleMigration for ToV7 {
+impl SimpleMigration for ArchiveV7 {
 	fn version(&self) -> u32 {
 		7
 	}
