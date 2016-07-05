@@ -73,7 +73,7 @@ use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService, AccountDetails};
 use util::TrieFactory;
 use ipc::IpcConfig;
-use ipc::binary::{BinaryConvertable, BinaryConvertError};
+use ipc::binary::{BinaryConvertError};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;

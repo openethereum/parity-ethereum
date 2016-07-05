@@ -32,6 +32,7 @@ bloomchain = "0.1"
 rayon = "0.3.1"
 ethstore = { path = "../ethstore" }
 semver = "0.2"
+ethcore-ipc-nano = { path = "../ipc/nano" }
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"

@@ -86,14 +86,14 @@ mod test {
 	#[test]
 	fn create_delete() {
 		let a = PodState::from(map![ 1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]) ]);
-		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff(map![
+		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff { raw: map![
 			1.into() => AccountDiff{
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
 				code: Diff::Died(vec![]),
 				storage: map![],
 			}
-		]));
+		]});
 		assert_eq!(super::diff_pod(&PodState::new(), &a), StateDiff{ raw: map![
 			1.into() => AccountDiff{
 				balance: Diff::Born(69.into()),
