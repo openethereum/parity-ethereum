@@ -69,7 +69,7 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 		};
   	let mut rlp = RlpStream::new_list(self.item_count());
 		for subrlp in self.iter() {
-			let new_sub = subrlp.swap(&swapper);
+			let new_sub = subrlp.swap(swapper);
 			rlp.append_raw(&new_sub, 1);
 		}
   	rlp.drain()

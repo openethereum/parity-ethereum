@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Wrapper over `HashDB` which keeps the values compressed.
+
 use std::collections::HashMap;
 use hashdb::HashDB;
 use hash::H256;
@@ -22,20 +24,21 @@ use bytes::Bytes;
 use sha3::*;
 use MemoryDB;
 
-/// Wrapper over `HashDB` which keeps the values compressed.
-pub struct CompressedDB<T: HashDB> {
+/// Backing compressed `HashDB` with decompressed `MemoryDB` overlay.
+pub struct CompressedDB<'a, T: 'a + HashDB> {
 	overlay: MemoryDB,
-	backing: T,
+	backing: &'a mut T,
 }
 
-impl<T: HashDB> CompressedDB<T> {
-	pub fn new(backing: T) -> CompressedDB<T> {
+impl<'a, T: 'a + HashDB> CompressedDB<'a, T> {
+	/// Create a compressing wrapper for `backing` db.
+	pub fn new(backing: &'a mut T) -> CompressedDB<'a, T> {
 		CompressedDB { overlay: MemoryDB::new(), backing: backing }
 	}
 }
 
 /// `HashDB` wrapper which keeps the RLP values compressed.
-impl<T: HashDB> HashDB for CompressedDB<T> {
+impl<'a, T> HashDB for CompressedDB<'a, T> where T: HashDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.backing.keys() }
 
 	fn get(&self, key: &H256) -> Option<&[u8]> {
@@ -78,5 +81,6 @@ impl<T: HashDB> HashDB for CompressedDB<T> {
 
 #[test]
 fn compressed_db() {
-	let db: CompressedDB<MemoryDB> = CompressedDB::new(MemoryDB::new());
+	let mut backing = MemoryDB::new();
+	let db: CompressedDB<MemoryDB> = CompressedDB::new(&mut backing);
 }
