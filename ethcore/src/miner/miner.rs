@@ -207,7 +207,13 @@ impl Miner {
 						break;
 					}
 				},
-				Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
+				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
+				// If there is errornous state of transaction queue it will be fixed when next block is imported.
+				Err(Error::Execution(ExecutionError::InvalidNonce { .. })) => {
+					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?}", hash);
+				},
+				// already have transaction - ignore
+				Err(Error::Transaction(TransactionError::AlreadyImported)) => {},
 				Err(e) => {
 					invalid_transactions.insert(hash);
 					debug!(target: "miner",
