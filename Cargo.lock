@@ -898,7 +898,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-dapps"
 version = "0.3.0"
-source = "git+https://github.com/ethcore/parity-dapps-rs.git#8cc812c26c903cf5764ce0f4cc3f2a7c3ddb0dc2"
+source = "git+https://github.com/ethcore/parity-dapps-rs.git#8ce18c014d8b69fa31fb203b68ff240091d77a23"
 dependencies = [
  "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
