@@ -144,6 +144,7 @@ pub mod crypto;
 pub mod triehash;
 pub mod trie;
 pub mod nibbleslice;
+pub mod nibblevec;
 mod heapsizeof;
 pub mod semantic_version;
 pub mod io;
