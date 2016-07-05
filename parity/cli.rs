@@ -22,6 +22,8 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
+  parity [options]
+  parity ui [options]
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
@@ -29,8 +31,6 @@ Usage:
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
-  parity [options]
-  parity ui [options]
 
 Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
@@ -135,11 +135,11 @@ Sealing/Mining Options:
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
                            all - reseal on all new transactions [default: all].
-  --reseal-min-period MS   Specify the minimum time between reseals from 
+  --reseal-min-period MS   Specify the minimum time between reseals from
                            incoming transactions. MS is time measured in
                            milliseconds [default: 2000].
   --work-queue-size ITEMS  Specify the number of historical work packages
-                           which are kept cached lest a solution is found for 
+                           which are kept cached lest a solution is found for
                            them later. High values take more memory but result
                            in fewer unusable solutions [default: 20].
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
