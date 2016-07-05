@@ -59,7 +59,7 @@ lazy_static! {
 }
 
 impl<'a> Compressible for UntrustedRlp<'a> {
-	fn swap<F>(&self, swapper: F) -> ElasticArray1024<u8>
+	fn swap<F>(&self, swapper: &F) -> ElasticArray1024<u8>
 	where F: Fn(&[u8]) -> Option<&[u8]> {
 		if self.is_data() {
 			let raw = self.as_raw();
@@ -67,22 +67,19 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 			result.append_slice(swapper(raw).unwrap_or(raw));
 			return result;
 		};
-		let raw_rlp = self.iter()
-			.map(|subrlp| {
-					let b = subrlp.as_raw();
-					swapper(b).unwrap_or(b)
-      	})
-    	.fold(ElasticArray1024::new(), |mut acc, slice| { acc.append_slice(slice); acc });
   	let mut rlp = RlpStream::new_list(self.item_count());
-  	rlp.append_raw(&raw_rlp, self.item_count());
+		for subrlp in self.iter() {
+			let new_sub = subrlp.swap(&swapper);
+			rlp.append_raw(&new_sub, 1);
+		}
   	rlp.drain()
 	}
 
 	fn compress(&self) -> ElasticArray1024<u8> {
-		self.swap(|b| INVALID_RLP_SWAPPER.get_invalid(b))
+		self.swap(&|b| INVALID_RLP_SWAPPER.get_invalid(b))
 	}
 	fn decompress(&self) -> ElasticArray1024<u8> {
-		self.swap(|b| INVALID_RLP_SWAPPER.get_valid(b))
+		self.swap(&|b| INVALID_RLP_SWAPPER.get_valid(b))
 	}
 }
 

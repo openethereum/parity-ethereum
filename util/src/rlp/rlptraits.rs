@@ -373,6 +373,6 @@ pub trait Compressible: Sized {
 	/// Recover valid RLP from a compressed form.
 	fn decompress(&self) -> ElasticArray1024<u8>;
 	/// Generic RLP substitiution
-	fn swap<F>(&self, swapper: F) -> ElasticArray1024<u8>
+	fn swap<F>(&self, swapper: &F) -> ElasticArray1024<u8>
 		where F: Fn(&[u8]) -> Option<&[u8]>;
 }

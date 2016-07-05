@@ -395,8 +395,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 
 impl<T> Decodable for T where T: FromBytes {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let f = | bytes: &[u8] | Ok(try!(T::from_bytes(bytes)));
-		decoder.read_value(&f)
+		decoder.read_value(&|bytes: &[u8]| Ok(try!(T::from_bytes(bytes))))
 	}
 }
 
@@ -414,8 +413,7 @@ impl<T> Decodable for Option<T> where T: Decodable {
 
 impl Decodable for Vec<u8> {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let f = | bytes: &[u8] | Ok(bytes.to_vec());
-		decoder.read_value(&f)
+		decoder.read_value(&|bytes: &[u8]| Ok(bytes.to_vec()))
 	}
 }
 
