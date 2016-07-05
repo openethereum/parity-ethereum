@@ -51,7 +51,13 @@ impl<'db> SecTrieDBMut<'db> {
 }
 
 impl<'db> TrieMut for SecTrieDBMut<'db> {
-	fn root(&self) -> &H256 { self.raw.root() }
+	fn root(&mut self) -> &H256 {
+		self.raw.root()
+	}
+
+	fn is_empty(&self) -> bool {
+		self.raw.is_empty()
+	}
 
 	fn contains(&self, key: &[u8]) -> bool {
 		self.raw.contains(&key.sha3())

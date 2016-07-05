@@ -41,10 +41,10 @@ pub trait Trie {
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait TrieMut {
 	/// Return the root of the trie.
-	fn root(&self) -> &H256;
+	fn root(&mut self) -> &H256;
 
 	/// Is the trie empty?
-	fn is_empty(&self) -> bool { *self.root() == SHA3_NULL_RLP }
+	fn is_empty(&self) -> bool;
 
 	/// Does the trie contain a given key?
 	fn contains(&self, key: &[u8]) -> bool;

@@ -647,7 +647,11 @@ impl<'db> TrieDBMut<'db> {
 }
 
 impl<'db> TrieMut for TrieDBMut<'db> {
-	fn root(&self) -> &H256 { &self.root }
+	fn root(&mut self) -> &H256 { &self.root }
+
+	fn is_empty(&self) -> bool {
+		*self.root == SHA3_NULL_RLP
+	}
 
 	fn contains(&self, key: &[u8]) -> bool {
 		self.get(key).is_some()
@@ -784,7 +788,7 @@ mod tests {
 	fn init() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		assert_eq!(*t.root(), SHA3_NULL_RLP);
 		assert!(t.is_empty());
 	}
@@ -1055,12 +1059,12 @@ mod tests {
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::new();
 			let mut root = H256::new();
-			let memtrie = populate_trie(&mut memdb, &mut root, &x);
+			let mut memtrie = populate_trie(&mut memdb, &mut root, &x);
 			let mut y = x.clone();
 			y.sort_by(|ref a, ref b| a.0.cmp(&b.0));
 			let mut memdb2 = MemoryDB::new();
 			let mut root2 = H256::new();
-			let memtrie_sorted = populate_trie(&mut memdb2, &mut root2, &y);
+			let mut memtrie_sorted = populate_trie(&mut memdb2, &mut root2, &y);
 			if *memtrie.root() != real || *memtrie_sorted.root() != real {
 				println!("TRIE MISMATCH");
 				println!("");

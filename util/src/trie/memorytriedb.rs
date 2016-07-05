@@ -847,9 +847,9 @@ impl<'a> MemoryTrieDB<'a> {
 	}
 }
 
-impl<'a> Trie for MemoryTrieDB<'a> {
-	// TODO [rob] do something about the root not being consistent with trie state until commit.
-	fn root(&self) -> &H256 {
+impl<'a> TrieMut for MemoryTrieDB<'a> {
+	fn root(&mut self) -> &H256 {
+		self.commit();
 		&self.root
 	}
 
@@ -868,9 +868,7 @@ impl<'a> Trie for MemoryTrieDB<'a> {
 	fn contains(&self, key: &[u8]) -> bool {
 		self.get(key).is_some()
 	}
-}
 
-impl<'a> TrieMut for MemoryTrieDB<'a> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		let root_handle = self.root_handle();
 		let (new_handle, changed) = self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
@@ -902,8 +900,6 @@ impl<'a> Drop for MemoryTrieDB<'a> {
 
 #[cfg(test)]
 mod tests {
-	extern crate json_tests;
-	use self::json_tests::{trie, execute_tests_from_directory};
 	use triehash::trie_root;
 	use hash::*;
 	use hashdb::*;
@@ -981,7 +977,7 @@ mod tests {
 	fn init() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let t = MemoryTrieDB::new(&mut memdb, &mut root);
+		let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
 		assert_eq!(*t.root(), SHA3_NULL_RLP);
 	}
 
@@ -1210,26 +1206,6 @@ mod tests {
 			assert_eq!(*memtrie.root(), real);
 			assert_eq!(*memtrie_sorted.root(), real);
 		}
-	}
-
-	#[test]
-	fn test_trie_json() {
-		println!("Json trie test: ");
-		execute_tests_from_directory::<trie::TrieTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
-			println!("file: {}", file);
-
-			let mut memdb = MemoryDB::new();
-			let mut root = H256::new();
-			let mut t = MemoryTrieDB::new(&mut memdb, &mut root);
-			for operation in input.into_iter() {
-				match operation {
-					trie::Operation::Insert(key, value) => t.insert(&key, &value),
-					trie::Operation::Remove(key) => t.remove(&key)
-				}
-			}
-			t.commit();
-			assert_eq!(*t.root(), H256::from_slice(&output));
-		});
 	}
 
 	#[test]
