@@ -67,7 +67,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
-		let s = State::from_existing(db, genesis_header.state_root.clone(), engine.account_start_nonce()).unwrap();
+		let s = State::from_existing(db, genesis_header.state_root.clone(), engine.account_start_nonce(), Default::default()).unwrap();
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000001")), U256::from(1u64));
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000002")), U256::from(1u64));
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000003")), U256::from(1u64));

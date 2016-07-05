@@ -23,7 +23,7 @@ mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch, VMType};
+pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
@@ -37,8 +37,8 @@ use util::numbers::U256;
 use util::Itertools;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::OpenBlock;
-use header::{BlockNumber, Header};
+use block::{OpenBlock, SealedBlock};
+use header::{BlockNumber};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
@@ -47,8 +47,8 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
-use miner::{TransactionImportResult};
-use error::Error as EthError;
+pub use block_import_error::BlockImportError;
+pub use transaction_import::{TransactionImportResult, TransactionImportError};
 
 /// Options concerning what analytics we run on the call.
 #[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
@@ -126,7 +126,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
 
 	/// Get uncle with given id.
-	fn uncle(&self, id: UncleID) -> Option<Header>;
+	fn uncle(&self, id: UncleID) -> Option<Bytes>;
 
 	/// Get transaction receipt with given hash.
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt>;
@@ -145,7 +145,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> ImportResult;
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
@@ -172,9 +172,6 @@ pub trait BlockChainClient : Sync + Send {
 	// TODO: should be able to accept blockchain location for call.
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
 
-	/// Returns EvmFactory.
-	fn vm_factory(&self) -> &EvmFactory;
-
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
 
@@ -191,13 +188,13 @@ pub trait BlockChainClient : Sync + Send {
 	fn last_hashes(&self) -> LastHashes;
 
 	/// import transactions from network/other 3rd party
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>>;
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>>;
 
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>);
 
 	/// list all transactions
-	fn all_transactions(&self) -> Vec<SignedTransaction>;
+	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
 	/// Get the gas price distribution.
 	fn gas_price_statistics(&self, sample_size: usize, distribution_size: usize) -> Result<Vec<U256>, ()> {
@@ -227,7 +224,7 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get `Some` gas limit of SOFT_FORK_BLOCK, or `None` if chain is not yet that long.
 	fn dao_rescue_block_gas_limit(&self, chain_hash: H256) -> Option<U256> {
-		const SOFT_FORK_BLOCK: u64 = 1775000;
+		const SOFT_FORK_BLOCK: u64 = 1800000;
 		// shortcut if the canon chain is already known.
 		if self.chain_info().best_block_number > SOFT_FORK_BLOCK + 1000 {
 			return self.block_header(BlockID::Number(SOFT_FORK_BLOCK)).map(|header| HeaderView::new(&header).gas_limit());
@@ -245,12 +242,18 @@ pub trait BlockChainClient : Sync + Send {
 		} else {
 			None
 		}
-	}	
+	}
 }
 
 /// Extended client interface used for mining
 pub trait MiningBlockChainClient : BlockChainClient {
 	/// Returns OpenBlock prepared for closing.
-	fn prepare_open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes)
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes)
 		-> OpenBlock;
+
+	/// Returns EvmFactory.
+	fn vm_factory(&self) -> &EvmFactory;
+
+	/// Import sealed block. Skips all verifications.
+	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
 }

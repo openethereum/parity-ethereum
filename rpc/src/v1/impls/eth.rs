@@ -18,6 +18,8 @@
 
 extern crate ethash;
 
+use std::thread;
+use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
@@ -39,6 +41,7 @@ use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
+use ethcore::header::Header as BlockHeader;
 
 /// Eth rpc implementation.
 pub struct EthClient<C, S, M, EM> where
@@ -124,33 +127,38 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 
 	fn uncle(&self, id: UncleID) -> Result<Value, Error> {
 		let client = take_weak!(self.client);
-		match client.uncle(id).and_then(|u| client.block_total_difficulty(BlockID::Hash(u.parent_hash().clone())).map(|diff| (diff, u))) {
-			Some((parent_difficulty, uncle)) => {
-				let block = Block {
-					hash: OptionalValue::Value(uncle.hash()),
-					parent_hash: uncle.parent_hash,
-					uncles_hash: uncle.uncles_hash,
-					author: uncle.author,
-					miner: uncle.author,
-					state_root: uncle.state_root,
-					transactions_root: uncle.transactions_root,
-					number: OptionalValue::Value(U256::from(uncle.number)),
-					gas_used: uncle.gas_used,
-					gas_limit: uncle.gas_limit,
-					logs_bloom: uncle.log_bloom,
-					timestamp: U256::from(uncle.timestamp),
-					difficulty: uncle.difficulty,
-					total_difficulty: uncle.difficulty + parent_difficulty,
-					receipts_root: uncle.receipts_root,
-					extra_data: Bytes::new(uncle.extra_data),
-					seal_fields: uncle.seal.into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
-					uncles: vec![],
-					transactions: BlockTransactions::Hashes(vec![]),
-				};
-				to_value(&block)
-			},
-			None => Ok(Value::Null)
-		}
+
+		let uncle: BlockHeader = match client.uncle(id) {
+			Some(rlp) => decode(&rlp),
+			None => { return Ok(Value::Null); }
+		};
+		let parent_difficulty = match client.block_total_difficulty(BlockID::Hash(uncle.parent_hash().clone())) {
+			Some(difficulty) => difficulty,
+			None => { return Ok(Value::Null); }
+		};
+
+		let block = Block {
+			hash: OptionalValue::Value(uncle.hash()),
+			parent_hash: uncle.parent_hash,
+			uncles_hash: uncle.uncles_hash,
+			author: uncle.author,
+			miner: uncle.author,
+			state_root: uncle.state_root,
+			transactions_root: uncle.transactions_root,
+			number: OptionalValue::Value(U256::from(uncle.number)),
+			gas_used: uncle.gas_used,
+			gas_limit: uncle.gas_limit,
+			logs_bloom: uncle.log_bloom,
+			timestamp: U256::from(uncle.timestamp),
+			difficulty: uncle.difficulty,
+			total_difficulty: uncle.difficulty + parent_difficulty,
+			receipts_root: uncle.receipts_root,
+			extra_data: Bytes::new(uncle.extra_data),
+			seal_fields: uncle.seal.into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
+			uncles: vec![],
+			transactions: BlockTransactions::Hashes(vec![]),
+		};
+		to_value(&block)
 	}
 
 	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
@@ -221,6 +229,14 @@ fn no_work_err() -> Error {
 	Error {
 		code: ErrorCode::ServerError(error_codes::NO_WORK_CODE),
 		message: "Still syncing.".into(),
+		data: None
+	}
+}
+
+fn no_author_err() -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::NO_AUTHOR_CODE),
+		message: "Author not configured. Run parity with --author to configure.".into(),
 		data: None
 	}
 }
@@ -425,12 +441,12 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| self.uncle(UncleID(BlockID::Hash(hash), index.value())))
+			.and_then(|(hash, index)| self.uncle(UncleID { block: BlockID::Hash(hash), position: index.value() }))
 	}
 
 	fn uncle_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
-			.and_then(|(number, index)| self.uncle(UncleID(number.into(), index.value())))
+			.and_then(|(number, index)| self.uncle(UncleID { block: number.into(), position: index.value() }))
 	}
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
@@ -471,14 +487,24 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 						trace!(target: "miner", "Syncing. Cannot give any work.");
 						return Err(no_work_err());
 					}
+
+					// Otherwise spin until our submitted block has been included.
+					let timeout = Instant::now() + Duration::from_millis(1000);
+					while Instant::now() < timeout && client.queue_info().total_queue_size() > 0 {
+						thread::sleep(Duration::from_millis(1));
+					}
 				}
 
 				let miner = take_weak!(self.miner);
+				if miner.author().is_zero() {
+					warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
+					return Err(no_author_err())
+				}
 				miner.map_sealing_work(client.deref(), |b| {
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 					let seed_hash = &self.seed_compute.lock().unwrap().get_seedhash(b.block().header().number());
-					to_value(&(pow_hash, H256::from_slice(&seed_hash[..]), target))
+					to_value(&(pow_hash, H256::from_slice(&seed_hash[..]), target, &U256::from(b.block().header().number())))
 				}).unwrap_or(Err(Error::internal_error()))	// no work found.
 			},
 			_ => Err(Error::invalid_params())

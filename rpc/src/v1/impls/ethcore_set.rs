@@ -22,7 +22,7 @@ use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::service::SyncMessage;
 use v1::traits::EthcoreSet;
-use v1::types::{Bytes};
+use v1::types::Bytes;
 
 /// Ethcore-specific rpc interface for operations altering the settings.
 pub struct EthcoreSetClient<M> where
@@ -52,8 +52,15 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	}
 
 	fn set_gas_floor_target(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(U256,)>(params).and_then(|(gas_floor_target,)| {
-			take_weak!(self.miner).set_gas_floor_target(gas_floor_target);
+		from_params::<(U256,)>(params).and_then(|(target,)| {
+			take_weak!(self.miner).set_gas_floor_target(target);
+			to_value(&true)
+		})
+	}
+
+	fn set_gas_ceil_target(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(U256,)>(params).and_then(|(target,)| {
+			take_weak!(self.miner).set_gas_ceil_target(target);
 			to_value(&true)
 		})
 	}
@@ -75,6 +82,13 @@ impl<M> EthcoreSet for EthcoreSetClient<M> where M: MinerService + 'static {
 	fn set_transactions_limit(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(usize,)>(params).and_then(|(limit,)| {
 			take_weak!(self.miner).set_transactions_limit(limit);
+			to_value(&true)
+		})
+	}
+
+	fn set_tx_gas_limit(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(U256,)>(params).and_then(|(limit,)| {
+			take_weak!(self.miner).set_tx_gas_limit(limit.into());
 			to_value(&true)
 		})
 	}

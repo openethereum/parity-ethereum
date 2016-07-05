@@ -14,9 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate json_tests;
-use self::json_tests::execute_tests_from_directory;
-use self::json_tests::rlp as rlptest;
 use std::{fmt, cmp};
 use std::str::FromStr;
 use rlp;
@@ -338,26 +335,6 @@ fn decode_untrusted_vector_of_vectors_str() {
 	let tests = vec![DTestPair(vec![vec!["cat".to_owned()]],
 							   vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
 	run_decode_tests(tests);
-}
-
-#[test]
-fn test_rlp_json() {
-	println!("Json rlp test: ");
-	execute_tests_from_directory::<rlptest::RlpStreamTest, _>("json-tests/json/rlp/stream/*.json", &mut | file, input, output | {
-		println!("file: {}", file);
-
-		let mut stream = RlpStream::new();
-		for operation in input.into_iter() {
-			match operation {
-				rlptest::Operation::Append(ref v) => stream.append(v),
-				rlptest::Operation::AppendList(len) => stream.begin_list(len),
-				rlptest::Operation::AppendRaw(ref raw, len) => stream.append_raw(raw, len),
-				rlptest::Operation::AppendEmpty => stream.append_empty_data()
-			};
-		}
-
-		assert_eq!(stream.out(), output);
-	});
 }
 
 #[test]

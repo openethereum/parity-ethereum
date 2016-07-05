@@ -32,7 +32,7 @@ fn client_service() -> Arc<TestBlockChainClient> {
 }
 
 fn logger() -> Arc<RotatingLogger> {
-	Arc::new(RotatingLogger::new("rpc=trace".to_owned()))
+	Arc::new(RotatingLogger::new("rpc=trace".to_owned(), false))
 }
 
 fn settings() -> Arc<NetworkSettings> {

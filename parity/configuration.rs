@@ -16,6 +16,7 @@
 
 use std::env;
 use std::fs::File;
+use std::time::Duration;
 use std::io::{BufRead, BufReader};
 use std::net::{SocketAddr, IpAddr};
 use std::path::PathBuf;
@@ -24,9 +25,11 @@ use docopt::Docopt;
 
 use die::*;
 use util::*;
+use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig, Switch, VMType};
+use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::miner::{MinerOptions, PendingSet};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -42,6 +45,13 @@ pub struct Directories {
 	pub db: String,
 	pub dapps: String,
 	pub signer: String,
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub enum Policy {
+	DaoSoft,
+	Normal,
+	Dogmatic,
 }
 
 impl Configuration {
@@ -67,16 +77,65 @@ impl Configuration {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
 	}
 
-	pub fn author(&self) -> Address {
-		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
-		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
-		})
+	fn decode_u256(d: &str, argument: &str) -> U256 {
+		U256::from_dec_str(d).unwrap_or_else(|_|
+			U256::from_str(clean_0x(d)).unwrap_or_else(|_|
+				die!("{}: Invalid numeric value for {}. Must be either a decimal or a hex number.", d, argument)
+			)
+		)
+	}
+
+	fn work_notify(&self) -> Vec<String> {
+		self.args.flag_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
+	}
+
+	pub fn miner_options(&self) -> MinerOptions {
+		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
+			"none" => (false, false),
+			"own" => (true, false),
+			"ext" => (false, true),
+			"all" => (true, true),
+			x => die!("{}: Invalid value for --reseal option. Use --help for more information.", x)
+		};
+		MinerOptions {
+			new_work_notify: self.work_notify(),
+			force_sealing: self.args.flag_force_sealing,
+			reseal_on_external_tx: ext,
+			reseal_on_own_tx: own,
+			tx_gas_limit: self.args.flag_tx_gas_limit.as_ref().map_or(!U256::zero(), |d| Self::decode_u256(d, "--tx-gas-limit")),
+			tx_queue_size: self.args.flag_tx_queue_size,
+			pending_set: match self.args.flag_relay_set.as_str() {
+				"cheap" => PendingSet::AlwaysQueue,
+				"strict" => PendingSet::AlwaysSealing,
+				"lenient" => PendingSet::SealingOrElseQueue,
+				x => die!("{}: Invalid value for --relay-set option. Use --help for more information.", x)
+			},
+			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
+			work_queue_size: self.args.flag_work_queue_size,
+			enable_resubmission: !self.args.flag_remove_solved,
+		}
+	}
+
+	pub fn author(&self) -> Option<Address> {
+		self.args.flag_etherbase.as_ref()
+			.or(self.args.flag_author.as_ref())
+			.map(|d| Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
+				die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
+			}))
+	}
+
+	pub fn policy(&self) -> Policy {
+		match self.args.flag_fork.as_str() {
+			"dao-soft" => Policy::DaoSoft,
+			"normal" => Policy::Normal,
+			"dogmatic" => Policy::Dogmatic,
+			x => die!("{}: Invalid value given for --policy option. Use --help for more info.", x)
+		}
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
-		if self.args.flag_dont_help_rescue_dao || self.args.flag_dogmatic {
-			4_700_000.into()
+		if self.policy() == Policy::DaoSoft {
+			3_141_592.into()
 		} else {
 			let d = &self.args.flag_gas_floor_target;
 			U256::from_dec_str(d).unwrap_or_else(|_| {
@@ -85,7 +144,16 @@ impl Configuration {
 		}
 	}
 
-
+	pub fn gas_ceil_target(&self) -> U256 {
+		if self.policy() == Policy::DaoSoft {
+			3_141_592.into()
+		} else {
+			let d = &self.args.flag_gas_cap;
+			U256::from_dec_str(d).unwrap_or_else(|_| {
+				die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
+			})
+		}
+	}
 
 	pub fn gas_price(&self) -> U256 {
 		match self.args.flag_gasprice.as_ref() {
@@ -114,27 +182,23 @@ impl Configuration {
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!("Using a conversion rate of Ξ1 = US${} ({} wei/gas)", usd_per_eth, wei_per_gas);
+				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", paint(White.bold(), format!("US${}", usd_per_eth)), paint(Yellow.bold(), format!("{}", wei_per_gas)));
 				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 			}
 		}
 	}
 
 	pub fn extra_data(&self) -> Bytes {
-		if !self.args.flag_dont_help_rescue_dao {
-			(b"rescuedao"[..]).to_owned()
-		} else {
-			match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
-				Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
-				None => version_data(),
-				Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
-			}
+		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
+			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
+			None => version_data(),
+			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
 		}
 	}
 
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(!self.args.flag_dogmatic),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(self.policy() != Policy::Dogmatic),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
@@ -190,7 +254,7 @@ impl Configuration {
 			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
 			Some(SocketAddr::new(host, port))
 		} else {
-			listen_address
+			None
 		};
 		(listen_address, public_address)
 	}
@@ -221,7 +285,7 @@ impl Configuration {
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
-			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i, None);
+			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i, kvdb::DatabaseConfig::default());
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
@@ -265,12 +329,27 @@ impl Configuration {
 			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::Archive),
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
 
+		if self.args.flag_fat_db {
+			if let journaldb::Algorithm::Archive = client_config.pruning {
+				client_config.trie_spec = TrieSpec::Fat;
+			} else {
+				die!("Fatdb is not supported. Please rerun with --pruning=archive")
+			}
+		}
+
 		// forced state db cache size if provided
 		client_config.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
+
+		// compaction profile
+		client_config.db_compaction = match self.args.flag_db_compaction.as_str() {
+			"ssd" => DatabaseCompactionProfile::Default,
+			"hdd" => DatabaseCompactionProfile::HDD,
+			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/ssd (default)."); }
+		};
 
 		if self.args.flag_jitvm {
 			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
@@ -359,7 +438,7 @@ impl Configuration {
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
-			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
+			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
 			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
 		}
@@ -372,7 +451,7 @@ impl Configuration {
 			chain: self.chain(),
 			max_peers: self.max_peers(),
 			network_port: self.net_port(),
-			rpc_enabled: !self.args.flag_jsonrpc_off,
+			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
@@ -396,6 +475,11 @@ impl Configuration {
 		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
 		::std::fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
+		if self.args.flag_geth {
+			let geth_path = path::ethereum::default();
+			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
+				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+		}
 
 		Directories {
 			keys: keys_path,
@@ -432,11 +516,36 @@ impl Configuration {
 	}
 
 	pub fn signer_port(&self) -> Option<u16> {
-		if self.args.flag_signer_off {
+		if !self.signer_enabled() {
 			None
 		} else {
 			Some(self.args.flag_signer_port)
 		}
+	}
+
+	pub fn rpc_interface(&self) -> String {
+		match self.network_settings().rpc_interface.as_str() {
+			"all" => "0.0.0.0",
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	pub fn dapps_interface(&self) -> String {
+		match self.args.flag_dapps_interface.as_str() {
+			"all" => "0.0.0.0",
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	pub fn dapps_enabled(&self) -> bool {
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps
+	}
+
+	pub fn signer_enabled(&self) -> bool {
+		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
+		self.args.flag_force_signer
 	}
 }
 

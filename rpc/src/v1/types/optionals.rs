@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Serialize, Serializer};
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde_json::Value;
 
 /// Optional value
@@ -26,18 +26,38 @@ pub enum OptionalValue<T> where T: Serialize {
 	Null
 }
 
-impl<T> Default for OptionalValue<T> where T: Serialize {
+impl<T> Default for OptionalValue<T> where T: Serialize + Deserialize {
 	fn default() -> Self {
 		OptionalValue::Null
 	}
 }
 
-impl<T> Serialize for OptionalValue<T> where T: Serialize {
+impl<T> Into<Option<T>> for OptionalValue<T> where T: Serialize + Deserialize {
+	fn into(self) -> Option<T> {
+		match self {
+			OptionalValue::Null => None,
+			OptionalValue::Value(t) => Some(t),
+		}
+	}
+}
+
+impl<T> Serialize for OptionalValue<T> where T: Serialize + Deserialize {
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 	where S: Serializer {
 		match *self {
 			OptionalValue::Value(ref value) => value.serialize(serializer),
 			OptionalValue::Null => Value::Null.serialize(serializer)
+		}
+	}
+}
+
+impl<T> Deserialize for OptionalValue<T> where T: Serialize + Deserialize {
+	fn deserialize<D>(deserializer: &mut D) -> Result<OptionalValue<T>, D::Error>
+	where D: Deserializer {
+		let deser_result: Result<T, D::Error> = Deserialize::deserialize(deserializer);
+		match deser_result {
+			Ok(t) => Ok(OptionalValue::Value(t)),
+			Err(_) => Ok(OptionalValue::Null),
 		}
 	}
 }

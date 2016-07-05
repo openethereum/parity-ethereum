@@ -31,6 +31,7 @@
 #![cfg_attr(feature="dev", allow(needless_borrow))]
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
 
+#![cfg_attr(feature="benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -91,6 +92,8 @@ extern crate ethjson;
 extern crate bloomchain;
 #[macro_use] extern crate ethcore_ipc as ipc;
 extern crate rayon;
+extern crate hyper;
+extern crate ethash;
 pub extern crate ethstore;
 
 #[cfg(test)] extern crate ethcore_devtools as devtools;

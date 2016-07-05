@@ -68,7 +68,8 @@ mod error_codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
 	pub const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
 	pub const NO_WORK_CODE: i64 = -32001;
-	pub const UNKNOWN_ERROR: i64 = -32002;
+	pub const NO_AUTHOR_CODE: i64 = -32002;
+	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const SIGNER_DISABLED: i64 = -32030;
@@ -164,7 +165,7 @@ fn transaction_error(error: EthcoreError) -> Error {
 				"There is too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 			},
 			InsufficientGasPrice { minimal, got } => {
-				format!("Transaction fee is to low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)
+				format!("Transaction fee is too low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)
 			},
 			InsufficientBalance { balance, cost } => {
 				format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)

@@ -28,10 +28,12 @@ impl PriceInfo {
 	pub fn get() -> Option<PriceInfo> {
 		let mut body = String::new();
 		// TODO: Handle each error type properly
-		Client::new()
-			.get("http://api.etherscan.io/api?module=stats&action=ethprice")
+		let mut client = Client::new();
+		client.set_read_timeout(Some(::std::time::Duration::from_secs(3)));
+		client.get("http://api.etherscan.io/api?module=stats&action=ethprice")
 			.header(Connection::close())
-			.send().ok()
+			.send()
+			.ok()
 			.and_then(|mut s| s.read_to_string(&mut body).ok())
 			.and_then(|_| Json::from_str(&body).ok())
 			.and_then(|json| json.find_path(&["result", "ethusd"])

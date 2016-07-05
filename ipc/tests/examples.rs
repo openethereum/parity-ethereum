@@ -86,7 +86,7 @@ mod tests {
 				0, 0, 0, 0, 0, 0, 0, 0,
 				4, 0, 0, 0, 0, 0, 0, 0,
 				5, 0, 0, 0],
-			service_client.socket().borrow().write_buffer.clone());
+			service_client.socket().write().unwrap().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
@@ -103,7 +103,7 @@ mod tests {
 			1, 0, 0, 0, 0, 0, 0, 0,
 			4, 0, 0, 0, 0, 0, 0, 0,
 			8, 0, 0, 0, 0, 0, 0, 0,
-			5, 0, 0, 0, 10, 0, 0, 0], service_client.socket().borrow().write_buffer.clone());
+			5, 0, 0, 0, 10, 0, 0, 0], service_client.socket().write().unwrap().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
@@ -145,7 +145,7 @@ mod tests {
 			// items
 			3, 0, 0, 0, 0, 0, 0, 0,
 			11, 0, 0, 0, 0, 0, 0, 0],
-			service_client.socket().borrow().write_buffer.clone());
+			service_client.socket().write().unwrap().write_buffer.clone());
 		assert_eq!(true, result);
 	}
 
@@ -189,5 +189,21 @@ mod tests {
 		let new_struct: DoubleRoot = ::ipc::binary::deserialize_from(&mut read_socket).unwrap();
 
 		assert_eq!(struct_, new_struct);
+	}
+
+	#[test]
+	fn can_call_void_method() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![1];
+		let service_client = ServiceClient::init(socket);
+
+		service_client.void(99);
+
+		assert_eq!(vec![
+			0, 19,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			8, 0, 0, 0, 0, 0, 0, 0,
+			99, 0, 0, 0, 0, 0, 0, 0],
+			service_client.socket().write().unwrap().write_buffer.clone());
 	}
 }
