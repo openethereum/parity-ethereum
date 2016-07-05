@@ -203,7 +203,6 @@ mod tests {
 			timestamp: 0,
 			difficulty: 0.into(),
 			last_hashes: vec![],
-			dao_rescue_block_gas_limit: None,
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
 		});
