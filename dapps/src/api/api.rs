@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
-use api::types::{App, ApiError};
-use api::response::{as_json, as_json_error};
 use hyper::{server, net, Decoder, Encoder, Next};
+use api::types::{App, ApiError};
+use api::response::{as_json, as_json_error, ping_response};
+use handlers::extract_url;
+use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
 
 #[derive(Clone)]
 pub struct RestApi {
@@ -59,9 +60,26 @@ struct RestApiRouter {
 
 impl server::Handler<net::HttpStream> for RestApiRouter {
 
-	fn on_request(&mut self, _request: server::Request<net::HttpStream>) -> Next {
-		self.handler = as_json(&self.api.list_apps());
-		Next::write()
+	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
+		let url = extract_url(&request);
+		if let None = url {
+			return Next::write();
+		}
+		let url = url.expect("None check is done above.");
+		let endpoint = url.path.get(1).map(|v| v.as_str());
+
+		let handler = endpoint.and_then(|v| match v {
+			"apps" => Some(as_json(&self.api.list_apps())),
+			"ping" => Some(ping_response()),
+			_ => None,
+		});
+
+		// Overwrite default
+		if let Some(h) = handler {
+			self.handler = h;
+		}
+
+		self.handler.on_request(request)
 	}
 
 	fn on_request_readable(&mut self, decoder: &mut Decoder<net::HttpStream>) -> Next {

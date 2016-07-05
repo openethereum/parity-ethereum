@@ -1,0 +1,64 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+//! Echo Handler
+
+use std::io::Read;
+use hyper::{header, server, Decoder, Encoder, Next};
+use hyper::net::HttpStream;
+use super::ContentHandler;
+
+pub struct EchoHandler {
+	content: String,
+	handler: Option<ContentHandler>,
+}
+
+impl EchoHandler {
+	pub fn new() -> Self {
+		EchoHandler {
+			content: String::new(),
+			handler: None,
+		}
+	}
+}
+
+impl server::Handler<HttpStream> for EchoHandler {
+	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
+		Next::read()
+	}
+
+	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
+		match decoder.read_to_string(&mut self.content) {
+			Ok(0) => {
+				self.handler = Some(ContentHandler::ok(self.content.clone(), "application/json".into()));
+				Next::write()
+			},
+			Ok(_) => Next::read(),
+			Err(e) => match e.kind() {
+				::std::io::ErrorKind::WouldBlock => Next::read(),
+				_ => Next::end(),
+			}
+		}
+	}
+
+	fn on_response(&mut self, res: &mut server::Response) -> Next {
+		self.handler.as_mut().unwrap().on_response(res)
+	}
+
+	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
+		self.handler.as_mut().unwrap().on_response_writable(encoder)
+	}
+}

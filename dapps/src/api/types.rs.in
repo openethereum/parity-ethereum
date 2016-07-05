@@ -48,4 +48,3 @@ pub struct ApiError {
 	pub detail: String,
 }
 
-

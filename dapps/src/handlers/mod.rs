@@ -17,10 +17,12 @@
 //! Hyper handlers implementations.
 
 mod auth;
+mod echo;
 mod content;
 mod redirect;
 
 pub use self::auth::AuthRequiredHandler;
+pub use self::echo::EchoHandler;
 pub use self::content::ContentHandler;
 pub use self::redirect::Redirection;
 
