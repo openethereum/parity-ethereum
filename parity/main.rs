@@ -97,7 +97,7 @@ use rpc::RpcServer;
 use signer::{SignerServer, new_token};
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use configuration::Configuration;
+use configuration::{Policy, Configuration};
 
 fn main() {
 	let conf = Configuration::parse();
@@ -197,6 +197,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
 		warn!("Using Trusted Signer and --unlock is not recommended!");
 		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
+	}
+
+	// Check fork settings.
+	if conf.policy() != Policy::None {
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");		
 	}
 
 	// Secret Store

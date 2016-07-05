@@ -33,7 +33,7 @@
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::with_spec(ethereum::new_frontier(true));
+//!		let miner: Miner = Miner::with_spec(ethereum::new_frontier());
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!

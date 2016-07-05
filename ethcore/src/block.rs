@@ -183,7 +183,6 @@ pub struct OpenBlock<'x> {
 	engine: &'x Engine,
 	vm_factory: &'x EvmFactory,
 	last_hashes: LastHashes,
-	dao_rescue_block_gas_limit: Option<U256>,
 }
 
 /// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
@@ -195,7 +194,6 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	last_hashes: LastHashes,
-	dao_rescue_block_gas_limit: Option<U256>,
 	unclosed_state: State,
 }
 
@@ -227,7 +225,6 @@ impl<'x> OpenBlock<'x> {
 		db: Box<JournalDB>,
 		parent: &Header,
 		last_hashes: LastHashes,
-		dao_rescue_block_gas_limit: Option<U256>,
 		author: Address,
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
@@ -238,7 +235,6 @@ impl<'x> OpenBlock<'x> {
 			engine: engine,
 			vm_factory: vm_factory,
 			last_hashes: last_hashes,
-			dao_rescue_block_gas_limit: dao_rescue_block_gas_limit,
 		};
 
 		r.block.base.header.parent_hash = parent.hash();
@@ -295,7 +291,6 @@ impl<'x> OpenBlock<'x> {
 	/// Get the environment info concerning this block.
 	pub fn env_info(&self) -> EnvInfo {
 		// TODO: memoise.
-		const SOFT_FORK_BLOCK: u64 = 1_800_000;
 		EnvInfo {
 			number: self.block.base.header.number,
 			author: self.block.base.header.author.clone(),
@@ -304,7 +299,6 @@ impl<'x> OpenBlock<'x> {
 			last_hashes: self.last_hashes.clone(),		// TODO: should be a reference.
 			gas_used: self.block.receipts.last().map_or(U256::zero(), |r| r.gas_used),
 			gas_limit: self.block.base.header.gas_limit.clone(),
-			dao_rescue_block_gas_limit: if self.block.base.header.number == SOFT_FORK_BLOCK { Some(self.block.base.header.gas_limit) } else { self.dao_rescue_block_gas_limit },
 		}
 	}
 
@@ -351,7 +345,6 @@ impl<'x> OpenBlock<'x> {
 			block: s.block,
 			uncle_bytes: uncle_bytes,
 			last_hashes: s.last_hashes,
-			dao_rescue_block_gas_limit: s.dao_rescue_block_gas_limit,
 			unclosed_state: unclosed_state,
 		}
 	}
@@ -411,7 +404,6 @@ impl ClosedBlock {
 			engine: engine,
 			vm_factory: vm_factory,
 			last_hashes: self.last_hashes,
-			dao_rescue_block_gas_limit: self.dao_rescue_block_gas_limit,
 		}
 	}
 }
@@ -481,7 +473,6 @@ pub fn enact(
 	db: Box<JournalDB>,
 	parent: &Header,
 	last_hashes: LastHashes,
-	dao_rescue_block_gas_limit: Option<U256>,
 	vm_factory: &EvmFactory,
 	trie_factory: TrieFactory,
 ) -> Result<LockedBlock, Error> {
@@ -492,7 +483,7 @@ pub fn enact(
 		}
 	}
 
-	let mut b = try!(OpenBlock::new(engine, vm_factory, trie_factory, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, header.author().clone(), (3141562.into(), 31415620.into()), header.extra_data().clone()));
+	let mut b = try!(OpenBlock::new(engine, vm_factory, trie_factory, tracing, db, parent, last_hashes, header.author().clone(), (3141562.into(), 31415620.into()), header.extra_data().clone()));
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -510,13 +501,12 @@ pub fn enact_bytes(
 	db: Box<JournalDB>,
 	parent: &Header,
 	last_hashes: LastHashes,
-	dao_rescue_block_gas_limit: Option<U256>,
 	vm_factory: &EvmFactory,
 	trie_factory: TrieFactory,
 ) -> Result<LockedBlock, Error> {
 	let block = BlockView::new(block_bytes);
 	let header = block.header();
-	enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, vm_factory, trie_factory)
+	enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, vm_factory, trie_factory)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
@@ -528,12 +518,11 @@ pub fn enact_verified(
 	db: Box<JournalDB>,
 	parent: &Header,
 	last_hashes: LastHashes,
-	dao_rescue_block_gas_limit: Option<U256>,
 	vm_factory: &EvmFactory,
 	trie_factory: TrieFactory,
 ) -> Result<LockedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
-	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, vm_factory, trie_factory)
+	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, vm_factory, trie_factory)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
@@ -545,12 +534,11 @@ pub fn enact_and_seal(
 	db: Box<JournalDB>,
 	parent: &Header,
 	last_hashes: LastHashes,
-	dao_rescue_block_gas_limit: Option<U256>,
 	vm_factory: &EvmFactory,
 	trie_factory: TrieFactory,
 ) -> Result<SealedBlock, Error> {
 	let header = BlockView::new(block_bytes).header_view();
-	Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, dao_rescue_block_gas_limit, vm_factory, trie_factory)).seal(engine, header.seal())))
+	Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, vm_factory, trie_factory)).seal(engine, header.seal())))
 }
 
 #[cfg(test)]
