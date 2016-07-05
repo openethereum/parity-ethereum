@@ -20,10 +20,11 @@ use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
-
 pub use types::executed::ExecutionError;
+use ipc::binary::{BinaryConvertError, BinaryConvertable};
+use types::block_import_error::BlockImportError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.
 pub enum TransactionError {
 	/// Transaction is already imported to the queue
@@ -311,6 +312,21 @@ impl From<TrieError> for Error {
 		Error::Trie(err)
 	}
 }
+
+impl From<BlockImportError> for Error {
+	fn from(err: BlockImportError) -> Error {
+		match err {
+			BlockImportError::Block(e) => Error::Block(e),
+			BlockImportError::Import(e) => Error::Import(e),
+			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
+		}
+	}
+}
+
+binary_fixed_size!(BlockError);
+binary_fixed_size!(ImportError);
+binary_fixed_size!(TransactionError);
+
 
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
 /*#![feature(concat_idents)]

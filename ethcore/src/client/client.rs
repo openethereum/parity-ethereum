@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use util::panics::*;
 use views::BlockView;
-use error::{Error, ImportError, ExecutionError, BlockError, ImportResult};
+use error::{ImportError, ExecutionError, BlockError, ImportResult};
 use header::{BlockNumber};
 use state::State;
 use spec::Spec;
@@ -38,7 +38,9 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile,
+	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics, TransactionImportError,
+	BlockImportError, TransactionImportResult};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -49,7 +51,7 @@ use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
-use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
+use miner::{Miner, MinerService, AccountDetails};
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 
@@ -654,17 +656,17 @@ impl BlockChainClient for Client {
 		self.chain.block_receipts(hash).map(|receipts| rlp::encode(&receipts).to_vec())
 	}
 
-	fn import_block(&self, bytes: Bytes) -> ImportResult {
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
 		{
 			let header = BlockView::new(&bytes).header_view();
 			if self.chain.is_known(&header.sha3()) {
-				return Err(ImportError::AlreadyInChain.into());
+				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
 			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
-				return Err(BlockError::UnknownParent(header.parent_hash()).into());
+				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
-		self.block_queue.import_block(bytes)
+		Ok(try!(self.block_queue.import_block(bytes)))
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
@@ -778,12 +780,16 @@ impl BlockChainClient for Client {
 		self.build_last_hashes(self.chain.best_block_hash())
 	}
 
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>> {
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>> {
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: self.latest_nonce(a),
 			balance: self.latest_balance(a),
 		};
-		self.miner.import_transactions(self, transactions, fetch_account)
+
+		self.miner.import_transactions(self, transactions, &fetch_account)
+			.into_iter()
+			.map(|res| res.map_err(|e| e.into()))
+			.collect()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
