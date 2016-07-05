@@ -200,7 +200,7 @@ impl Miner {
 			let hash = tx.hash();
 			match open_block.push_transaction(tx, None) {
 				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
 					// Exit early if gas left is smaller then min_tx_gas
 					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
 					if gas_limit - gas_used < min_tx_gas {
@@ -210,7 +210,7 @@ impl Miner {
 				Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
 				Err(e) => {
 					invalid_transactions.insert(hash);
-					trace!(target: "miner",
+					debug!(target: "miner",
 						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
 						   block_number, hash, e);
 				},
