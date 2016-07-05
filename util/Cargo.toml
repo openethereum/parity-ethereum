@@ -29,7 +29,6 @@ slab = "0.2"
 sha3 = { path = "sha3" }
 serde = "0.7.0"
 clippy = { version = "0.0.78", optional = true}
-json-tests = { path = "json-tests" }
 igd = "0.4.2"
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
