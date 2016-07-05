@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod api;
-mod response;
+#[cfg(feature = "serde_macros")]
+include!("types.rs.in");
 
-pub use self::api::RestApi;
-pub use self::api::App;
+#[cfg(not(feature = "serde_macros"))]
+include!(concat!(env!("OUT_DIR"), "/types.rs"));
+
+

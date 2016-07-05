@@ -14,32 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[cfg(not(feature = "serde_macros"))]
-mod inner {
-    extern crate syntex;
-    extern crate serde_codegen;
+//! Hyper handlers implementations.
 
-    use std::env;
-    use std::path::Path;
+mod auth;
+mod content;
+mod redirect;
 
-    pub fn main() {
-        let out_dir = env::var_os("OUT_DIR").unwrap();
-
-        let src = Path::new("./src/api/types.rs.in");
-        let dst = Path::new(&out_dir).join("types.rs");
-
-        let mut registry = syntex::Registry::new();
-
-        serde_codegen::register(&mut registry);
-        registry.expand("", &src, &dst).unwrap();
-    }
-}
-
-#[cfg(feature = "serde_macros")]
-mod inner {
-    pub fn main() {}
-}
-
-fn main() {
-    inner::main();
-}
+pub use self::auth::{AuthRequiredHandler, UnauthorizedHandler};
+pub use self::content::ContentHandler;
+pub use self::redirect::Redirection;
