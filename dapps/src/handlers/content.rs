@@ -46,6 +46,15 @@ impl ContentHandler {
 			write_pos: 0
 		}
 	}
+
+	pub fn new(code: StatusCode, content: String, mimetype: String) -> Self {
+		ContentHandler {
+			code: code,
+			content: content,
+			mimetype: mimetype,
+			write_pos: 0,
+		}
+	}
 }
 
 impl server::Handler<HttpStream> for ContentHandler {

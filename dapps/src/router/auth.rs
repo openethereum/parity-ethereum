@@ -17,9 +17,9 @@
 //! HTTP Authorization implementations
 
 use std::collections::HashMap;
-use hyper::{server, net, header};
+use hyper::{server, net, header, status};
 use endpoint::Handler;
-use handlers::{AuthRequiredHandler, UnauthorizedHandler};
+use handlers::{AuthRequiredHandler, ContentHandler};
 
 /// Authorization result
 pub enum Authorized {
@@ -55,7 +55,11 @@ impl Authorization for HttpBasicAuth {
 
 		match auth {
 			Access::Denied => {
-				Authorized::No(Box::new(UnauthorizedHandler { write_pos: 0 }))
+				Authorized::No(Box::new(ContentHandler::new(
+					status::StatusCode::Unauthorized,
+					"<h1>Unauthorized</h1>".into(),
+					"text/html".into(),
+				)))
 			},
 			Access::AuthRequired => {
 				Authorized::No(Box::new(AuthRequiredHandler))

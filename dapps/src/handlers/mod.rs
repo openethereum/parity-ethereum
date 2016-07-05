@@ -20,6 +20,6 @@ mod auth;
 mod content;
 mod redirect;
 
-pub use self::auth::{AuthRequiredHandler, UnauthorizedHandler};
+pub use self::auth::AuthRequiredHandler;
 pub use self::content::ContentHandler;
 pub use self::redirect::Redirection;
