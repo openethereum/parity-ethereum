@@ -42,7 +42,6 @@ use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
-use ethcore::header::Header as BlockHeader;
 
 /// Eth rpc implementation.
 pub struct EthClient<C, S, M, EM> where
