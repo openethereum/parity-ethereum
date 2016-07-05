@@ -23,3 +23,33 @@ mod redirect;
 pub use self::auth::AuthRequiredHandler;
 pub use self::content::ContentHandler;
 pub use self::redirect::Redirection;
+
+use url::Url;
+use hyper::{server, header, net, uri};
+
+pub fn extract_url(req: &server::Request<net::HttpStream>) -> Option<Url> {
+	match *req.uri() {
+		uri::RequestUri::AbsoluteUri(ref url) => {
+			match Url::from_generic_url(url.clone()) {
+				Ok(url) => Some(url),
+				_ => None,
+			}
+		},
+		uri::RequestUri::AbsolutePath(ref path) => {
+			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
+			let url_string = match req.headers().get::<header::Host>() {
+				Some(ref host) => {
+					format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
+				},
+				None => return None,
+			};
+
+			match Url::parse(&url_string) {
+				Ok(url) => Some(url),
+				_ => None,
+			}
+		},
+		_ => None,
+	}
+}
+

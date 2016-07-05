@@ -45,7 +45,7 @@
 
 #[macro_use]
 extern crate log;
-extern crate url;
+extern crate url as url_lib;
 extern crate hyper;
 extern crate serde;
 extern crate serde_json;
@@ -63,6 +63,7 @@ mod handlers;
 mod rpc;
 mod api;
 mod proxypac;
+mod url;
 
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
