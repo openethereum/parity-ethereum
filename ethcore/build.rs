@@ -33,7 +33,7 @@ fn main() {
 
 	// client interface
 	{
-		let src = Path::new("src/client/client.rs.in");
+		let src = Path::new("src/client/client_ipc.rs");
 		let intermediate = Path::new(&out_dir).join("client.intermediate.rs.in");
 		let mut registry = syntex::Registry::new();
 		codegen::register(&mut registry);
