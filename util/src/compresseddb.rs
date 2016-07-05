@@ -17,6 +17,7 @@
 //! Wrapper over `HashDB` which keeps the values compressed.
 
 use std::collections::HashMap;
+use std::sync::RwLock;
 use hashdb::HashDB;
 use hash::H256;
 use rlp::*;
@@ -25,14 +26,14 @@ use sha3::*;
 use MemoryDB;
 
 pub struct CompressedDB<T: HashDB> {
-	overlay: MemoryDB,
+	overlay: RefCell<MemoryDB>,
 	backing: T,
 }
 
 impl<T: HashDB> CompressedDB<T> {
 	pub fn new<D: HashDB + Default>() -> CompressedDB<D> {
 		CompressedDB {
-			overlay: MemoryDB::new(),
+			overlay: RefCell::new(MemoryDB::new()),
 			backing: D::default(),
 		}
 	}
@@ -61,17 +62,17 @@ impl<T: HashDB> HashDB for CompressedDB<T> {
 	/// }
 	/// ```
 	fn get(&self, key: &H256) -> Option<&[u8]> {
-		self.overlay.get(key).or(self.backing.get(key).map(|v| {
+		self.overlay.borrow().get(key).or(self.backing.get(key).map(|v| {
 			let decompressed = UntrustedRlp::new(v).decompress().to_vec();
-			self.overlay.emplace(key.clone(), decompressed);
+			self.overlay.borrow_mut().emplace(key.clone(), decompressed);
 			// Makes it possible to return a reference.
-			self.overlay.get(key).expect("Just inserted into DB.")
+			self.overlay.borrow().get(key).expect("Just inserted into DB.")
 		}))
 	}
 
 	/// Check for the existance of a hash-key.
 	fn contains(&self, key: &H256) -> bool {
-		self.overlay.contains(key) || self.backing.contains(key)
+		self.backing.contains(key)
 	}
 
 	/// Insert a datum item into the DB and return the datum's hash for a later lookup. Insertions
@@ -106,7 +107,7 @@ impl<T: HashDB> HashDB for CompressedDB<T> {
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB.
-	fn remove(&mut self, key: &H256) { self.backing.remove(key); self.overlay.remove(key) }
+	fn remove(&mut self, key: &H256) { self.backing.remove(key) }
 
 	/// Insert auxiliary data into hashdb.
 	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
@@ -126,6 +127,6 @@ impl<T: HashDB> HashDB for CompressedDB<T> {
 
 #[test]
 fn compressed_db() {
-	let db: CompressedDB<MemoryDB> = CompressedDB::new();
+	let db: CompressedDB<MemoryDB> = CompressedDB::<MemoryDB>::new();
 
 }
