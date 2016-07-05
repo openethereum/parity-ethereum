@@ -47,6 +47,7 @@
 extern crate log;
 extern crate url as url_lib;
 extern crate hyper;
+extern crate unicase;
 extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;
@@ -122,7 +123,7 @@ impl Server {
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
-			special.insert(router::SpecialEndpoint::Api, api::RestApi::new(endpoints.clone()));
+			special.insert(router::SpecialEndpoint::Api, api::RestApi::new(format!("{}", addr), endpoints.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special
 		});

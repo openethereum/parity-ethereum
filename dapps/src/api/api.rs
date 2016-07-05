@@ -23,13 +23,15 @@ use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
 
 #[derive(Clone)]
 pub struct RestApi {
+	local_domain: String,
 	endpoints: Arc<Endpoints>,
 }
 
 impl RestApi {
-	pub fn new(endpoints: Arc<Endpoints>) -> Box<Endpoint> {
+	pub fn new(local_domain: String, endpoints: Arc<Endpoints>) -> Box<Endpoint> {
 		Box::new(RestApi {
-			endpoints: endpoints
+			local_domain: local_domain,
+			endpoints: endpoints,
 		})
 	}
 
@@ -70,7 +72,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 
 		let handler = endpoint.and_then(|v| match v {
 			"apps" => Some(as_json(&self.api.list_apps())),
-			"ping" => Some(ping_response()),
+			"ping" => Some(ping_response(&self.api.local_domain)),
 			_ => None,
 		});
 
