@@ -263,7 +263,7 @@ impl Configuration {
 			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
 			Some(SocketAddr::new(host, port))
 		} else {
-			listen_address
+			None
 		};
 		(listen_address, public_address)
 	}
@@ -359,7 +359,7 @@ impl Configuration {
 		client_config.db_compaction = match self.args.flag_db_compaction.as_str() {
 			"ssd" => DatabaseCompactionProfile::Default,
 			"hdd" => DatabaseCompactionProfile::HDD,
-			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/default."); }
+			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/ssd (default)."); }
 		};
 
 		if self.args.flag_jitvm {
@@ -486,6 +486,11 @@ impl Configuration {
 		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
 		::std::fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
+		if self.args.flag_geth {
+			let geth_path = path::ethereum::default();
+			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
+				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+		}
 
 		Directories {
 			keys: keys_path,
@@ -550,8 +555,8 @@ impl Configuration {
 	}
 
 	pub fn signer_enabled(&self) -> bool {
-		(self.args.cmd_ui && !self.args.flag_no_signer) ||
-		(!self.args.cmd_ui && self.args.flag_signer)
+		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
+		self.args.flag_force_signer
 	}
 }
 

@@ -90,6 +90,7 @@ use util::hash::{Address, H256};
 use util::table::*;
 use transaction::*;
 use error::{Error, TransactionError};
+use client::TransactionImportResult;
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -307,15 +308,6 @@ pub struct TransactionQueueStatus {
 	pub pending: usize,
 	/// Number of future transactions (waiting for transactions with lower nonces first)
 	pub future: usize,
-}
-
-#[derive(Debug, PartialEq)]
-/// Represents the result of importing transaction.
-pub enum TransactionImportResult {
-	/// Transaction was imported to current queue.
-	Current,
-	/// Transaction was imported to future queue.
-	Future
 }
 
 /// Details of account
@@ -812,6 +804,7 @@ mod test {
 	use error::{Error, TransactionError};
 	use super::*;
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
+	use client::TransactionImportResult;
 
 	fn unwrap_tx_err(err: Result<TransactionImportResult, Error>) -> TransactionError {
 		match err.unwrap_err() {

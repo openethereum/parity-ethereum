@@ -82,7 +82,7 @@ use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, paint, Colour, version};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path};
+use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
 use ethcore::error::{Error, ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -192,13 +192,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
-
-	// Create and display a new token for UIs.
-	if conf.signer_enabled() && !conf.args.flag_no_token {
-		new_token(conf.directories().signer).unwrap_or_else(|e| {
-			die!("Error generating token: {:?}", e)
-		});
-	}
 
 	// Display warning about using unlock with signer
 	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
@@ -470,7 +463,7 @@ fn execute_import(conf: Configuration) {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(bytes) {
 			Ok(_) => {}
-			Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
+			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
 		informant.tick(client.deref(), None);

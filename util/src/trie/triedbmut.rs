@@ -20,7 +20,7 @@ use nibbleslice::*;
 use rlp::*;
 use super::node::Node;
 use super::journal::Journal;
-use super::trietraits::{Trie, TrieMut};
+use super::trietraits::TrieMut;
 use super::TrieError;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
