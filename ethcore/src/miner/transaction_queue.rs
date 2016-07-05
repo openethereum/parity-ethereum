@@ -90,11 +90,7 @@ use util::hash::{Address, H256};
 use util::table::*;
 use transaction::*;
 use error::{Error, TransactionError};
-<<<<<<< HEAD
-pub use types::transaction_import_result::TransactionImportResult;
-=======
 use client::TransactionImportResult;
->>>>>>> master
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

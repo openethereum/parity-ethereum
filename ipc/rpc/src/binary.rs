@@ -145,7 +145,7 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 			0 => mem::size_of::<K>() * self.len(),
 			_ => self.iter().fold(0usize, |acc, (k, _)| acc + k.size())
 		} + match V::len_params() {
-			0 => mem::size_of::<V>() * self.len(), 0 => mem::size_of::<V>() * self.len(),
+			0 => mem::size_of::<V>() * self.len(),
 			_ => self.iter().fold(0usize, |acc, (_, v)| acc + v.size())
 		}
 	}

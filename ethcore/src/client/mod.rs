@@ -47,25 +47,9 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
-<<<<<<< HEAD
-use miner::{TransactionImportResult};
 pub use types::call_analytics::CallAnalytics;
-pub use types::block_import_error::BlockImportError;
-=======
 pub use block_import_error::BlockImportError;
 pub use transaction_import::{TransactionImportResult, TransactionImportError};
-
-/// Options concerning what analytics we run on the call.
-#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
-pub struct CallAnalytics {
-	/// Make a transaction trace.
-	pub transaction_tracing: bool,
-	/// Make a VM trace.
-	pub vm_tracing: bool,
-	/// Make a diff.
-	pub state_diffing: bool,
-}
->>>>>>> master
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -157,7 +141,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn queue_info(&self) -> BlockQueueInfo;
 
 	/// Clear block queue and abort all import activity.
-	fn clear_queue(&self) -> bool;
+	fn clear_queue(&self);
 
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
@@ -194,14 +178,10 @@ pub trait BlockChainClient : Sync + Send {
 	fn last_hashes(&self) -> LastHashes;
 
 	/// import transactions from network/other 3rd party
-<<<<<<< HEAD
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, String>>;
-=======
 	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>>;
->>>>>>> master
 
 	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>) -> bool;
+	fn queue_transactions(&self, transactions: Vec<Bytes>);
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
