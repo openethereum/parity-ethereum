@@ -120,7 +120,7 @@ mod tests {
 			from_block: BlockID::Earliest,
 			to_block: BlockID::Latest,
 			address: None,
-			topics: [None, None, None, None]
+			topics: vec![None, None, None, None],
 		};
 
 		let possibilities = none_filter.bloom_possibilities();
@@ -135,9 +135,11 @@ mod tests {
 			from_block: BlockID::Earliest,
 			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
-			topics: [
+			topics: vec![
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
-				None, None, None
+				None,
+				None,
+				None,
 			]
 		};
 
@@ -151,10 +153,11 @@ mod tests {
 			from_block: BlockID::Earliest,
 			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
-			topics: [
+			topics: vec![
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
-				None, None
+				None,
+				None,
 			]
 		};
 
@@ -171,7 +174,7 @@ mod tests {
 						  Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap(),
 						  Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap(),
 			]),
-			topics: [
+			topics: vec![
 				Some(vec![
 					 H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap(),
 					 H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()
@@ -197,10 +200,11 @@ mod tests {
 			from_block: BlockID::Earliest,
 			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
-			topics: [
+			topics: vec![
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23fa").unwrap()]),
-				None, None
+				None,
+				None,
 			]
 		};
 
