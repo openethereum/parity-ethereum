@@ -62,22 +62,23 @@ use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
 	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
-	TraceFilter, CallAnalytics, BlockImportError};
+	TraceFilter, CallAnalytics, BlockImportError, TransactionImportError, TransactionImportResult};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
-pub use blockchain::CacheSize as BlockChainCacheSize;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
-pub use types::blockchain_info::BlockChainInfo;
-pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
-use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
-use basic_types::*;
-
+use miner::{Miner, MinerService, AccountDetails};
+use util::TrieFactory;
 use ipc::IpcConfig;
 use ipc::binary::{BinaryConvertable, BinaryConvertError};
+
+// re-export
+pub use types::blockchain_info::BlockChainInfo;
+pub use types::block_status::BlockStatus;
+pub use blockchain::CacheSize as BlockChainCacheSize;
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 
