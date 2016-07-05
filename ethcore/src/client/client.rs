@@ -85,6 +85,20 @@ impl ClientReport {
 	}
 }
 
+struct SleepState {
+	last_activity: Option<Instant>,
+	last_autosleep: Option<Instant>,
+}
+
+impl SleepState {
+	fn new(awake: bool) -> Self {
+		SleepState {
+			last_activity: match awake { false => None, true => Some(Instant::now()) },
+			last_autosleep: match awake { false => Some(Instant::now()), true => None },
+		}
+	}
+}
+
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
@@ -101,8 +115,7 @@ pub struct Client {
 	vm_factory: Arc<EvmFactory>,
 	trie_factory: TrieFactory,
 	miner: Arc<Miner>,
-	last_activity: Mutex<Option<Instant>>,
-	last_autosleep: Mutex<Option<Instant>>,
+	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
 	io_channel: IoChannel<NetSyncMessage>,
 	queue_transactions: AtomicUsize,
@@ -172,10 +185,10 @@ impl Client {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
+		let awake = match config.mode { Mode::Dark(..) => false, _ => true };
 		let client = Client {
-			last_activity: Mutex::new(match config.mode { Mode::Dark(..) => None, _ => Some(Instant::now()) }),
-			last_autosleep: Mutex::new(match config.mode { Mode::Dark(..) => Some(Instant::now()), _ => None }),
-			liveness: AtomicBool::new(match config.mode { Mode::Dark(..) => false, _ => true }),
+			sleep_state: Mutex::new(SleepState::new(awake)),
+			liveness: AtomicBool::new(awake),
 			mode: config.mode,
 			chain: chain,
 			tracedb: tracedb,
@@ -464,27 +477,29 @@ impl Client {
 		
 		match self.mode {
 			Mode::Dark(timeout) => {
-				if let Some(t) = *self.last_activity.lock().unwrap() {
+				let mut ss = self.sleep_state.lock().unwrap();
+				if let Some(t) = ss.last_activity {
 					if Instant::now() > t + timeout { 
 						self.sleep();
-						*self.last_activity.lock().unwrap() = None;
+						ss.last_activity = None;
 					}
 				}
 			}
 			Mode::Passive(timeout, wakeup_after) => {
+				let mut ss = self.sleep_state.lock().unwrap();
 				let now = Instant::now();
-				if let Some(t) = *self.last_activity.lock().unwrap() {
+				if let Some(t) = ss.last_activity {
 					if now > t + timeout { 
 						self.sleep();
-						*self.last_activity.lock().unwrap() = None;
-						*self.last_autosleep.lock().unwrap() = Some(now);
+						ss.last_activity = None;
+						ss.last_autosleep = Some(now);
 					}
 				}
-				if let Some(t) = *self.last_autosleep.lock().unwrap() { 
+				if let Some(t) = ss.last_autosleep { 
 					if now > t + wakeup_after { 
 						self.wake_up();
-						*self.last_activity.lock().unwrap() = Some(now);
-						*self.last_autosleep.lock().unwrap() = None;
+						ss.last_activity = Some(now);
+						ss.last_autosleep = None;
 					}
 				}
 			}
@@ -592,7 +607,7 @@ impl BlockChainClient for Client {
 	fn keep_alive(&self) {
 		if self.mode != Mode::Active {
 			self.wake_up();
-			*self.last_activity.lock().unwrap() = Some(Instant::now());
+			(*self.sleep_state.lock().unwrap()).last_activity = Some(Instant::now());
 		}
 	}
 
