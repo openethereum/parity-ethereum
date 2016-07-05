@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tests for migrations.
-//! A random temp directory is created. A database
+//! A random temp directory is created. A database is created within it, and migrations
+//! are performed in temp sub-directories.
 
 use common::*;
 use migration::{Config, SimpleMigration, Manager};
@@ -43,7 +44,7 @@ fn make_db(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
 	}
 }
 
-// helper for verifying a a migrated database.
+// helper for verifying a migrated database.
 fn verify_migration(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
 	let db = Database::open_default(path.to_str().unwrap()).unwrap();
 

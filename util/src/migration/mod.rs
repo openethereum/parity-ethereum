@@ -88,10 +88,13 @@ impl<T: SimpleMigration> Migration for T {
 
 			if batch.len() == config.batch_size {
 				try!(commit_batch(dest, &batch));
+				batch.clear();
 			}
 		}
 
-		try!(commit_batch(dest, &batch));
+		if batch.len() != 0 {
+			try!(commit_batch(dest, &batch));
+		}
 
 		Ok(())
 	}

@@ -20,7 +20,6 @@ use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::PathBuf;
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError};
-use util::kvdb::{Database, DatabaseConfig, CompactionProfile};
 use ethcore::migrations;
 
 /// Database is assumed to be at default version, when no version file is found.
@@ -148,27 +147,26 @@ fn extras_database_migrations() -> Result<MigrationManager, Error> {
 }
 
 /// Migrates database at given position with given migration rules.
-fn migrate_database(version: u32, path: PathBuf, migrations: MigrationManager) -> Result<(), Error> {
+fn migrate_database(version: u32, db_path: PathBuf, migrations: MigrationManager) -> Result<(), Error> {
 	// check if migration is needed
 	if !migrations.is_needed(version) {
 		return Ok(())
 	}
 
-	let backup_path = backup_database_path(&path);
-	// remove the dir if it exists
-	let _ = fs::remove_dir_all(&temp_path);
+	let backup_path = backup_database_path(&db_path);
+	// remove the backup dir if it exists
 	let _ = fs::remove_dir_all(&backup_path);
 
 	// migrate old database to the new one
-	let temp_path = try!(migrations.execute(version));
+	let temp_path = try!(migrations.execute(&db_path, version));
 
 	// create backup
-	try!(fs::rename(&path, &backup_path));
+	try!(fs::rename(&db_path, &backup_path));
 
 	// replace the old database with the new one
-	if let Err(err) = fs::rename(&temp_path, &path) {
+	if let Err(err) = fs::rename(&temp_path, &db_path) {
 		// if something went wrong, bring back backup
-		try!(fs::rename(&backup_path, path));
+		try!(fs::rename(&backup_path, &db_path));
 		return Err(err.into());
 	}
 
