@@ -20,7 +20,7 @@ use self::json_tests::rlp as rlptest;
 use std::{fmt, cmp};
 use std::str::FromStr;
 use rlp;
-use rlp::{UntrustedRlp, RlpStream, View, Stream, DecoderError, Compressible};
+use rlp::{UntrustedRlp, RlpStream, View, Stream, DecoderError};
 use bigint::uint::U256;
 
 #[test]
