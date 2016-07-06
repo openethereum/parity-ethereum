@@ -42,25 +42,26 @@ impl<'a, T> HashDB for CompressedDB<'a, T> where T: HashDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.backing.keys() }
 
 	fn get(&self, key: &H256) -> Option<&[u8]> {
-		self.overlay.get(key).or(self.backing.get(key).and_then(|v| {
-			let decompressed = UntrustedRlp::new(v).decompress().to_vec();
-			let raw = self.overlay.denote(key, decompressed);
-			if raw.1 > 0 { Some(raw.0.as_slice()) } else { None }
-		}))
+		self.overlay
+			.raw(key)
+			.and_then(|raw| if raw.1 > 0 { Some(raw.0.as_slice()) } else { None })
+			.or(self.backing.get(key)
+					.and_then(|v| {
+						let decompressed = UntrustedRlp::new(v).decompress().to_vec();
+						Some(self.overlay.denote(key, decompressed).0.as_slice())
+					}))
 	}
 
 	fn contains(&self, key: &H256) -> bool { self.backing.contains(key) }
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		let key = value.sha3();
-		self.overlay.emplace(key, value.to_vec());
 		self.backing.emplace(key, UntrustedRlp::new(value).compress().to_vec());
 		key
 	}
 
 	fn emplace(&mut self, key: H256, value: Bytes) {
-		self.backing.emplace(key, UntrustedRlp::new(&value).compress().to_vec());
-		self.overlay.emplace(key, value)
+		self.backing.emplace(key, UntrustedRlp::new(&value).compress().to_vec())
 	}	
 
 	fn remove(&mut self, key: &H256) { self.backing.remove(key) }
@@ -87,6 +88,10 @@ fn compressed_db() {
 		let key = db.insert(&common_rlp);
 		assert_eq!(db.get(&key).unwrap(), common_rlp.as_slice());
 	}
-	let compressed_rlp = backing.get(backing.keys().keys().next().unwrap()).unwrap();
-	assert_eq!(compressed_rlp.len(), 2);
+	{
+		let compressed_rlp = backing.get(backing.keys().keys().next().unwrap()).unwrap();
+		assert_eq!(compressed_rlp.len(), 2);
+	}
+	let on_existing = CompressedDB::new(&mut backing);
+	assert_eq!(on_existing.get(on_existing.keys().keys().next().unwrap()).unwrap(), common_rlp.as_slice());
 }
