@@ -593,6 +593,8 @@ impl Client {
 	}
 }
 
+#[derive(Ipc)]
+#[ipc(client_ident="RemoteClient")]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
