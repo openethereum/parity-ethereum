@@ -19,7 +19,7 @@ use std::time::{Instant, Duration};
 use std::sync::{mpsc, Mutex, RwLock, Arc};
 use std::collections::HashMap;
 use jsonrpc_core;
-use util::U256;
+use util::{U256, Lockable};
 use v1::helpers::{TransactionRequest, TransactionConfirmation};
 
 /// Result that can be returned from JSON RPC.
@@ -110,7 +110,7 @@ pub struct ConfirmationPromise {
 impl ConfirmationToken {
 	/// Submit solution to all listeners
 	fn resolve(&self, result: Option<RpcResult>) {
-		let mut res = self.result.lock().unwrap();
+		let mut res = self.result.locked();
 		*res = result.map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
 		// Notify listener
 		self.handle.unpark();
@@ -142,7 +142,7 @@ impl ConfirmationPromise {
 			// Park thread (may wake up spuriously)
 			thread::park_timeout(deadline - now);
 			// Take confirmation result
-			let res = self.result.lock().unwrap();
+			let res = self.result.locked();
 			// Check the result
 			match *res {
 				ConfirmationResult::Rejected => return None,
@@ -183,7 +183,7 @@ impl ConfirmationsQueue {
 	/// This method can be used only once (only single consumer of events can exist).
 	pub fn start_listening<F>(&self, listener: F) -> Result<(), QueueError>
 		where F: Fn(QueueEvent) -> () {
-		let recv = self.receiver.lock().unwrap().take();
+		let recv = self.receiver.locked().take();
 		if let None = recv {
 			return Err(QueueError::AlreadyUsed);
 		}
@@ -208,7 +208,7 @@ impl ConfirmationsQueue {
 	/// Notifies receiver about the event happening in this queue.
 	fn notify(&self, message: QueueEvent) {
 		// We don't really care about the result
-		let _ = self.sender.lock().unwrap().send(message);
+		let _ = self.sender.locked().send(message);
 	}
 
 	/// Removes transaction from this queue and notifies `ConfirmationPromise` holders about the result.
@@ -241,7 +241,7 @@ impl SigningQueue for  ConfirmationsQueue {
 	fn add_request(&self, transaction: TransactionRequest) -> ConfirmationPromise {
 		// Increment id
 		let id = {
-			let mut last_id = self.id.lock().unwrap();
+			let mut last_id = self.id.locked();
 			*last_id = *last_id + U256::from(1);
 			*last_id
 		};
@@ -354,7 +354,7 @@ mod test {
 		let r = received.clone();
 		let handle = thread::spawn(move || {
 			q.start_listening(move |notification| {
-				let mut v = r.lock().unwrap();
+				let mut v = r.locked();
 				*v = Some(notification);
 			}).expect("Should be closed nicely.")
 		});
@@ -363,7 +363,7 @@ mod test {
 
 		// then
 		handle.join().expect("Thread should finish nicely");
-		let r = received.lock().unwrap().take();
+		let r = received.locked().take();
 		assert_eq!(r, Some(QueueEvent::NewRequest(U256::from(1))));
 	}
 

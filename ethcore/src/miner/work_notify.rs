@@ -61,13 +61,13 @@ impl WorkPoster {
 	pub fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
 		// TODO: move this to engine
 		let target = Ethash::difficulty_to_boundary(&difficulty);
-		let seed_hash = &self.seed_compute.lock().unwrap().get_seedhash(number);
+		let seed_hash = &self.seed_compute.locked().get_seedhash(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		let body = format!(
 			r#"{{ "result": ["0x{}","0x{}","0x{}","0x{:x}"] }}"#,
 			pow_hash.hex(), seed_hash.hex(), target.hex(), number
 		);
-		let mut client = self.client.lock().unwrap();
+		let mut client = self.client.locked();
 		for u in &self.urls {
 			if let Err(e) = client.request(u.clone(), PostHandler { body: body.clone() }) {
 				warn!("Error sending HTTP notification to {} : {}, retrying", u, e);

@@ -16,7 +16,7 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes, U256, FixedHash, Uint};
+use util::{Address, H256, Bytes, U256, FixedHash, Uint, Lockable};
 use util::standard::*;
 use ethcore::error::{Error, ExecutionError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
@@ -133,7 +133,7 @@ impl MinerService for TestMinerService {
 	fn import_external_transactions(&self, _chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>> {
 		// lets assume that all txs are valid
-		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
+		self.imported_transactions.locked().extend_from_slice(&transactions);
 
 		for sender in transactions.iter().filter_map(|t| t.sender().ok()) {
 			let nonce = self.last_nonce(&sender).expect("last_nonce must be populated in tests");
@@ -156,7 +156,7 @@ impl MinerService for TestMinerService {
 		}
 
 		// lets assume that all txs are valid
-		self.imported_transactions.lock().unwrap().push(transaction);
+		self.imported_transactions.locked().push(transaction);
 
 		Ok(TransactionImportResult::Current)
 	}
@@ -186,19 +186,19 @@ impl MinerService for TestMinerService {
 	}
 
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
-		self.pending_transactions.lock().unwrap().get(hash).cloned()
+		self.pending_transactions.locked().get(hash).cloned()
 	}
 
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.pending_transactions.lock().unwrap().values().cloned().collect()
+		self.pending_transactions.locked().values().cloned().collect()
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.pending_transactions.lock().unwrap().values().cloned().collect()
+		self.pending_transactions.locked().values().cloned().collect()
 	}
 
 	fn pending_receipts(&self) -> BTreeMap<H256, Receipt> {
-		self.pending_receipts.lock().unwrap().clone()
+		self.pending_receipts.locked().clone()
 	}
 
 	fn last_nonce(&self, address: &Address) -> Option<U256> {
@@ -212,7 +212,7 @@ impl MinerService for TestMinerService {
 	}
 
 	fn balance(&self, _chain: &MiningBlockChainClient, address: &Address) -> U256 {
-		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
+		self.latest_closed_block.locked().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
 	}
 
 	fn call(&self, _chain: &MiningBlockChainClient, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
@@ -220,7 +220,7 @@ impl MinerService for TestMinerService {
 	}
 
 	fn storage_at(&self, _chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256 {
-		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(H256::default, |b| b.block().fields().state.storage_at(address, position).clone())
+		self.latest_closed_block.locked().as_ref().map_or_else(H256::default, |b| b.block().fields().state.storage_at(address, position).clone())
 	}
 
 	fn nonce(&self, _chain: &MiningBlockChainClient, address: &Address) -> U256 {
@@ -230,7 +230,7 @@ impl MinerService for TestMinerService {
 	}
 
 	fn code(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes> {
-		self.latest_closed_block.lock().unwrap().as_ref().map_or(None, |b| b.block().fields().state.code(address).clone())
+		self.latest_closed_block.locked().as_ref().map_or(None, |b| b.block().fields().state.code(address).clone())
 	}
 
 }

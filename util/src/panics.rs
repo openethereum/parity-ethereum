@@ -20,6 +20,7 @@ use std::thread;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use std::default::Default;
+use misc::Lockable;
 
 /// Thread-safe closure for handling possible panics
 pub trait OnPanicListener: Send + Sync + 'static {
@@ -88,7 +89,7 @@ impl PanicHandler {
 	/// Notifies all listeners in case there is a panic.
 	/// You should use `catch_panic` instead of calling this method explicitly.
 	pub fn notify_all(&self, r: String) {
-		let mut listeners = self.listeners.lock().unwrap();
+		let mut listeners = self.listeners.locked();
 		for listener in listeners.deref_mut() {
 			listener.call(&r);
 		}
@@ -97,7 +98,7 @@ impl PanicHandler {
 
 impl MayPanic for PanicHandler {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.listeners.lock().unwrap().push(Box::new(closure));
+		self.listeners.locked().push(Box::new(closure));
 	}
 }
 

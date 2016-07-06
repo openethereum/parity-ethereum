@@ -65,3 +65,13 @@ pub fn version_data() -> Bytes {
 	s.append(&&Target::os()[0..2]);
 	s.out()
 }
+
+/// Object can be locked directly into a `MutexGuard`.
+pub trait Lockable<T> {
+	/// Lock object directly into a `MutexGuard`.
+	fn locked(&self) -> MutexGuard<T>;
+}
+
+impl<T: Sized> Lockable<T> for Mutex<T> {
+	fn locked(&self) -> MutexGuard<T> { self.lock().unwrap() }
+}

@@ -20,6 +20,7 @@ use std::ops::Deref;
 use std::sync::{Arc, Weak, Mutex};
 use std::collections::HashSet;
 use jsonrpc_core::*;
+use util::Lockable;
 use util::numbers::*;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
@@ -68,7 +69,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 		try!(self.active());
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
-				let mut polls = self.polls.lock().unwrap();
+				let mut polls = self.polls.locked();
 				let block_number = take_weak!(self.client).chain_info().best_block_number;
 				let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
 				to_value(&RpcU256::from(id))
@@ -79,7 +80,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 		try!(self.active());
 		match params {
 			Params::None => {
-				let mut polls = self.polls.lock().unwrap();
+				let mut polls = self.polls.locked();
 				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
 				to_value(&RpcU256::from(id))
 			},
@@ -91,7 +92,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 		try!(self.active());
 		match params {
 			Params::None => {
-				let mut polls = self.polls.lock().unwrap();
+				let mut polls = self.polls.locked();
 				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
 				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
 
@@ -106,7 +107,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
-				let mut polls = self.polls.lock().unwrap();
+				let mut polls = self.polls.locked();
 				match polls.poll_mut(&index.value()) {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
 					Some(filter) => match *filter {
@@ -196,7 +197,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 		try!(self.active());
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
-				let mut polls = self.polls.lock().unwrap();
+				let mut polls = self.polls.locked();
 				match polls.poll(&index.value()) {
 					Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
 						let include_pending = filter.to_block == Some(BlockNumber::Pending);
@@ -222,7 +223,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 		try!(self.active());
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
-				self.polls.lock().unwrap().remove_poll(&index.value());
+				self.polls.locked().remove_poll(&index.value());
 				to_value(&true)
 			})
 	}

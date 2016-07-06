@@ -18,6 +18,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
+use util::Lockable;
 use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
 use ethcore::account_provider::AccountProvider;
@@ -363,7 +364,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 	let tester = EthTester::default();
 	{
 		let tx: SignedTransaction = decode(&FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
-		tester.miner.pending_transactions.lock().unwrap().insert(H256::zero(), tx);
+		tester.miner.pending_transactions.locked().insert(H256::zero(), tx);
 	}
 
 	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x01","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x00","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0x0a"},"id":1}"#;
