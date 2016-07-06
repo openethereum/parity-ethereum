@@ -199,7 +199,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Display warning about using experimental journaldb types
 	match client_config.pruning {
 		journaldb::Algorithm::EarlyMerge | journaldb::Algorithm::RefCounted => {
-			warn!("Your chosen strategy is {} and {}! You can re-run with --pruning to change.", "experimental".apply(Colour::White.bold()), "unstable".apply(Colour::White.bold()));
+			warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
 		}
 		_ => {}
 	}
