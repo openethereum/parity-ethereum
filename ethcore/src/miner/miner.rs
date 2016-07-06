@@ -20,7 +20,6 @@ use std::time::{Instant, Duration};
 
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
-use util::Colour::White;
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
@@ -316,6 +315,19 @@ impl Miner {
 		!have_work
 	}
 
+	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, origin: TransactionOrigin, transaction_queue: &mut TransactionQueue) ->
+		Vec<Result<TransactionImportResult, Error>> {
+
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: chain.latest_nonce(a),
+			balance: chain.latest_balance(a),
+		};
+
+		transactions.into_iter()
+			.map(|tx| transaction_queue.add(tx, &fetch_account, origin))
+			.collect()
+	}
+
 	/// Are we allowed to do a non-mandatory reseal?
 	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock().unwrap() }
 }
@@ -478,27 +490,24 @@ impl MinerService for Miner {
 		self.gas_range_target.read().unwrap().1
 	}
 
-	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
-		Vec<Result<TransactionImportResult, Error>>
-		where T: Fn(&Address) -> AccountDetails {
-		let results: Vec<Result<TransactionImportResult, Error>> = {
-			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			transactions.into_iter()
-				.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
-				.collect()
-		};
-		if !results.is_empty() && self.options.reseal_on_external_tx && 	self.tx_reseal_allowed() {
+	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+		Vec<Result<TransactionImportResult, Error>> {
+
+		let mut transaction_queue = self.transaction_queue.lock().unwrap();
+		let results = self.add_transactions_to_queue(chain, transactions, TransactionOrigin::External,
+													 &mut transaction_queue);
+
+		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.tx_reseal_allowed() {
 			self.update_sealing(chain);
 		}
 		results
 	}
 
-	fn import_own_transaction<T>(
+	fn import_own_transaction(
 		&self,
 		chain: &MiningBlockChainClient,
 		transaction: SignedTransaction,
-		fetch_account: T
-	) -> Result<TransactionImportResult, Error> where T: Fn(&Address) -> AccountDetails {
+	) -> Result<TransactionImportResult, Error> {
 
 		let hash = transaction.hash();
 		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
@@ -506,7 +515,7 @@ impl MinerService for Miner {
 		let imported = {
 			// Be sure to release the lock before we call enable_and_prepare_sealing
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			let import = transaction_queue.add(transaction, &fetch_account, TransactionOrigin::Local);
+			let import = self.add_transactions_to_queue(chain, vec![transaction], TransactionOrigin::Local, &mut transaction_queue).pop().unwrap();
 
 			match import {
 				Ok(ref res) => {
@@ -645,7 +654,7 @@ impl MinerService for Miner {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
 			try!(chain.import_sealed_block(sealed));
-			info!(target: "miner", "Mined block imported OK. #{}: {}", paint(White.bold(), format!("{}", n)), paint(White.bold(), h.hex()));
+			info!(target: "miner", "Mined block imported OK. #{}: {}", format!("{}", n).apply(Colour::White.bold()), h.hex().apply(Colour::White.bold()));
 			Ok(())
 		})
 	}
@@ -657,7 +666,12 @@ impl MinerService for Miner {
 				// Client should send message after commit to db and inserting to chain.
 				.expect("Expected in-chain blocks.");
 			let block = BlockView::new(&block);
-			block.transactions()
+			let txs = block.transactions();
+			// populate sender
+			for tx in &txs {
+				let _sender = tx.sender();
+			}
+			txs
 		}
 
 		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
@@ -674,14 +688,10 @@ impl MinerService for Miner {
 				.par_iter()
 				.map(|h| fetch_transactions(chain, h));
 			out_of_chain.for_each(|txs| {
-				// populate sender
-				for tx in &txs {
-					let _sender = tx.sender();
-				}
-				let _ = self.import_transactions(chain, txs, |a| AccountDetails {
-					nonce: chain.latest_nonce(a),
-					balance: chain.latest_balance(a),
-				});
+				let mut transaction_queue = self.transaction_queue.lock().unwrap();
+				let _ = self.add_transactions_to_queue(
+					chain, txs, TransactionOrigin::External, &mut transaction_queue
+				);
 			});
 		}
 

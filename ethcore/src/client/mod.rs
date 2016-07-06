@@ -48,7 +48,8 @@ use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
 pub use types::call_analytics::CallAnalytics;
 pub use block_import_error::BlockImportError;
-pub use transaction_import::{TransactionImportResult, TransactionImportError};
+pub use transaction_import::TransactionImportResult;
+pub use transaction_import::TransactionImportError;
 
 mod client {
 	//! Blockchain database client.
@@ -187,9 +188,6 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
-
-	/// import transactions from network/other 3rd party
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>>;
 
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>);

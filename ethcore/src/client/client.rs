@@ -37,10 +37,7 @@ use util::rlp::{RlpStream, Rlp, UntrustedRlp};
 use util::journaldb;
 use util::journaldb::JournalDB;
 use util::kvdb::*;
-use util::Itertools;
-use util::PerfTimer;
-use util::View;
-use util::Stream;
+use util::{Applyable, Stream, View, PerfTimer, Itertools, Colour};
 
 // other
 use views::BlockView;
@@ -63,8 +60,7 @@ use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
 	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
-	TraceFilter, CallAnalytics, BlockImportError, TransactionImportError,
-	TransactionImportResult, Mode};
+	TraceFilter, CallAnalytics, BlockImportError, Mode};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -72,7 +68,7 @@ use receipt::LocalizedReceipt;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
 use evm::Factory as EvmFactory;
-use miner::{Miner, MinerService, AccountDetails};
+use miner::{Miner, MinerService};
 use util::TrieFactory;
 use ipc::IpcConfig;
 use ipc::binary::{BinaryConvertError};
@@ -147,6 +143,7 @@ pub struct Client {
 	liveness: AtomicBool,
 	io_channel: IoChannel<NetSyncMessage>,
 	queue_transactions: AtomicUsize,
+	previous_enode: Mutex<Option<String>>,
 }
 
 const HISTORY: u64 = 1200;
@@ -232,6 +229,7 @@ impl Client {
 			miner: miner,
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
+			previous_enode: Mutex::new(None),
 		};
 		Ok(Arc::new(client))
 	}
@@ -437,12 +435,8 @@ impl Client {
 	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: self.latest_nonce(a),
-			balance: self.latest_balance(a),
-		};
-		let tx = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
-		let results = self.miner.import_transactions(self, tx, fetch_account);
+		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
 	}
 
@@ -590,6 +584,18 @@ impl Client {
 				//*self.last_activity.lock().unwrap() = Some(Instant::now());
 			}
 		}
+	}
+
+	/// Notify us that the network has been started.
+	pub fn network_started(&self, url: &String) {
+		let mut previous_enode = self.previous_enode.lock().unwrap();
+		if let Some(ref u) = *previous_enode {
+			if u == url {
+				return;
+			}
+		}
+		*previous_enode = Some(url.clone());
+		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
 	}
 }
 
@@ -889,18 +895,6 @@ impl BlockChainClient for Client {
 
 	fn last_hashes(&self) -> LastHashes {
 		self.build_last_hashes(self.chain.best_block_hash())
-	}
-
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>> {
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: self.latest_nonce(a),
-			balance: self.latest_balance(a),
-		};
-
-		self.miner.import_transactions(self, transactions, &fetch_account)
-		.into_iter()
-		.map(|res| res.map_err(|e| e.into()))
-		.collect()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {

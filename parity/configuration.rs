@@ -181,7 +181,7 @@ impl Configuration {
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", paint(White.bold(), format!("US${}", usd_per_eth)), paint(Yellow.bold(), format!("{}", wei_per_gas)));
+				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(White.bold()), format!("{}", wei_per_gas).apply(Yellow.bold()));
 				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 			}
 		}
@@ -338,7 +338,7 @@ impl Configuration {
 			if let journaldb::Algorithm::Archive = client_config.pruning {
 				client_config.trie_spec = TrieSpec::Fat;
 			} else {
-				die!("Fatdb is not supported. Please rerun with --pruning=archive")
+				die!("Fatdb is not supported. Please re-run with --pruning=archive")
 			}
 		}
 
@@ -353,7 +353,7 @@ impl Configuration {
 		};
 
 		if self.args.flag_jitvm {
-			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
+			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity is built without the JIT EVM."))
 		}
 
 		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
