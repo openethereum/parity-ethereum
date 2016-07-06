@@ -17,6 +17,7 @@
 //! Common log helper functions
 
 use std::env;
+use std::borrow::Cow;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use std::sync::{RwLock, RwLockReadGuard};
@@ -29,36 +30,19 @@ lazy_static! {
 }
 
 /// Something which can be apply()ed.
-pub trait Applyable {
+pub trait Applyable: AsRef<str> {
 	/// Apply the style `c` to ourself, returning us styled in that manner.
-	fn apply(self, c: Style) -> String;
+	fn apply(&self, c: Style) -> Cow<str>;
 }
 
-impl Applyable for String {
-	fn apply(self, c: Style) -> String {
-		match USE_COLOR.load(Ordering::Relaxed) {
-			true => format!("{}", c.paint(self)),
-			false => self,
-		}
-	}
-}
-
-impl<'a> Applyable for &'a str {
-	fn apply(self, c: Style) -> String {
-		match USE_COLOR.load(Ordering::Relaxed) {
-			true => format!("{}", c.paint(self)),
-			false => self.to_owned(),
-		}
-	}
-}
-
-impl<'a> Applyable for &'a String {
-	fn apply(self, c: Style) -> String {
-		match USE_COLOR.load(Ordering::Relaxed) {
-			true => format!("{}", c.paint(&self[..])),
-			false => self.clone(),
-		}
-	}
+impl<T: AsRef<str>> Applyable for T {
+    fn apply(&self, c: Style) -> Cow<str> {
+        let s = self.as_ref();
+        match USE_COLOR.load(Ordering::Relaxed) {
+            true => Cow::Owned(format!("{}", c.paint(s))),
+            false => Cow::Borrowed(s),
+        }
+    }
 }
 
 lazy_static! {
