@@ -104,7 +104,7 @@ impl HashDB for ArchiveDB {
 			Some((d, rc)) if rc > 0 => Some(d),
 			_ => {
 				if let Some(x) = self.payload(key) {
-					Some(&self.overlay.denote(key, x).0)
+					Some(self.overlay.denote(key, x).0)
 				}
 				else {
 					None

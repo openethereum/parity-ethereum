@@ -236,7 +236,7 @@ impl HashDB for OverlayDB {
 					Some(x) => {
 						let (d, rc) = x;
 						if rc as i32 + memrc > 0 {
-							Some(&self.overlay.denote(key, d).0)
+							Some(self.overlay.denote(key, d).0)
 						}
 						else {
 							None
