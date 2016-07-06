@@ -214,7 +214,7 @@ impl Account {
 	}
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
-	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut AccountDBMut) {
+	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB) {
 		let mut t = trie_factory.from_existing(db, &mut self.storage_root)
 			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
@@ -233,7 +233,7 @@ impl Account {
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
-	pub fn commit_code(&mut self, db: &mut AccountDBMut) {
+	pub fn commit_code(&mut self, db: &mut HashDB) {
 		trace!("Commiting code of {:?} - {:?}, {:?}", self, self.code_hash.is_none(), self.code_cache.is_empty());
 		match (self.code_hash.is_none(), self.code_cache.is_empty()) {
 			(true, true) => self.code_hash = Some(SHA3_EMPTY),

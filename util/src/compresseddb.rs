@@ -27,12 +27,12 @@ use MemoryDB;
 /// Backing compressed `HashDB` with decompressed `MemoryDB` overlay.
 pub struct CompressedDB<'a, T: 'a + HashDB> {
 	overlay: MemoryDB,
-	backing: &'a mut T,
+	backing: &'a T,
 }
 
 impl<'a, T: 'a + HashDB> CompressedDB<'a, T> {
 	/// Create a compressing wrapper for `backing` db.
-	pub fn new(backing: &'a mut T) -> CompressedDB<'a, T> {
+	pub fn new(backing: &'a T) -> CompressedDB<'a, T> {
 		CompressedDB { overlay: MemoryDB::new(), backing: backing }
 	}
 }
@@ -52,7 +52,60 @@ impl<'a, T> HashDB for CompressedDB<'a, T> where T: HashDB {
 					}))
 	}
 
-	fn contains(&self, key: &H256) -> bool { self.backing.contains(key) }
+	fn contains(&self, key: &H256) -> bool {
+		self.backing.contains(key)
+	}
+
+	fn insert(&mut self, _value: &[u8]) -> H256 {
+		unimplemented!()
+	}
+
+	fn emplace(&mut self, _key: H256, value: Bytes) {
+		unimplemented!()
+	}	
+
+	fn remove(&mut self, _key: &H256) {
+		unimplemented!()
+	}
+
+	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
+		self.backing.get_aux(hash)
+	}
+}
+
+/// Backing compressed mutable `HashDB` with decompressed `MemoryDB` overlay.
+pub struct CompressedDBMut<'a, T: 'a + HashDB> {
+	overlay: MemoryDB,
+	backing: &'a mut T,
+}
+
+impl<'a, T: 'a + HashDB> CompressedDBMut<'a, T> {
+	/// Create a compressing wrapper for `backing` db.
+	pub fn new(backing: &'a mut T) -> CompressedDB<'a, T> {
+		CompressedDB { overlay: MemoryDB::new(), backing: backing }
+	}
+}
+
+/// `HashDB` wrapper which keeps the RLP values compressed.
+impl<'a, T> HashDB for CompressedDBMut<'a, T> where T: HashDB {
+	fn keys(&self) -> HashMap<H256, i32> {
+		self.backing.keys()
+	}
+
+	fn get(&self, key: &H256) -> Option<&[u8]> {
+		self.overlay
+			.raw(key)
+			.and_then(|raw| if raw.1 > 0 { Some(raw.0.as_slice()) } else { None })
+			.or(self.backing.get(key)
+					.and_then(|v| {
+						let decompressed = UntrustedRlp::new(v).decompress().to_vec();
+						Some(self.overlay.denote(key, decompressed).0.as_slice())
+					}))
+	}
+
+	fn contains(&self, key: &H256) -> bool {
+		self.backing.contains(key)
+	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		let key = value.sha3();
@@ -64,7 +117,9 @@ impl<'a, T> HashDB for CompressedDB<'a, T> where T: HashDB {
 		self.backing.emplace(key, UntrustedRlp::new(&value).compress().to_vec())
 	}	
 
-	fn remove(&mut self, key: &H256) { self.backing.remove(key) }
+	fn remove(&mut self, key: &H256) {
+		self.backing.remove(key)
+	}
 
 	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
 		self.backing.insert_aux(hash, value)
