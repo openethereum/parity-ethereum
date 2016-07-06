@@ -18,7 +18,6 @@
 //! Processes request handling authorization and dispatching it to proper application.
 
 mod url;
-mod redirect;
 pub mod auth;
 
 use DAPPS_DOMAIN;
@@ -33,7 +32,7 @@ use apps;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
 use self::url::Url;
 use self::auth::{Authorization, Authorized};
-use self::redirect::Redirection;
+use handlers::Redirection;
 
 /// Special endpoints are accessible on every domain (every dapp)
 #[derive(Debug, PartialEq, Hash, Eq)]

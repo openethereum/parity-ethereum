@@ -87,7 +87,7 @@ use std::cmp;
 use std::collections::{HashMap, BTreeSet};
 use util::numbers::{Uint, U256};
 use util::hash::{Address, H256};
-use util::table::*;
+use util::table::Table;
 use transaction::*;
 use error::{Error, TransactionError};
 use client::TransactionImportResult;

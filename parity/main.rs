@@ -50,9 +50,6 @@ extern crate ethcore_rpc;
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
-#[cfg(feature = "ethcore-signer")]
-extern crate ethcore_signer;
-
 mod commands;
 #[macro_use]
 mod die;

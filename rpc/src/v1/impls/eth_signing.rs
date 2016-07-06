@@ -20,17 +20,17 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use util::numbers::*;
+use util::{U256, Address, H256};
 use ethcore::account_provider::AccountProvider;
-use v1::helpers::{SigningQueue, ConfirmationsQueue};
+use v1::helpers::{SigningQueue, ConfirmationsQueue, TransactionRequest as TRequest};
 use v1::traits::EthSigning;
-use v1::types::{TransactionRequest, Bytes};
+use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520};
 use v1::impls::{default_gas_price, sign_and_dispatch};
 
-fn fill_optional_fields<C, M>(request: &mut TransactionRequest, client: &C, miner: &M)
+fn fill_optional_fields<C, M>(request: &mut TRequest, client: &C, miner: &M)
 	where C: MiningBlockChainClient, M: MinerService {
 	if request.value.is_none() {
-		request.value = Some(U256::zero());
+		request.value = Some(U256::from(0));
 	}
 	if request.gas.is_none() {
 		request.gas = Some(miner.sensible_gas_limit());
@@ -39,7 +39,7 @@ fn fill_optional_fields<C, M>(request: &mut TransactionRequest, client: &C, mine
 		request.gas_price = Some(default_gas_price(client, miner));
 	}
 	if request.data.is_none() {
-		request.data = Some(Bytes::new(Vec::new()));
+		request.data = Some(Vec::new());
 	}
 }
 
@@ -83,7 +83,8 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(mut request, )| {
+			.and_then(|(request, )| {
+				let mut request: TRequest = request.into();
 				let accounts = take_weak!(self.accounts);
 				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 
@@ -91,7 +92,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 					let sender = request.from;
 					return match sign_and_dispatch(&*client, &*miner, request, &*accounts, sender) {
 						Ok(hash) => to_value(&hash),
-						_ => to_value(&H256::zero()),
+						_ => to_value(&RpcH256::default()),
 					}
 				}
 
@@ -99,7 +100,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 				fill_optional_fields(&mut request, &*client, &*miner);
 				let id = queue.add_request(request);
 				let result = id.wait_with_timeout();
-				result.unwrap_or_else(|| to_value(&H256::new()))
+				result.unwrap_or_else(|| to_value(&RpcH256::default()))
 		})
 	}
 }
@@ -140,8 +141,10 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 
 	fn sign(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(Address, H256)>(params).and_then(|(addr, msg)| {
-			to_value(&take_weak!(self.accounts).sign(addr, msg).unwrap_or(H520::zero()))
+		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
+			let address: Address = address.into();
+			let msg: H256 = msg.into();
+			to_value(&take_weak!(self.accounts).sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))
 		})
 	}
 
@@ -149,10 +152,11 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		try!(self.active());
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
+				let request: TRequest = request.into();
 				let sender = request.from;
 				match sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender) {
 					Ok(hash) => to_value(&hash),
-					_ => to_value(&H256::zero()),
+					_ => to_value(&RpcH256::default()),
 				}
 		})
 	}

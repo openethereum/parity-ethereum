@@ -19,6 +19,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::{Instant, Duration};
 
 use util::*;
+use util::using_queue::{UsingQueue, GetAction};
 use util::Colour::White;
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};

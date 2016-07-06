@@ -34,6 +34,7 @@ use util::{U256, H256, Uint};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
+use v1::types::U256 as NU256;
 use v1::traits::eth::{Eth, EthSigning};
 use v1::impls::{EthClient, EthSigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config};
@@ -330,7 +331,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 			"jsonrpc": "2.0",
 			"method": "eth_getBlockTransactionCountByNumber",
 			"params": [
-				"#.to_owned() + &::serde_json::to_string(&U256::from(num)).unwrap() + r#"
+				"#.to_owned() + &::serde_json::to_string(&NU256::from(num)).unwrap() + r#"
 			],
 			"id": "# + format!("{}", *id).as_ref() + r#"
 		}"#;

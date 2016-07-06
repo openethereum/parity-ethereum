@@ -14,8 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod api;
-mod response;
+//! Hyper handlers implementations.
 
-pub use self::api::RestApi;
-pub use self::api::App;
+mod auth;
+mod content;
+mod redirect;
+
+pub use self::auth::AuthRequiredHandler;
+pub use self::content::ContentHandler;
+pub use self::redirect::Redirection;

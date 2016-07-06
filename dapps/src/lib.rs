@@ -59,6 +59,7 @@ mod endpoint;
 mod apps;
 mod page;
 mod router;
+mod handlers;
 mod rpc;
 mod api;
 mod proxypac;

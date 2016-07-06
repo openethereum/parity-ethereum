@@ -16,13 +16,12 @@
 
 //! REST API
 
-#![warn(missing_docs)]
 #![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
 #![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
 
-#[cfg(feature = "serde_macros")]
-include!("mod.rs.in");
+mod api;
+mod response;
+mod types;
 
-#[cfg(not(feature = "serde_macros"))]
-include!(concat!(env!("OUT_DIR"), "/mod.rs"));
-
+pub use self::api::RestApi;
+pub use self::types::App;
