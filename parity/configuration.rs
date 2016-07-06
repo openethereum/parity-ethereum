@@ -49,8 +49,7 @@ pub struct Directories {
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum Policy {
-	DaoSoft,
-	Normal,
+	None,
 	Dogmatic,
 }
 
@@ -135,33 +134,24 @@ impl Configuration {
 
 	pub fn policy(&self) -> Policy {
 		match self.args.flag_fork.as_str() {
-			"dao-soft" => Policy::DaoSoft,
-			"normal" => Policy::Normal,
+			"none" => Policy::None,
 			"dogmatic" => Policy::Dogmatic,
 			x => die!("{}: Invalid value given for --policy option. Use --help for more info.", x)
 		}
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
-		if self.policy() == Policy::DaoSoft {
-			3_141_592.into()
-		} else {
-			let d = &self.args.flag_gas_floor_target;
-			U256::from_dec_str(d).unwrap_or_else(|_| {
-				die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
-			})
-		}
+		let d = &self.args.flag_gas_floor_target;
+		U256::from_dec_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
+		})
 	}
 
 	pub fn gas_ceil_target(&self) -> U256 {
-		if self.policy() == Policy::DaoSoft {
-			3_141_592.into()
-		} else {
-			let d = &self.args.flag_gas_cap;
-			U256::from_dec_str(d).unwrap_or_else(|_| {
-				die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
-			})
-		}
+		let d = &self.args.flag_gas_cap;
+		U256::from_dec_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
+		})
 	}
 
 	pub fn gas_price(&self) -> U256 {
@@ -207,7 +197,7 @@ impl Configuration {
 
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(self.policy() != Policy::Dogmatic),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
