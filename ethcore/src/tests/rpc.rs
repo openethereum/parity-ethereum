@@ -19,7 +19,7 @@
 use nanoipc;
 use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicBool};
-use client::{Client, ClientConfig, RemoteClient};
+use client::{Client, BlockChainClient, ClientConfig, RemoteClient, BlockID};
 use tests::helpers::*;
 use devtools::*;
 use miner::Miner;
@@ -53,5 +53,19 @@ fn can_handshake() {
 		let remote_client = nanoipc::init_client::<RemoteClient<_>>(socket_path).unwrap();
 
 		assert!(remote_client.handshake().is_ok());
+	})
+}
+
+#[test]
+fn can_query_block() {
+	crossbeam::scope(|scope| {
+		let stop_guard = StopGuard::new();
+		let socket_path = "ipc:///tmp/parity-client-rpc-10.ipc";
+		run_test_worker(scope, stop_guard.share(), socket_path);
+		let remote_client = nanoipc::init_client::<RemoteClient<_>>(socket_path).unwrap();
+
+		let non_existant_block = remote_client.block_header(BlockID::Number(999));
+
+		assert!(non_existant_block.is_none());
 	})
 }
