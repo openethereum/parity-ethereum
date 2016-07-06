@@ -118,16 +118,16 @@ fn database_path(path: &Path) -> PathBuf {
 	temp_path
 }
 
-enum TempIdx {
+enum TempIndex {
 	One,
 	Two,
 }
 
-impl TempIdx {
+impl TempIndex {
 	fn swap(&mut self) {
 		match *self {
-			TempIdx::One => *self = TempIdx::Two,
-			TempIdx::Two => *self = TempIdx::One,
+			TempIndex::One => *self = TempIndex::Two,
+			TempIndex::Two => *self = TempIndex::One,
 		}
 	}
 
@@ -136,8 +136,8 @@ impl TempIdx {
 		let mut buf = db_root.to_owned();
 
 		match *self {
-			TempIdx::One => buf.push("temp_migration_1"),
-			TempIdx::Two => buf.push("temp_migration_2"),
+			TempIndex::One => buf.push("temp_migration_1"),
+			TempIndex::Two => buf.push("temp_migration_2"),
 		};
 
 		buf
@@ -184,7 +184,7 @@ impl Manager {
 		};
 
 		let db_root = database_path(old_path);
-		let mut temp_idx = TempIdx::One;
+		let mut temp_idx = TempIndex::One;
 		let mut temp_path = temp_idx.path(&db_root);
 
 		// start with the old db.
