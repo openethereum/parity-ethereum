@@ -64,10 +64,12 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
 		let url = extract_url(&request);
-		if let None = url {
+		if url.is_none() {
+			// Just return 404 if we can't parse URL
 			return Next::write();
 		}
-		let url = url.expect("None check is done above.");
+
+		let url = url.expect("Check for None is above;qed");
 		let endpoint = url.path.get(1).map(|v| v.as_str());
 
 		let handler = endpoint.and_then(|v| match v {
