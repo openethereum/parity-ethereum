@@ -844,10 +844,10 @@ impl BlockChainClient for Client {
 								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
 								transaction_index: index,
 								log_index: log_index + i
-						})
-					.collect::<Vec<LocalizedLogEntry>>()
+							})
+							.collect::<Vec<LocalizedLogEntry>>()
 					})
-				.collect::<Vec<LocalizedLogEntry>>()
+					.collect::<Vec<LocalizedLogEntry>>()
 			})
 			.collect()
 	}
