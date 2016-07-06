@@ -241,6 +241,19 @@ fn no_author_err() -> Error {
 	}
 }
 
+impl<C, S, M, EM> EthClient<C, S, M, EM> where
+	C: MiningBlockChainClient + 'static,
+	S: SyncProvider + 'static,
+	M: MinerService + 'static,
+	EM: ExternalMinerService + 'static {
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
+}
+
 impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
@@ -248,6 +261,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	EM: ExternalMinerService + 'static {
 
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => Ok(Value::String(format!("{}", take_weak!(self.sync).status().protocol_version).to_owned())),
 			_ => Err(Error::invalid_params())
@@ -255,6 +269,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn syncing(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => {
 				let status = take_weak!(self.sync).status();
@@ -283,6 +298,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn author(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => to_value(&RpcH160::from(take_weak!(self.miner).author())),
 			_ => Err(Error::invalid_params()),
@@ -290,6 +306,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => to_value(&self.external_miner.is_mining()),
 			_ => Err(Error::invalid_params())
@@ -297,6 +314,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => to_value(&RpcU256::from(self.external_miner.hashrate())),
 			_ => Err(Error::invalid_params())
@@ -304,6 +322,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => {
 				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
@@ -314,11 +333,13 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		let store = take_weak!(self.accounts);
 		to_value(&store.accounts().into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => to_value(&RpcU256::from(take_weak!(self.client).chain_info().best_block_number)),
 			_ => Err(Error::invalid_params())
@@ -326,6 +347,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn balance(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
@@ -337,6 +359,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn storage_at(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params_default_third::<RpcH160, RpcU256>(params)
 			.and_then(|(address, position, block_number,)| {
 				let address: Address = RpcH160::into(address);
@@ -353,6 +376,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn transaction_count(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
@@ -364,6 +388,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcH256,)>(params)
 			.and_then(|(hash,)| // match
 				take_weak!(self.client).block(BlockID::Hash(hash.into()))
@@ -371,6 +396,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
 				BlockNumber::Pending => to_value(
@@ -382,6 +408,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn block_uncles_count_by_hash(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcH256,)>(params)
 			.and_then(|(hash,)|
 				take_weak!(self.client).block(BlockID::Hash(hash.into()))
@@ -389,6 +416,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn block_uncles_count_by_number(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
 				BlockNumber::Pending => to_value(&RpcU256::from(0)),
@@ -398,6 +426,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
@@ -410,16 +439,19 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcH256, bool)>(params)
 			.and_then(|(hash, include_txs)| self.block(BlockID::Hash(hash.into()), include_txs))
 	}
 
 	fn block_by_number(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(BlockNumber, bool)>(params)
 			.and_then(|(number, include_txs)| self.block(number.into(), include_txs))
 	}
 
 	fn transaction_by_hash(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcH256,)>(params)
 			.and_then(|(hash,)| {
 				let miner = take_weak!(self.miner);
@@ -432,16 +464,19 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcH256, Index)>(params)
 			.and_then(|(hash, index)| self.transaction(TransactionID::Location(BlockID::Hash(hash.into()), index.value())))
 	}
 
 	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(BlockNumber, Index)>(params)
 			.and_then(|(number, index)| self.transaction(TransactionID::Location(number.into(), index.value())))
 	}
 
 	fn transaction_receipt(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcH256,)>(params)
 			.and_then(|(hash,)| {
 				let miner = take_weak!(self.miner);
@@ -458,16 +493,19 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcH256, Index)>(params)
 			.and_then(|(hash, index)| self.uncle(UncleID { block: BlockID::Hash(hash.into()), position: index.value() }))
 	}
 
 	fn uncle_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(BlockNumber, Index)>(params)
 			.and_then(|(number, index)| self.uncle(UncleID { block: number.into(), position: index.value() }))
 	}
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => to_value(&vec![] as &Vec<String>),
 			_ => Err(Error::invalid_params())
@@ -475,6 +513,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn logs(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
 				let include_pending = filter.to_block == Some(BlockNumber::Pending);
@@ -494,6 +533,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn work(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => {
 				let client = take_weak!(self.client);
@@ -531,6 +571,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn submit_work(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcH64, RpcH256, RpcH256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
 			let nonce: H64 = nonce.into();
 			let pow_hash: H256 = pow_hash.into();
@@ -545,6 +586,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn submit_hashrate(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(RpcU256, RpcH256)>(params).and_then(|(rate, id)| {
 			self.external_miner.submit_hashrate(rate.into(), id.into());
 			to_value(&true)
@@ -552,6 +594,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Bytes, )>(params)
 			.and_then(|(raw_transaction, )| {
 				let raw_transaction = raw_transaction.to_vec();
@@ -563,6 +606,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		trace!(target: "jsonrpc", "call: {:?}", params);
 		from_params_default_second(params)
 			.and_then(|(request, block_number,)| {
@@ -578,6 +622,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn estimate_gas(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params_default_second(params)
 			.and_then(|(request, block_number,)| {
 				let request = CallRequest::into(request);
@@ -592,14 +637,17 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn compile_lll(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		rpc_unimplemented!()
 	}
 
 	fn compile_serpent(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		rpc_unimplemented!()
 	}
 
 	fn compile_solidity(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		rpc_unimplemented!()
 	}
 }
