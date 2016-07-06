@@ -16,8 +16,13 @@
 
 use serde::Serialize;
 use serde_json;
-use endpoint::{ContentHandler, Handler};
+use endpoint::Handler;
+use handlers::ContentHandler;
 
 pub fn as_json<T : Serialize>(val: &T) -> Box<Handler> {
-	Box::new(ContentHandler::new(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
+	Box::new(ContentHandler::ok(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
+}
+
+pub fn as_json_error<T : Serialize>(val: &T) -> Box<Handler> {
+	Box::new(ContentHandler::not_found(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
 }

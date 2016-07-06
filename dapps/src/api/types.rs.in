@@ -14,32 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! URL Endpoint traits
+use endpoint::EndpointInfo;
 
-use hyper::{server, net};
-use std::collections::BTreeMap;
-
-#[derive(Debug, PartialEq, Default, Clone)]
-pub struct EndpointPath {
-	pub app_id: String,
-	pub host: String,
-	pub port: u16,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct EndpointInfo {
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct App {
+	pub id: String,
 	pub name: String,
 	pub description: String,
 	pub version: String,
 	pub author: String,
+	#[serde(rename="iconUrl")]
 	pub icon_url: String,
 }
 
-pub trait Endpoint : Send + Sync {
-	fn info(&self) -> Option<&EndpointInfo> { None }
-
-	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<net::HttpStream> + Send>;
+impl App {
+	/// Creates `App` instance from `EndpointInfo` and `id`.
+	pub fn from_info(id: &str, info: &EndpointInfo) -> Self {
+		App {
+			id: id.to_owned(),
+			name: info.name.to_owned(),
+			description: info.description.to_owned(),
+			version: info.version.to_owned(),
+			author: info.author.to_owned(),
+			icon_url: info.icon_url.to_owned(),
+		}
+	}
 }
 
-pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
-pub type Handler = server::Handler<net::HttpStream> + Send;
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct ApiError {
+	pub code: String,
+	pub title: String,
+	pub detail: String,
+}
+
+
