@@ -69,7 +69,6 @@ impl From<MigrationError> for Error {
 		match err {
 			MigrationError::Io(e) => Error::Io(e),
 			_ => Error::MigrationFailed,
-
 		}
 	}
 }
