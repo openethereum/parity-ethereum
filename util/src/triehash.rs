@@ -46,7 +46,8 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 		// optimize it later
 		.into_iter()
 		.enumerate()
-		.fold(BTreeMap::new(), | mut acc, (i, vec) | { acc.insert(rlp::encode(&i).to_vec(), vec); acc })
+		.map(|(i, vec)| (rlp::encode(&i).to_vec(), vec))
+		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )
@@ -78,10 +79,7 @@ pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
-		.fold(BTreeMap::new(), | mut acc, (k, v) | {
-			acc.insert(k, v);
-			acc
-		})
+		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )
@@ -97,7 +95,7 @@ pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 /// use std::str::FromStr;
 /// use util::triehash::*;
 /// use util::hash::*;
-/// 
+///
 /// fn main() {
 /// 	let v = vec![
 /// 		(From::from("doe"), From::from("reindeer")),
@@ -113,10 +111,8 @@ pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
-		.fold(BTreeMap::new(), | mut acc, (k, v) | {
-			acc.insert(k.sha3().to_vec(), v);
-			acc
-		})
+		.map(|(k, v)| (k.sha3().to_vec(), v))
+		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )
@@ -324,10 +320,16 @@ fn test_hex_prefix_encode() {
 
 #[cfg(test)]
 mod tests {
-	extern crate json_tests;
-	use self::json_tests::*;
-	use hash::*;
-	use triehash::*;
+	use std::str::FromStr;
+	use hash::H256;
+	use super::trie_root;
+
+	#[test]
+	fn simple_test() {
+		assert_eq!(trie_root(vec![
+			(b"A".to_vec(), b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_vec())
+		]), H256::from_str("d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab").unwrap());
+	}
 
 	#[test]
 	fn test_triehash_out_of_order() {
@@ -343,11 +345,4 @@ mod tests {
 		]));
 	}
 
-	#[test]
-	fn test_triehash_json() {
-		execute_tests_from_directory::<trie::TriehashTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
-			println!("file: {}, output: {:?}", file, output);
-			assert_eq!(trie_root(input), H256::from_slice(&output));
-		});
-	}
 }

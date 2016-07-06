@@ -15,36 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use endpoint::{Endpoint, Endpoints, EndpointInfo, Handler, EndpointPath};
+use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
+use api::types::{App, ApiError};
+use api::response::{as_json, as_json_error};
+use hyper::{server, net, Decoder, Encoder, Next};
 
-use api::response::as_json;
-
+#[derive(Clone)]
 pub struct RestApi {
 	endpoints: Arc<Endpoints>,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct App {
-	pub id: String,
-	pub name: String,
-	pub description: String,
-	pub version: String,
-	pub author: String,
-	#[serde(rename="iconUrl")]
-	pub icon_url: String,
-}
-
-impl App {
-	fn from_info(id: &str, info: &EndpointInfo) -> Self {
-		App {
-			id: id.to_owned(),
-			name: info.name.to_owned(),
-			description: info.description.to_owned(),
-			version: info.version.to_owned(),
-			author: info.author.to_owned(),
-			icon_url: info.icon_url.to_owned(),
-		}
-	}
 }
 
 impl RestApi {
@@ -63,7 +41,39 @@ impl RestApi {
 
 impl Endpoint for RestApi {
 	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
-		as_json(&self.list_apps())
+		Box::new(RestApiRouter {
+			api: self.clone(),
+			handler: as_json_error(&ApiError {
+				code: "404".into(),
+				title: "Not Found".into(),
+				detail: "Resource you requested has not been found.".into(),
+			}),
+		})
 	}
 }
 
+struct RestApiRouter {
+	api: RestApi,
+	handler: Box<Handler>,
+}
+
+impl server::Handler<net::HttpStream> for RestApiRouter {
+
+	fn on_request(&mut self, _request: server::Request<net::HttpStream>) -> Next {
+		self.handler = as_json(&self.api.list_apps());
+		Next::write()
+	}
+
+	fn on_request_readable(&mut self, decoder: &mut Decoder<net::HttpStream>) -> Next {
+		self.handler.on_request_readable(decoder)
+	}
+
+	fn on_response(&mut self, res: &mut server::Response) -> Next {
+		self.handler.on_response(res)
+	}
+
+	fn on_response_writable(&mut self, encoder: &mut Encoder<net::HttpStream>) -> Next {
+		self.handler.on_response_writable(encoder)
+	}
+
+}

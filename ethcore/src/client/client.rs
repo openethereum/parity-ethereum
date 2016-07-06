@@ -17,11 +17,12 @@
 //! Blockchain database client.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::time::Instant;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use util::panics::*;
 use views::BlockView;
-use error::{Error, ImportError, ExecutionError, BlockError, ImportResult};
+use error::{ImportError, ExecutionError, BlockError, ImportResult};
 use header::{BlockNumber};
 use state::State;
 use spec::Spec;
@@ -38,7 +39,9 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
+use client::{BlockID, TransactionID, UncleID, TraceId, Mode, ClientConfig, DatabaseCompactionProfile,
+	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics, TransactionImportError,
+	BlockImportError, TransactionImportResult};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -49,9 +52,10 @@ use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
-use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
+use miner::{Miner, MinerService, AccountDetails};
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
+const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -81,9 +85,24 @@ impl ClientReport {
 	}
 }
 
+struct SleepState {
+	last_activity: Option<Instant>,
+	last_autosleep: Option<Instant>,
+}
+
+impl SleepState {
+	fn new(awake: bool) -> Self {
+		SleepState {
+			last_activity: match awake { false => None, true => Some(Instant::now()) },
+			last_autosleep: match awake { false => Some(Instant::now()), true => None },
+		}
+	}
+}
+
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
+	mode: Mode,
 	chain: Arc<BlockChain>,
 	tracedb: Arc<TraceDB<BlockChain>>,
 	engine: Arc<Box<Engine>>,
@@ -96,6 +115,8 @@ pub struct Client {
 	vm_factory: Arc<EvmFactory>,
 	trie_factory: TrieFactory,
 	miner: Arc<Miner>,
+	sleep_state: Mutex<SleepState>,
+	liveness: AtomicBool,
 	io_channel: IoChannel<NetSyncMessage>,
 	queue_transactions: AtomicUsize,
 }
@@ -132,9 +153,8 @@ impl Client {
 		spec: Spec,
 		path: &Path,
 		miner: Arc<Miner>,
-		message_channel: IoChannel<NetSyncMessage>)
-		-> Result<Arc<Client>, ClientError>
-	{
+		message_channel: IoChannel<NetSyncMessage>
+	) -> Result<Arc<Client>, ClientError> {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
@@ -165,7 +185,11 @@ impl Client {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
+		let awake = match config.mode { Mode::Dark(..) => false, _ => true };
 		let client = Client {
+			sleep_state: Mutex::new(SleepState::new(awake)),
+			liveness: AtomicBool::new(awake),
+			mode: config.mode,
 			chain: chain,
 			tracedb: tracedb,
 			engine: engine,
@@ -181,7 +205,6 @@ impl Client {
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
 		};
-
 		Ok(Arc::new(client))
 	}
 
@@ -447,9 +470,41 @@ impl Client {
 	}
 
 	/// Tick the client.
+	// TODO: manage by real events.
 	pub fn tick(&self) {
 		self.chain.collect_garbage();
 		self.block_queue.collect_garbage();
+		
+		match self.mode {
+			Mode::Dark(timeout) => {
+				let mut ss = self.sleep_state.lock().unwrap();
+				if let Some(t) = ss.last_activity {
+					if Instant::now() > t + timeout { 
+						self.sleep();
+						ss.last_activity = None;
+					}
+				}
+			}
+			Mode::Passive(timeout, wakeup_after) => {
+				let mut ss = self.sleep_state.lock().unwrap();
+				let now = Instant::now();
+				if let Some(t) = ss.last_activity {
+					if now > t + timeout { 
+						self.sleep();
+						ss.last_activity = None;
+						ss.last_autosleep = Some(now);
+					}
+				}
+				if let Some(t) = ss.last_autosleep { 
+					if now > t + wakeup_after { 
+						self.wake_up();
+						ss.last_activity = Some(now);
+						ss.last_autosleep = None;
+					}
+				}
+			}
+			_ => {}
+		}
 	}
 
 	/// Set up the cache behaviour.
@@ -483,6 +538,29 @@ impl Client {
 				block_hash: hash,
 				index: index,
 			})
+		}
+	}
+
+	fn wake_up(&self) {
+		if !self.liveness.load(AtomicOrdering::Relaxed) {
+			self.liveness.store(true, AtomicOrdering::Relaxed);
+			self.io_channel.send(NetworkIoMessage::User(SyncMessage::StartNetwork)).unwrap();
+			trace!(target: "mode", "wake_up: Waking.");
+		}
+	}
+
+	fn sleep(&self) {
+		if self.liveness.load(AtomicOrdering::Relaxed) {
+			// only sleep if the import queue is mostly empty.
+			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
+				self.liveness.store(false, AtomicOrdering::Relaxed);
+				self.io_channel.send(NetworkIoMessage::User(SyncMessage::StopNetwork)).unwrap();
+				trace!(target: "mode", "sleep: Sleeping.");
+			} else {
+				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
+				// TODO: Consider uncommenting.
+				//*self.last_activity.lock().unwrap() = Some(Instant::now());
+			}
 		}
 	}
 }
@@ -526,6 +604,12 @@ impl BlockChainClient for Client {
 		ret
 	}
 
+	fn keep_alive(&self) {
+		if self.mode != Mode::Active {
+			self.wake_up();
+			(*self.sleep_state.lock().unwrap()).last_activity = Some(Instant::now());
+		}
+	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
@@ -654,17 +738,17 @@ impl BlockChainClient for Client {
 		self.chain.block_receipts(hash).map(|receipts| rlp::encode(&receipts).to_vec())
 	}
 
-	fn import_block(&self, bytes: Bytes) -> ImportResult {
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
 		{
 			let header = BlockView::new(&bytes).header_view();
 			if self.chain.is_known(&header.sha3()) {
-				return Err(ImportError::AlreadyInChain.into());
+				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
 			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
-				return Err(BlockError::UnknownParent(header.parent_hash()).into());
+				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
-		self.block_queue.import_block(bytes)
+		Ok(try!(self.block_queue.import_block(bytes)))
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
@@ -778,12 +862,16 @@ impl BlockChainClient for Client {
 		self.build_last_hashes(self.chain.best_block_hash())
 	}
 
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>> {
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>> {
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: self.latest_nonce(a),
 			balance: self.latest_balance(a),
 		};
-		self.miner.import_transactions(self, transactions, fetch_account)
+
+		self.miner.import_transactions(self, transactions, &fetch_account)
+			.into_iter()
+			.map(|res| res.map_err(|e| e.into()))
+			.collect()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {

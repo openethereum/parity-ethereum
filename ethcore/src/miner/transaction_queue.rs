@@ -87,9 +87,10 @@ use std::cmp;
 use std::collections::{HashMap, BTreeSet};
 use util::numbers::{Uint, U256};
 use util::hash::{Address, H256};
-use util::table::*;
+use util::table::Table;
 use transaction::*;
 use error::{Error, TransactionError};
+use client::TransactionImportResult;
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -309,15 +310,6 @@ pub struct TransactionQueueStatus {
 	pub future: usize,
 }
 
-#[derive(Debug, PartialEq)]
-/// Represents the result of importing transaction.
-pub enum TransactionImportResult {
-	/// Transaction was imported to current queue.
-	Current,
-	/// Transaction was imported to future queue.
-	Future
-}
-
 /// Details of account
 pub struct AccountDetails {
 	/// Most recent account nonce
@@ -439,10 +431,10 @@ impl TransactionQueue {
 	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_account: &T, origin: TransactionOrigin) -> Result<TransactionImportResult, Error>
 	where T: Fn(&Address) -> AccountDetails {
 
-		trace!(target: "miner", "Importing: {:?}", tx.hash());
+		trace!(target: "txqueue", "Importing: {:?}", tx.hash());
 
 		if tx.gas_price < self.minimal_gas_price && origin != TransactionOrigin::Local {
-			trace!(target: "miner",
+			trace!(target: "txqueue",
 				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
 				tx.hash(),
 				tx.gas_price,
@@ -458,7 +450,7 @@ impl TransactionQueue {
 		try!(tx.check_low_s());
 
 		if tx.gas > self.gas_limit || tx.gas > self.tx_gas_limit {
-			trace!(target: "miner",
+			trace!(target: "txqueue",
 				"Dropping transaction above gas limit: {:?} ({} > min({}, {}))",
 				tx.hash(),
 				tx.gas,
@@ -477,7 +469,7 @@ impl TransactionQueue {
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
 		if client_account.balance < cost {
-			trace!(target: "miner",
+			trace!(target: "txqueue",
 				"Dropping transaction without sufficient balance: {:?} ({} < {})",
 				vtx.hash(),
 				client_account.balance,
@@ -565,7 +557,7 @@ impl TransactionQueue {
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
-				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
+				trace!(target: "txqueue", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				// Remove the transaction completely
 				self.by_hash.remove(&order.hash).expect("All transactions in `future` are also in `by_hash`");
 			}
@@ -586,7 +578,7 @@ impl TransactionQueue {
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
-				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
+				trace!(target: "txqueue", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				self.by_hash.remove(&order.hash).expect("All transactions in `future` are also in `by_hash`");
 			}
 		}
@@ -674,7 +666,7 @@ impl TransactionQueue {
 
 		if self.by_hash.get(&tx.hash()).is_some() {
 			// Transaction is already imported.
-			trace!(target: "miner", "Dropping already imported transaction: {:?}", tx.hash());
+			trace!(target: "txqueue", "Dropping already imported transaction: {:?}", tx.hash());
 			return Err(TransactionError::AlreadyImported);
 		}
 
@@ -691,7 +683,7 @@ impl TransactionQueue {
 		// nonce height would result in overflow.
 		if nonce < state_nonce {
 			// Droping transaction
-			trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
+			trace!(target: "txqueue", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
 			return Err(TransactionError::Old);
 		} else if nonce > next_nonce {
 			// We have a gap - put to future.
@@ -727,7 +719,7 @@ impl TransactionQueue {
 		// Trigger error if the transaction we are importing was removed.
 		try!(check_if_removed(&address, &nonce, removed));
 
-		trace!(target: "miner", "status: {:?}", self.status());
+		trace!(target: "txqueue", "status: {:?}", self.status());
 		Ok(TransactionImportResult::Current)
 	}
 
@@ -812,6 +804,7 @@ mod test {
 	use error::{Error, TransactionError};
 	use super::*;
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
+	use client::TransactionImportResult;
 
 	fn unwrap_tx_err(err: Result<TransactionImportResult, Error>) -> TransactionError {
 		match err.unwrap_err() {
