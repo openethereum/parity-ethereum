@@ -119,6 +119,7 @@ pub struct Client {
 	liveness: AtomicBool,
 	io_channel: IoChannel<NetSyncMessage>,
 	queue_transactions: AtomicUsize,
+	previous_enode: Mutex<Option<String>>,
 }
 
 const HISTORY: u64 = 1200;
@@ -204,6 +205,7 @@ impl Client {
 			miner: miner,
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
+			previous_enode: Mutex::new(None),
 		};
 		Ok(Arc::new(client))
 	}
@@ -558,6 +560,18 @@ impl Client {
 				//*self.last_activity.lock().unwrap() = Some(Instant::now());
 			}
 		}
+	}
+
+	/// Notify us that the network has been started.
+	pub fn network_started(&self, url: &String) {
+		let mut previous_enode = self.previous_enode.lock().unwrap();
+		if let Some(ref u) = *previous_enode {
+			if u == url {
+				return;
+			}
+		}
+		*previous_enode = Some(url.clone());
+		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
 	}
 }
 

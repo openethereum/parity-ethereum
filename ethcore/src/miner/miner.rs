@@ -20,7 +20,6 @@ use std::time::{Instant, Duration};
 
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
-use util::Colour::White;
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
@@ -655,7 +654,7 @@ impl MinerService for Miner {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
 			try!(chain.import_sealed_block(sealed));
-			info!(target: "miner", "Mined block imported OK. #{}: {}", paint(White.bold(), format!("{}", n)), paint(White.bold(), h.hex()));
+			info!(target: "miner", "Mined block imported OK. #{}: {}", format!("{}", n).apply(Colour::White.bold()), h.hex().apply(Colour::White.bold()));
 			Ok(())
 		})
 	}
