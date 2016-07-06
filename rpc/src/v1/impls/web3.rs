@@ -18,7 +18,7 @@
 use jsonrpc_core::*;
 use util::version;
 use v1::traits::Web3;
-use v1::types::Bytes;
+use v1::types::{H256, Bytes};
 use util::sha3::Hashable;
 
 /// Web3 rpc implementation.
@@ -40,9 +40,9 @@ impl Web3 for Web3Client {
 	fn sha3(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Bytes,)>(params).and_then(
 			|(data,)| {
-				let Bytes(ref v) = data;
-				let sha3 = v.sha3();
-				to_value(&sha3)
+				let Bytes(ref vec) = data;
+				let sha3 = vec.sha3();
+				to_value(&H256::from(sha3))
 			}
 		)
 	}

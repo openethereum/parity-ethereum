@@ -19,6 +19,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::{Instant, Duration};
 
 use util::*;
+use util::using_queue::{UsingQueue, GetAction};
 use util::Colour::White;
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
@@ -200,17 +201,23 @@ impl Miner {
 			let hash = tx.hash();
 			match open_block.push_transaction(tx, None) {
 				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
 					// Exit early if gas left is smaller then min_tx_gas
 					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
 					if gas_limit - gas_used < min_tx_gas {
 						break;
 					}
 				},
-				Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
+				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
+				// If there is errornous state of transaction queue it will be fixed when next block is imported.
+				Err(Error::Execution(ExecutionError::InvalidNonce { .. })) => {
+					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?}", hash);
+				},
+				// already have transaction - ignore
+				Err(Error::Transaction(TransactionError::AlreadyImported)) => {},
 				Err(e) => {
 					invalid_transactions.insert(hash);
-					trace!(target: "miner",
+					debug!(target: "miner",
 						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
 						   block_number, hash, e);
 				},

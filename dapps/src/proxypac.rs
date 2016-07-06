@@ -16,7 +16,8 @@
 
 //! Serving ProxyPac file
 
-use endpoint::{Endpoint, Handler, ContentHandler, EndpointPath};
+use endpoint::{Endpoint, Handler, EndpointPath};
+use handlers::ContentHandler;
 use apps::DAPPS_DOMAIN;
 
 pub struct ProxyPac;
@@ -41,7 +42,7 @@ function FindProxyForURL(url, host) {{
 }}
 "#,
 			DAPPS_DOMAIN, path.host, path.port);
-		Box::new(ContentHandler::new(content, "application/javascript".to_owned()))
+		Box::new(ContentHandler::ok(content, "application/javascript".to_owned()))
 	}
 }
 
