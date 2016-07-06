@@ -27,7 +27,7 @@ use rpc_apis;
 use super::{Configuration, Dependencies};
 use self::ethcore_signer as signer;
 
-pub use ethcore_signer::Server as SignerServer;
+pub use self::ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
 
