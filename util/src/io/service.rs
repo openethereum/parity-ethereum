@@ -248,6 +248,13 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			IoMessage::RemoveHandler { handler_id } => {
 				// TODO: flush event loop
 				self.handlers.remove(handler_id);
+				// unregister timers
+				let mut timers = self.timers.write().unwrap();
+				let to_remove: Vec<_> = timers.keys().cloned().filter(|timer_id| timer_id / TOKENS_PER_HANDLER == handler_id).collect();
+				for timer_id in to_remove {
+					let timer = timers.remove(&timer_id).expect("to_remove only contains keys from timers; qed");
+					event_loop.clear_timeout(timer.timeout);
+				}
 			},
 			IoMessage::AddTimer { handler_id, token, delay } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
