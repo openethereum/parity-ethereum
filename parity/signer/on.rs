@@ -14,36 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate ethcore_signer;
 extern crate ansi_term;
+
 use self::ansi_term::Colour::White;
 use std::io;
 use std::path::PathBuf;
-use std::sync::Arc;
-use util::panics::{PanicHandler, ForwardPanic};
+use util::panics::ForwardPanic;
 use util::path::restrict_permissions_owner;
 use die::*;
 use rpc_apis;
+use super::{Configuration, Dependencies};
+use self::ethcore_signer as signer;
 
-const CODES_FILENAME: &'static str = "authcodes";
-
-#[cfg(feature = "ethcore-signer")]
-use ethcore_signer as signer;
-#[cfg(feature = "ethcore-signer")]
 pub use ethcore_signer::Server as SignerServer;
 
-#[cfg(not(feature = "ethcore-signer"))]
-pub struct SignerServer;
-
-pub struct Configuration {
-	pub enabled: bool,
-	pub port: u16,
-	pub signer_path: String,
-}
-
-pub struct Dependencies {
-	pub panic_handler: Arc<PanicHandler>,
-	pub apis: Arc<rpc_apis::Dependencies>,
-}
+const CODES_FILENAME: &'static str = "authcodes";
 
 pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
 	if !conf.enabled {
@@ -60,8 +46,6 @@ fn codes_path(path: String) -> PathBuf {
 	p
 }
 
-
-#[cfg(feature = "ethcore-signer")]
 pub fn new_token(path: String) -> io::Result<()> {
 	let path = codes_path(path);
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
@@ -71,7 +55,6 @@ pub fn new_token(path: String) -> io::Result<()> {
 	Ok(())
 }
 
-#[cfg(feature = "ethcore-signer")]
 fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 	let addr = format!("127.0.0.1:{}", conf.port).parse().unwrap_or_else(|_| {
 		die!("Invalid port specified: {}", conf.port)
@@ -96,13 +79,4 @@ fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 	}
 }
 
-#[cfg(not(feature = "ethcore-signer"))]
-fn do_start(_conf: Configuration) -> ! {
-	die!("Your Parity version has been compiled without Trusted Signer support.")
-}
-
-#[cfg(not(feature = "ethcore-signer"))]
-pub fn new_token(_path: String) -> ! {
-	die!("Your Parity version has been compiled without Trusted Signer support.")
-}
 
