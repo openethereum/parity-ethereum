@@ -80,7 +80,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, paint, Colour, version};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, paint, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
 use ethcore::error::{ImportError};
@@ -189,15 +189,29 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	info!("Starting {}", paint(Colour::White.bold(), format!("{}", version())));
+	info!("Using state DB journalling strategy {}", match client_config.pruning {
+		journaldb::Algorithm::Archive => "archive",
+		journaldb::Algorithm::EarlyMerge => "light",
+		journaldb::Algorithm::OverlayRecent => "fast",
+		journaldb::Algorithm::RefCounted => "basic",
+	}.apply(Colour::White.bold()));
 
-	let net_settings = conf.net_settings(&spec);
-	let sync_config = conf.sync_config(&spec);
+	// Display warning about using experimental journaldb types
+	match client_config.pruning {
+		journaldb::Algorithm::EarlyMerge | journaldb::Algorithm::RefCounted => {
+			warn!("Your chosen strategy is {} and {}! You can re-run with --pruning to change.", "experimental".apply(Colour::White.bold()), "unstable".apply(Colour::White.bold()));
+		}
+		_ => {}
+	}
 
 	// Display warning about using unlock with signer
 	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
 		warn!("Using Trusted Signer and --unlock is not recommended!");
 		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
 	}
+
+	let net_settings = conf.net_settings(&spec);
+	let sync_config = conf.sync_config(&spec);
 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());

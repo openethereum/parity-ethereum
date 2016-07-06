@@ -28,6 +28,30 @@ lazy_static! {
 	static ref USE_COLOR: AtomicBool = AtomicBool::new(false);
 }
 
+/// Something which can be apply()ed.
+pub trait Applyable {
+	/// Apply the style `c` to ourself, returning us styled in that manner.
+	fn apply(self, c: Style) -> String;
+}
+
+impl Applyable for String {
+	fn apply(self, c: Style) -> String {
+		match USE_COLOR.load(Ordering::Relaxed) {
+			true => format!("{}", c.paint(self)),
+			false => self,
+		}
+	}
+}
+
+impl<'a> Applyable for &'a str {
+	fn apply(self, c: Style) -> String {
+		match USE_COLOR.load(Ordering::Relaxed) {
+			true => format!("{}", c.paint(self)),
+			false => self.to_owned(),
+		}
+	}
+}
+
 /// Paint, using colour if desired.
 pub fn paint(c: Style, t: String) -> String {
 	match USE_COLOR.load(Ordering::Relaxed) {

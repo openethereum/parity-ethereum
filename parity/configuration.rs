@@ -348,7 +348,7 @@ impl Configuration {
 			if let journaldb::Algorithm::Archive = client_config.pruning {
 				client_config.trie_spec = TrieSpec::Fat;
 			} else {
-				die!("Fatdb is not supported. Please rerun with --pruning=archive")
+				die!("Fatdb is not supported. Please re-run with --pruning=archive")
 			}
 		}
 
@@ -363,7 +363,7 @@ impl Configuration {
 		};
 
 		if self.args.flag_jitvm {
-			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
+			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity is built without the JIT EVM."))
 		}
 
 		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
