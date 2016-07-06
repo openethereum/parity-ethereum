@@ -18,9 +18,9 @@ use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{mpsc, Mutex, RwLock, Arc};
 use std::collections::HashMap;
-use v1::types::{TransactionRequest, TransactionConfirmation};
-use util::U256;
 use jsonrpc_core;
+use util::U256;
+use v1::helpers::{TransactionRequest, TransactionConfirmation};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
@@ -301,10 +301,9 @@ mod test {
 	use std::time::Duration;
 	use std::thread;
 	use std::sync::{Arc, Mutex};
-	use util::hash::Address;
-	use util::numbers::{U256, H256};
-	use v1::types::TransactionRequest;
-	use super::*;
+	use util::{Address, U256, H256};
+	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, TransactionRequest};
+	use v1::types::H256 as NH256;
 	use jsonrpc_core::to_value;
 
 	fn request() -> TransactionRequest {
@@ -337,10 +336,10 @@ mod test {
 			// Just wait for the other thread to start
 			thread::sleep(Duration::from_millis(100));
 		}
-		queue.request_confirmed(id, to_value(&H256::from(1)));
+		queue.request_confirmed(id, to_value(&NH256::from(H256::from(1))));
 
 		// then
-		assert_eq!(handle.join().expect("Thread should finish nicely"), to_value(&H256::from(1)));
+		assert_eq!(handle.join().expect("Thread should finish nicely"), to_value(&NH256::from(H256::from(1))));
 	}
 
 	#[test]

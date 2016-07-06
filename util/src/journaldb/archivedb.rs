@@ -79,7 +79,7 @@ impl ArchiveDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 }
 
@@ -177,7 +177,7 @@ impl JournalDB for ArchiveDB {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
 				assert!(rc == 1);
-				batch.put(&key.bytes(), &value).expect("Low-level database error. Some issue with your hard disk?");
+				batch.put(&key, &value).expect("Low-level database error. Some issue with your hard disk?");
 				inserts += 1;
 			}
 			if rc < 0 {
@@ -202,7 +202,7 @@ impl JournalDB for ArchiveDB {
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
-		self.backing.get_by_prefix(&id.bytes()[0..12]).and_then(|b| Some(b.to_vec()))
+		self.backing.get_by_prefix(&id[0..12]).and_then(|b| Some(b.to_vec()))
 	}
 
 	fn is_pruned(&self) -> bool { false }

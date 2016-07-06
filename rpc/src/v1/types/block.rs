@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use serde::{Serialize, Serializer};
-use util::numbers::*;
-use v1::types::{Bytes, Transaction, OptionalValue};
+use v1::types::{Bytes, Transaction, H160, H256, H2048, U256};
 
 /// Block Transactions
 #[derive(Debug)]
@@ -41,7 +40,7 @@ impl Serialize for BlockTransactions {
 #[derive(Debug, Serialize)]
 pub struct Block {
 	/// Hash of the block
-	pub hash: OptionalValue<H256>,
+	pub hash: Option<H256>,
 	/// Hash of the parent
 	#[serde(rename="parentHash")]
 	pub parent_hash: H256,
@@ -49,10 +48,10 @@ pub struct Block {
 	#[serde(rename="sha3Uncles")]
 	pub uncles_hash: H256,
 	/// Authors address
-	pub author: Address,
+	pub author: H160,
 	// TODO: get rid of this one
 	/// ?
-	pub miner: Address,
+	pub miner: H160,
 	/// State root hash
 	#[serde(rename="stateRoot")]
 	pub state_root: H256,
@@ -63,7 +62,7 @@ pub struct Block {
 	#[serde(rename="receiptsRoot")]
 	pub receipts_root: H256,
 	/// Block number
-	pub number: OptionalValue<U256>,
+	pub number: Option<U256>,
 	/// Gas Used
 	#[serde(rename="gasUsed")]
 	pub gas_used: U256,
@@ -95,9 +94,8 @@ pub struct Block {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use util::numbers::*;
-	use v1::types::{Transaction, Bytes, OptionalValue};
-	use super::*;
+	use v1::types::{Transaction, H160, H256, H2048, Bytes, U256};
+	use super::{Block, BlockTransactions};
 
 	#[test]
 	fn test_serialize_block_transactions() {
@@ -105,7 +103,7 @@ mod tests {
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x","creates":null}]"#);
 
-		let t = BlockTransactions::Hashes(vec![H256::default()]);
+		let t = BlockTransactions::Hashes(vec![H256::default().into()]);
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, r#"["0x0000000000000000000000000000000000000000000000000000000000000000"]"#);
 	}
@@ -113,15 +111,15 @@ mod tests {
 	#[test]
 	fn test_serialize_block() {
 		let block = Block {
-			hash: OptionalValue::Value(H256::default()),
+			hash: Some(H256::default()),
 			parent_hash: H256::default(),
 			uncles_hash: H256::default(),
-			author: Address::default(),
-			miner: Address::default(),
+			author: H160::default(),
+			miner: H160::default(),
 			state_root: H256::default(),
 			transactions_root: H256::default(),
 			receipts_root: H256::default(),
-			number: OptionalValue::Value(U256::default()),
+			number: Some(U256::default()),
 			gas_used: U256::default(),
 			gas_limit: U256::default(),
 			extra_data: Bytes::default(),
@@ -131,7 +129,7 @@ mod tests {
 			total_difficulty: U256::default(),
 			seal_fields: vec![Bytes::default(), Bytes::default()],
 			uncles: vec![],
-			transactions: BlockTransactions::Hashes(vec![])
+			transactions: BlockTransactions::Hashes(vec![].into())
 		};
 
 		let serialized = serde_json::to_string(&block).unwrap();

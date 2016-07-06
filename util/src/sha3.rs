@@ -58,7 +58,7 @@ impl<T> Hashable for T where T: BytesConvertable {
 	}
 	fn sha3_into(&self, dest: &mut [u8]) {
 		unsafe {
-			let input: &[u8] = self.bytes();
+			let input: &[u8] = self.as_slice();
 			sha3_256(dest.as_mut_ptr(), dest.len(), input.as_ptr(), input.len());
 		}
 	}

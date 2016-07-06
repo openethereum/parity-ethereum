@@ -18,14 +18,13 @@
 
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
-use v1::traits::PersonalSigner;
-use v1::types::TransactionModification;
-use v1::impls::unlock_sign_and_dispatch;
-use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use ethcore::account_provider::AccountProvider;
-use util::numbers::*;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
+use v1::traits::PersonalSigner;
+use v1::types::{TransactionModification, TransactionConfirmation, U256};
+use v1::impls::unlock_sign_and_dispatch;
+use v1::helpers::{SigningQueue, ConfirmationsQueue};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -59,13 +58,14 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 	fn transactions_to_confirm(&self, _params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let queue = take_weak!(self.queue);
-		to_value(&queue.requests())
+		to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<TransactionConfirmation>>())
 	}
 
 	fn confirm_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(U256, TransactionModification, String)>(params).and_then(
 			|(id, modification, pass)| {
+				let id = id.into();
 				let accounts = take_weak!(self.accounts);
 				let queue = take_weak!(self.queue);
 				let client = take_weak!(self.client);
@@ -74,7 +74,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 						let mut request = confirmation.transaction;
 						// apply modification
 						if let Some(gas_price) = modification.gas_price {
-							request.gas_price = Some(gas_price);
+							request.gas_price = Some(gas_price.into());
 						}
 
 						let sender = request.from;
@@ -99,7 +99,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 		from_params::<(U256, )>(params).and_then(
 			|(id, )| {
 				let queue = take_weak!(self.queue);
-				let res = queue.request_rejected(id);
+				let res = queue.request_rejected(id.into());
 				to_value(&res.is_some())
 			}
 		)

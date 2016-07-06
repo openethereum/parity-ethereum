@@ -25,7 +25,7 @@ use ethcore::client::{MiningBlockChainClient};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use v1::traits::Ethcore;
-use v1::types::{Bytes};
+use v1::types::{Bytes, U256};
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
 use v1::impls::error_codes;
 
@@ -69,7 +69,7 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 
 	fn min_gas_price(&self, _: Params) -> Result<Value, Error> {
 		try!(self.active());
-		to_value(&take_weak!(self.miner).minimal_gas_price())
+		to_value(&U256::from(take_weak!(self.miner).minimal_gas_price()))
 	}
 
 	fn extra_data(&self, _: Params) -> Result<Value, Error> {
@@ -79,12 +79,12 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 
 	fn gas_floor_target(&self, _: Params) -> Result<Value, Error> {
 		try!(self.active());
-		to_value(&take_weak!(self.miner).gas_floor_target())
+		to_value(&U256::from(take_weak!(self.miner).gas_floor_target()))
 	}
 
 	fn gas_ceil_target(&self, _: Params) -> Result<Value, Error> {
 		try!(self.active());
-		to_value(&take_weak!(self.miner).gas_ceil_target())
+		to_value(&U256::from(take_weak!(self.miner).gas_ceil_target()))
 	}
 
 	fn dev_logs(&self, _params: Params) -> Result<Value, Error> {
@@ -140,8 +140,8 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 		match params {
 			Params::None => match take_weak!(self.client).gas_price_statistics(100, 8) {
 				Ok(stats) => to_value(&stats
-					.iter()
-					.map(|x| to_value(&x).expect("x must be U256; qed"))
+					.into_iter()
+					.map(|x| to_value(&U256::from(x)).expect("x must be U256; qed"))
 					.collect::<Vec<_>>()),
 				_ => Err(Error::internal_error()),
 			},

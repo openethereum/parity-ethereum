@@ -16,16 +16,18 @@
 
 //! General hash types, a fixed-size raw-data type used as the output of hash functions.
 
-use standard::*;
+use rustc_serialize::hex::FromHex;
+use std::{ops, fmt, cmp};
+use std::cmp::*;
+use std::ops::*;
+use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 use math::log2;
 use error::UtilError;
 use rand::Rng;
 use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
-use from_json::*;
 use bigint::uint::{Uint, U256};
-use rustc_serialize::hex::ToHex;
-use serde;
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 ///
@@ -228,55 +230,6 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl serde::Serialize for $from {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
-			where S: serde::Serializer {
-				let mut hex = "0x".to_owned();
-				hex.push_str(self.to_hex().as_ref());
-				serializer.serialize_str(hex.as_ref())
-			}
-		}
-
-		impl serde::Deserialize for $from {
-			fn deserialize<D>(deserializer: &mut D) -> Result<$from, D::Error>
-			where D: serde::Deserializer {
-				struct HashVisitor;
-
-				impl serde::de::Visitor for HashVisitor {
-					type Value = $from;
-
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
-						// 0x + len
-						if value.len() != 2 + $size * 2 {
-							return Err(serde::Error::custom("Invalid length."));
-						}
-
-						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::custom("Invalid hex value."))
-					}
-
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
-						self.visit_str(value.as_ref())
-					}
-				}
-
-				deserializer.deserialize(HashVisitor)
-			}
-		}
-
-		impl FromJson for $from {
-			fn from_json(json: &Json) -> Self {
-				match *json {
-					Json::String(ref s) => {
-						match s.len() % 2 {
-							0 => FromStr::from_str(clean_0x(s)).unwrap(),
-							_ => FromStr::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap()
-						}
-					},
-					_ => Default::default(),
-				}
-			}
-		}
-
 		impl fmt::Debug for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				for i in &self.0[..] {
@@ -285,6 +238,7 @@ macro_rules! impl_hash {
 				Ok(())
 			}
 		}
+
 		impl fmt::Display for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				for i in &self.0[0..2] {
@@ -506,13 +460,13 @@ impl<'a> From<&'a U256> for H256 {
 
 impl From<H256> for U256 {
 	fn from(value: H256) -> U256 {
-		U256::from(value.bytes())
+		U256::from(value.as_slice())
 	}
 }
 
 impl<'a> From<&'a H256> for U256 {
 	fn from(value: &'a H256) -> U256 {
-		U256::from(value.bytes())
+		U256::from(value.as_slice())
 	}
 }
 
@@ -531,17 +485,6 @@ impl From<H256> for H64 {
 		ret
 	}
 }
-
-/*
-impl<'a> From<&'a H256> for Address {
-	fn from(value: &'a H256) -> Address {
-			let mut ret = Address::new();
-			ret.0.copy_from_slice(&value[12..32]);
-			ret
-		}
-	}
-}
-*/
 
 impl From<Address> for H256 {
 	fn from(value: Address) -> H256 {
@@ -595,11 +538,6 @@ impl_hash!(H512, 64);
 impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
-
-/// Constant address for point 0. Often used as a default.
-pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
-/// Constant 256-bit datum for 0. Often used as a default.
-pub static ZERO_H256: H256 = H256([0x00; 32]);
 
 #[cfg(test)]
 mod tests {

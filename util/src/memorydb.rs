@@ -198,14 +198,14 @@ impl HashDB for MemoryDB {
 		let key = value.sha3();
 		if match self.data.get_mut(&key) {
 			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
-				*old_value = From::from(value.bytes());
+				*old_value = From::from(value);
 				*rc += 1;
 				false
 			},
 			Some(&mut (_, ref mut x)) => { *x += 1; false } ,
 			None => true,
 		}{	// ... None falls through into...
-			self.data.insert(key.clone(), (From::from(value.bytes()), 1));
+			self.data.insert(key.clone(), (From::from(value), 1));
 		}
 		key
 	}
@@ -262,8 +262,8 @@ fn memorydb_denote() {
 	for _ in 0..1000 {
 		let r = H256::random();
 		let k = r.sha3();
-		let &(ref v, ref rc) = m.denote(&k, r.bytes().to_vec());
-		assert_eq!(v, &r.bytes());
+		let &(ref v, ref rc) = m.denote(&k, r.to_bytes());
+		assert_eq!(v.as_slice(), r.as_slice());
 		assert_eq!(*rc, 0);
 	}
 
