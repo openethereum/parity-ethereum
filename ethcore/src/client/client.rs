@@ -40,8 +40,8 @@ use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockID, TransactionID, UncleID, TraceId, Mode, ClientConfig, DatabaseCompactionProfile,
-	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics, TransactionImportError,
-	BlockImportError, TransactionImportResult};
+	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics,
+	BlockImportError};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -52,7 +52,7 @@ use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
-use miner::{Miner, MinerService, AccountDetails};
+use miner::{Miner, MinerService};
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
@@ -119,6 +119,7 @@ pub struct Client {
 	liveness: AtomicBool,
 	io_channel: IoChannel<NetSyncMessage>,
 	queue_transactions: AtomicUsize,
+	previous_enode: Mutex<Option<String>>,
 }
 
 const HISTORY: u64 = 1200;
@@ -204,6 +205,7 @@ impl Client {
 			miner: miner,
 			io_channel: message_channel,
 			queue_transactions: AtomicUsize::new(0),
+			previous_enode: Mutex::new(None),
 		};
 		Ok(Arc::new(client))
 	}
@@ -258,7 +260,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory, self.trie_factory.clone());
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -409,12 +411,8 @@ impl Client {
 	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: self.latest_nonce(a),
-			balance: self.latest_balance(a),
-		};
-		let tx = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
-		let results = self.miner.import_transactions(self, tx, fetch_account);
+		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
 	}
 
@@ -563,6 +561,18 @@ impl Client {
 			}
 		}
 	}
+
+	/// Notify us that the network has been started.
+	pub fn network_started(&self, url: &String) {
+		let mut previous_enode = self.previous_enode.lock().unwrap();
+		if let Some(ref u) = *previous_enode {
+			if u == url {
+				return;
+			}
+		}
+		*previous_enode = Some(url.clone());
+		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
+	}
 }
 
 impl BlockChainClient for Client {
@@ -578,7 +588,6 @@ impl BlockChainClient for Client {
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
 			gas_limit: U256::max_value(),
-			dao_rescue_block_gas_limit: self.dao_rescue_block_gas_limit(view.parent_hash()),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state();
@@ -862,18 +871,6 @@ impl BlockChainClient for Client {
 		self.build_last_hashes(self.chain.best_block_hash())
 	}
 
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>> {
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: self.latest_nonce(a),
-			balance: self.latest_balance(a),
-		};
-
-		self.miner.import_transactions(self, transactions, &fetch_account)
-			.into_iter()
-			.map(|res| res.map_err(|e| e.into()))
-			.collect()
-	}
-
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
 		if self.queue_transactions.load(AtomicOrdering::Relaxed) > MAX_TX_QUEUE_SIZE {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
@@ -908,7 +905,6 @@ impl MiningBlockChainClient for Client {
 			self.state_db.lock().unwrap().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
 			self.build_last_hashes(h.clone()),
-			self.dao_rescue_block_gas_limit(h.clone()),
 			author,
 			gas_range_target,
 			extra_data,

@@ -17,6 +17,7 @@
 //! Common log helper functions
 
 use std::env;
+use std::borrow::Cow;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use std::sync::{RwLock, RwLockReadGuard};
@@ -28,12 +29,20 @@ lazy_static! {
 	static ref USE_COLOR: AtomicBool = AtomicBool::new(false);
 }
 
-/// Paint, using colour if desired.
-pub fn paint(c: Style, t: String) -> String {
-	match USE_COLOR.load(Ordering::Relaxed) {
-		true => format!("{}", c.paint(t)),
-		false => t,
-	}
+/// Something which can be apply()ed.
+pub trait Applyable: AsRef<str> {
+	/// Apply the style `c` to ourself, returning us styled in that manner.
+	fn apply(&self, c: Style) -> Cow<str>;
+}
+
+impl<T: AsRef<str>> Applyable for T {
+    fn apply(&self, c: Style) -> Cow<str> {
+        let s = self.as_ref();
+        match USE_COLOR.load(Ordering::Relaxed) {
+            true => Cow::Owned(format!("{}", c.paint(s))),
+            false => Cow::Borrowed(s),
+        }
+    }
 }
 
 lazy_static! {

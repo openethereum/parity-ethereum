@@ -14,19 +14,50 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
-use migration::{Error, Destination, Migration, Manager, Config};
+//! Tests for migrations.
+//! A random temp directory is created. A database is created within it, and migrations
+//! are performed in temp sub-directories.
 
-impl Destination for BTreeMap<Vec<u8>, Vec<u8>> {
-	fn commit(&mut self, batch: BTreeMap<Vec<u8>, Vec<u8>>) -> Result<(), Error> {
-		self.extend(batch);
-		Ok(())
+use common::*;
+use migration::{Config, SimpleMigration, Manager};
+use kvdb::{Database, DBTransaction};
+
+use devtools::RandomTempPath;
+use std::path::PathBuf;
+
+fn db_path(path: &Path) -> PathBuf {
+	let mut p = path.to_owned();
+	p.push("db");
+	p
+}
+
+// initialize a database at the given directory with the given values.
+fn make_db(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
+	let db = Database::open_default(path.to_str().unwrap()).expect("failed to open temp database");
+	{
+		let transaction = DBTransaction::new();
+		for (k, v) in pairs {
+			transaction.put(&k, &v).expect("failed to add pair to transaction");
+		}
+
+		db.write(transaction).expect("failed to write db transaction");
+	}
+}
+
+// helper for verifying a migrated database.
+fn verify_migration(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
+	let db = Database::open_default(path.to_str().unwrap()).unwrap();
+
+	for (k, v) in pairs {
+		let x = db.get(&k).unwrap().unwrap();
+
+		assert_eq!(&x[..], &v[..]);
 	}
 }
 
 struct Migration0;
 
-impl Migration for Migration0 {
+impl SimpleMigration for Migration0 {
 	fn version(&self) -> u32 {
 		1
 	}
@@ -42,7 +73,7 @@ impl Migration for Migration0 {
 
 struct Migration1;
 
-impl Migration for Migration1 {
+impl SimpleMigration for Migration1 {
 	fn version(&self) -> u32 {
 		2
 	}
@@ -54,68 +85,58 @@ impl Migration for Migration1 {
 
 #[test]
 fn one_simple_migration() {
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
 	let mut manager = Manager::new(Config::default());
-	let keys = vec![vec![], vec![1u8]];
-	let values = vec![vec![], vec![1u8]];
-	let db = keys.into_iter().zip(values.into_iter());
+	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = map![vec![0x11] => vec![0x22], vec![1, 0x11] => vec![1, 0x22]];
 
-	let expected_keys = vec![vec![0x11u8], vec![1, 0x11]];
-	let expected_values = vec![vec![0x22u8], vec![1, 0x22]];
-	let expected_db = expected_keys.into_iter().zip(expected_values.into_iter()).collect::<BTreeMap<_, _>>();
-
-	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
-	manager.execute(db, 0, &mut result).unwrap();
-	assert_eq!(expected_db, result);
+	let end_path = manager.execute(&db_path, 0).unwrap();
+
+	verify_migration(&end_path, expected);
 }
 
 #[test]
 #[should_panic]
 fn no_migration_needed() {
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
 	let mut manager = Manager::new(Config::default());
-	let keys = vec![vec![], vec![1u8]];
-	let values = vec![vec![], vec![1u8]];
-	let db = keys.into_iter().zip(values.into_iter());
+	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
 
-	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
-	manager.execute(db, 1, &mut result).unwrap();
+	manager.execute(&db_path, 1).unwrap();
 }
 
 #[test]
 fn multiple_migrations() {
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
 	let mut manager = Manager::new(Config::default());
-	let keys = vec![vec![], vec![1u8]];
-	let values = vec![vec![], vec![1u8]];
-	let db = keys.into_iter().zip(values.into_iter());
+	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = map![vec![0x11] => vec![], vec![1, 0x11] => vec![]];
 
-	let expected_keys = vec![vec![0x11u8], vec![1, 0x11]];
-	let expected_values = vec![vec![], vec![]];
-	let expected_db = expected_keys.into_iter().zip(expected_values.into_iter()).collect::<BTreeMap<_, _>>();
-
-	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
 	manager.add_migration(Migration1).unwrap();
-	manager.execute(db, 0, &mut result).unwrap();
-	assert_eq!(expected_db, result);
+	let end_path = manager.execute(&db_path, 0).unwrap();
+
+	verify_migration(&end_path, expected);
 }
 
 #[test]
 fn second_migration() {
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
 	let mut manager = Manager::new(Config::default());
-	let keys = vec![vec![], vec![1u8]];
-	let values = vec![vec![], vec![1u8]];
-	let db = keys.into_iter().zip(values.into_iter());
+	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = map![vec![] => vec![], vec![1] => vec![]];
 
-	let expected_keys = vec![vec![], vec![1u8]];
-	let expected_values = vec![vec![], vec![]];
-	let expected_db = expected_keys.into_iter().zip(expected_values.into_iter()).collect::<BTreeMap<_, _>>();
-
-	let mut result = BTreeMap::new();
 	manager.add_migration(Migration0).unwrap();
 	manager.add_migration(Migration1).unwrap();
-	manager.execute(db, 1, &mut result).unwrap();
-	assert_eq!(expected_db, result);
+	let end_path = manager.execute(&db_path, 1).unwrap();
+
+	verify_migration(&end_path, expected);
 }
 
 #[test]
