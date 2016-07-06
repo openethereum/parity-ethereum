@@ -15,15 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Ethcore-specific rpc interface for operations altering the settings.
-use util::{U256, Address};
-use util::network::{NetworkService, NonReservedPeerMode};
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::service::SyncMessage;
+use util::network::{NetworkService, NonReservedPeerMode};
 use v1::traits::EthcoreSet;
-use v1::types::Bytes;
+use v1::types::{Bytes, H160, U256};
 
 /// Ethcore-specific rpc interface for operations altering the settings.
 pub struct EthcoreSetClient<C, M> where
@@ -61,7 +60,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 	fn set_min_gas_price(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(gas_price,)| {
-			take_weak!(self.miner).set_minimal_gas_price(gas_price);
+			take_weak!(self.miner).set_minimal_gas_price(gas_price.into());
 			to_value(&true)
 		})
 	}
@@ -69,7 +68,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 	fn set_gas_floor_target(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(target,)| {
-			take_weak!(self.miner).set_gas_floor_target(target);
+			take_weak!(self.miner).set_gas_floor_target(target.into());
 			to_value(&true)
 		})
 	}
@@ -77,7 +76,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 	fn set_gas_ceil_target(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(target,)| {
-			take_weak!(self.miner).set_gas_ceil_target(target);
+			take_weak!(self.miner).set_gas_ceil_target(target.into());
 			to_value(&true)
 		})
 	}
@@ -92,8 +91,8 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 
 	fn set_author(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(Address,)>(params).and_then(|(author,)| {
-			take_weak!(self.miner).set_author(author);
+		from_params::<(H160,)>(params).and_then(|(author,)| {
+			take_weak!(self.miner).set_author(author.into());
 			to_value(&true)
 		})
 	}

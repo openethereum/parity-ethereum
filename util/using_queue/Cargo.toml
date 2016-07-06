@@ -1,0 +1,6 @@
+[package]
+name = "using_queue"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]

@@ -24,7 +24,7 @@
 //! 	use util::bytes::BytesConvertable;
 //!
 //! 	let arr = [0; 5];
-//! 	let slice: &[u8] = arr.bytes();
+//! 	let slice: &[u8] = arr.as_slice();
 //! }
 //!
 //! fn main() {
@@ -120,12 +120,12 @@ impl<'a> ToPretty for &'a [u8] {
 
 impl<'a> ToPretty for &'a Bytes {
 	fn pretty(&self) -> PrettySlice {
-		PrettySlice(self.bytes())
+		PrettySlice(self.as_slice())
 	}
 }
 impl ToPretty for Bytes {
 	fn pretty(&self) -> PrettySlice {
-		PrettySlice(self.bytes())
+		PrettySlice(self.as_slice())
 	}
 }
 
@@ -162,23 +162,19 @@ pub type Bytes = Vec<u8>;
 
 /// Slice of bytes to underlying memory
 pub trait BytesConvertable {
-	// TODO: rename to as_slice
 	/// Get the underlying byte-wise representation of the value.
-	/// Deprecated - use `as_slice` instead.
-	fn bytes(&self) -> &[u8];
-	/// Get the underlying byte-wise representation of the value.
-	fn as_slice(&self) -> &[u8] { self.bytes() }
+	fn as_slice(&self) -> &[u8];
 	/// Get a copy of the underlying byte-wise representation.
 	fn to_bytes(&self) -> Bytes { self.as_slice().to_vec() }
 }
 
 impl<T> BytesConvertable for T where T: AsRef<[u8]> {
-	fn bytes(&self) -> &[u8] { self.as_ref() }
+	fn as_slice(&self) -> &[u8] { self.as_ref() }
 }
 
 #[test]
 fn bytes_convertable() {
-	assert_eq!(vec![0x12u8, 0x34].bytes(), &[0x12u8, 0x34]);
+	assert_eq!(vec![0x12u8, 0x34].as_slice(), &[0x12u8, 0x34]);
 	assert!([0u8; 0].as_slice().is_empty());
 }
 

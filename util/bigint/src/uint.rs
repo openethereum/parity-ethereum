@@ -39,7 +39,6 @@
 #[cfg(all(asm_available, target_arch="x86_64"))]
 use std::mem;
 use std::fmt;
-use std::cmp;
 
 use std::str::{FromStr};
 use std::convert::From;
@@ -47,14 +46,15 @@ use std::hash::Hash;
 use std::ops::*;
 use std::cmp::*;
 
-use serde;
-use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
+use rustc_serialize::hex::{FromHex, FromHexError};
 
 /// Conversion from decimal string error
 #[derive(Debug, PartialEq)]
 pub enum FromDecStrErr {
+	/// Char not from range 0-9
+	InvalidCharacter,
 	/// Value does not fit into type
-	InvalidLength
+	InvalidLength,
 }
 
 macro_rules! impl_map_from {
@@ -562,8 +562,11 @@ macro_rules! construct_uint {
 
 		impl Uint for $name {
 
-			/// TODO: optimize, throw appropriate err
 			fn from_dec_str(value: &str) -> Result<Self, FromDecStrErr> {
+				if value.bytes().any(|b| b < 48 && b > 57) {
+					return Err(FromDecStrErr::InvalidCharacter)
+				}
+
 				let mut res = Self::default();
 				for b in value.bytes().map(|b| b - 48) {
 					let (r, overflow) = res.overflowing_mul_u32(10);
@@ -649,7 +652,7 @@ macro_rules! construct_uint {
 			fn exp10(n: usize) -> Self {
 				match n {
 					0 => Self::from(1u64),
-					_ => Self::exp10(n - 1) * Self::from(10u64)
+					_ => Self::exp10(n - 1).mul_u32(10)
 				}
 			}
 
@@ -757,16 +760,16 @@ macro_rules! construct_uint {
 		}
 
 		impl $name {
-			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Multiplication by u32
+			#[allow(dead_code)] // not used when multiplied with inline assembly
 			fn mul_u32(self, other: u32) -> Self {
 				let (ret, overflow) = self.overflowing_mul_u32(other);
 				panic_on_overflow!(overflow);
 				ret
 			}
 
-			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Overflowing multiplication by u32
+			#[allow(dead_code)] // not used when multiplied with inline assembly
 			fn overflowing_mul_u32(self, other: u32) -> (Self, bool) {
 				let $name(ref arr) = self;
 				let mut ret = [0u64; $n_words];
@@ -786,44 +789,6 @@ macro_rules! construct_uint {
 		impl Default for $name {
 			fn default() -> Self {
 				$name::zero()
-			}
-		}
-
-		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
-			where S: serde::Serializer {
-				let mut hex = "0x".to_owned();
-				let mut bytes = [0u8; 8 * $n_words];
-				self.to_raw_bytes(&mut bytes);
-				let len = cmp::max((self.bits() + 7) / 8, 1);
-				hex.push_str(bytes[bytes.len() - len..].to_hex().as_ref());
-				serializer.serialize_str(hex.as_ref())
-			}
-		}
-
-		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error>
-			where D: serde::Deserializer {
-				struct UintVisitor;
-
-				impl serde::de::Visitor for UintVisitor {
-					type Value = $name;
-
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
-						// 0x + len
-						if value.len() > 2 + $n_words * 16 || value.len() < 2 {
-							return Err(serde::Error::custom("Invalid length."));
-						}
-
-						$name::from_str(&value[2..]).map_err(|_| serde::Error::custom("Invalid hex value."))
-					}
-
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
-						self.visit_str(value.as_ref())
-					}
-				}
-
-				deserializer.deserialize(UintVisitor)
 			}
 		}
 
@@ -958,8 +923,6 @@ macro_rules! construct_uint {
 				self - (times * other)
 			}
 		}
-
-		// TODO: optimise and traitify.
 
 		impl BitAnd<$name> for $name {
 			type Output = $name;
@@ -1434,12 +1397,6 @@ impl From<U256> for u32 {
 	}
 }
 
-/// Constant value of `U256::zero()` that can be used for a reference saving an additional instance creation.
-pub const ZERO_U256: U256 = U256([0x00u64; 4]);
-/// Constant value of `U256::one()` that can be used for a reference saving an additional instance creation.
-pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
-
-
 known_heap_size!(0, U128, U256);
 
 #[cfg(test)]
@@ -1582,7 +1539,13 @@ mod tests {
 		assert_eq!(U256::from(105u8) / U256::from(5u8), U256::from(21u8));
 		let div = mult / U256::from(300u16);
 		assert_eq!(div, U256([0x9F30411021524112u64, 0x0001BD5B7DDFBD5A, 0, 0]));
-		//// TODO: bit inversion
+
+		let a = U256::from_str("ff000000000000000000000000000000000000000000000000000000000000d1").unwrap();
+		let b = U256::from_str("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff2e").unwrap();
+		println!("{:x}", a);
+		println!("{:x}", b);
+		assert_eq!(!a, b);
+		assert_eq!(a, !b);
 	}
 
 	#[test]
