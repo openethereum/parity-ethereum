@@ -101,7 +101,7 @@ impl HashDB for ArchiveDB {
 	fn get(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.overlay.raw(key);
 		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some((d, rc)) if rc > 0 => Some(d),
 			_ => {
 				if let Some(x) = self.payload(key) {
 					Some(&self.overlay.denote(key, x).0)
