@@ -52,56 +52,74 @@ impl<C, M> EthcoreClient<C, M> where C: MiningBlockChainClient, M: MinerService 
 			confirmations_queue: queue,
 		}
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: MiningBlockChainClient + 'static {
 
 	fn transactions_limit(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&take_weak!(self.miner).transactions_limit())
 	}
 
 	fn min_gas_price(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&take_weak!(self.miner).minimal_gas_price())
 	}
 
 	fn extra_data(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&Bytes::new(take_weak!(self.miner).extra_data()))
 	}
 
 	fn gas_floor_target(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&take_weak!(self.miner).gas_floor_target())
 	}
 
 	fn gas_ceil_target(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&take_weak!(self.miner).gas_ceil_target())
 	}
 
 	fn dev_logs(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		let logs = self.logger.logs();
 		to_value(&logs.deref().as_slice())
 	}
 
 	fn dev_logs_levels(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&self.logger.levels())
 	}
 
 	fn net_chain(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&self.settings.chain)
 	}
 
 	fn net_max_peers(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&self.settings.max_peers)
 	}
 
 	fn net_port(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&self.settings.network_port)
 	}
 
 	fn node_name(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		to_value(&self.settings.name)
 	}
 
 	fn rpc_settings(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		let mut map = BTreeMap::new();
 		map.insert("enabled".to_owned(), Value::Bool(self.settings.rpc_enabled));
 		map.insert("interface".to_owned(), Value::String(self.settings.rpc_interface.clone()));
@@ -110,6 +128,7 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 	}
 
 	fn default_extra_data(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => to_value(&Bytes::new(version_data())),
 			_ => Err(Error::invalid_params()),
@@ -117,6 +136,7 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 	}
 
 	fn gas_price_statistics(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => match take_weak!(self.client).gas_price_statistics(100, 8) {
 				Ok(stats) => to_value(&stats
@@ -130,6 +150,7 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 	}
 
 	fn unsigned_transactions_count(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match self.confirmations_queue {
 			None => Err(Error {
 				code: ErrorCode::ServerError(error_codes::SIGNER_DISABLED),

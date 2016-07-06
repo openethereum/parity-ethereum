@@ -28,7 +28,7 @@ use util::*;
 use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::client::{append_path, get_db_path, Mode, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
 use ethcore::miner::{MinerOptions, PendingSet};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
@@ -58,6 +58,15 @@ impl Configuration {
 	pub fn parse() -> Self {
 		Configuration {
 			args: Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit()),
+		}
+	}
+
+	pub fn mode(&self) -> Mode {
+		match &(self.args.flag_mode[..]) {
+			"active" => Mode::Active,
+			"passive" => Mode::Passive(Duration::from_secs(self.args.flag_mode_timeout), Duration::from_secs(self.args.flag_mode_alarm)),
+			"dark" => Mode::Dark(Duration::from_secs(self.args.flag_mode_timeout)),
+			_ => die!("{}: Invalid address for --mode. Must be one of active, passive or dark.", self.args.flag_mode),
 		}
 	}
 
@@ -301,6 +310,8 @@ impl Configuration {
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
+
+		client_config.mode = self.mode();
 
 		match self.args.flag_cache {
 			Some(mb) => {
