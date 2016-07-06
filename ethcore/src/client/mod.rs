@@ -16,7 +16,6 @@
 
 //! Blockchain database client.
 
-mod client;
 mod config;
 mod error;
 mod test_client;
@@ -51,9 +50,16 @@ pub use types::call_analytics::CallAnalytics;
 pub use block_import_error::BlockImportError;
 pub use transaction_import::{TransactionImportResult, TransactionImportError};
 
+mod client {
+	//! Blockchain database client.
+
+	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
+	include!(concat!(env!("OUT_DIR"), "/client.ipc.rs"));
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
-	
+
 	/// Should be called by any external-facing interface when actively using the client.
 	/// To minimise chatter, there's no need to call more than once every 30s.
 	fn keep_alive(&self) {}
