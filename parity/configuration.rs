@@ -191,7 +191,7 @@ impl Configuration {
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", paint(White.bold(), format!("US${}", usd_per_eth)), paint(Yellow.bold(), format!("{}", wei_per_gas)));
+				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(White.bold()), format!("{}", wei_per_gas).apply(Yellow.bold()));
 				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 			}
 		}

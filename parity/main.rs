@@ -80,7 +80,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, paint, Colour, Applyable, version, journaldb};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
 use ethcore::error::{ImportError};
@@ -188,7 +188,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	info!("Starting {}", paint(Colour::White.bold(), format!("{}", version())));
+	info!("Starting {}", format!("{}", version()).apply(Colour::White.bold()));
 	info!("Using state DB journalling strategy {}", match client_config.pruning {
 		journaldb::Algorithm::Archive => "archive",
 		journaldb::Algorithm::EarlyMerge => "light",

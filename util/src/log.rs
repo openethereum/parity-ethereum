@@ -52,11 +52,12 @@ impl<'a> Applyable for &'a str {
 	}
 }
 
-/// Paint, using colour if desired.
-pub fn paint(c: Style, t: String) -> String {
-	match USE_COLOR.load(Ordering::Relaxed) {
-		true => format!("{}", c.paint(t)),
-		false => t,
+impl<'a> Applyable for &'a String {
+	fn apply(self, c: Style) -> String {
+		match USE_COLOR.load(Ordering::Relaxed) {
+			true => format!("{}", c.paint(&self[..])),
+			false => self.clone(),
+		}
 	}
 }
 
