@@ -82,7 +82,6 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
-
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 
@@ -287,7 +286,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory, self.trie_factory.clone());
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -483,7 +482,7 @@ impl Client {
 			HeaderView::new(&self.best_block_header()).state_root(),
 			self.engine.account_start_nonce(),
 			self.trie_factory.clone())
-			.expect("State root of best block header always valid.")
+		.expect("State root of best block header always valid.")
 	}
 
 	/// Get info on the cache.
@@ -594,8 +593,6 @@ impl Client {
 	}
 }
 
-#[derive(Ipc)]
-#[ipc(client_ident="RemoteClient")]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -609,7 +606,6 @@ impl BlockChainClient for Client {
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
 			gas_limit: U256::max_value(),
-			dao_rescue_block_gas_limit: self.dao_rescue_block_gas_limit(view.parent_hash()),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state();
@@ -708,7 +704,7 @@ impl BlockChainClient for Client {
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
 		self.transaction_address(id).and_then(|address| {
 			let t = self.chain.block(&address.block_hash)
-				.and_then(|block| BlockView::new(&block).localized_transaction_at(address.index));
+			.and_then(|block| BlockView::new(&block).localized_transaction_at(address.index));
 
 			match (t, self.chain.transaction_receipt(&address)) {
 				(Some(tx), Some(receipt)) => {
@@ -811,42 +807,42 @@ impl BlockChainClient for Client {
 		// TODO: lock blockchain only once
 
 		let mut blocks = filter.bloom_possibilities().iter()
-			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
-			.flat_map(|m| m)
-			// remove duplicate elements
-			.collect::<HashSet<u64>>()
-			.into_iter()
-			.collect::<Vec<u64>>();
+		.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+		.flat_map(|m| m)
+		// remove duplicate elements
+		.collect::<HashSet<u64>>()
+		.into_iter()
+		.collect::<Vec<u64>>();
 
 		blocks.sort();
 
 		blocks.into_iter()
-			.filter_map(|number| self.chain.block_hash(number).map(|hash| (number, hash)))
-			.filter_map(|(number, hash)| self.chain.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
-			.filter_map(|(number, hash, receipts)| self.chain.block(&hash).map(|ref b| (number, hash, receipts, BlockView::new(b).transaction_hashes())))
-			.flat_map(|(number, hash, receipts, hashes)| {
-				let mut log_index = 0;
-				receipts.into_iter()
-					.enumerate()
-					.flat_map(|(index, receipt)| {
-						log_index += receipt.logs.len();
-						receipt.logs.into_iter()
-							.enumerate()
-							.filter(|tuple| filter.matches(&tuple.1))
-						 	.map(|(i, log)| LocalizedLogEntry {
-							 	entry: log,
-								block_hash: hash.clone(),
-								block_number: number,
-								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
-								transaction_index: index,
-								log_index: log_index + i
-							})
-							.collect::<Vec<LocalizedLogEntry>>()
-					})
-					.collect::<Vec<LocalizedLogEntry>>()
-
+		.filter_map(|number| self.chain.block_hash(number).map(|hash| (number, hash)))
+		.filter_map(|(number, hash)| self.chain.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+		.filter_map(|(number, hash, receipts)| self.chain.block(&hash).map(|ref b| (number, hash, receipts, BlockView::new(b).transaction_hashes())))
+		.flat_map(|(number, hash, receipts, hashes)| {
+			let mut log_index = 0;
+			receipts.into_iter()
+			.enumerate()
+			.flat_map(|(index, receipt)| {
+				log_index += receipt.logs.len();
+				receipt.logs.into_iter()
+				.enumerate()
+				.filter(|tuple| filter.matches(&tuple.1))
+				.map(|(i, log)| LocalizedLogEntry {
+					entry: log,
+					block_hash: hash.clone(),
+					block_number: number,
+					transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
+					transaction_index: index,
+					log_index: log_index + i
+				})
+				.collect::<Vec<LocalizedLogEntry>>()
 			})
-			.collect()
+			.collect::<Vec<LocalizedLogEntry>>()
+
+		})
+		.collect()
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -870,23 +866,23 @@ impl BlockChainClient for Client {
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
 		let trace_address = trace.address;
 		self.transaction_address(trace.transaction)
-			.and_then(|tx_address| {
-				self.block_number(BlockID::Hash(tx_address.block_hash))
-					.and_then(|number| self.tracedb.trace(number, tx_address.index, trace_address))
-			})
+		.and_then(|tx_address| {
+			self.block_number(BlockID::Hash(tx_address.block_hash))
+			.and_then(|number| self.tracedb.trace(number, tx_address.index, trace_address))
+		})
 	}
 
 	fn transaction_traces(&self, transaction: TransactionID) -> Option<Vec<LocalizedTrace>> {
 		self.transaction_address(transaction)
-			.and_then(|tx_address| {
-				self.block_number(BlockID::Hash(tx_address.block_hash))
-					.and_then(|number| self.tracedb.transaction_traces(number, tx_address.index))
-			})
+		.and_then(|tx_address| {
+			self.block_number(BlockID::Hash(tx_address.block_hash))
+			.and_then(|number| self.tracedb.transaction_traces(number, tx_address.index))
+		})
 	}
 
 	fn block_traces(&self, block: BlockID) -> Option<Vec<LocalizedTrace>> {
 		self.block_number(block)
-			.and_then(|number| self.tracedb.block_traces(number))
+		.and_then(|number| self.tracedb.block_traces(number))
 	}
 
 	fn last_hashes(&self) -> LastHashes {
@@ -900,9 +896,9 @@ impl BlockChainClient for Client {
 		};
 
 		self.miner.import_transactions(self, transactions, &fetch_account)
-			.into_iter()
-			.map(|res| res.map_err(|e| e.into()))
-			.collect()
+		.into_iter()
+		.map(|res| res.map_err(|e| e.into()))
+		.collect()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
@@ -939,7 +935,6 @@ impl MiningBlockChainClient for Client {
 			self.state_db.lock().unwrap().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
 			self.build_last_hashes(h.clone()),
-			self.dao_rescue_block_gas_limit(h.clone()),
 			author,
 			gas_range_target,
 			extra_data,
@@ -947,13 +942,13 @@ impl MiningBlockChainClient for Client {
 
 		// Add uncles
 		self.chain
-			.find_uncle_headers(&h, engine.maximum_uncle_age())
-			.unwrap()
-			.into_iter()
-			.take(engine.maximum_uncle_count())
-			.foreach(|h| {
-				open_block.push_uncle(h).unwrap();
-			});
+		.find_uncle_headers(&h, engine.maximum_uncle_age())
+		.unwrap()
+		.into_iter()
+		.take(engine.maximum_uncle_count())
+		.foreach(|h| {
+			open_block.push_uncle(h).unwrap();
+		});
 
 		open_block
 	}
