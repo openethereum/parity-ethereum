@@ -51,7 +51,7 @@ pub use block_import_error::BlockImportError;
 pub use transaction_import::TransactionImportResult;
 pub use transaction_import::TransactionImportError;
 
-mod client {
+pub mod client {
 	//! Blockchain database client.
 
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
