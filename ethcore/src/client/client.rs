@@ -570,12 +570,12 @@ impl Client {
 	pub fn network_started(&self, url: &String) {
 		let mut previous_enode = self.previous_enode.lock().unwrap();
 		if let Some(ref u) = *previous_enode {
-			if u != url {
+			if u == url {
 				return;
 			}
 		}
 		*previous_enode = Some(url.clone());
-		info!(target: "client", "Public node URL: {}", url.apply(Colour::White.bold()));
+		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
 	}
 }
 
