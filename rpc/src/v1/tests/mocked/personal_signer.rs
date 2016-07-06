@@ -23,9 +23,7 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use v1::{SignerClient, PersonalSigner};
 use v1::tests::helpers::TestMinerService;
-use v1::helpers::{SigningQueue, ConfirmationsQueue};
-use v1::types::TransactionRequest;
-
+use v1::helpers::{SigningQueue, ConfirmationsQueue, TransactionRequest};
 
 struct PersonalSignerTester {
 	queue: Arc<ConfirmationsQueue>,

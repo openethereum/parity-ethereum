@@ -95,6 +95,61 @@ impl<'a> Finalize for Result<GasLeft<'a>> {
 	}
 }
 
+pub trait CostType: ops::Mul<Output=Self> + ops::Div<Output=Self> + ops::Add<Output=Self> + ops::Sub<Output=Self> + ops::Shr<usize, Output=Self> + ops::Shl<usize, Output=Self> + cmp::Ord + Sized + From<usize> + Copy {
+	fn as_u256(&self) -> U256;
+	fn from_u256(val: U256) -> Result<Self>;
+	fn as_usize(&self) -> usize;
+	fn overflow_add(self, other: Self) -> (Self, bool);
+	fn overflow_mul(self, other: Self) -> (Self, bool);
+}
+
+impl CostType for U256 {
+	fn as_u256(&self) -> U256 {
+		*self
+	}
+
+	fn from_u256(val: U256) -> Result<Self> {
+		Ok(val)
+	}
+
+	fn as_usize(&self) -> usize {
+		self.as_u64() as usize
+	}
+
+	fn overflow_add(self, other: Self) -> (Self, bool) {
+		Uint::overflowing_add(self, other)
+	}
+
+	fn overflow_mul(self, other: Self) -> (Self, bool) {
+		Uint::overflowing_mul(self, other)
+	}
+}
+
+impl CostType for usize {
+	fn as_u256(&self) -> U256 {
+		U256::from(*self)
+	}
+
+	fn from_u256(val: U256) -> Result<Self> {
+		if U256::from(val.low_u64()) != val {
+			return Err(Error::OutOfGas);
+		}
+		Ok(val.low_u64() as usize)
+	}
+
+	fn as_usize(&self) -> usize {
+		*self
+	}
+
+	fn overflow_add(self, other: Self) -> (Self, bool) {
+		self.overflowing_add(other)
+	}
+
+	fn overflow_mul(self, other: Self) -> (Self, bool) {
+		self.overflowing_mul(other)
+	}
+}
+
 /// Evm interface
 pub trait Evm {
 	/// This function should be used to execute transaction.

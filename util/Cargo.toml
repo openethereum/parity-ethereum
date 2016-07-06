@@ -27,16 +27,16 @@ itertools = "0.4"
 crossbeam = "0.2"
 slab = "0.2"
 sha3 = { path = "sha3" }
-serde = "0.7.0"
 clippy = { version = "0.0.78", optional = true}
-json-tests = { path = "json-tests" }
-igd = "0.4.2"
+igd = "0.5.0"
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 vergen = "0.1"
 target_info = "0.1"
 bigint = { path = "bigint" }
 chrono = "0.2"
+using_queue = { path = "using_queue" }
+table = { path = "table" }
 ansi_term = "0.7"
 
 [features]

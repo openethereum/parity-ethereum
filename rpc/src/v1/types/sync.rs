@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use serde::{Serialize, Serializer};
-use util::numbers::*;
+use v1::types::U256;
 
 /// Sync info
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -53,7 +53,7 @@ impl Serialize for SyncStatus {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use super::*;
+	use super::{SyncInfo, SyncStatus};
 
 	#[test]
 	fn test_serialize_sync_info() {

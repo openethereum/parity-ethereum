@@ -23,7 +23,7 @@ mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
+pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
@@ -47,8 +47,8 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
-use miner::{TransactionImportResult};
-use error::Error as EthError;
+pub use block_import_error::BlockImportError;
+pub use transaction_import::{TransactionImportResult, TransactionImportError};
 
 /// Options concerning what analytics we run on the call.
 #[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
@@ -63,6 +63,11 @@ pub struct CallAnalytics {
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
+	
+	/// Should be called by any external-facing interface when actively using the client.
+	/// To minimise chatter, there's no need to call more than once every 30s.
+	fn keep_alive(&self) {}
+
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockID) -> Option<Bytes>;
 
@@ -145,7 +150,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> ImportResult;
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
@@ -188,7 +193,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn last_hashes(&self) -> LastHashes;
 
 	/// import transactions from network/other 3rd party
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>>;
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>>;
 
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>);
