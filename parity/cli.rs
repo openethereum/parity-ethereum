@@ -57,9 +57,8 @@ Operating Options:
   --fork POLICY            Specifies the client's fork policy. POLICY must be
                            one of:
                            dogmatic - sticks rigidly to the standard chain.
-                           dao-soft - votes for the DAO-rescue soft-fork.
-                           normal - goes with whatever fork is decided but
-                           votes for none. [default: normal].
+                           none - goes with whatever fork is decided but
+                           votes for none. [default: none].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.

@@ -198,6 +198,7 @@ struct VerifiedTransaction {
 	/// transaction origin
 	origin: TransactionOrigin,
 }
+
 impl VerifiedTransaction {
 	fn new(transaction: SignedTransaction, origin: TransactionOrigin) -> Result<Self, Error> {
 		try!(transaction.sender());

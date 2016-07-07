@@ -20,7 +20,10 @@ extern crate ansi_term;
 use self::ansi_term::Colour::White;
 use std::io;
 use std::path::PathBuf;
+use std::path::PathBuf;
+use std::sync::Arc;
 use util::panics::ForwardPanic;
+use util::{Colour, Applyable};
 use util::path::restrict_permissions_owner;
 use die::*;
 use rpc_apis;
@@ -51,7 +54,7 @@ pub fn new_token(path: String) -> io::Result<()> {
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	try!(codes.to_file(&path));
-	println!("This key code will authorise your System Signer UI: {}", White.bold().paint(code));
+	println!("This key code will authorise your System Signer UI: {}", code.apply(Colour::White.bold()));
 	Ok(())
 }
 

@@ -162,7 +162,7 @@ pub enum Diff<T> where T: Serialize {
 	Changed(ChangedType<T>),
 }
 
-impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq, U: Serialize + From<T> {
+impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq + ::ethcore_ipc::BinaryConvertable, U: Serialize + From<T> {
 	fn from(c: account_diff::Diff<T>) -> Self {
 		match c {
 			account_diff::Diff::Same => Diff::Same,
@@ -205,7 +205,7 @@ impl Serialize for StateDiff {
 
 impl From<state_diff::StateDiff> for StateDiff {
 	fn from(c: state_diff::StateDiff) -> Self {
-		StateDiff(c.0.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+		StateDiff(c.raw.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
 	}
 }
 

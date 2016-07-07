@@ -20,9 +20,9 @@ use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
-pub use types::executed::ExecutionError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use types::block_import_error::BlockImportError;
+pub use types::executed::ExecutionError;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.
@@ -326,7 +326,6 @@ impl From<BlockImportError> for Error {
 binary_fixed_size!(BlockError);
 binary_fixed_size!(ImportError);
 binary_fixed_size!(TransactionError);
-
 
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
 /*#![feature(concat_idents)]

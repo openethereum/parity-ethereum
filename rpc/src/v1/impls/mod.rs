@@ -56,7 +56,7 @@ pub use self::rpc::RpcClient;
 use v1::helpers::TransactionRequest;
 use v1::types::H256 as NH256;
 use ethcore::error::Error as EthcoreError;
-use ethcore::miner::{AccountDetails, MinerService};
+use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use ethcore::account_provider::{AccountProvider, Error as AccountError};
@@ -80,12 +80,7 @@ fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedT
 	where C: MiningBlockChainClient, M: MinerService {
 	let hash = NH256::from(signed_transaction.hash());
 
-	let import = miner.import_own_transaction(client, signed_transaction, |a: &Address| {
-		AccountDetails {
-			nonce: client.latest_nonce(&a),
-			balance: client.latest_balance(&a),
-		}
-	});
+	let import = miner.import_own_transaction(client, signed_transaction);
 
 	import
 		.map_err(transaction_error)

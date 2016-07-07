@@ -14,21 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tree route info type definition
+//! Trace filter related types
 
-use util::numbers::H256;
-use ipc::BinaryConvertError;
-use std::collections::VecDeque;
 use std::mem;
+use ipc::binary::{BinaryConvertError};
+use std::collections::VecDeque;
+use std::ops::Range;
+use util::{Address};
+use types::ids::BlockID;
 
-/// Represents a tree route between `from` block and `to` block:
-#[derive(Debug, Binary)]
-pub struct TreeRoute {
-	/// A vector of hashes of all blocks, ordered from `from` to `to`.
-	pub blocks: Vec<H256>,
-	/// Best common ancestor of these blocks.
-	pub ancestor: H256,
-	/// An index where best common ancestor would be.
-	pub index: usize,
+/// Easy to use trace filter.
+#[derive(Binary)]
+pub struct Filter {
+	/// Range of filtering.
+	pub range: Range<BlockID>,
+	/// From address.
+	pub from_address: Vec<Address>,
+	/// To address.
+	pub to_address: Vec<Address>,
 }
-
