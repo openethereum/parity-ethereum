@@ -41,7 +41,7 @@ impl Switch {
 }
 
 /// Traces config.
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Config {
 	/// Indicates if tracing should be enabled or not.
 	/// If it's None, it will be automatically configured.

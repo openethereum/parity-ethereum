@@ -20,6 +20,7 @@ mod presale;
 
 pub use self::account::{AccountCmd, NewAccount, ImportAccounts};
 pub use self::presale::ImportWallet;
+pub use self::blockchain::{BlockchainCmd, Import};
 use cli::print_version;
 use configuration::Configuration;
 use execute as main_execute;
@@ -33,12 +34,6 @@ pub enum Cmd {
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
 	SignerToken(String),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum BlockchainCmd {
-	Import,
-	Export,
 }
 
 pub fn execute(command: Cmd) -> Result<String, String> {

@@ -54,7 +54,7 @@ impl Default for Mode {
 }
 
 /// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct ClientConfig {
 	/// Block queue configuration.
 	pub queue: BlockQueueConfig,

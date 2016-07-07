@@ -17,7 +17,7 @@
 //! Blockchain configuration.
 
 /// Blockchain configuration.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Config {
 	/// Preferred cache size in bytes.
 	pub pref_cache_size: usize,
