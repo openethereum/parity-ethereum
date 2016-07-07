@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
-use util::Lockable;
+use util::{Lockable, RwLockable};
 use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
 use ethcore::account_provider::AccountProvider;
@@ -104,13 +104,13 @@ fn rpc_eth_syncing() {
 	assert_eq!(tester.io.handle_request(request), Some(false_res.to_owned()));
 
 	{
-		let mut status = tester.sync.status.write().unwrap();
+		let mut status = tester.sync.status.unwrapped_write();
 		status.state = SyncState::Blocks;
 		status.highest_block_number = Some(2500);
 
 		// "sync" to 1000 blocks.
 		// causes TestBlockChainClient to return 1000 for its best block number.
-		let mut blocks = tester.client.blocks.write().unwrap();
+		let mut blocks = tester.client.blocks.unwrapped_write();
 		for i in 0..1000 {
 			blocks.insert(H256::from(i), Vec::new());
 		}
@@ -121,7 +121,7 @@ fn rpc_eth_syncing() {
 
 	{
 		// finish "syncing"
-		let mut blocks = tester.client.blocks.write().unwrap();
+		let mut blocks = tester.client.blocks.unwrapped_write();
 		for i in 0..1500 {
 			blocks.insert(H256::from(i + 1000), Vec::new());
 		}
@@ -133,9 +133,9 @@ fn rpc_eth_syncing() {
 #[test]
 fn rpc_eth_hashrate() {
 	let tester = EthTester::default();
-	tester.hashrates.write().unwrap().insert(H256::from(0), U256::from(0xfffa));
-	tester.hashrates.write().unwrap().insert(H256::from(0), U256::from(0xfffb));
-	tester.hashrates.write().unwrap().insert(H256::from(1), U256::from(0x1));
+	tester.hashrates.unwrapped_write().insert(H256::from(0), U256::from(0xfffa));
+	tester.hashrates.unwrapped_write().insert(H256::from(0), U256::from(0xfffb));
+	tester.hashrates.unwrapped_write().insert(H256::from(1), U256::from(0x1));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_hashrate", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0xfffc","id":1}"#;
@@ -158,7 +158,7 @@ fn rpc_eth_submit_hashrate() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
-	assert_eq!(tester.hashrates.read().unwrap().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned(),
+	assert_eq!(tester.hashrates.unwrapped_read().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned(),
 		Some(U256::from(0x500_000)));
 }
 
@@ -215,7 +215,7 @@ fn rpc_eth_mining() {
 	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 
-	tester.hashrates.write().unwrap().insert(H256::from(1), U256::from(0x1));
+	tester.hashrates.unwrapped_write().insert(H256::from(1), U256::from(0x1));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_mining", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -591,7 +591,7 @@ fn rpc_eth_send_transaction() {
 
 	assert_eq!(tester.io.handle_request(&request), Some(response));
 
-	tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
+	tester.miner.last_nonces.unwrapped_write().insert(address.clone(), U256::zero());
 
 	let t = Transaction {
 		nonce: U256::one(),
@@ -749,7 +749,7 @@ fn returns_error_if_can_mine_and_no_closed_block() {
 	use ethsync::{SyncState};
 
 	let eth_tester = EthTester::default();
-	eth_tester.sync.status.write().unwrap().state = SyncState::Idle;
+	eth_tester.sync.status.unwrapped_write().state = SyncState::Idle;
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;

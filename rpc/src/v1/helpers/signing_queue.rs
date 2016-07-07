@@ -19,7 +19,7 @@ use std::time::{Instant, Duration};
 use std::sync::{mpsc, Mutex, RwLock, Arc};
 use std::collections::HashMap;
 use jsonrpc_core;
-use util::{U256, Lockable};
+use util::{U256, Lockable, RwLockable};
 use v1::helpers::{TransactionRequest, TransactionConfirmation};
 
 /// Result that can be returned from JSON RPC.
@@ -214,7 +214,7 @@ impl ConfirmationsQueue {
 	/// Removes transaction from this queue and notifies `ConfirmationPromise` holders about the result.
 	/// Notifies also a receiver about that event.
 	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<TransactionConfirmation> {
-		let token = self.queue.write().unwrap().remove(&id);
+		let token = self.queue.unwrapped_write().remove(&id);
 
 		if let Some(token) = token {
 			// notify receiver about the event
@@ -247,7 +247,7 @@ impl SigningQueue for  ConfirmationsQueue {
 		};
 		// Add request to queue
 		let res = {
-			let mut queue = self.queue.write().unwrap();
+			let mut queue = self.queue.unwrapped_write();
 			queue.insert(id, ConfirmationToken {
 				result: Arc::new(Mutex::new(ConfirmationResult::Waiting)),
 				handle: thread::current(),
@@ -266,7 +266,7 @@ impl SigningQueue for  ConfirmationsQueue {
 	}
 
 	fn peek(&self, id: &U256) -> Option<TransactionConfirmation> {
-		self.queue.read().unwrap().get(id).map(|token| token.request.clone())
+		self.queue.unwrapped_read().get(id).map(|token| token.request.clone())
 	}
 
 	fn request_rejected(&self, id: U256) -> Option<TransactionConfirmation> {
@@ -280,17 +280,17 @@ impl SigningQueue for  ConfirmationsQueue {
 	}
 
 	fn requests(&self) -> Vec<TransactionConfirmation> {
-		let queue = self.queue.read().unwrap();
+		let queue = self.queue.unwrapped_read();
 		queue.values().map(|token| token.request.clone()).collect()
 	}
 
 	fn len(&self) -> usize {
-		let queue = self.queue.read().unwrap();
+		let queue = self.queue.unwrapped_read();
 		queue.len()
 	}
 
 	fn is_empty(&self) -> bool {
-		let queue = self.queue.read().unwrap();
+		let queue = self.queue.unwrapped_read();
 		queue.is_empty()
 	}
 }
@@ -301,7 +301,7 @@ mod test {
 	use std::time::Duration;
 	use std::thread;
 	use std::sync::{Arc, Mutex};
-	use util::{Address, U256, H256};
+	use util::{Address, U256, H256, Lockable};
 	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, TransactionRequest};
 	use v1::types::H256 as NH256;
 	use jsonrpc_core::to_value;

@@ -425,20 +425,20 @@ impl MinerService for Miner {
 	}
 
 	fn set_author(&self, author: Address) {
-		*self.author.write().unwrap() = author;
+		*self.author.unwrapped_write() = author;
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {
-		*self.extra_data.write().unwrap() = extra_data;
+		*self.extra_data.unwrapped_write() = extra_data;
 	}
 
 	/// Set the gas limit we wish to target when sealing a new block.
 	fn set_gas_floor_target(&self, target: U256) {
-		self.gas_range_target.write().unwrap().0 = target;
+		self.gas_range_target.unwrapped_write().0 = target;
 	}
 
 	fn set_gas_ceil_target(&self, target: U256) {
-		self.gas_range_target.write().unwrap().1 = target;
+		self.gas_range_target.unwrapped_write().1 = target;
 	}
 
 	fn set_minimal_gas_price(&self, min_gas_price: U256) {
@@ -455,7 +455,7 @@ impl MinerService for Miner {
 	}
 
 	fn sensible_gas_limit(&self) -> U256 {
-		self.gas_range_target.read().unwrap().0 / 5.into()
+		self.gas_range_target.unwrapped_read().0 / 5.into()
 	}
 
 	fn transactions_limit(&self) -> usize {
@@ -472,22 +472,22 @@ impl MinerService for Miner {
 
 	/// Get the author that we will seal blocks as.
 	fn author(&self) -> Address {
-		*self.author.read().unwrap()
+		*self.author.unwrapped_read()
 	}
 
 	/// Get the extra_data that we will seal blocks with.
 	fn extra_data(&self) -> Bytes {
-		self.extra_data.read().unwrap().clone()
+		self.extra_data.unwrapped_read().clone()
 	}
 
 	/// Get the gas limit we wish to target when sealing a new block.
 	fn gas_floor_target(&self) -> U256 {
-		self.gas_range_target.read().unwrap().0
+		self.gas_range_target.unwrapped_read().0
 	}
 
 	/// Get the gas limit we wish to target when sealing a new block.
 	fn gas_ceil_target(&self) -> U256 {
-		self.gas_range_target.read().unwrap().1
+		self.gas_range_target.unwrapped_read().1
 	}
 
 	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->

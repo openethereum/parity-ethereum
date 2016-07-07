@@ -18,6 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread;
 use std::time::*;
 use common::*;
+use misc::*;
 use network::*;
 use io::TimerToken;
 use crypto::KeyPair;

@@ -285,7 +285,7 @@ impl BlockQueue {
 		unverified.clear();
 		verifying.clear();
 		verified.clear();
-		self.processing.write().unwrap().clear();
+		self.processing.unwrapped_write().clear();
 	}
 
 	/// Wait for unverified queue to be empty
@@ -298,7 +298,7 @@ impl BlockQueue {
 
 	/// Check if the block is currently in the queue
 	pub fn block_status(&self, hash: &H256) -> BlockStatus {
-		if self.processing.read().unwrap().contains(&hash) {
+		if self.processing.unwrapped_read().contains(&hash) {
 			return BlockStatus::Queued;
 		}
 		if self.verification.bad.locked().contains(&hash) {
@@ -312,7 +312,7 @@ impl BlockQueue {
 		let header = BlockView::new(&bytes).header();
 		let h = header.hash();
 		{
-			if self.processing.read().unwrap().contains(&h) {
+			if self.processing.unwrapped_read().contains(&h) {
 				return Err(ImportError::AlreadyQueued.into());
 			}
 
@@ -329,7 +329,7 @@ impl BlockQueue {
 
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
-				self.processing.write().unwrap().insert(h.clone());
+				self.processing.unwrapped_write().insert(h.clone());
 				self.verification.unverified.locked().push_back(UnverifiedBlock { header: header, bytes: bytes });
 				self.more_to_verify.notify_all();
 				Ok(h)
@@ -350,7 +350,7 @@ impl BlockQueue {
 		let mut verified_lock = self.verification.verified.locked();
 		let mut verified = verified_lock.deref_mut();
 		let mut bad = self.verification.bad.locked();
-		let mut processing = self.processing.write().unwrap();
+		let mut processing = self.processing.unwrapped_write();
 		bad.reserve(block_hashes.len());
 		for hash in block_hashes {
 			bad.insert(hash.clone());
@@ -374,7 +374,7 @@ impl BlockQueue {
 		if block_hashes.is_empty() {
 			return;
 		}
-		let mut processing = self.processing.write().unwrap();
+		let mut processing = self.processing.unwrapped_write();
 		for hash in block_hashes {
 			processing.remove(&hash);
 		}
@@ -421,7 +421,7 @@ impl BlockQueue {
 				+ verifying_bytes
 				+ verified_bytes
 				// TODO: https://github.com/servo/heapsize/pull/50
-				//+ self.processing.read().unwrap().heap_size_of_children(),
+				//+ self.processing.unwrapped_read().heap_size_of_children(),
 		}
 	}
 
@@ -432,7 +432,7 @@ impl BlockQueue {
 			self.verification.verifying.locked().shrink_to_fit();
 			self.verification.verified.locked().shrink_to_fit();
 		}
-		self.processing.write().unwrap().shrink_to_fit();
+		self.processing.unwrapped_write().shrink_to_fit();
 	}
 }
 

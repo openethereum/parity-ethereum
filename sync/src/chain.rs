@@ -1142,7 +1142,7 @@ impl ChainSync {
 				|e| format!("Error sending nodes: {:?}", e)),
 
 			_ => {
-				sync.write().unwrap().on_packet(io, peer, packet_id, data);
+				sync.unwrapped_write().on_packet(io, peer, packet_id, data);
 				Ok(())
 			}
 		};

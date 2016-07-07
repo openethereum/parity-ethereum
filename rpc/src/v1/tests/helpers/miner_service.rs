@@ -16,7 +16,7 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes, U256, FixedHash, Uint, Lockable};
+use util::{Address, H256, Bytes, U256, FixedHash, Uint, Lockable, RwLockable};
 use util::standard::*;
 use ethcore::error::{Error, ExecutionError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
@@ -76,57 +76,57 @@ impl MinerService for TestMinerService {
 	}
 
 	fn set_author(&self, author: Address) {
-		*self.author.write().unwrap() = author;
+		*self.author.unwrapped_write() = author;
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {
-		*self.extra_data.write().unwrap() = extra_data;
+		*self.extra_data.unwrapped_write() = extra_data;
 	}
 
 	/// Set the lower gas limit we wish to target when sealing a new block.
 	fn set_gas_floor_target(&self, target: U256) {
-		self.gas_range_target.write().unwrap().0 = target;
+		self.gas_range_target.unwrapped_write().0 = target;
 	}
 
 	/// Set the upper gas limit we wish to target when sealing a new block.
 	fn set_gas_ceil_target(&self, target: U256) {
-		self.gas_range_target.write().unwrap().1 = target;
+		self.gas_range_target.unwrapped_write().1 = target;
 	}
 
 	fn set_minimal_gas_price(&self, min_gas_price: U256) {
-		*self.min_gas_price.write().unwrap() = min_gas_price;
+		*self.min_gas_price.unwrapped_write() = min_gas_price;
 	}
 
 	fn set_transactions_limit(&self, limit: usize) {
-		*self.limit.write().unwrap() = limit;
+		*self.limit.unwrapped_write() = limit;
 	}
 
 	fn set_tx_gas_limit(&self, limit: U256) {
-		*self.tx_gas_limit.write().unwrap() = limit;
+		*self.tx_gas_limit.unwrapped_write() = limit;
 	}
 
 	fn transactions_limit(&self) -> usize {
-		*self.limit.read().unwrap()
+		*self.limit.unwrapped_read()
 	}
 
 	fn author(&self) -> Address {
-		*self.author.read().unwrap()
+		*self.author.unwrapped_read()
 	}
 
 	fn minimal_gas_price(&self) -> U256 {
-		*self.min_gas_price.read().unwrap()
+		*self.min_gas_price.unwrapped_read()
 	}
 
 	fn extra_data(&self) -> Bytes {
-		self.extra_data.read().unwrap().clone()
+		self.extra_data.unwrapped_read().clone()
 	}
 
 	fn gas_floor_target(&self) -> U256 {
-		self.gas_range_target.read().unwrap().0
+		self.gas_range_target.unwrapped_read().0
 	}
 
 	fn gas_ceil_target(&self) -> U256 {
-		self.gas_range_target.read().unwrap().1
+		self.gas_range_target.unwrapped_read().1
 	}
 
 	/// Imports transactions to transaction queue.
@@ -137,7 +137,7 @@ impl MinerService for TestMinerService {
 
 		for sender in transactions.iter().filter_map(|t| t.sender().ok()) {
 			let nonce = self.last_nonce(&sender).expect("last_nonce must be populated in tests");
-			self.last_nonces.write().unwrap().insert(sender, nonce + U256::from(1));
+			self.last_nonces.unwrapped_write().insert(sender, nonce + U256::from(1));
 		}
 		transactions
 			.iter()
@@ -152,7 +152,7 @@ impl MinerService for TestMinerService {
 		// keep the pending nonces up to date
 		if let Ok(ref sender) = transaction.sender() {
 			let nonce = self.last_nonce(sender).unwrap_or(chain.latest_nonce(sender));
-			self.last_nonces.write().unwrap().insert(sender.clone(), nonce + U256::from(1));
+			self.last_nonces.unwrapped_write().insert(sender.clone(), nonce + U256::from(1));
 		}
 
 		// lets assume that all txs are valid
@@ -202,7 +202,7 @@ impl MinerService for TestMinerService {
 	}
 
 	fn last_nonce(&self, address: &Address) -> Option<U256> {
-		self.last_nonces.read().unwrap().get(address).cloned()
+		self.last_nonces.unwrapped_read().get(address).cloned()
 	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.

@@ -334,7 +334,7 @@ impl Client {
 			let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
 			import_results.push(route);
 
-			self.report.write().unwrap().accrue_block(&block);
+			self.report.unwrapped_write().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
 
@@ -462,7 +462,7 @@ impl Client {
 
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
-		let mut report = self.report.read().unwrap().clone();
+		let mut report = self.report.unwrapped_read().clone();
 		report.state_db_mem = self.state_db.locked().mem_used();
 		report
 	}
