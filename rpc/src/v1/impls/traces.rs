@@ -19,12 +19,13 @@
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
 use std::collections::BTreeMap;
-use util::H256;
+//use util::H256;
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Traces;
-use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest, Bytes, StateDiff, VMTrace};
+use v1::helpers::CallRequest as CRequest;
+use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest, Bytes, StateDiff, VMTrace, H256};
 
 /// Traces api implementation.
 pub struct TracesClient<C, M> where C: BlockChainClient, M: MinerService {
@@ -42,7 +43,7 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 	}
 
 	// TODO: share with eth.rs
-	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
+	fn sign_call(&self, request: CRequest) -> Result<SignedTransaction, Error> {
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
 		let from = request.from.unwrap_or(0.into());
@@ -55,10 +56,17 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(TraceFilter,)>(params)
 			.and_then(|(filter, )| {
 				let client = take_weak!(self.client);
@@ -69,6 +77,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn block_traces(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| {
 				let client = take_weak!(self.client);
@@ -79,21 +88,23 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn transaction_traces(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(H256,)>(params)
 			.and_then(|(transaction_hash,)| {
 				let client = take_weak!(self.client);
-				let traces = client.transaction_traces(TransactionID::Hash(transaction_hash));
+				let traces = client.transaction_traces(TransactionID::Hash(transaction_hash.into()));
 				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
 				to_value(&traces)
 			})
 	}
 
 	fn trace(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(H256, Vec<Index>)>(params)
 			.and_then(|(transaction_hash, address)| {
 				let client = take_weak!(self.client);
 				let id = TraceId {
-					transaction: TransactionID::Hash(transaction_hash),
+					transaction: TransactionID::Hash(transaction_hash.into()),
 					address: address.into_iter().map(|i| i.value()).collect()
 				};
 				let trace = client.trace(id);
@@ -103,9 +114,11 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		trace!(target: "jsonrpc", "call: {:?}", params);
 		from_params(params)
 			.and_then(|(request, flags)| {
+				let request = CallRequest::into(request);
 				let flags: Vec<String> = flags;
 				let analytics = CallAnalytics {
 					transaction_tracing: flags.contains(&("trace".to_owned())),

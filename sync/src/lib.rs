@@ -44,10 +44,10 @@
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
 //! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let miner = Miner::new(Default::default(), ethereum::new_frontier(true), None);
+//! 	let miner = Miner::new(Default::default(), ethereum::new_frontier(), None);
 //! 	let client = Client::new(
 //!			ClientConfig::default(),
-//!			ethereum::new_frontier(true),
+//!			ethereum::new_frontier(),
 //!			&dir,
 //!			miner,
 //!			service.io().channel()
@@ -71,8 +71,7 @@ extern crate heapsize;
 use std::ops::*;
 use std::sync::*;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
-use util::TimerToken;
-use util::{U256, ONE_U256};
+use util::{TimerToken, U256};
 use ethcore::client::Client;
 use ethcore::service::{SyncMessage, NetSyncMessage};
 use io::NetSyncIo;
@@ -99,7 +98,7 @@ impl Default for SyncConfig {
 	fn default() -> SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
-			network_id: ONE_U256,
+			network_id: U256::from(1),
 		}
 	}
 }

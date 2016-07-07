@@ -148,9 +148,9 @@ impl_uint_to_bytes!(U128);
 
 impl <T>ToBytes for T where T: FixedHash {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.vec_extend(self.bytes());
+		out.vec_extend(self.as_slice());
 	}
-	fn to_bytes_len(&self) -> usize { self.bytes().len() }
+	fn to_bytes_len(&self) -> usize { self.as_slice().len() }
 }
 
 /// Error returned when `FromBytes` conversation goes wrong

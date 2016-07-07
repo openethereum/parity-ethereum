@@ -28,7 +28,7 @@ use util::*;
 use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::client::{append_path, get_db_path, Mode, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
 use ethcore::miner::{MinerOptions, PendingSet};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
@@ -49,8 +49,7 @@ pub struct Directories {
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum Policy {
-	DaoSoft,
-	Normal,
+	None,
 	Dogmatic,
 }
 
@@ -58,6 +57,15 @@ impl Configuration {
 	pub fn parse() -> Self {
 		Configuration {
 			args: Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit()),
+		}
+	}
+
+	pub fn mode(&self) -> Mode {
+		match &(self.args.flag_mode[..]) {
+			"active" => Mode::Active,
+			"passive" => Mode::Passive(Duration::from_secs(self.args.flag_mode_timeout), Duration::from_secs(self.args.flag_mode_alarm)),
+			"dark" => Mode::Dark(Duration::from_secs(self.args.flag_mode_timeout)),
+			_ => die!("{}: Invalid address for --mode. Must be one of active, passive or dark.", self.args.flag_mode),
 		}
 	}
 
@@ -126,33 +134,24 @@ impl Configuration {
 
 	pub fn policy(&self) -> Policy {
 		match self.args.flag_fork.as_str() {
-			"dao-soft" => Policy::DaoSoft,
-			"normal" => Policy::Normal,
+			"none" => Policy::None,
 			"dogmatic" => Policy::Dogmatic,
 			x => die!("{}: Invalid value given for --policy option. Use --help for more info.", x)
 		}
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
-		if self.policy() == Policy::DaoSoft {
-			3_141_592.into()
-		} else {
-			let d = &self.args.flag_gas_floor_target;
-			U256::from_dec_str(d).unwrap_or_else(|_| {
-				die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
-			})
-		}
+		let d = &self.args.flag_gas_floor_target;
+		U256::from_dec_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
+		})
 	}
 
 	pub fn gas_ceil_target(&self) -> U256 {
-		if self.policy() == Policy::DaoSoft {
-			3_141_592.into()
-		} else {
-			let d = &self.args.flag_gas_cap;
-			U256::from_dec_str(d).unwrap_or_else(|_| {
-				die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
-			})
-		}
+		let d = &self.args.flag_gas_cap;
+		U256::from_dec_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
+		})
 	}
 
 	pub fn gas_price(&self) -> U256 {
@@ -182,7 +181,7 @@ impl Configuration {
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", paint(White.bold(), format!("US${}", usd_per_eth)), paint(Yellow.bold(), format!("{}", wei_per_gas)));
+				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(White.bold()), format!("{}", wei_per_gas).apply(Yellow.bold()));
 				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 			}
 		}
@@ -198,7 +197,7 @@ impl Configuration {
 
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(self.policy() != Policy::Dogmatic),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
@@ -302,6 +301,8 @@ impl Configuration {
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
 
+		client_config.mode = self.mode();
+
 		match self.args.flag_cache {
 			Some(mb) => {
 				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
@@ -337,7 +338,7 @@ impl Configuration {
 			if let journaldb::Algorithm::Archive = client_config.pruning {
 				client_config.trie_spec = TrieSpec::Fat;
 			} else {
-				die!("Fatdb is not supported. Please rerun with --pruning=archive")
+				die!("Fatdb is not supported. Please re-run with --pruning=archive")
 			}
 		}
 
@@ -352,7 +353,7 @@ impl Configuration {
 		};
 
 		if self.args.flag_jitvm {
-			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
+			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity is built without the JIT EVM."))
 		}
 
 		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);

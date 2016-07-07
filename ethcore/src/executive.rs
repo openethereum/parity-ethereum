@@ -211,7 +211,7 @@ impl<'a> Executive<'a> {
 			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return vm_factory.create().exec(params, &mut ext).finalize(ext);
+			return vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
@@ -222,7 +222,7 @@ impl<'a> Executive<'a> {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 
 			scope.spawn(move || {
-				vm_factory.create().exec(params, &mut ext).finalize(ext)
+				vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}

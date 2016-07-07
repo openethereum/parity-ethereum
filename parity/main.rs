@@ -80,9 +80,9 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, paint, Colour, version};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
+use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -97,7 +97,7 @@ use rpc::RpcServer;
 use signer::{SignerServer, new_token};
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use configuration::Configuration;
+use configuration::{Policy, Configuration};
 
 fn main() {
 	let conf = Configuration::parse();
@@ -188,16 +188,35 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	info!("Starting {}", paint(Colour::White.bold(), format!("{}", version())));
+	info!("Starting {}", format!("{}", version()).apply(Colour::White.bold()));
+	info!("Using state DB journalling strategy {}", match client_config.pruning {
+		journaldb::Algorithm::Archive => "archive",
+		journaldb::Algorithm::EarlyMerge => "light",
+		journaldb::Algorithm::OverlayRecent => "fast",
+		journaldb::Algorithm::RefCounted => "basic",
+	}.apply(Colour::White.bold()));
 
-	let net_settings = conf.net_settings(&spec);
-	let sync_config = conf.sync_config(&spec);
+	// Display warning about using experimental journaldb types
+	match client_config.pruning {
+		journaldb::Algorithm::EarlyMerge | journaldb::Algorithm::RefCounted => {
+			warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
+		}
+		_ => {}
+	}
 
 	// Display warning about using unlock with signer
 	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
 		warn!("Using Trusted Signer and --unlock is not recommended!");
 		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
 	}
+
+	// Check fork settings.
+	if conf.policy() != Policy::None {
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");		
+	}
+
+	let net_settings = conf.net_settings(&spec);
+	let sync_config = conf.sync_config(&spec);
 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
@@ -213,7 +232,12 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Build client
 	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone(), !conf.args.flag_no_network
+		client_config,
+		spec,
+		net_settings,
+		Path::new(&conf.path()),
+		miner.clone(),
+		match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -282,7 +306,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	});
 
 	// Register IO handler
-	let io_handler  = Arc::new(ClientIoHandler {
+	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),

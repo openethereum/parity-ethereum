@@ -24,6 +24,7 @@ pub mod uint;
 pub mod bytes;
 pub mod blockchain;
 pub mod spec;
+pub mod trie;
 pub mod vm;
 pub mod maybe;
 pub mod state;

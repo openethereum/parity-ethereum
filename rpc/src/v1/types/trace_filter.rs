@@ -16,10 +16,9 @@
 
 //! Trace filter deserialization.
 
-use util::Address;
 use ethcore::client::BlockID;
 use ethcore::client;
-use super::BlockNumber;
+use v1::types::{BlockNumber, H160};
 
 /// Trace filter
 #[derive(Debug, PartialEq, Deserialize)]
@@ -32,10 +31,10 @@ pub struct TraceFilter {
 	pub to_block: Option<BlockNumber>,
 	/// From address
 	#[serde(rename="fromAddress")]
-	pub from_address: Option<Vec<Address>>,
+	pub from_address: Option<Vec<H160>>,
 	/// To address
 	#[serde(rename="toAddress")]
-	pub to_address: Option<Vec<Address>>,
+	pub to_address: Option<Vec<H160>>,
 }
 
 impl Into<client::TraceFilter> for TraceFilter {
@@ -44,8 +43,8 @@ impl Into<client::TraceFilter> for TraceFilter {
 		let end = self.to_block.map_or(BlockID::Latest, Into::into);
 		client::TraceFilter {
 			range: start..end,
-			from_address: self.from_address.unwrap_or_else(Vec::new),
-			to_address: self.to_address.unwrap_or_else(Vec::new),
+			from_address: self.from_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
+			to_address: self.to_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
 		}
 	}
 }
@@ -80,8 +79,8 @@ mod tests {
 		assert_eq!(deserialized, TraceFilter {
 			from_block: Some(BlockNumber::Latest),
 			to_block: Some(BlockNumber::Latest),
-			from_address: Some(vec![Address::from(3)]),
-			to_address: Some(vec![Address::from(5)]),
+			from_address: Some(vec![Address::from(3).into()]),
+			to_address: Some(vec![Address::from(5).into()]),
 		});
 	}
 }

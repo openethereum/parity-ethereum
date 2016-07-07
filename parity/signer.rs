@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ansi_term;
-use self::ansi_term::Colour::White;
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
+use util::{Colour, Applyable};
 use util::panics::{PanicHandler, ForwardPanic};
 use util::path::restrict_permissions_owner;
 use die::*;
@@ -67,7 +66,7 @@ pub fn new_token(path: String) -> io::Result<()> {
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	try!(codes.to_file(&path));
-	println!("This key code will authorise your System Signer UI: {}", White.bold().paint(code));
+	println!("This key code will authorise your System Signer UI: {}", code.apply(Colour::White.bold()));
 	Ok(())
 }
 

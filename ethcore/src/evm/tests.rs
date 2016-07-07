@@ -18,18 +18,18 @@ use common::*;
 use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult};
 use std::fmt::Debug;
 
-struct FakeLogEntry {
+pub struct FakeLogEntry {
 	topics: Vec<H256>,
 	data: Bytes
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
-enum FakeCallType {
+pub enum FakeCallType {
 	Call, Create
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
-struct FakeCall {
+pub struct FakeCall {
 	call_type: FakeCallType,
 	gas: U256,
 	sender_address: Option<Address>,
@@ -43,7 +43,7 @@ struct FakeCall {
 ///
 /// Can't do recursive calls.
 #[derive(Default)]
-struct FakeExt {
+pub struct FakeExt {
 	sstore_clears: usize,
 	depth: usize,
 	store: HashMap<H256, H256>,
@@ -67,7 +67,7 @@ fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
 }
 
 impl FakeExt {
-	fn new() -> Self {
+	pub fn new() -> Self {
 		FakeExt::default()
 	}
 }
@@ -181,7 +181,7 @@ fn test_stack_underflow() {
 	let mut ext = FakeExt::new();
 
 	let err = {
-		let mut vm : Box<evm::Evm> = Box::new(super::interpreter::Interpreter::default());
+		let mut vm : Box<evm::Evm> = Box::new(super::interpreter::Interpreter::<usize>::default());
 		test_finalize(vm.exec(params, &mut ext)).unwrap_err()
 	};
 
@@ -208,7 +208,7 @@ fn test_add(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -228,7 +228,7 @@ fn test_sha3(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -248,7 +248,7 @@ fn test_address(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -270,7 +270,7 @@ fn test_origin(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -292,7 +292,7 @@ fn test_sender(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -327,7 +327,7 @@ fn test_extcodecopy(factory: super::Factory) {
 	ext.codes.insert(sender, sender_code);
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -347,7 +347,7 @@ fn test_log_empty(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -379,7 +379,7 @@ fn test_log_sender(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -404,7 +404,7 @@ fn test_blockhash(factory: super::Factory) {
 	ext.blockhashes.insert(U256::zero(), blockhash.clone());
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -426,7 +426,7 @@ fn test_calldataload(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -447,7 +447,7 @@ fn test_author(factory: super::Factory) {
 	ext.info.author = author;
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -467,7 +467,7 @@ fn test_timestamp(factory: super::Factory) {
 	ext.info.timestamp = timestamp;
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -487,7 +487,7 @@ fn test_number(factory: super::Factory) {
 	ext.info.number = number;
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -507,7 +507,7 @@ fn test_difficulty(factory: super::Factory) {
 	ext.info.difficulty = difficulty;
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -527,7 +527,7 @@ fn test_gas_limit(factory: super::Factory) {
 	ext.info.gas_limit = gas_limit;
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -545,7 +545,7 @@ fn test_mul(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -563,7 +563,7 @@ fn test_sub(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -581,7 +581,7 @@ fn test_div(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -599,7 +599,7 @@ fn test_div_zero(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -617,7 +617,7 @@ fn test_mod(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -636,7 +636,7 @@ fn test_smod(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -655,7 +655,7 @@ fn test_sdiv(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -674,7 +674,7 @@ fn test_exp(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -694,7 +694,7 @@ fn test_comparison(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -715,7 +715,7 @@ fn test_signed_comparison(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -736,7 +736,7 @@ fn test_bitops(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -759,7 +759,7 @@ fn test_addmod_mulmod(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -780,7 +780,7 @@ fn test_byte(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -799,7 +799,7 @@ fn test_signextend(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -819,7 +819,7 @@ fn test_badinstruction_int() {
 	let mut ext = FakeExt::new();
 
 	let err = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap_err()
 	};
 
@@ -839,7 +839,7 @@ fn test_pop(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -859,7 +859,7 @@ fn test_extops(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -882,7 +882,7 @@ fn test_jumps(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
@@ -911,7 +911,7 @@ fn test_calls(factory: super::Factory) {
 	};
 
 	let gas_left = {
-		let mut vm = factory.create();
+		let mut vm = factory.create(params.gas);
 		test_finalize(vm.exec(params, &mut ext)).unwrap()
 	};
 
