@@ -120,7 +120,7 @@ impl Account {
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
-	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
+	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
 			let db = SecTrieDB::new(db, &self.storage_root)
 				.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
