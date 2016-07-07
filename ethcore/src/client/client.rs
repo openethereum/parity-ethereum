@@ -32,7 +32,7 @@ use util::network::*;
 use util::io::*;
 use util::rlp;
 use util::sha3::*;
-use util::{Bytes};
+use util::{Bytes, Lockable, RwLockable};
 use util::rlp::{RlpStream, Rlp, UntrustedRlp};
 use util::journaldb;
 use util::journaldb::JournalDB;
