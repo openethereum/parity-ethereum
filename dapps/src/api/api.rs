@@ -69,7 +69,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 			return Next::write();
 		}
 
-		let url = url.expect("Check for None is above;qed");
+		let url = url.expect("Check for None is above; qed");
 		let endpoint = url.path.get(1).map(|v| v.as_str());
 
 		let handler = endpoint.and_then(|v| match v {
