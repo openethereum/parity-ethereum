@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 mod account;
+mod blockchain;
 mod presale;
 
 pub use self::account::{AccountCmd, NewAccount, ImportAccounts};
@@ -43,8 +44,8 @@ pub enum BlockchainCmd {
 pub fn execute(command: Cmd) -> Result<String, String> {
 	match command {
 		Cmd::Run(configuration) => {
-			main_execute(configuration);
-			unimplemented!();
+			try!(main_execute(configuration));
+			Ok("Quit parity".into())
 		},
 		Cmd::Version => Ok(print_version()),
 		Cmd::Account(account_cmd) => account::execute(account_cmd),
@@ -52,8 +53,6 @@ pub fn execute(command: Cmd) -> Result<String, String> {
 		Cmd::Blockchain(_blockchain_cmd) => {
 			unimplemented!();
 		},
-		Cmd::SignerToken(path) => {
-			unimplemented!();
-		},
+		Cmd::SignerToken(path) => signer::new_token(path)
 	}
 }

@@ -77,7 +77,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
+use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
 use ethcore::error::{ImportError};
@@ -114,17 +114,18 @@ fn new_execute(conf: Configuration) -> Result<String, String> {
 	commands::execute(cmd)
 }
 
-fn execute(conf: Configuration) {
+fn execute(conf: Configuration) -> Result<(), String> {
 	let spec = conf.spec();
 	let client_config = conf.client_config(&spec);
 
-	execute_upgrades(&conf, &spec, &client_config);
+	try!(execute_upgrades(&conf, &spec, &client_config));
 
 	if conf.args.cmd_daemon {
 		daemonize(&conf);
 	}
 
 	execute_client(conf, spec, client_config);
+	Ok(())
 }
 
 #[cfg(not(windows))]
@@ -143,22 +144,19 @@ fn daemonize(conf: &Configuration) -> Result<(), String> {
 fn daemonize(_conf: &Configuration) -> ! {
 }
 
-fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) {
-	match ::upgrade::upgrade(Some(&conf.path())) {
+fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) -> Result<(), String> {
+	match upgrade::upgrade(Some(&conf.path())) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			println!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},
 		Err(e) => {
-			die!("Error upgrading parity data: {:?}", e);
+			return Err(format!("Error upgrading parity data: {:?}", e));
 		},
 		_ => {},
 	}
 
 	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
-	let result = migrate(&db_path);
-	if let Err(err) = result {
-		die_with_message(&format!("{}", err));
-	}
+	migrate(&db_path).map_err(|e| format!("{}", e))
 }
 
 fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) {
@@ -171,19 +169,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	info!("Starting {}", format!("{}", version()).apply(Colour::White.bold()));
-	info!("Using state DB journalling strategy {}", match client_config.pruning {
-		journaldb::Algorithm::Archive => "archive",
-		journaldb::Algorithm::EarlyMerge => "light",
-		journaldb::Algorithm::OverlayRecent => "fast",
-		journaldb::Algorithm::RefCounted => "basic",
-	}.apply(Colour::White.bold()));
+	info!("Using state DB journalling strategy {}", client_config.pruning.as_str().apply(Colour::White.bold()));
 
 	// Display warning about using experimental journaldb types
-	match client_config.pruning {
-		journaldb::Algorithm::EarlyMerge | journaldb::Algorithm::RefCounted => {
-			warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
-		}
-		_ => {}
+	if !client_config.pruning.is_stable() {
+		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
 	}
 
 	// Display warning about using unlock with signer

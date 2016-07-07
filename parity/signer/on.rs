@@ -17,10 +17,8 @@
 extern crate ethcore_signer;
 extern crate ansi_term;
 
-use self::ansi_term::Colour::White;
 use std::io;
 use std::path::PathBuf;
-use std::sync::Arc;
 use util::panics::ForwardPanic;
 use util::{Colour, Applyable};
 use util::path::restrict_permissions_owner;
