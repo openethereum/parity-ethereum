@@ -72,6 +72,7 @@ use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
+use std::env;
 use std::fs::File;
 use std::str::{FromStr, from_utf8};
 use std::thread::sleep;
@@ -98,7 +99,7 @@ use io_handler::ClientIoHandler;
 use configuration::Configuration;
 
 fn main() {
-	let conf = Configuration::parse();
+	let conf = Configuration::parse(env::args()).unwrap_or_else(|e| e.exit());
 	execute(conf);
 }
 

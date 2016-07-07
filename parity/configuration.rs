@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::env;
+use std::{env};
 use std::fs::File;
 use std::time::Duration;
 use std::io::{BufRead, BufReader};
 use std::net::{SocketAddr, IpAddr};
 use std::path::PathBuf;
 use cli::{USAGE, Args};
-use docopt::Docopt;
+use docopt::{Docopt, Error as DocoptError};
 
 use die::*;
 use util::*;
@@ -35,9 +35,56 @@ use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use price_info::PriceInfo;
 use rpc::IpcConfiguration;
+use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd};
 
+/// Flush output buffer.
+fn flush_stdout() {
+	::std::io::stdout().flush().expect("stdout is flushable; qed");
+}
+
+/// Should be used to read password.
+pub trait PasswordReader {
+	/// Prompts user for password.
+	fn prompt(&self) -> Result<String, String>;
+
+	/// Loads user password from file.
+	fn file(&self, file: &str) -> Result<String, String>;
+}
+
+/// Reads password from standard IO.
+#[derive(Debug, PartialEq)]
+pub struct IOPasswordReader;
+
+impl PasswordReader for IOPasswordReader {
+	fn prompt(&self) -> Result<String, String> {
+		use rpassword::read_password;
+
+		println!("Please note that password is NOT RECOVERABLE.");
+		print!("Type password: ");
+		flush_stdout();
+
+		let password = read_password().unwrap();
+
+		print!("Repeat password: ");
+		flush_stdout();
+
+		let password_repeat = read_password().unwrap();
+
+		if password != password_repeat {
+			return Err("Passwords do not match!".into());
+		}
+
+		Ok(password)
+	}
+
+	fn file(&self, file: &str) -> Result<String, String> {
+		unimplemented!();
+	}
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Configuration {
-	pub args: Args
+	pub args: Args,
 }
 
 pub struct Directories {
@@ -55,10 +102,60 @@ pub enum Policy {
 }
 
 impl Configuration {
-	pub fn parse() -> Self {
-		Configuration {
-			args: Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit()),
-		}
+	pub fn parse<S, I>(command: I) -> Result<Self, DocoptError> where I: IntoIterator<Item=S>, S: AsRef<str> {
+		let args = try!(Docopt::new(USAGE).and_then(|d| d.argv(command).decode()));
+
+		let config = Configuration {
+			args: args,
+		};
+
+		Ok(config)
+	}
+
+	pub fn into_command(self, password: &PasswordReader) -> Result<Cmd, String> {
+		let dirs = self.directories();
+
+		let cmd = if self.args.flag_version {
+			Cmd::Version
+		} else if self.args.cmd_signer {
+			Cmd::SignerToken
+		} else if self.args.cmd_account {
+			let account_cmd = if self.args.cmd_new {
+				let new_acc = NewAccount {
+					iterations: self.args.flag_keys_iterations,
+					path: dirs.keys,
+					password: try!(password.prompt()),
+				};
+				AccountCmd::New(new_acc)
+			} else if self.args.cmd_list {
+				AccountCmd::List(dirs.keys)
+			} else if self.args.cmd_import {
+				let import_acc = ImportAccounts {
+					from: self.args.arg_path.clone(),
+					to: dirs.keys,
+				};
+				AccountCmd::Import(import_acc)
+			} else {
+				unreachable!();
+			};
+			Cmd::Account(account_cmd)
+		} else if self.args.cmd_wallet {
+			let presale_cmd = ImportWallet {
+				iterations: self.args.flag_keys_iterations,
+				path: dirs.keys,
+				wallet_path: self.args.arg_path.first().unwrap().clone(),
+				password: try!(password.file(self.args.flag_password.first().unwrap())),
+			};
+			Cmd::ImportPresaleWallet(presale_cmd)
+		} else if self.args.cmd_import {
+			Cmd::Blockchain(BlockchainCmd::Import)
+		} else if self.args.cmd_export {
+			Cmd::Blockchain(BlockchainCmd::Export)
+		} else {
+			Cmd::Run(self)
+		};
+
+		Ok(cmd)
 	}
 
 	pub fn mode(&self) -> Mode {
@@ -471,7 +568,7 @@ impl Configuration {
 	pub fn directories(&self) -> Directories {
 		let db_path = Configuration::replace_home(
 			self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
-		::std::fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
 		let keys_path = Configuration::replace_home(
 			if self.args.flag_testnet {
@@ -480,15 +577,15 @@ impl Configuration {
 				&self.args.flag_keys_path
 			}
 		);
-		::std::fs::create_dir_all(&keys_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		fs::create_dir_all(&keys_path).unwrap_or_else(|e| die_with_io_error("main", e));
 		let dapps_path = Configuration::replace_home(&self.args.flag_dapps_path);
-		::std::fs::create_dir_all(&dapps_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		fs::create_dir_all(&dapps_path).unwrap_or_else(|e| die_with_io_error("main", e));
 		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
-		::std::fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
 
 		if self.args.flag_geth {
 			let geth_path = path::ethereum::default();
-			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
+			fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
 				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
 		}
 
@@ -566,11 +663,103 @@ mod tests {
 	use cli::USAGE;
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
+	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd};
+
+	#[derive(Debug, PartialEq)]
+	struct TestPasswordReader(&'static str);
+
+	impl PasswordReader for TestPasswordReader {
+		fn prompt(&self) -> Result<String, String> {
+			Ok(self.0.to_owned())
+		}
+
+		fn file(&self, _file: &str) -> Result<String, String> {
+			Ok(self.0.to_owned())
+		}
+	}
 
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Docopt::new(USAGE).unwrap().argv(args).decode().unwrap(),
 		}
+	}
+
+	#[test]
+	fn test_command_version() {
+		let args = vec!["parity", "--version"];
+		let conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("test");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Version);
+	}
+
+	#[test]
+	fn test_command_account_new() {
+		let args = vec!["parity", "account", "new"];
+		let mut conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("test");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(AccountCmd::New(NewAccount {
+			iterations: 10240,
+			path: Configuration::replace_home("$HOME/.parity/keys"),
+			password: "test".into(),
+		})));
+	}
+
+	#[test]
+	fn test_command_account_list() {
+		let args = vec!["parity", "account", "list"];
+		let conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("test");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(
+			AccountCmd::List(Configuration::replace_home("$HOME/.parity/keys")))
+		);
+	}
+
+	#[test]
+	fn test_command_account_import() {
+		let args = vec!["parity", "account", "import", "my_dir", "another_dir"];
+		let conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("test");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(AccountCmd::Import(ImportAccounts {
+			from: vec!["my_dir".into(), "another_dir".into()],
+			to: Configuration::replace_home("$HOME/.parity/keys"),
+		})));
+	}
+
+	#[test]
+	fn test_command_wallet_import() {
+		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
+		let mut conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("content_of_pwd");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::ImportPresaleWallet(ImportWallet {
+			iterations: 10240,
+			path: Configuration::replace_home("$HOME/.parity/keys"),
+			wallet_path: "my_wallet.json".into(),
+			password: "content_of_pwd".into(),
+		}));
+	}
+
+	#[test]
+	fn test_command_blockchain_import() {
+		let args = vec!["parity", "import", "blockchain.json"];
+		let conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("test");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Import));
+	}
+
+	#[test]
+	fn test_command_blockchain_export() {
+		let args = vec!["parity", "export", "blockchain.json"];
+		let conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("test");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Export));
+	}
+
+	#[test]
+	fn test_command_signer_new_token() {
+		let args = vec!["parity", "signer", "new-token"];
+		let conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("test");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::SignerToken);
 	}
 
 	#[test]
