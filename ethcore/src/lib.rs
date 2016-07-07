@@ -31,6 +31,7 @@
 #![cfg_attr(feature="dev", allow(needless_borrow))]
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
 
+#![cfg_attr(feature="benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -91,7 +92,11 @@ extern crate ethjson;
 extern crate bloomchain;
 #[macro_use] extern crate ethcore_ipc as ipc;
 extern crate rayon;
+extern crate hyper;
+extern crate ethash;
 pub extern crate ethstore;
+extern crate semver;
+extern crate ethcore_ipc_nano as nanoipc;
 
 #[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
@@ -103,7 +108,6 @@ pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
-pub mod filter;
 pub mod header;
 pub mod service;
 pub mod trace;

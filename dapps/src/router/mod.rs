@@ -17,23 +17,18 @@
 //! Router implementation
 //! Processes request handling authorization and dispatching it to proper application.
 
-mod url;
-mod redirect;
 pub mod auth;
 
 use DAPPS_DOMAIN;
 use std::sync::Arc;
 use std::collections::HashMap;
-use url::Host;
-use hyper;
-use hyper::{server, uri, header};
-use hyper::{Next, Encoder, Decoder};
+use url::{Url, Host};
+use hyper::{self, server, Next, Encoder, Decoder};
 use hyper::net::HttpStream;
 use apps;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
-use self::url::Url;
+use handlers::{Redirection, extract_url};
 use self::auth::{Authorization, Authorized};
-use self::redirect::Redirection;
 
 /// Special endpoints are accessible on every domain (every dapp)
 #[derive(Debug, PartialEq, Hash, Eq)]
@@ -121,32 +116,6 @@ impl<A: Authorization> Router<A> {
 			authorization: authorization,
 			handler: handler,
 		}
-	}
-}
-
-fn extract_url(req: &server::Request<HttpStream>) -> Option<Url> {
-	match *req.uri() {
-		uri::RequestUri::AbsoluteUri(ref url) => {
-			match Url::from_generic_url(url.clone()) {
-				Ok(url) => Some(url),
-				_ => None,
-			}
-		},
-		uri::RequestUri::AbsolutePath(ref path) => {
-			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-			let url_string = match req.headers().get::<header::Host>() {
-				Some(ref host) => {
-					format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
-				},
-				None => return None,
-			};
-
-			match Url::parse(&url_string) {
-				Ok(url) => Some(url),
-				_ => None,
-			}
-		},
-		_ => None,
 	}
 }
 

@@ -160,6 +160,8 @@ pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
 	Disconnect(PeerId),
 	/// Disconnect and temporary disable peer.
 	DisablePeer(PeerId),
+	/// Network has been started with the host as the given enode.
+	NetworkStarted(String),
 	/// User message
 	User(Message),
 }
@@ -348,6 +350,8 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	/// Create a new instance
 	pub fn new(config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host<Message>, UtilError> {
+		trace!(target: "host", "Creating new Host object");
+
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::from_str("0.0.0.0:30304").unwrap(),
 			Some(addr) => addr,
@@ -533,7 +537,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		};
 
 		self.info.write().unwrap().public_endpoint = Some(public_endpoint.clone());
-		info!("Public node URL: {}", self.external_url().unwrap());
+
+		if let Some(url) = self.external_url() {
+			io.message(NetworkIoMessage::NetworkStarted(url)).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+		}
 
 		// Initialize discovery.
 		let discovery = {
@@ -1030,6 +1037,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					h.message(&NetworkContext::new(io, p, None, self.sessions.clone(), &reserved), &message);
 				}
 			}
+			_ => {}	// ignore others.
 		}
 	}
 

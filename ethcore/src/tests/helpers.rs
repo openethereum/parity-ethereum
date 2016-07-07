@@ -17,7 +17,7 @@
 use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;
-use block::{OpenBlock};
+use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use state::*;
 use evm::Schedule;
@@ -175,11 +175,11 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 		let mut b = OpenBlock::new(
 			test_engine.deref(),
 			&vm_factory,
+			Default::default(),
 			false,
 			db,
 			&last_header,
 			last_hashes.clone(),
-			None,
 			author.clone(),
 			(3141562.into(), 31415620.into()),
 			vec![]
@@ -303,7 +303,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
-	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge, None);
+	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge, DatabaseConfig::default());
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(journal_db)
@@ -315,17 +315,17 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	let journal_db = get_temp_journal_db_in(temp.as_path());
 	GuardedTempResult {
 	    _temp: temp,
-		result: Some(State::new(journal_db, U256::from(0u8)))
+		result: Some(State::new(journal_db, U256::from(0), Default::default())),
 	}
 }
 
 pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
-	journaldb::new(path.to_str().unwrap(), journaldb::Algorithm::EarlyMerge, None)
+	journaldb::new(path.to_str().unwrap(), journaldb::Algorithm::EarlyMerge, DatabaseConfig::default())
 }
 
 pub fn get_temp_state_in(path: &Path) -> State {
 	let journal_db = get_temp_journal_db_in(path);
-	State::new(journal_db, U256::from(0u8))
+	State::new(journal_db, U256::from(0), Default::default())
 }
 
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {

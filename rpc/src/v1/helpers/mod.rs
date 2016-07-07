@@ -16,8 +16,10 @@
 
 mod poll_manager;
 mod poll_filter;
+mod requests;
 mod signing_queue;
 
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::PollFilter;
-pub use self::signing_queue::{ConfirmationsQueue, SigningQueue};
+pub use self::requests::{TransactionRequest, TransactionConfirmation, CallRequest};
+pub use self::signing_queue::{ConfirmationsQueue, SigningQueue, QueueEvent};

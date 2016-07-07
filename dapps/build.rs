@@ -25,8 +25,8 @@ mod inner {
     pub fn main() {
         let out_dir = env::var_os("OUT_DIR").unwrap();
 
-        let src = Path::new("./src/api/mod.rs.in");
-        let dst = Path::new(&out_dir).join("mod.rs");
+        let src = Path::new("./src/api/types.rs.in");
+        let dst = Path::new(&out_dir).join("types.rs");
 
         let mut registry = syntex::Registry::new();
 

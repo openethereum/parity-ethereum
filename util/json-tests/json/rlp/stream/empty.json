@@ -1,9 +1,0 @@
-{
-	"input":
-	[
-		{
-			"operation": "append_empty"
-		}
-	],
-	"output": "0x80"
-}

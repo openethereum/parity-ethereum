@@ -201,15 +201,20 @@ fn implement_dispatch_arm_invoke_stmt(
 		{
 			let _sp = ext_cx.call_site();
 			let mut tt = ::std::vec::Vec::new();
+
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("ipc"))));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("binary"))));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"))));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+
+			if dispatch.return_type_ty.is_some() {
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("ipc"))));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("binary"))));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"))));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+			}
+
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"))));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
 			tt.extend(::quasi::ToTokens::to_tokens(&function_name, ext_cx).into_iter());
@@ -221,12 +226,25 @@ fn implement_dispatch_arm_invoke_stmt(
 			}
 
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"))));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+
+			if dispatch.return_type_ty.is_some() {
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"))));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+			}
+			else {
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Semi));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Vec"))));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("new"))));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+
+			}
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+
 			tt
 		})).unwrap()
 }
@@ -497,9 +515,9 @@ fn client_generics(builder: &aster::AstBuilder, interface_map: &InterfaceMap) ->
 		.build()
 }
 
-fn client_qualified_ident(builder: &aster::AstBuilder, interface_map: &InterfaceMap) -> P<Ty> {
+fn client_qualified_ident(cx: &ExtCtxt, builder: &aster::AstBuilder, interface_map: &InterfaceMap) -> P<Ty> {
 	let generics = client_generics(builder, interface_map);
-	aster::ty::TyBuilder::new().path().segment(interface_map.ident_map.client_ident(builder))
+	aster::ty::TyBuilder::new().path().segment(interface_map.ident_map.client_ident(cx, builder, &interface_map.original_item))
 		.with_generics(generics).build()
 		.build()
 }
@@ -515,7 +533,7 @@ fn client_phantom_ident(builder: &aster::AstBuilder, interface_map: &InterfaceMa
 /// for say `Service` it generates `ServiceClient`
 fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, interface_map: &InterfaceMap, push: &mut FnMut(Annotatable)) {
 	let generics = client_generics(builder, interface_map);
-	let client_short_ident = interface_map.ident_map.client_ident(builder);
+	let client_short_ident = interface_map.ident_map.client_ident(cx, builder, &interface_map.original_item);
 	let phantom = client_phantom_ident(builder, interface_map);
 
 	let client_struct_item = quote_item!(cx,
@@ -547,9 +565,9 @@ fn push_with_socket_client_implementation(
 	push: &mut FnMut(Annotatable))
 {
 	let generics = client_generics(builder, interface_map);
-	let client_ident = client_qualified_ident(builder, interface_map);
+	let client_ident = client_qualified_ident(cx, builder, interface_map);
 	let where_clause = &generics.where_clause;
-	let client_short_ident = interface_map.ident_map.client_ident(builder);
+	let client_short_ident = interface_map.ident_map.client_ident(cx, builder, &interface_map.original_item);
 
 	let implement = quote_item!(cx,
 		impl $generics ::ipc::WithSocket<S> for $client_ident $where_clause {
@@ -578,7 +596,7 @@ fn push_client_implementation(
 		.collect::<Vec<P<ast::ImplItem>>>();
 
 	let generics = client_generics(builder, interface_map);
-	let client_ident = client_qualified_ident(builder, interface_map);
+	let client_ident = client_qualified_ident(cx, builder, interface_map);
 	let where_clause = &generics.where_clause;
 
 	let handshake_item = quote_impl_item!(cx,
@@ -682,6 +700,51 @@ fn implement_handshake_arm(
 }
 
 
+fn get_str_from_lit(cx: &ExtCtxt, name: &str, lit: &ast::Lit) -> Result<String, ()> {
+	match lit.node {
+		ast::LitKind::Str(ref s, _) => Ok(format!("{}", s)),
+		_ => {
+			cx.span_err(
+				lit.span,
+				&format!("ipc client_ident annotation `{}` must be a string, not `{}`",
+					name,
+					::syntax::print::pprust::lit_to_string(lit)));
+
+			return Err(());
+		}
+	}
+}
+
+pub fn get_ipc_meta_items(attr: &ast::Attribute) -> Option<&[P<ast::MetaItem>]> {
+    match attr.node.value.node {
+        ast::MetaItemKind::List(ref name, ref items) if name == &"ipc" => {
+            Some(items)
+        }
+        _ => None
+    }
+}
+
+fn client_ident_renamed(cx: &ExtCtxt, item: &ast::Item) -> Option<String> {
+	for meta_items in item.attrs().iter().filter_map(get_ipc_meta_items) {
+		for meta_item in meta_items {
+			match meta_item.node {
+				ast::MetaItemKind::NameValue(ref name, ref lit) if name == &"client_ident" => {
+					if let Ok(s) = get_str_from_lit(cx, name, lit) {
+						return Some(s);
+					}
+				}
+				_ => {
+					cx.span_err(
+						meta_item.span,
+						&format!("unknown client_ident container attribute `{}`",
+								 ::syntax::print::pprust::meta_item_to_string(meta_item)));
+				}
+			}
+		}
+	}
+	None
+}
+
 struct InterfaceMap {
 	pub original_item: Item,
 	pub item: P<ast::Item>,
@@ -700,8 +763,13 @@ impl IdentMap {
 		builder.id(format!("{}", ::syntax::print::pprust::path_to_string(&self.original_path)))
 	}
 
-	fn client_ident(&self, builder: &aster::AstBuilder) -> Ident {
-		builder.id(format!("{}Client", self.original_path.segments[0].identifier))
+	fn client_ident(&self, cx: &ExtCtxt, builder: &aster::AstBuilder, item: &ast::Item) -> Ident {
+		if let Some(new_name) = client_ident_renamed(cx, item) {
+			builder.id(new_name)
+		}
+		else {
+			builder.id(format!("{}Client", self.original_path.segments[0].identifier))
+		}
 	}
 
 	fn qualified_ident(&self, builder: &aster::AstBuilder) -> Ident {

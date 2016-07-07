@@ -87,9 +87,10 @@ use std::cmp;
 use std::collections::{HashMap, BTreeSet};
 use util::numbers::{Uint, U256};
 use util::hash::{Address, H256};
-use util::table::*;
+use util::table::Table;
 use transaction::*;
 use error::{Error, TransactionError};
+use client::TransactionImportResult;
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -197,6 +198,7 @@ struct VerifiedTransaction {
 	/// transaction origin
 	origin: TransactionOrigin,
 }
+
 impl VerifiedTransaction {
 	fn new(transaction: SignedTransaction, origin: TransactionOrigin) -> Result<Self, Error> {
 		try!(transaction.sender());
@@ -309,15 +311,6 @@ pub struct TransactionQueueStatus {
 	pub future: usize,
 }
 
-#[derive(Debug, PartialEq)]
-/// Represents the result of importing transaction.
-pub enum TransactionImportResult {
-	/// Transaction was imported to current queue.
-	Current,
-	/// Transaction was imported to future queue.
-	Future
-}
-
 /// Details of account
 pub struct AccountDetails {
 	/// Most recent account nonce
@@ -334,6 +327,8 @@ const GAS_LIMIT_HYSTERESIS: usize = 10; // %
 pub struct TransactionQueue {
 	/// Gas Price threshold for transactions that can be imported to this queue (defaults to 0)
 	minimal_gas_price: U256,
+	/// The maximum amount of gas any individual transaction may use.
+	tx_gas_limit: U256,
 	/// Current gas limit (block gas limit * factor). Transactions above the limit will not be accepted (default to !0)
 	gas_limit: U256,
 	/// Priority queue for transactions that can go to block
@@ -355,11 +350,11 @@ impl Default for TransactionQueue {
 impl TransactionQueue {
 	/// Creates new instance of this Queue
 	pub fn new() -> Self {
-		Self::with_limit(1024)
+		Self::with_limits(1024, !U256::zero())
 	}
 
 	/// Create new instance of this Queue with specified limits
-	pub fn with_limit(limit: usize) -> Self {
+	pub fn with_limits(limit: usize, tx_gas_limit: U256) -> Self {
 		let current = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
@@ -374,6 +369,7 @@ impl TransactionQueue {
 
 		TransactionQueue {
 			minimal_gas_price: U256::zero(),
+			tx_gas_limit: tx_gas_limit,
 			gas_limit: !U256::zero(),
 			current: current,
 			future: future,
@@ -418,6 +414,12 @@ impl TransactionQueue {
 		};
 	}
 
+	/// Set the new limit for the amount of gas any individual transaction may have.
+	/// Any transaction already imported to the queue is not affected.
+	pub fn set_tx_gas_limit(&mut self, limit: U256) {
+		self.tx_gas_limit = limit;
+	}
+
 	/// Returns current status for this queue
 	pub fn status(&self) -> TransactionQueueStatus {
 		TransactionQueueStatus {
@@ -430,12 +432,14 @@ impl TransactionQueue {
 	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_account: &T, origin: TransactionOrigin) -> Result<TransactionImportResult, Error>
 	where T: Fn(&Address) -> AccountDetails {
 
-		trace!(target: "miner", "Importing: {:?}", tx.hash());
+		trace!(target: "txqueue", "Importing: {:?}", tx.hash());
 
-		if tx.gas_price < self.minimal_gas_price {
-			trace!(target: "miner",
+		if tx.gas_price < self.minimal_gas_price && origin != TransactionOrigin::Local {
+			trace!(target: "txqueue",
 				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
-				tx.hash(), tx.gas_price, self.minimal_gas_price
+				tx.hash(),
+				tx.gas_price,
+				self.minimal_gas_price
 			);
 
 			return Err(Error::Transaction(TransactionError::InsufficientGasPrice {
@@ -446,10 +450,13 @@ impl TransactionQueue {
 
 		try!(tx.check_low_s());
 
-		if tx.gas > self.gas_limit {
-			trace!(target: "miner",
-				"Dropping transaction above gas limit: {:?} ({} > {})",
-				tx.hash(), tx.gas, self.gas_limit
+		if tx.gas > self.gas_limit || tx.gas > self.tx_gas_limit {
+			trace!(target: "txqueue",
+				"Dropping transaction above gas limit: {:?} ({} > min({}, {}))",
+				tx.hash(),
+				tx.gas,
+				self.gas_limit,
+				self.tx_gas_limit
 			);
 
 			return Err(Error::Transaction(TransactionError::GasLimitExceeded {
@@ -463,8 +470,13 @@ impl TransactionQueue {
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
 		if client_account.balance < cost {
-			trace!(target: "miner", "Dropping transaction without sufficient balance: {:?} ({} < {})",
-				vtx.hash(), client_account.balance, cost);
+			trace!(target: "txqueue",
+				"Dropping transaction without sufficient balance: {:?} ({} < {})",
+				vtx.hash(),
+				client_account.balance,
+				cost
+			);
+
 			return Err(Error::Transaction(TransactionError::InsufficientBalance {
 				cost: cost,
 				balance: client_account.balance
@@ -546,7 +558,7 @@ impl TransactionQueue {
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
-				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
+				trace!(target: "txqueue", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				// Remove the transaction completely
 				self.by_hash.remove(&order.hash).expect("All transactions in `future` are also in `by_hash`");
 			}
@@ -567,7 +579,7 @@ impl TransactionQueue {
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
-				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
+				trace!(target: "txqueue", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				self.by_hash.remove(&order.hash).expect("All transactions in `future` are also in `by_hash`");
 			}
 		}
@@ -655,7 +667,7 @@ impl TransactionQueue {
 
 		if self.by_hash.get(&tx.hash()).is_some() {
 			// Transaction is already imported.
-			trace!(target: "miner", "Dropping already imported transaction: {:?}", tx.hash());
+			trace!(target: "txqueue", "Dropping already imported transaction: {:?}", tx.hash());
 			return Err(TransactionError::AlreadyImported);
 		}
 
@@ -672,7 +684,7 @@ impl TransactionQueue {
 		// nonce height would result in overflow.
 		if nonce < state_nonce {
 			// Droping transaction
-			trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
+			trace!(target: "txqueue", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
 			return Err(TransactionError::Old);
 		} else if nonce > next_nonce {
 			// We have a gap - put to future.
@@ -708,7 +720,7 @@ impl TransactionQueue {
 		// Trigger error if the transaction we are importing was removed.
 		try!(check_if_removed(&address, &nonce, removed));
 
-		trace!(target: "miner", "status: {:?}", self.status());
+		trace!(target: "txqueue", "status: {:?}", self.status());
 		Ok(TransactionImportResult::Current)
 	}
 
@@ -793,6 +805,7 @@ mod test {
 	use error::{Error, TransactionError};
 	use super::*;
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
+	use client::TransactionImportResult;
 
 	fn unwrap_tx_err(err: Result<TransactionImportResult, Error>) -> TransactionError {
 		match err.unwrap_err() {
@@ -1036,7 +1049,7 @@ mod test {
 	}
 
 	#[test]
-	fn should_not_import_transaction_below_min_gas_price_threshold() {
+	fn should_not_import_transaction_below_min_gas_price_threshold_if_external() {
 		// given
 		let mut txq = TransactionQueue::new();
 		let tx = new_tx();
@@ -1052,6 +1065,23 @@ mod test {
 		});
 		let stats = txq.status();
 		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.future, 0);
+	}
+
+	#[test]
+	fn should_import_transaction_below_min_gas_price_threshold_if_local() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		txq.set_minimal_gas_price(tx.gas_price + U256::one());
+
+		// when
+		let res = txq.add(tx, &default_nonce, TransactionOrigin::Local);
+
+		// then
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		let stats = txq.status();
+		assert_eq!(stats.pending, 1);
 		assert_eq!(stats.future, 0);
 	}
 
@@ -1288,7 +1318,7 @@ mod test {
 	#[test]
 	fn should_drop_old_transactions_when_hitting_the_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limit(1);
+		let mut txq = TransactionQueue::with_limits(1, !U256::zero());
 		let (tx, tx2) = new_txs(U256::one());
 		let sender = tx.sender().unwrap();
 		let nonce = tx.nonce;
@@ -1310,7 +1340,7 @@ mod test {
 	#[test]
 	fn should_return_correct_nonces_when_dropped_because_of_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limit(2);
+		let mut txq = TransactionQueue::with_limits(2, !U256::zero());
 		let tx = new_tx();
 		let (tx1, tx2) = new_txs(U256::one());
 		let sender = tx1.sender().unwrap();
@@ -1331,7 +1361,7 @@ mod test {
 
 	#[test]
 	fn should_limit_future_transactions() {
-		let mut txq = TransactionQueue::with_limit(1);
+		let mut txq = TransactionQueue::with_limits(1, !U256::zero());
 		txq.current.set_limit(10);
 		let (tx1, tx2) = new_txs_with_gas_price_diff(U256::from(4), U256::from(1));
 		let (tx3, tx4) = new_txs_with_gas_price_diff(U256::from(4), U256::from(2));
@@ -1591,7 +1621,7 @@ mod test {
 	#[test]
 	fn should_keep_right_order_in_future() {
 		// given
-		let mut txq = TransactionQueue::with_limit(1);
+		let mut txq = TransactionQueue::with_limits(1, !U256::zero());
 		let (tx1, tx2) = new_txs(U256::from(1));
 		let prev_nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce - U256::one(), balance:
 			default_nonce(a).balance };
