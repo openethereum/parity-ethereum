@@ -32,8 +32,6 @@ extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
-#[cfg(not(windows))]
-extern crate daemonize;
 extern crate time;
 extern crate number_prefix;
 extern crate rpassword;
@@ -91,29 +89,32 @@ use migration::migrate;
 use informant::Informant;
 
 use die::*;
-use cli::print_version;
 use rpc::RpcServer;
-use signer::{SignerServer, new_token};
+use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use configuration::{Policy, Configuration};
+use configuration::{Policy, Configuration, IOPasswordReader};
+use std::process;
 
 fn main() {
 	let conf = Configuration::parse(env::args()).unwrap_or_else(|e| e.exit());
-	execute(conf);
+	match new_execute(conf) {
+		Ok(result) => {
+			print!("{}", result);
+		},
+		Err(err) => {
+			print!("{}", err);
+			process::exit(1);
+		}
+	}
+}
+
+fn new_execute(conf: Configuration) -> Result<String, String> {
+	let cmd = try!(conf.into_command(&IOPasswordReader));
+	commands::execute(cmd)
 }
 
 fn execute(conf: Configuration) {
-	if conf.args.flag_version {
-		print_version();
-		return;
-	}
-
-	if conf.args.cmd_signer {
-		execute_signer(conf);
-		return;
-	}
-
 	let spec = conf.spec();
 	let client_config = conf.client_config(&spec);
 
@@ -123,41 +124,23 @@ fn execute(conf: Configuration) {
 		daemonize(&conf);
 	}
 
-	if conf.args.cmd_account {
-		execute_account_cli(conf);
-		return;
-	}
-
-	if conf.args.cmd_wallet {
-		execute_wallet_cli(conf);
-		return;
-	}
-
-	if conf.args.cmd_export {
-		execute_export(conf);
-		return;
-	}
-
-	if conf.args.cmd_import {
-		execute_import(conf);
-		return;
-	}
-
 	execute_client(conf, spec, client_config);
 }
 
 #[cfg(not(windows))]
-fn daemonize(conf: &Configuration) {
-	use daemonize::Daemonize;
-	Daemonize::new()
+fn daemonize(conf: &Configuration) -> Result<(), String> {
+	extern crate daemonize;
+
+	daemonize::Daemonize::new()
 			.pid_file(conf.args.arg_pid_file.clone())
 			.chown_pid_file(true)
 			.start()
-			.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
+			.map(|_| ())
+			.map_err(|e| format!("Couldn't daemonize; {}", e))
 }
 
 #[cfg(windows)]
-fn daemonize(_conf: &Configuration) {
+fn daemonize(_conf: &Configuration) -> ! {
 }
 
 fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) {
@@ -211,7 +194,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Check fork settings.
 	if conf.policy() != Policy::None {
-		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");		
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 
 	let net_settings = conf.net_settings(&spec);
@@ -323,10 +306,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Handle exit
 	wait_for_exit(panic_handler, rpc_server, dapps_server, signer_server);
-}
-
-fn flush_stdout() {
-	::std::io::stdout().flush().expect("stdout is flushable; qed");
 }
 
 enum DataFormat {
@@ -511,88 +490,6 @@ fn execute_import(conf: Configuration) {
 		}
 	}
 	client.flush_queue();
-}
-
-fn execute_signer(conf: Configuration) {
-	if !conf.args.cmd_new_token {
-		die!("Unknown command.");
-	}
-
-	let path = conf.directories().signer;
-	new_token(path).unwrap_or_else(|e| {
-		die!("Error generating token: {:?}", e)
-	});
-}
-
-fn execute_account_cli(conf: Configuration) {
-	use ethcore::ethstore::{EthStore, import_accounts};
-	use ethcore::ethstore::dir::DiskDirectory;
-	use ethcore::account_provider::AccountProvider;
-	use rpassword::read_password;
-
-	let dir = Box::new(DiskDirectory::create(conf.keys_path()).unwrap());
-	let iterations = conf.keys_iterations();
-	let secret_store = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
-
-	if conf.args.cmd_new {
-		println!("Please note that password is NOT RECOVERABLE.");
-		print!("Type password: ");
-		flush_stdout();
-		let password = read_password().unwrap();
-		print!("Repeat password: ");
-		flush_stdout();
-		let password_repeat = read_password().unwrap();
-		if password != password_repeat {
-			println!("Passwords do not match!");
-			return;
-		}
-		println!("New account address:");
-		let new_address = secret_store.new_account(&password).unwrap();
-		println!("{:?}", new_address);
-		return;
-	}
-
-	if conf.args.cmd_list {
-		println!("Known addresses:");
-		for addr in &secret_store.accounts() {
-			println!("{:?}", addr);
-		}
-		return;
-	}
-
-	if conf.args.cmd_import {
-		let to = DiskDirectory::create(conf.keys_path()).unwrap();
-		let mut imported = 0;
-		for path in &conf.args.arg_path {
-			let from = DiskDirectory::at(path);
-			imported += import_accounts(&from, &to).unwrap_or_else(|e| die!("Could not import accounts {}", e)).len();
-		}
-		println!("Imported {} keys", imported);
-	}
-}
-
-fn execute_wallet_cli(conf: Configuration) {
-	use ethcore::ethstore::{PresaleWallet, EthStore};
-	use ethcore::ethstore::dir::DiskDirectory;
-	use ethcore::account_provider::AccountProvider;
-
-	let wallet_path = conf.args.arg_path.first().unwrap();
-	let filename = conf.args.flag_password.first().unwrap();
-	let mut file = File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
-	let mut file_content = String::new();
-	file.read_to_string(&mut file_content).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
-
-	let dir = Box::new(DiskDirectory::create(conf.keys_path()).unwrap());
-	let iterations = conf.keys_iterations();
-	let store = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
-
-	// remove eof
-	let pass = &file_content[..file_content.len() - 1];
-	let wallet = PresaleWallet::open(wallet_path).unwrap_or_else(|_| die!("Unable to open presale wallet."));
-	let kp = wallet.decrypt(pass).unwrap_or_else(|_| die!("Invalid password"));
-	let address = store.insert_account(kp.secret().clone(), pass).unwrap();
-
-	println!("Imported account: {}", address);
 }
 
 fn wait_for_exit(

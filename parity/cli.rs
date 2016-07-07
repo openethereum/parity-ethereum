@@ -377,8 +377,8 @@ pub struct Args {
 	pub flag_fat_db: bool,
 }
 
-pub fn print_version() {
-	println!("\
+pub fn print_version() -> String {
+	format!("\
 Parity
   version {}
 Copyright 2015, 2016 Ethcore (UK) Limited
@@ -387,6 +387,6 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
-", version());
+", version())
 }
 

@@ -22,6 +22,7 @@ pub use self::presale::ImportWallet;
 use cli::print_version;
 use configuration::Configuration;
 use execute as main_execute;
+use signer;
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -30,7 +31,7 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken,
+	SignerToken(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -45,16 +46,13 @@ pub fn execute(command: Cmd) -> Result<String, String> {
 			main_execute(configuration);
 			unimplemented!();
 		},
-		Cmd::Version => {
-			print_version();
-			unimplemented!();
-		},
+		Cmd::Version => Ok(print_version()),
 		Cmd::Account(account_cmd) => account::execute(account_cmd),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
 		Cmd::Blockchain(_blockchain_cmd) => {
 			unimplemented!();
 		},
-		Cmd::SignerToken => {
+		Cmd::SignerToken(path) => {
 			unimplemented!();
 		},
 	}

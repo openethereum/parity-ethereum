@@ -117,7 +117,7 @@ impl Configuration {
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer {
-			Cmd::SignerToken
+			Cmd::SignerToken(dirs.signer)
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_new {
 				let new_acc = NewAccount {
@@ -749,7 +749,8 @@ mod tests {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::SignerToken);
+		let expected = Configuration::replace_home("$HOME/.parity/signer");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::SignerToken(expected));
 	}
 
 	#[test]

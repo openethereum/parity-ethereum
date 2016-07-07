@@ -20,7 +20,6 @@ extern crate ansi_term;
 use self::ansi_term::Colour::White;
 use std::io;
 use std::path::PathBuf;
-use std::path::PathBuf;
 use std::sync::Arc;
 use util::panics::ForwardPanic;
 use util::{Colour, Applyable};
@@ -49,13 +48,18 @@ fn codes_path(path: String) -> PathBuf {
 	p
 }
 
-pub fn new_token(path: String) -> io::Result<()> {
+pub fn new_token(path: String) -> Result<String, String> {
+	generate_new_token(path)
+		.map(|code| format!("This key code will authorise your System Signer UI: {}", code.apply(Colour::White.bold())))
+		.map_err(|err| format!("Error generating token: {:?}", err))
+}
+
+fn generate_new_token(path: String) -> io::Result<String> {
 	let path = codes_path(path);
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	try!(codes.to_file(&path));
-	println!("This key code will authorise your System Signer UI: {}", code.apply(Colour::White.bold()));
-	Ok(())
+	Ok(code)
 }
 
 fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
