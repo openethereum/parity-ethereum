@@ -25,20 +25,20 @@ use sha3::*;
 use MemoryDB;
 
 /// Backing compressed `HashDB` with decompressed `MemoryDB` overlay.
-pub struct CompressedDB<'a, T: 'a + HashDB> {
+pub struct CompressedDB<'db> {
 	overlay: MemoryDB,
-	backing: &'a T,
+	backing: &'db HashDB,
 }
 
-impl<'a, T: 'a + HashDB> CompressedDB<'a, T> {
+impl<'db> CompressedDB<'db> {
 	/// Create a compressing wrapper for `backing` db.
-	pub fn new(backing: &'a T) -> CompressedDB<'a, T> {
+	pub fn new(backing: &'db HashDB) -> CompressedDB<'db> {
 		CompressedDB { overlay: MemoryDB::new(), backing: backing }
 	}
 }
 
 /// `HashDB` wrapper which keeps the RLP values compressed.
-impl<'a, T> HashDB for CompressedDB<'a, T> where T: HashDB {
+impl<'db> HashDB for CompressedDB<'db> {
 	fn keys(&self) -> HashMap<H256, i32> { self.backing.keys() }
 
 	fn get(&self, key: &H256) -> Option<&[u8]> {
@@ -60,7 +60,7 @@ impl<'a, T> HashDB for CompressedDB<'a, T> where T: HashDB {
 		unimplemented!()
 	}
 
-	fn emplace(&mut self, _key: H256, value: Bytes) {
+	fn emplace(&mut self, _key: H256, _value: Bytes) {
 		unimplemented!()
 	}	
 
@@ -74,20 +74,20 @@ impl<'a, T> HashDB for CompressedDB<'a, T> where T: HashDB {
 }
 
 /// Backing compressed mutable `HashDB` with decompressed `MemoryDB` overlay.
-pub struct CompressedDBMut<'a, T: 'a + HashDB> {
+pub struct CompressedDBMut<'db> {
 	overlay: MemoryDB,
-	backing: &'a mut T,
+	backing: &'db mut HashDB,
 }
 
-impl<'a, T: 'a + HashDB> CompressedDBMut<'a, T> {
+impl<'db> CompressedDBMut<'db> {
 	/// Create a compressing wrapper for `backing` db.
-	pub fn new(backing: &'a mut T) -> CompressedDB<'a, T> {
-		CompressedDB { overlay: MemoryDB::new(), backing: backing }
+	pub fn new(backing: &'db mut HashDB) -> CompressedDBMut<'db> {
+		CompressedDBMut { overlay: MemoryDB::new(), backing: backing }
 	}
 }
 
 /// `HashDB` wrapper which keeps the RLP values compressed.
-impl<'a, T> HashDB for CompressedDBMut<'a, T> where T: HashDB {
+impl<'db> HashDB for CompressedDBMut<'db> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		self.backing.keys()
 	}
@@ -139,7 +139,7 @@ fn compressed_db() {
 	let mut backing = MemoryDB::new();
 	let common_rlp = vec![160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33];
 	{
-		let mut db: CompressedDB<MemoryDB> = CompressedDB::new(&mut backing);
+		let mut db = CompressedDBMut::new(&mut backing);
 		let key = db.insert(&common_rlp);
 		assert_eq!(db.get(&key).unwrap(), common_rlp.as_slice());
 	}
@@ -147,6 +147,6 @@ fn compressed_db() {
 		let compressed_rlp = backing.get(backing.keys().keys().next().unwrap()).unwrap();
 		assert_eq!(compressed_rlp.len(), 2);
 	}
-	let on_existing = CompressedDB::new(&mut backing);
+	let on_existing = CompressedDB::new(&backing);
 	assert_eq!(on_existing.get(on_existing.keys().keys().next().unwrap()).unwrap(), common_rlp.as_slice());
 }
