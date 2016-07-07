@@ -425,11 +425,11 @@ impl Configuration {
 	fn geth_ipc_path(&self) -> String {
 		if cfg!(windows) {
 			r"\\.\pipe\geth.ipc".to_owned()
-		}
-		else {
-			if self.args.flag_testnet { path::ethereum::with_testnet("geth.ipc") }
-			else { path::ethereum::with_default("geth.ipc") }
-				.to_str().unwrap().to_owned()
+		} else {
+			match self.args.flag_testnet {
+				true => path::ethereum::with_testnet("geth.ipc"),
+				false => path::ethereum::with_default("geth.ipc"),
+			}.to_str().unwrap().to_owned()
 		}
 	}
 
