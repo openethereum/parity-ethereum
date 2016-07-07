@@ -28,6 +28,8 @@ use service::*;
 use client::BlockStatus;
 use util::panics::*;
 
+pub use types::block_queue_info::BlockQueueInfo;
+
 known_heap_size!(0, UnverifiedBlock, VerifyingBlock, PreverifiedBlock);
 
 const MIN_MEM_LIMIT: usize = 16384;
@@ -53,22 +55,6 @@ impl Default for BlockQueueConfig {
 	}
 }
 
-/// Block queue status
-#[derive(Debug)]
-pub struct BlockQueueInfo {
-	/// Number of queued blocks pending verification
-	pub unverified_queue_size: usize,
-	/// Number of verified queued blocks pending import
-	pub verified_queue_size: usize,
-	/// Number of blocks being verified
-	pub verifying_queue_size: usize,
-	/// Configured maximum number of blocks in the queue
-	pub max_queue_size: usize,
-	/// Configured maximum number of bytes to use
-	pub max_mem_use: usize,
-	/// Heap memory used in bytes
-	pub mem_used: usize,
-}
 
 impl BlockQueueInfo {
 	/// The total size of the queues.
