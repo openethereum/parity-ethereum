@@ -190,4 +190,20 @@ mod tests {
 
 		assert_eq!(struct_, new_struct);
 	}
+
+	#[test]
+	fn can_call_void_method() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![1];
+		let service_client = ServiceClient::init(socket);
+
+		service_client.void(99);
+
+		assert_eq!(vec![
+			0, 19,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			8, 0, 0, 0, 0, 0, 0, 0,
+			99, 0, 0, 0, 0, 0, 0, 0],
+			service_client.socket().write().unwrap().write_buffer.clone());
+	}
 }

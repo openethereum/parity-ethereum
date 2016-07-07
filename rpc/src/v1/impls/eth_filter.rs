@@ -25,7 +25,7 @@ use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockID};
 use v1::traits::EthFilter;
-use v1::types::{BlockNumber, Index, Filter, Log};
+use v1::types::{BlockNumber, Index, Filter, Log, H256 as RpcH256, U256 as RpcU256};
 use v1::helpers::{PollFilter, PollManager};
 use v1::impls::eth::pending_logs;
 
@@ -52,6 +52,12 @@ impl<C, M> EthFilterClient<C, M> where
 			polls: Mutex::new(PollManager::new()),
 		}
 	}
+
+	fn active(&self) -> Result<(), Error> {
+		// TODO: only call every 30s at most.
+		take_weak!(self.client).keep_alive();
+		Ok(())
+	}
 }
 
 impl<C, M> EthFilter for EthFilterClient<C, M> where
@@ -59,40 +65,44 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	M: MinerService + 'static {
 
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
 				let mut polls = self.polls.lock().unwrap();
 				let block_number = take_weak!(self.client).chain_info().best_block_number;
 				let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
-				to_value(&U256::from(id))
+				to_value(&RpcU256::from(id))
 			})
 	}
 
 	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
 				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
-				to_value(&U256::from(id))
+				to_value(&RpcU256::from(id))
 			},
 			_ => Err(Error::invalid_params())
 		}
 	}
 
 	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
 				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
 				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
 
-				to_value(&U256::from(id))
+				to_value(&RpcU256::from(id))
 			},
 			_ => Err(Error::invalid_params())
 		}
 	}
 
 	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
@@ -106,7 +116,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							let hashes = (*block_number..current_number).into_iter()
 								.map(BlockID::Number)
 								.filter_map(|id| client.block_hash(id))
-								.collect::<Vec<H256>>();
+								.map(Into::into)
+								.collect::<Vec<RpcH256>>();
 
 							*block_number = current_number;
 
@@ -125,7 +136,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 									.iter()
 									.filter(|hash| !previous_hashes_set.contains(hash))
 									.cloned()
-									.collect::<Vec<H256>>()
+									.map(Into::into)
+									.collect::<Vec<RpcH256>>()
 							};
 
 							// save all hashes of pending transactions
@@ -181,6 +193,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	}
 
 	fn filter_logs(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
 				let mut polls = self.polls.lock().unwrap();
@@ -206,6 +219,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	}
 
 	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
 				self.polls.lock().unwrap().remove_poll(&index.value());

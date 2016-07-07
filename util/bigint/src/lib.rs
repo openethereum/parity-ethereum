@@ -17,7 +17,6 @@
 #![cfg_attr(asm_available, feature(asm))]
 
 extern crate rustc_serialize;
-extern crate serde;
 #[macro_use] extern crate heapsize;
 
 pub mod uint;

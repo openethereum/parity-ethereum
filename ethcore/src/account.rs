@@ -127,7 +127,7 @@ impl Account {
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
 
-			(Filth::Clean, H256::from(db.get(key.bytes()).map_or(U256::zero(), |v| -> U256 {decode(v)})))
+			(Filth::Clean, H256::from(db.get(key).map_or(U256::zero(), |v| -> U256 {decode(v)})))
 		}).1.clone()
 	}
 

@@ -33,11 +33,8 @@ use super::spec::*;
 pub fn new_olympic() -> Spec { Spec::load(include_bytes!("../../res/ethereum/olympic.json")) }
 
 /// Create a new Frontier mainnet chain spec.
-pub fn new_frontier(dao_rescue: bool) -> Spec {
-	Spec::load(match dao_rescue {
-		true => include_bytes!("../../res/ethereum/frontier_dao_rescue.json"),
-		false => include_bytes!("../../res/ethereum/frontier.json"),
-	})
+pub fn new_frontier() -> Spec {
+	Spec::load(include_bytes!("../../res/ethereum/frontier.json"))
 }
 
 /// Create a new Frontier chain spec as though it never changes to Homestead.
@@ -89,7 +86,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let frontier = new_frontier(true);
+		let frontier = new_frontier();
 
 		assert_eq!(frontier.state_root(), H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap());
 		let genesis = frontier.genesis_block();

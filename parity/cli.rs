@@ -32,7 +32,19 @@ Usage:
   parity [options]
   parity ui [options]
 
-Protocol Options:
+Operating Options:
+  --mode MODE              Set the operating mode. MODE can be one of:
+                           active - Parity continuously syncs the chain.
+                           passive - Parity syncs initially, then sleeps and
+                           wakes regularly to resync. 
+                           dark - Parity syncs only when an external interface
+                           is active. [default: active].
+  --mode-timeout SECS      Specify the number of seconds before inactivity
+                           timeout occurs when mode is dark or passive
+                           [default: 300].
+  --mode-alarm SECS        Specify the number of seconds before auto sleep
+                           reawake timeout occurs when mode is passive
+                           [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, or testnet
@@ -45,9 +57,8 @@ Protocol Options:
   --fork POLICY            Specifies the client's fork policy. POLICY must be
                            one of:
                            dogmatic - sticks rigidly to the standard chain.
-                           dao-soft - votes for the DAO-rescue soft-fork.
-                           normal - goes with whatever fork is decided but
-                           votes for none. [default: normal].
+                           none - goes with whatever fork is decided but
+                           votes for none. [default: none].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
@@ -269,6 +280,9 @@ pub struct Args {
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,
+	pub flag_mode: String,
+	pub flag_mode_timeout: u64,
+	pub flag_mode_alarm: u64,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
