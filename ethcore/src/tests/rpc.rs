@@ -60,7 +60,7 @@ fn can_handshake() {
 fn can_query_block() {
 	crossbeam::scope(|scope| {
 		let stop_guard = StopGuard::new();
-		let socket_path = "ipc:///tmp/parity-client-rpc-10.ipc";
+		let socket_path = "ipc:///tmp/parity-client-rpc-20.ipc";
 		run_test_worker(scope, stop_guard.share(), socket_path);
 		let remote_client = nanoipc::init_client::<RemoteClient<_>>(socket_path).unwrap();
 
