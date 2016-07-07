@@ -35,7 +35,7 @@ use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use price_info::PriceInfo;
 use rpc::IpcConfiguration;
-use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd};
+use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, LoggerConfig, SpecType};
 
 /// Flush output buffer.
 fn flush_stdout() {
@@ -113,6 +113,10 @@ impl Configuration {
 
 	pub fn into_command(self, password: &PasswordReader) -> Result<Cmd, String> {
 		let dirs = self.directories();
+		let logger_config = LoggerConfig {
+			mode: None,
+			color: false,
+		};
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -147,7 +151,14 @@ impl Configuration {
 			};
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
-			Cmd::Blockchain(BlockchainCmd::Import)
+			let import_cmd = ImportBlockchain {
+				spec: try!(SpecType::from_str(&self.chain())),
+				logger_config: logger_config,
+				db_path: dirs.db.clone(),
+				file_path: self.args.arg_file.clone(),
+				format: None,
+			};
+			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
 			Cmd::Blockchain(BlockchainCmd::Export)
 		} else {
@@ -376,24 +387,18 @@ impl Configuration {
 		ret
 	}
 
-	pub fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
-		let mut ret = None;
-		let mut latest_era = None;
-		let jdb_types = journaldb::Algorithm::all_types();
-		for i in jdb_types.into_iter() {
-			let state_path = append_path(&get_db_path(Path::new(&self.path()), i, spec.genesis_header().hash()), "state");
-			let db = journaldb::new(&state_path, i, kvdb::DatabaseConfig::default());
+	pub fn find_best_db(&self, spec: &Spec) -> journaldb::Algorithm {
+		let mut jdb_types = journaldb::Algorithm::all_types();
+
+		// if all dbs have the same latest era, the last element is the default one
+		jdb_types.push(journaldb::Algorithm::OverlayRecent);
+
+		jdb_types.into_iter().max_by_key(|i| {
+			let state_path = append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state");
+			let db = journaldb::new(&state_path, *i, kvdb::DatabaseConfig::default());
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
-			match (latest_era, db.latest_era()) {
-				(Some(best), Some(this)) if best >= this => {}
-				(_, None) => {}
-				(_, Some(this)) => {
-					latest_era = Some(this);
-					ret = Some(i);
-				}
-			}
-		}
-		ret
+			db.latest_era()
+		}).unwrap()
 	}
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
@@ -414,12 +419,8 @@ impl Configuration {
 		// forced blockchain (blocks + extras) db cache size if provided
 		client_config.blockchain.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 2));
 
-		client_config.tracing.enabled = match self.args.flag_tracing.as_str() {
-			"auto" => Switch::Auto,
-			"on" => Switch::On,
-			"off" => Switch::Off,
-			_ => { die!("Invalid tracing method given!") }
-		};
+		client_config.tracing.enabled = Switch::from_str(&self.args.flag_tracing).unwrap_or_else(|e| die!("{}", e));
+
 		// forced trace db cache size if provided
 		client_config.tracing.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
@@ -428,7 +429,7 @@ impl Configuration {
 			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
+			"auto" => self.find_best_db(spec),
 			_ => { die!("Invalid pruning method given."); }
 		};
 
@@ -654,7 +655,7 @@ mod tests {
 	use cli::USAGE;
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
-	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd};
+	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, SpecType, ImportBlockchain, LoggerConfig};
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -734,7 +735,16 @@ mod tests {
 		let args = vec!["parity", "import", "blockchain.json"];
 		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Import));
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
+			spec: SpecType::Mainnet,
+			logger_config: LoggerConfig {
+				mode: None,
+				color: false,
+			},
+			db_path: Configuration::replace_home("$HOME/.parity"),
+			file_path: Some("blockchain.json".into()),
+			format: None,
+		})));
 	}
 
 	#[test]

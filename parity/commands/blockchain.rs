@@ -38,7 +38,7 @@ impl FromStr for DataFormat {
 
 #[derive(Debug, PartialEq)]
 pub enum BlockchainCmd {
-	Import,
+	Import(ImportBlockchain),
 	Export,
 }
 
@@ -71,12 +71,12 @@ impl FromStr for SpecType {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Import {
+pub struct ImportBlockchain {
 	pub spec: SpecType,
 	pub logger_config: LoggerConfig,
-	pub client_config: ClientConfig,
+	//pub client_config: ClientConfig,
 	pub db_path: String,
-	pub file_path: String,
+	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
 }
 

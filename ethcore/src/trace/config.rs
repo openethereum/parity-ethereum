@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Traces config.
+use std::str::FromStr;
 use bloomchain::Config as BloomConfig;
 use trace::Error;
 
@@ -27,6 +28,19 @@ pub enum Switch {
 	Off,
 	/// Auto.
 	Auto,
+}
+
+impl FromStr for Switch {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"on" => Ok(Switch::On),
+			"off" => Ok(Switch::Off),
+			"auto" => Ok(Switch::Auto),
+			other => Err(format!("Invalid switch value: {}", other))
+		}
+	}
 }
 
 impl Switch {
@@ -62,5 +76,18 @@ impl Default for Config {
 			},
 			db_cache_size: None,
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::str::FromStr;
+	use super::Switch;
+
+	#[test]
+	fn test_switch_parsing() {
+		assert_eq!(Switch::from_str("on").unwrap(), Switch::On);
+		assert_eq!(Switch::from_str("off").unwrap(), Switch::Off);
+		assert_eq!(Switch::from_str("auto").unwrap(), Switch::Auto);
 	}
 }
