@@ -22,7 +22,7 @@ use std::time::{Instant, Duration};
 use std::sync::RwLock;
 use std::ops::{Deref, DerefMut};
 use ethsync::{EthSync, SyncProvider};
-use util::Uint;
+use util::{Uint, NetworkService};
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 
@@ -76,7 +76,7 @@ impl Informant {
 	}
 
 	#[cfg_attr(feature="dev", allow(match_bool))]
-	pub fn tick(&self, client: &Client, maybe_sync: Option<&EthSync>) {
+	pub fn tick<Message>(&self, client: &Client, maybe_sync: Option<(&EthSync, &NetworkService<Message>)>) where Message: Send + Sync + Clone + 'static {
 		let elapsed = self.last_tick.read().unwrap().elapsed();
 		if elapsed < Duration::from_secs(5) {
 			return;
@@ -110,11 +110,13 @@ impl Informant {
 				paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64())),
 
 				match maybe_sync {
-					Some(sync) => {
+					Some((sync, net)) => {
 						let sync_info = sync.status();
-						format!("{}/{} peers   {} ",
+						let net_config = net.config();
+						format!("{}/{}/{} peers   {} ",
 							paint(Green.bold(), format!("{:2}", sync_info.num_active_peers)),
 							paint(Green.bold(), format!("{:2}", sync_info.num_peers)),
+							paint(Green.bold(), format!("{:2}", net_config.ideal_peers)),
 							paint(Cyan.bold(), format!("{:>8}", format!("#{}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number)))),
 						)
 					}
@@ -128,7 +130,7 @@ impl Informant {
 				paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(cache_info.total()))),
 				paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(queue_info.mem_used))),
 				match maybe_sync {
-					Some(sync) => {
+					Some((sync, _)) => {
 						let sync_info = sync.status();
 						format!(" {} sync", paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(sync_info.mem_used))))
 					}

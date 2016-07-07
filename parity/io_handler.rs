@@ -40,7 +40,9 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
 		if let INFO_TIMER = timer {
-			self.info.tick(&self.client, Some(&self.sync));
+			if let Some(net) = self.network.upgrade() {
+				self.info.tick(&self.client, Some((&self.sync, &net)));
+			}
 		}
 	}
 

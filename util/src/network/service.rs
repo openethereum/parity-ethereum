@@ -78,6 +78,11 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 		&self.stats
 	}
 
+	/// Returns network configuration.
+	pub fn config(&self) -> &NetworkConfiguration {
+		&self.config
+	}
+
 	/// Returns external url if available.
 	pub fn external_url(&self) -> Option<String> {
 		let host = self.host.read().unwrap();
