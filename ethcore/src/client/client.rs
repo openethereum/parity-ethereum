@@ -14,16 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database client.
-
 use std::path::PathBuf;
+use std::collections::{HashSet, HashMap};
+use std::ops::Deref;
+use std::mem;
+use std::collections::VecDeque;
+use std::sync::*;
+use std::path::Path;
+use std::fmt;
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::Instant;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
-use util::*;
+
+// util
+use util::numbers::*;
 use util::panics::*;
+use util::network::*;
+use util::io::*;
+use util::rlp;
+use util::sha3::*;
+use util::{Bytes};
+use util::rlp::{RlpStream, Rlp, UntrustedRlp};
+use util::journaldb;
+use util::journaldb::JournalDB;
+use util::kvdb::*;
+use util::{Applyable, Stream, View, PerfTimer, Itertools, Colour};
+
+// other
 use views::BlockView;
 use error::{ImportError, ExecutionError, BlockError, ImportResult};
-use header::{BlockNumber};
+use header::BlockNumber;
 use state::State;
 use spec::Spec;
 use engine::Engine;
@@ -35,24 +54,29 @@ use verification::{PreverifiedBlock, Verifier};
 use block::*;
 use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
-use filter::Filter;
+use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, Mode, ClientConfig, DatabaseCompactionProfile,
-	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics,
-	BlockImportError};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
+	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
+	TraceFilter, CallAnalytics, BlockImportError, Mode};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
-pub use blockchain::CacheSize as BlockChainCacheSize;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
-pub use types::blockchain_info::BlockChainInfo;
-pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
+use util::TrieFactory;
+use ipc::IpcConfig;
+use ipc::binary::{BinaryConvertError};
+
+// re-export
+pub use types::blockchain_info::BlockChainInfo;
+pub use types::block_status::BlockStatus;
+pub use blockchain::CacheSize as BlockChainCacheSize;
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
@@ -452,7 +476,7 @@ impl Client {
 			HeaderView::new(&self.best_block_header()).state_root(),
 			self.engine.account_start_nonce(),
 			self.trie_factory.clone())
-			.expect("State root of best block header always valid.")
+		.expect("State root of best block header always valid.")
 	}
 
 	/// Get info on the cache.
@@ -472,12 +496,12 @@ impl Client {
 	pub fn tick(&self) {
 		self.chain.collect_garbage();
 		self.block_queue.collect_garbage();
-		
+
 		match self.mode {
 			Mode::Dark(timeout) => {
 				let mut ss = self.sleep_state.lock().unwrap();
 				if let Some(t) = ss.last_activity {
-					if Instant::now() > t + timeout { 
+					if Instant::now() > t + timeout {
 						self.sleep();
 						ss.last_activity = None;
 					}
@@ -487,14 +511,14 @@ impl Client {
 				let mut ss = self.sleep_state.lock().unwrap();
 				let now = Instant::now();
 				if let Some(t) = ss.last_activity {
-					if now > t + timeout { 
+					if now > t + timeout {
 						self.sleep();
 						ss.last_activity = None;
 						ss.last_autosleep = Some(now);
 					}
 				}
-				if let Some(t) = ss.last_autosleep { 
-					if now > t + wakeup_after { 
+				if let Some(t) = ss.last_autosleep {
+					if now > t + wakeup_after {
 						self.wake_up();
 						ss.last_activity = Some(now);
 						ss.last_autosleep = None;
@@ -575,6 +599,8 @@ impl Client {
 	}
 }
 
+#[derive(Ipc)]
+#[ipc(client_ident="RemoteClient")]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -811,8 +837,8 @@ impl BlockChainClient for Client {
 						receipt.logs.into_iter()
 							.enumerate()
 							.filter(|tuple| filter.matches(&tuple.1))
-						 	.map(|(i, log)| LocalizedLogEntry {
-							 	entry: log,
+							.map(|(i, log)| LocalizedLogEntry {
+								entry: log,
 								block_hash: hash.clone(),
 								block_number: number,
 								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
@@ -822,7 +848,6 @@ impl BlockChainClient for Client {
 							.collect::<Vec<LocalizedLogEntry>>()
 					})
 					.collect::<Vec<LocalizedLogEntry>>()
-
 			})
 			.collect()
 	}
@@ -966,3 +991,5 @@ impl MayPanic for Client {
 		self.panic_handler.on_panic(closure);
 	}
 }
+
+impl IpcConfig for Client { }

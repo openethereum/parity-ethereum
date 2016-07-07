@@ -16,7 +16,6 @@
 
 //! Blockchain database client.
 
-mod client;
 mod config;
 mod error;
 mod test_client;
@@ -27,7 +26,7 @@ pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockQueue
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use self::trace::Filter as TraceFilter;
+pub use types::trace_filter::Filter as TraceFilter;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
 
@@ -47,23 +46,21 @@ use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
+pub use types::call_analytics::CallAnalytics;
 pub use block_import_error::BlockImportError;
 pub use transaction_import::TransactionImportResult;
+pub use transaction_import::TransactionImportError;
 
-/// Options concerning what analytics we run on the call.
-#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
-pub struct CallAnalytics {
-	/// Make a transaction trace.
-	pub transaction_tracing: bool,
-	/// Make a VM trace.
-	pub vm_tracing: bool,
-	/// Make a diff.
-	pub state_diffing: bool,
+pub mod client {
+	//! Blockchain database client.
+
+	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
+	include!(concat!(env!("OUT_DIR"), "/client.ipc.rs"));
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
-	
+
 	/// Should be called by any external-facing interface when actively using the client.
 	/// To minimise chatter, there's no need to call more than once every 30s.
 	fn keep_alive(&self) {}
