@@ -44,6 +44,8 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
 
+extern crate ethcore_ipc_hypervisor as hypervisor;
+
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
 
@@ -57,7 +59,6 @@ extern crate ethcore_signer;
 mod die;
 mod price_info;
 mod upgrade;
-mod hypervisor;
 mod setup_log;
 mod rpc;
 mod dapps;
@@ -212,7 +213,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Check fork settings.
 	if conf.policy() != Policy::None {
-		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");		
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 
 	let net_settings = conf.net_settings(&spec);
