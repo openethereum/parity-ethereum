@@ -61,25 +61,41 @@ lazy_static! {
 impl<'a> Compressible for UntrustedRlp<'a> {
 	fn swap<F>(&self, swapper: &F) -> ElasticArray1024<u8>
 	where F: Fn(&[u8]) -> Option<&[u8]> {
+		let raw = self.as_raw();
+		let mut result = ElasticArray1024::new();
+		result.append_slice(swapper(raw).unwrap_or(raw));
+		return result;
+	}
+
+	fn swap_all<F>(&self, swapper: &F, account_size: usize) -> ElasticArray1024<u8>
+	where F: Fn(&[u8]) -> Option<&[u8]> {
 		if self.is_data() {
-			let raw = self.as_raw();
-			let mut result = ElasticArray1024::new();
-			result.append_slice(swapper(raw).unwrap_or(raw));
-			return result;
-		};
-  	let mut rlp = RlpStream::new_list(self.item_count());
-		for subrlp in self.iter() {
-			let new_sub = subrlp.swap(swapper);
-			rlp.append_raw(&new_sub, 1);
-		}
-  	rlp.drain()
+			match self.size() < account_size {
+				// Simply simply try to replace the value.
+				true => self.swap(swapper),
+				// Try to treat the inside as RLP.
+				false => match self.data() {
+					Ok(x) => encode(&UntrustedRlp::new(x).compress().to_vec()),
+					_ => self.swap(swapper),
+				},
+			}
+		} else {
+  		let mut rlp = RlpStream::new_list(self.item_count());
+			for subrlp in self.iter() {
+				let new_sub = subrlp.swap_all(swapper, account_size);
+				rlp.append_raw(&new_sub, 1);
+			}
+  		rlp.drain()
+  	}
+
 	}
 
 	fn compress(&self) -> ElasticArray1024<u8> {
-		self.swap(&|b| INVALID_RLP_SWAPPER.get_invalid(b))
+		self.swap_all(&|b| INVALID_RLP_SWAPPER.get_invalid(b), 70)
 	}
+
 	fn decompress(&self) -> ElasticArray1024<u8> {
-		self.swap(&|b| INVALID_RLP_SWAPPER.get_valid(b))
+		self.swap_all(&|b| INVALID_RLP_SWAPPER.get_valid(b), 7)
 	}
 }
 
@@ -142,7 +158,8 @@ fn invalid_rlp_swapper() {
 fn decompressing_decoder() {
 	use rustc_serialize::hex::ToHex;
 	let basic_account_rlp = vec![248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
-	let compressed = UntrustedRlp::new(&basic_account_rlp).compress().to_vec();
+	let rlp = UntrustedRlp::new(&basic_account_rlp);
+	let compressed = rlp.compress().to_vec();
 	assert_eq!(compressed, vec![198, 4, 2, 129, 0, 129, 1]);
 	let compressed_rlp = UntrustedRlp::new(&compressed);
 	let f = | b: &[u8] | Ok(b.to_vec());
