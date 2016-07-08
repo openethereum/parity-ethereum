@@ -15,11 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
-use util::panics::PanicHandler;
+use std::{io, fs};
+use std::path::Path;
+use std::sync::Arc;
+use util::panics::{PanicHandler, ForwardPanic};
 use util::journaldb;
 use util::{version, contents, NetworkConfiguration};
 use util::log::Colour;
-use ethcore::client::ClientConfig;
+use ethcore::service::ClientService;
+use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::miner::Miner;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
 use cache::CacheConfig;
@@ -94,11 +99,14 @@ pub struct ImportBlockchain {
 	pub spec: SpecType,
 	pub logger_config: LoggerConfig,
 	pub cache_config: CacheConfig,
-	//pub client_config: ClientConfig,
 	pub db_path: String,
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
 	pub pruning: Option<journaldb::Algorithm>,
+	pub compaction: DatabaseCompactionProfile,
+	pub mode: Mode,
+	pub tracing: Switch,
+	pub vm_type: VMType,
 }
 
 pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
@@ -106,6 +114,27 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 		BlockchainCmd::Import(import_cmd) => execute_import(import_cmd),
 		BlockchainCmd::Export => execute_export(),
 	}
+}
+
+fn client_config(
+		cache_config: &CacheConfig,
+		mode: Mode,
+		tracing: Switch,
+		pruning: Option<journaldb::Algorithm>,
+		compaction: DatabaseCompactionProfile
+	) -> ClientConfig {
+	let mut client_config = ClientConfig::default();
+	client_config.mode = mode;
+	client_config.blockchain.max_cache_size = cache_config.blockchain as usize;
+	client_config.blockchain.pref_cache_size = cache_config.blockchain as usize * 3 / 4;
+	client_config.blockchain.db_cache_size = Some(cache_config.rocksdb_blockchain_cache_size() as usize);
+	// state db cache size
+	client_config.db_cache_size = Some(cache_config.rocksdb_state_cache_size() as usize);
+	client_config.tracing.enabled = tracing;
+	// chose best db here (requires state root hash)
+	client_config.pruning = pruning.unwrap_or_else(|| { unimplemented!(); });
+	client_config.db_compaction = compaction;
+	client_config
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
@@ -136,6 +165,27 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	unsafe { fdlimit::raise_fd_limit(); }
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
+
+	let cfg = client_config(&cmd.cache_config, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
+
+	// build client
+	let service = ClientService::start(
+		cfg, spec, net_settings, Path::new(&cmd.db_path), Arc::new(Miner::with_spec(try!(cmd.spec.spec()))), false
+		// TODO: pretty error
+	).unwrap();
+
+	panic_handler.forward_from(&service);
+	let client = service.client();
+
+	let mut instream: Box<io::Read> = match cmd.file_path {
+		Some(f) => Box::new(try!(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f)))),
+		None => Box::new(io::stdin()),
+	};
+
+	const READAHEAD_BYTES: usize = 8;
+
+	let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
+	let mut first_read = 0;
 
 
 	unimplemented!();

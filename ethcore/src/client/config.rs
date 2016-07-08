@@ -65,7 +65,9 @@ pub enum Mode {
 }
 
 impl Default for Mode {
-	fn default() -> Self { Mode::Active }
+	fn default() -> Self {
+		Mode::Active
+	}
 }
 
 /// Client configuration. Includes configs for all sub-systems.

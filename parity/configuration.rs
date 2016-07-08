@@ -119,6 +119,7 @@ impl Configuration {
 			color: false,
 		};
 		let pruning = try!(self.pruning());
+		let vm_type = try!(self.vm_type());
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -161,6 +162,10 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				format: None,
 				pruning: pruning,
+				compaction: try!(DatabaseCompactionProfile::from_str(&self.args.flag_db_compaction)),
+				mode: try!(self.mode()),
+				tracing: try!(Switch::from_str(&self.args.flag_tracing)),
+				vm_type: vm_type,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -172,12 +177,20 @@ impl Configuration {
 		Ok(cmd)
 	}
 
-	pub fn mode(&self) -> Mode {
-		match &(self.args.flag_mode[..]) {
-			"active" => Mode::Active,
-			"passive" => Mode::Passive(Duration::from_secs(self.args.flag_mode_timeout), Duration::from_secs(self.args.flag_mode_alarm)),
-			"dark" => Mode::Dark(Duration::from_secs(self.args.flag_mode_timeout)),
-			_ => die!("{}: Invalid address for --mode. Must be one of active, passive or dark.", self.args.flag_mode),
+	pub fn mode(&self) -> Result<Mode, String> {
+		match self.args.flag_mode.as_str() {
+			"active" => Ok(Mode::Active),
+			"passive" => Ok(Mode::Passive(Duration::from_secs(self.args.flag_mode_timeout), Duration::from_secs(self.args.flag_mode_alarm))),
+			"dark" => Ok(Mode::Dark(Duration::from_secs(self.args.flag_mode_timeout))),
+			_ => Err(format!("{}: Invalid address for --mode. Must be one of active, passive or dark.", self.args.flag_mode)),
+		}
+	}
+
+	fn vm_type(&self) -> Result<VMType, String> {
+		if self.args.flag_jitvm {
+			VMType::jit().ok_or("Parity is built without the JIT EVM.".into())
+		} else {
+			Ok(VMType::Interpreter)
 		}
 	}
 
@@ -681,6 +694,7 @@ mod tests {
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
 	use util::journaldb;
+	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, SpecType, ImportBlockchain, LoggerConfig};
 	use cache::CacheConfig;
 
@@ -773,6 +787,10 @@ mod tests {
 			file_path: Some("blockchain.json".into()),
 			format: None,
 			pruning: None,
+			compaction: DatabaseCompactionProfile::default(),
+			mode: Mode::Active,
+			tracing: Switch::Auto,
+			vm_type: VMType::Interpreter,
 		})));
 	}
 
