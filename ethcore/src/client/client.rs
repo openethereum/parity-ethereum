@@ -28,7 +28,6 @@ use std::time::Instant;
 // util
 use util::numbers::*;
 use util::panics::*;
-use util::network::*;
 use util::io::*;
 use util::rlp;
 use util::sha3::*;
@@ -47,7 +46,7 @@ use state::State;
 use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
-use service::{NetSyncMessage, SyncMessage};
+use service::{SyncMessage};
 use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
@@ -385,13 +384,13 @@ impl Client {
 					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
 				}
 
-				io.send(SyncMessage::NewChainBlocks {
-					imported: imported_blocks,
-					invalid: invalid_blocks,
-					enacted: enacted,
-					retracted: retracted,
-					sealed: Vec::new(),
-				}).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+				self.notify.new_blocks(
+					imported_blocks,
+					invalid_blocks,
+					enacted,
+					retracted,
+					Vec::new(),
+				);
 			}
 		}
 
@@ -972,12 +971,12 @@ impl MiningBlockChainClient for Client {
 			let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
 			self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
 
-			self.notify.chain_new_blocks(
-				&vec![h.clone()],
-				&vec![],
-				&enacted,
-				&retracted,
-				&vec![h.clone()],
+			self.notify.new_blocks(
+				vec![h.clone()],
+				vec![],
+				enacted,
+				retracted,
+				vec![h.clone()],
 			);
 		}
 

@@ -18,24 +18,28 @@ use util::numbers::*;
 
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify : Send + Sync {
-	fn chain_new_blocks(&self,
-		imported: &[H256],
-		invalid: &[H256],
-		enacted: &[H256],
-		retracted: &[H256],
-		sealed: &[H256]) {
+	/// fires when chain has new blocks
+	fn new_blocks(&self,
+		_imported: Vec<H256>,
+		_invalid: Vec<H256>,
+		_enacted: Vec<H256>,
+		_retracted: Vec<H256>,
+		_sealed: Vec<H256>) {
 		// does nothing by default
 	}
 
+	/// fires when chain achieves active mode
 	fn start(&self) {
 		// does nothing by default
 	}
 
+	/// fires when chain achieves passive mode
 	fn stop(&self) {
 		// does nothing by default
 	}
 }
 
-struct EmptyChainNotify;
+/// ChainNotify that does nothing when handling chain events
+pub struct EmptyChainNotify;
 
 impl ChainNotify for EmptyChainNotify { }

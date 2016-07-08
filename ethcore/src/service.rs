@@ -26,29 +26,12 @@ use miner::Miner;
 /// Message type for external and internal events
 #[derive(Clone)]
 pub enum SyncMessage {
-	/// New block has been imported into the blockchain
-	NewChainBlocks {
-		/// Hashes of blocks imported to blockchain
-		imported: Vec<H256>,
-		/// Hashes of blocks not imported to blockchain (because were invalid)
-		invalid: Vec<H256>,
-		/// Hashes of blocks that were removed from canonical chain
-		retracted: Vec<H256>,
-		/// Hashes of blocks that are now included in cannonical chain
-		enacted: Vec<H256>,
-		/// Hashes of blocks that are sealed by this node
-		sealed: Vec<H256>,
-	},
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
 	NewTransactions(Vec<Bytes>),
-	/// Start network command.
-	StartNetwork,
-	/// Stop network command.
-	StopNetwork,
 }
 
 /// IO Message type used for Network service
@@ -66,10 +49,8 @@ impl ClientService {
 	pub fn start(
 		config: ClientConfig,
 		spec: Spec,
-		net_config: NetworkConfiguration,
 		db_path: &Path,
 		miner: Arc<Miner>,
-		enable_network: bool,
 		notify: Arc<ChainNotify>,
 		) -> Result<ClientService, Error>
 	{
