@@ -1,0 +1,126 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+#![warn(missing_docs)]
+extern crate ethcore;
+#[macro_use] extern crate ethcore_util as util;
+
+use std::collections::HashMap;
+use util::{U256, H256, Address, Bytes, FromHex, FixedHash};
+use ethcore::client::EnvInfo;
+use ethcore::evm::{self, Factory, VMType, Ext, ContractCreateResult, MessageCallResult, Schedule};
+use ethcore::action_params::ActionParams;
+
+fn main() {
+	let factory = Factory::new(VMType::Interpreter);
+
+	let gas = 1_000_000.into();
+	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
+
+	let mut vm = factory.create(gas);
+	let mut params = ActionParams::default();
+	let mut ext = FakeExt::default();
+	params.gas = gas;
+	params.code = Some(code);
+
+	let gas_left = vm.exec(params, &mut ext).expect("Ok");
+	println!("{:?}", gas_left);
+}
+
+struct FakeExt {
+	schedule: Schedule,
+	store: HashMap<H256, H256>,
+}
+
+impl Default for FakeExt {
+	fn default() -> Self {
+		FakeExt {
+			schedule: Schedule::new_homestead(),
+			store: HashMap::new(),
+		}
+	}
+}
+
+impl Ext for FakeExt {
+	fn storage_at(&self, key: &H256) -> H256 {
+		self.store.get(key).unwrap_or(&H256::new()).clone()
+	}
+
+	fn set_storage(&mut self, key: H256, value: H256) {
+		self.store.insert(key, value);
+	}
+
+	fn exists(&self, address: &Address) -> bool {
+		unimplemented!();
+	}
+
+	fn balance(&self, address: &Address) -> U256 {
+		unimplemented!();
+	}
+
+	fn blockhash(&self, number: &U256) -> H256 {
+		unimplemented!();
+	}
+
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+		unimplemented!();
+	}
+
+	fn call(&mut self,
+			gas: &U256,
+			sender_address: &Address,
+			receive_address: &Address,
+			value: Option<U256>,
+			data: &[u8],
+			code_address: &Address,
+			_output: &mut [u8]) -> MessageCallResult {
+		unimplemented!();
+	}
+
+	fn extcode(&self, address: &Address) -> Bytes {
+		unimplemented!();
+	}
+
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
+		unimplemented!();
+	}
+
+	fn ret(self, _gas: &U256, _data: &[u8]) -> evm::Result<U256> {
+		unimplemented!();
+	}
+
+	fn suicide(&mut self, _refund_address: &Address) {
+		unimplemented!();
+	}
+
+	fn schedule(&self) -> &Schedule {
+		&self.schedule
+	}
+
+	fn env_info(&self) -> &EnvInfo {
+		unimplemented!()
+	}
+
+	fn depth(&self) -> usize {
+		unimplemented!();
+		// self.depth
+	}
+
+	fn inc_sstore_clears(&mut self) {
+		unimplemented!();
+		// self.sstore_clears += 1;
+	}
+}
