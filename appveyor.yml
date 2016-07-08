@@ -1,4 +1,5 @@
 environment:
+  nodejs_version: "6.3.0"
   matrix:
   - TARGET: x86_64-pc-windows-msvc
   cert:
