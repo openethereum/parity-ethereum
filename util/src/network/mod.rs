@@ -84,7 +84,6 @@ pub use network::host::PacketId;
 pub use network::host::NetworkContext;
 pub use network::service::NetworkService;
 pub use network::host::NetworkIoMessage;
-pub use network::host::NetworkIoMessage::User as UserMessage;
 pub use network::error::NetworkError;
 pub use network::host::NetworkConfiguration;
 pub use network::stats::NetworkStats;
@@ -97,19 +96,17 @@ const PROTOCOL_VERSION: u32 = 4;
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.
 /// `Message` is the type for message data.
-pub trait NetworkProtocolHandler<Message>: Sync + Send where Message: Send + Sync + Clone {
+pub trait NetworkProtocolHandler: Sync + Send {
 	/// Initialize the handler
-	fn initialize(&self, _io: &NetworkContext<Message>) {}
+	fn initialize(&self, _io: &NetworkContext) {}
 	/// Called when new network packet received.
-	fn read(&self, io: &NetworkContext<Message>, peer: &PeerId, packet_id: u8, data: &[u8]);
+	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]);
 	/// Called when new peer is connected. Only called when peer supports the same protocol.
-	fn connected(&self, io: &NetworkContext<Message>, peer: &PeerId);
+	fn connected(&self, io: &NetworkContext, peer: &PeerId);
 	/// Called when a previously connected peer disconnects.
-	fn disconnected(&self, io: &NetworkContext<Message>, peer: &PeerId);
+	fn disconnected(&self, io: &NetworkContext, peer: &PeerId);
 	/// Timer function called after a timeout created with `NetworkContext::timeout`.
-	fn timeout(&self, _io: &NetworkContext<Message>, _timer: TimerToken) {}
-	/// Called when a broadcasted message is received. The message can only be sent from a different IO handler.
-	fn message(&self, _io: &NetworkContext<Message>, _message: &Message) {}
+	fn timeout(&self, _io: &NetworkContext, _timer: TimerToken) {}
 }
 
 /// Non-reserved peer modes.
