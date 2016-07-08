@@ -141,7 +141,7 @@ pub struct Client {
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
 	io_channel: IoChannel<SyncMessage>,
-	notify: Arc<ChainNotify>,
+	notify: RwLock<Option<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	previous_enode: Mutex<Option<String>>,
 }
@@ -179,7 +179,6 @@ impl Client {
 		path: &Path,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<SyncMessage>,
-		notify: Arc<ChainNotify>,
 	) -> Result<Arc<Client>, ClientError> {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
@@ -229,11 +228,22 @@ impl Client {
 			trie_factory: TrieFactory::new(config.trie_spec),
 			miner: miner,
 			io_channel: message_channel,
-			notify: notify,
+			notify: RwLock::new(None),
 			queue_transactions: AtomicUsize::new(0),
 			previous_enode: Mutex::new(None),
 		};
 		Ok(Arc::new(client))
+	}
+
+	/// Sets the actor to be notified on certain events
+	pub fn set_notify(&self, target: &Arc<ChainNotify>) {
+		let mut write_lock = self.notify.write().unwrap();
+		*write_lock = Some(Arc::downgrade(target));
+	}
+
+	fn notify(&self) -> Option<Arc<ChainNotify>> {
+		let read_lock = self.notify.read().unwrap();
+		read_lock.as_ref().and_then(|weak| weak.upgrade())
 	}
 
 	/// Flush the block import queue.
@@ -384,13 +394,15 @@ impl Client {
 					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
 				}
 
-				self.notify.new_blocks(
-					imported_blocks,
-					invalid_blocks,
-					enacted,
-					retracted,
-					Vec::new(),
-				);
+				if let Some(notify) = self.notify() {
+					notify.new_blocks(
+						imported_blocks,
+						invalid_blocks,
+						enacted,
+						retracted,
+						Vec::new(),
+					);
+				}
 			}
 		}
 
@@ -568,7 +580,9 @@ impl Client {
 	fn wake_up(&self) {
 		if !self.liveness.load(AtomicOrdering::Relaxed) {
 			self.liveness.store(true, AtomicOrdering::Relaxed);
-			self.notify.start();
+			if let Some(notify) = self.notify() {
+				notify.start();
+			}
 			trace!(target: "mode", "wake_up: Waking.");
 		}
 	}
@@ -578,7 +592,9 @@ impl Client {
 			// only sleep if the import queue is mostly empty.
 			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
 				self.liveness.store(false, AtomicOrdering::Relaxed);
-				self.notify.stop();
+				if let Some(notify) = self.notify() {
+					notify.stop();
+				}
 				trace!(target: "mode", "sleep: Sleeping.");
 			} else {
 				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
@@ -971,13 +987,15 @@ impl MiningBlockChainClient for Client {
 			let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
 			self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
 
-			self.notify.new_blocks(
-				vec![h.clone()],
-				vec![],
-				enacted,
-				retracted,
-				vec![h.clone()],
-			);
+			if let Some(notify) = self.notify() {
+				notify.new_blocks(
+					vec![h.clone()],
+					vec![],
+					enacted,
+					retracted,
+					vec![h.clone()],
+				);
+			}
 		}
 
 		if self.chain_info().best_block_hash != original_best {

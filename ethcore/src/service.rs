@@ -48,7 +48,6 @@ impl ClientService {
 		spec: Spec,
 		db_path: &Path,
 		miner: Arc<Miner>,
-		notify: Arc<ChainNotify>,
 		) -> Result<ClientService, Error>
 	{
 		let panic_handler = PanicHandler::new_in_arc();
@@ -56,7 +55,7 @@ impl ClientService {
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", spec.name.clone().apply(Colour::White.bold()), spec.engine.name().apply(Colour::Yellow.bold()));
-		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel(), notify));
+		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
@@ -88,6 +87,11 @@ impl ClientService {
 	/// Get network service component
 	pub fn io(&self) -> Arc<IoService<SyncMessage>> {
 		self.io_service.clone()
+	}
+
+	/// Set the actor to be notified on certain chain events
+	pub fn set_notify(&self, notify: &Arc<ChainNotify>) {
+		self.client.set_notify(notify);
 	}
 }
 
