@@ -25,7 +25,7 @@ use ethcore::migrations;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 7;
+const CURRENT_VERSION: u32 = 6;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
