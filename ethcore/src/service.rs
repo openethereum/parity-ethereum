@@ -134,7 +134,6 @@ impl IoHandler<SyncMessage> for ClientIoHandler {
 mod tests {
 	use super::*;
 	use tests::helpers::*;
-	use util::network::*;
 	use devtools::*;
 	use client::ClientConfig;
 	use std::sync::Arc;
@@ -146,10 +145,8 @@ mod tests {
 		let service = ClientService::start(
 			ClientConfig::default(),
 			get_test_spec(),
-			NetworkConfiguration::new_local(),
 			&temp_path.as_path(),
 			Arc::new(Miner::with_spec(get_test_spec())),
-			false
 		);
 		assert!(service.is_ok());
 	}
