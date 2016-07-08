@@ -190,6 +190,7 @@ pub trait ManageNetwork : Send + Sync {
 	fn add_reserved_peer(&self, peer: &str) -> Result<(), String>;
 	fn start_network(&self);
 	fn stop_network(&self);
+	fn config(&self) -> NetworkConfiguration;
 }
 
 impl ManageNetwork for EthSync {
@@ -209,5 +210,9 @@ impl ManageNetwork for EthSync {
 	}
 
 	fn stop_network(&self) {
+	}
+
+	fn config(&self) -> NetworkConfiguration {
+		self.network.config().clone()
 	}
 }

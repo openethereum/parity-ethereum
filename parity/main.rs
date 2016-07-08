@@ -82,7 +82,7 @@ use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
+use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, ChainNotify};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -212,7 +212,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Check fork settings.
 	if conf.policy() != Policy::None {
-		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");		
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 
 	let net_settings = conf.net_settings(&spec);
@@ -234,10 +234,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let mut service = ClientService::start(
 		client_config,
 		spec,
-		net_settings,
 		Path::new(&conf.path()),
 		miner.clone(),
-		match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -247,8 +245,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone());
-	EthSync::register(&*service.network(), sync.clone()).unwrap_or_else(|e| die_with_error("Error registering eth protocol handler", UtilError::from(e).into()));
+	let sync = EthSync::new(sync_config, client.clone(), net_settings);
+	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
@@ -261,7 +259,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 		allow_pending_receipt_query: !conf.args.flag_geth,
-		net_service: service.network(),
+		net_service: sync.clone(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -311,7 +309,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
-		network: Arc::downgrade(&service.network()),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
@@ -362,7 +359,7 @@ fn execute_export(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
+		client_config, spec, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec()))
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -436,7 +433,7 @@ fn execute_import(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
+		client_config, spec, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec()))
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -485,7 +482,7 @@ fn execute_import(conf: Configuration) {
 			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
-		informant.tick::<&'static ()>(client.deref(), None);
+		informant.tick(client.deref(), None);
 	};
 
 	match format {

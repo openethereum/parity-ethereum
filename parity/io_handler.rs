@@ -16,8 +16,8 @@
 
 use std::sync::{Arc, Weak};
 use ethcore::client::Client;
-use ethcore::service::{NetSyncMessage, SyncMessage};
-use ethsync::EthSync;
+use ethcore::service::SyncMessage;
+use ethsync::{EthSync, SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
 use util::{TimerToken, IoHandler, IoContext, NetworkService, NetworkIoMessage};
 
@@ -30,40 +30,18 @@ pub struct ClientIoHandler {
 	pub sync: Arc<EthSync>,
 	pub accounts: Arc<AccountProvider>,
 	pub info: Informant,
-	pub network: Weak<NetworkService<SyncMessage>>,
 }
 
-impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
+impl IoHandler<SyncMessage> for ClientIoHandler {
+	fn initialize(&self, io: &IoContext<SyncMessage>) {
 		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<SyncMessage>, timer: TimerToken) {
 		if let INFO_TIMER = timer {
-			if let Some(net) = self.network.upgrade() {
-				self.info.tick(&self.client, Some((&self.sync, &net)));
-			}
-		}
-	}
-
-	fn message(&self, _io: &IoContext<NetSyncMessage>, message: &NetSyncMessage) {
-		match *message {
-			NetworkIoMessage::User(SyncMessage::StartNetwork) => {
-				info!("Starting network");
-				if let Some(network) = self.network.upgrade() {
-					network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
-					EthSync::register(&*network, self.sync.clone()).unwrap_or_else(|e| warn!("Error registering eth protocol handler: {}", e));
-				}
-			},
-			NetworkIoMessage::User(SyncMessage::StopNetwork) => {
-				info!("Stopping network");
-				if let Some(network) = self.network.upgrade() {
-					network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
-				}
-			},
-			_ => {/* Ignore other messages */},
+			let sync_status = self.sync.status();
+			let network_config = self.sync.config();
+			self.info.tick(&self.client, Some((sync_status, network_config)));
 		}
 	}
 }
-
-
