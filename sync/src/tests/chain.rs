@@ -27,7 +27,7 @@ fn two_peers() {
 	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
 	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
-	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
+	assert_eq!(net.peer(0).chain.blocks.unwrapped_read().deref(), net.peer(1).chain.blocks.unwrapped_read().deref());
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn long_chain() {
 	net.peer_mut(1).chain.add_blocks(50000, EachBlockWith::Nothing);
 	net.sync();
 	assert!(net.peer(0).chain.block(BlockID::Number(50000)).is_some());
-	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
+	assert_eq!(net.peer(0).chain.blocks.unwrapped_read().deref(), net.peer(1).chain.blocks.unwrapped_read().deref());
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn status_after_sync() {
 	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
-	let status = net.peer(0).sync.read().unwrap().status();
+	let status = net.peer(0).sync.unwrapped_read().status();
 	assert_eq!(status.state, SyncState::Idle);
 }
 
@@ -71,7 +71,7 @@ fn empty_blocks() {
 	}
 	net.sync();
 	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
-	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
+	assert_eq!(net.peer(0).chain.blocks.unwrapped_read().deref(), net.peer(1).chain.blocks.unwrapped_read().deref());
 }
 
 #[test]
@@ -87,12 +87,12 @@ fn forked() {
 	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Uncle); //fork between 1 and 2
 	net.peer_mut(2).chain.add_blocks(10, EachBlockWith::Nothing);
 	// peer 1 has the best chain of 601 blocks
-	let peer1_chain = net.peer(1).chain.numbers.read().unwrap().clone();
+	let peer1_chain = net.peer(1).chain.numbers.unwrapped_read().clone();
 	net.sync();
-	assert_eq!(net.peer(0).chain.difficulty.read().unwrap().deref(), net.peer(1).chain.difficulty.read().unwrap().deref());
-	assert_eq!(net.peer(0).chain.numbers.read().unwrap().deref(), &peer1_chain);
-	assert_eq!(net.peer(1).chain.numbers.read().unwrap().deref(), &peer1_chain);
-	assert_eq!(net.peer(2).chain.numbers.read().unwrap().deref(), &peer1_chain);
+	assert_eq!(net.peer(0).chain.difficulty.unwrapped_read().deref(), net.peer(1).chain.difficulty.unwrapped_read().deref());
+	assert_eq!(net.peer(0).chain.numbers.unwrapped_read().deref(), &peer1_chain);
+	assert_eq!(net.peer(1).chain.numbers.unwrapped_read().deref(), &peer1_chain);
+	assert_eq!(net.peer(2).chain.numbers.unwrapped_read().deref(), &peer1_chain);
 }
 
 #[test]
@@ -107,14 +107,14 @@ fn restart() {
 	assert!(net.peer(0).chain.chain_info().best_block_number > 100);
 	net.restart_peer(0);
 
-	let status = net.peer(0).sync.read().unwrap().status();
+	let status = net.peer(0).sync.unwrapped_read().status();
 	assert_eq!(status.state, SyncState::ChainHead);
 }
 
 #[test]
 fn status_empty() {
 	let net = TestNet::new(2);
-	assert_eq!(net.peer(0).sync.read().unwrap().status().state, SyncState::Idle);
+	assert_eq!(net.peer(0).sync.unwrapped_read().status().state, SyncState::Idle);
 }
 
 #[test]

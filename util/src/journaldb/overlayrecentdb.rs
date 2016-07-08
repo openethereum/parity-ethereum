@@ -20,6 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
+use misc::RwLockable;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
@@ -136,7 +137,7 @@ impl OverlayRecentDB {
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&self.backing);
-		let journal_overlay = self.journal_overlay.read().unwrap();
+		let journal_overlay = self.journal_overlay.unwrapped_read();
 		*journal_overlay == reconstructed
 	}
 
@@ -199,7 +200,7 @@ impl JournalDB for OverlayRecentDB {
 
 	fn mem_used(&self) -> usize {
 		let mut mem = self.transaction_overlay.mem_used();
-		let overlay = self.journal_overlay.read().unwrap();
+		let overlay = self.journal_overlay.unwrapped_read();
 		mem += overlay.backing_overlay.mem_used();
 		mem += overlay.journal.heap_size_of_children();
 		mem
@@ -209,12 +210,12 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().unwrap().latest_era }
+	fn latest_era(&self) -> Option<u64> { self.journal_overlay.unwrapped_read().latest_era }
 
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
-		let mut journal_overlay = self.journal_overlay.write().unwrap();
+		let mut journal_overlay = self.journal_overlay.unwrapped_write();
 		let batch = DBTransaction::new();
 		{
 			let mut r = RlpStream::new_list(3);
@@ -321,7 +322,7 @@ impl HashDB for OverlayRecentDB {
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => {
-				let v = self.journal_overlay.read().unwrap().backing_overlay.get(key).map(|v| v.to_vec());
+				let v = self.journal_overlay.unwrapped_read().backing_overlay.get(key).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
 						Some(&self.transaction_overlay.denote(key, x).0)
