@@ -63,38 +63,38 @@ impl Ext for FakeExt {
 		self.store.insert(key, value);
 	}
 
-	fn exists(&self, address: &Address) -> bool {
+	fn exists(&self, _address: &Address) -> bool {
 		unimplemented!();
 	}
 
-	fn balance(&self, address: &Address) -> U256 {
+	fn balance(&self, _address: &Address) -> U256 {
 		unimplemented!();
 	}
 
-	fn blockhash(&self, number: &U256) -> H256 {
+	fn blockhash(&self, _number: &U256) -> H256 {
 		unimplemented!();
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> ContractCreateResult {
 		unimplemented!();
 	}
 
 	fn call(&mut self,
-			gas: &U256,
-			sender_address: &Address,
-			receive_address: &Address,
-			value: Option<U256>,
-			data: &[u8],
-			code_address: &Address,
+			_gas: &U256,
+			_sender_address: &Address,
+			_receive_address: &Address,
+			_value: Option<U256>,
+			_data: &[u8],
+			_code_address: &Address,
 			_output: &mut [u8]) -> MessageCallResult {
 		unimplemented!();
 	}
 
-	fn extcode(&self, address: &Address) -> Bytes {
+	fn extcode(&self, _address: &Address) -> Bytes {
 		unimplemented!();
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
+	fn log(&mut self, _topics: Vec<H256>, _data: &[u8]) {
 		unimplemented!();
 	}
 
