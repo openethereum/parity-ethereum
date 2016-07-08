@@ -384,6 +384,10 @@ impl Miner {
 		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_some();
 		trace!(target: "miner", "enable_and_prepare_sealing: have_work={}", have_work);
 		if !have_work {
+			// --------------------------------------------------------------------------
+			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | Make sure to release the locks before calling that method.             |
+			// --------------------------------------------------------------------------
 			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
 			self.prepare_sealing(chain);
 		}
@@ -421,6 +425,10 @@ impl MinerService for Miner {
 
 	fn clear_and_reset(&self, chain: &MiningBlockChainClient) {
 		self.transaction_queue.lock().unwrap().clear();
+		// --------------------------------------------------------------------------
+		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+		// | Make sure to release the locks before calling that method.             |
+		// --------------------------------------------------------------------------
 		self.update_sealing(chain);
 	}
 
@@ -581,10 +589,16 @@ impl MinerService for Miner {
 
 		let results = {
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			self.add_transactions_to_queue(chain, transactions, TransactionOrigin::External, &mut transaction_queue)
+			self.add_transactions_to_queue(
+				chain, transactions, TransactionOrigin::External, &mut transaction_queue
+			)
 		};
 
 		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.tx_reseal_allowed() {
+			// --------------------------------------------------------------------------
+			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | Make sure to release the locks before calling that method.             |
+			// --------------------------------------------------------------------------
 			self.update_sealing(chain);
 		}
 		results
@@ -618,6 +632,10 @@ impl MinerService for Miner {
 			import
 		};
 
+		// --------------------------------------------------------------------------
+		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+		// | Make sure to release the locks before calling that method.             |
+		// --------------------------------------------------------------------------
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing
@@ -712,6 +730,10 @@ impl MinerService for Miner {
 				self.sealing_work.lock().unwrap().reset();
 			} else {
 				*self.next_allowed_reseal.lock().unwrap() = Instant::now() + self.options.reseal_min_period;
+				// --------------------------------------------------------------------------
+				// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+				// | Make sure to release the locks before calling that method.             |
+				// --------------------------------------------------------------------------
 				self.prepare_sealing(chain);
 			}
 		}
@@ -802,6 +824,10 @@ impl MinerService for Miner {
 			});
 		}
 
+		// --------------------------------------------------------------------------
+		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+		// | Make sure to release the locks before calling that method.             |
+		// --------------------------------------------------------------------------
 		self.update_sealing(chain);
 	}
 }
