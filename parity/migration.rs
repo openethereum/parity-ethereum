@@ -164,7 +164,7 @@ fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Err
 }
 
 /// Migrates database at given position with given migration rules.
-fn migrate_database(version: u32, db_path: PathBuf, migrations: MigrationManager) -> Result<(), Error> {
+fn migrate_database(version: u32, db_path: PathBuf, migrations: mut MigrationManager) -> Result<(), Error> {
 	// check if migration is needed
 	if !migrations.is_needed(version) {
 		return Ok(())
