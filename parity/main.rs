@@ -80,7 +80,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
+use util::{Lockable, H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, ChainNotify};
 use ethcore::error::{ImportError};
@@ -585,7 +585,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+	let _ = exit.wait(mutex.locked()).unwrap();
 	info!("Finishing work, please wait...");
 }
 

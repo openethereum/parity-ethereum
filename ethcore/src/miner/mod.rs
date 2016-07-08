@@ -38,7 +38,7 @@
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
 //!		// Check block for sealing
-//!		//assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
+//!		//assert!(miner.sealing_block(client.deref()).locked().is_some());
 //! }
 //! ```
 
