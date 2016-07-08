@@ -32,6 +32,7 @@ use engine::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionOrigin};
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
+use miner::price_info::PriceInfo;
 
 
 /// Different possible definitions for pending transaction set.
@@ -88,10 +89,78 @@ impl Default for MinerOptions {
 	}
 }
 
+/// Options for the dynamic gas price recalibrator.
+pub struct GasPriceCalibratorOptions {
+	/// Base transaction price to match against.
+	pub usd_per_tx: f32,
+	/// How frequently we should recalibrate. 
+	pub recalibration_period: Duration,
+}
+
+/// The gas price validator variant for a GasPricer.
+pub struct GasPriceCalibrator {
+	options: GasPriceCalibratorOptions,
+
+	next_calibration: Instant,
+}
+
+impl GasPriceCalibrator {
+	fn recalibrate<F: Fn(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
+		trace!(target: "miner", "Recalibrating {:?} versus {:?}", Instant::now(), self.next_calibration);
+		if Instant::now() >= self.next_calibration {
+			let usd_per_tx = self.options.usd_per_tx;
+			trace!(target: "miner", "Getting price info");
+			if let Ok(_) = PriceInfo::get(move |price: PriceInfo| {
+				trace!(target: "miner", "Price info arrived: {:?}", price);
+				let usd_per_eth = price.ethusd;
+				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
+				let gas_per_tx: f32 = 21000.0;
+				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
+				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(Colour::White.bold()), format!("{}", wei_per_gas).apply(Colour::Yellow.bold()));
+				set_price(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap());
+			}) {
+				self.next_calibration = Instant::now() + self.options.recalibration_period;
+			} else {
+				warn!(target: "miner", "Unable to update Ether price.");
+			}
+		}
+	}
+}
+
+/// Struct to look after updating the acceptable gas price of a miner.
+pub enum GasPricer {
+	/// A fixed gas price in terms of Wei - always the argument given.
+	Fixed(U256),
+	/// Gas price is calibrated according to a fixed amount of USD.
+	Calibrated(GasPriceCalibrator),
+}
+
+impl GasPricer {
+	/// Create a new Calibrated `GasPricer`.
+	pub fn new_calibrated(options: GasPriceCalibratorOptions) -> GasPricer {
+		GasPricer::Calibrated(GasPriceCalibrator {
+			options: options,
+			next_calibration: Instant::now(),
+		})
+	}
+
+	/// Create a new Fixed `GasPricer`.
+	pub fn new_fixed(gas_price: U256) -> GasPricer {
+		GasPricer::Fixed(gas_price)
+	}
+
+	fn recalibrate<F: Fn(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
+		match *self {
+			GasPricer::Fixed(ref max) => set_price(max.clone()),
+			GasPricer::Calibrated(ref mut cal) => cal.recalibrate(set_price),
+		}
+	}
+}
+
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
-	transaction_queue: Mutex<TransactionQueue>,
+	transaction_queue: Arc<Mutex<TransactionQueue>>,
 	sealing_work: Mutex<UsingQueue<ClosedBlock>>,
 
 	// for sealing...
@@ -106,13 +175,14 @@ pub struct Miner {
 
 	accounts: Option<Arc<AccountProvider>>,
 	work_poster: Option<WorkPoster>,
+	gas_pricer: Mutex<GasPricer>,
 }
 
 impl Miner {
 	/// Creates new instance of miner without accounts, but with given spec.
 	pub fn with_spec(spec: Spec) -> Miner {
 		Miner {
-			transaction_queue: Mutex::new(TransactionQueue::new()),
+			transaction_queue: Arc::new(Mutex::new(TransactionQueue::new())),
 			options: Default::default(),
 			sealing_enabled: AtomicBool::new(false),
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -124,14 +194,16 @@ impl Miner {
 			accounts: None,
 			spec: spec,
 			work_poster: None,
+			gas_pricer: Mutex::new(GasPricer::new_fixed(20_000_000_000u64.into())),
 		}
 	}
 
 	/// Creates new instance of miner
-	pub fn new(options: MinerOptions, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
+	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
+		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
 		Arc::new(Miner {
-			transaction_queue: Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)),
+			transaction_queue: txq,
 			sealing_enabled: AtomicBool::new(options.force_sealing || !options.new_work_notify.is_empty()),
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
@@ -143,6 +215,7 @@ impl Miner {
 			accounts: accounts,
 			spec: spec,
 			work_poster: work_poster,
+			gas_pricer: Mutex::new(gas_pricer),
 		})
 	}
 
@@ -159,6 +232,16 @@ impl Miner {
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
+
+		{
+			trace!(target: "miner", "recalibrating...");
+			let txq = self.transaction_queue.clone();
+			self.gas_pricer.lock().unwrap().recalibrate(move |price| {
+				trace!(target: "miner", "Got gas price! {}", price);
+				txq.lock().unwrap().set_minimal_gas_price(price);
+			});
+			trace!(target: "miner", "done recalibration.");
+		}
 
 		let (transactions, mut open_block, original_work_hash) = {
 			let transactions = {self.transaction_queue.lock().unwrap().top_transactions()};
@@ -490,12 +573,16 @@ impl MinerService for Miner {
 		self.gas_range_target.read().unwrap().1
 	}
 
-	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
-		Vec<Result<TransactionImportResult, Error>> {
+	fn import_external_transactions(
+		&self,
+		chain: &MiningBlockChainClient,
+		transactions: Vec<SignedTransaction>
+	) -> Vec<Result<TransactionImportResult, Error>> {
 
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		let results = self.add_transactions_to_queue(chain, transactions, TransactionOrigin::External,
-													 &mut transaction_queue);
+		let results = {
+			let mut transaction_queue = self.transaction_queue.lock().unwrap();
+			self.add_transactions_to_queue(chain, transactions, TransactionOrigin::External, &mut transaction_queue)
+		};
 
 		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.tx_reseal_allowed() {
 			self.update_sealing(chain);

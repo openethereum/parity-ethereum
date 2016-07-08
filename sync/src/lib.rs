@@ -44,7 +44,12 @@
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
 //! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let miner = Miner::new(Default::default(), ethereum::new_frontier(), None);
+//! 	let miner = Miner::new(
+//! 		Default::default(),
+//! 		GasPricer::new_fixed(20_000_000_000.into()),
+//! 		ethereum::new_frontier(),
+//! 		None
+//! 	);
 //! 	let client = Client::new(
 //!			ClientConfig::default(),
 //!			ethereum::new_frontier(),
