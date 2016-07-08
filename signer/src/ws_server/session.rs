@@ -17,7 +17,7 @@
 //! Session handlers factory.
 
 use ws;
-use sysui;
+use signer;
 use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
@@ -111,7 +111,7 @@ impl ws::Handler for Session {
 		}
 
 		// Otherwise try to serve a page.
-		Ok(sysui::handle(req.resource())
+		Ok(signer::handle(req.resource())
 			.map_or_else(
 				// return 404 not found
 				|| add_headers(ws::Response::not_found("Not found".into()), "text/plain"),

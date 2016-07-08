@@ -18,7 +18,7 @@ env_logger = "0.3"
 ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "stable" }
 ethcore-util = { path = "../util" }
 ethcore-rpc = { path = "../rpc" }
-parity-minimal-sysui = { git = "https://github.com/ethcore/parity-dapps-minimal-sysui-rs.git", version = "0.2.0" }
+parity-dapps-signer = { git = "https://github.com/ethcore/parity-ui.git", version = "0.2.0" }
 
 clippy = { version = "0.0.78", optional = true}
 

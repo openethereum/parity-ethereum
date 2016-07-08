@@ -51,7 +51,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_rpc as rpc;
 extern crate jsonrpc_core;
 extern crate ws;
-extern crate parity_minimal_sysui as sysui;
+extern crate parity_dapps_signer as signer;
 
 mod authcode_store;
 mod ws_server;
