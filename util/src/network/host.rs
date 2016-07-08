@@ -886,6 +886,14 @@ impl Host {
 		}
 		self.nodes.write().unwrap().update(node_changes);
 	}
+
+	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: Fn(&NetworkContext) {
+		let reserved = self.reserved_nodes.read().unwrap();
+		let sessions = self.sessions.write().unwrap();
+
+		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
+		action(&context);
+	}
 }
 
 impl IoHandler<NetworkIoMessage> for Host {

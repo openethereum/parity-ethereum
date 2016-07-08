@@ -19,7 +19,7 @@ use error::*;
 use panics::*;
 use network::{NetworkProtocolHandler, NetworkConfiguration};
 use network::error::NetworkError;
-use network::host::{Host, NetworkIoMessage, ProtocolId};
+use network::host::{Host, NetworkContext, NetworkIoMessage, ProtocolId};
 use network::stats::NetworkStats;
 use io::*;
 
@@ -144,6 +144,15 @@ impl NetworkService {
 			let io_ctxt = IoContext::new(self.io_service.channel(), 0);
 			host.set_non_reserved_mode(mode, &io_ctxt);
 		}
+	}
+
+	/// Executes action in the network context
+	pub fn with_context<F>(&self, protocol: ProtocolId, action: F) where F: Fn(&NetworkContext) {
+		let io = IoContext::new(self.io_service.channel(), 0);
+		let host = self.host.read().unwrap();
+		if let Some(ref host) = host.as_ref() {
+			host.with_context(protocol, &io, action);
+		};
 	}
 }
 
