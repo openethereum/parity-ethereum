@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::str::FromStr;
 pub use std::time::Duration;
 pub use block_queue::BlockQueueConfig;
 pub use blockchain::Config as BlockChainConfig;
@@ -33,7 +34,21 @@ pub enum DatabaseCompactionProfile {
 }
 
 impl Default for DatabaseCompactionProfile {
-	fn default() -> Self { DatabaseCompactionProfile::Default }
+	fn default() -> Self {
+		DatabaseCompactionProfile::Default
+	}
+}
+
+impl FromStr for DatabaseCompactionProfile {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"ssd" | "default" => Ok(DatabaseCompactionProfile::Default),
+			"hdd" => Ok(DatabaseCompactionProfile::HDD),
+			_ => Err(format!("Invalid compaction profile given. Expected hdd/ssd (default).")),
+		}
+	}
 }
 
 /// Operating mode for the client.
@@ -78,4 +93,22 @@ pub struct ClientConfig {
 	pub mode: Mode,
 	/// Type of block verifier used by client.
 	pub verifier_type: VerifierType,
+}
+
+#[cfg(test)]
+mod test {
+	use std::str::FromStr;
+	use super::DatabaseCompactionProfile;
+
+	#[test]
+	fn test_default_compaction_profile() {
+		assert_eq!(DatabaseCompactionProfile::default(), DatabaseCompactionProfile::Default);
+	}
+
+	#[test]
+	fn test_parsing_compaction_profile() {
+		assert_eq!(DatabaseCompactionProfile::from_str("ssd").unwrap(), DatabaseCompactionProfile::Default);
+		assert_eq!(DatabaseCompactionProfile::from_str("default").unwrap(), DatabaseCompactionProfile::Default);
+		assert_eq!(DatabaseCompactionProfile::from_str("hdd").unwrap(), DatabaseCompactionProfile::HDD);
+	}
 }
