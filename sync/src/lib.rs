@@ -183,3 +183,23 @@ impl ChainNotify for EthSync {
 		});
 	}
 }
+
+pub trait ManageNetwork {
+	fn set_non_reserved_mode(&self, mode: ::util::network::NonReservedPeerMode);
+	fn remove_reserved_peer(&self, peer: &str) -> Result<(), String>;
+	fn add_reserved_peer(&self, peer: &str) -> Result<(), String>;
+}
+
+impl ManageNetwork for EthSync {
+	fn set_non_reserved_mode(&self, mode: ::util::network::NonReservedPeerMode) {
+		self.network.set_non_reserved_mode(mode);
+	}
+
+	fn remove_reserved_peer(&self, peer: &str) -> Result<(), String> {
+		self.network.remove_reserved_peer(peer).map_err(|e| format!("{:?}", e))
+	}
+
+	fn add_reserved_peer(&self, peer: &str) -> Result<(), String> {
+		self.network.add_reserved_peer(peer).map_err(|e| format!("{:?}", e))
+	}
+}
