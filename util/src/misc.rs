@@ -72,7 +72,7 @@ pub trait Lockable<T> {
 	fn locked(&self) -> MutexGuard<T>;
 }
 
-impl<T: Sized> Lockable<T> for Mutex<T> {
+impl<T> Lockable<T> for Mutex<T> {
 	fn locked(&self) -> MutexGuard<T> { self.lock().unwrap() }
 }
 
@@ -85,7 +85,7 @@ pub trait RwLockable<T> {
 	fn unwrapped_write(&self) -> RwLockWriteGuard<T>;
 }
 
-impl<T: Sized> RwLockable<T> for RwLock<T> {
+impl<T> RwLockable<T> for RwLock<T> {
 	fn unwrapped_read(&self) -> RwLockReadGuard<T> { self.read().unwrap() }
 	fn unwrapped_write(&self) -> RwLockWriteGuard<T> { self.write().unwrap() }
 }

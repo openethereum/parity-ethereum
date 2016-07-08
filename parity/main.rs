@@ -485,7 +485,7 @@ fn execute_import(conf: Configuration) {
 			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
-		informant.tick(client.deref(), None);
+		informant.tick::<&'static ()>(client.deref(), None);
 	};
 
 	match format {

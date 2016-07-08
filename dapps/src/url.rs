@@ -16,14 +16,14 @@
 
 //! HTTP/HTTPS URL type. Based on URL type from Iron library.
 
-use url::Host;
-use url::{self};
+use url_lib::{self};
+pub use url_lib::Host;
 
 /// HTTP/HTTPS URL type for Iron.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Url {
 	/// Raw url of url
-	pub raw: url::Url,
+	pub raw: url_lib::Url,
 
 	/// The host field of the URL, probably a domain.
 	pub host: Host,
@@ -62,14 +62,14 @@ impl Url {
 	/// See: http://url.spec.whatwg.org/#special-scheme
 	pub fn parse(input: &str) -> Result<Url, String> {
 		// Parse the string using rust-url, then convert.
-		match url::Url::parse(input) {
+		match url_lib::Url::parse(input) {
 			Ok(raw_url) => Url::from_generic_url(raw_url),
 			Err(e) => Err(format!("{}", e))
 		}
 	}
 
 	/// Create a `Url` from a `rust-url` `Url`.
-	pub fn from_generic_url(raw_url: url::Url) -> Result<Url, String> {
+	pub fn from_generic_url(raw_url: url_lib::Url) -> Result<Url, String> {
 		// Map empty usernames to None.
 		let username = match raw_url.username() {
 			"" => None,
