@@ -16,7 +16,6 @@
 
 use util::{NetworkContext, PeerId, PacketId,};
 use util::error::UtilError;
-use ethcore::service::SyncMessage;
 use ethcore::client::BlockChainClient;
 
 /// IO interface for the syning handler.
