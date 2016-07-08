@@ -79,6 +79,13 @@ impl SimpleMigration for ArchiveV7 {
 	}
 }
 
+// magic numbers and constants for overlay-recent at v6.
+// re-written here because it may change in the journaldb module.
+const V7_LATEST_ERA_KEY: &'static [u8] = &[ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
+const V7_VERSION_KEY: &'static [u8] = &[ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
+const DB_VERSION: u32 = 0x203;
+const PADDING : [u8; 10] = [0u8; 10];
+
 /// Version for OverlayRecent database.
 /// more involved than the archive version because of journaling.
 #[derive(Default)]
@@ -91,12 +98,7 @@ impl OverlayRecentV7 {
 	// replacing any known migrated keys with their counterparts
 	// and then committing again.
 	fn migrate_journal(&self, source: &Database, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
-		// re-written here because it may change in the journaldb module.
-		const V7_LATEST_ERA_KEY: &'static [u8] = &[ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-		const PADDING : [u8; 10] = [0u8; 10];
-
-
-		if let Some(val) = source.get(V7_LATEST_ERA_KEY).expect("Low-level database error.") {
+		if let Some(val) = try!(source.get(V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
 			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.to_owned(), dest));
 
 			let mut era = decode::<u64>(&val);
@@ -109,7 +111,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = source.get(&entry_key).expect("Low-level database error.") {
+					if let Some(journal_raw) = try!(source.get(&entry_key).map_err(Error::Custom)) {
 						let rlp = Rlp::new(&journal_raw);
 						let id: H256 = rlp.val_at(0);
 						let mut inserted_keys: Vec<(H256, Bytes)> = Vec::new();
@@ -171,6 +173,14 @@ impl Migration for OverlayRecentV7 {
 	// this information.
 	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
 		let mut batch = Batch::new(config);
+
+		// migrate version metadata.
+		match try!(source.get(V7_VERSION_KEY).map_err(Error::Custom)) {
+			Some(ref version) if decode::<u32>(&*version) == DB_VERSION => {
+				try!(batch.insert(V7_VERSION_KEY.into(), version[..].to_owned(), dest));
+			}
+			_ => return Err(Error::MigrationImpossible), // missing or wrong version
+		}
 
 		for (key, value) in source.iter().filter(|&(ref k, _)| k.len() == 32) {
 			let key_h = H256::from_slice(&key[..]);
