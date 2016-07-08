@@ -21,8 +21,8 @@ use self::ansi_term::Style;
 use std::time::{Instant, Duration};
 use std::sync::RwLock;
 use std::ops::{Deref, DerefMut};
-use ethsync::{EthSync, SyncProvider, SyncStatus};
-use util::{Uint, NetworkService, NetworkConfiguration};
+use ethsync::SyncStatus;
+use util::{Uint, NetworkConfiguration};
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 

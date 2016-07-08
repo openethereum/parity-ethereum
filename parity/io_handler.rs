@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use ethcore::client::Client;
 use ethcore::service::SyncMessage;
 use ethsync::{EthSync, SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
-use util::{TimerToken, IoHandler, IoContext, NetworkService, NetworkIoMessage};
+use util::{TimerToken, IoHandler, IoContext};
 
 use informant::Informant;
 

@@ -80,9 +80,9 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
+use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, ChainNotify};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, ChainNotify};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -231,7 +231,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
 	// Build client
-	let mut service = ClientService::start(
+	let  service = ClientService::start(
 		client_config,
 		spec,
 		Path::new(&conf.path()),
@@ -403,19 +403,6 @@ fn execute_import(conf: Configuration) {
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	let spec = conf.spec();
-	let net_settings = NetworkConfiguration {
-		config_path: None,
-		listen_address: None,
-		public_address: None,
-		udp_port: None,
-		nat_enabled: false,
-		discovery_enabled: false,
-		boot_nodes: Vec::new(),
-		use_secret: None,
-		ideal_peers: 0,
-		reserved_nodes: Vec::new(),
-		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
-	};
 	let client_config = conf.client_config(&spec);
 
 	// Build client

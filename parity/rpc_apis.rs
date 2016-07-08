@@ -25,7 +25,6 @@ use ethcore::client::Client;
 use util::RotatingLogger;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use util::network::NetworkService;
 
 #[cfg(feature="rpc")]
 pub use ethcore_rpc::ConfirmationsQueue;
