@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use util::numbers::*;
+
 /// Represents what has to be handled by actor listening to chain events
-pub trait ChainNotify {
+pub trait ChainNotify : Send + Sync {
 	fn chain_new_blocks(&self,
 		imported: &[H256],
 		invalid: &[H256],
@@ -34,6 +36,6 @@ pub trait ChainNotify {
 	}
 }
 
-struct EmptyNotifier;
+struct EmptyChainNotify;
 
-impl ChainNotify for EmptyNotifier { }
+impl ChainNotify for EmptyChainNotify { }

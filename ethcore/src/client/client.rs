@@ -60,7 +60,7 @@ use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
 	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
-	TraceFilter, CallAnalytics, BlockImportError, Mode};
+	TraceFilter, CallAnalytics, BlockImportError, Mode, ChainNotify};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -141,7 +141,8 @@ pub struct Client {
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
-	io_channel: IoChannel<NetSyncMessage>,
+	io_channel: IoChannel<SyncMessage>,
+	notify: Arc<ChainNotify>,
 	queue_transactions: AtomicUsize,
 	previous_enode: Mutex<Option<String>>,
 }
@@ -178,7 +179,8 @@ impl Client {
 		spec: Spec,
 		path: &Path,
 		miner: Arc<Miner>,
-		message_channel: IoChannel<NetSyncMessage>
+		message_channel: IoChannel<SyncMessage>,
+		notify: Arc<ChainNotify>,
 	) -> Result<Arc<Client>, ClientError> {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
@@ -228,6 +230,7 @@ impl Client {
 			trie_factory: TrieFactory::new(config.trie_spec),
 			miner: miner,
 			io_channel: message_channel,
+			notify: notify,
 			queue_transactions: AtomicUsize::new(0),
 			previous_enode: Mutex::new(None),
 		};
@@ -327,7 +330,7 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
+	pub fn import_verified_blocks(&self, io: &IoChannel<SyncMessage>) -> usize {
 		let max_blocks_to_import = 64;
 
 		let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
@@ -382,13 +385,13 @@ impl Client {
 					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
 				}
 
-				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
+				io.send(SyncMessage::NewChainBlocks {
 					imported: imported_blocks,
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
 					sealed: Vec::new(),
-				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+				}).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 			}
 		}
 
@@ -566,7 +569,7 @@ impl Client {
 	fn wake_up(&self) {
 		if !self.liveness.load(AtomicOrdering::Relaxed) {
 			self.liveness.store(true, AtomicOrdering::Relaxed);
-			self.io_channel.send(NetworkIoMessage::User(SyncMessage::StartNetwork)).unwrap();
+			self.notify.start();
 			trace!(target: "mode", "wake_up: Waking.");
 		}
 	}
@@ -576,7 +579,7 @@ impl Client {
 			// only sleep if the import queue is mostly empty.
 			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
 				self.liveness.store(false, AtomicOrdering::Relaxed);
-				self.io_channel.send(NetworkIoMessage::User(SyncMessage::StopNetwork)).unwrap();
+				self.notify.stop();
 				trace!(target: "mode", "sleep: Sleeping.");
 			} else {
 				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
@@ -901,7 +904,7 @@ impl BlockChainClient for Client {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
-			match self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewTransactions(transactions))) {
+			match self.io_channel.send(SyncMessage::NewTransactions(transactions)) {
 				Ok(_) => {
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
 				}
@@ -969,13 +972,13 @@ impl MiningBlockChainClient for Client {
 			let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
 			self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
 
-			self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
-				imported: vec![h.clone()],
-				invalid: vec![],
-				enacted: enacted,
-				retracted: retracted,
-				sealed: vec![h.clone()],
-			})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+			self.notify.chain_new_blocks(
+				&vec![h.clone()],
+				&vec![],
+				&enacted,
+				&retracted,
+				&vec![h.clone()],
+			);
 		}
 
 		if self.chain_info().best_block_hash != original_best {

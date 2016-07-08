@@ -30,7 +30,7 @@ pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use types::trace_filter::Filter as TraceFilter;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
-pub use chain_notify::ChainNotify;
+pub use self::chain_notify::ChainNotify;
 
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};

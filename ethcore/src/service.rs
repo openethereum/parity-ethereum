@@ -20,7 +20,7 @@ use util::*;
 use util::panics::*;
 use spec::Spec;
 use error::*;
-use client::{Client, ClientConfig};
+use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
 
 /// Message type for external and internal events
@@ -56,31 +56,37 @@ pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
-	net_service: Arc<NetworkService<SyncMessage>>,
+	io_service: Arc<IoService<SyncMessage>>,
 	client: Arc<Client>,
 	panic_handler: Arc<PanicHandler>
 }
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path, miner: Arc<Miner>, enable_network: bool) -> Result<ClientService, Error> {
+	pub fn start(
+		config: ClientConfig,
+		spec: Spec,
+		net_config: NetworkConfiguration,
+		db_path: &Path,
+		miner: Arc<Miner>,
+		enable_network: bool,
+		notify: Arc<ChainNotify>,
+		) -> Result<ClientService, Error>
+	{
 		let panic_handler = PanicHandler::new_in_arc();
-		let net_service = try!(NetworkService::new(net_config));
-		panic_handler.forward_from(&net_service);
-		if enable_network {
-			try!(net_service.start());
-		}
+		let io_service = try!(IoService::<SyncMessage>::start());
+		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", spec.name.clone().apply(Colour::White.bold()), spec.engine.name().apply(Colour::Yellow.bold()));
-		let client = try!(Client::new(config, spec, db_path, miner, net_service.io().channel()));
+		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel(), notify));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
 		});
-		try!(net_service.io().register_handler(client_io));
+		try!(io_service.register_handler(client_io));
 
 		Ok(ClientService {
-			net_service: Arc::new(net_service),
+			io_service: Arc::new(io_service),
 			client: client,
 			panic_handler: panic_handler,
 		})
@@ -92,8 +98,8 @@ impl ClientService {
 	}
 
 	/// Get general IO interface
-	pub fn register_io_handler(&self, handler: Arc<IoHandler<NetSyncMessage> + Send>) -> Result<(), IoError> {
-		self.net_service.io().register_handler(handler)
+	pub fn register_io_handler(&self, handler: Arc<IoHandler<SyncMessage> + Send>) -> Result<(), IoError> {
+		self.io_service.register_handler(handler)
 	}
 
 	/// Get client interface
@@ -102,8 +108,8 @@ impl ClientService {
 	}
 
 	/// Get network service component
-	pub fn network(&mut self) -> Arc<NetworkService<SyncMessage>> {
-		self.net_service.clone()
+	pub fn io(&self) -> Arc<IoService<SyncMessage>> {
+		self.io_service.clone()
 	}
 }
 
@@ -121,26 +127,22 @@ struct ClientIoHandler {
 const CLIENT_TICK_TIMER: TimerToken = 0;
 const CLIENT_TICK_MS: u64 = 5000;
 
-impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
+impl IoHandler<SyncMessage> for ClientIoHandler {
+	fn initialize(&self, io: &IoContext<SyncMessage>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<SyncMessage>, timer: TimerToken) {
 		if timer == CLIENT_TICK_TIMER {
 			self.client.tick();
 		}
 	}
 
 	#[cfg_attr(feature="dev", allow(single_match))]
-	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
+	fn message(&self, io: &IoContext<SyncMessage>, net_message: &SyncMessage) {
 		match *net_message {
-			UserMessage(ref message) => match *message {
-				SyncMessage::BlockVerified => { self.client.import_verified_blocks(&io.channel()); }
-				SyncMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
-				_ => {} // ignore other messages
-			},
-			NetworkIoMessage::NetworkStarted(ref url) => { self.client.network_started(url); }
+			SyncMessage::BlockVerified => { self.client.import_verified_blocks(&io.channel()); }
+			SyncMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
 			_ => {} // ignore other messages
 		}
 	}
