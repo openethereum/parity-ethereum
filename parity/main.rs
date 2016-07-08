@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 #![cfg_attr(feature="dev", allow(useless_format))]
+#![cfg_attr(feature="dev", allow(match_bool))]
 
 extern crate docopt;
 extern crate num_cpus;
@@ -212,7 +213,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Check fork settings.
 	if conf.policy() != Policy::None {
-		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");		
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 
 	let net_settings = conf.net_settings(&spec);
