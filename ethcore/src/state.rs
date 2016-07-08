@@ -55,7 +55,8 @@ impl State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
-			let _ = trie_factory.create(db.as_hashdb_mut(), &mut root);
+			let mut compressed_db = CompressedDBMut::new(db.as_hashdb_mut());
+			let _ = trie_factory.create(&mut compressed_db, &mut root);
 		}
 
 		State {
@@ -70,7 +71,7 @@ impl State {
 
 	/// Creates new state with existing state root
 	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, trie_factory: TrieFactory) -> Result<State, TrieError> {
-		if !CompressedDB::new(db.as_hashdb()).contains(&root) {
+		if !db.as_hashdb().contains(&root) {
 			return Err(TrieError::InvalidStateRoot);
 		}
 
@@ -290,7 +291,8 @@ impl State {
 		}
 
 		{
-			let mut trie = trie_factory.from_existing(db, root).unwrap();
+			let mut compressed_db = CompressedDBMut::new(db);
+			let mut trie = trie_factory.from_existing(&mut compressed_db, root).unwrap();
 			for (address, ref a) in accounts.iter() {
 				match **a {
 					Some(ref account) => trie.insert(address, &account.rlp()),
