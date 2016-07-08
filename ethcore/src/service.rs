@@ -34,9 +34,6 @@ pub enum SyncMessage {
 	NewTransactions(Vec<Bytes>),
 }
 
-/// IO Message type used for Network service
-pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
-
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
 	io_service: Arc<IoService<SyncMessage>>,
