@@ -197,18 +197,16 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
-  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
-                           bytes [default: 16384].
-  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
-                           bytes [default: 262144].
-  --queue-max-size BYTES   Specify the maximum size of memory to use for block
-                           queue [default: 52428800].
-  --cache MEGABYTES        Set total amount of discretionary memory to use for
+  --cache-size-db MB       Override RocksDB database cache size [default: 100].
+  --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
+                           bytes [default: 50].
+  --cache-size-queue MB    Specify the maximum size of memory to use for block
+                           queue [default: 50].
+  --cache-size MEGABYTES   Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
 
 Database Options:
-  --db-cache-size MB       Override RocksDB database cache size.
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs [default: ssd].
@@ -289,7 +287,6 @@ pub struct Args {
 	pub flag_fork: String,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
-	pub flag_cache: Option<usize>,
 	pub flag_keys_path: String,
 	pub flag_keys_iterations: u32,
 	pub flag_no_import_keys: bool,
@@ -304,9 +301,12 @@ pub struct Args {
 	pub flag_node_key: Option<String>,
 	pub flag_reserved_peers: Option<String>,
 	pub flag_reserved_only: bool,
-	pub flag_cache_pref_size: usize,
-	pub flag_cache_max_size: usize,
-	pub flag_queue_max_size: usize,
+
+	pub flag_cache_size_db: u32,
+	pub flag_cache_size_blocks: u32,
+	pub flag_cache_size_queue: u32,
+	pub flag_cache_size: Option<u32>,
+
 	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
 	pub flag_jsonrpc_port: u16,
@@ -372,7 +372,6 @@ pub struct Args {
 	pub flag_dapps_off: bool,
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
-	pub flag_db_cache_size: Option<usize>,
 	pub flag_db_compaction: String,
 	pub flag_fat_db: bool,
 }

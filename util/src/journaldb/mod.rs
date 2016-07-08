@@ -57,7 +57,7 @@ pub enum Algorithm {
 }
 
 impl Default for Algorithm {
-	fn default() -> Algorithm { Algorithm::Archive }
+	fn default() -> Algorithm { Algorithm::OverlayRecent }
 }
 
 impl FromStr for Algorithm {
@@ -147,6 +147,11 @@ mod tests {
 		assert!(Algorithm::OverlayRecent.is_stable());
 		assert!(!Algorithm::EarlyMerge.is_stable());
 		assert!(!Algorithm::RefCounted.is_stable());
+	}
+
+	#[test]
+	fn test_journal_algorithm_default() {
+		assert_eq!(Algorithm::default(), Algorithm::OverlayRecent);
 	}
 
 	#[test]

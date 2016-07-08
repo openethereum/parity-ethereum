@@ -45,9 +45,7 @@ pub fn execute(command: Cmd) -> Result<String, String> {
 		Cmd::Version => Ok(print_version()),
 		Cmd::Account(account_cmd) => account::execute(account_cmd),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
-		Cmd::Blockchain(_blockchain_cmd) => {
-			unimplemented!();
-		},
+		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
 		Cmd::SignerToken(path) => signer::new_token(path)
 	}
 }

@@ -36,6 +36,7 @@ use ethsync::SyncConfig;
 use price_info::PriceInfo;
 use rpc::IpcConfiguration;
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, LoggerConfig, SpecType};
+use cache::CacheConfig;
 
 /// Flush output buffer.
 fn flush_stdout() {
@@ -117,6 +118,7 @@ impl Configuration {
 			mode: None,
 			color: false,
 		};
+		let pruning = try!(self.pruning());
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -154,9 +156,11 @@ impl Configuration {
 			let import_cmd = ImportBlockchain {
 				spec: try!(SpecType::from_str(&self.chain())),
 				logger_config: logger_config,
+				cache_config: self.cache_config(),
 				db_path: dirs.db.clone(),
 				file_path: self.args.arg_file.clone(),
 				format: None,
+				pruning: pruning,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -174,6 +178,24 @@ impl Configuration {
 			"passive" => Mode::Passive(Duration::from_secs(self.args.flag_mode_timeout), Duration::from_secs(self.args.flag_mode_alarm)),
 			"dark" => Mode::Dark(Duration::from_secs(self.args.flag_mode_timeout)),
 			_ => die!("{}: Invalid address for --mode. Must be one of active, passive or dark.", self.args.flag_mode),
+		}
+	}
+
+	fn cache_config(&self) -> CacheConfig {
+		match self.args.flag_cache_size {
+			Some(size) => CacheConfig::new_with_total_cache_size(size),
+			None => CacheConfig {
+				rocksdb: self.args.flag_cache_size_db,
+				blockchain: self.args.flag_cache_size_blocks,
+				queue: self.args.flag_cache_size_queue,
+			}
+		}
+	}
+
+	fn pruning(&self) -> Result<Option<journaldb::Algorithm>, String> {
+		match self.args.flag_pruning.as_str() {
+			"auto" => Ok(None),
+			specific => journaldb::Algorithm::from_str(specific).map(Some),
 		}
 	}
 
@@ -391,7 +413,7 @@ impl Configuration {
 		let mut jdb_types = journaldb::Algorithm::all_types();
 
 		// if all dbs have the same latest era, the last element is the default one
-		jdb_types.push(journaldb::Algorithm::OverlayRecent);
+		jdb_types.push(journaldb::Algorithm::default());
 
 		jdb_types.into_iter().max_by_key(|i| {
 			let state_path = append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state");
@@ -402,6 +424,7 @@ impl Configuration {
 	}
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
+		/*
 		let mut client_config = ClientConfig::default();
 
 		client_config.mode = self.mode();
@@ -459,6 +482,8 @@ impl Configuration {
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		client_config
+		*/
+		unimplemented!();
 	}
 
 	pub fn sync_config(&self, spec: &Spec) -> SyncConfig {
@@ -655,7 +680,9 @@ mod tests {
 	use cli::USAGE;
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
+	use util::journaldb;
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, SpecType, ImportBlockchain, LoggerConfig};
+	use cache::CacheConfig;
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -741,9 +768,11 @@ mod tests {
 				mode: None,
 				color: false,
 			},
+			cache_config: CacheConfig::default(),
 			db_path: Configuration::replace_home("$HOME/.parity"),
 			file_path: Some("blockchain.json".into()),
 			format: None,
+			pruning: None,
 		})));
 	}
 

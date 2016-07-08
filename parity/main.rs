@@ -49,6 +49,7 @@ extern crate ethcore_rpc;
 extern crate ethcore_dapps;
 
 mod commands;
+mod cache;
 #[macro_use]
 mod die;
 mod price_info;
