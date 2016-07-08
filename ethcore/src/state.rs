@@ -179,7 +179,7 @@ impl State {
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.get(address, false).as_ref().map_or(H256::new(), |a| a.storage_at(&CompressedDB::new(&AccountDB::new(self.db.as_hashdb(), address)), key))
+		self.get(address, false).as_ref().map_or(H256::new(), |a| a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
@@ -280,10 +280,7 @@ impl State {
 			match a {
 				&mut&mut Some(ref mut account) => {
 					let mut account_db = AccountDBMut::new(db, address);
-					{
-						let mut compressed_db = CompressedDBMut::new(&mut account_db);
-						account.commit_storage(trie_factory, &mut compressed_db);
-					}
+					account.commit_storage(trie_factory, &mut account_db);
 					account.commit_code(&mut account_db);
 				}
 				&mut&mut None => {}
