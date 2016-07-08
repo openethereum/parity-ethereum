@@ -75,7 +75,7 @@ use util::{TimerToken, U256, H256};
 use ethcore::client::{Client, ChainNotify};
 use ethcore::service::SyncMessage;
 use io::NetSyncIo;
-use util::io::IoChannel;
+use util::io::{IoChannel, IoHandler, IoService, IoContext};
 use util::{NetworkIoMessage, NetworkError};
 use chain::ChainSync;
 
@@ -112,6 +112,11 @@ pub trait SyncProvider: Send + Sync {
 	fn status(&self) -> SyncStatus;
 }
 
+#[derive(Debug, Clone)]
+enum SyncDataMessage {
+	NewBlocks { imported: Vec<H256>, invalid: Vec<H256>, enacted: Vec<H256>, retracted: Vec<H256>, sealed: Vec<H256> }
+}
+
 /// Ethereum network protocol handler
 pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
@@ -120,6 +125,8 @@ pub struct EthSync {
 	sync: RwLock<ChainSync>,
 	/// Network service
 	network: NetworkService,
+	/// sync i/o service
+	io_service: IoService<SyncDataMessage>,
 }
 
 pub use self::chain::{SyncStatus, SyncState};
@@ -129,12 +136,16 @@ impl EthSync {
 	pub fn new(config: SyncConfig, chain: Arc<Client>, network_config: NetworkConfiguration) -> Arc<EthSync> {
 		let chain_sync = ChainSync::new(config, chain.deref());
 		let service = NetworkService::new(network_config).unwrap();
+		let io_service = IoService::start().unwrap();
 		let sync = Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(chain_sync),
 			network: service,
+			io_service: io_service,
 		});
+		sync.network.start().unwrap();
 		sync.network.register_protocol(sync.clone(), ETH_PROTOCOL, &[62u8, 63u8]);
+		sync.io_service.register_handler(sync.clone());
 		sync
 	}
 }
@@ -169,6 +180,22 @@ impl NetworkProtocolHandler for EthSync {
 	}
 }
 
+impl IoHandler<SyncDataMessage> for EthSync {
+	fn message(&self, io: &IoContext<SyncDataMessage>, message: &SyncDataMessage) {
+		let SyncDataMessage::NewBlocks { imported: ref imported, invalid: ref invalid, enacted: ref enacted, retracted: ref retracted, sealed: ref sealed } = *message;
+		self.network.with_context(ETH_PROTOCOL, |context| {
+			let mut sync_io = NetSyncIo::new(context, self.chain.deref());
+			self.sync.write().unwrap().chain_new_blocks(
+				&mut sync_io,
+				imported,
+				invalid,
+				enacted,
+				retracted,
+				sealed);
+		});
+	}
+}
+
 impl ChainNotify for EthSync {
 	fn new_blocks(&self,
 		imported: Vec<H256>,
@@ -177,10 +204,13 @@ impl ChainNotify for EthSync {
 		retracted: Vec<H256>,
 		sealed: Vec<H256>)
 	{
-		self.network.with_context(ETH_PROTOCOL, |context| {
-			let mut sync_io = NetSyncIo::new(context, self.chain.deref());
-			self.sync.write().unwrap().chain_new_blocks(&mut sync_io, &imported, &invalid, &enacted, &retracted, &sealed);
-		});
+		self.io_service.send_message(SyncDataMessage::NewBlocks {
+			imported: imported,
+			invalid: invalid,
+			enacted: enacted,
+			retracted: retracted,
+			sealed: sealed
+		}).unwrap();
 	}
 }
 
