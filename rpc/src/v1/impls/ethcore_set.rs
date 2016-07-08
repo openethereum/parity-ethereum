@@ -19,9 +19,8 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::service::SyncMessage;
 use ethsync::ManageNetwork;
-use util::network::{NetworkService, NonReservedPeerMode};
+use util::network::NonReservedPeerMode;
 use v1::traits::EthcoreSet;
 use v1::types::{Bytes, H160, U256};
 

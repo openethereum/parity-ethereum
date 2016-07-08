@@ -342,19 +342,6 @@ fn execute_export(conf: Configuration) {
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	let spec = conf.spec();
-	let net_settings = NetworkConfiguration {
-		config_path: None,
-		listen_address: None,
-		public_address: None,
-		udp_port: None,
-		nat_enabled: false,
-		discovery_enabled: false,
-		boot_nodes: Vec::new(),
-		use_secret: None,
-		ideal_peers: 0,
-		reserved_nodes: Vec::new(),
-		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
-	};
 	let client_config = conf.client_config(&spec);
 
 	// Build client
