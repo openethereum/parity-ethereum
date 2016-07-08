@@ -493,9 +493,12 @@ impl MinerService for Miner {
 	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>> {
 
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		let results = self.add_transactions_to_queue(chain, transactions, TransactionOrigin::External,
-													 &mut transaction_queue);
+		let results = {
+			let mut transaction_queue = self.transaction_queue.lock().unwrap();
+			self.add_transactions_to_queue(
+				chain, transactions, TransactionOrigin::External, &mut transaction_queue
+			)
+		};
 
 		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.tx_reseal_allowed() {
 			self.update_sealing(chain);
