@@ -341,50 +341,52 @@ impl Client {
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, io: &IoChannel<SyncMessage>) -> usize {
 		let max_blocks_to_import = 64;
+		let (imported_blocks, import_results, invalid_blocks, original_best, imported) = {
+			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
+			let mut invalid_blocks = HashSet::new();
+			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
-		let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
-		let mut invalid_blocks = HashSet::new();
-		let mut import_results = Vec::with_capacity(max_blocks_to_import);
+			let _import_lock = self.import_lock.lock();
+			let _timer = PerfTimer::new("import_verified_blocks");
+			let blocks = self.block_queue.drain(max_blocks_to_import);
 
-		let _import_lock = self.import_lock.lock();
-		let _timer = PerfTimer::new("import_verified_blocks");
-		let blocks = self.block_queue.drain(max_blocks_to_import);
+			let original_best = self.chain_info().best_block_hash;
 
-		let original_best = self.chain_info().best_block_hash;
+			for block in blocks {
+				let header = &block.header;
 
-		for block in blocks {
-			let header = &block.header;
+				if invalid_blocks.contains(&header.parent_hash) {
+					invalid_blocks.insert(header.hash());
+					continue;
+				}
+				let closed_block = self.check_and_close_block(&block);
+				if let Err(_) = closed_block {
+					invalid_blocks.insert(header.hash());
+					continue;
+				}
+				let closed_block = closed_block.unwrap();
+				imported_blocks.push(header.hash());
 
-			if invalid_blocks.contains(&header.parent_hash) {
-				invalid_blocks.insert(header.hash());
-				continue;
+				let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
+				import_results.push(route);
+
+				self.report.write().unwrap().accrue_block(&block);
+				trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			}
-			let closed_block = self.check_and_close_block(&block);
-			if let Err(_) = closed_block {
-				invalid_blocks.insert(header.hash());
-				continue;
+
+			let imported = imported_blocks.len();
+			let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
+
+			{
+				if !invalid_blocks.is_empty() {
+					self.block_queue.mark_as_bad(&invalid_blocks);
+				}
+				if !imported_blocks.is_empty() {
+					self.block_queue.mark_as_good(&imported_blocks);
+				}
 			}
-			let closed_block = closed_block.unwrap();
-			imported_blocks.push(header.hash());
-
-			let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
-			import_results.push(route);
-
-			self.report.write().unwrap().accrue_block(&block);
-			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
-		}
-
-		let imported = imported_blocks.len();
-		let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
-
-		{
-			if !invalid_blocks.is_empty() {
-				self.block_queue.mark_as_bad(&invalid_blocks);
-			}
-			if !imported_blocks.is_empty() {
-				self.block_queue.mark_as_good(&imported_blocks);
-			}
-		}
+			(imported_blocks, import_results, invalid_blocks, original_best, imported)
+		};
 
 		{
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
