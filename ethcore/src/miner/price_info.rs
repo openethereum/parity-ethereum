@@ -15,12 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rustc_serialize::json::Json;
+use std::thread;
 use std::io::Read;
 use std::time::Duration;
+use std::str::FromStr;
+use std::sync::mpsc;
 use hyper::client::{Handler, Request, Response, Client};
 use hyper::{Next, Encoder, Decoder};
 use hyper::net::HttpStream;
-use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct PriceInfo {
@@ -29,6 +31,13 @@ pub struct PriceInfo {
 
 pub struct SetPriceHandler<F: Fn(PriceInfo) + Sync + Send + 'static> {
 	set_price: F,
+	channel: mpsc::Sender<()>,
+}
+
+impl<F: Fn(PriceInfo) + Sync + Send + 'static> Drop for SetPriceHandler<F> {
+	fn drop(&mut self) {
+		let _ = self.channel.send(());
+	}
 }
 
 impl<F: Fn(PriceInfo) + Sync + Send + 'static> Handler<HttpStream> for SetPriceHandler<F> {
@@ -55,9 +64,33 @@ impl<F: Fn(PriceInfo) + Sync + Send + 'static> Handler<HttpStream> for SetPriceH
 impl PriceInfo {
 	pub fn get<F: Fn(PriceInfo) + Sync + Send + 'static>(set_price: F) -> Result<(), ()> {
 		// TODO: Handle each error type properly
+		let client = try!(Client::new().map_err(|_| ()));
 		trace!(target: "miner", "Starting price info request...");
-		Client::new().map_err(|_| ()).and_then(|client| {
-			client.request(FromStr::from_str("http://api.etherscan.io/api?module=stats&action=ethprice").unwrap(), SetPriceHandler { set_price: set_price }).map_err(|_| ())
-		})
+		thread::spawn(move || {
+			trace!(target: "miner", "Inside thread...");
+			let (tx, rx) = mpsc::channel();
+			let _ = client.request(FromStr::from_str("http://api.etherscan.io/api?module=stats&action=ethprice").unwrap(), SetPriceHandler {
+				set_price: set_price,
+				channel: tx,
+			}).ok().and_then(|_| rx.recv().ok());
+			client.close();
+		});
+		Ok(())
 	}
+}
+
+//#[ignore]
+#[test]
+fn should_get_price_info() {
+	use std::sync::{Condvar, Mutex, Arc};
+	use std::time::Duration;
+	use util::log::init_log;
+	init_log();
+	let done = Arc::new((Mutex::new(PriceInfo { ethusd: 0f32 }), Condvar::new()));
+	let rdone = done.clone();
+	trace!(target: "miner", "price_info: getting price_info");
+	PriceInfo::get(move |price| { let mut p = rdone.0.lock().unwrap(); *p = price; rdone.1.notify_one(); }).unwrap();
+	let p = done.1.wait_timeout(done.0.lock().unwrap(), Duration::from_millis(10000)).unwrap();
+	assert!(!p.1.timed_out());
+	assert!(p.0.ethusd != 0f32);
 }

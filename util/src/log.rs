@@ -60,8 +60,7 @@ lazy_static! {
 			builder.parse(&log);
 		}
 
-		println!("HERE!");
-		builder.format(markup);
+//		builder.format(markup);
 
 		if builder.init().is_ok() {
 			println!("logger initialized");
