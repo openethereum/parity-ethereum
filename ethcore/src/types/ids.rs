@@ -47,6 +47,7 @@ pub enum TransactionID {
 }
 
 /// Uniquely identifies Trace.
+#[derive(Binary)]
 pub struct TraceId {
 	/// Transaction
 	pub transaction: TransactionID,

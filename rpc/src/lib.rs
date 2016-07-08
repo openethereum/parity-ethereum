@@ -32,6 +32,7 @@ extern crate ethcore;
 extern crate ethsync;
 extern crate transient_hashmap;
 extern crate json_ipc_server as ipc;
+extern crate ethcore_ipc;
 
 #[cfg(test)]
 extern crate ethjson;

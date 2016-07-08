@@ -14,21 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tree route info type definition
+//! Call analytics related types
 
-use util::numbers::H256;
-use ipc::BinaryConvertError;
-use std::collections::VecDeque;
 use std::mem;
+use ipc::binary::{BinaryConvertError};
+use std::collections::VecDeque;
 
-/// Represents a tree route between `from` block and `to` block:
-#[derive(Debug, Binary)]
-pub struct TreeRoute {
-	/// A vector of hashes of all blocks, ordered from `from` to `to`.
-	pub blocks: Vec<H256>,
-	/// Best common ancestor of these blocks.
-	pub ancestor: H256,
-	/// An index where best common ancestor would be.
-	pub index: usize,
+/// Options concerning what analytics we run on the call.
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug, Binary)]
+pub struct CallAnalytics {
+	/// Make a transaction trace.
+	pub transaction_tracing: bool,
+	/// Make a VM trace.
+	pub vm_tracing: bool,
+	/// Make a diff.
+	pub state_diffing: bool,
 }
-

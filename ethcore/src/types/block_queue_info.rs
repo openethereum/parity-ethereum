@@ -14,21 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tree route info type definition
+//! Block queue info types
 
-use util::numbers::H256;
-use ipc::BinaryConvertError;
-use std::collections::VecDeque;
 use std::mem;
+use ipc::binary::BinaryConvertError;
+use std::collections::VecDeque;
 
-/// Represents a tree route between `from` block and `to` block:
+/// Block queue status
 #[derive(Debug, Binary)]
-pub struct TreeRoute {
-	/// A vector of hashes of all blocks, ordered from `from` to `to`.
-	pub blocks: Vec<H256>,
-	/// Best common ancestor of these blocks.
-	pub ancestor: H256,
-	/// An index where best common ancestor would be.
-	pub index: usize,
+pub struct BlockQueueInfo {
+	/// Number of queued blocks pending verification
+	pub unverified_queue_size: usize,
+	/// Number of verified queued blocks pending import
+	pub verified_queue_size: usize,
+	/// Number of blocks being verified
+	pub verifying_queue_size: usize,
+	/// Configured maximum number of blocks in the queue
+	pub max_queue_size: usize,
+	/// Configured maximum number of bytes to use
+	pub max_mem_use: usize,
+	/// Heap memory used in bytes
+	pub mem_used: usize,
 }
-
