@@ -307,5 +307,55 @@ mod tests {
 		test_db(&DatabaseConfig::default().prefix(22));
 		test_db(&DatabaseConfig::default().prefix(8));
 	}
+
+	#[test]
+	#[ignore]
+	fn dump_db() {
+		let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/state".to_string();
+		let db = Database::open_default(&path).unwrap();
+		for (_, v) in db.iter() {
+			println!("{:?}", v);
+		}
+	}
+	#[test]
+	#[ignore]
+	fn analyze_db() {
+		use std::collections::HashMap;
+		use rlp::*;
+		let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/blocks".to_string();
+		let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
+		let mut rlp_counts: HashMap<_, u32> = HashMap::new();
+
+		fn flat_rlp<'a>(acc: &mut Vec<UntrustedRlp<'a>>, rlp: UntrustedRlp<'a>) {
+			match rlp.is_data() {
+				true => acc.push(rlp),
+				false => for r in rlp.iter() { flat_rlp(acc, r); },
+			}
+		}
+
+		fn space_saving(bytes: &[u8]) -> u32 {
+			let l = bytes.len() as u32;
+			match l >= 2 {
+				true => l-2,
+				false => 0,
+			}
+		}
+
+		for v in values.iter() {
+			let rlp = UntrustedRlp::new(&v);
+			let mut flat = Vec::new();
+			flat_rlp(&mut flat, rlp);
+			for r in flat.iter() {
+				//let replacement = r.compress().to_vec();
+				*rlp_counts.entry(r.as_raw()).or_insert(0) += space_saving(r.as_raw());
+			}
+		}
+		let mut count_vec: Vec<_> = rlp_counts.iter().collect();
+		count_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+		for v in count_vec.iter().take(40) {
+			println!("{:?}", v);
+		}
+	}
 }
 
