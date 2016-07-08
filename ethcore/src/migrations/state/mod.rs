@@ -18,4 +18,4 @@
 
 mod v7;
 
-pub use self::v7::ArchiveV7;
+pub use self::v7::{ArchiveV7, OverlayRecentV7};

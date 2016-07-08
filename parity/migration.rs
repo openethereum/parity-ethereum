@@ -156,15 +156,18 @@ fn extras_database_migrations() -> Result<MigrationManager, Error> {
 /// Migrations on the state database.
 fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings());
-	match pruning {
-		Algorithm::Archive => try!(manager.add_migration(migrations::state::ArchiveV7).map_err(|_| Error::MigrationImpossible)),
+	let res = match pruning {
+		Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7),
+		Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
 		_ => die!("Unsupported pruning method for migration. Delete DB and resync"),
-	}
+	};
+
+	try!(res.map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
 /// Migrates database at given position with given migration rules.
-fn migrate_database(version: u32, db_path: PathBuf, migrations: mut MigrationManager) -> Result<(), Error> {
+fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationManager) -> Result<(), Error> {
 	// check if migration is needed
 	if !migrations.is_needed(version) {
 		return Ok(())
