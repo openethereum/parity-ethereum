@@ -14,113 +14,95 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Parity EVM interpreter binary.
+
 #![warn(missing_docs)]
 extern crate ethcore;
-#[macro_use] extern crate ethcore_util as util;
+extern crate rustc_serialize;
+extern crate docopt;
+#[macro_use]
+extern crate ethcore_util as util;
 
-use std::collections::HashMap;
-use util::{U256, H256, Address, Bytes, FromHex, FixedHash};
-use ethcore::client::EnvInfo;
-use ethcore::evm::{self, Factory, VMType, Ext, ContractCreateResult, MessageCallResult, Schedule};
+mod ext;
+
+use std::time::Instant;
+use std::str::FromStr;
+use docopt::Docopt;
+use util::{U256, FromHex, Uint, Bytes};
+use ethcore::evm::{Factory, VMType, Finalize};
 use ethcore::action_params::ActionParams;
 
+const USAGE: &'static str = r#"
+EVM implementation for Parity.
+  Copyright 2016 Ethcore (UK) Limited
+
+Usage:
+    evmbin stats [options]
+    evmbin [-h | --help]
+
+Transaction options:
+    --code CODE        Contract code.
+    --input DATA       Input data.
+    --gas GAS          Supplied gas.
+
+General options:
+    -h, --help         Display this message and exit.
+"#;
+
+
 fn main() {
-	let factory = Factory::new(VMType::Interpreter);
+	let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
 
-	let gas = 1_000_000.into();
-	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
-
-	let mut vm = factory.create(gas);
 	let mut params = ActionParams::default();
-	let mut ext = FakeExt::default();
-	params.gas = gas;
-	params.code = Some(code);
+	params.gas = args.gas();
+	params.code = Some(args.code());
+	params.data = args.data();
 
-	let gas_left = vm.exec(params, &mut ext).expect("Ok");
-	println!("{:?}", gas_left);
+	let factory = Factory::new(VMType::Interpreter);
+	let mut vm = factory.create(params.gas);
+	let mut ext = ext::FakeExt::default();
+
+	let start = Instant::now();
+	let gas_left = vm.exec(params, &mut ext).finalize(ext).expect("OK");
+	let duration = start.elapsed();
+
+	println!("Gas used: {:?}", args.gas() - gas_left);
+	println!("Output: {:?}", "");
+	println!("Time: {}.{}s", duration.as_secs(), duration.subsec_nanos());
 }
 
-struct FakeExt {
-	schedule: Schedule,
-	store: HashMap<H256, H256>,
+#[derive(Debug, RustcDecodable)]
+struct Args {
+	cmd_stats: bool,
+	flag_code: Option<String>,
+	flag_gas: Option<String>,
+	flag_input: Option<String>,
 }
 
-impl Default for FakeExt {
-	fn default() -> Self {
-		FakeExt {
-			schedule: Schedule::new_homestead(),
-			store: HashMap::new(),
-		}
+impl Args {
+	pub fn gas(&self) -> U256 {
+		self.flag_gas
+			.clone()
+			.and_then(|g| U256::from_str(&g).ok())
+			.unwrap_or_else(|| !U256::zero())
+	}
+
+	pub fn code(&self) -> Bytes {
+		self.flag_code
+			.clone()
+			.and_then(|c| c.from_hex().ok())
+			.unwrap_or_else(|| die("Code is required."))
+	}
+
+	pub fn data(&self) -> Option<Bytes> {
+		self.flag_input
+			.clone()
+			.and_then(|d| d.from_hex().ok())
 	}
 }
 
-impl Ext for FakeExt {
-	fn storage_at(&self, key: &H256) -> H256 {
-		self.store.get(key).unwrap_or(&H256::new()).clone()
-	}
 
-	fn set_storage(&mut self, key: H256, value: H256) {
-		self.store.insert(key, value);
-	}
-
-	fn exists(&self, _address: &Address) -> bool {
-		unimplemented!();
-	}
-
-	fn balance(&self, _address: &Address) -> U256 {
-		unimplemented!();
-	}
-
-	fn blockhash(&self, _number: &U256) -> H256 {
-		unimplemented!();
-	}
-
-	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> ContractCreateResult {
-		unimplemented!();
-	}
-
-	fn call(&mut self,
-			_gas: &U256,
-			_sender_address: &Address,
-			_receive_address: &Address,
-			_value: Option<U256>,
-			_data: &[u8],
-			_code_address: &Address,
-			_output: &mut [u8]) -> MessageCallResult {
-		unimplemented!();
-	}
-
-	fn extcode(&self, _address: &Address) -> Bytes {
-		unimplemented!();
-	}
-
-	fn log(&mut self, _topics: Vec<H256>, _data: &[u8]) {
-		unimplemented!();
-	}
-
-	fn ret(self, _gas: &U256, _data: &[u8]) -> evm::Result<U256> {
-		unimplemented!();
-	}
-
-	fn suicide(&mut self, _refund_address: &Address) {
-		unimplemented!();
-	}
-
-	fn schedule(&self) -> &Schedule {
-		&self.schedule
-	}
-
-	fn env_info(&self) -> &EnvInfo {
-		unimplemented!()
-	}
-
-	fn depth(&self) -> usize {
-		unimplemented!();
-		// self.depth
-	}
-
-	fn inc_sstore_clears(&mut self) {
-		unimplemented!();
-		// self.sstore_clears += 1;
-	}
+fn die(msg: &'static str) -> ! {
+	println!("{}", msg);
+	::std::process::exit(-1)
 }
