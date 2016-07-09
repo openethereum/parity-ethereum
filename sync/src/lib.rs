@@ -34,15 +34,14 @@
 //! extern crate ethsync;
 //! use std::env;
 //! use std::sync::Arc;
-//! use util::network::{NetworkService, NetworkConfiguration};
+//! use util::network::{NetworkConfiguration};
+//! use util::io::IoChannel;
 //! use ethcore::client::{Client, ClientConfig};
-//! use ethsync::{EthSync, SyncConfig};
+//! use ethsync::{EthSync, SyncConfig, ManageNetwork};
 //! use ethcore::ethereum;
 //! use ethcore::miner::Miner;
 //!
 //! fn main() {
-//! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
-//! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
 //! 	let miner = Miner::new(Default::default(), ethereum::new_frontier(), None);
 //! 	let client = Client::new(
@@ -50,10 +49,10 @@
 //!			ethereum::new_frontier(),
 //!			&dir,
 //!			miner,
-//!			service.io().channel()
+//!			IoChannel::disconnected()
 //!		).unwrap();
-//! 	let sync = EthSync::new(SyncConfig::default(), client);
-//! 	EthSync::register(&mut service, sync);
+//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::new());
+//! 	sync.start_network();
 //! }
 //! ```
 
