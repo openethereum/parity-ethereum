@@ -36,8 +36,6 @@ pub mod triedbmut;
 pub mod sectriedb;
 /// Export the sectriedbmut module.
 pub mod sectriedbmut;
-/// Export the memorytrie module.
-pub mod memorytriedb;
 
 mod fatdb;
 mod fatdbmut;
@@ -48,7 +46,6 @@ pub use self::triedbmut::TrieDBMut;
 pub use self::triedb::{TrieDB, TrieDBIterator};
 pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
-pub use self::memorytriedb::MemoryTrieDB;
 pub use self::fatdb::{FatDB, FatDBIterator};
 pub use self::fatdbmut::FatDBMut;
 
