@@ -20,19 +20,18 @@
 #![allow(dead_code)]
 #![cfg_attr(feature="dev", allow(used_underscore_binding))]
 
-pub mod service;
-
-/// Default value for hypervisor ipc listener
-pub const HYPERVISOR_IPC_URL: &'static str = "ipc:///tmp/parity-internal-hyper-status.ipc";
-
 use nanoipc;
 use std::sync::{Arc,RwLock};
 use hypervisor::service::*;
 use std::process::{Command,Child};
 use std::collections::HashMap;
 
-type BinaryId = &'static str;
+pub mod service;
 
+/// Default value for hypervisor ipc listener
+pub const HYPERVISOR_IPC_URL: &'static str = "ipc:///tmp/parity-internal-hyper-status.ipc";
+
+type BinaryId = &'static str;
 const BLOCKCHAIN_DB_BINARY: BinaryId = "blockchain";
 
 pub struct Hypervisor {
