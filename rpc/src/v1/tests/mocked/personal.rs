@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::numbers::*;
+use util::RwLockable;
 use ethcore::account_provider::AccountProvider;
 use v1::{PersonalClient, Personal};
 use v1::tests::helpers::TestMinerService;
@@ -174,7 +175,7 @@ fn sign_and_send_transaction() {
 
 	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
 
-	tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
+	tester.miner.last_nonces.unwrapped_write().insert(address.clone(), U256::zero());
 
 	let t = Transaction {
 		nonce: U256::one(),
