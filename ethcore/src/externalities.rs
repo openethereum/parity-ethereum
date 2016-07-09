@@ -298,6 +298,7 @@ mod tests {
 	use evm::{Ext};
 	use substate::*;
 	use tests::helpers::*;
+	use devtools::GuardedTempResult;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
 
