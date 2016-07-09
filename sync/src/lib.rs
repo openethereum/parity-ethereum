@@ -190,8 +190,9 @@ impl ChainNotify for EthSync {
 	}
 
 	fn start(&self) {
-		self.network.start().unwrap();
-		self.network.register_protocol(self.handler.clone(), ETH_PROTOCOL, &[62u8, 63u8]).unwrap();
+		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
+		self.network.register_protocol(self.handler.clone(), ETH_PROTOCOL, &[62u8, 63u8])
+			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 	}
 
 	fn stop(&self) {
