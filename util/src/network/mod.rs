@@ -24,39 +24,30 @@
 //!
 //! struct MyHandler;
 //!
-//! #[derive(Clone)]
-//! struct MyMessage {
-//! 	data: u32
-//! }
-//!
-//! impl NetworkProtocolHandler<MyMessage> for MyHandler {
-//!		fn initialize(&self, io: &NetworkContext<MyMessage>) {
+//! impl NetworkProtocolHandler for MyHandler {
+//!		fn initialize(&self, io: &NetworkContext) {
 //!			io.register_timer(0, 1000);
 //!		}
 //!
-//!		fn read(&self, io: &NetworkContext<MyMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
+//!		fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 //!			println!("Received {} ({} bytes) from {}", packet_id, data.len(), peer);
 //!		}
 //!
-//!		fn connected(&self, io: &NetworkContext<MyMessage>, peer: &PeerId) {
+//!		fn connected(&self, io: &NetworkContext, peer: &PeerId) {
 //!			println!("Connected {}", peer);
 //!		}
 //!
-//!		fn disconnected(&self, io: &NetworkContext<MyMessage>, peer: &PeerId) {
+//!		fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
 //!			println!("Disconnected {}", peer);
 //!		}
 //!
-//!		fn timeout(&self, io: &NetworkContext<MyMessage>, timer: TimerToken) {
+//!		fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
 //!			println!("Timeout {}", timer);
-//!		}
-//!
-//!		fn message(&self, io: &NetworkContext<MyMessage>, message: &MyMessage) {
-//!			println!("Message {}", message.data);
 //!		}
 //! }
 //!
 //! fn main () {
-//! 	let mut service = NetworkService::<MyMessage>::new(NetworkConfiguration::new_local()).expect("Error creating network service");
+//! 	let mut service = NetworkService::new(NetworkConfiguration::new_local()).expect("Error creating network service");
 //! 	service.register_protocol(Arc::new(MyHandler), "myproto", &[1u8]);
 //! 	service.start().expect("Error starting service");
 //!
