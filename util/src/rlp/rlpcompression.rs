@@ -75,7 +75,7 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 				true => self.swap(swapper),
 				// Try to treat the inside as RLP.
 				false => match self.data() {
-					Ok(x) => encode(&UntrustedRlp::new(x).compress().to_vec()),
+					Ok(x) => encode(&UntrustedRlp::new(x).swap_all(swapper, account_size).to_vec()),
 					_ => self.swap(swapper),
 				},
 			}
@@ -91,10 +91,12 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 	}
 
 	fn compress(&self) -> ElasticArray1024<u8> {
+		// Shortest decompressed account is 70.
 		self.swap_all(&|b| INVALID_RLP_SWAPPER.get_invalid(b), 70)
 	}
 
 	fn decompress(&self) -> ElasticArray1024<u8> {
+		// Shortest compressed account is 7.
 		self.swap_all(&|b| INVALID_RLP_SWAPPER.get_valid(b), 7)
 	}
 }
@@ -152,6 +154,16 @@ fn invalid_rlp_swapper() {
 	assert_eq!(Some(invalid_rlp[0].as_slice()), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
 	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
 	assert_eq!(Some(vec![0x83, b'd', b'o', b'g'].as_slice()), swapper.get_valid(&invalid_rlp[1]));
+}
+
+#[test]
+fn compressible() {
+	let nested_basic_account_rlp = vec![184, 70, 248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
+	let nested_rlp = UntrustedRlp::new(&nested_basic_account_rlp);
+	let compressed = nested_rlp.compress().to_vec();
+	assert_eq!(compressed, vec![135, 198, 4, 2, 129, 0, 129, 1]);
+	let compressed_rlp = UntrustedRlp::new(&compressed);
+	assert_eq!(compressed_rlp.decompress().to_vec(), nested_basic_account_rlp);
 }
 
 #[test]
