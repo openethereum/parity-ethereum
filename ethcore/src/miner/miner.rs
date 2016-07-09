@@ -842,8 +842,6 @@ mod tests {
 	use block::*;
 	use spec::Spec;
 
-	// TODO [ToDr] To uncomment` when TestBlockChainClient can actually return a ClosedBlock.
-	#[ignore]
 	#[test]
 	fn should_prepare_block_to_seal() {
 		// given
@@ -855,7 +853,6 @@ mod tests {
 		assert!(sealing_work.is_some(), "Expected closed block");
 	}
 
-	#[ignore]
 	#[test]
 	fn should_still_work_after_a_couple_of_blocks() {
 		// given
