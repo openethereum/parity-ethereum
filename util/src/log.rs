@@ -18,7 +18,7 @@
 
 use std::env;
 use std::borrow::Cow;
-use rlog::{LogLevelFilter, LogRecord};
+use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use std::sync::{RwLock, RwLockReadGuard};
 use std::sync::atomic::{Ordering, AtomicBool};
@@ -46,12 +46,6 @@ impl<T: AsRef<str>> Applyable for T {
     }
 }
 
-fn markup(r: &LogRecord) -> String {
-	let s = format!("{}", r.args());
-	println!("{}", s);
-	s
-}
-
 lazy_static! {
 	static ref LOG_DUMMY: bool = {
 		let mut builder = LogBuilder::new();
@@ -60,8 +54,6 @@ lazy_static! {
 		if let Ok(log) = env::var("RUST_LOG") {
 			builder.parse(&log);
 		}
-
-//		builder.format(markup);
 
 		if builder.init().is_ok() {
 			println!("logger initialized");
