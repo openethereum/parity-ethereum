@@ -39,11 +39,16 @@
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethsync::{EthSync, SyncConfig, ManageNetwork};
 //! use ethcore::ethereum;
-//! use ethcore::miner::Miner;
+//! use ethcore::miner::{GasPricer, Miner};
 //!
 //! fn main() {
 //! 	let dir = env::temp_dir();
-//! 	let miner = Miner::new(Default::default(), ethereum::new_frontier(), None);
+//! 	let miner = Miner::new(
+//! 		Default::default(),
+//! 		GasPricer::new_fixed(20_000_000_000u64.into()),
+//! 		ethereum::new_frontier(),
+//! 		None
+//! 	);
 //! 	let client = Client::new(
 //!			ClientConfig::default(),
 //!			ethereum::new_frontier(),

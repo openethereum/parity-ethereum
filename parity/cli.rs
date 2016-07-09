@@ -170,6 +170,10 @@ Sealing/Mining Options:
                            amount in USD, a web service or 'auto' to use each
                            web service in turn and fallback on the last known
                            good value [default: auto].
+  --price-update-period T  T will be allowed to pass between each gas price
+                           update. T may be daily, hourly, a number of seconds,
+                           or a time string of the form "2 days", "30 minutes"
+                           etc. [default: hourly].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
                            block [default: 4700000].
   --gas-cap GAS            A cap on how large we will raise the gas limit per
@@ -335,6 +339,7 @@ pub struct Args {
 	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,
+  pub flag_price_update_period: String,
 	pub flag_gas_floor_target: String,
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,

@@ -24,7 +24,7 @@ use std::collections::VecDeque;
 pub type IpcModuleId = u64;
 
 /// Blockhain database module id
-pub const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
+pub const CLIENT_MODULE_ID: IpcModuleId = 2000;
 
 /// IPC service that handles module management
 pub struct HypervisorService {
@@ -43,7 +43,7 @@ impl HypervisorService {
 impl HypervisorService {
 	/// New service with the default list of modules
 	pub fn new() -> Arc<HypervisorService> {
-		HypervisorService::with_modules(vec![])
+		HypervisorService::with_modules(vec![CLIENT_MODULE_ID])
 	}
 
 	/// New service with list of modules that will report for being ready
