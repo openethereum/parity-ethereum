@@ -82,7 +82,8 @@ use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{Lockable, H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, ChainNotify};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError,
+	ChainNotify, Mode};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -247,6 +248,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Sync
 	let sync = EthSync::new(sync_config, client.clone(), net_settings);
 	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
+
+	// if network is active by default
+	if match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network } {
+		sync.start();
+	}
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),

@@ -111,12 +111,10 @@ pub trait SyncProvider: Send + Sync {
 
 /// Ethereum network protocol handler
 pub struct EthSync {
-	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
-	chain: Arc<Client>,
-	/// Sync strategy
-	sync: RwLock<ChainSync>,
 	/// Network service
 	network: NetworkService,
+	/// Protocol handler
+	handler: Arc<SyncProtocolHandler>,
 }
 
 pub use self::chain::{SyncStatus, SyncState};
@@ -126,13 +124,11 @@ impl EthSync {
 	pub fn new(config: SyncConfig, chain: Arc<Client>, network_config: NetworkConfiguration) -> Arc<EthSync> {
 		let chain_sync = ChainSync::new(config, chain.deref());
 		let service = NetworkService::new(network_config).unwrap();
-		let sync = Arc::new(EthSync {
-			chain: chain,
-			sync: RwLock::new(chain_sync),
+		let sync = Arc::new(EthSync{
 			network: service,
+			handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain }),
 		});
-		sync.network.start().unwrap();
-		sync.network.register_protocol(sync.clone(), ETH_PROTOCOL, &[62u8, 63u8]).unwrap();
+
 		sync
 	}
 }
@@ -140,17 +136,24 @@ impl EthSync {
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
-		self.sync.read().unwrap().status()
+		self.handler.sync.read().unwrap().status()
 	}
 }
 
-impl NetworkProtocolHandler for EthSync {
+struct SyncProtocolHandler {
+	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
+	chain: Arc<Client>,
+	/// Sync strategy
+	sync: RwLock<ChainSync>,
+}
+
+impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(0, 1000).expect("Error registering sync timer");
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, self.chain.deref()) , *peer, packet_id, data);
+		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, self.chain.deref()), *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
@@ -176,8 +179,8 @@ impl ChainNotify for EthSync {
 		sealed: Vec<H256>)
 	{
 		self.network.with_context(ETH_PROTOCOL, |context| {
-			let mut sync_io = NetSyncIo::new(context, self.chain.deref());
-			self.sync.write().unwrap().chain_new_blocks(
+			let mut sync_io = NetSyncIo::new(context, self.handler.chain.deref());
+			self.handler.sync.write().unwrap().chain_new_blocks(
 				&mut sync_io,
 				&imported,
 				&invalid,
@@ -185,6 +188,15 @@ impl ChainNotify for EthSync {
 				&retracted,
 				&sealed);
 		});
+	}
+
+	fn start(&self) {
+		self.network.start().unwrap();
+		self.network.register_protocol(self.handler.clone(), ETH_PROTOCOL, &[62u8, 63u8]).unwrap();
+	}
+
+	fn stop(&self) {
+		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 }
 
@@ -218,13 +230,15 @@ impl ManageNetwork for EthSync {
 	}
 
 	fn start_network(&self) {
+		self.start();
 	}
 
 	fn stop_network(&self) {
 		self.network.with_context(ETH_PROTOCOL, |context| {
-			let mut sync_io = NetSyncIo::new(context, self.chain.deref());
-			self.sync.write().unwrap().abort(&mut sync_io);
+			let mut sync_io = NetSyncIo::new(context, self.handler.chain.deref());
+			self.handler.sync.write().unwrap().abort(&mut sync_io);
 		});
+		self.stop();
 	}
 
 	fn config(&self) -> NetworkConfiguration {
