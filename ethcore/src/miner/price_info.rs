@@ -41,11 +41,11 @@ impl<F: Fn(PriceInfo) + Sync + Send + 'static> Drop for SetPriceHandler<F> {
 }
 
 impl<F: Fn(PriceInfo) + Sync + Send + 'static> Handler<HttpStream> for SetPriceHandler<F> {
-	fn on_request(&mut self, _: &mut Request) -> Next { trace!(target: "miner", "price_info: on_request"); Next::read().timeout(Duration::from_secs(3)) }
-	fn on_request_writable(&mut self, _: &mut Encoder<HttpStream>) -> Next { trace!(target: "miner", "price_info: on_request_writable"); Next::read().timeout(Duration::from_secs(3)) }
-	fn on_response(&mut self, _: Response) -> Next { trace!(target: "miner", "price_info: on_response"); Next::read().timeout(Duration::from_secs(3)) }
+	fn on_request(&mut self, _: &mut Request) -> Next { Next::read().timeout(Duration::from_secs(3)) }
+	fn on_request_writable(&mut self, _: &mut Encoder<HttpStream>) -> Next { Next::read().timeout(Duration::from_secs(3)) }
+	fn on_response(&mut self, _: Response) -> Next { Next::read().timeout(Duration::from_secs(3)) }
+
 	fn on_response_readable(&mut self, r: &mut Decoder<HttpStream>) -> Next {
-		trace!(target: "miner", "price_info: on_response_readable!"); 
 		let mut body = String::new();
 		let _ = r.read_to_string(&mut body).ok()
 			.and_then(|_| Json::from_str(&body).ok())
@@ -65,9 +65,7 @@ impl PriceInfo {
 	pub fn get<F: Fn(PriceInfo) + Sync + Send + 'static>(set_price: F) -> Result<(), ()> {
 		// TODO: Handle each error type properly
 		let client = try!(Client::new().map_err(|_| ()));
-		trace!(target: "miner", "Starting price info request...");
 		thread::spawn(move || {
-			trace!(target: "miner", "Inside thread...");
 			let (tx, rx) = mpsc::channel();
 			let _ = client.request(FromStr::from_str("http://api.etherscan.io/api?module=stats&action=ethprice").unwrap(), SetPriceHandler {
 				set_price: set_price,
@@ -88,7 +86,6 @@ fn should_get_price_info() {
 	init_log();
 	let done = Arc::new((Mutex::new(PriceInfo { ethusd: 0f32 }), Condvar::new()));
 	let rdone = done.clone();
-	trace!(target: "miner", "price_info: getting price_info");
 	PriceInfo::get(move |price| { let mut p = rdone.0.lock().unwrap(); *p = price; rdone.1.notify_one(); }).unwrap();
 	let p = done.1.wait_timeout(done.0.lock().unwrap(), Duration::from_millis(10000)).unwrap();
 	assert!(!p.1.timed_out());

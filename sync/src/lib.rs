@@ -46,7 +46,7 @@
 //! 	let dir = env::temp_dir();
 //! 	let miner = Miner::new(
 //! 		Default::default(),
-//! 		GasPricer::new_fixed(20_000_000_000.into()),
+//! 		GasPricer::new_fixed(20_000_000_000u64.into()),
 //! 		ethereum::new_frontier(),
 //! 		None
 //! 	);
