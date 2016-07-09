@@ -55,7 +55,7 @@ lazy_static! {
 			builder.parse(&log);
 		}
 
-		if let Ok(_) = builder.init() {
+		if builder.init().is_ok() {
 			println!("logger initialized");
 		}
 		true
