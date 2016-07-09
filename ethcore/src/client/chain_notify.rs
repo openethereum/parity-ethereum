@@ -38,8 +38,3 @@ pub trait ChainNotify : Send + Sync {
 		// does nothing by default
 	}
 }
-
-/// ChainNotify that does nothing when handling chain events
-pub struct EmptyChainNotify;
-
-impl ChainNotify for EmptyChainNotify { }

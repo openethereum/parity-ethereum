@@ -25,7 +25,7 @@ use miner::Miner;
 
 /// Message type for external and internal events
 #[derive(Clone)]
-pub enum SyncMessage {
+pub enum ClientIoMessage {
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
 	/// A block is ready
@@ -36,7 +36,7 @@ pub enum SyncMessage {
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
-	io_service: Arc<IoService<SyncMessage>>,
+	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
 	panic_handler: Arc<PanicHandler>
 }
@@ -51,7 +51,7 @@ impl ClientService {
 		) -> Result<ClientService, Error>
 	{
 		let panic_handler = PanicHandler::new_in_arc();
-		let io_service = try!(IoService::<SyncMessage>::start());
+		let io_service = try!(IoService::<ClientIoMessage>::start());
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", spec.name.clone().apply(Colour::White.bold()), spec.engine.name().apply(Colour::Yellow.bold()));
@@ -75,7 +75,7 @@ impl ClientService {
 	}
 
 	/// Get general IO interface
-	pub fn register_io_handler(&self, handler: Arc<IoHandler<SyncMessage> + Send>) -> Result<(), IoError> {
+	pub fn register_io_handler(&self, handler: Arc<IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
 		self.io_service.register_handler(handler)
 	}
 
@@ -85,7 +85,7 @@ impl ClientService {
 	}
 
 	/// Get network service component
-	pub fn io(&self) -> Arc<IoService<SyncMessage>> {
+	pub fn io(&self) -> Arc<IoService<ClientIoMessage>> {
 		self.io_service.clone()
 	}
 
@@ -109,22 +109,22 @@ struct ClientIoHandler {
 const CLIENT_TICK_TIMER: TimerToken = 0;
 const CLIENT_TICK_MS: u64 = 5000;
 
-impl IoHandler<SyncMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<SyncMessage>) {
+impl IoHandler<ClientIoMessage> for ClientIoHandler {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<SyncMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		if timer == CLIENT_TICK_TIMER {
 			self.client.tick();
 		}
 	}
 
 	#[cfg_attr(feature="dev", allow(single_match))]
-	fn message(&self, io: &IoContext<SyncMessage>, net_message: &SyncMessage) {
+	fn message(&self, io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
-			SyncMessage::BlockVerified => { self.client.import_verified_blocks(&io.channel()); }
-			SyncMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
+			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(&io.channel()); }
+			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
 			_ => {} // ignore other messages
 		}
 	}

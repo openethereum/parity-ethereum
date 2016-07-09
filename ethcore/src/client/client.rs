@@ -46,7 +46,7 @@ use state::State;
 use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
-use service::{SyncMessage};
+use service::ClientIoMessage;
 use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
@@ -140,7 +140,7 @@ pub struct Client {
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
-	io_channel: IoChannel<SyncMessage>,
+	io_channel: IoChannel<ClientIoMessage>,
 	notify: RwLock<Option<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	previous_enode: Mutex<Option<String>>,
@@ -178,7 +178,7 @@ impl Client {
 		spec: Spec,
 		path: &Path,
 		miner: Arc<Miner>,
-		message_channel: IoChannel<SyncMessage>,
+		message_channel: IoChannel<ClientIoMessage>,
 	) -> Result<Arc<Client>, ClientError> {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
@@ -339,7 +339,7 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, io: &IoChannel<SyncMessage>) -> usize {
+	pub fn import_verified_blocks(&self, io: &IoChannel<ClientIoMessage>) -> usize {
 		let max_blocks_to_import = 64;
 		let (imported_blocks, import_results, invalid_blocks, original_best, imported) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
@@ -921,7 +921,7 @@ impl BlockChainClient for Client {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
-			match self.io_channel.send(SyncMessage::NewTransactions(transactions)) {
+			match self.io_channel.send(ClientIoMessage::NewTransactions(transactions)) {
 				Ok(_) => {
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
 				}

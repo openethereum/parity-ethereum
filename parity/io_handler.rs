@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use ethcore::client::Client;
-use ethcore::service::SyncMessage;
+use ethcore::service::ClientIoMessage;
 use ethsync::{EthSync, SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
 use util::{TimerToken, IoHandler, IoContext};
@@ -32,12 +32,12 @@ pub struct ClientIoHandler {
 	pub info: Informant,
 }
 
-impl IoHandler<SyncMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<SyncMessage>) {
+impl IoHandler<ClientIoMessage> for ClientIoHandler {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
 		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<SyncMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		if let INFO_TIMER = timer {
 			let sync_status = self.sync.status();
 			let network_config = self.sync.config();
