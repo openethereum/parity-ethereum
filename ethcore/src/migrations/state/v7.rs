@@ -26,8 +26,8 @@ use util::migration::{Batch, Config, Error, Migration, SimpleMigration};
 use util::rlp::{decode, Rlp, RlpStream, Stream, View};
 use util::sha3::Hashable;
 
-// attempt to migrate a key, value pair. Err if migration not possible.
-fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Result<H256, H256> {
+// attempt to migrate a key, value pair. None if migration not possible.
+fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 	let val_hash = val.sha3();
 
 	if key_h != val_hash {
@@ -38,7 +38,7 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Result<H256, H256> {
 		// check that the address is actually a 20-byte value.
 		// the leftmost 12 bytes should be zero.
 		if &address[0..12] != &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] {
-			return Err(key_h);
+			return None;
 		}
 
 		let address_hash = Address::from(address).sha3();
@@ -47,14 +47,18 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Result<H256, H256> {
 		key_h.copy_from_slice(&*val_hash);
 		assert_eq!(key_h, val_hash);
 
-		let last_src: &[u8] = &*address_hash;
-		let last_dst: &mut [u8] = &mut *key_h;
-		for (k, a) in last_dst[12..].iter_mut().zip(&last_src[12..]) {
-			*k ^= *a;
+		{
+			let last_src: &[u8] = &*address_hash;
+			let last_dst: &mut [u8] = &mut *key_h;
+			for (k, a) in last_dst[12..].iter_mut().zip(&last_src[12..]) {
+				*k ^= *a;
+			}
 		}
-	}
 
-	Ok(key_h)
+		Some(key_h)
+	} else {
+		None
+	}
 }
 
 /// Version for ArchiveDB.
@@ -72,10 +76,11 @@ impl SimpleMigration for ArchiveV7 {
 		}
 
 		let key_h = H256::from_slice(&key[..]);
-		let migrated = attempt_migrate(key_h, &value[..])
-			.expect("no 32-bit metadata keys in this version of archive; qed");
-
-		Some((migrated[..].to_owned(), value))
+		if let Some(new_key) = attempt_migrate(key_h, &value[..]) {
+			Some((new_key[..].to_owned(), value))
+		} else {
+			Some((key, value))
+		}
 	}
 }
 
@@ -118,13 +123,14 @@ impl OverlayRecentV7 {
 
 						// migrate all inserted keys.
 						for r in rlp.at(1).iter() {
-							let old_key: H256 = r.val_at(0);
+							let mut key: H256 = r.val_at(0);
 							let v: Bytes = r.val_at(1);
 
-							let key = match self.migrated_keys.get(&old_key) {
-								Some(new) => new.clone(),
-								None => old_key.clone(),
-							};
+							if let Some(new_key) = self.migrated_keys.get(&key) {
+								key = *new_key;
+							} else if let Some(new_key) = attempt_migrate(key, &v) {
+								key = new_key;
+							}
 
 							inserted_keys.push((key, v));
 						}
@@ -149,6 +155,7 @@ impl OverlayRecentV7 {
 
 						// and insert it into the new database.
 						try!(batch.insert(entry_key, stream.out(), dest));
+
 						index += 1;
 					} else {
 						break;
@@ -161,7 +168,7 @@ impl OverlayRecentV7 {
 				era -= 1;
 			}
 		}
-		Ok(())
+		batch.commit(dest)
 	}
 }
 
@@ -174,20 +181,23 @@ impl Migration for OverlayRecentV7 {
 	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
 		let mut batch = Batch::new(config);
 
-		// migrate version metadata.
+		// check version metadata.
 		match try!(source.get(V7_VERSION_KEY).map_err(Error::Custom)) {
-			Some(ref version) if decode::<u32>(&*version) == DB_VERSION => {
-				try!(batch.insert(V7_VERSION_KEY.into(), version[..].to_owned(), dest));
-			}
+			Some(ref version) if decode::<u32>(&*version) == DB_VERSION => {}
 			_ => return Err(Error::MigrationImpossible), // missing or wrong version
 		}
 
-		for (key, value) in source.iter().filter(|&(ref k, _)| k.len() == 32) {
-			let key_h = H256::from_slice(&key[..]);
-			if let Ok(new_key) = attempt_migrate(key_h.clone(), &value) {
-				self.migrated_keys.insert(key_h, new_key);
-				try!(batch.insert(new_key[..].to_owned(), value.into_vec(), dest));
+		for (key, value) in source.iter() {
+			let mut key = key.into_vec();
+			if key.len() == 32 {
+				let key_h = H256::from_slice(&key[..]);
+				if let Some(new_key) = attempt_migrate(key_h.clone(), &value) {
+					self.migrated_keys.insert(key_h, new_key);
+					key.copy_from_slice(&new_key[..]);
+				}
 			}
+
+			try!(batch.insert(key, value.into_vec(), dest));
 		}
 
 		self.migrate_journal(source, batch, dest)
