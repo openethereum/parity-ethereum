@@ -38,7 +38,7 @@
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethsync::{EthSync, SyncConfig};
 //! use ethcore::ethereum;
-//! use ethcore::miner::Miner;
+//! use ethcore::miner::{GasPricer, Miner};
 //!
 //! fn main() {
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
