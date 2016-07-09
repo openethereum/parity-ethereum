@@ -123,8 +123,7 @@ const IDLE: usize = SYS_TIMER + 2;
 const DISCOVERY: usize = SYS_TIMER + 3;
 const DISCOVERY_REFRESH: usize = SYS_TIMER + 4;
 const DISCOVERY_ROUND: usize = SYS_TIMER + 5;
-const INIT_PUBLIC: usize = SYS_TIMER + 6;
-const NODE_TABLE: usize = SYS_TIMER + 7;
+const NODE_TABLE: usize = SYS_TIMER + 6;
 const FIRST_SESSION: usize = 0;
 const LAST_SESSION: usize = FIRST_SESSION + MAX_SESSIONS - 1;
 const USER_TIMER: usize = LAST_SESSION + 256;
@@ -156,6 +155,8 @@ pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
 		/// Timer delay in milliseconds.
 		delay: u64,
 	},
+	/// Initliaze public interface.
+	InitPublicInterface,
 	/// Disconnect a peer.
 	Disconnect(PeerId),
 	/// Disconnect and temporary disable peer.
@@ -511,7 +512,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
-		io.clear_timer(INIT_PUBLIC).unwrap();
 		if self.info.unwrapped_read().public_endpoint.is_some() {
 			return Ok(());
 		}
@@ -546,7 +546,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let discovery = {
 			let info = self.info.unwrapped_read();
 			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
-				Some(Discovery::new(&info.keys, public_endpoint.address.clone(), public_endpoint, DISCOVERY))
+				let mut udp_addr = local_endpoint.address.clone();
+				udp_addr.set_port(local_endpoint.udp_port);
+				Some(Discovery::new(&info.keys, udp_addr, public_endpoint, DISCOVERY))
 			} else { None }
 		};
 
@@ -899,7 +901,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	/// Initialize networking
 	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
 		io.register_timer(IDLE, MAINTENANCE_TIMEOUT).expect("Error registering Network idle timer");
-		io.register_timer(INIT_PUBLIC, 0).expect("Error registering initialization timer");
+		io.message(NetworkIoMessage::InitPublicInterface).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 		self.maintain_network(io)
 	}
 
@@ -947,8 +949,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		}
 		match token {
 			IDLE => self.maintain_network(io),
-			INIT_PUBLIC => self.init_public_interface(io).unwrap_or_else(|e|
-				warn!("Error initializing public interface: {:?}", e)),
 			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
 				self.discovery.locked().as_mut().unwrap().refresh();
@@ -1036,7 +1036,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				for (p, h) in self.handlers.unwrapped_read().iter() {
 					h.message(&NetworkContext::new(io, p, None, self.sessions.clone(), &reserved), &message);
 				}
-			}
+			},
+			NetworkIoMessage::InitPublicInterface =>
+				self.init_public_interface(io).unwrap_or_else(|e| warn!("Error initializing public interface: {:?}", e)),
 			_ => {}	// ignore others.
 		}
 	}
