@@ -247,40 +247,43 @@ impl JournalDB for OverlayRecentDB {
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
 		}
 
-		let journal_overlay = journal_overlay.deref_mut();
+		let journal_overlay = &mut *journal_overlay;
 		// apply old commits' details
 		if let Some((end_era, canon_id)) = end {
 			if let Some(ref mut records) = journal_overlay.journal.get_mut(&end_era) {
-				let mut canon_insertions: Vec<(H256, Bytes)> = Vec::new();
 				let mut canon_deletions: Vec<H256> = Vec::new();
 				let mut overlay_deletions: Vec<H256> = Vec::new();
 				let mut index = 0usize;
-				for mut journal in records.drain(..) {
-					//delete the record from the db
-					let mut r = RlpStream::new_list(3);
-					r.append(&end_era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					try!(batch.delete(&r.drain()));
-					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
-					{
-						if canon_id == journal.id {
-							for h in &journal.insertions {
-								if let Some(&(ref d, rc)) = journal_overlay.backing_overlay.raw(h) {
-									if rc > 0 {
-										canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
+
+				{
+					let mut canon_insertions = Vec::new();
+					for mut journal in records.drain(..) {
+						//delete the record from the db
+						let mut r = RlpStream::new_list(3);
+						r.append(&end_era);
+						r.append(&index);
+						r.append(&&PADDING[..]);
+						try!(batch.delete(&r.drain()));
+						trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
+						{
+							if canon_id == journal.id {
+								for h in &journal.insertions {
+									if let Some((d, rc)) = journal_overlay.backing_overlay.raw(h) {
+										if rc > 0 {
+											canon_insertions.push((h.clone(), d));
+										}
 									}
 								}
+								canon_deletions = journal.deletions;
 							}
-							canon_deletions = journal.deletions;
+							overlay_deletions.append(&mut journal.insertions);
 						}
-						overlay_deletions.append(&mut journal.insertions);
+						index += 1;
 					}
-					index += 1;
-				}
-				// apply canon inserts first
-				for (k, v) in canon_insertions {
-					try!(batch.put(&k, &v));
+					// apply canon inserts first
+					for (k, v) in canon_insertions {
+						try!(batch.put(&k, v));
+					}
 				}
 				// update the overlay
 				for k in overlay_deletions {
@@ -320,16 +323,16 @@ impl HashDB for OverlayRecentDB {
 	fn get(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.transaction_overlay.raw(key);
 		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some((d, rc)) if rc > 0 => Some(d),
 			_ => {
 				let v = self.journal_overlay.unwrapped_read().backing_overlay.get(key).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
-						Some(&self.transaction_overlay.denote(key, x).0)
+						Some(self.transaction_overlay.denote(key, x).0)
 					}
 					_ => {
 						if let Some(x) = self.payload(key) {
-							Some(&self.transaction_overlay.denote(key, x).0)
+							Some(self.transaction_overlay.denote(key, x).0)
 						}
 						else {
 							None
