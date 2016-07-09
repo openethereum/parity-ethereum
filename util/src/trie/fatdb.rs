@@ -18,6 +18,7 @@ use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
 use super::{TrieDB, Trie, TrieDBIterator, TrieError};
+use trie::trietraits::TrieItem;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
@@ -51,7 +52,7 @@ impl<'db> FatDB<'db> {
 }
 
 impl<'db> Trie for FatDB<'db> {
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = (Vec<u8>, &[u8])> + 'a> {
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
 		Box::new(FatDB::iter(self))
 	}
 

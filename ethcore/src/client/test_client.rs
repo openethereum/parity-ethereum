@@ -20,7 +20,9 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID, TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics};
+use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
+	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics,
+	BlockImportError};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -34,11 +36,8 @@ use spec::Spec;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
-use error::{ExecutionError};
+use error::ExecutionError;
 use trace::LocalizedTrace;
-
-use miner::{TransactionImportResult, AccountDetails};
-use error::Error as EthError;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -244,7 +243,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, _author: Address, _gas_range_target: (U256, U256), _extra_data: Bytes) -> OpenBlock {
 		unimplemented!();
 	}
-	
+
 	fn vm_factory(&self) -> &EvmFactory {
 		unimplemented!();
 	}
@@ -274,6 +273,10 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
+	fn latest_nonce(&self, address: &Address) -> U256 {
+		self.nonce(address, BlockID::Latest).unwrap()
+	}
+
 	fn code(&self, address: &Address) -> Option<Bytes> {
 		self.code.read().unwrap().get(address).cloned()
 	}
@@ -284,6 +287,10 @@ impl BlockChainClient for TestBlockChainClient {
 		} else {
 			None
 		}
+	}
+
+	fn latest_balance(&self, address: &Address) -> U256 {
+		self.balance(address, BlockID::Latest).unwrap()
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
@@ -298,7 +305,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn uncle(&self, _id: UncleID) -> Option<BlockHeader> {
+	fn uncle(&self, _id: UncleID) -> Option<Bytes> {
 		unimplemented!();
 	}
 
@@ -402,7 +409,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn import_block(&self, b: Bytes) -> ImportResult {
+	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
 		let h = header.hash();
 		let number: usize = header.number as usize;
@@ -487,25 +494,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>> {
-		let nonces = self.nonces.read().unwrap();
-		let balances = self.balances.read().unwrap();
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: nonces[a],
-			balance: balances[a],
-		};
-
-		self.miner.import_transactions(self, transactions, &fetch_account)
-	}
-
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
 		// import right here
-		let tx = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
-		self.import_transactions(tx);
-	}
-
-	fn take_snapshot(&self, _root_dir: &Path) {
-		unimplemented!()
+		let txs = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		self.miner.import_external_transactions(self, txs);
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {

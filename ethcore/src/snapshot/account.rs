@@ -17,7 +17,6 @@
 //! Account state encoding and decoding
 
 use account_db::{AccountDB, AccountDBMut};
-use client::BlockChainClient;
 use error::Error;
 
 use util::{Bytes, HashDB, SHA3_EMPTY, TrieDB};

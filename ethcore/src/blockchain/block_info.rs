@@ -17,8 +17,6 @@
 use util::numbers::{U256,H256};
 use header::BlockNumber;
 
-use util::bytes::{FromRawBytesVariable, FromBytesError, ToBytesWithMap};
-
 /// Brief info about inserted block.
 #[derive(Clone)]
 pub struct BlockInfo {
@@ -53,44 +51,4 @@ pub struct BranchBecomingCanonChainData {
 	pub enacted: Vec<H256>,
 	/// Hashes of the blocks which were invalidated.
 	pub retracted: Vec<H256>,
-}
-
-impl FromRawBytesVariable for BranchBecomingCanonChainData {
-	fn from_bytes_variable(bytes: &[u8]) -> Result<BranchBecomingCanonChainData, FromBytesError> {
-		type Tuple = (Vec<H256>, Vec<H256>, H256);
-		let (enacted, retracted, ancestor) = try!(Tuple::from_bytes_variable(bytes));
-		Ok(BranchBecomingCanonChainData { ancestor: ancestor, enacted: enacted, retracted: retracted })
-	}
-}
-
-impl FromRawBytesVariable for BlockLocation {
-	fn from_bytes_variable(bytes: &[u8]) -> Result<BlockLocation, FromBytesError> {
-		match bytes[0] {
-			0 => Ok(BlockLocation::CanonChain),
-			1 => Ok(BlockLocation::Branch),
-			2 => Ok(BlockLocation::BranchBecomingCanonChain(
-				try!(BranchBecomingCanonChainData::from_bytes_variable(&bytes[1..bytes.len()])))),
-			_ => Err(FromBytesError::UnknownMarker)
-		}
-	}
-}
-
-impl ToBytesWithMap for BranchBecomingCanonChainData {
-	fn to_bytes_map(&self) -> Vec<u8> {
-		(&self.enacted, &self.retracted, &self.ancestor).to_bytes_map()
-	}
-}
-
-impl ToBytesWithMap for BlockLocation {
-	fn to_bytes_map(&self) -> Vec<u8> {
-		match *self {
-			BlockLocation::CanonChain => vec![0u8],
-			BlockLocation::Branch => vec![1u8],
-			BlockLocation::BranchBecomingCanonChain(ref data) => {
-				let mut bytes = (&data.enacted, &data.retracted, &data.ancestor).to_bytes_map();
-				bytes.insert(0, 2u8);
-				bytes
-			}
-		}
-	}
 }

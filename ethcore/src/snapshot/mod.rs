@@ -17,15 +17,15 @@
 //! Snapshot creation helpers.
 
 use std::collections::VecDeque;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use account_db::{AccountDB, AccountDBMut};
 use client::BlockChainClient;
 use error::Error;
 use ids::BlockID;
-use views::BlockView;
+use views::{BlockView, HeaderView};
 
 use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
@@ -41,6 +41,40 @@ mod block;
 
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
+
+/// Take a snapshot using the given client and database, writing into `path`.
+pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &HashDB) {
+	let chain_info = client.chain_info();
+
+	let genesis_hash = chain_info.genesis_hash;
+	let best_header_raw = client.best_block_header();
+	let best_header = HeaderView::new(&best_header_raw);
+	let state_root = best_header.state_root();
+
+	trace!(target: "snapshot", "Taking snapshot starting at block {}", best_header.number());
+
+	let _ = create_dir_all(&path);
+
+	// lock the state db while we create the state chunks.
+	let state_hashes = {
+		chunk_state(state_db, &state_root, &path).unwrap()
+	};
+
+	let block_hashes = chunk_blocks(client, best_header.hash(), genesis_hash, &path).unwrap();
+
+	trace!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
+
+	let manifest_data = ManifestData {
+		state_hashes: state_hashes,
+		block_hashes: block_hashes,
+		state_root: state_root,
+	};
+
+	path.push("MANIFEST");
+
+	let mut manifest_file = File::create(&path).unwrap();
+	manifest_file.write_all(&manifest_data.to_rlp()).unwrap();
+}
 
 // shared portion of write_chunk
 // returns either a (hash, compressed_size) pair or an io error.

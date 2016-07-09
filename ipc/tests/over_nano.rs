@@ -18,6 +18,7 @@
 mod tests {
 
 	use super::super::service::*;
+	use super::super::with_attrs::PrettyNamedClient;
 	use nanoipc;
 	use std::sync::Arc;
 	use std::io::Write;
@@ -40,6 +41,12 @@ mod tests {
 	#[test]
 	fn can_create_client() {
 		let client = nanoipc::init_duplex_client::<ServiceClient<_>>("ipc:///tmp/parity-nano-test10.ipc");
+		assert!(client.is_ok());
+	}
+
+	#[test]
+	fn can_create_renamed_client() {
+		let client = nanoipc::init_duplex_client::<PrettyNamedClient<_>>("ipc:///tmp/parity-nano-test10.ipc");
 		assert!(client.is_ok());
 	}
 

@@ -20,7 +20,7 @@ use nibbleslice::*;
 use rlp::*;
 use super::node::Node;
 use super::journal::Journal;
-use super::trietraits::{Trie, TrieMut};
+use super::trietraits::TrieMut;
 use super::TrieError;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
@@ -676,8 +676,6 @@ impl<'db> fmt::Debug for TrieDBMut<'db> {
 
 #[cfg(test)]
 mod tests {
-	extern crate json_tests;
-	use self::json_tests::{trie, execute_tests_from_directory};
 	use triehash::*;
 	use hash::*;
 	use hashdb::*;
@@ -850,6 +848,21 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+		]));
+	}
+
+	#[test]
+	fn insert_out_of_order() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
@@ -1063,23 +1076,64 @@ mod tests {
 	}
 
 	#[test]
-	fn test_trie_json() {
-		println!("Json trie test: ");
-		execute_tests_from_directory::<trie::TrieTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
-			println!("file: {}", file);
+	fn branching_test() {
+		use std::str::FromStr;
+		use rustc_serialize::hex::FromHex;
 
-			let mut memdb = MemoryDB::new();
-			let mut root = H256::new();
-			let mut t = TrieDBMut::new(&mut memdb, &mut root);
-			for operation in input.into_iter() {
-				match operation {
-					trie::Operation::Insert(key, value) => t.insert(&key, &value),
-					trie::Operation::Remove(key) => t.remove(&key)
-				}
-			}
-
-			assert_eq!(*t.root(), H256::from_slice(&output));
-		});
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		t.insert(&"04110d816c380812a427968ece99b1c963dfbce6".from_hex().unwrap(), b"something");
+		t.insert(&"095e7baea6a6c7c4c2dfeb977efac326af552d87".from_hex().unwrap(), b"something");
+		t.insert(&"0a517d755cebbf66312b30fff713666a9cb917e0".from_hex().unwrap(), b"something");
+		t.insert(&"24dd378f51adc67a50e339e8031fe9bd4aafab36".from_hex().unwrap(), b"something");
+		t.insert(&"293f982d000532a7861ab122bdc4bbfd26bf9030".from_hex().unwrap(), b"something");
+		t.insert(&"2cf5732f017b0cf1b1f13a1478e10239716bf6b5".from_hex().unwrap(), b"something");
+		t.insert(&"31c640b92c21a1f1465c91070b4b3b4d6854195f".from_hex().unwrap(), b"something");
+		t.insert(&"37f998764813b136ddf5a754f34063fd03065e36".from_hex().unwrap(), b"something");
+		t.insert(&"37fa399a749c121f8a15ce77e3d9f9bec8020d7a".from_hex().unwrap(), b"something");
+		t.insert(&"4f36659fa632310b6ec438dea4085b522a2dd077".from_hex().unwrap(), b"something");
+		t.insert(&"62c01474f089b07dae603491675dc5b5748f7049".from_hex().unwrap(), b"something");
+		t.insert(&"729af7294be595a0efd7d891c9e51f89c07950c7".from_hex().unwrap(), b"something");
+		t.insert(&"83e3e5a16d3b696a0314b30b2534804dd5e11197".from_hex().unwrap(), b"something");
+		t.insert(&"8703df2417e0d7c59d063caa9583cb10a4d20532".from_hex().unwrap(), b"something");
+		t.insert(&"8dffcd74e5b5923512916c6a64b502689cfa65e1".from_hex().unwrap(), b"something");
+		t.insert(&"95a4d7cccb5204733874fa87285a176fe1e9e240".from_hex().unwrap(), b"something");
+		t.insert(&"99b2fcba8120bedd048fe79f5262a6690ed38c39".from_hex().unwrap(), b"something");
+		t.insert(&"a4202b8b8afd5354e3e40a219bdc17f6001bf2cf".from_hex().unwrap(), b"something");
+		t.insert(&"a94f5374fce5edbc8e2a8697c15331677e6ebf0b".from_hex().unwrap(), b"something");
+		t.insert(&"a9647f4a0a14042d91dc33c0328030a7157c93ae".from_hex().unwrap(), b"something");
+		t.insert(&"aa6cffe5185732689c18f37a7f86170cb7304c2a".from_hex().unwrap(), b"something");
+		t.insert(&"aae4a2e3c51c04606dcb3723456e58f3ed214f45".from_hex().unwrap(), b"something");
+		t.insert(&"c37a43e940dfb5baf581a0b82b351d48305fc885".from_hex().unwrap(), b"something");
+		t.insert(&"d2571607e241ecf590ed94b12d87c94babe36db6".from_hex().unwrap(), b"something");
+		t.insert(&"f735071cbee190d76b704ce68384fc21e389fbe7".from_hex().unwrap(), b"something");
+		t.insert(&"04110d816c380812a427968ece99b1c963dfbce6".from_hex().unwrap(), &[]);
+		t.insert(&"095e7baea6a6c7c4c2dfeb977efac326af552d87".from_hex().unwrap(), &[]);
+		t.insert(&"0a517d755cebbf66312b30fff713666a9cb917e0".from_hex().unwrap(), &[]);
+		t.insert(&"24dd378f51adc67a50e339e8031fe9bd4aafab36".from_hex().unwrap(), &[]);
+		t.insert(&"293f982d000532a7861ab122bdc4bbfd26bf9030".from_hex().unwrap(), &[]);
+		t.insert(&"2cf5732f017b0cf1b1f13a1478e10239716bf6b5".from_hex().unwrap(), &[]);
+		t.insert(&"31c640b92c21a1f1465c91070b4b3b4d6854195f".from_hex().unwrap(), &[]);
+		t.insert(&"37f998764813b136ddf5a754f34063fd03065e36".from_hex().unwrap(), &[]);
+		t.insert(&"37fa399a749c121f8a15ce77e3d9f9bec8020d7a".from_hex().unwrap(), &[]);
+		t.insert(&"4f36659fa632310b6ec438dea4085b522a2dd077".from_hex().unwrap(), &[]);
+		t.insert(&"62c01474f089b07dae603491675dc5b5748f7049".from_hex().unwrap(), &[]);
+		t.insert(&"729af7294be595a0efd7d891c9e51f89c07950c7".from_hex().unwrap(), &[]);
+		t.insert(&"83e3e5a16d3b696a0314b30b2534804dd5e11197".from_hex().unwrap(), &[]);
+		t.insert(&"8703df2417e0d7c59d063caa9583cb10a4d20532".from_hex().unwrap(), &[]);
+		t.insert(&"8dffcd74e5b5923512916c6a64b502689cfa65e1".from_hex().unwrap(), &[]);
+		t.insert(&"95a4d7cccb5204733874fa87285a176fe1e9e240".from_hex().unwrap(), &[]);
+		t.insert(&"99b2fcba8120bedd048fe79f5262a6690ed38c39".from_hex().unwrap(), &[]);
+		t.insert(&"a4202b8b8afd5354e3e40a219bdc17f6001bf2cf".from_hex().unwrap(), &[]);
+		t.insert(&"a94f5374fce5edbc8e2a8697c15331677e6ebf0b".from_hex().unwrap(), &[]);
+		t.insert(&"a9647f4a0a14042d91dc33c0328030a7157c93ae".from_hex().unwrap(), &[]);
+		t.insert(&"aa6cffe5185732689c18f37a7f86170cb7304c2a".from_hex().unwrap(), &[]);
+		t.insert(&"aae4a2e3c51c04606dcb3723456e58f3ed214f45".from_hex().unwrap(), &[]);
+		t.insert(&"c37a43e940dfb5baf581a0b82b351d48305fc885".from_hex().unwrap(), &[]);
+		t.insert(&"d2571607e241ecf590ed94b12d87c94babe36db6".from_hex().unwrap(), &[]);
+		t.insert(&"f735071cbee190d76b704ce68384fc21e389fbe7".from_hex().unwrap(), &[]);
+		assert_eq!(*t.root(), H256::from_str("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap());
 	}
 
 	#[test]

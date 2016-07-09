@@ -104,7 +104,7 @@ impl<T: fmt::Debug + fmt::Display> fmt::Display for Mismatch<T> {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Error indicating value found is outside of a valid range.
 pub struct OutOfBounds<T: fmt::Debug> {
 	/// Minimum allowed value.

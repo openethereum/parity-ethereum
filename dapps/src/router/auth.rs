@@ -16,24 +16,23 @@
 
 //! HTTP Authorization implementations
 
-use std::io::Write;
 use std::collections::HashMap;
-use hyper::{header, server, Decoder, Encoder, Next};
-use hyper::net::HttpStream;
-use hyper::status::StatusCode;
+use hyper::{server, net, header, status};
+use endpoint::Handler;
+use handlers::{AuthRequiredHandler, ContentHandler};
 
 /// Authorization result
 pub enum Authorized {
 	/// Authorization was successful.
 	Yes,
 	/// Unsuccessful authorization. Handler for further work is returned.
-	No(Box<server::Handler<HttpStream> + Send>),
+	No(Box<Handler>),
 }
 
 /// Authorization interface
 pub trait Authorization : Send + Sync {
 	/// Checks if authorization is valid.
-	fn is_authorized(&self, req: &server::Request<HttpStream>)-> Authorized;
+	fn is_authorized(&self, req: &server::Request<net::HttpStream>)-> Authorized;
 }
 
 /// HTTP Basic Authorization handler
@@ -45,18 +44,22 @@ pub struct HttpBasicAuth {
 pub struct NoAuth;
 
 impl Authorization for NoAuth {
-	fn is_authorized(&self, _req: &server::Request<HttpStream>)-> Authorized {
+	fn is_authorized(&self, _req: &server::Request<net::HttpStream>)-> Authorized {
 		Authorized::Yes
 	}
 }
 
 impl Authorization for HttpBasicAuth {
-	fn is_authorized(&self, req: &server::Request<HttpStream>) -> Authorized {
+	fn is_authorized(&self, req: &server::Request<net::HttpStream>) -> Authorized {
 		let auth = self.check_auth(&req);
 
 		match auth {
 			Access::Denied => {
-				Authorized::No(Box::new(UnauthorizedHandler { write_pos: 0 }))
+				Authorized::No(Box::new(ContentHandler::new(
+					status::StatusCode::Unauthorized,
+					"<h1>Unauthorized</h1>".into(),
+					"text/html".into(),
+				)))
 			},
 			Access::AuthRequired => {
 				Authorized::No(Box::new(AuthRequiredHandler))
@@ -89,7 +92,7 @@ impl HttpBasicAuth {
 		self.users.get(&username.to_owned()).map_or(false, |pass| pass == password)
 	}
 
-	fn check_auth(&self, req: &server::Request<HttpStream>) -> Access {
+	fn check_auth(&self, req: &server::Request<net::HttpStream>) -> Access {
 		match req.headers().get::<header::Authorization<header::Basic>>() {
 			Some(&header::Authorization(
 				header::Basic { ref username, password: Some(ref password) }
@@ -97,65 +100,5 @@ impl HttpBasicAuth {
 			Some(_) => Access::Denied,
 			None => Access::AuthRequired,
 		}
-	}
-}
-
-pub struct UnauthorizedHandler {
-	write_pos: usize,
-}
-
-impl server::Handler<HttpStream> for UnauthorizedHandler {
-	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
-		Next::write()
-	}
-
-	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
-		Next::write()
-	}
-
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		res.set_status(StatusCode::Unauthorized);
-		Next::write()
-	}
-
-	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		let response = "Unauthorized".as_bytes();
-
-		if self.write_pos == response.len() {
-			return Next::end();
-		}
-
-		match encoder.write(&response[self.write_pos..]) {
-			Ok(bytes) => {
-				self.write_pos += bytes;
-				Next::write()
-			},
-			Err(e) => match e.kind() {
-				::std::io::ErrorKind::WouldBlock => Next::write(),
-				_ => Next::end()
-			},
-		}
-	}
-}
-
-pub struct AuthRequiredHandler;
-
-impl server::Handler<HttpStream> for AuthRequiredHandler {
-	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
-		Next::write()
-	}
-
-	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
-		Next::write()
-	}
-
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		res.set_status(StatusCode::Unauthorized);
-		res.headers_mut().set_raw("WWW-Authenticate", vec![b"Basic realm=\"Parity\"".to_vec()]);
-		Next::write()
-	}
-
-	fn on_response_writable(&mut self, _encoder: &mut Encoder<HttpStream>) -> Next {
-		Next::end()
 	}
 }

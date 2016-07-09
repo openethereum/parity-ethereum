@@ -93,7 +93,7 @@ use util::*;
 use std::mem::{replace};
 use ethcore::views::{HeaderView, BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo};
+use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo, BlockImportError};
 use ethcore::error::*;
 use ethcore::block::Block;
 use io::SyncIo;
@@ -544,10 +544,10 @@ impl ChainSync {
 			peer.latest_number = Some(header.number());
 		}
 		match io.chain().import_block(block_rlp.as_raw().to_vec()) {
-			Err(Error::Import(ImportError::AlreadyInChain)) => {
+			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
 				trace!(target: "sync", "New block already in chain {:?}", h);
 			},
-			Err(Error::Import(ImportError::AlreadyQueued)) => {
+			Err(BlockImportError::Import(ImportError::AlreadyQueued)) => {
 				trace!(target: "sync", "New block already queued {:?}", h);
 			},
 			Ok(_) => {
@@ -557,7 +557,7 @@ impl ChainSync {
 				}
 				trace!(target: "sync", "New block queued {:?} ({})", h, header.number);
 			},
-			Err(Error::Block(BlockError::UnknownParent(p))) => {
+			Err(BlockImportError::Block(BlockError::UnknownParent(p))) => {
 				unknown = true;
 				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
 			},
@@ -841,11 +841,11 @@ impl ChainSync {
 			}
 
 			match io.chain().import_block(block) {
-				Err(Error::Import(ImportError::AlreadyInChain)) => {
+				Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
 					trace!(target: "sync", "Block already in chain {:?}", h);
 					self.block_imported(&h, number, &parent);
 				},
-				Err(Error::Import(ImportError::AlreadyQueued)) => {
+				Err(BlockImportError::Import(ImportError::AlreadyQueued)) => {
 					trace!(target: "sync", "Block already queued {:?}", h);
 					self.block_imported(&h, number, &parent);
 				},
@@ -854,7 +854,7 @@ impl ChainSync {
 					imported.insert(h.clone());
 					self.block_imported(&h, number, &parent);
 				},
-				Err(Error::Block(BlockError::UnknownParent(_))) if self.state == SyncState::NewBlocks => {
+				Err(BlockImportError::Block(BlockError::UnknownParent(_))) if self.state == SyncState::NewBlocks => {
 					trace!(target: "sync", "Unknown new block parent, restarting sync");
 					break;
 				},

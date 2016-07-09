@@ -172,10 +172,10 @@ impl OverlayDB {
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(Bytes, u32)> {
-		self.backing.get(&key.bytes())
+		self.backing.get(key)
 			.expect("Low-level database error. Some issue with your hard disk?")
 			.map(|d| {
-				let r = Rlp::new(d.deref());
+				let r = Rlp::new(&d);
 				(r.at(1).as_val(), r.at(0).as_val())
 			})
 	}
@@ -186,10 +186,10 @@ impl OverlayDB {
 			let mut s = RlpStream::new_list(2);
 			s.append(&payload.1);
 			s.append(&payload.0);
-			batch.put(&key.bytes(), s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(key, s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
 			false
 		} else {
-			batch.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+			batch.delete(key).expect("Low-level database error. Some issue with your hard disk?");
 			true
 		}
 	}
@@ -200,10 +200,10 @@ impl OverlayDB {
 			let mut s = RlpStream::new_list(2);
 			s.append(&payload.1);
 			s.append(&payload.0);
-			self.backing.put(&key.bytes(), s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
+			self.backing.put(key, s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
 			false
 		} else {
-			self.backing.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+			self.backing.delete(key).expect("Low-level database error. Some issue with your hard disk?");
 			true
 		}
 	}

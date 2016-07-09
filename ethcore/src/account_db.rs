@@ -1,11 +1,38 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 //! DB backend wrapper for Account trie
 use util::*;
 
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
 
+// combines a key with an address hash to ensure uniqueness.
+// leaves the first 96 bits untouched in order to support partial key lookup.
 #[inline]
 fn combine_key<'a>(address_hash: &'a H256, key: &'a H256) -> H256 {
-	address_hash ^ key
+	let mut dst = key.clone();
+	{
+		let last_src: &[u8] = &*address_hash;
+		let last_dst: &mut [u8] = &mut *dst;
+		for (k, a) in last_dst[12..].iter_mut().zip(&last_src[12..]) {
+			*k ^= *a
+		}
+	}
+
+	dst
 }
 
 // TODO: introduce HashDBMut?

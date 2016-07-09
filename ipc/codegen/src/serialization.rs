@@ -707,7 +707,12 @@ fn binary_expr_variant(
 						let buffer = &mut buffer[1..];
 						$write_expr
 				}),
-				read: quote_arm!(cx, $variant_index_ident => { $read_expr } ),
+				read: quote_arm!(cx,
+					$variant_index_ident => {
+					 	let buffer = &buffer[1..];
+						$read_expr
+					}
+				),
 			})
 		},
 		ast::VariantData::Struct(ref fields, _) => {
@@ -742,7 +747,12 @@ fn binary_expr_variant(
 						let buffer = &mut buffer[1..];
 						$write_expr
 				}),
-				read: quote_arm!(cx, $variant_index_ident => { $read_expr } ),
+				read: quote_arm!(cx,
+					$variant_index_ident => {
+					 	let buffer = &buffer[1..];
+						$read_expr
+					}
+				),
 			})
 		},
 	}

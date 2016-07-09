@@ -22,7 +22,7 @@ use std::process::exit;
 
 #[macro_export]
 macro_rules! die {
-	($($arg:tt)*) => (die_with_message(&format!("{}", format_args!($($arg)*))));
+	($($arg:tt)*) => (::die::die_with_message(&format!("{}", format_args!($($arg)*))));
 }
 
 pub fn die_with_error(module: &'static str, e: ethcore::error::Error) -> ! {

@@ -16,22 +16,20 @@
 
 //! Blockchain database client.
 
-mod client;
 mod config;
 mod error;
 mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
+pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use self::trace::Filter as TraceFilter;
+pub use types::trace_filter::Filter as TraceFilter;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
 
-use std::path::Path;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
@@ -39,31 +37,34 @@ use util::Itertools;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
-use header::{BlockNumber, Header};
+use header::{BlockNumber};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use views::{HeaderView, BlockView};
+use views::{BlockView};
 use error::{ImportResult, ExecutionError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
-use miner::{TransactionImportResult};
-use error::Error as EthError;
+pub use types::call_analytics::CallAnalytics;
+pub use block_import_error::BlockImportError;
+pub use transaction_import::TransactionImportResult;
+pub use transaction_import::TransactionImportError;
 
-/// Options concerning what analytics we run on the call.
-#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
-pub struct CallAnalytics {
-	/// Make a transaction trace.
-	pub transaction_tracing: bool,
-	/// Make a VM trace.
-	pub vm_tracing: bool,
-	/// Make a diff.
-	pub state_diffing: bool,
+pub mod client {
+	//! Blockchain database client.
+
+	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
+	include!(concat!(env!("OUT_DIR"), "/client.ipc.rs"));
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
+
+	/// Should be called by any external-facing interface when actively using the client.
+	/// To minimise chatter, there's no need to call more than once every 30s.
+	fn keep_alive(&self) {}
+
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockID) -> Option<Bytes>;
 
@@ -127,7 +128,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
 
 	/// Get uncle with given id.
-	fn uncle(&self, id: UncleID) -> Option<Header>;
+	fn uncle(&self, id: UncleID) -> Option<Bytes>;
 
 	/// Get transaction receipt with given hash.
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt>;
@@ -146,7 +147,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> ImportResult;
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
@@ -188,15 +189,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
 
-	/// import transactions from network/other 3rd party
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, EthError>>;
-
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>);
-
-	/// Generate a PV64 snapshot for the current best block, saving it within the
-	/// root directory, whose path is given.
-	fn take_snapshot(&self, root_dir: &Path);
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
@@ -224,28 +218,6 @@ pub trait BlockChainClient : Sync + Send {
 			)
 		} else {
 			Err(())
-		}
-	}
-
-	/// Get `Some` gas limit of SOFT_FORK_BLOCK, or `None` if chain is not yet that long.
-	fn dao_rescue_block_gas_limit(&self, chain_hash: H256) -> Option<U256> {
-		const SOFT_FORK_BLOCK: u64 = 1800000;
-		// shortcut if the canon chain is already known.
-		if self.chain_info().best_block_number > SOFT_FORK_BLOCK + 1000 {
-			return self.block_header(BlockID::Number(SOFT_FORK_BLOCK)).map(|header| HeaderView::new(&header).gas_limit());
-		}
-		// otherwise check according to `chain_hash`.
-		if let Some(mut header) = self.block_header(BlockID::Hash(chain_hash)) {
-			if HeaderView::new(&header).number() < SOFT_FORK_BLOCK {
-				None
-			} else {
-				while HeaderView::new(&header).number() != SOFT_FORK_BLOCK {
-					header = self.block_header(BlockID::Hash(HeaderView::new(&header).parent_hash())).expect("chain is complete; parent of chain entry must be in chain; qed");
-				}
-				Some(HeaderView::new(&header).gas_limit())
-			}
-		} else {
-			None
 		}
 	}
 }

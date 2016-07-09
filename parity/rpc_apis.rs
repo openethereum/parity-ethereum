@@ -18,7 +18,6 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use die::*;
 use ethsync::EthSync;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
@@ -166,7 +165,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone(), queue).to_delegate())
 			},
 			Api::EthcoreSet => {
-				server.add_delegate(EthcoreSetClient::new(&deps.miner, &deps.net_service).to_delegate())
+				server.add_delegate(EthcoreSetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())
