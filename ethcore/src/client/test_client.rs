@@ -18,6 +18,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
+use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
@@ -29,7 +30,7 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
-use evm::Factory as EvmFactory;
+use evm::{Factory as EvmFactory, VMType};
 use miner::{Miner, MinerService};
 use spec::Spec;
 
@@ -67,6 +68,10 @@ pub struct TestBlockChainClient {
 	pub queue_size: AtomicUsize,
 	/// Miner
 	pub miner: Arc<Miner>,
+	/// Spec
+	pub spec: Spec,
+	/// VM Factory
+	pub vm_factory: EvmFactory,
 }
 
 #[derive(Clone)]
@@ -106,6 +111,8 @@ impl TestBlockChainClient {
 			receipts: RwLock::new(HashMap::new()),
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(Spec::new_test())),
+			spec: Spec::new_test(),
+			vm_factory: EvmFactory::new(VMType::Interpreter),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.unwrapped_read().clone();
@@ -239,17 +246,43 @@ impl TestBlockChainClient {
 	}
 }
 
+pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
+	let temp = RandomTempPath::new();
+	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge, DatabaseConfig::default());
+	GuardedTempResult {
+		_temp: temp,
+		result: Some(journal_db)
+	}
+}
+
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, _author: Address, _gas_range_target: (U256, U256), _extra_data: Bytes) -> OpenBlock {
-		unimplemented!();
+		let engine = &self.spec.engine;
+		let genesis_header = self.spec.genesis_header();
+		let mut db_result = get_temp_journal_db();
+		let mut db = db_result.take();
+		self.spec.ensure_db_good(db.as_hashdb_mut());
+		let last_hashes = vec![genesis_header.hash()];
+		OpenBlock::new(
+			engine.deref(),
+			self.vm_factory(),
+			Default::default(),
+			false,
+			db,
+			&genesis_header,
+			last_hashes,
+			Address::zero(),
+			(3141562.into(), 31415620.into()),
+			vec![]
+		).expect("Opening block for tests will not fail.")
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {
-		unimplemented!();
+		&self.vm_factory
 	}
 
 	fn import_sealed_block(&self, _block: SealedBlock) -> ImportResult {
-		unimplemented!();
+		Ok(H256::default())
 	}
 }
 
