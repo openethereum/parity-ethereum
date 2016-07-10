@@ -93,11 +93,11 @@ impl Default for MinerOptions {
 pub struct GasPriceCalibratorOptions {
 	/// Base transaction price to match against.
 	pub usd_per_tx: f32,
-	/// How frequently we should recalibrate. 
+	/// How frequently we should recalibrate.
 	pub recalibration_period: Duration,
 }
 
-/// The gas price validator variant for a GasPricer.
+/// The gas price validator variant for a `GasPricer`.
 pub struct GasPriceCalibrator {
 	options: GasPriceCalibratorOptions,
 
