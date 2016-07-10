@@ -136,6 +136,15 @@ fn to_seconds(s: &str) -> Result<u64, String> {
 	}
 }
 
+pub fn mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
+	match s {
+		"active" => Ok(Mode::Active),
+		"passive" => Ok(Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))),
+		"dark" => Ok(Mode::Dark(Duration::from_secs(timeout))),
+		_ => Err(format!("{}: Invalid address for --mode. Must be one of active, passive or dark.", s)),
+	}
+}
+
 impl Configuration {
 	pub fn parse<S, I>(command: I) -> Result<Self, DocoptError> where I: IntoIterator<Item=S>, S: AsRef<str> {
 		let args = try!(Docopt::new(USAGE).and_then(|d| d.argv(command).decode()));
@@ -155,6 +164,7 @@ impl Configuration {
 		};
 		let pruning = try!(self.pruning());
 		let vm_type = try!(self.vm_type());
+		let mode = try!(mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -198,7 +208,7 @@ impl Configuration {
 				format: None,
 				pruning: pruning,
 				compaction: try!(DatabaseCompactionProfile::from_str(&self.args.flag_db_compaction)),
-				mode: try!(self.mode()),
+				mode: mode,
 				tracing: try!(Switch::from_str(&self.args.flag_tracing)),
 				vm_type: vm_type,
 			};
@@ -213,7 +223,7 @@ impl Configuration {
 				format: None,
 				pruning: pruning,
 				compaction: try!(DatabaseCompactionProfile::from_str(&self.args.flag_db_compaction)),
-				mode: try!(self.mode()),
+				mode: mode,
 				tracing: try!(Switch::from_str(&self.args.flag_tracing)),
 				from_block: try!(block_id(&self.args.flag_from)),
 				to_block: try!(block_id(&self.args.flag_to)),
@@ -226,14 +236,6 @@ impl Configuration {
 		Ok(cmd)
 	}
 
-	pub fn mode(&self) -> Result<Mode, String> {
-		match self.args.flag_mode.as_str() {
-			"active" => Ok(Mode::Active),
-			"passive" => Ok(Mode::Passive(Duration::from_secs(self.args.flag_mode_timeout), Duration::from_secs(self.args.flag_mode_alarm))),
-			"dark" => Ok(Mode::Dark(Duration::from_secs(self.args.flag_mode_timeout))),
-			_ => Err(format!("{}: Invalid address for --mode. Must be one of active, passive or dark.", self.args.flag_mode)),
-		}
-	}
 
 	fn vm_type(&self) -> Result<VMType, String> {
 		if self.args.flag_jitvm {
@@ -732,6 +734,14 @@ mod tests {
 		assert_eq!(to_duration("1day").unwrap(), Duration::from_secs(1 * 24 * 60 * 60));
 		assert_eq!(to_duration("2days").unwrap(), Duration::from_secs(2 * 24 *60 * 60));
 		assert_eq!(to_duration("15days").unwrap(), Duration::from_secs(15 * 24 * 60 * 60));
+	}
+
+	#[test]
+	fn test_mode() {
+		assert_eq!(mode("active", 0, 0).unwrap(), Mode::Active);
+		assert_eq!(mode("passive", 10, 20).unwrap(), Mode::Passive(Duration::from_secs(10), Duration::from_secs(20)));
+		assert_eq!(mode("dark", 20, 30).unwrap(), Mode::Dark(Duration::from_secs(20)));
+		assert!(mode("other", 20, 30).is_err());
 	}
 
 	#[test]
