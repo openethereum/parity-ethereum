@@ -28,13 +28,13 @@ use util::*;
 use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, Mode, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::client::{append_path, get_db_path, Mode, ClientConfig, DatabaseCompactionProfile, Switch, VMType, BlockID};
 use ethcore::miner::{MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
-use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, LoggerConfig, SpecType};
+use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain, LoggerConfig, SpecType};
 use cache::CacheConfig;
 
 /// Flush output buffer.
@@ -98,6 +98,18 @@ pub struct Directories {
 pub enum Policy {
 	None,
 	Dogmatic,
+}
+
+fn block_id(s: &str) -> Result<BlockID, String> {
+	if s == "latest" {
+		Ok(BlockID::Latest)
+	} else if let Ok(num) = s.parse::<u64>() {
+		Ok(BlockID::Number(num))
+	} else if let Ok(hash) = H256::from_str(s) {
+		Ok(BlockID::Hash(hash))
+	} else {
+		Err("Invalid block.".into())
+	}
 }
 
 impl Configuration {
@@ -168,7 +180,18 @@ impl Configuration {
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
-			Cmd::Blockchain(BlockchainCmd::Export)
+			let export_cmd = ExportBlockchain {
+				spec: try!(SpecType::from_str(&self.chain())),
+				logger_config: logger_config,
+				cache_config: self.cache_config(),
+				pruning: pruning,
+				compaction: try!(DatabaseCompactionProfile::from_str(&self.args.flag_db_compaction)),
+				mode: try!(self.mode()),
+				tracing: try!(Switch::from_str(&self.args.flag_tracing)),
+				from_block: try!(block_id(&self.args.flag_from)),
+				to_block: try!(block_id(&self.args.flag_to)),
+			};
+			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
 		} else {
 			Cmd::Run(self)
 		};
@@ -710,8 +733,8 @@ mod tests {
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
 	use util::journaldb;
-	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType};
-	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, SpecType, ImportBlockchain, LoggerConfig};
+	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
+	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, SpecType, ImportBlockchain, ExportBlockchain, LoggerConfig};
 	use cache::CacheConfig;
 
 	#[derive(Debug, PartialEq)]
@@ -815,7 +838,20 @@ mod tests {
 		let args = vec!["parity", "export", "blockchain.json"];
 		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Export));
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+			spec: SpecType::Mainnet,
+			logger_config: LoggerConfig {
+				mode: None,
+				color: false,
+			},
+			cache_config: CacheConfig::default(),
+			pruning: None,
+			compaction: DatabaseCompactionProfile::default(),
+			mode: Mode::Active,
+			tracing: Switch::Auto,
+			from_block: BlockID::Number(1),
+			to_block: BlockID::Latest,
+		})));
 	}
 
 	#[test]

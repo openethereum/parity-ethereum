@@ -26,7 +26,7 @@ use util::panics::{PanicHandler, ForwardPanic};
 use util::{version, contents, NetworkConfiguration, journaldb, PayloadInfo};
 use util::log::Colour;
 use ethcore::service::ClientService;
-use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient};
+use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use ethcore::spec::Spec;
@@ -57,7 +57,7 @@ impl FromStr for DataFormat {
 #[derive(Debug, PartialEq)]
 pub enum BlockchainCmd {
 	Import(ImportBlockchain),
-	Export,
+	Export(ExportBlockchain),
 }
 
 #[derive(Debug, PartialEq)]
@@ -114,10 +114,23 @@ pub struct ImportBlockchain {
 	pub vm_type: VMType,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ExportBlockchain {
+	pub spec: SpecType,
+	pub logger_config: LoggerConfig,
+	pub cache_config: CacheConfig,
+	pub pruning: Option<journaldb::Algorithm>,
+	pub compaction: DatabaseCompactionProfile,
+	pub mode: Mode,
+	pub tracing: Switch,
+	pub from_block: BlockID,
+	pub to_block: BlockID,
+}
+
 pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 	match cmd {
 		BlockchainCmd::Import(import_cmd) => execute_import(import_cmd),
-		BlockchainCmd::Export => execute_export(),
+		BlockchainCmd::Export(export_cmd) => execute_export(export_cmd),
 	}
 }
 
@@ -253,7 +266,37 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	unimplemented!();
 }
 
-fn execute_export() -> Result<String, String> {
+fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
+	// Setup panic handler
+	let panic_handler = PanicHandler::new_in_arc();
+
+	// load spec file
+	let spec = try!(cmd.spec.spec());
+
+	// setup network configuration
+	let net_settings = NetworkConfiguration {
+		config_path: None,
+		listen_address: None,
+		public_address: None,
+		udp_port: None,
+		nat_enabled: false,
+		discovery_enabled: false,
+		boot_nodes: vec![],
+		use_secret: None,
+		ideal_peers: 0,
+		reserved_nodes: vec![],
+		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
+	};
+
+	// Setup logging
+	let _logger = setup_log(&cmd.logger_config.mode, cmd.logger_config.color);
+
+	unsafe { fdlimit::raise_fd_limit(); }
+
+	info!("Starting {}", Colour::White.bold().paint(version()));
+
+	let cfg = client_config(&cmd.cache_config, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
+
 	unimplemented!();
 }
 
