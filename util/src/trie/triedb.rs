@@ -18,7 +18,7 @@ use common::*;
 use hashdb::*;
 use nibbleslice::*;
 use rlp::*;
-use super::trietraits::Trie;
+use super::trietraits::{Trie, TrieItem};
 use super::node::Node;
 use super::TrieError;
 
@@ -133,7 +133,7 @@ impl<'db> TrieDB<'db> {
 
 	/// Get the data of the root node.
 	fn root_data(&self) -> &[u8] {
-		self.db.lookup(&self.root).expect("Trie root not found!")
+		self.db.get(&self.root).expect("Trie root not found!")
 	}
 
 	/// Get the root node as a `Node`.
@@ -184,7 +184,7 @@ impl<'db> TrieDB<'db> {
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
 	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
 		self.get_from_node(&root_rlp, key)
 	}
 
@@ -213,7 +213,7 @@ impl<'db> TrieDB<'db> {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&r.as_val::<H256>()).unwrap_or_else(|| panic!("Not found! {:?}", r.as_val::<H256>())),
+			true => self.db.get(&r.as_val::<H256>()).unwrap_or_else(|| panic!("Not found! {:?}", r.as_val::<H256>())),
 			false => node
 		}
 	}
@@ -257,7 +257,7 @@ pub struct TrieDBIterator<'a> {
 
 impl<'a> TrieDBIterator<'a> {
 	/// Create a new iterator.
-	fn new(db: &'a TrieDB) -> TrieDBIterator<'a> {
+	pub fn new(db: &'a TrieDB) -> TrieDBIterator<'a> {
 		let mut r = TrieDBIterator {
 			db: db,
 			trail: vec![],
@@ -331,10 +331,16 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 
 impl<'db> TrieDB<'db> {
 	/// Get all keys/values stored in the trie.
-	pub fn iter(&self) -> TrieDBIterator { TrieDBIterator::new(self) }
+	pub fn iter(&self) -> TrieDBIterator {
+		TrieDBIterator::new(self)
+	}
 }
 
 impl<'db> Trie for TrieDB<'db> {
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
+		Box::new(TrieDB::iter(self))
+	}
+
 	fn root(&self) -> &H256 { &self.root }
 
 	fn contains(&self, key: &[u8]) -> bool {
@@ -349,7 +355,7 @@ impl<'db> Trie for TrieDB<'db> {
 impl<'db> fmt::Debug for TrieDB<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
 	}

@@ -17,9 +17,12 @@
 //! Tree route info type definition
 
 use util::numbers::H256;
+use ipc::BinaryConvertError;
+use std::collections::VecDeque;
+use std::mem;
 
 /// Represents a tree route between `from` block and `to` block:
-#[derive(Debug)]
+#[derive(Debug, Binary)]
 pub struct TreeRoute {
 	/// A vector of hashes of all blocks, ordered from `from` to `to`.
 	pub blocks: Vec<H256>,

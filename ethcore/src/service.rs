@@ -36,6 +36,8 @@ pub enum SyncMessage {
 		retracted: Vec<H256>,
 		/// Hashes of blocks that are now included in cannonical chain
 		enacted: Vec<H256>,
+		/// Hashes of blocks that are sealed by this node
+		sealed: Vec<H256>,
 	},
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
@@ -69,8 +71,7 @@ impl ClientService {
 			try!(net_service.start());
 		}
 
-		info!("Starting {}", net_service.host_info());
-		info!("Configured for {} using {:?} engine", spec.name, spec.engine.name());
+		info!("Configured for {} using {} engine", spec.name.clone().apply(Colour::White.bold()), spec.engine.name().apply(Colour::Yellow.bold()));
 		let client = try!(Client::new(config, spec, db_path, miner, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
@@ -133,16 +134,14 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
-		if let UserMessage(ref message) = *net_message {
-			match *message {
-				SyncMessage::BlockVerified => {
-					self.client.import_verified_blocks(&io.channel());
-				},
-				SyncMessage::NewTransactions(ref transactions) => {
-					self.client.import_queued_transactions(&transactions);
-				},
-				_ => {}, // ignore other messages
-			}
+		match *net_message {
+			UserMessage(ref message) => match *message {
+				SyncMessage::BlockVerified => { self.client.import_verified_blocks(&io.channel()); }
+				SyncMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
+				_ => {} // ignore other messages
+			},
+			NetworkIoMessage::NetworkStarted(ref url) => { self.client.network_started(url); }
+			_ => {} // ignore other messages
 		}
 	}
 }
@@ -159,9 +158,15 @@ mod tests {
 
 	#[test]
 	fn it_can_be_started() {
-		let spec = get_test_spec();
 		let temp_path = RandomTempPath::new();
-		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path(), Arc::new(Miner::default()), false);
+		let service = ClientService::start(
+			ClientConfig::default(),
+			get_test_spec(),
+			NetworkConfiguration::new_local(),
+			&temp_path.as_path(),
+			Arc::new(Miner::with_spec(get_test_spec())),
+			false
+		);
 		assert!(service.is_ok());
 	}
 }

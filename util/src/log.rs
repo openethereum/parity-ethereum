@@ -17,10 +17,34 @@
 //! Common log helper functions
 
 use std::env;
+use std::borrow::Cow;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use std::sync::{RwLock, RwLockReadGuard};
+use std::sync::atomic::{Ordering, AtomicBool};
 use arrayvec::ArrayVec;
+use misc::RwLockable;
+pub use ansi_term::{Colour, Style};
+
+lazy_static! {
+	static ref USE_COLOR: AtomicBool = AtomicBool::new(false);
+}
+
+/// Something which can be apply()ed.
+pub trait Applyable: AsRef<str> {
+	/// Apply the style `c` to ourself, returning us styled in that manner.
+	fn apply(&self, c: Style) -> Cow<str>;
+}
+
+impl<T: AsRef<str>> Applyable for T {
+    fn apply(&self, c: Style) -> Cow<str> {
+        let s = self.as_ref();
+        match USE_COLOR.load(Ordering::Relaxed) {
+            true => Cow::Owned(format!("{}", c.paint(s))),
+            false => Cow::Borrowed(s),
+        }
+    }
+}
 
 lazy_static! {
 	static ref LOG_DUMMY: bool = {
@@ -31,7 +55,7 @@ lazy_static! {
 			builder.parse(&log);
 		}
 
-		if let Ok(_) = builder.init() {
+		if builder.init().is_ok() {
 			println!("logger initialized");
 		}
 		true
@@ -57,7 +81,8 @@ impl RotatingLogger {
 
 	/// Creates new `RotatingLogger` with given levels.
 	/// It does not enforce levels - it's just read only.
-	pub fn new(levels: String) -> Self {
+	pub fn new(levels: String, enable_color: bool) -> Self {
+		USE_COLOR.store(enable_color, Ordering::Relaxed);
 		RotatingLogger {
 			levels: levels,
 			logs: RwLock::new(ArrayVec::<[_; LOG_SIZE]>::new()),
@@ -66,7 +91,7 @@ impl RotatingLogger {
 
 	/// Append new log entry
 	pub fn append(&self, log: String) {
-		self.logs.write().unwrap().insert(0, log);
+		self.logs.unwrapped_write().insert(0, log);
 	}
 
 	/// Return levels
@@ -76,7 +101,7 @@ impl RotatingLogger {
 
 	/// Return logs
 	pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
-		self.logs.read().unwrap()
+		self.logs.unwrapped_read()
 	}
 
 }
@@ -86,7 +111,7 @@ mod test {
 	use super::RotatingLogger;
 
 	fn logger() -> RotatingLogger {
-		RotatingLogger::new("test".to_owned())
+		RotatingLogger::new("test".to_owned(), false)
 	}
 
 	#[test]

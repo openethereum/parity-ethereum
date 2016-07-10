@@ -108,6 +108,12 @@ impl Account {
 		self.code_cache = code;
 	}
 
+	/// Reset this account's code to the given code.
+	pub fn reset_code(&mut self, code: Bytes) {
+		self.code_hash = None;
+		self.init_code(code);
+	}
+
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
 		self.storage_overlay.borrow_mut().insert(key, (Filth::Dirty, value));
@@ -121,7 +127,7 @@ impl Account {
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
 
-			(Filth::Clean, H256::from(db.get(key.bytes()).map_or(U256::zero(), |v| -> U256 {decode(v)})))
+			(Filth::Clean, H256::from(db.get(key).map_or(U256::zero(), |v| -> U256 {decode(v)})))
 		}).1.clone()
 	}
 
@@ -166,16 +172,16 @@ impl Account {
 		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == Some(SHA3_EMPTY))
 	}
 
-	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
+	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &AccountDB) -> bool {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.is_cached() ||
 			match self.code_hash {
-				Some(ref h) => match db.lookup(h) {
+				Some(ref h) => match db.get(h) {
 					Some(x) => { self.code_cache = x.to_vec(); true },
 					_ => {
-						warn!("Failed reverse lookup of {}", h);
+						warn!("Failed reverse get of {}", h);
 						false
 					},
 				},
@@ -208,8 +214,8 @@ impl Account {
 	}
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
-	pub fn commit_storage(&mut self, db: &mut AccountDBMut) {
-		let mut t = SecTrieDBMut::from_existing(db, &mut self.storage_root)
+	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut AccountDBMut) {
+		let mut t = trie_factory.from_existing(db, &mut self.storage_root)
 			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
@@ -269,7 +275,7 @@ mod tests {
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into());
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
-			a.commit_storage(&mut db);
+			a.commit_storage(&Default::default(), &mut db);
 			a.init_code(vec![]);
 			a.commit_code(&mut db);
 			a.rlp()
@@ -307,7 +313,7 @@ mod tests {
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		assert_eq!(a.storage_root(), None);
-		a.commit_storage(&mut db);
+		a.commit_storage(&Default::default(), &mut db);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 
@@ -317,11 +323,11 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
-		a.commit_storage(&mut db);
+		a.commit_storage(&Default::default(), &mut db);
 		a.set_storage(1.into(), 0x1234.into());
-		a.commit_storage(&mut db);
+		a.commit_storage(&Default::default(), &mut db);
 		a.set_storage(1.into(), 0.into());
-		a.commit_storage(&mut db);
+		a.commit_storage(&Default::default(), &mut db);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 
@@ -337,6 +343,21 @@ mod tests {
 	}
 
 	#[test]
+	fn reset_code() {
+		let mut a = Account::new_contract(69.into(), 0.into());
+		let mut db = MemoryDB::new();
+		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		a.init_code(vec![0x55, 0x44, 0xffu8]);
+		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		a.commit_code(&mut db);
+		assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
+		a.reset_code(vec![0x55]);
+		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		a.commit_code(&mut db);
+		assert_eq!(a.code_hash().hex(), "37bf2238b11b68cdc8382cece82651b59d3c3988873b6e0f33d79694aa45f1be");
+	}
+
+	#[test]
 	fn rlpio() {
 		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 		let b = Account::from_rlp(&a.rlp());
@@ -348,7 +369,6 @@ mod tests {
 
 	#[test]
 	fn new_account() {
-
 		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 		assert_eq!(a.balance(), &U256::from(69u8));
@@ -359,7 +379,6 @@ mod tests {
 
 	#[test]
 	fn create_account() {
-
 		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 	}

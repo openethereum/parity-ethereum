@@ -20,6 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
+use misc::RwLockable;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
@@ -98,18 +99,13 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
 	/// Create a new instance from file
-	pub fn new(path: &str, cache_size: Option<usize>) -> OverlayRecentDB {
-		Self::from_prefs(path, cache_size)
+	pub fn new(path: &str, config: DatabaseConfig) -> OverlayRecentDB {
+		Self::from_prefs(path, config)
 	}
 
 	/// Create a new instance from file
-	pub fn from_prefs(path: &str, cache_size: Option<usize>) -> OverlayRecentDB {
-		let opts = DatabaseConfig {
-			// this must match account_db prefix
-			prefix_size: Some(DB_PREFIX_LEN),
-			max_open_files: 256,
-			cache_size: cache_size,
-		};
+	pub fn from_prefs(path: &str, config: DatabaseConfig) -> OverlayRecentDB {
+		let opts = config.prefix(DB_PREFIX_LEN);
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
@@ -135,18 +131,18 @@ impl OverlayRecentDB {
 	pub fn new_temp() -> OverlayRecentDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap(), None)
+		Self::new(dir.to_str().unwrap(), DatabaseConfig::default())
 	}
 
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&self.backing);
-		let journal_overlay = self.journal_overlay.read().unwrap();
+		let journal_overlay = self.journal_overlay.unwrapped_read();
 		*journal_overlay == reconstructed
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 
 	fn read_overlay(db: &Database) -> JournalOverlay {
@@ -204,7 +200,7 @@ impl JournalDB for OverlayRecentDB {
 
 	fn mem_used(&self) -> usize {
 		let mut mem = self.transaction_overlay.mem_used();
-		let overlay = self.journal_overlay.read().unwrap();
+		let overlay = self.journal_overlay.unwrapped_read();
 		mem += overlay.backing_overlay.mem_used();
 		mem += overlay.journal.heap_size_of_children();
 		mem
@@ -214,12 +210,12 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().unwrap().latest_era }
+	fn latest_era(&self) -> Option<u64> { self.journal_overlay.unwrapped_read().latest_era }
 
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
-		let mut journal_overlay = self.journal_overlay.write().unwrap();
+		let mut journal_overlay = self.journal_overlay.unwrapped_write();
 		let batch = DBTransaction::new();
 		{
 			let mut r = RlpStream::new_list(3);
@@ -288,11 +284,11 @@ impl JournalDB for OverlayRecentDB {
 				}
 				// update the overlay
 				for k in overlay_deletions {
-					journal_overlay.backing_overlay.kill(&k);
+					journal_overlay.backing_overlay.remove(&k);
 				}
 				// apply canon deletions
 				for k in canon_deletions {
-					if !journal_overlay.backing_overlay.exists(&k) {
+					if !journal_overlay.backing_overlay.contains(&k) {
 						try!(batch.delete(&k));
 					}
 				}
@@ -321,12 +317,12 @@ impl HashDB for OverlayRecentDB {
 		ret
 	}
 
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.transaction_overlay.raw(key);
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => {
-				let v = self.journal_overlay.read().unwrap().backing_overlay.lookup(key).map(|v| v.to_vec());
+				let v = self.journal_overlay.unwrapped_read().backing_overlay.get(key).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
 						Some(&self.transaction_overlay.denote(key, x).0)
@@ -344,8 +340,8 @@ impl HashDB for OverlayRecentDB {
 		}
 	}
 
-	fn exists(&self, key: &H256) -> bool {
-		self.lookup(key).is_some()
+	fn contains(&self, key: &H256) -> bool {
+		self.get(key).is_some()
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
@@ -354,8 +350,8 @@ impl HashDB for OverlayRecentDB {
 	fn emplace(&mut self, key: H256, value: Bytes) {
 		self.transaction_overlay.emplace(key, value);
 	}
-	fn kill(&mut self, key: &H256) {
-		self.transaction_overlay.kill(key);
+	fn remove(&mut self, key: &H256) {
+		self.transaction_overlay.remove(key);
 	}
 }
 
@@ -369,6 +365,7 @@ mod tests {
 	use hashdb::*;
 	use log::init_log;
 	use journaldb::JournalDB;
+	use kvdb::DatabaseConfig;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -397,7 +394,7 @@ mod tests {
 		jdb.commit(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		assert!(jdb.exists(&x));
+		assert!(jdb.contains(&x));
 	}
 
 	#[test]
@@ -407,20 +404,20 @@ mod tests {
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.remove(&h);
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(2, &b"2".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&h));
+		assert!(jdb.contains(&h));
 		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(!jdb.exists(&h));
+		assert!(!jdb.contains(&h));
 	}
 
 	#[test]
@@ -432,38 +429,38 @@ mod tests {
 		let bar = jdb.insert(b"bar");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
 
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
 		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
-		assert!(!jdb.exists(&bar));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(!jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
 
 		jdb.remove(&foo);
 		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
-		assert!(!jdb.exists(&bar));
-		assert!(!jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(!jdb.contains(&bar));
+		assert!(!jdb.contains(&baz));
 
 		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(!jdb.exists(&foo));
-		assert!(!jdb.exists(&bar));
-		assert!(!jdb.exists(&baz));
+		assert!(!jdb.contains(&foo));
+		assert!(!jdb.contains(&bar));
+		assert!(!jdb.contains(&baz));
 	}
 
 	#[test]
@@ -475,8 +472,8 @@ mod tests {
 		let bar = jdb.insert(b"bar");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
@@ -487,15 +484,15 @@ mod tests {
 		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
-		assert!(jdb.exists(&baz));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
 
 		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
-		assert!(!jdb.exists(&baz));
-		assert!(!jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(!jdb.contains(&baz));
+		assert!(!jdb.contains(&bar));
 	}
 
 	#[test]
@@ -506,19 +503,19 @@ mod tests {
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 
 		jdb.remove(&foo);
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 		jdb.commit(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
@@ -526,7 +523,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -542,11 +539,11 @@ mod tests {
 		jdb.commit(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 
 		jdb.commit(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
@@ -554,7 +551,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -570,11 +567,11 @@ mod tests {
 		jdb.commit(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 
 		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
@@ -582,7 +579,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -620,7 +617,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -630,19 +627,19 @@ mod tests {
 		};
 
 		{
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
-			assert!(jdb.exists(&foo));
-			assert!(jdb.exists(&bar));
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			assert!(jdb.contains(&foo));
+			assert!(jdb.contains(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			assert!(!jdb.exists(&foo));
+			assert!(!jdb.contains(&foo));
 		}
 	}
 
@@ -652,7 +649,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -681,7 +678,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -730,7 +727,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		// history is 1
 		let foo = jdb.insert(b"foo");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
@@ -745,7 +742,7 @@ mod tests {
 		jdb.insert(b"foo");
 		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();	// BROKEN
 		assert!(jdb.can_reconstruct_refs());
-		assert!(jdb.exists(&foo));
+		assert!(jdb.contains(&foo));
 
 		jdb.remove(&foo);
 		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
@@ -753,7 +750,7 @@ mod tests {
 
 		jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		assert!(!jdb.exists(&foo));
+		assert!(!jdb.contains(&foo));
 	}
 
 	#[test]
@@ -761,7 +758,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -801,7 +798,7 @@ mod tests {
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -814,34 +811,34 @@ mod tests {
 			jdb.remove(&foo);
 			jdb.commit(2, &b"2".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			assert!(jdb.exists(&foo));
+			assert!(jdb.contains(&foo));
 
 			jdb.insert(b"foo");
 			jdb.commit(3, &b"3".sha3(), Some((1, b"1".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			assert!(jdb.exists(&foo));
+			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			assert!(jdb.exists(&foo));
+			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			assert!(jdb.exists(&foo));
+			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 
 			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			assert!(!jdb.exists(&foo));
+			assert!(!jdb.contains(&foo));
 		}
 	}
 
@@ -850,7 +847,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -868,12 +865,12 @@ mod tests {
 		};
 
 		{
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), None);
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			assert!(jdb.exists(&foo));
-			assert!(!jdb.exists(&baz));
-			assert!(!jdb.exists(&bar));
+			assert!(jdb.contains(&foo));
+			assert!(!jdb.contains(&baz));
+			assert!(!jdb.contains(&bar));
 		}
 	}
 
@@ -893,7 +890,7 @@ mod tests {
 		assert!(jdb.can_reconstruct_refs());
 		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 
-		assert!(jdb.exists(&foo));
-		assert!(jdb.exists(&bar));
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
 	}
 }

@@ -53,9 +53,10 @@ pub use self::ethcore_set::EthcoreSetClient;
 pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
-use v1::types::TransactionRequest;
+use v1::helpers::TransactionRequest;
+use v1::types::H256 as NH256;
 use ethcore::error::Error as EthcoreError;
-use ethcore::miner::{AccountDetails, MinerService};
+use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use ethcore::account_provider::{AccountProvider, Error as AccountError};
@@ -68,7 +69,8 @@ mod error_codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
 	pub const UNSUPPORTED_REQUEST_CODE: i64 = -32000;
 	pub const NO_WORK_CODE: i64 = -32001;
-	pub const UNKNOWN_ERROR: i64 = -32002;
+	pub const NO_AUTHOR_CODE: i64 = -32002;
+	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const SIGNER_DISABLED: i64 = -32030;
@@ -76,14 +78,9 @@ mod error_codes {
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
-	let hash = signed_transaction.hash();
+	let hash = NH256::from(signed_transaction.hash());
 
-	let import = miner.import_own_transaction(client, signed_transaction, |a: &Address| {
-		AccountDetails {
-			nonce: client.latest_nonce(&a),
-			balance: client.latest_balance(&a),
-		}
-	});
+	let import = miner.import_own_transaction(client, signed_transaction);
 
 	import
 		.map_err(transaction_error)
@@ -100,7 +97,7 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 
 		action: request.to.map_or(Action::Create, Action::Call),
 		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
-		gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
+		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
 		value: request.value.unwrap_or_else(U256::zero),
 		data: request.data.map_or_else(Vec::new, |b| b.to_vec()),
 	}
@@ -134,6 +131,14 @@ fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, a
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 
+fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockChainClient, M: MinerService {
+	client
+		.gas_price_statistics(100, 8)
+		.map(|x| x[4])
+		.unwrap_or_else(|_| miner.sensible_gas_price())
+}
+
+
 fn signing_error(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(error_codes::ACCOUNT_LOCKED),
@@ -156,7 +161,7 @@ fn transaction_error(error: EthcoreError) -> Error {
 				"There is too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 			},
 			InsufficientGasPrice { minimal, got } => {
-				format!("Transaction fee is to low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)
+				format!("Transaction fee is too low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)
 			},
 			InsufficientBalance { balance, cost } => {
 				format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)

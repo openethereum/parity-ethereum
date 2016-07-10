@@ -18,6 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread;
 use std::time::*;
 use common::*;
+use misc::*;
 use network::*;
 use io::TimerToken;
 use crypto::KeyPair;
@@ -51,7 +52,7 @@ impl TestProtocol {
 	}
 
 	pub fn got_packet(&self) -> bool {
-		self.packet.lock().unwrap().deref()[..] == b"hello"[..]
+		self.packet.locked().deref()[..] == b"hello"[..]
 	}
 
 	pub fn got_timeout(&self) -> bool {
@@ -70,7 +71,7 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 
 	fn read(&self, _io: &NetworkContext<TestProtocolMessage>, _peer: &PeerId, packet_id: u8, data: &[u8]) {
 		assert_eq!(packet_id, 33);
-		self.packet.lock().unwrap().extend(data);
+		self.packet.locked().extend(data);
 	}
 
 	fn connected(&self, io: &NetworkContext<TestProtocolMessage>, peer: &PeerId) {
@@ -88,7 +89,7 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 
 	/// Timer function called after a timeout created with `NetworkContext::timeout`.
 	fn timeout(&self, io: &NetworkContext<TestProtocolMessage>, timer: TimerToken) {
-		io.message(TestProtocolMessage { payload: 22 });
+		io.message(TestProtocolMessage { payload: 22 }).unwrap();
 		assert_eq!(timer, 0);
 		self.got_timeout.store(true, AtomicOrdering::Relaxed);
 	}

@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 #![cfg_attr(feature="dev", allow(useless_format))]
+#![cfg_attr(feature="dev", allow(match_bool))]
 
 extern crate docopt;
 extern crate num_cpus;
@@ -44,6 +45,8 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
 
+extern crate ethcore_ipc_hypervisor as hypervisor;
+
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
 
@@ -55,9 +58,7 @@ extern crate ethcore_signer;
 
 #[macro_use]
 mod die;
-mod price_info;
 mod upgrade;
-mod hypervisor;
 mod setup_log;
 mod rpc;
 mod dapps;
@@ -80,10 +81,10 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError};
+use util::{Lockable, H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path};
-use ethcore::error::{Error, ImportError};
+use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
+use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
@@ -97,7 +98,7 @@ use rpc::RpcServer;
 use signer::{SignerServer, new_token};
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use configuration::Configuration;
+use configuration::{Policy, Configuration};
 
 fn main() {
 	let conf = Configuration::parse();
@@ -126,6 +127,11 @@ fn execute(conf: Configuration) {
 
 	if conf.args.cmd_account {
 		execute_account_cli(conf);
+		return;
+	}
+
+	if conf.args.cmd_wallet {
+		execute_wallet_cli(conf);
 		return;
 	}
 
@@ -179,34 +185,59 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging);
+	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
+	info!("Starting {}", format!("{}", version()).apply(Colour::White.bold()));
+	info!("Using state DB journalling strategy {}", match client_config.pruning {
+		journaldb::Algorithm::Archive => "archive",
+		journaldb::Algorithm::EarlyMerge => "light",
+		journaldb::Algorithm::OverlayRecent => "fast",
+		journaldb::Algorithm::RefCounted => "basic",
+	}.apply(Colour::White.bold()));
+
+	// Display warning about using experimental journaldb types
+	match client_config.pruning {
+		journaldb::Algorithm::EarlyMerge | journaldb::Algorithm::RefCounted => {
+			warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
+		}
+		_ => {}
+	}
+
+	// Display warning about using unlock with signer
+	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
+		warn!("Using Trusted Signer and --unlock is not recommended!");
+		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
+	}
+
+	// Check fork settings.
+	if conf.policy() != Policy::None {
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
+	}
+
 	let net_settings = conf.net_settings(&spec);
 	let sync_config = conf.sync_config(&spec);
-
-	// Create and display a new token for UIs.
-	if conf.args.flag_signer && !conf.args.flag_no_token {
-		new_token(conf.directories().signer).unwrap_or_else(|e| {
-			die!("Error generating token: {:?}", e)
-		});
-	}
 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
 
 	// Miner
-	let miner = Miner::with_accounts(conf.args.flag_force_sealing, conf.spec(), account_service.clone());
-	miner.set_author(conf.author());
+	let miner = Miner::new(conf.miner_options(), conf.gas_pricer(), conf.spec(), Some(account_service.clone()));
+	miner.set_author(conf.author().unwrap_or_default());
 	miner.set_gas_floor_target(conf.gas_floor_target());
+	miner.set_gas_ceil_target(conf.gas_ceil_target());
 	miner.set_extra_data(conf.extra_data());
-	miner.set_minimal_gas_price(conf.gas_price());
-	miner.set_transactions_limit(conf.args.flag_tx_limit);
+	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
 	// Build client
 	let mut service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), miner.clone(), !conf.args.flag_no_network
+		client_config,
+		spec,
+		net_settings,
+		Path::new(&conf.path()),
+		miner.clone(),
+		match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -241,7 +272,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Setup http rpc
 	let rpc_server = rpc::new_http(rpc::HttpConfiguration {
 		enabled: network_settings.rpc_enabled,
-		interface: network_settings.rpc_interface.clone(),
+		interface: conf.rpc_interface(),
 		port: network_settings.rpc_port,
 		apis: conf.rpc_apis(),
 		cors: conf.rpc_cors(),
@@ -253,8 +284,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
 	let dapps_server = dapps::new(dapps::Configuration {
-		enabled: !conf.args.flag_dapps_off,
-		interface: conf.args.flag_dapps_interface.clone(),
+		enabled: conf.dapps_enabled(),
+		interface: conf.dapps_interface(),
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
 		pass: conf.args.flag_dapps_pass.clone(),
@@ -266,7 +297,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Set up a signer
 	let signer_server = signer::start(signer::Configuration {
-		enabled: deps_for_rpc_apis.signer_port.is_some(),
+		enabled: conf.signer_enabled(),
 		port: conf.args.flag_signer_port,
 		signer_path: conf.directories().signer,
 	}, signer::Dependencies {
@@ -275,7 +306,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	});
 
 	// Register IO handler
-	let io_handler  = Arc::new(ClientIoHandler {
+	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
@@ -285,7 +316,10 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
 	if conf.args.cmd_ui {
-		url::open("http://localhost:8080/")
+		if !conf.dapps_enabled() {
+			die_with_message("Cannot use UI command with Dapps turned off.");
+		}
+		url::open(&format!("http://{}:{}/", conf.dapps_interface(), conf.args.flag_dapps_port));
 	}
 
 	// Handle exit
@@ -305,6 +339,8 @@ fn execute_export(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -326,7 +362,7 @@ fn execute_export(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -377,6 +413,8 @@ fn execute_import(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -398,7 +436,7 @@ fn execute_import(conf: Configuration) {
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::default()), false
+		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -444,10 +482,10 @@ fn execute_import(conf: Configuration) {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(bytes) {
 			Ok(_) => {}
-			Err(Error::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
+			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
-		informant.tick(client.deref(), None);
+		informant.tick::<&'static ()>(client.deref(), None);
 	};
 
 	match format {
@@ -534,6 +572,30 @@ fn execute_account_cli(conf: Configuration) {
 	}
 }
 
+fn execute_wallet_cli(conf: Configuration) {
+	use ethcore::ethstore::{PresaleWallet, EthStore};
+	use ethcore::ethstore::dir::DiskDirectory;
+	use ethcore::account_provider::AccountProvider;
+
+	let wallet_path = conf.args.arg_path.first().unwrap();
+	let filename = conf.args.flag_password.first().unwrap();
+	let mut file = File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
+	let mut file_content = String::new();
+	file.read_to_string(&mut file_content).unwrap_or_else(|_| die!("{} Unable to read password file.", filename));
+
+	let dir = Box::new(DiskDirectory::create(conf.keys_path()).unwrap());
+	let iterations = conf.keys_iterations();
+	let store = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
+
+	// remove eof
+	let pass = &file_content[..file_content.len() - 1];
+	let wallet = PresaleWallet::open(wallet_path).unwrap_or_else(|_| die!("Unable to open presale wallet."));
+	let kp = wallet.decrypt(pass).unwrap_or_else(|_| die!("Invalid password"));
+	let address = store.insert_account(kp.secret().clone(), pass).unwrap();
+
+	println!("Imported account: {}", address);
+}
+
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
 	_rpc_server: Option<RpcServer>,
@@ -552,7 +614,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+	let _ = exit.wait(mutex.locked()).unwrap();
 	info!("Finishing work, please wait...");
 }
 

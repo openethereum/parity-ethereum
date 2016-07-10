@@ -25,13 +25,26 @@ Usage:
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
+  parity wallet import <path> --password FILE [options]
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
   parity [options]
   parity ui [options]
 
-Protocol Options:
+Operating Options:
+  --mode MODE              Set the operating mode. MODE can be one of:
+                           active - Parity continuously syncs the chain.
+                           passive - Parity syncs initially, then sleeps and
+                           wakes regularly to resync. 
+                           dark - Parity syncs only when an external interface
+                           is active. [default: active].
+  --mode-timeout SECS      Specify the number of seconds before inactivity
+                           timeout occurs when mode is dark or passive
+                           [default: 300].
+  --mode-alarm SECS        Specify the number of seconds before auto sleep
+                           reawake timeout occurs when mode is passive
+                           [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, or testnet
@@ -41,24 +54,30 @@ Protocol Options:
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
-
-DAO-Rescue Soft-fork Options:
-  --help-rescue-dao        Does nothing - on by default.
-  --dont-help-rescue-dao   Votes against the DAO-rescue soft-fork, but supports
-                           it if it is triggered anyway.
-                           Equivalent to --gas-floor-target=3141592.
-  --dogmatic               Ignores all DAO-rescue soft-fork behaviour. Even if
-                           it means losing mining rewards.
+  --fork POLICY            Specifies the client's fork policy. POLICY must be
+                           one of:
+                           dogmatic - sticks rigidly to the standard chain.
+                           none - goes with whatever fork is decided but
+                           votes for none. [default: none].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
                            ACCOUNTS is a comma-delimited list of addresses.
+                           Implies --no-signer.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
-  --keys-iterations NUM    Specify the number of iterations to use when 
+  --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) [default: 10240].
   --no-import-keys         Do not import keys from legacy clients.
+  --force-signer           Enable Trusted Signer WebSocket endpoint used by
+                           Signer UIs, even when --unlock is in use.
+  --no-signer              Disable Trusted Signer WebSocket endpoint used by
+                           Signer UIs.
+  --signer-port PORT       Specify the port of Trusted Signer server
+                           [default: 8180].
+  --signer-path PATH       Specify directory where Signer UIs tokens should
+                           be stored. [default: $HOME/.parity/signer]
 
 Networking Options:
   --no-network             Disable p2p networking.
@@ -81,7 +100,7 @@ Networking Options:
   --reserved-only          Connect only to reserved nodes.
 
 API and Console Options:
-  --jsonrpc-off            Disable the JSON-RPC API server.
+  --no-jsonrpc             Disable the JSON-RPC API server.
   --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
                            [default: 8545].
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
@@ -94,13 +113,13 @@ API and Console Options:
                            ethcore, ethcore_set, traces.
                            [default: web3,eth,net,ethcore,personal,traces].
 
-  --ipc-off                Disable JSON-RPC over IPC service.
+  --no-ipc                 Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
                            [default: $HOME/.parity/jsonrpc.ipc].
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
-                           IPC [default: web3,eth,net,ethcore,personal,traces].
+                           IPC [default: web3,eth,net,ethcore,personal,traces,rpc].
 
-  --dapps-off              Disable the Dapps server (e.g. status page).
+  --no-dapps               Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
@@ -115,18 +134,35 @@ API and Console Options:
   --dapps-path PATH        Specify directory where dapps should be installed.
                            [default: $HOME/.parity/dapps]
 
-  --signer                 Enable Trusted Signer WebSocket endpoint used by
-                           Signer UIs.
-  --signer-port PORT       Specify the port of Trusted Signer server
-                           [default: 8180].
-  --signer-path PATH       Specify directory where Signer UIs tokens should
-                           be stored. [default: $HOME/.parity/signer]
-  --no-token               By default a new system UI security token will be
-                           output on start up. This will prevent it.
-
 Sealing/Mining Options:
+  --author ADDRESS         Specify the block author (aka "coinbase") address
+                           for sending block rewards from sealed blocks.
+                           NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
+  --reseal-on-txs SET      Specify which transactions should force the node
+                           to reseal a block. SET is one of:
+                           none - never reseal on new transactions;
+                           own - reseal only on a new local transaction;
+                           ext - reseal only on a new external transaction;
+                           all - reseal on all new transactions [default: all].
+  --reseal-min-period MS   Specify the minimum time between reseals from 
+                           incoming transactions. MS is time measured in
+                           milliseconds [default: 2000].
+  --work-queue-size ITEMS  Specify the number of historical work packages
+                           which are kept cached lest a solution is found for 
+                           them later. High values take more memory but result
+                           in fewer unusable solutions [default: 20].
+  --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
+                           a single transaction may have for it to be mined.
+  --relay-set SET          Set of transactions to relay. SET may be:
+                           cheap - Relay any transaction in the queue (this
+                           may include invalid transactions);
+                           strict - Relay only executed transactions (this
+                           guarantees we don't relay invalid transactions, but
+                           means we relay nothing if not mining);
+                           lenient - Same as strict when mining, and cheap
+                           when not [default: cheap].
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
                            [default: 0.005]. The minimum gas price is set
                            accordingly.
@@ -134,15 +170,24 @@ Sealing/Mining Options:
                            amount in USD, a web service or 'auto' to use each
                            web service in turn and fallback on the last known
                            good value [default: auto].
+  --price-update-period T  T will be allowed to pass between each gas price
+                           update. T may be daily, hourly, a number of seconds,
+                           or a time string of the form "2 days", "30 minutes"
+                           etc. [default: hourly].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
-                           block [default: 3141592].
-  --author ADDRESS         Specify the block author (aka "coinbase") address
-                           for sending block rewards from sealed blocks
-                           [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
+                           block [default: 4700000].
+  --gas-cap GAS            A cap on how large we will raise the gas limit per
+                           block due to transaction volume [default: 6283184].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
-  --tx-limit LIMIT         Limit of transactions kept in the queue (waiting to
-                           be included in next block) [default: 1024].
+  --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
+                           to be included in next block) [default: 1024].
+  --remove-solved          Move solved blocks from the work package queue
+                           instead of cloning them. This gives a slightly
+                           faster import speed, but means that extra solutions
+                           submitted for the same work package will go unused.
+  --notify-work URLS       URLs to which work package notifications are pushed.
+                           URLS should be a comma-delimited list of HTTP URLs.
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
@@ -151,15 +196,11 @@ Footprint Options:
                            off. auto uses last used value of this option (off
                            if it does not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
-                           may be one of auto, archive, fast, basic, light:
+                           may be one of auto, archive, fast:
                            archive - keep all state trie data. No pruning.
                            fast - maintain journal overlay. Fast but 50MB used.
-                           basic - reference count in disk DB. Slow, light, and
-                           experimental!
-                           light - early merges with partial tracking. Fast,
-                           light, and experimental!
                            auto - use the method most recently synced or
-                           default to archive if none synced [default: auto].
+                           default to fast if none synced [default: auto].
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
                            bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
@@ -169,7 +210,13 @@ Footprint Options:
   --cache MEGABYTES        Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
-  --db-cache-size MB       Database cache size.
+
+Database Options:
+  --db-cache-size MB       Override RocksDB database cache size.
+  --db-compaction TYPE     Database compaction type. TYPE may be one of:
+                           ssd - suitable for SSDs and fast HDDs;
+                           hdd - suitable for slow HDDs [default: ssd].
+  --fat-db                 Fat database.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -196,13 +243,16 @@ Legacy Options:
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   -j --jsonrpc             Does nothing; JSON-RPC is on by default now.
+  --jsonrpc-off            Equivalent to --no-jsonrpc.
   -w --webapp              Does nothing; dapps server is on by default now.
+  --dapps-off              Equivalent to --no-dapps.
   --rpc                    Does nothing; JSON-RPC is on by default now.
   --rpcaddr IP             Equivalent to --jsonrpc-interface IP.
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
-  --ipcdisable             Equivalent to --ipc-off.
+  --ipcdisable             Equivalent to --no-ipc.
+  --ipc-off                Equivalent to --no-ipc.
   --ipcapi APIS            Equivalent to --ipc-apis APIS.
   --ipcpath PATH           Equivalent to --ipc-path PATH.
   --gasprice WEI           Minimum amount of Wei per GAS to be paid for a
@@ -223,6 +273,7 @@ Miscellaneous Options:
 pub struct Args {
 	pub cmd_daemon: bool,
 	pub cmd_account: bool,
+	pub cmd_wallet: bool,
 	pub cmd_new: bool,
 	pub cmd_list: bool,
 	pub cmd_export: bool,
@@ -233,11 +284,13 @@ pub struct Args {
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,
+	pub flag_mode: String,
+	pub flag_mode_timeout: u64,
+	pub flag_mode_alarm: u64,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
-	pub flag_dont_help_rescue_dao: bool,
-	pub flag_dogmatic: bool,
+	pub flag_fork: String,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,
@@ -258,31 +311,40 @@ pub struct Args {
 	pub flag_cache_pref_size: usize,
 	pub flag_cache_max_size: usize,
 	pub flag_queue_max_size: usize,
-	pub flag_jsonrpc_off: bool,
+	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
 	pub flag_jsonrpc_port: u16,
 	pub flag_jsonrpc_cors: Option<String>,
 	pub flag_jsonrpc_apis: String,
-	pub flag_ipc_off: bool,
+	pub flag_no_ipc: bool,
 	pub flag_ipc_path: String,
 	pub flag_ipc_apis: String,
-	pub flag_dapps_off: bool,
+	pub flag_no_dapps: bool,
 	pub flag_dapps_port: u16,
 	pub flag_dapps_interface: String,
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
-	pub flag_signer: bool,
+	pub flag_force_signer: bool,
+	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
-	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
-	pub flag_author: String,
+	pub flag_reseal_on_txs: String,
+	pub flag_reseal_min_period: u64,
+	pub flag_work_queue_size: usize,
+	pub flag_remove_solved: bool,
+	pub flag_tx_gas_limit: Option<String>,
+	pub flag_relay_set: String,
+	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,
+  pub flag_price_update_period: String,
 	pub flag_gas_floor_target: String,
+	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
-	pub flag_tx_limit: usize,
+	pub flag_tx_queue_size: usize,
+	pub flag_notify_work: Option<String>,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
 	pub flag_from: String,
@@ -310,9 +372,14 @@ pub struct Args {
 	pub flag_testnet: bool,
 	pub flag_networkid: Option<String>,
 	pub flag_ipcdisable: bool,
+	pub flag_ipc_off: bool,
+	pub flag_jsonrpc_off: bool,
+	pub flag_dapps_off: bool,
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
 	pub flag_db_cache_size: Option<usize>,
+	pub flag_db_compaction: String,
+	pub flag_fat_db: bool,
 }
 
 pub fn print_version() {

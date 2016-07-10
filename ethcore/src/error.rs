@@ -20,10 +20,11 @@ use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
-
+use ipc::binary::{BinaryConvertError, BinaryConvertable};
+use types::block_import_error::BlockImportError;
 pub use types::executed::ExecutionError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.
 pub enum TransactionError {
 	/// Transaction is already imported to the queue
@@ -228,7 +229,7 @@ pub enum Error {
 	/// The value of the nonce or mishash is invalid.
 	PowInvalid,
 	/// Error concerning TrieDBs
-	TrieError(TrieError),
+	Trie(TrieError),
 }
 
 impl fmt::Display for Error {
@@ -244,7 +245,7 @@ impl fmt::Display for Error {
 				f.write_fmt(format_args!("Unknown engine name ({})", name)),
 			Error::PowHashInvalid => f.write_str("Invalid or out of date PoW hash."),
 			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
-			Error::TrieError(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::Trie(ref err) => f.write_fmt(format_args!("{}", err)),
 		}
 	}
 }
@@ -308,9 +309,23 @@ impl From<IoError> for Error {
 
 impl From<TrieError> for Error {
 	fn from(err: TrieError) -> Error {
-		Error::TrieError(err)
+		Error::Trie(err)
 	}
 }
+
+impl From<BlockImportError> for Error {
+	fn from(err: BlockImportError) -> Error {
+		match err {
+			BlockImportError::Block(e) => Error::Block(e),
+			BlockImportError::Import(e) => Error::Import(e),
+			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
+		}
+	}
+}
+
+binary_fixed_size!(BlockError);
+binary_fixed_size!(ImportError);
+binary_fixed_size!(TransactionError);
 
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
 /*#![feature(concat_idents)]

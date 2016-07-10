@@ -67,7 +67,7 @@ impl Keccak256<[u8; 32]> for [u8] {
 pub mod aes {
 	use rcrypto::blockmodes::{CtrMode, CbcDecryptor, PkcsPadding};
 	use rcrypto::aessafe::{AesSafe128Encryptor, AesSafe128Decryptor};
-	use rcrypto::symmetriccipher::{Encryptor, Decryptor};
+	use rcrypto::symmetriccipher::{Encryptor, Decryptor, SymmetricCipherError};
 	use rcrypto::buffer::{RefReadBuffer, RefWriteBuffer};
 
 	/// Encrypt a message
@@ -83,9 +83,10 @@ pub mod aes {
 	}
 
 	/// Decrypt a message using cbc mode
-	pub fn decrypt_cbc(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) {
+	pub fn decrypt_cbc(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) -> Result<(), SymmetricCipherError> {
 		let mut encryptor = CbcDecryptor::new(AesSafe128Decryptor::new(k), PkcsPadding, iv.to_vec());
-		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
+		try!(encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true));
+		Ok(())
 	}
 
 }

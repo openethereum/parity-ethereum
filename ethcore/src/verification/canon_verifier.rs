@@ -24,11 +24,11 @@ use super::verification;
 pub struct CanonVerifier;
 
 impl Verifier for CanonVerifier {
-	fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error> {
 		verification::verify_block_family(header, bytes, engine, bc)
 	}
 
-	fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> {
+	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error> {
 		verification::verify_block_final(expected, got)
 	}
 }

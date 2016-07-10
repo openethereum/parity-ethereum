@@ -39,22 +39,22 @@
 #[cfg(all(asm_available, target_arch="x86_64"))]
 use std::mem;
 use std::fmt;
-use std::cmp;
 
 use std::str::{FromStr};
 use std::convert::From;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::ops::*;
 use std::cmp::*;
 
-use serde;
-use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
+use rustc_serialize::hex::{FromHex, FromHexError};
 
 /// Conversion from decimal string error
 #[derive(Debug, PartialEq)]
 pub enum FromDecStrErr {
+	/// Char not from range 0-9
+	InvalidCharacter,
 	/// Value does not fit into type
-	InvalidLength
+	InvalidLength,
 }
 
 macro_rules! impl_map_from {
@@ -425,12 +425,16 @@ macro_rules! uint_overflowing_mul_reg {
 				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
 				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
 
-				// Only single overflow possible here
-				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
-				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
+				// No overflow here
+				let res = (c_u >> 32) + (overflow_u << 32);
+				// possible overflows
+				let (res, o1) = res.overflowing_add(overflow_l);
+				let (res, o2) = res.overflowing_add(carry2);
+				let (res, o3) = res.overflowing_add(ret[i + j + 1]);
+				ret[i + j + 1] = res;
 
-				ret[i + j + 1] = carry;
-				carry2 = o as u64;
+				// Only single overflow possible there
+				carry2 = (o1 | o2 | o3) as u64;
 			}
 		}
 
@@ -520,9 +524,8 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 	fn bit(&self, index: usize) -> bool;
 	/// Return single byte
 	fn byte(&self, index: usize) -> u8;
-	/// Get this Uint as slice of bytes
-	fn to_raw_bytes(&self, bytes: &mut[u8]);
-
+	/// Convert U256 to the sequence of bytes with a big endian
+	fn to_big_endian(&self, bytes: &mut[u8]);
 	/// Create `Uint(10**n)`
 	fn exp10(n: usize) -> Self;
 	/// Return eponentation `self**other`. Panic on overflow.
@@ -547,19 +550,25 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 
 	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
+
+	/// Returns
+	fn is_zero(&self) -> bool;
 }
 
 macro_rules! construct_uint {
 	($name:ident, $n_words:expr) => (
 		/// Little-endian large integer type
 		#[repr(C)]
-		#[derive(Copy, Clone, Eq, PartialEq)]
+		#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 		pub struct $name(pub [u64; $n_words]);
 
 		impl Uint for $name {
 
-			/// TODO: optimize, throw appropriate err
 			fn from_dec_str(value: &str) -> Result<Self, FromDecStrErr> {
+				if value.bytes().any(|b| b < 48 && b > 57) {
+					return Err(FromDecStrErr::InvalidCharacter)
+				}
+
 				let mut res = Self::default();
 				for b in value.bytes().map(|b| b - 48) {
 					let (r, overflow) = res.overflowing_mul_u32(10);
@@ -609,6 +618,13 @@ macro_rules! construct_uint {
 				arr[0]
 			}
 
+			#[inline]
+			fn is_zero(&self) -> bool {
+				let &$name(ref arr) = self;
+				for i in 0..$n_words { if arr[i] != 0 { return false; } }
+				return true;
+			}
+
 			/// Return the least number of bits needed to represent the number
 			#[inline]
 			fn bits(&self) -> usize {
@@ -631,7 +647,7 @@ macro_rules! construct_uint {
 				(arr[index / 8] >> (((index % 8)) * 8)) as u8
 			}
 
-			fn to_raw_bytes(&self, bytes: &mut[u8]) {
+			fn to_big_endian(&self, bytes: &mut[u8]) {
 				assert!($n_words * 8 == bytes.len());
 				let &$name(ref arr) = self;
 				for i in 0..bytes.len() {
@@ -645,7 +661,7 @@ macro_rules! construct_uint {
 			fn exp10(n: usize) -> Self {
 				match n {
 					0 => Self::from(1u64),
-					_ => Self::exp10(n - 1) * Self::from(10u64)
+					_ => Self::exp10(n - 1).mul_u32(10)
 				}
 			}
 
@@ -753,16 +769,16 @@ macro_rules! construct_uint {
 		}
 
 		impl $name {
-			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Multiplication by u32
+			#[allow(dead_code)] // not used when multiplied with inline assembly
 			fn mul_u32(self, other: u32) -> Self {
 				let (ret, overflow) = self.overflowing_mul_u32(other);
 				panic_on_overflow!(overflow);
 				ret
 			}
 
-			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Overflowing multiplication by u32
+			#[allow(dead_code)] // not used when multiplied with inline assembly
 			fn overflowing_mul_u32(self, other: u32) -> (Self, bool) {
 				let $name(ref arr) = self;
 				let mut ret = [0u64; $n_words];
@@ -782,44 +798,6 @@ macro_rules! construct_uint {
 		impl Default for $name {
 			fn default() -> Self {
 				$name::zero()
-			}
-		}
-
-		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
-			where S: serde::Serializer {
-				let mut hex = "0x".to_owned();
-				let mut bytes = [0u8; 8 * $n_words];
-				self.to_raw_bytes(&mut bytes);
-				let len = cmp::max((self.bits() + 7) / 8, 1);
-				hex.push_str(bytes[bytes.len() - len..].to_hex().as_ref());
-				serializer.serialize_str(hex.as_ref())
-			}
-		}
-
-		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error>
-			where D: serde::Deserializer {
-				struct UintVisitor;
-
-				impl serde::de::Visitor for UintVisitor {
-					type Value = $name;
-
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
-						// 0x + len
-						if value.len() > 2 + $n_words * 16 || value.len() < 2 {
-							return Err(serde::Error::custom("Invalid length."));
-						}
-
-						$name::from_str(&value[2..]).map_err(|_| serde::Error::custom("Invalid hex value."))
-					}
-
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
-						self.visit_str(value.as_ref())
-					}
-				}
-
-				deserializer.deserialize(UintVisitor)
 			}
 		}
 
@@ -955,8 +933,6 @@ macro_rules! construct_uint {
 			}
 		}
 
-		// TODO: optimise and traitify.
-
 		impl BitAnd<$name> for $name {
 			type Output = $name;
 
@@ -1027,7 +1003,7 @@ macro_rules! construct_uint {
 
 				// shift
 				for i in word_shift..$n_words {
-					ret[i] += original[i - word_shift] << bit_shift;
+					ret[i] = original[i - word_shift] << bit_shift;
 				}
 				// carry
 				if bit_shift > 0 {
@@ -1048,14 +1024,18 @@ macro_rules! construct_uint {
 				let word_shift = shift / 64;
 				let bit_shift = shift % 64;
 
+				// shift
 				for i in word_shift..$n_words {
-					// Shift
-					ret[i - word_shift] += original[i] >> bit_shift;
-					// Carry
-					if bit_shift > 0 && i < $n_words - 1 {
-						ret[i - word_shift] += original[i + 1] << (64 - bit_shift);
+					ret[i - word_shift] = original[i] >> bit_shift;
+				}
+
+				// Carry
+				if bit_shift > 0 {
+					for i in word_shift+1..$n_words {
+						ret[i - word_shift - 1] += original[i] << (64 - bit_shift);
 					}
 				}
+
 				$name(ret)
 			}
 		}
@@ -1120,14 +1100,6 @@ macro_rules! construct_uint {
 					}
 				}
 				Ok(())
-			}
-		}
-
-		#[cfg_attr(feature="dev", allow(derive_hash_xor_eq))] // We are pretty sure it's ok.
-		impl Hash for $name {
-			fn hash<H>(&self, state: &mut H) where H: Hasher {
-				unsafe { state.write(::std::slice::from_raw_parts(self.0.as_ptr() as *mut u8, self.0.len() * 8)); }
-				state.finish();
 			}
 		}
 	);
@@ -1305,12 +1277,16 @@ impl U256 {
 				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
 				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
 
-				// Only single overflow possible here
-				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
-				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
+				// No overflow here
+				let res = (c_u >> 32) + (overflow_u << 32);
+				// possible overflows
+				let (res, o1) = res.overflowing_add(overflow_l);
+				let (res, o2) = res.overflowing_add(carry2);
+				let (res, o3) = res.overflowing_add(ret[i + j + 1]);
+				ret[i + j + 1] = res;
 
-				ret[i + j + 1] = carry;
-				carry2 = o as u64;
+				// Only single overflow possible there
+				carry2 = (o1 | o2 | o3) as u64;
 			}
 		}
 
@@ -1430,12 +1406,6 @@ impl From<U256> for u32 {
 	}
 }
 
-/// Constant value of `U256::zero()` that can be used for a reference saving an additional instance creation.
-pub const ZERO_U256: U256 = U256([0x00u64; 4]);
-/// Constant value of `U256::one()` that can be used for a reference saving an additional instance creation.
-pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
-
-
 known_heap_size!(0, U128, U256);
 
 #[cfg(test)]
@@ -1493,7 +1463,7 @@ mod tests {
 		let hex = "8090a0b0c0d0e0f00910203040506077583a2cf8264910e1436bda32571012f0";
 		let uint = U256::from_str(hex).unwrap();
 		let mut bytes = [0u8; 32];
-		uint.to_raw_bytes(&mut bytes);
+		uint.to_big_endian(&mut bytes);
 		let uint2 = U256::from(&bytes[..]);
 		assert_eq!(uint, uint2);
 	}
@@ -1578,7 +1548,13 @@ mod tests {
 		assert_eq!(U256::from(105u8) / U256::from(5u8), U256::from(21u8));
 		let div = mult / U256::from(300u16);
 		assert_eq!(div, U256([0x9F30411021524112u64, 0x0001BD5B7DDFBD5A, 0, 0]));
-		//// TODO: bit inversion
+
+		let a = U256::from_str("ff000000000000000000000000000000000000000000000000000000000000d1").unwrap();
+		let b = U256::from_str("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff2e").unwrap();
+		println!("{:x}", a);
+		println!("{:x}", b);
+		assert_eq!(!a, b);
+		assert_eq!(a, !b);
 	}
 
 	#[test]
@@ -2054,6 +2030,44 @@ mod tests {
 		assert!(overflow);
     }
 
+	#[test]
+	fn big_endian() {
+		let source = U256([1, 0, 0, 0]);
+		let mut target = vec![0u8; 32];
+
+		assert_eq!(source, U256::from(1));
+
+		source.to_big_endian(&mut target);
+		assert_eq!(
+			vec![0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+				0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8],
+			target);
+
+		let source = U256([512, 0, 0, 0]);
+		let mut target = vec![0u8; 32];
+
+		source.to_big_endian(&mut target);
+		assert_eq!(
+			vec![0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+				0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 2u8, 0u8],
+			target);
+
+		let source = U256([0, 512, 0, 0]);
+		let mut target = vec![0u8; 32];
+
+		source.to_big_endian(&mut target);
+		assert_eq!(
+			vec![0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+				0u8, 0u8, 0u8, 0u8, 0u8, 2u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8],
+			target);
+
+		let source = U256::from_str("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20").unwrap();
+		source.to_big_endian(&mut target);
+		assert_eq!(
+			vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11,
+				0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20],
+			target);
+	}
 
 	#[test]
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]

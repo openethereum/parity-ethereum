@@ -21,6 +21,7 @@ use mio::*;
 use crossbeam::sync::chase_lev;
 use slab::Slab;
 use error::*;
+use misc::*;
 use io::{IoError, IoHandler};
 use io::worker::{Worker, Work, WorkType};
 use panics::*;
@@ -135,8 +136,9 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	}
 
 	/// Broadcast a message to other IO clients
-	pub fn message(&self, message: Message) {
-		self.channel.send(message).expect("Error seding message");
+	pub fn message(&self, message: Message) -> Result<(), UtilError> {
+		try!(self.channel.send(message));
+		Ok(())
 	}
 
 	/// Get message channel
@@ -226,7 +228,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 		let handler_index  = token.as_usize()  / TOKENS_PER_HANDLER;
 		let token_id  = token.as_usize()  % TOKENS_PER_HANDLER;
 		if let Some(handler) = self.handlers.get(handler_index) {
-			if let Some(timer) = self.timers.read().unwrap().get(&token.as_usize()) {
+			if let Some(timer) = self.timers.unwrapped_read().get(&token.as_usize()) {
 				event_loop.timeout_ms(token, timer.delay).expect("Error re-registering user timer");
 				self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler.clone(), handler_id: handler_index });
 				self.work_ready.notify_all();
@@ -247,15 +249,22 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			IoMessage::RemoveHandler { handler_id } => {
 				// TODO: flush event loop
 				self.handlers.remove(handler_id);
+				// unregister timers
+				let mut timers = self.timers.unwrapped_write();
+				let to_remove: Vec<_> = timers.keys().cloned().filter(|timer_id| timer_id / TOKENS_PER_HANDLER == handler_id).collect();
+				for timer_id in to_remove {
+					let timer = timers.remove(&timer_id).expect("to_remove only contains keys from timers; qed");
+					event_loop.clear_timeout(timer.timeout);
+				}
 			},
 			IoMessage::AddTimer { handler_id, token, delay } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
 				let timeout = event_loop.timeout_ms(Token(timer_id), delay).expect("Error registering user timer");
-				self.timers.write().unwrap().insert(timer_id, UserTimer { delay: delay, timeout: timeout });
+				self.timers.unwrapped_write().insert(timer_id, UserTimer { delay: delay, timeout: timeout });
 			},
 			IoMessage::RemoveTimer { handler_id, token } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
-				if let Some(timer) = self.timers.write().unwrap().remove(&timer_id) {
+				if let Some(timer) = self.timers.unwrapped_write().remove(&timer_id) {
 					event_loop.clear_timeout(timer.timeout);
 				}
 			},
@@ -269,7 +278,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 					handler.deregister_stream(token, event_loop);
 					// unregister a timer associated with the token (if any)
 					let timer_id = token + handler_id * TOKENS_PER_HANDLER;
-					if let Some(timer) = self.timers.write().unwrap().remove(&timer_id) {
+					if let Some(timer) = self.timers.unwrapped_write().remove(&timer_id) {
 						event_loop.clear_timeout(timer.timeout);
 					}
 				}
@@ -351,7 +360,9 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, UtilError> {
 		let panic_handler = PanicHandler::new_in_arc();
-    	let mut event_loop = EventLoop::new().unwrap();
+		let mut config = EventLoopConfig::new();
+		config.messages_per_tick(1024);
+    	let mut event_loop = EventLoop::configured(config).expect("Error creating event loop");
         let channel = event_loop.channel();
 		let panic = panic_handler.clone();
 		let thread = thread::spawn(move || {
@@ -390,7 +401,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[IoService] Closing...");
-		self.host_channel.send(IoMessage::Shutdown).unwrap();
+		self.host_channel.send(IoMessage::Shutdown).unwrap_or_else(|e| warn!("Error on IO service shutdown: {:?}", e));
 		self.thread.take().unwrap().join().ok();
 		trace!(target: "shutdown", "[IoService] Closed.");
 	}

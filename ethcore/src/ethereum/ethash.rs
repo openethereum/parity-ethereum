@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethash;
-
-use self::ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
+use ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
 use spec::CommonParams;
@@ -41,8 +39,6 @@ pub struct EthashParams {
 	pub registrar: Address,
 	/// Homestead transition block number.
 	pub frontier_compatibility_mode_limit: u64,
-	/// Enable the soft-fork logic.
-	pub dao_rescue_soft_fork: bool,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -55,7 +51,6 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.into(),
 			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.into(),
-			dao_rescue_soft_fork: p.dao_rescue_soft_fork.into(),
 		}
 	}
 }
@@ -104,23 +99,24 @@ impl Engine for Ethash {
 		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
 			Schedule::new_frontier()
 		} else {
-			let mut s = Schedule::new_homestead();
-			if self.ethash_params.dao_rescue_soft_fork {
-				s.reject_dao_transactions = env_info.dao_rescue_block_gas_limit.map(|x| x <= 4_000_000.into()).unwrap_or(false);
-			}
-			s
+			Schedule::new_homestead()
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
 		header.difficulty = self.calculate_difficuty(header, parent);
 		header.gas_limit = {
 			let gas_limit = parent.gas_limit;
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+			} else if gas_limit > gas_ceil_target {
+				max(gas_ceil_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into() + (header.gas_used * 6.into() / 5.into()) / bound_divisor)
+				min(gas_ceil_target,
+					max(gas_floor_target,
+						gas_limit - gas_limit / bound_divisor + 1.into() +
+							(header.gas_used * 6.into() / 5.into()) / bound_divisor))
 			}
 		};
 		header.note_dirty();
@@ -237,8 +233,7 @@ impl Ethash {
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {
 				parent.difficulty - (parent.difficulty / difficulty_bound_divisor)
-			}
-			else {
+			} else {
 				parent.difficulty + (parent.difficulty / difficulty_bound_divisor)
 			}
 		}
@@ -323,7 +318,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, None, Address::zero(), 3141562.into(), vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -338,7 +333,7 @@ mod tests {
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let vm_factory = Default::default();
-		let mut b = OpenBlock::new(engine.deref(), &vm_factory, false, db, &genesis_header, last_hashes, None, Address::zero(), 3141562.into(), vec![]).unwrap();
+		let mut b = OpenBlock::new(engine.deref(), &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();
 		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 		uncle.author = uncle_author.clone();
@@ -367,7 +362,6 @@ mod tests {
 			last_hashes: vec![],
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
-			dao_rescue_block_gas_limit: None,
 		});
 
 		assert!(schedule.stack_limit > 0);
@@ -380,7 +374,6 @@ mod tests {
 			last_hashes: vec![],
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
-			dao_rescue_block_gas_limit: None,
 		});
 
 		assert!(!schedule.have_delegate_call);

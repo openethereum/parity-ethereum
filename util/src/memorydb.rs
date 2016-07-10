@@ -74,6 +74,7 @@ use std::default::Default;
 pub struct MemoryDB {
 	data: HashMap<H256, (Bytes, i32)>,
 	static_null_rlp: (Bytes, i32),
+	aux: HashMap<Bytes, Bytes>,
 }
 
 impl Default for MemoryDB {
@@ -88,6 +89,7 @@ impl MemoryDB {
 		MemoryDB {
 			data: HashMap::new(),
  			static_null_rlp: (vec![0x80u8; 1], 1),
+			aux: HashMap::new(),
 		}
 	}
 
@@ -134,9 +136,12 @@ impl MemoryDB {
 
 	/// Return the internal map of hashes to data, clearing the current state.
 	pub fn drain(&mut self) -> HashMap<H256, (Bytes, i32)> {
-		let mut data = HashMap::new();
-		mem::swap(&mut self.data, &mut data);
-		data
+		mem::replace(&mut self.data, HashMap::new())
+	}
+
+	/// Return the internal map of auxiliary data, clearing the current state.
+	pub fn drain_aux(&mut self) -> HashMap<Bytes, Bytes> {
+		mem::replace(&mut self.aux, HashMap::new())
 	}
 
 	/// Denote than an existing value has the given key. Used when a key gets removed without
@@ -162,7 +167,7 @@ impl MemoryDB {
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
 
 impl HashDB for MemoryDB {
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<&[u8]> {
 		if key == &SHA3_NULL_RLP {
 			return Some(&NULL_RLP_STATIC);
 		}
@@ -176,7 +181,7 @@ impl HashDB for MemoryDB {
 		self.data.iter().filter_map(|(k, v)| if v.1 != 0 {Some((k.clone(), v.1))} else {None}).collect()
 	}
 
-	fn exists(&self, key: &H256) -> bool {
+	fn contains(&self, key: &H256) -> bool {
 		if key == &SHA3_NULL_RLP {
 			return true;
 		}
@@ -193,14 +198,14 @@ impl HashDB for MemoryDB {
 		let key = value.sha3();
 		if match self.data.get_mut(&key) {
 			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
-				*old_value = From::from(value.bytes());
+				*old_value = From::from(value);
 				*rc += 1;
 				false
 			},
 			Some(&mut (_, ref mut x)) => { *x += 1; false } ,
 			None => true,
 		}{	// ... None falls through into...
-			self.data.insert(key.clone(), (From::from(value.bytes()), 1));
+			self.data.insert(key.clone(), (From::from(value), 1));
 		}
 		key
 	}
@@ -222,7 +227,7 @@ impl HashDB for MemoryDB {
 		self.data.insert(key, (value, 1));
 	}
 
-	fn kill(&mut self, key: &H256) {
+	fn remove(&mut self, key: &H256) {
 		if key == &SHA3_NULL_RLP {
 			return;
 		}
@@ -232,6 +237,18 @@ impl HashDB for MemoryDB {
 		}{	// ... None falls through into...
 			self.data.insert(key.clone(), (Bytes::new(), -1));
 		}
+	}
+
+	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
+		self.aux.insert(hash, value);
+	}
+
+	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
+		self.aux.get(hash).cloned()
+	}
+
+	fn remove_aux(&mut self, hash: &[u8]) {
+		self.aux.remove(hash);
 	}
 }
 
@@ -245,8 +262,8 @@ fn memorydb_denote() {
 	for _ in 0..1000 {
 		let r = H256::random();
 		let k = r.sha3();
-		let &(ref v, ref rc) = m.denote(&k, r.bytes().to_vec());
-		assert_eq!(v, &r.bytes());
+		let &(ref v, ref rc) = m.denote(&k, r.to_bytes());
+		assert_eq!(v.as_slice(), r.as_slice());
 		assert_eq!(*rc, 0);
 	}
 

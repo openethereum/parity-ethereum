@@ -20,7 +20,7 @@ use nibbleslice::*;
 use rlp::*;
 use super::node::Node;
 use super::journal::Journal;
-use super::trietraits::{Trie, TrieMut};
+use super::trietraits::TrieMut;
 use super::TrieError;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
@@ -87,7 +87,7 @@ impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and `root`.
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
-		if !db.exists(root) {
+		if !db.contains(root) {
 			Err(TrieError::InvalidStateRoot)
 		} else {
 			Ok(TrieDBMut {
@@ -99,12 +99,12 @@ impl<'db> TrieDBMut<'db> {
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB {
+	pub fn db(&self) -> &HashDB {
 		self.db
 	}
 
 	/// Get the backing database.
-	pub fn db_mut(&'db mut self) -> &'db mut HashDB {
+	pub fn db_mut(&mut self) -> &mut HashDB {
 		self.db
 	}
 
@@ -143,7 +143,7 @@ impl<'db> TrieDBMut<'db> {
 	/// Set the trie to a new root node's RLP, inserting the new RLP into the backing database
 	/// and removing the old.
 	fn set_root_rlp(&mut self, root_data: &[u8]) {
-		self.db.kill(&self.root);
+		self.db.remove(&self.root);
 		*self.root = self.db.insert(root_data);
 		self.hash_count += 1;
 		trace!("set_root_rlp {:?} {:?}", root_data.pretty(), self.root);
@@ -174,7 +174,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Get the root node's RLP.
 	fn root_node(&self) -> Node {
-		Node::decoded(self.db.lookup(&self.root).expect("Trie root not found!"))
+		Node::decoded(self.db.get(&self.root).expect("Trie root not found!"))
 	}
 
 	/// Get the root node as a `Node`.
@@ -225,7 +225,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
 	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
 		self.get_from_node(&root_rlp, key)
 	}
 
@@ -254,7 +254,7 @@ impl<'db> TrieDBMut<'db> {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&r.as_val::<H256>()).expect("Not found!"),
+			true => self.db.get(&r.as_val::<H256>()).expect("Not found!"),
 			false => node
 		}
 	}
@@ -266,7 +266,7 @@ impl<'db> TrieDBMut<'db> {
 		trace!("ADD: {:?} {:?}", key, value.pretty());
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Journal = Journal::new();
-		let root_rlp = self.augmented(self.db.lookup(&self.root).expect("Trie root not found!"), key, value, &mut todo);
+		let root_rlp = self.augmented(self.db.get(&self.root).expect("Trie root not found!"), key, value, &mut todo);
 		self.apply(todo);
 		self.set_root_rlp(&root_rlp);
 		trace!("/");
@@ -279,7 +279,7 @@ impl<'db> TrieDBMut<'db> {
 		trace!("DELETE: {:?}", key);
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Journal = Journal::new();
-		match self.cleared_from_slice(self.db.lookup(&self.root).expect("Trie root not found!"), key, &mut todo) {
+		match self.cleared_from_slice(self.db.get(&self.root).expect("Trie root not found!"), key, &mut todo) {
 			Some(root_rlp) => {
 				self.apply(todo);
 				self.set_root_rlp(&root_rlp);
@@ -335,7 +335,7 @@ impl<'db> TrieDBMut<'db> {
 		}
 		else if rlp.is_data() && rlp.size() == 32 {
 			let h = rlp.as_val();
-			let r = self.db.lookup(&h).unwrap_or_else(||{
+			let r = self.db.get(&h).unwrap_or_else(||{
 				println!("Node not found! rlp={:?}, node_hash={:?}", rlp.as_raw().pretty(), h);
 				println!("Journal: {:?}", journal);
 				panic!();
@@ -642,7 +642,7 @@ impl<'db> TrieDBMut<'db> {
 	}
 }
 
-impl<'db> Trie for TrieDBMut<'db> {
+impl<'db> TrieMut for TrieDBMut<'db> {
 	fn root(&self) -> &H256 { &self.root }
 
 	fn contains(&self, key: &[u8]) -> bool {
@@ -652,9 +652,7 @@ impl<'db> Trie for TrieDBMut<'db> {
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
 		self.do_lookup(&NibbleSlice::new(key))
 	}
-}
 
-impl<'db> TrieMut for TrieDBMut<'db> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		match value.is_empty() {
 			false => self.insert_ns(&NibbleSlice::new(key), value),
@@ -670,7 +668,7 @@ impl<'db> TrieMut for TrieDBMut<'db> {
 impl<'db> fmt::Debug for TrieDBMut<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
 	}
@@ -678,8 +676,6 @@ impl<'db> fmt::Debug for TrieDBMut<'db> {
 
 #[cfg(test)]
 mod tests {
-	extern crate json_tests;
-	use self::json_tests::{trie, execute_tests_from_directory};
 	use triehash::*;
 	use hash::*;
 	use hashdb::*;
@@ -852,6 +848,21 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+		]));
+	}
+
+	#[test]
+	fn insert_out_of_order() {
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
@@ -1065,23 +1076,64 @@ mod tests {
 	}
 
 	#[test]
-	fn test_trie_json() {
-		println!("Json trie test: ");
-		execute_tests_from_directory::<trie::TrieTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
-			println!("file: {}", file);
+	fn branching_test() {
+		use std::str::FromStr;
+		use rustc_serialize::hex::FromHex;
 
-			let mut memdb = MemoryDB::new();
-			let mut root = H256::new();
-			let mut t = TrieDBMut::new(&mut memdb, &mut root);
-			for operation in input.into_iter() {
-				match operation {
-					trie::Operation::Insert(key, value) => t.insert(&key, &value),
-					trie::Operation::Remove(key) => t.remove(&key)
-				}
-			}
-
-			assert_eq!(*t.root(), H256::from_slice(&output));
-		});
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		t.insert(&"04110d816c380812a427968ece99b1c963dfbce6".from_hex().unwrap(), b"something");
+		t.insert(&"095e7baea6a6c7c4c2dfeb977efac326af552d87".from_hex().unwrap(), b"something");
+		t.insert(&"0a517d755cebbf66312b30fff713666a9cb917e0".from_hex().unwrap(), b"something");
+		t.insert(&"24dd378f51adc67a50e339e8031fe9bd4aafab36".from_hex().unwrap(), b"something");
+		t.insert(&"293f982d000532a7861ab122bdc4bbfd26bf9030".from_hex().unwrap(), b"something");
+		t.insert(&"2cf5732f017b0cf1b1f13a1478e10239716bf6b5".from_hex().unwrap(), b"something");
+		t.insert(&"31c640b92c21a1f1465c91070b4b3b4d6854195f".from_hex().unwrap(), b"something");
+		t.insert(&"37f998764813b136ddf5a754f34063fd03065e36".from_hex().unwrap(), b"something");
+		t.insert(&"37fa399a749c121f8a15ce77e3d9f9bec8020d7a".from_hex().unwrap(), b"something");
+		t.insert(&"4f36659fa632310b6ec438dea4085b522a2dd077".from_hex().unwrap(), b"something");
+		t.insert(&"62c01474f089b07dae603491675dc5b5748f7049".from_hex().unwrap(), b"something");
+		t.insert(&"729af7294be595a0efd7d891c9e51f89c07950c7".from_hex().unwrap(), b"something");
+		t.insert(&"83e3e5a16d3b696a0314b30b2534804dd5e11197".from_hex().unwrap(), b"something");
+		t.insert(&"8703df2417e0d7c59d063caa9583cb10a4d20532".from_hex().unwrap(), b"something");
+		t.insert(&"8dffcd74e5b5923512916c6a64b502689cfa65e1".from_hex().unwrap(), b"something");
+		t.insert(&"95a4d7cccb5204733874fa87285a176fe1e9e240".from_hex().unwrap(), b"something");
+		t.insert(&"99b2fcba8120bedd048fe79f5262a6690ed38c39".from_hex().unwrap(), b"something");
+		t.insert(&"a4202b8b8afd5354e3e40a219bdc17f6001bf2cf".from_hex().unwrap(), b"something");
+		t.insert(&"a94f5374fce5edbc8e2a8697c15331677e6ebf0b".from_hex().unwrap(), b"something");
+		t.insert(&"a9647f4a0a14042d91dc33c0328030a7157c93ae".from_hex().unwrap(), b"something");
+		t.insert(&"aa6cffe5185732689c18f37a7f86170cb7304c2a".from_hex().unwrap(), b"something");
+		t.insert(&"aae4a2e3c51c04606dcb3723456e58f3ed214f45".from_hex().unwrap(), b"something");
+		t.insert(&"c37a43e940dfb5baf581a0b82b351d48305fc885".from_hex().unwrap(), b"something");
+		t.insert(&"d2571607e241ecf590ed94b12d87c94babe36db6".from_hex().unwrap(), b"something");
+		t.insert(&"f735071cbee190d76b704ce68384fc21e389fbe7".from_hex().unwrap(), b"something");
+		t.insert(&"04110d816c380812a427968ece99b1c963dfbce6".from_hex().unwrap(), &[]);
+		t.insert(&"095e7baea6a6c7c4c2dfeb977efac326af552d87".from_hex().unwrap(), &[]);
+		t.insert(&"0a517d755cebbf66312b30fff713666a9cb917e0".from_hex().unwrap(), &[]);
+		t.insert(&"24dd378f51adc67a50e339e8031fe9bd4aafab36".from_hex().unwrap(), &[]);
+		t.insert(&"293f982d000532a7861ab122bdc4bbfd26bf9030".from_hex().unwrap(), &[]);
+		t.insert(&"2cf5732f017b0cf1b1f13a1478e10239716bf6b5".from_hex().unwrap(), &[]);
+		t.insert(&"31c640b92c21a1f1465c91070b4b3b4d6854195f".from_hex().unwrap(), &[]);
+		t.insert(&"37f998764813b136ddf5a754f34063fd03065e36".from_hex().unwrap(), &[]);
+		t.insert(&"37fa399a749c121f8a15ce77e3d9f9bec8020d7a".from_hex().unwrap(), &[]);
+		t.insert(&"4f36659fa632310b6ec438dea4085b522a2dd077".from_hex().unwrap(), &[]);
+		t.insert(&"62c01474f089b07dae603491675dc5b5748f7049".from_hex().unwrap(), &[]);
+		t.insert(&"729af7294be595a0efd7d891c9e51f89c07950c7".from_hex().unwrap(), &[]);
+		t.insert(&"83e3e5a16d3b696a0314b30b2534804dd5e11197".from_hex().unwrap(), &[]);
+		t.insert(&"8703df2417e0d7c59d063caa9583cb10a4d20532".from_hex().unwrap(), &[]);
+		t.insert(&"8dffcd74e5b5923512916c6a64b502689cfa65e1".from_hex().unwrap(), &[]);
+		t.insert(&"95a4d7cccb5204733874fa87285a176fe1e9e240".from_hex().unwrap(), &[]);
+		t.insert(&"99b2fcba8120bedd048fe79f5262a6690ed38c39".from_hex().unwrap(), &[]);
+		t.insert(&"a4202b8b8afd5354e3e40a219bdc17f6001bf2cf".from_hex().unwrap(), &[]);
+		t.insert(&"a94f5374fce5edbc8e2a8697c15331677e6ebf0b".from_hex().unwrap(), &[]);
+		t.insert(&"a9647f4a0a14042d91dc33c0328030a7157c93ae".from_hex().unwrap(), &[]);
+		t.insert(&"aa6cffe5185732689c18f37a7f86170cb7304c2a".from_hex().unwrap(), &[]);
+		t.insert(&"aae4a2e3c51c04606dcb3723456e58f3ed214f45".from_hex().unwrap(), &[]);
+		t.insert(&"c37a43e940dfb5baf581a0b82b351d48305fc885".from_hex().unwrap(), &[]);
+		t.insert(&"d2571607e241ecf590ed94b12d87c94babe36db6".from_hex().unwrap(), &[]);
+		t.insert(&"f735071cbee190d76b704ce68384fc21e389fbe7".from_hex().unwrap(), &[]);
+		assert_eq!(*t.root(), H256::from_str("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap());
 	}
 
 	#[test]

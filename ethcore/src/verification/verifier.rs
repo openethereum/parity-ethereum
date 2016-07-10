@@ -21,6 +21,6 @@ use header::Header;
 
 /// Should be used to verify blocks.
 pub trait Verifier: Send + Sync {
-	fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error>;
-	fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error>;
+	fn verify_block_family(&self, header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error>;
+	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error>;
 }
