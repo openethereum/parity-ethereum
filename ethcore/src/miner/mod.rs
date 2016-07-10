@@ -38,7 +38,7 @@
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
 //!		// Check block for sealing
-//!		//assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
+//!		//assert!(miner.sealing_block(client.deref()).locked().is_some());
 //! }
 //! ```
 
@@ -46,9 +46,10 @@ mod miner;
 mod external;
 mod transaction_queue;
 mod work_notify;
+mod price_info;
 
 pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionOrigin};
-pub use self::miner::{Miner, MinerOptions, PendingSet};
+pub use self::miner::{Miner, MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use client::TransactionImportResult;
 

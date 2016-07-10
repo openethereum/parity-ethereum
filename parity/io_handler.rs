@@ -49,14 +49,12 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	fn message(&self, _io: &IoContext<NetSyncMessage>, message: &NetSyncMessage) {
 		match *message {
 			NetworkIoMessage::User(SyncMessage::StartNetwork) => {
-				info!("Starting network");
 				if let Some(network) = self.network.upgrade() {
 					network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
 					EthSync::register(&*network, self.sync.clone()).unwrap_or_else(|e| warn!("Error registering eth protocol handler: {}", e));
 				}
 			},
 			NetworkIoMessage::User(SyncMessage::StopNetwork) => {
-				info!("Stopping network");
 				if let Some(network) = self.network.upgrade() {
 					network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 				}

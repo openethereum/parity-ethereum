@@ -14,12 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+extern crate syntex;
+extern crate ethcore_ipc_codegen as codegen;
 
-use rustc_version::{version_meta, Channel};
+use std::env;
+use std::path::Path;
 
 fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
+	let out_dir = env::var_os("OUT_DIR").unwrap();
+
+	// ipc pass
+	{
+		let src = Path::new("src/service.rs.in");
+		let dst = Path::new(&out_dir).join("hypervisor_service_ipc.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
+
+	// serialization pass
+	{
+		let src = Path::new(&out_dir).join("hypervisor_service_ipc.rs");
+		let dst = Path::new(&out_dir).join("hypervisor_service_cg.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
 	}
 }
