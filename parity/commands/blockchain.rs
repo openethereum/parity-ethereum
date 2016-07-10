@@ -16,6 +16,8 @@
 
 use std::str::FromStr;
 use std::{io, fs};
+use std::time::Duration;
+use std::thread::sleep;
 use std::path::Path;
 use std::sync::Arc;
 use util::panics::{PanicHandler, ForwardPanic};
@@ -23,12 +25,14 @@ use util::journaldb;
 use util::{version, contents, NetworkConfiguration};
 use util::log::Colour;
 use ethcore::service::ClientService;
-use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient};
+use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
 use cache::CacheConfig;
 use setup_log::setup_log;
+use informant::Informant;
 use fdlimit;
 
 #[derive(Debug, PartialEq)]
@@ -187,7 +191,39 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
 	let mut first_read = 0;
 
+	let format = match cmd.format {
+		Some(format) => format,
+		None => {
+			let first_read = try!(instream.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream."));
+			match first_bytes[0] {
+				0xf9 => DataFormat::Binary,
+				_ => DataFormat::Hex,
+			}
+		}
+	};
 
+	let informant = Informant::new(cmd.logger_config.color);
+
+	let do_import = |bytes| {
+		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
+		match client.import_block(bytes) {
+			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
+				trace!("Skipping block already in chain.");
+			}
+			Err(e) => {
+				return Err(format!("Cannot import block: {:?}", e));
+			},
+			Ok(_) => {},
+		}
+		informant.tick::<&'static ()>(&client, None);
+		Ok(())
+	};
+
+
+	//let format = self.format.unwrap_or_else(|| {
+		//let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
+		//let mut first_read = instread.read(&mut first_bytes).map_err
+	//};
 	unimplemented!();
 }
 
