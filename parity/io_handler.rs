@@ -40,7 +40,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		if let INFO_TIMER = timer {
 			let sync_status = self.sync.status();
-			let network_config = self.sync.config();
+			let network_config = self.sync.network_config();
 			self.info.tick(&self.client, Some((sync_status, network_config)));
 		}
 	}

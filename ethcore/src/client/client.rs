@@ -237,12 +237,12 @@ impl Client {
 
 	/// Sets the actor to be notified on certain events
 	pub fn set_notify(&self, target: &Arc<ChainNotify>) {
-		let mut write_lock = self.notify.write().unwrap();
+		let mut write_lock = self.notify.unwrapped_write();
 		*write_lock = Some(Arc::downgrade(target));
 	}
 
 	fn notify(&self) -> Option<Arc<ChainNotify>> {
-		let read_lock = self.notify.read().unwrap();
+		let read_lock = self.notify.unwrapped_read();
 		read_lock.as_ref().and_then(|weak| weak.upgrade())
 	}
 
@@ -370,7 +370,7 @@ impl Client {
 				let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
 				import_results.push(route);
 
-				self.report.write().unwrap().accrue_block(&block);
+				self.report.unwrapped_write().accrue_block(&block);
 				trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			}
 

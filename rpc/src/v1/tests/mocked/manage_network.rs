@@ -26,5 +26,5 @@ impl ManageNetwork for TestManageNetwork {
 	fn add_reserved_peer(&self, _peer: &str) -> Result<(), String> { Ok(()) }
 	fn start_network(&self) {}
 	fn stop_network(&self) {}
-	fn config(&self) -> NetworkConfiguration { NetworkConfiguration::new_local() }
+	fn network_config(&self) -> NetworkConfiguration { NetworkConfiguration::new_local() }
 }

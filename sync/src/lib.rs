@@ -218,7 +218,7 @@ pub trait ManageNetwork : Send + Sync {
 	/// Stop network
 	fn stop_network(&self);
 	/// Query the current configuration of the network
-	fn config(&self) -> NetworkConfiguration;
+	fn network_config(&self) -> NetworkConfiguration;
 }
 
 impl ManageNetwork for EthSync {
@@ -246,7 +246,7 @@ impl ManageNetwork for EthSync {
 		self.stop();
 	}
 
-	fn config(&self) -> NetworkConfiguration {
+	fn network_config(&self) -> NetworkConfiguration {
 		self.network.config().clone()
 	}
 }
