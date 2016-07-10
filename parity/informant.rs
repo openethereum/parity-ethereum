@@ -75,7 +75,6 @@ impl Informant {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(match_bool))]
 	pub fn tick<Message>(&self, client: &Client, maybe_sync: Option<(&EthSync, &NetworkService<Message>)>) where Message: Send + Sync + Clone + 'static {
 		let elapsed = self.last_tick.unwrapped_read().elapsed();
 		if elapsed < Duration::from_secs(5) {

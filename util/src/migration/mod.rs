@@ -92,7 +92,7 @@ impl<T: SimpleMigration> Migration for T {
 			}
 		}
 
-		if batch.len() != 0 {
+		if !batch.is_empty() {
 			try!(commit_batch(dest, &batch));
 		}
 
@@ -189,12 +189,12 @@ impl Manager {
 
 		// start with the old db.
 		let old_path_str = try!(old_path.to_str().ok_or(Error::MigrationImpossible));
-		let mut cur_db = try!(Database::open(&db_config, old_path_str).map_err(|s| Error::Custom(s)));
+		let mut cur_db = try!(Database::open(&db_config, old_path_str).map_err(Error::Custom));
 		for migration in migrations {
 			// open the target temporary database.
 			temp_path = temp_idx.path(&db_root);
 			let temp_path_str = try!(temp_path.to_str().ok_or(Error::MigrationImpossible));
-			let mut new_db = try!(Database::open(&db_config, temp_path_str).map_err(|s| Error::Custom(s)));
+			let mut new_db = try!(Database::open(&db_config, temp_path_str).map_err(Error::Custom));
 
 			// perform the migration from cur_db to new_db.
 			try!(migration.migrate(&cur_db, &self.config, &mut new_db));

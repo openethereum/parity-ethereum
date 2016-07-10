@@ -21,7 +21,6 @@ use std::sync::{Arc, Weak, Mutex};
 use std::collections::HashSet;
 use jsonrpc_core::*;
 use util::Lockable;
-use util::numbers::*;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockID};

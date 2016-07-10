@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
-use util::{Lockable, RwLockable};
+use util::RwLockable;
 use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
 use ethcore::account_provider::AccountProvider;

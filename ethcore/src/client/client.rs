@@ -587,14 +587,14 @@ impl Client {
 	}
 
 	/// Notify us that the network has been started.
-	pub fn network_started(&self, url: &String) {
+	pub fn network_started(&self, url: &str) {
 		let mut previous_enode = self.previous_enode.locked();
 		if let Some(ref u) = *previous_enode {
 			if u == url {
 				return;
 			}
 		}
-		*previous_enode = Some(url.clone());
+		*previous_enode = Some(url.into());
 		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
 	}
 }
