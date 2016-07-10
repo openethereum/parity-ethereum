@@ -22,7 +22,7 @@ use std::time::{Instant, Duration};
 use std::sync::RwLock;
 use std::ops::{Deref, DerefMut};
 use ethsync::{EthSync, SyncProvider};
-use util::{Uint, NetworkService};
+use util::{Uint, RwLockable, NetworkService};
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 
@@ -75,20 +75,19 @@ impl Informant {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(match_bool))]
 	pub fn tick<Message>(&self, client: &Client, maybe_sync: Option<(&EthSync, &NetworkService<Message>)>) where Message: Send + Sync + Clone + 'static {
-		let elapsed = self.last_tick.read().unwrap().elapsed();
+		let elapsed = self.last_tick.unwrapped_read().elapsed();
 		if elapsed < Duration::from_secs(5) {
 			return;
 		}
 
-		*self.last_tick.write().unwrap() = Instant::now();
+		*self.last_tick.unwrapped_write() = Instant::now();
 
 		let chain_info = client.chain_info();
 		let queue_info = client.queue_info();
 		let cache_info = client.blockchain_cache_info();
 
-		let mut write_report = self.report.write().unwrap();
+		let mut write_report = self.report.unwrapped_write();
 		let report = client.report();
 
 		let paint = |c: Style, t: String| match self.with_color {
@@ -97,8 +96,8 @@ impl Informant {
 		};
 
 		if let (_, _, &Some(ref last_report)) = (
-			self.chain_info.read().unwrap().deref(),
-			self.cache_info.read().unwrap().deref(),
+			self.chain_info.unwrapped_read().deref(),
+			self.cache_info.unwrapped_read().deref(),
 			write_report.deref()
 		) {
 			println!("{} {}   {} blk/s {} tx/s {} Mgas/s   {}{}+{} Qed   {} db {} chain {} queue{}",
@@ -139,8 +138,8 @@ impl Informant {
 			);
 		}
 
-		*self.chain_info.write().unwrap().deref_mut() = Some(chain_info);
-		*self.cache_info.write().unwrap().deref_mut() = Some(cache_info);
+		*self.chain_info.unwrapped_write().deref_mut() = Some(chain_info);
+		*self.cache_info.unwrapped_write().deref_mut() = Some(cache_info);
 		*write_report.deref_mut() = Some(report);
 	}
 }

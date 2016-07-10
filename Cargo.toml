@@ -33,6 +33,7 @@ ethcore-dapps = { path = "dapps", optional = true }
 semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
+ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ansi_term = "0.7"
 
