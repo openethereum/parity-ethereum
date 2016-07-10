@@ -23,7 +23,7 @@ use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use util::panics::{PanicHandler, ForwardPanic};
-use util::{version, contents, NetworkConfiguration, journaldb, PayloadInfo};
+use util::{version, contents, NetworkConfiguration, journaldb, PayloadInfo, ToPretty};
 use util::log::Colour;
 use ethcore::service::ClientService;
 use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
@@ -119,6 +119,9 @@ pub struct ExportBlockchain {
 	pub spec: SpecType,
 	pub logger_config: LoggerConfig,
 	pub cache_config: CacheConfig,
+	pub db_path: String,
+	pub file_path: Option<String>,
+	pub format: Option<DataFormat>,
 	pub pruning: Option<journaldb::Algorithm>,
 	pub compaction: DatabaseCompactionProfile,
 	pub mode: Mode,
@@ -270,6 +273,8 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	let format = try!(cmd.format.ok_or("Encoding format must be specified!"));
+
 	// load spec file
 	let spec = try!(cmd.spec.spec());
 
@@ -296,6 +301,30 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	info!("Starting {}", Colour::White.bold().paint(version()));
 
 	let cfg = client_config(&cmd.cache_config, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
+
+	let service = ClientService::start(
+		cfg, spec, net_settings, Path::new(&cmd.db_path), Arc::new(Miner::with_spec(try!(cmd.spec.spec()))), false
+		// TODO: pretty error
+	).unwrap();
+
+	panic_handler.forward_from(&service);
+	let client = service.client();
+
+	let mut out: Box<io::Write> = match cmd.file_path {
+		Some(f) => Box::new(try!(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f)))),
+		None => Box::new(io::stdout()),
+	};
+
+	let from = try!(client.block_number(cmd.from_block).ok_or("From block could not be found"));
+	let to = try!(client.block_number(cmd.to_block).ok_or("From block could not be found"));
+
+	for i in from..(to + 1) {
+		let b = client.block(BlockID::Number(i)).unwrap();
+		match format {
+			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
+			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }
+		}
+	}
 
 	unimplemented!();
 }
