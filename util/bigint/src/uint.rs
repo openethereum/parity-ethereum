@@ -625,8 +625,6 @@ macro_rules! construct_uint {
 				return true;
 			}
 
-			fn is
-
 			/// Return the least number of bits needed to represent the number
 			#[inline]
 			fn bits(&self) -> usize {
