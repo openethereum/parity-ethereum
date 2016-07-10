@@ -124,8 +124,6 @@ fn test_memory_read_and_write() {
 	// when
 	mem.write(U256::from(0x80), U256::from(0xabcdef));
 
-	assert_eq!(mem.read_slice(U256::from(80), U256::from(32)).to_vec(), vec![0]);
-
 	// then
 	assert_eq!(mem.read(U256::from(0x80)), U256::from(0xabcdef));
 }

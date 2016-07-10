@@ -550,6 +550,9 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 
 	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
+
+	/// Returns
+	fn is_zero(&self) -> bool;
 }
 
 macro_rules! construct_uint {
@@ -614,6 +617,15 @@ macro_rules! construct_uint {
 				}
 				arr[0]
 			}
+
+			#[inline]
+			fn is_zero(&self) -> bool {
+				let &$name(ref arr) = self;
+				for i in 0..$n_words { if arr[i] != 0 { return false; } }
+				return true;
+			}
+
+			fn is
 
 			/// Return the least number of bits needed to represent the number
 			#[inline]
