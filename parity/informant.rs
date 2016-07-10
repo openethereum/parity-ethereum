@@ -77,7 +77,7 @@ impl Informant {
 
 	#[cfg_attr(feature="dev", allow(match_bool))]
 	pub fn tick(&self, client: &Client, maybe_status: Option<(SyncStatus, NetworkConfiguration)>) {
-		let elapsed = self.last_tick.read().unwrap().elapsed();
+		let elapsed = self.last_tick.unwrapped_read().elapsed();
 		if elapsed < Duration::from_secs(5) {
 			return;
 		}

@@ -201,7 +201,7 @@ impl<'s> NetworkContext<'s> {
 		protocol: ProtocolId,
 		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>,
 		reserved_peers: &'s HashSet<NodeId>) -> NetworkContext<'s> {
-		let id = session.as_ref().map(|s| s.lock().unwrap().token());
+		let id = session.as_ref().map(|s| s.locked().token());
 		NetworkContext {
 			io: io,
 			protocol: protocol,
@@ -438,7 +438,7 @@ impl Host {
 	}
 
 	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
-		let mut info = self.info.write().unwrap();
+		let mut info = self.info.unwrapped_write();
 
 		if info.config.non_reserved_mode != mode {
 			info.config.non_reserved_mode = mode.clone();
@@ -682,8 +682,8 @@ impl Host {
 
 	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
 	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage>) -> Result<(), UtilError> {
-		let nonce = self.info.write().unwrap().next_nonce();
-		let mut sessions = self.sessions.write().unwrap();
+		let nonce = self.info.unwrapped_write().next_nonce();
+		let mut sessions = self.sessions.unwrapped_write();
 
 		let token = sessions.insert_with_opt(|token| {
 			match Session::new(io, socket, token, id, &nonce, self.stats.clone(), &self.info.unwrapped_read()) {
@@ -722,7 +722,7 @@ impl Host {
 	}
 
 	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
-		let session = { self.sessions.read().unwrap().get(token).cloned() };
+		let session = { self.sessions.unwrapped_read().get(token).cloned() };
 
 		if let Some(session) = session {
 			let mut s = session.locked();
@@ -892,7 +892,7 @@ impl Host {
 	}
 
 	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: Fn(&NetworkContext) {
-		let reserved = { self.reserved_nodes.read().unwrap() };
+		let reserved = { self.reserved_nodes.unwrapped_read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
 		action(&context);
