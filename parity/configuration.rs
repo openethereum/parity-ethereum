@@ -112,6 +112,30 @@ fn block_id(s: &str) -> Result<BlockID, String> {
 	}
 }
 
+fn to_duration(s: &str) -> Result<Duration, String> {
+	to_seconds(s).map(Duration::from_secs)
+}
+
+fn to_seconds(s: &str) -> Result<u64, String> {
+	let bad = |_| {
+		format!("{}: Invalid duration given. See parity --help for more information.", s)
+	};
+
+	match s {
+		"twice-daily" => Ok(12 * 60 * 60),
+		"half-hourly" => Ok(30 * 60),
+		"1second" | "1 second" | "second" => Ok(1),
+		"1minute" | "1 minute" | "minute" => Ok(60),
+		"hourly" | "1hour" | "1 hour" | "hour" => Ok(60 * 60),
+		"daily" | "1day" | "1 day" | "day" => Ok(24 * 60 * 60),
+		x if x.ends_with("seconds") => x[0..x.len() - 7].parse::<u64>().map_err(bad),
+		x if x.ends_with("minutes") => x[0..x.len() -7].parse::<u64>().map_err(bad).map(|x| x * 60),
+		x if x.ends_with("hours") => x[0..x.len() - 5].parse::<u64>().map_err(bad).map(|x| x * 60 * 60),
+		x if x.ends_with("days") => x[0..x.len() - 4].parse::<u64>().map_err(bad).map(|x| x * 24 * 60 * 60),
+		x => x.parse::<u64>().map_err(bad),
+	}
+}
+
 impl Configuration {
 	pub fn parse<S, I>(command: I) -> Result<Self, DocoptError> where I: IntoIterator<Item=S>, S: AsRef<str> {
 		let args = try!(Docopt::new(USAGE).and_then(|d| d.argv(command).decode()));
@@ -322,31 +346,13 @@ impl Configuration {
 		})
 	}
 
-	fn to_duration(s: &str) -> Duration {
-		let bad = |_| {
-			die!("{}: Invalid duration given. See parity --help for more information.", s)
-		};
-		Duration::from_secs(match s {
-			"twice-daily" => 12 * 60 * 60,
-			"half-hourly" => 30 * 60,
-			"1second" | "1 second" | "second" => 1,
-			"1minute" | "1 minute" | "minute" => 60,
-			"hourly" | "1hour" | "1 hour" | "hour" => 60 * 60,
-			"daily" | "1day" | "1 day" | "day" => 24 * 60 * 60,
-			x if x.ends_with("seconds") => FromStr::from_str(&x[0..x.len() - 7]).unwrap_or_else(bad),
-			x if x.ends_with("minutes") => FromStr::from_str(&x[0..x.len() - 7]).unwrap_or_else(bad) * 60,
-			x if x.ends_with("hours") => FromStr::from_str(&x[0..x.len() - 5]).unwrap_or_else(bad) * 60 * 60,
-			x if x.ends_with("days") => FromStr::from_str(&x[0..x.len() - 4]).unwrap_or_else(bad) * 24 * 60 * 60,
- 			x => FromStr::from_str(x).unwrap_or_else(bad),
-		})
-	}
 
-	pub fn gas_pricer(&self) -> GasPricer {
+	pub fn gas_pricer(&self) -> Result<GasPricer, String> {
 		match self.args.flag_gasprice.as_ref() {
 			Some(d) => {
-				GasPricer::Fixed(U256::from_dec_str(d).unwrap_or_else(|_| {
+				Ok(GasPricer::Fixed(U256::from_dec_str(d).unwrap_or_else(|_| {
 					die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
-				}))
+				})))
 			}
 			_ => {
 				let usd_per_tx: f32 = FromStr::from_str(&self.args.flag_usd_per_tx).unwrap_or_else(|_| {
@@ -354,10 +360,10 @@ impl Configuration {
 				});
 				match self.args.flag_usd_per_eth.as_str() {
 					"auto" => {
-						GasPricer::new_calibrated(GasPriceCalibratorOptions {
+						Ok(GasPricer::new_calibrated(GasPriceCalibratorOptions {
 							usd_per_tx: usd_per_tx,
-							recalibration_period: Self::to_duration(self.args.flag_price_update_period.as_str()),
-						})
+							recalibration_period: try!(to_duration(self.args.flag_price_update_period.as_str())),
+						}))
 					},
 					x => {
 						let usd_per_eth: f32 = FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x));
@@ -365,7 +371,7 @@ impl Configuration {
 						let gas_per_tx: f32 = 21000.0;
 						let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
 						info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(White.bold()), format!("{}", wei_per_gas).apply(Yellow.bold()));
-						GasPricer::Fixed(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap())
+						Ok(GasPricer::Fixed(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()))
 					}
 				}
 			}
