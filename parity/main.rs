@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 #![cfg_attr(feature="dev", allow(useless_format))]
+#![cfg_attr(feature="dev", allow(match_bool))]
 
 extern crate docopt;
 extern crate num_cpus;
@@ -44,6 +45,8 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
 
+extern crate ethcore_ipc_hypervisor as hypervisor;
+
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
 
@@ -55,9 +58,7 @@ extern crate ethcore_signer;
 
 #[macro_use]
 mod die;
-mod price_info;
 mod upgrade;
-mod hypervisor;
 mod setup_log;
 mod rpc;
 mod dapps;
@@ -80,7 +81,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
+use util::{Lockable, H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
 use ethcore::error::{ImportError};
@@ -212,7 +213,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Check fork settings.
 	if conf.policy() != Policy::None {
-		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");		
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 
 	let net_settings = conf.net_settings(&spec);
@@ -222,12 +223,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let account_service = Arc::new(conf.account_service());
 
 	// Miner
-	let miner = Miner::new(conf.miner_options(), conf.spec(), Some(account_service.clone()));
+	let miner = Miner::new(conf.miner_options(), conf.gas_pricer(), conf.spec(), Some(account_service.clone()));
 	miner.set_author(conf.author().unwrap_or_default());
 	miner.set_gas_floor_target(conf.gas_floor_target());
 	miner.set_gas_ceil_target(conf.gas_ceil_target());
 	miner.set_extra_data(conf.extra_data());
-	miner.set_minimal_gas_price(conf.gas_price());
 	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
 	// Build client
@@ -614,7 +614,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+	let _ = exit.wait(mutex.locked()).unwrap();
 	info!("Finishing work, please wait...");
 }
 

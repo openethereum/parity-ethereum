@@ -38,13 +38,18 @@
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethsync::{EthSync, SyncConfig};
 //! use ethcore::ethereum;
-//! use ethcore::miner::Miner;
+//! use ethcore::miner::{GasPricer, Miner};
 //!
 //! fn main() {
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
 //! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let miner = Miner::new(Default::default(), ethereum::new_frontier(), None);
+//! 	let miner = Miner::new(
+//! 		Default::default(),
+//! 		GasPricer::new_fixed(20_000_000_000u64.into()),
+//! 		ethereum::new_frontier(),
+//! 		None
+//! 	);
 //! 	let client = Client::new(
 //!			ClientConfig::default(),
 //!			ethereum::new_frontier(),
@@ -71,7 +76,7 @@ extern crate heapsize;
 use std::ops::*;
 use std::sync::*;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
-use util::{TimerToken, U256};
+use util::{TimerToken, U256, RwLockable};
 use ethcore::client::Client;
 use ethcore::service::{SyncMessage, NetSyncMessage};
 use io::NetSyncIo;
@@ -143,28 +148,28 @@ impl EthSync {
 
 	/// Stop sync
 	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
-		self.sync.write().unwrap().abort(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.unwrapped_write().abort(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
-		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.unwrapped_write().restart(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 }
 
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
-		self.sync.read().unwrap().status()
+		self.sync.unwrapped_read().status()
 	}
 
 	fn start_network(&self) {
-		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StartNetwork))
+		self.io_channel.unwrapped_read().send(NetworkIoMessage::User(SyncMessage::StartNetwork))
 			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 	}
 
 	fn stop_network(&self) {
-		self.io_channel.read().unwrap().send(NetworkIoMessage::User(SyncMessage::StopNetwork))
+		self.io_channel.unwrapped_read().send(NetworkIoMessage::User(SyncMessage::StopNetwork))
 			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 	}
 }
@@ -172,7 +177,7 @@ impl SyncProvider for EthSync {
 impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	fn initialize(&self, io: &NetworkContext<SyncMessage>) {
 		io.register_timer(0, 1000).expect("Error registering sync timer");
-		*self.io_channel.write().unwrap() = io.io_channel();
+		*self.io_channel.unwrapped_write() = io.io_channel();
 	}
 
 	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -180,16 +185,16 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	}
 
 	fn connected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
-		self.sync.write().unwrap().on_peer_connected(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
+		self.sync.unwrapped_write().on_peer_connected(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
 	}
 
 	fn disconnected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
-		self.sync.write().unwrap().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
+		self.sync.unwrapped_write().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
 	}
 
 	fn timeout(&self, io: &NetworkContext<SyncMessage>, _timer: TimerToken) {
-		self.sync.write().unwrap().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
-		self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.unwrapped_write().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.unwrapped_write().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 
 	#[cfg_attr(feature="dev", allow(single_match))]
@@ -197,7 +202,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 		match *message {
 			SyncMessage::NewChainBlocks { ref imported, ref invalid, ref enacted, ref retracted, ref sealed } => {
 				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
-				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, imported, invalid, enacted, retracted, sealed);
+				self.sync.unwrapped_write().chain_new_blocks(&mut sync_io, imported, invalid, enacted, retracted, sealed);
 			},
 			_ => {/* Ignore other messages */},
 		}

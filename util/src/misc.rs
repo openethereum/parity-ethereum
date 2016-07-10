@@ -65,3 +65,28 @@ pub fn version_data() -> Bytes {
 	s.append(&&Target::os()[0..2]);
 	s.out()
 }
+
+/// Object can be locked directly into a `MutexGuard`.
+pub trait Lockable<T> {
+	/// Lock object directly into a `MutexGuard`.
+	fn locked(&self) -> MutexGuard<T>;
+}
+
+impl<T> Lockable<T> for Mutex<T> {
+	fn locked(&self) -> MutexGuard<T> { self.lock().unwrap() }
+}
+
+/// Object can be read or write locked directly into a guard.
+pub trait RwLockable<T> {
+	/// Read-lock object directly into a `ReadGuard`.
+	fn unwrapped_read(&self) -> RwLockReadGuard<T>;
+
+	/// Write-lock object directly into a `WriteGuard`.
+	fn unwrapped_write(&self) -> RwLockWriteGuard<T>;
+}
+
+impl<T> RwLockable<T> for RwLock<T> {
+	fn unwrapped_read(&self) -> RwLockReadGuard<T> { self.read().unwrap() }
+	fn unwrapped_write(&self) -> RwLockWriteGuard<T> { self.write().unwrap() }
+}
+

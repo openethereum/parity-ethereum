@@ -13,6 +13,7 @@ dependencies = [
  "ethcore-devtools 1.3.0",
  "ethcore-ipc 1.3.0",
  "ethcore-ipc-codegen 1.3.0",
+ "ethcore-ipc-hypervisor 1.2.0",
  "ethcore-ipc-nano 1.3.0",
  "ethcore-rpc 1.3.0",
  "ethcore-signer 1.3.0",
@@ -313,6 +314,19 @@ dependencies = [
  "quasi_codegen 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex_syntax 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-ipc-hypervisor"
+version = "1.2.0"
+dependencies = [
+ "ethcore-ipc 1.3.0",
+ "ethcore-ipc-codegen 1.3.0",
+ "ethcore-ipc-nano 1.3.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -29,11 +29,10 @@ use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 use ethcore::client::{append_path, get_db_path, Mode, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
-use ethcore::miner::{MinerOptions, PendingSet};
+use ethcore::miner::{MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
-use price_info::PriceInfo;
 use rpc::IpcConfiguration;
 
 pub struct Configuration {
@@ -154,35 +153,52 @@ impl Configuration {
 		})
 	}
 
-	pub fn gas_price(&self) -> U256 {
+	fn to_duration(s: &str) -> Duration {
+		let bad = |_| {
+			die!("{}: Invalid duration given. See parity --help for more information.", s)
+		};
+		Duration::from_secs(match s {
+			"twice-daily" => 12 * 60 * 60,
+			"half-hourly" => 30 * 60,
+			"1second" | "1 second" | "second" => 1,
+			"1minute" | "1 minute" | "minute" => 60,
+			"hourly" | "1hour" | "1 hour" | "hour" => 60 * 60,
+			"daily" | "1day" | "1 day" | "day" => 24 * 60 * 60,
+			x if x.ends_with("seconds") => FromStr::from_str(&x[0..x.len() - 7]).unwrap_or_else(bad),
+			x if x.ends_with("minutes") => FromStr::from_str(&x[0..x.len() - 7]).unwrap_or_else(bad) * 60,
+			x if x.ends_with("hours") => FromStr::from_str(&x[0..x.len() - 5]).unwrap_or_else(bad) * 60 * 60,
+			x if x.ends_with("days") => FromStr::from_str(&x[0..x.len() - 4]).unwrap_or_else(bad) * 24 * 60 * 60,
+ 			x => FromStr::from_str(x).unwrap_or_else(bad),
+		})
+	}
+
+	pub fn gas_pricer(&self) -> GasPricer {
 		match self.args.flag_gasprice.as_ref() {
 			Some(d) => {
-				U256::from_dec_str(d).unwrap_or_else(|_| {
+				GasPricer::Fixed(U256::from_dec_str(d).unwrap_or_else(|_| {
 					die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
-				})
+				}))
 			}
 			_ => {
 				let usd_per_tx: f32 = FromStr::from_str(&self.args.flag_usd_per_tx).unwrap_or_else(|_| {
 					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
 				});
-				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
-					"auto" => PriceInfo::get().map_or_else(|| {
-						let last_known_good = 9.69696;
-						// TODO: use #1083 to read last known good value.
-						last_known_good
-					}, |x| x.ethusd),
-					"etherscan" => PriceInfo::get().map_or_else(|| {
-						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
-					}, |x| x.ethusd),
-					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
-				};
-				// TODO: use #1083 to write last known good value as use_per_eth.
-
-				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
-				let gas_per_tx: f32 = 21000.0;
-				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(White.bold()), format!("{}", wei_per_gas).apply(Yellow.bold()));
-				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
+				match self.args.flag_usd_per_eth.as_str() {
+					"auto" => {
+						GasPricer::new_calibrated(GasPriceCalibratorOptions {
+							usd_per_tx: usd_per_tx,
+							recalibration_period: Self::to_duration(self.args.flag_price_update_period.as_str()),
+						})
+					},
+					x => {
+						let usd_per_eth: f32 = FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x));
+						let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
+						let gas_per_tx: f32 = 21000.0;
+						let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
+						info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(White.bold()), format!("{}", wei_per_gas).apply(Yellow.bold()));
+						GasPricer::Fixed(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap())
+					}
+				}
 			}
 		}
 	}

@@ -303,9 +303,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let out_size = stack.pop_back();
 
 				// Add stipend (only CALL|CALLCODE when value > 0)
-				let call_gas = call_gas + value.map_or_else(|| Cost::from(0), |val| match val > U256::zero() {
-					true => Cost::from(ext.schedule().call_stipend),
-					false => Cost::from(0)
+				let call_gas = call_gas + value.map_or_else(|| Cost::from(0), |val| match val.is_zero() {
+					false => Cost::from(ext.schedule().call_stipend),
+					true => Cost::from(0)
 				});
 
 				// Get sender & receive addresses, check if we have balance
@@ -550,7 +550,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 	}
 
 	fn is_zero(&self, val: &U256) -> bool {
-		&U256::zero() == val
+		val.is_zero()
 	}
 
 	fn bool_to_u256(&self, val: bool) -> U256 {
@@ -782,7 +782,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 }
 
 fn get_and_reset_sign(value: U256) -> (U256, bool) {
-	let sign = (value >> 255).low_u64() == 1;
+	let U256(arr) = value;
+	let sign = arr[3].leading_zeros() == 0;
 	(set_sign(value, sign), sign)
 }
 
