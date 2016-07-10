@@ -14,15 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
+use std::str::{FromStr, from_utf8};
 use std::{io, fs};
+use std::io::{BufReader, BufRead};
 use std::time::Duration;
 use std::thread::sleep;
 use std::path::Path;
 use std::sync::Arc;
+use rustc_serialize::hex::FromHex;
 use util::panics::{PanicHandler, ForwardPanic};
-use util::journaldb;
-use util::{version, contents, NetworkConfiguration};
+use util::{version, contents, NetworkConfiguration, journaldb, PayloadInfo};
 use util::log::Colour;
 use ethcore::service::ClientService;
 use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient};
@@ -220,10 +221,35 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	};
 
 
-	//let format = self.format.unwrap_or_else(|| {
-		//let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
-		//let mut first_read = instread.read(&mut first_bytes).map_err
-	//};
+	match format {
+		DataFormat::Binary => {
+			loop {
+				let mut bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; READAHEAD_BYTES]};
+				let n = if first_read > 0 {
+					first_read
+				} else {
+					try!(instream.read(&mut bytes).map_err(|_| "Error reading from the file/stream."))
+				};
+				if n == 0 { break; }
+				first_read = 0;
+				let s = try!(PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))).total();
+				bytes.resize(s, 0);
+				try!(instream.read_exact(&mut bytes[READAHEAD_BYTES..]).map_err(|_| "Error reading from the file/stream."));
+				do_import(bytes);
+			}
+		}
+		DataFormat::Hex => {
+			for line in BufReader::new(instream).lines() {
+				let s = try!(line.map_err(|_| "Error reading from the file/stream."));
+				let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
+				first_read = 0;
+				let bytes = try!(s.from_hex().map_err(|_| "Invalid hex in file/stream."));
+				do_import(bytes);
+			}
+		}
+	}
+	client.flush_queue();
+
 	unimplemented!();
 }
 
