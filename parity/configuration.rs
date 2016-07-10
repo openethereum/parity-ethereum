@@ -158,21 +158,19 @@ impl Configuration {
 			die!("{}: Invalid duration given. See parity --help for more information.", s)
 		};
 		Duration::from_secs(match s {
-			"daily" => 24 * 60 * 60,
 			"twice-daily" => 12 * 60 * 60,
-			"hourly" => 60 * 60,
 			"half-hourly" => 30 * 60,
 			"1second" | "1 second" | "second" => 1,
 			"1minute" | "1 minute" | "minute" => 60,
-			"1hour" | "1 hour" | "hour" => 60 * 60,
-			"1day" | "1 day" | "day" => 24 * 60 * 60,
+			"hourly" | "1hour" | "1 hour" | "hour" => 60 * 60,
+			"daily" | "1day" | "1 day" | "day" => 24 * 60 * 60,
 			x if x.ends_with("seconds") => FromStr::from_str(&x[0..x.len() - 7]).unwrap_or_else(bad),
 			x if x.ends_with("minutes") => FromStr::from_str(&x[0..x.len() - 7]).unwrap_or_else(bad) * 60,
 			x if x.ends_with("hours") => FromStr::from_str(&x[0..x.len() - 5]).unwrap_or_else(bad) * 60 * 60,
 			x if x.ends_with("days") => FromStr::from_str(&x[0..x.len() - 4]).unwrap_or_else(bad) * 24 * 60 * 60,
  			x => FromStr::from_str(x).unwrap_or_else(bad),
 		})
-	} 
+	}
 
 	pub fn gas_pricer(&self) -> GasPricer {
 		match self.args.flag_gasprice.as_ref() {
