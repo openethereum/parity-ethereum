@@ -486,59 +486,6 @@ impl Configuration {
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
 		/*
-		let mut client_config = ClientConfig::default();
-
-		client_config.mode = self.mode();
-
-		match self.args.flag_cache {
-			Some(mb) => {
-				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
-				client_config.blockchain.pref_cache_size = client_config.blockchain.max_cache_size * 3 / 4;
-			}
-			None => {
-				client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
-				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
-			}
-		}
-		// forced blockchain (blocks + extras) db cache size if provided
-		client_config.blockchain.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 2));
-
-		client_config.tracing.enabled = Switch::from_str(&self.args.flag_tracing).unwrap_or_else(|e| die!("{}", e));
-
-		// forced trace db cache size if provided
-		client_config.tracing.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
-
-		client_config.pruning = match self.args.flag_pruning.as_str() {
-			"archive" => journaldb::Algorithm::Archive,
-			"light" => journaldb::Algorithm::EarlyMerge,
-			"fast" => journaldb::Algorithm::OverlayRecent,
-			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec),
-			_ => { die!("Invalid pruning method given."); }
-		};
-
-		if self.args.flag_fat_db {
-			if let journaldb::Algorithm::Archive = client_config.pruning {
-				client_config.trie_spec = TrieSpec::Fat;
-			} else {
-				die!("Fatdb is not supported. Please re-run with --pruning=archive")
-			}
-		}
-
-		// forced state db cache size if provided
-		client_config.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
-
-		// compaction profile
-		client_config.db_compaction = match self.args.flag_db_compaction.as_str() {
-			"ssd" => DatabaseCompactionProfile::Default,
-			"hdd" => DatabaseCompactionProfile::HDD,
-			_ => { die!("Invalid compaction profile given (--db-compaction argument), expected hdd/ssd (default)."); }
-		};
-
-		if self.args.flag_jitvm {
-			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity is built without the JIT EVM."))
-		}
-
 		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
@@ -737,7 +684,9 @@ impl Configuration {
 
 #[cfg(test)]
 mod tests {
+	use std::time::Duration;
 	use super::*;
+	use super::to_duration;
 	use cli::USAGE;
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
@@ -763,6 +712,26 @@ mod tests {
 		Configuration {
 			args: Docopt::new(USAGE).unwrap().argv(args).decode().unwrap(),
 		}
+	}
+
+	#[test]
+	fn test_to_duration() {
+		assert_eq!(to_duration("twice-daily").unwrap(), Duration::from_secs(12 * 60 * 60));
+		assert_eq!(to_duration("half-hourly").unwrap(), Duration::from_secs(30 * 60));
+		assert_eq!(to_duration("1second").unwrap(), Duration::from_secs(1));
+		assert_eq!(to_duration("2seconds").unwrap(), Duration::from_secs(2));
+		assert_eq!(to_duration("15seconds").unwrap(), Duration::from_secs(15));
+		assert_eq!(to_duration("1minute").unwrap(), Duration::from_secs(1 * 60));
+		assert_eq!(to_duration("2minutes").unwrap(), Duration::from_secs(2 * 60));
+		assert_eq!(to_duration("15minutes").unwrap(), Duration::from_secs(15 * 60));
+		assert_eq!(to_duration("hourly").unwrap(), Duration::from_secs(60 * 60));
+		assert_eq!(to_duration("daily").unwrap(), Duration::from_secs(24 * 60 * 60));
+		assert_eq!(to_duration("1hour").unwrap(), Duration::from_secs(1 * 60 * 60));
+		assert_eq!(to_duration("2hours").unwrap(), Duration::from_secs(2 * 60 * 60));
+		assert_eq!(to_duration("15hours").unwrap(), Duration::from_secs(15 * 60 * 60));
+		assert_eq!(to_duration("1day").unwrap(), Duration::from_secs(1 * 24 * 60 * 60));
+		assert_eq!(to_duration("2days").unwrap(), Duration::from_secs(2 * 24 *60 * 60));
+		assert_eq!(to_duration("15days").unwrap(), Duration::from_secs(15 * 24 * 60 * 60));
 	}
 
 	#[test]
