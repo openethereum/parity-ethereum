@@ -68,7 +68,7 @@ fn main() {
 
 	println!("Gas used: {:?}", args.gas() - gas_left);
 	println!("Output: {:?}", "");
-	println!("Time: {}.{}s", duration.as_secs(), duration.subsec_nanos());
+	println!("Time: {}.{:.9}s", duration.as_secs(), duration.subsec_nanos());
 }
 
 #[derive(Debug, RustcDecodable)]

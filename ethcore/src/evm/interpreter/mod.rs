@@ -182,6 +182,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				instruction: instruction
 			});
 		}
+
 		if info.tier == instructions::GasPriceTier::Invalid {
 			return Err(evm::Error::BadInstruction {
 				instruction: instruction

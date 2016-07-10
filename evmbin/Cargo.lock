@@ -1,5 +1,5 @@
 [root]
-name = "evmbin"
+name = "evm"
 version = "0.1.0"
 dependencies = [
  "docopt 0.6.81 (registry+https://github.com/rust-lang/crates.io-index)",
