@@ -22,15 +22,21 @@ ethcore-util = { path = "../util" }
 evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
 num_cpus = "0.2"
-clippy = { version = "0.0.77", optional = true}
+clippy = { version = "0.0.78", optional = true}
 crossbeam = "0.2.9"
 lazy_static = "0.2"
 ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }
 bloomchain = "0.1"
-"ethcore-ipc" = { path = "../ipc/rpc" }
+ethcore-ipc = { path = "../ipc/rpc" }
 rayon = "0.3.1"
 ethstore = { path = "../ethstore" }
+semver = "0.2"
+ethcore-ipc-nano = { path = "../ipc/nano" }
+
+[dependencies.hyper]
+git = "https://github.com/ethcore/hyper"
+default-features = false
 
 [features]
 jit = ["evmjit"]
@@ -39,3 +45,4 @@ json-tests = []
 test-heavy = []
 dev = ["clippy"]
 default = []
+benches = []

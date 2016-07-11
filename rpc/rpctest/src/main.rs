@@ -41,6 +41,7 @@ use rpc::v1::tests::helpers::{TestSyncProvider, Config as SyncConfig, TestMinerS
 use rpc::v1::{Eth, EthClient, EthFilter, EthFilterClient};
 use util::panics::MayPanic;
 use util::hash::Address;
+use util::Lockable;
 
 const USAGE: &'static str = r#"
 Parity rpctest client.
@@ -137,7 +138,7 @@ impl Configuration {
 			panic_handler.on_panic(move |_reason| { e.notify_all(); });
 
 			let mutex = Mutex::new(());
-			let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+			let _ = exit.wait(mutex.locked()).unwrap();
 		}
 
 	}

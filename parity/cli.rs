@@ -32,7 +32,19 @@ Usage:
   parity [options]
   parity ui [options]
 
-Protocol Options:
+Operating Options:
+  --mode MODE              Set the operating mode. MODE can be one of:
+                           active - Parity continuously syncs the chain.
+                           passive - Parity syncs initially, then sleeps and
+                           wakes regularly to resync. 
+                           dark - Parity syncs only when an external interface
+                           is active. [default: active].
+  --mode-timeout SECS      Specify the number of seconds before inactivity
+                           timeout occurs when mode is dark or passive
+                           [default: 300].
+  --mode-alarm SECS        Specify the number of seconds before auto sleep
+                           reawake timeout occurs when mode is passive
+                           [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, or testnet
@@ -45,19 +57,27 @@ Protocol Options:
   --fork POLICY            Specifies the client's fork policy. POLICY must be
                            one of:
                            dogmatic - sticks rigidly to the standard chain.
-                           dao-soft - votes for the DAO-rescue soft-fork.
-                           normal - goes with whatever fork is decided but
-                           votes for none. [default: normal].
+                           none - goes with whatever fork is decided but
+                           votes for none. [default: none].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
                            ACCOUNTS is a comma-delimited list of addresses.
+                           Implies --no-signer.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
   --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) [default: 10240].
   --no-import-keys         Do not import keys from legacy clients.
+  --force-signer           Enable Trusted Signer WebSocket endpoint used by
+                           Signer UIs, even when --unlock is in use.
+  --no-signer              Disable Trusted Signer WebSocket endpoint used by
+                           Signer UIs.
+  --signer-port PORT       Specify the port of Trusted Signer server
+                           [default: 8180].
+  --signer-path PATH       Specify directory where Signer UIs tokens should
+                           be stored. [default: $HOME/.parity/signer]
 
 Networking Options:
   --no-network             Disable p2p networking.
@@ -114,17 +134,6 @@ API and Console Options:
   --dapps-path PATH        Specify directory where dapps should be installed.
                            [default: $HOME/.parity/dapps]
 
-  --signer                 Enable Trusted Signer WebSocket endpoint used by
-                           Signer UIs. Default if run with ui command.
-  --no-signer              Disable Trusted Signer WebSocket endpoint used by
-                           Signer UIs. Default if no command is specified.
-  --signer-port PORT       Specify the port of Trusted Signer server
-                           [default: 8180].
-  --signer-path PATH       Specify directory where Signer UIs tokens should
-                           be stored. [default: $HOME/.parity/signer]
-  --no-token               By default a new system UI security token will be
-                           output on start up. This will prevent it.
-
 Sealing/Mining Options:
   --author ADDRESS         Specify the block author (aka "coinbase") address
                            for sending block rewards from sealed blocks.
@@ -137,6 +146,13 @@ Sealing/Mining Options:
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
                            all - reseal on all new transactions [default: all].
+  --reseal-min-period MS   Specify the minimum time between reseals from 
+                           incoming transactions. MS is time measured in
+                           milliseconds [default: 2000].
+  --work-queue-size ITEMS  Specify the number of historical work packages
+                           which are kept cached lest a solution is found for 
+                           them later. High values take more memory but result
+                           in fewer unusable solutions [default: 20].
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
                            a single transaction may have for it to be mined.
   --relay-set SET          Set of transactions to relay. SET may be:
@@ -154,6 +170,10 @@ Sealing/Mining Options:
                            amount in USD, a web service or 'auto' to use each
                            web service in turn and fallback on the last known
                            good value [default: auto].
+  --price-update-period T  T will be allowed to pass between each gas price
+                           update. T may be daily, hourly, a number of seconds,
+                           or a time string of the form "2 days", "30 minutes"
+                           etc. [default: hourly].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
                            block [default: 4700000].
   --gas-cap GAS            A cap on how large we will raise the gas limit per
@@ -162,6 +182,12 @@ Sealing/Mining Options:
                            more than 32 characters.
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) [default: 1024].
+  --remove-solved          Move solved blocks from the work package queue
+                           instead of cloning them. This gives a slightly
+                           faster import speed, but means that extra solutions
+                           submitted for the same work package will go unused.
+  --notify-work URLS       URLs to which work package notifications are pushed.
+                           URLS should be a comma-delimited list of HTTP URLs.
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
@@ -190,6 +216,7 @@ Database Options:
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs [default: ssd].
+  --fat-db                 Fat database.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -257,6 +284,9 @@ pub struct Args {
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,
+	pub flag_mode: String,
+	pub flag_mode_timeout: u64,
+	pub flag_mode_alarm: u64,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
@@ -295,22 +325,26 @@ pub struct Args {
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
-	pub flag_signer: bool,
+	pub flag_force_signer: bool,
 	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
-	pub flag_no_token: bool,
 	pub flag_force_sealing: bool,
 	pub flag_reseal_on_txs: String,
+	pub flag_reseal_min_period: u64,
+	pub flag_work_queue_size: usize,
+	pub flag_remove_solved: bool,
 	pub flag_tx_gas_limit: Option<String>,
 	pub flag_relay_set: String,
 	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,
+  pub flag_price_update_period: String,
 	pub flag_gas_floor_target: String,
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
 	pub flag_tx_queue_size: usize,
+	pub flag_notify_work: Option<String>,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
 	pub flag_from: String,
@@ -345,6 +379,7 @@ pub struct Args {
 	pub flag_ipcapi: Option<String>,
 	pub flag_db_cache_size: Option<usize>,
 	pub flag_db_compaction: String,
+	pub flag_fat_db: bool,
 }
 
 pub fn print_version() {

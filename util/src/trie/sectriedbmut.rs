@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use hash::*;
-use sha3::*;
+use hash::H256;
+use sha3::Hashable;
 use hashdb::HashDB;
 use super::triedbmut::TrieDBMut;
-use super::trietraits::{Trie, TrieMut};
+use super::trietraits::TrieMut;
 use super::TrieError;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
@@ -44,13 +44,13 @@ impl<'db> SecTrieDBMut<'db> {
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB { self.raw.db() }
+	pub fn db(&self) -> &HashDB { self.raw.db() }
 
 	/// Get the backing database.
-	pub fn db_mut(&'db mut self) -> &'db mut HashDB { self.raw.db_mut() }
+	pub fn db_mut(&mut self) -> &mut HashDB { self.raw.db_mut() }
 }
 
-impl<'db> Trie for SecTrieDBMut<'db> {
+impl<'db> TrieMut for SecTrieDBMut<'db> {
 	fn root(&self) -> &H256 { self.raw.root() }
 
 	fn contains(&self, key: &[u8]) -> bool {
@@ -60,9 +60,7 @@ impl<'db> Trie for SecTrieDBMut<'db> {
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
 		self.raw.get(&key.sha3())
 	}
-}
 
-impl<'db> TrieMut for SecTrieDBMut<'db> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		self.raw.insert(&key.sha3(), value);
 	}
@@ -76,9 +74,10 @@ impl<'db> TrieMut for SecTrieDBMut<'db> {
 fn sectrie_to_trie() {
 	use memorydb::*;
 	use super::triedb::*;
+	use super::Trie;
 
 	let mut memdb = MemoryDB::new();
-	let mut root = H256::new();
+	let mut root = H256::default();
 	{
 		let mut t = SecTrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);

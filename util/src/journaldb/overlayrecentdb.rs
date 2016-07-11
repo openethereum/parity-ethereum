@@ -20,6 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
+use misc::RwLockable;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
@@ -136,12 +137,12 @@ impl OverlayRecentDB {
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&self.backing);
-		let journal_overlay = self.journal_overlay.read().unwrap();
+		let journal_overlay = self.journal_overlay.unwrapped_read();
 		*journal_overlay == reconstructed
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 
 	fn read_overlay(db: &Database) -> JournalOverlay {
@@ -170,7 +171,7 @@ impl OverlayRecentDB {
 					for r in insertions.iter() {
 						let k: H256 = r.val_at(0);
 						let v: Bytes = r.val_at(1);
-						overlay.emplace(k.clone(), v);
+						overlay.emplace(OverlayRecentDB::to_short_key(&k), v);
 						inserted_keys.push(k);
 						count += 1;
 					}
@@ -190,6 +191,13 @@ impl OverlayRecentDB {
 		trace!("Recovered {} overlay entries, {} journal entries", count, journal.len());
 		JournalOverlay { backing_overlay: overlay, journal: journal, latest_era: latest_era }
 	}
+
+	#[inline]
+	fn to_short_key(key: &H256) -> H256 {
+		let mut k = H256::new();
+		&mut k[0..DB_PREFIX_LEN].copy_from_slice(&key[0..DB_PREFIX_LEN]);
+		k
+	}
 }
 
 impl JournalDB for OverlayRecentDB {
@@ -199,7 +207,7 @@ impl JournalDB for OverlayRecentDB {
 
 	fn mem_used(&self) -> usize {
 		let mut mem = self.transaction_overlay.mem_used();
-		let overlay = self.journal_overlay.read().unwrap();
+		let overlay = self.journal_overlay.unwrapped_read();
 		mem += overlay.backing_overlay.mem_used();
 		mem += overlay.journal.heap_size_of_children();
 		mem
@@ -209,12 +217,17 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().unwrap().latest_era }
+	fn latest_era(&self) -> Option<u64> { self.journal_overlay.unwrapped_read().latest_era }
+
+	fn state(&self, key: &H256) -> Option<Bytes> {
+		let v = self.journal_overlay.unwrapped_read().backing_overlay.get(&OverlayRecentDB::to_short_key(key)).map(|v| v.to_vec());
+		v.or_else(|| self.backing.get_by_prefix(&key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
+	}
 
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
-		let mut journal_overlay = self.journal_overlay.write().unwrap();
+		let mut journal_overlay = self.journal_overlay.unwrapped_write();
 		let batch = DBTransaction::new();
 		{
 			let mut r = RlpStream::new_list(3);
@@ -229,7 +242,7 @@ impl JournalDB for OverlayRecentDB {
 				r.begin_list(2);
 				r.append(&k);
 				r.append(&v);
-				journal_overlay.backing_overlay.emplace(k, v);
+				journal_overlay.backing_overlay.emplace(OverlayRecentDB::to_short_key(&k), v);
 			}
 			r.append(&removed_keys);
 
@@ -265,7 +278,7 @@ impl JournalDB for OverlayRecentDB {
 					{
 						if canon_id == journal.id {
 							for h in &journal.insertions {
-								if let Some(&(ref d, rc)) = journal_overlay.backing_overlay.raw(h) {
+								if let Some(&(ref d, rc)) = journal_overlay.backing_overlay.raw(&OverlayRecentDB::to_short_key(h)) {
 									if rc > 0 {
 										canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
 									}
@@ -283,11 +296,11 @@ impl JournalDB for OverlayRecentDB {
 				}
 				// update the overlay
 				for k in overlay_deletions {
-					journal_overlay.backing_overlay.remove(&k);
+					journal_overlay.backing_overlay.remove(&OverlayRecentDB::to_short_key(&k));
 				}
 				// apply canon deletions
 				for k in canon_deletions {
-					if !journal_overlay.backing_overlay.contains(&k) {
+					if !journal_overlay.backing_overlay.contains(&OverlayRecentDB::to_short_key(&k)) {
 						try!(batch.delete(&k));
 					}
 				}
@@ -321,7 +334,7 @@ impl HashDB for OverlayRecentDB {
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => {
-				let v = self.journal_overlay.read().unwrap().backing_overlay.get(key).map(|v| v.to_vec());
+				let v = self.journal_overlay.unwrapped_read().backing_overlay.get(&OverlayRecentDB::to_short_key(key)).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
 						Some(&self.transaction_overlay.denote(key, x).0)

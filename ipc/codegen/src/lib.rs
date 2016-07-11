@@ -50,11 +50,36 @@ include!("lib.rs.in");
 
 #[cfg(feature = "with-syntex")]
 pub fn register(reg: &mut syntex::Registry) {
+	use syntax::{ast, fold};
+
+	#[cfg(feature = "with-syntex")]
+	fn strip_attributes(krate: ast::Crate) -> ast::Crate {
+		struct StripAttributeFolder;
+		impl fold::Folder for StripAttributeFolder {
+			fn fold_attribute(&mut self, attr: ast::Attribute) -> Option<ast::Attribute> {
+				match attr.node.value.node {
+					ast::MetaItemKind::List(ref n, _) if n == &"ipc" => { return None; }
+					_ => {}
+				}
+
+				Some(attr)
+			}
+
+			fn fold_mac(&mut self, mac: ast::Mac) -> ast::Mac {
+				fold::noop_fold_mac(mac, self)
+			}
+		}
+
+		fold::Folder::fold_crate(&mut StripAttributeFolder, krate)
+	}
+
 	reg.add_attr("feature(custom_derive)");
 	reg.add_attr("feature(custom_attribute)");
 
 	reg.add_decorator("derive_Ipc", codegen::expand_ipc_implementation);
 	reg.add_decorator("derive_Binary", serialization::expand_serialization_implementation);
+
+	reg.add_post_expansion_pass(strip_attributes);
 }
 
 #[cfg(not(feature = "with-syntex"))]
@@ -67,4 +92,6 @@ pub fn register(reg: &mut rustc_plugin::Registry) {
 		syntax::parse::token::intern("derive_Binary"),
 		syntax::ext::base::MultiDecorator(
 			Box::new(serialization::expand_serialization_implementation)));
+
+	reg.register_attribute("ipc".to_owned(), AttributeType::Normal);
 }

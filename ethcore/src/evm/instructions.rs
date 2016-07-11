@@ -79,7 +79,7 @@ fn test_get_log_topics() {
 	assert_eq!(get_log_topics(LOG4), 4);
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum GasPriceTier {
 	/// 0 Zero
 	Zero,

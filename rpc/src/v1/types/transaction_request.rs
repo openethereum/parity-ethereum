@@ -16,17 +16,16 @@
 
 //! `TransactionRequest` type
 
-use util::hash::Address;
-use util::numbers::U256;
-use v1::types::bytes::Bytes;
+use v1::types::{Bytes, H160, U256};
+use v1::helpers::{TransactionRequest as Request, TransactionConfirmation as Confirmation};
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct TransactionRequest {
 	/// Sender
-	pub from: Address,
+	pub from: H160,
 	/// Recipient
-	pub to: Option<Address>,
+	pub to: Option<H160>,
 	/// Gas Price
 	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
@@ -40,6 +39,34 @@ pub struct TransactionRequest {
 	pub nonce: Option<U256>,
 }
 
+impl From<Request> for TransactionRequest {
+	fn from(r: Request) -> Self {
+		TransactionRequest {
+			from: r.from.into(),
+			to: r.to.map(Into::into),
+			gas_price: r.gas_price.map(Into::into),
+			gas: r.gas.map(Into::into),
+			value: r.value.map(Into::into),
+			data: r.data.map(Into::into),
+			nonce: r.nonce.map(Into::into),
+		}
+	}
+}
+
+impl Into<Request> for TransactionRequest {
+	fn into(self) -> Request {
+		Request {
+			from: self.from.into(),
+			to: self.to.map(Into::into),
+			gas_price: self.gas_price.map(Into::into),
+			gas: self.gas.map(Into::into),
+			value: self.value.map(Into::into),
+			data: self.data.map(Into::into),
+			nonce: self.nonce.map(Into::into),
+		}
+	}
+}
+
 /// Transaction confirmation waiting in a queue
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize)]
 pub struct TransactionConfirmation {
@@ -47,6 +74,15 @@ pub struct TransactionConfirmation {
 	pub id: U256,
 	/// TransactionRequest
 	pub transaction: TransactionRequest,
+}
+
+impl From<Confirmation> for TransactionConfirmation {
+	fn from(c: Confirmation) -> Self {
+		TransactionConfirmation {
+			id: c.id.into(),
+			transaction: c.transaction.into(),
+		}
+	}
 }
 
 /// Possible modifications to the confirmed transaction sent by `SignerUI`
@@ -63,9 +99,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use serde_json;
-	use util::numbers::{U256};
-	use util::hash::Address;
-	use v1::types::bytes::Bytes;
+	use v1::types::{U256, H160};
 	use super::*;
 
 	#[test]
@@ -82,12 +116,12 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from(1),
-			to: Some(Address::from(2)),
+			from: H160::from(1),
+			to: Some(H160::from(2)),
 			gas_price: Some(U256::from(1)),
 			gas: Some(U256::from(2)),
 			value: Some(U256::from(3)),
-			data: Some(Bytes::new(vec![0x12, 0x34, 0x56])),
+			data: Some(vec![0x12, 0x34, 0x56].into()),
 			nonce: Some(U256::from(4)),
 		});
 	}
@@ -105,12 +139,12 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap(),
-			to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+			from: H160::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap(),
+			to: Some(H160::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 			gas_price: Some(U256::from_str("9184e72a000").unwrap()),
 			gas: Some(U256::from_str("76c0").unwrap()),
 			value: Some(U256::from_str("9184e72a").unwrap()),
-			data: Some(Bytes::new("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex().unwrap())),
+			data: Some("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex().unwrap().into()),
 			nonce: None
 		});
 	}
@@ -121,7 +155,7 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from(1),
+			from: H160::from(1).into(),
 			to: None,
 			gas_price: None,
 			gas: None,
@@ -144,12 +178,12 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap(),
-			to: Some(Address::from_str("895d32f2db7d01ebb50053f9e48aacf26584fe40").unwrap()),
+			from: H160::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap(),
+			to: Some(H160::from_str("895d32f2db7d01ebb50053f9e48aacf26584fe40").unwrap()),
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: Some(U256::from_str("2fd618").unwrap()),
 			value: None,
-			data: Some(Bytes::new(vec![0x85, 0x95, 0xba, 0xb1])),
+			data: Some(vec![0x85, 0x95, 0xba, 0xb1].into()),
 			nonce: None,
 		});
 	}

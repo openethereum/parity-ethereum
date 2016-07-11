@@ -127,7 +127,7 @@ impl Account {
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
 
-			(Filth::Clean, H256::from(db.get(key.bytes()).map_or(U256::zero(), |v| -> U256 {decode(v)})))
+			(Filth::Clean, H256::from(db.get(key).map_or(U256::zero(), |v| -> U256 {decode(v)})))
 		}).1.clone()
 	}
 
@@ -214,8 +214,8 @@ impl Account {
 	}
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
-	pub fn commit_storage(&mut self, db: &mut AccountDBMut) {
-		let mut t = SecTrieDBMut::from_existing(db, &mut self.storage_root)
+	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut AccountDBMut) {
+		let mut t = trie_factory.from_existing(db, &mut self.storage_root)
 			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
@@ -275,7 +275,7 @@ mod tests {
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into());
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
-			a.commit_storage(&mut db);
+			a.commit_storage(&Default::default(), &mut db);
 			a.init_code(vec![]);
 			a.commit_code(&mut db);
 			a.rlp()
@@ -313,7 +313,7 @@ mod tests {
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		assert_eq!(a.storage_root(), None);
-		a.commit_storage(&mut db);
+		a.commit_storage(&Default::default(), &mut db);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 
@@ -323,11 +323,11 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
-		a.commit_storage(&mut db);
+		a.commit_storage(&Default::default(), &mut db);
 		a.set_storage(1.into(), 0x1234.into());
-		a.commit_storage(&mut db);
+		a.commit_storage(&Default::default(), &mut db);
 		a.set_storage(1.into(), 0.into());
-		a.commit_storage(&mut db);
+		a.commit_storage(&Default::default(), &mut db);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 

@@ -33,11 +33,8 @@ use super::spec::*;
 pub fn new_olympic() -> Spec { Spec::load(include_bytes!("../../res/ethereum/olympic.json")) }
 
 /// Create a new Frontier mainnet chain spec.
-pub fn new_frontier(dao_rescue: bool) -> Spec {
-	Spec::load(match dao_rescue {
-		true => include_bytes!("../../res/ethereum/frontier_dao_rescue.json"),
-		false => include_bytes!("../../res/ethereum/frontier.json"),
-	})
+pub fn new_frontier() -> Spec {
+	Spec::load(include_bytes!("../../res/ethereum/frontier.json"))
 }
 
 /// Create a new Frontier chain spec as though it never changes to Homestead.
@@ -67,7 +64,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
-		let s = State::from_existing(db, genesis_header.state_root.clone(), engine.account_start_nonce()).unwrap();
+		let s = State::from_existing(db, genesis_header.state_root.clone(), engine.account_start_nonce(), Default::default()).unwrap();
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000001")), U256::from(1u64));
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000002")), U256::from(1u64));
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000003")), U256::from(1u64));
@@ -89,7 +86,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let frontier = new_frontier(true);
+		let frontier = new_frontier();
 
 		assert_eq!(frontier.state_root(), H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap());
 		let genesis = frontier.genesis_block();

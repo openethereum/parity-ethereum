@@ -298,6 +298,7 @@ mod tests {
 	use evm::{Ext};
 	use substate::*;
 	use tests::helpers::*;
+	use devtools::GuardedTempResult;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
 
@@ -319,7 +320,6 @@ mod tests {
 			last_hashes: vec![],
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
-			dao_rescue_block_gas_limit: None,
 		}
 	}
 

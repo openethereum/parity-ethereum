@@ -15,42 +15,23 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use endpoint::{Endpoint, Endpoints, EndpointInfo, Handler, EndpointPath};
+use hyper::{server, net, Decoder, Encoder, Next};
+use api::types::{App, ApiError};
+use api::response::{as_json, as_json_error, ping_response};
+use handlers::extract_url;
+use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
 
-use api::response::as_json;
-
+#[derive(Clone)]
 pub struct RestApi {
+	local_domain: String,
 	endpoints: Arc<Endpoints>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct App {
-	pub id: String,
-	pub name: String,
-	pub description: String,
-	pub version: String,
-	pub author: String,
-	#[serde(rename="iconUrl")]
-	pub icon_url: String,
-}
-
-impl App {
-	fn from_info(id: &str, info: &EndpointInfo) -> Self {
-		App {
-			id: id.to_owned(),
-			name: info.name.to_owned(),
-			description: info.description.to_owned(),
-			version: info.version.to_owned(),
-			author: info.author.to_owned(),
-			icon_url: info.icon_url.to_owned(),
-		}
-	}
-}
-
 impl RestApi {
-	pub fn new(endpoints: Arc<Endpoints>) -> Box<Endpoint> {
+	pub fn new(local_domain: String, endpoints: Arc<Endpoints>) -> Box<Endpoint> {
 		Box::new(RestApi {
-			endpoints: endpoints
+			local_domain: local_domain,
+			endpoints: endpoints,
 		})
 	}
 
@@ -63,7 +44,58 @@ impl RestApi {
 
 impl Endpoint for RestApi {
 	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
-		as_json(&self.list_apps())
+		Box::new(RestApiRouter {
+			api: self.clone(),
+			handler: as_json_error(&ApiError {
+				code: "404".into(),
+				title: "Not Found".into(),
+				detail: "Resource you requested has not been found.".into(),
+			}),
+		})
 	}
 }
 
+struct RestApiRouter {
+	api: RestApi,
+	handler: Box<Handler>,
+}
+
+impl server::Handler<net::HttpStream> for RestApiRouter {
+
+	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
+		let url = extract_url(&request);
+		if url.is_none() {
+			// Just return 404 if we can't parse URL
+			return Next::write();
+		}
+
+		let url = url.expect("Check for None is above; qed");
+		let endpoint = url.path.get(1).map(|v| v.as_str());
+
+		let handler = endpoint.and_then(|v| match v {
+			"apps" => Some(as_json(&self.api.list_apps())),
+			"ping" => Some(ping_response(&self.api.local_domain)),
+			_ => None,
+		});
+
+		// Overwrite default
+		if let Some(h) = handler {
+			self.handler = h;
+		}
+
+		self.handler.on_request(request)
+	}
+
+	fn on_request_readable(&mut self, decoder: &mut Decoder<net::HttpStream>) -> Next {
+		self.handler.on_request_readable(decoder)
+	}
+
+	fn on_response(&mut self, res: &mut server::Response) -> Next {
+		self.handler.on_response(res)
+	}
+
+	fn on_response_writable(&mut self, encoder: &mut Encoder<net::HttpStream>) -> Next {
+		self.handler.on_response_writable(encoder)
+	}
+
+}

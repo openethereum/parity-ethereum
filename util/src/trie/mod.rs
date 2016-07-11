@@ -17,6 +17,8 @@
 //! Trie interface and implementation.
 
 use std::fmt;
+use hash::H256;
+use hashdb::HashDB;
 
 /// Export the trietraits module.
 pub mod trietraits;
@@ -35,12 +37,18 @@ pub mod sectriedb;
 /// Export the sectriedbmut module.
 pub mod sectriedbmut;
 
+mod fatdb;
+
+mod fatdbmut;
+
 pub use self::trietraits::{Trie, TrieMut};
 pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;
-pub use self::triedb::TrieDB;
+pub use self::triedb::{TrieDB, TrieDBIterator};
 pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
+pub use self::fatdb::{FatDB, FatDBIterator};
+pub use self::fatdbmut::FatDBMut;
 
 /// Trie Errors
 #[derive(Debug)]
@@ -52,5 +60,65 @@ pub enum TrieError {
 impl fmt::Display for TrieError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "Trie Error: Invalid state root.")
+	}
+}
+
+/// Trie types
+#[derive(Debug, Clone)]
+pub enum TrieSpec {
+	/// Generic trie.
+	Generic,
+	/// Secure trie.
+	Secure,
+	///	Secure trie with fat database.
+	Fat,
+}
+
+impl Default for TrieSpec {
+	fn default() -> TrieSpec {
+		TrieSpec::Secure
+	}
+}
+
+/// Trie factory.
+#[derive(Default, Clone)]
+pub struct TrieFactory {
+	spec: TrieSpec,
+}
+
+#[cfg_attr(feature="dev", allow(wrong_self_convention))]
+impl TrieFactory {
+	/// Creates new factory.
+	pub fn new(spec: TrieSpec) -> Self {
+		TrieFactory {
+			spec: spec,
+		}
+	}
+
+	/// Create new immutable instance of Trie.
+	pub fn readonly<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<Box<Trie + 'db>, TrieError> {
+		match self.spec {
+			TrieSpec::Generic => Ok(Box::new(try!(TrieDB::new(db, root)))),
+			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDB::new(db, root)))),
+			TrieSpec::Fat => Ok(Box::new(try!(FatDB::new(db, root)))),
+		}
+	}
+
+	/// Create new mutable instance of Trie.
+	pub fn create<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Box<TrieMut + 'db> {
+		match self.spec {
+			TrieSpec::Generic => Box::new(TrieDBMut::new(db, root)),
+			TrieSpec::Secure => Box::new(SecTrieDBMut::new(db, root)),
+			TrieSpec::Fat => Box::new(FatDBMut::new(db, root)),
+		}
+	}
+
+	/// Create new mutable instance of trie and check for errors.
+	pub fn from_existing<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Result<Box<TrieMut + 'db>, TrieError> {
+		match self.spec {
+			TrieSpec::Generic => Ok(Box::new(try!(TrieDBMut::from_existing(db, root)))),
+			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDBMut::from_existing(db, root)))),
+			TrieSpec::Fat => Ok(Box::new(try!(FatDBMut::from_existing(db, root)))),
+		}
 	}
 }

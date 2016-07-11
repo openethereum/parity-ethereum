@@ -1,6 +1,11 @@
 environment:
   matrix:
   - TARGET: x86_64-pc-windows-msvc
+  cert:
+    secure: ESPpYVVAMG1fbJx6kq4ct/g9SQTXac4Hs6xXr6Oh4Zrk2dwYglNjxmzErdPnvu7gs/gekzrJ6KEQHYRc+5+4dKg6rRADQ681NLVx9vOggBs=
+  certpass:
+    secure: 0BgXJqxq9Ei34/hZ7121FQ==
+  keyfile: C:\users\appveyor\Certificates.p12
 
 branches:
   only:
@@ -16,7 +21,7 @@ install:
   - ps: Start-FileDownload "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -FileName nsis\SimpleFC.dll
   - ps: Start-FileDownload "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -FileName nsis\vc_redist.x64.exe
   - rust-1.9.0-x86_64-pc-windows-msvc.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
-  - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin;C:\Program Files (x86)\NSIS
+  - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin;C:\Program Files (x86)\NSIS;C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Bin
   - rustc -V
   - cargo -V
 
@@ -27,7 +32,10 @@ test_script:
 
 after_test:
   - cargo build --verbose --release
+  - ps: if($env:cert) { Start-FileDownload $env:cert -FileName $env:keyfile }
+  - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass target\release\parity.exe }
   - makensis.exe nsis\installer.nsi
+  - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass nsis\installer.exe }
 
 artifacts:
   - path: nsis\installer.exe
