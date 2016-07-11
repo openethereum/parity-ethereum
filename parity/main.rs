@@ -242,13 +242,15 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	};
 
 	// Setup http rpc
-	let rpc_server = rpc::new_http(rpc::HttpConfiguration {
+	let rpc_conf = rpc::HttpConfiguration {
 		enabled: network_settings.rpc_enabled,
 		interface: conf.rpc_interface(),
 		port: network_settings.rpc_port,
 		apis: conf.rpc_apis(),
 		cors: conf.rpc_cors(),
-	}, &dependencies);
+	};
+
+	let rpc_server = try!(rpc::new_http(rpc_conf, &dependencies));
 
 	// setup ipc rpc
 	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);

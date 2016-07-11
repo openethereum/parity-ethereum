@@ -45,8 +45,7 @@ impl fmt::Display for IpcConfiguration {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		if self.enabled {
 			write!(f, "endpoint address [{}], api list [{}]", self.socket_addr, self.apis)
-		}
-		else {
+		} else {
 			write!(f, "disabled")
 		}
 	}
@@ -57,16 +56,15 @@ pub struct Dependencies {
 	pub apis: Arc<rpc_apis::Dependencies>,
 }
 
-pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Option<RpcServer> {
+pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<RpcServer>, String> {
 	if !conf.enabled {
-		return None;
+		return Ok(None);
 	}
 
 	let apis = conf.apis.split(',').collect();
 	let url = format!("{}:{}", conf.interface, conf.port);
-	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
-
-	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))
+	let addr = try!(url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url)));
+	Ok(Some(try!(setup_http_rpc_server(deps, &addr, conf.cors, apis))))
 }
 
 fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Server {
@@ -80,33 +78,33 @@ pub fn setup_http_rpc_server(
 	url: &SocketAddr,
 	cors_domains: Vec<String>,
 	apis: Vec<&str>,
-) -> RpcServer {
+) -> Result<RpcServer, String> {
 	let server = setup_rpc_server(apis, dependencies);
 	let start_result = server.start_http(url, cors_domains);
 	let ph = dependencies.panic_handler.clone();
 	match start_result {
-		Err(RpcServerError::IoError(err)) => die_with_io_error("RPC", err),
-		Err(e) => die!("RPC: {:?}", e),
+		Err(RpcServerError::IoError(err)) => Err(format!("RPC io error: {}", err)),
+		Err(e) => Err(format!("RPC error: {:?}", e)),
 		Ok(server) => {
 			server.set_panic_handler(move || {
 				ph.notify_all("Panic in RPC thread.".to_owned());
 			});
-			server
+			Ok(server)
 		},
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Option<jsonipc::Server> {
-	if !conf.enabled { return None; }
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<jsonipc::Server>, String> {
+	if !conf.enabled { return Ok(None); }
 	let apis = conf.apis.split(',').collect();
-	Some(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))
+	Ok(Some(try!(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: Vec<&str>) -> jsonipc::Server {
+pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: Vec<&str>) -> Result<jsonipc::Server, String> {
 	let server = setup_rpc_server(apis, dependencies);
 	match server.start_ipc(addr) {
-		Err(jsonipc::Error::Io(io_error)) => die_with_io_error("RPC", io_error),
-		Err(any_error) => die!("RPC: {:?}", any_error),
-		Ok(server) => server
+		Err(jsonipc::Error::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
+		Err(any_error) => Err(format!("Rpc error: {:?}", any_error)),
+		Ok(server) => Ok(server)
 	}
 }
