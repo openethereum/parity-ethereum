@@ -69,6 +69,7 @@ mod signer;
 mod rpc_apis;
 mod url;
 mod params;
+mod deprecated;
 
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;

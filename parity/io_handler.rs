@@ -59,7 +59,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 					network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 				}
 			},
-			_ => {/* Ignore other messages */},
+			// Ignore other messages
+			_ => {},
 		}
 	}
 }

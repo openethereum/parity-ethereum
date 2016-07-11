@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::version;
+use docopt::Docopt;
 
 pub const USAGE: &'static str = r#"
 Parity. Ethereum Client.
@@ -379,6 +380,12 @@ pub struct Args {
 	pub flag_ipcapi: Option<String>,
 	pub flag_db_compaction: String,
 	pub flag_fat_db: bool,
+}
+
+impl Default for Args {
+	fn default() -> Self {
+		Docopt::new(USAGE).unwrap().argv(&[] as &[&str]).decode().unwrap()
+	}
 }
 
 pub fn print_version() -> String {
