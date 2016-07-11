@@ -14,16 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
-//! method calls properly.
+use util::numbers::*;
 
-mod eth;
-mod eth_signing;
-mod net;
-mod web3;
-mod personal;
-mod personal_signer;
-mod ethcore;
-mod ethcore_set;
-mod rpc;
-mod manage_network;
+/// Represents what has to be handled by actor listening to chain events
+pub trait ChainNotify : Send + Sync {
+	/// fires when chain has new blocks
+	fn new_blocks(&self,
+		_imported: Vec<H256>,
+		_invalid: Vec<H256>,
+		_enacted: Vec<H256>,
+		_retracted: Vec<H256>,
+		_sealed: Vec<H256>) {
+		// does nothing by default
+	}
+
+	/// fires when chain achieves active mode
+	fn start(&self) {
+		// does nothing by default
+	}
+
+	/// fires when chain achieves passive mode
+	fn stop(&self) {
+		// does nothing by default
+	}
+}

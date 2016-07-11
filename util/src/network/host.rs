@@ -136,11 +136,11 @@ pub type ProtocolId = &'static str;
 
 /// Messages used to communitate with the event loop from other threads.
 #[derive(Clone)]
-pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
+pub enum NetworkIoMessage {
 	/// Register a new protocol handler.
 	AddHandler {
 		/// Handler shared instance.
-		handler: Arc<NetworkProtocolHandler<Message> + Sync>,
+		handler: Arc<NetworkProtocolHandler + Sync>,
 		/// Protocol Id.
 		protocol: ProtocolId,
 		/// Supported protocol versions.
@@ -163,8 +163,6 @@ pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
 	DisablePeer(PeerId),
 	/// Network has been started with the host as the given enode.
 	NetworkStarted(String),
-	/// User message
-	User(Message),
 }
 
 /// Local (temporary) peer session ID.
@@ -188,8 +186,8 @@ impl Encodable for CapabilityInfo {
 }
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
-pub struct NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, 's {
-	io: &'s IoContext<NetworkIoMessage<Message>>,
+pub struct NetworkContext<'s> {
+	io: &'s IoContext<NetworkIoMessage>,
 	protocol: ProtocolId,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	session: Option<SharedSession>,
@@ -197,12 +195,12 @@ pub struct NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'sta
 	_reserved_peers: &'s HashSet<NodeId>,
 }
 
-impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, {
+impl<'s> NetworkContext<'s> {
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(io: &'s IoContext<NetworkIoMessage<Message>>,
+	fn new(io: &'s IoContext<NetworkIoMessage>,
 		protocol: ProtocolId,
 		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>,
-		reserved_peers: &'s HashSet<NodeId>) -> NetworkContext<'s, Message> {
+		reserved_peers: &'s HashSet<NodeId>) -> NetworkContext<'s> {
 		let id = session.as_ref().map(|s| s.locked().token());
 		NetworkContext {
 			io: io,
@@ -238,13 +236,8 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 		self.send(self.session_id.unwrap(), packet_id, data)
 	}
 
-	/// Send an IO message
-	pub fn message(&self, msg: Message) -> Result<(), UtilError> {
-		self.io.message(NetworkIoMessage::User(msg))
-	}
-
 	/// Get an IoChannel.
-	pub fn io_channel(&self) -> IoChannel<NetworkIoMessage<Message>> {
+	pub fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
 		self.io.channel()
 	}
 
@@ -333,13 +326,13 @@ struct ProtocolTimer {
 }
 
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
-pub struct Host<Message> where Message: Send + Sync + Clone {
+pub struct Host {
 	pub info: RwLock<HostInfo>,
 	tcp_listener: Mutex<TcpListener>,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	discovery: Mutex<Option<Discovery>>,
 	nodes: RwLock<NodeTable>,
-	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler<Message>>>>,
+	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
 	stats: Arc<NetworkStats>,
@@ -348,9 +341,9 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	stopping: AtomicBool,
 }
 
-impl<Message> Host<Message> where Message: Send + Sync + Clone {
+impl Host {
 	/// Create a new instance
-	pub fn new(config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host<Message>, UtilError> {
+	pub fn new(config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host, UtilError> {
 		trace!(target: "host", "Creating new Host object");
 
 		let mut listen_address = match config.listen_address {
@@ -381,7 +374,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let boot_nodes = config.boot_nodes.clone();
 		let reserved_nodes = config.reserved_nodes.clone();
 
-		let mut host = Host::<Message> {
+		let mut host = Host {
 			info: RwLock::new(HostInfo {
 				keys: keys,
 				config: config,
@@ -444,7 +437,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		Ok(())
 	}
 
-	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage<Message>>) {
+	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
 		let mut info = self.info.unwrapped_write();
 
 		if info.config.non_reserved_mode != mode {
@@ -495,7 +488,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		r
 	}
 
-	pub fn stop(&self, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), UtilError> {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
 		for e in self.sessions.unwrapped_write().iter_mut() {
@@ -511,7 +504,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		Ok(())
 	}
 
-	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
+	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), UtilError> {
 		if self.info.unwrapped_read().public_endpoint.is_some() {
 			return Ok(());
 		}
@@ -567,7 +560,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		Ok(())
 	}
 
-	fn maintain_network(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn maintain_network(&self, io: &IoContext<NetworkIoMessage>) {
 		self.keep_alive(io);
 		self.connect_peers(io);
 	}
@@ -588,7 +581,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		self.sessions.unwrapped_read().count() - self.session_count()
 	}
 
-	fn keep_alive(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn keep_alive(&self, io: &IoContext<NetworkIoMessage>) {
 		let mut to_kill = Vec::new();
 		for e in self.sessions.unwrapped_write().iter_mut() {
 			let mut s = e.locked();
@@ -603,7 +596,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn connect_peers(&self, io: &IoContext<NetworkIoMessage>) {
 		let (ideal_peers, mut pin) = {
 			let info = self.info.unwrapped_read();
 			if info.capabilities.is_empty() {
@@ -651,7 +644,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	#[cfg_attr(feature="dev", allow(single_match))]
-	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage>) {
 		if self.have_session(id)
 		{
 			trace!(target: "network", "Aborted connect. Node already connected.");
@@ -688,9 +681,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
-	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage<Message>>) -> Result<(), UtilError> {
+	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage>) -> Result<(), UtilError> {
 		let nonce = self.info.unwrapped_write().next_nonce();
 		let mut sessions = self.sessions.unwrapped_write();
+
 		let token = sessions.insert_with_opt(|token| {
 			match Session::new(io, socket, token, id, &nonce, self.stats.clone(), &self.info.unwrapped_read()) {
 				Ok(s) => Some(Arc::new(Mutex::new(s))),
@@ -710,7 +704,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	fn accept(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn accept(&self, io: &IoContext<NetworkIoMessage>) {
 		trace!(target: "network", "Accepting incoming connection");
 		loop {
 			let socket = match self.tcp_listener.locked().accept() {
@@ -727,8 +721,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		let session = { self.sessions.unwrapped_read().get(token).cloned() };
+
 		if let Some(session) = session {
 			let mut s = session.locked();
 			if let Err(e) = s.writable(io, &self.info.unwrapped_read()) {
@@ -740,13 +735,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	fn connection_closed(&self, token: TimerToken, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn connection_closed(&self, token: TimerToken, io: &IoContext<NetworkIoMessage>) {
 		trace!(target: "network", "Connection closed: {}", token);
 		self.kill_connection(token, io, true);
 	}
 
 	#[cfg_attr(feature="dev", allow(collapsible_if))]
-	fn session_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn session_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Vec<(ProtocolId, PacketId, Vec<u8>)> = Vec::new();
 		let mut kill = false;
@@ -831,12 +826,12 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	fn connection_timeout(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn connection_timeout(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		trace!(target: "network", "Connection timeout: {}", token);
 		self.kill_connection(token, io, true)
 	}
 
-	fn kill_connection(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>, remote: bool) {
+	fn kill_connection(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>, remote: bool) {
 		let mut to_disconnect: Vec<ProtocolId> = Vec::new();
 		let mut failure_id = None;
 		let mut deregister = false;
@@ -876,7 +871,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	fn update_nodes(&self, io: &IoContext<NetworkIoMessage<Message>>, node_changes: TableUpdates) {
+	fn update_nodes(&self, io: &IoContext<NetworkIoMessage>, node_changes: TableUpdates) {
 		let mut to_remove: Vec<PeerId> = Vec::new();
 		{
 			let sessions = self.sessions.unwrapped_write();
@@ -895,17 +890,24 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		self.nodes.unwrapped_write().update(node_changes);
 	}
+
+	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: Fn(&NetworkContext) {
+		let reserved = { self.reserved_nodes.unwrapped_read() };
+
+		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
+		action(&context);
+	}
 }
 
-impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Message: Send + Sync + Clone + 'static {
+impl IoHandler<NetworkIoMessage> for Host {
 	/// Initialize networking
-	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+	fn initialize(&self, io: &IoContext<NetworkIoMessage>) {
 		io.register_timer(IDLE, MAINTENANCE_TIMEOUT).expect("Error registering Network idle timer");
 		io.message(NetworkIoMessage::InitPublicInterface).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 		self.maintain_network(io)
 	}
 
-	fn stream_hup(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+	fn stream_hup(&self, io: &IoContext<NetworkIoMessage>, stream: StreamToken) {
 		trace!(target: "network", "Hup: {}", stream);
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.connection_closed(stream, io),
@@ -913,7 +915,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		};
 	}
 
-	fn stream_readable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+	fn stream_readable(&self, io: &IoContext<NetworkIoMessage>, stream: StreamToken) {
 		if self.stopping.load(AtomicOrdering::Acquire) {
 			return;
 		}
@@ -930,7 +932,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		}
 	}
 
-	fn stream_writable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+	fn stream_writable(&self, io: &IoContext<NetworkIoMessage>, stream: StreamToken) {
 		if self.stopping.load(AtomicOrdering::Acquire) {
 			return;
 		}
@@ -943,7 +945,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		}
 	}
 
-	fn timeout(&self, io: &IoContext<NetworkIoMessage<Message>>, token: TimerToken) {
+	fn timeout(&self, io: &IoContext<NetworkIoMessage>, token: TimerToken) {
 		if self.stopping.load(AtomicOrdering::Acquire) {
 			return;
 		}
@@ -978,7 +980,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		}
 	}
 
-	fn message(&self, io: &IoContext<NetworkIoMessage<Message>>, message: &NetworkIoMessage<Message>) {
+	fn message(&self, io: &IoContext<NetworkIoMessage>, message: &NetworkIoMessage) {
 		if self.stopping.load(AtomicOrdering::Acquire) {
 			return;
 		}
@@ -1031,19 +1033,13 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				trace!(target: "network", "Disabling peer {}", peer);
 				self.kill_connection(*peer, io, false);
 			},
-			NetworkIoMessage::User(ref message) => {
-				let reserved = self.reserved_nodes.unwrapped_read();
-				for (p, h) in self.handlers.unwrapped_read().iter() {
-					h.message(&NetworkContext::new(io, p, None, self.sessions.clone(), &reserved), &message);
-				}
-			},
 			NetworkIoMessage::InitPublicInterface =>
 				self.init_public_interface(io).unwrap_or_else(|e| warn!("Error initializing public interface: {:?}", e)),
 			_ => {}	// ignore others.
 		}
 	}
 
-	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
+	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => {
 				let session = { self.sessions.unwrapped_read().get(stream).cloned() };
@@ -1057,7 +1053,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		}
 	}
 
-	fn deregister_stream(&self, stream: StreamToken, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
+	fn deregister_stream(&self, stream: StreamToken, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => {
 				let mut connections = self.sessions.unwrapped_write();
@@ -1071,7 +1067,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		}
 	}
 
-	fn update_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
+	fn update_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => {
 				let connection = { self.sessions.unwrapped_read().get(stream).cloned() };
@@ -1152,6 +1148,6 @@ fn host_client_url() {
 	let mut config = NetworkConfiguration::new();
 	let key = h256_from_hex("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2");
 	config.use_secret = Some(key);
-	let host: Host<u32> = Host::new(config, Arc::new(NetworkStats::new())).unwrap();
+	let host: Host = Host::new(config, Arc::new(NetworkStats::new())).unwrap();
 	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }
