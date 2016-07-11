@@ -25,7 +25,7 @@ extern crate ethcore_util as util;
 
 mod ext;
 
-use std::time::Instant;
+use std::time::{Instant, Duration};
 use std::str::FromStr;
 use docopt::Docopt;
 use util::{U256, FromHex, Uint, Bytes};
@@ -58,6 +58,15 @@ fn main() {
 	params.code = Some(args.code());
 	params.data = args.data();
 
+	let result = run_vm(params);
+	println!("Gas used: {:?}", result.gas_used);
+	println!("Output: {:?}", result.output);
+	println!("Time: {}.{:.9}s", result.time.as_secs(), result.time.subsec_nanos());
+}
+
+/// Execute VM with given `ActionParams`
+pub fn run_vm(params: ActionParams) -> ExecutionResults {
+	let initial_gas = params.gas;
 	let factory = Factory::new(VMType::Interpreter);
 	let mut vm = factory.create(params.gas);
 	let mut ext = ext::FakeExt::default();
@@ -66,9 +75,21 @@ fn main() {
 	let gas_left = vm.exec(params, &mut ext).finalize(ext).expect("OK");
 	let duration = start.elapsed();
 
-	println!("Gas used: {:?}", args.gas() - gas_left);
-	println!("Output: {:?}", "");
-	println!("Time: {}.{:.9}s", duration.as_secs(), duration.subsec_nanos());
+	ExecutionResults {
+		gas_used: initial_gas - gas_left,
+		output: Vec::new(),
+		time: duration,
+	}
+}
+
+/// VM execution results
+pub struct ExecutionResults {
+	/// Used gas
+	pub gas_used: U256,
+	/// Output as bytes
+	pub output: Vec<u8>,
+	/// Time Taken
+	pub time: Duration,
 }
 
 #[derive(Debug, RustcDecodable)]
