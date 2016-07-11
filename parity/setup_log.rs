@@ -17,14 +17,18 @@
 
 use std::env;
 use std::sync::Arc;
+use std::fs::File;
+use std::io::Write;
+use std::sync::Mutex;
 use time;
 use env_logger::LogBuilder;
+use regex::Regex;
 use util::RotatingLogger;
 use util::log::{Applyable, Colour};
-use regex::Regex;
+use util::misc::Lockable;
 
 /// Sets up the logger
-pub fn setup_log(init: &Option<String>, enable_color: bool) -> Arc<RotatingLogger> {
+pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: Option<String>) -> Arc<RotatingLogger> {
 	use rlog::*;
 
 	let mut levels = String::new();
@@ -47,6 +51,7 @@ pub fn setup_log(init: &Option<String>, enable_color: bool) -> Arc<RotatingLogge
 
 	let logs = Arc::new(RotatingLogger::new(levels, enable_color));
 	let logger = logs.clone();
+	let file = log_to_file.map(|f| Mutex::new(File::create(&f).unwrap_or_else(|_| die!("Cannot write to log file given: {}", f))));
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
@@ -57,9 +62,12 @@ pub fn setup_log(init: &Option<String>, enable_color: bool) -> Arc<RotatingLogge
 		};
 
 		let removed_color = kill_color(format.as_ref());
-		logger.append(removed_color.clone());
-
-		// TODO: output to file...
+		if let &Some(ref f) = &file {
+			// ignore errors - there's nothing we can do
+			let _ = f.locked().write_all(removed_color.as_bytes());
+			let _ = f.locked().write_all(b"\n");
+		}
+		logger.append(removed_color);
 
 		format
     };
