@@ -25,7 +25,7 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::H256;
 
-fn origin_is_allowed(self_origin: &str, header: Option<&Vec<u8>>) -> bool {
+fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	match header {
 		None => false,
 		Some(h) => {

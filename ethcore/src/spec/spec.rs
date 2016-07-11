@@ -143,7 +143,7 @@ impl Spec {
 	}
 
 	/// Get the known knodes of the network in enode format.
-	pub fn nodes(&self) -> &Vec<String> { &self.nodes }
+	pub fn nodes(&self) -> &[String] { &self.nodes }
 
 	/// Get the configured Network ID.
 	pub fn network_id(&self) -> U256 { self.params.network_id }

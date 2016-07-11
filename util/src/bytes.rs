@@ -242,7 +242,7 @@ pub enum FromBytesError {
 }
 
 /// Value that can be serialized from bytes array
-pub trait FromRawBytes : Sized {
+pub trait FromRawBytes: Sized {
 	/// function that will instantiate and initialize object from slice
 	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
 }
@@ -298,7 +298,7 @@ sized_binary_map!(u32);
 sized_binary_map!(u64);
 
 /// Value that can be serialized from variable-length byte array
-pub trait FromRawBytesVariable : Sized {
+pub trait FromRawBytesVariable: Sized {
 	/// Create value from slice
 	fn from_bytes_variable(bytes: &[u8]) -> Result<Self, FromBytesError>;
 }
@@ -373,7 +373,7 @@ impl<V1, V2, T3> FromRawBytes for (V1, V2, T3)
 	}
 }
 
-impl<'a, V1, T2> ToBytesWithMap for (&'a Vec<V1>, &'a T2) where V1: ToBytesWithMap, T2: ToBytesWithMap {
+impl<'a, V1, T2> ToBytesWithMap for (&'a [V1], &'a T2) where V1: ToBytesWithMap, T2: ToBytesWithMap {
 	fn to_bytes_map(&self) -> Vec<u8> {
 		let header = 8usize;
 		let v1_size = mem::size_of::<V1>();
@@ -390,7 +390,7 @@ impl<'a, V1, T2> ToBytesWithMap for (&'a Vec<V1>, &'a T2) where V1: ToBytesWithM
 
 }
 
-impl<'a, V1, V2, T3> ToBytesWithMap for (&'a Vec<V1>, &'a Vec<V2>, &'a T3)
+impl<'a, V1, V2, T3> ToBytesWithMap for (&'a [V1], &'a [V2], &'a T3)
 	where V1: ToBytesWithMap,
 		V2: ToBytesWithMap,
 		T3: ToBytesWithMap
