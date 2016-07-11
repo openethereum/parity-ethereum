@@ -27,8 +27,8 @@ ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
 ethcore-devtools = { path = "devtools" }
-ethcore-rpc = { path = "rpc", optional = true }
-ethcore-signer = { path = "signer", optional = true }
+ethcore-rpc = { path = "rpc" }
+ethcore-signer = { path = "signer" }
 ethcore-dapps = { path = "dapps", optional = true }
 semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
@@ -48,8 +48,7 @@ version = "0.8"
 default-features = false
 
 [features]
-default = ["rpc", "dapps", "ethcore-signer"]
-rpc = ["ethcore-rpc"]
+default = ["dapps"]
 dapps = ["ethcore-dapps"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev",
 "ethcore-dapps/dev", "ethcore-signer/dev"]
