@@ -17,8 +17,9 @@
 use std::str::FromStr;
 use std::time::Duration;
 use util::journaldb::Algorithm;
-use util::{clean_0x, U256, Uint};
+use util::{clean_0x, U256, Uint, Address};
 use ethcore::client::{Mode, BlockID};
+use ethcore::miner::PendingSet;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -82,14 +83,49 @@ pub fn to_u256(s: &str) -> Result<U256, String> {
 	}
 }
 
+pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
+	match s {
+		"cheap" => Ok(PendingSet::AlwaysQueue),
+		"strict" => Ok(PendingSet::AlwaysSealing),
+		"lenient" => Ok(PendingSet::SealingOrElseQueue),
+		other => Err(format!("Invalid pending set value: {:?}", other)),
+	}
+}
+
+pub fn to_address(s: Option<String>) -> Result<Address, String> {
+	match s {
+		Some(ref a) => Address::from_str(clean_0x(a)).map_err(|_| format!("Invalid address: {:?}", a)),
+		None => Ok(Address::default())
+	}
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub enum Policy {
+	None,
+	Dogmatic,
+}
+
+impl FromStr for Policy {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"none" => Ok(Policy::None),
+			"dogmatic" => Ok(Policy::Dogmatic),
+			other => Err(format!("Invalid policy value: {}", other)),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
 	use std::time::Duration;
-	use util::U256;
+	use util::{U256, Address};
 	use util::journaldb::Algorithm;
 	use ethcore::client::{Mode, BlockID};
-	use super::{to_duration, to_mode, to_pruning, to_block_id, to_u256};
+	use ethcore::miner::PendingSet;
+	use super::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_address, Policy};
 
 	#[test]
 	fn test_to_duration() {
@@ -147,6 +183,34 @@ mod tests {
 		assert_eq!(to_u256("11").unwrap(), U256::from(11));
 		assert_eq!(to_u256("0x11").unwrap(), U256::from(17));
 		assert!(to_u256("u").is_err())
+	}
+
+	#[test]
+	fn test_pending_set() {
+		assert_eq!(to_pending_set("cheap").unwrap(), PendingSet::AlwaysQueue);
+		assert_eq!(to_pending_set("strict").unwrap(), PendingSet::AlwaysSealing);
+		assert_eq!(to_pending_set("lenient").unwrap(), PendingSet::SealingOrElseQueue);
+		assert!(to_pending_set("othe").is_err());
+	}
+
+	#[test]
+	fn test_to_address() {
+		assert_eq!(
+			to_address(Some("0xD9A111feda3f362f55Ef1744347CDC8Dd9964a41".into())).unwrap(),
+			Address::from_str("D9A111feda3f362f55Ef1744347CDC8Dd9964a41").unwrap()
+		);
+		assert_eq!(
+			to_address(Some("D9A111feda3f362f55Ef1744347CDC8Dd9964a41".into())).unwrap(),
+			Address::from_str("D9A111feda3f362f55Ef1744347CDC8Dd9964a41").unwrap()
+		);
+		assert_eq!(to_address(None).unwrap(), Address::default());
+	}
+
+	#[test]
+	fn test_policy_parsing() {
+		assert_eq!(Policy::from_str("none").unwrap(), Policy::None);
+		assert_eq!(Policy::from_str("dogmatic").unwrap(), Policy::Dogmatic);
+		assert!(Policy::from_str("sas").is_err());
 	}
 }
 

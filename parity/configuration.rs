@@ -36,7 +36,7 @@ use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain, LoggerConfig, SpecType};
 use cache::CacheConfig;
-use params::{to_duration, to_mode, to_pruning, to_block_id};
+use params::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set};
 
 /// Flush output buffer.
 fn flush_stdout() {
@@ -94,13 +94,6 @@ pub struct Directories {
 	pub dapps: String,
 	pub signer: String,
 }
-
-#[derive(Eq, PartialEq, Debug)]
-pub enum Policy {
-	None,
-	Dogmatic,
-}
-
 
 impl Configuration {
 	pub fn parse<S, I>(command: I) -> Result<Self, DocoptError> where I: IntoIterator<Item=S>, S: AsRef<str> {
@@ -225,59 +218,38 @@ impl Configuration {
 		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
 	}
 
-	fn decode_u256(d: &str, argument: &str) -> U256 {
-		U256::from_dec_str(d).unwrap_or_else(|_|
-			U256::from_str(clean_0x(d)).unwrap_or_else(|_|
-				die!("{}: Invalid numeric value for {}. Must be either a decimal or a hex number.", d, argument)
-			)
-		)
-	}
-
 	fn work_notify(&self) -> Vec<String> {
 		self.args.flag_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
 	}
 
-	pub fn miner_options(&self) -> MinerOptions {
+	pub fn miner_options(&self) -> Result<MinerOptions, String> {
 		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
 			"none" => (false, false),
 			"own" => (true, false),
 			"ext" => (false, true),
 			"all" => (true, true),
-			x => die!("{}: Invalid value for --reseal option. Use --help for more information.", x)
+			x => {
+				return Err(format!("Invalid value '{}' for --reseal option. Use --help for more information", x))
+			},
 		};
-		MinerOptions {
+
+		let options = MinerOptions {
 			new_work_notify: self.work_notify(),
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: ext,
 			reseal_on_own_tx: own,
-			tx_gas_limit: self.args.flag_tx_gas_limit.as_ref().map_or(!U256::zero(), |d| Self::decode_u256(d, "--tx-gas-limit")),
-			tx_queue_size: self.args.flag_tx_queue_size,
-			pending_set: match self.args.flag_relay_set.as_str() {
-				"cheap" => PendingSet::AlwaysQueue,
-				"strict" => PendingSet::AlwaysSealing,
-				"lenient" => PendingSet::SealingOrElseQueue,
-				x => die!("{}: Invalid value for --relay-set option. Use --help for more information.", x)
+			tx_gas_limit: match self.args.flag_tx_gas_limit {
+				Some(ref d) => try!(to_u256(d)),
+				None => U256::max_value(),
 			},
+			tx_queue_size: self.args.flag_tx_queue_size,
+			pending_set: try!(to_pending_set(&self.args.flag_relay_set)),
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
-		}
-	}
+		};
 
-	pub fn author(&self) -> Option<Address> {
-		self.args.flag_etherbase.as_ref()
-			.or(self.args.flag_author.as_ref())
-			.map(|d| Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-				die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
-			}))
-	}
-
-	pub fn policy(&self) -> Policy {
-		match self.args.flag_fork.as_str() {
-			"none" => Policy::None,
-			"dogmatic" => Policy::Dogmatic,
-			x => die!("{}: Invalid value given for --policy option. Use --help for more info.", x)
-		}
+		Ok(options)
 	}
 
 	pub fn gas_floor_target(&self) -> U256 {
@@ -326,11 +298,11 @@ impl Configuration {
 		}
 	}
 
-	pub fn extra_data(&self) -> Bytes {
+	pub fn extra_data(&self) -> Result<Bytes, String> {
 		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
-			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
-			None => version_data(),
-			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+			Some(ref x) if x.len() <= 32 => Ok(x.as_bytes().to_owned()),
+			None => Ok(version_data()),
+			Some(ref x) => Err("Extra data must be at most 32 characters".into()),
 		}
 	}
 

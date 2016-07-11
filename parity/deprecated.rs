@@ -60,6 +60,14 @@ impl Deprecated {
 	fn ipc_off() -> Self {
 		Deprecated::Replaced("--ipc-off", "--no-ipc")
 	}
+
+	fn etherbase() -> Self {
+		Deprecated::Replaced("--etherbase", "--author")
+	}
+
+	fn extradata() -> Self {
+		Deprecated::Replaced("--extradata", "--extra-data")
+	}
 }
 
 pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
@@ -93,6 +101,14 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::ipc_off());
 	}
 
+	if args.flag_etherbase.is_some() {
+		result.push(Deprecated::etherbase());
+	}
+
+	if args.flag_extradata.is_some() {
+		result.push(Deprecated::extradata());
+	}
+
 	result
 }
 
@@ -113,6 +129,8 @@ mod tests {
 			args.flag_dapps_off = true;
 			args.flag_ipcdisable = true;
 			args.flag_ipc_off = true;
+			args.flag_etherbase = Some(Default::default());
+			args.flag_extradata = Some(Default::default());
 			args
 		}), vec![
 			Deprecated::jsonrpc(),
@@ -122,6 +140,8 @@ mod tests {
 			Deprecated::dapps_off(),
 			Deprecated::ipcdisable(),
 			Deprecated::ipc_off(),
+			Deprecated::etherbase(),
+			Deprecated::extradata(),
 		]);
 	}
 }

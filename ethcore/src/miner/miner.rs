@@ -36,7 +36,7 @@ use miner::price_info::PriceInfo;
 
 
 /// Different possible definitions for pending transaction set.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PendingSet {
 	/// Always just the transactions in the queue. These have had only cheap checks.
 	AlwaysQueue,

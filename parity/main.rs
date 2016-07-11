@@ -71,6 +71,7 @@ mod url;
 mod params;
 mod deprecated;
 
+use std::str::FromStr;
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
 use std::env;
@@ -89,8 +90,8 @@ use rpc::RpcServer;
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use configuration::{Policy, Configuration, IOPasswordReader};
-use params::to_mode;
+use configuration::{Configuration, IOPasswordReader};
+use params::{to_mode, to_address, Policy};
 use std::process;
 
 fn main() {
@@ -180,7 +181,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	}
 
 	// Check fork settings.
-	if conf.policy() != Policy::None {
+	if let Policy::None = try!(Policy::from_str(&conf.args.flag_fork)) {
 		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 
@@ -191,11 +192,13 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let account_service = Arc::new(conf.account_service());
 
 	// Miner
-	let miner = Miner::new(conf.miner_options(), conf.gas_pricer().expect("TODO!"), conf.spec(), Some(account_service.clone()));
-	miner.set_author(conf.author().unwrap_or_default());
+	let miner_options = try!(conf.miner_options());
+	let miner = Miner::new(miner_options, conf.gas_pricer().expect("TODO!"), conf.spec(), Some(account_service.clone()));
+	//miner.set_author(try!(conf.author()));
+	miner.set_author(try!(to_address(conf.args.flag_etherbase.clone().or(conf.args.flag_author.clone()))));
 	miner.set_gas_floor_target(conf.gas_floor_target());
 	miner.set_gas_ceil_target(conf.gas_ceil_target());
-	miner.set_extra_data(conf.extra_data());
+	miner.set_extra_data(try!(conf.extra_data()));
 	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
 	let enable_network = match try!(to_mode(&conf.args.flag_mode, conf.args.flag_mode_timeout, conf.args.flag_mode_alarm)) {
