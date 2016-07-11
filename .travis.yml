@@ -45,14 +45,14 @@ script:
   - if [ "$RUN_TESTS" = "true" ]; then ./test.sh; fi
 
 install: |
-  [ "$RUN_COVERAGE" = "true" ] &&
-  wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+  [ "$RUN_COVERAGE" = "false" ] ||
+  (wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz &&
-  mkdir kcov-master/build &&
+  mkdir -p kcov-master/build &&
   cd kcov-master/build &&
   cmake .. &&
   make && make install DESTDIR=../tmp &&
-  cd ../..
+  cd)
 
 after_success:
   - true && [ "$RUN_COVERAGE" = "true" ] && ./scripts/cov.sh "$KCOV_CMD"
