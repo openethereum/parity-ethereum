@@ -247,7 +247,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Sync
 	let sync = EthSync::new(sync_config, client.clone(), net_settings)
-		.unwrap_or_else(|e| die_with_error(ethcore::error::Error::UtilError(e)));
+		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
 	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
 
 	// if network is active by default
