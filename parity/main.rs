@@ -46,15 +46,13 @@ extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
 
 extern crate ethcore_ipc_hypervisor as hypervisor;
-
-#[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
+
+extern crate ethcore_signer;
+extern crate ansi_term;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
-
-#[cfg(feature = "ethcore-signer")]
-extern crate ethcore_signer;
 
 #[macro_use]
 mod die;

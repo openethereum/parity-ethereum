@@ -25,13 +25,8 @@ use util::RotatingLogger;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 
-#[cfg(feature="rpc")]
 pub use ethcore_rpc::ConfirmationsQueue;
-#[cfg(not(feature="rpc"))]
-#[derive(Default)]
-pub struct ConfirmationsQueue;
 
-#[cfg(feature="rpc")]
 use ethcore_rpc::Extendable;
 
 pub enum Api {
