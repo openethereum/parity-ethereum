@@ -16,6 +16,9 @@
 
 //! Block RLP compression.
 
+// TODO [rob] remove when BlockRebuilder done.
+#![allow(dead_code)]
+
 use block::Block;
 use header::Header;
 
