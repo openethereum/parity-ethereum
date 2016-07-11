@@ -14,20 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethcore_signer;
-extern crate ansi_term;
-
-use self::ansi_term::Colour;
 use std::io;
 use std::sync::Arc;
 use std::path::PathBuf;
+use ansi_term::Colour;
 use util::panics::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
-use die::*;
+use util::Applyable;
 use rpc_apis;
-use self::ethcore_signer as signer;
+use ethcore_signer as signer;
+use die::*;
 
-pub use self::ethcore_signer::Server as SignerServer;
+pub use ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
 
@@ -62,7 +60,7 @@ pub fn new_token(path: String) -> io::Result<()> {
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	try!(codes.to_file(&path));
-	println!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(format!("{}", code)));
+	println!("This key code will authorise your System Signer UI: {}", code.apply(Colour::White.bold()));
 	Ok(())
 }
 
