@@ -20,6 +20,8 @@ matrix:
 
 env:
   global:
+  - CXX="g++-4.8"
+  - CC="gcc-4.8"
   - RUST_BACKTRACE="1"
   - RUN_TESTS="false"
   - RUN_COVERAGE="false"
@@ -36,10 +38,14 @@ cache:
 
 addons:
   apt:
+    sources:
+    - ubuntu-toolchain-r-test
     packages:
     - libcurl4-openssl-dev
     - libelf-dev
     - libdw-dev
+    - gcc-4.8
+    - g++-4.8
 
 script:
   - if [ "$RUN_TESTS" = "true" ]; then ./test.sh; fi
