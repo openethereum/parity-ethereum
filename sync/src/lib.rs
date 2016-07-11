@@ -56,7 +56,7 @@
 //!			miner,
 //!			IoChannel::disconnected()
 //!		).unwrap();
-//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::new()).unwrpa();
+//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::new()).unwrap();
 //! 	sync.start_network();
 //! }
 //! ```
