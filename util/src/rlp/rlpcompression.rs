@@ -64,22 +64,23 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 		let raw = self.as_raw();
 		let mut result = ElasticArray1024::new();
 		result.append_slice(swapper(raw).unwrap_or(raw));
+		assert_eq!(raw, &result[..]);
 		return result;
 	}
 
 	fn swap_all<F>(&self, swapper: &F, account_size: usize) -> ElasticArray1024<u8>
 	where F: Fn(&[u8]) -> Option<&[u8]> {
-		if self.is_data() {
-			match self.size() < account_size {
-				// Simply simply try to replace the value.
-				true => self.swap(swapper),
-				// Try to treat the inside as RLP.
-				false => match self.data() {
-					Ok(x) => encode(&UntrustedRlp::new(x).swap_all(swapper, account_size).to_vec()),
-					_ => self.swap(swapper),
-				},
+		if self.size() < account_size {
+			// Simply simply try to replace the value.
+			self.swap(swapper)
+		} else if self.is_data() {
+			// Try to treat the inside as RLP.
+			match self.data() {
+				Ok(d) => encode(&UntrustedRlp::new(d).swap_all(swapper, account_size).to_vec()),
+				_ => self.swap(swapper),
 			}
 		} else {
+			// Iterate if it might be a list.
   		let mut rlp = RlpStream::new_list(self.item_count());
 			for subrlp in self.iter() {
 				let new_sub = subrlp.swap_all(swapper, account_size);
@@ -87,7 +88,6 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 			}
   		rlp.drain()
   	}
-
 	}
 
 	fn compress(&self) -> ElasticArray1024<u8> {
@@ -180,4 +180,78 @@ fn decompressing_decoder() {
 	assert_eq!(decoded[1], vec![2]);
 	assert_eq!(decoded[2].to_hex(), SHA3_NULL_RLP.hex());
 	assert_eq!(decoded[3].to_hex(), SHA3_EMPTY.hex());
+}
+
+#[test]
+#[ignore]
+fn analyze_db() {
+	use std::collections::HashMap;
+	use kvdb::*;
+	let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/state".to_string();
+	let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
+	let mut rlp_counts: HashMap<_, u32> = HashMap::new();
+	let mut rlp_sizes: HashMap<_, u32> = HashMap::new();
+
+	fn flat_rlp<'a>(acc: &mut Vec<UntrustedRlp<'a>>, rlp: UntrustedRlp<'a>) {
+		match rlp.is_data() {
+			true => if rlp.size()>=70 {
+				match rlp.data() {
+					Ok(x) => flat_rlp(acc, UntrustedRlp::new(x)),
+					_ => acc.push(rlp),
+				}
+			} else {
+				acc.push(rlp);
+			},
+			false => for r in rlp.iter() { flat_rlp(acc, r); },
+		}
+	}
+
+	fn space_saving(bytes: &[u8]) -> u32 {
+		let l = bytes.len() as u32;
+		match l >= 2 {
+			true => l-2,
+			false => 0,
+		}
+	}
+
+	fn is_account<'a>(rlp: &UntrustedRlp<'a>) -> bool {
+		rlp.is_list() && (rlp.item_count() == 4)
+	}
+
+	for v in values.iter() {
+		let rlp = UntrustedRlp::new(&v);
+		let mut flat = Vec::new();
+		flat_rlp(&mut flat, rlp);
+		for r in flat.iter() {
+			*rlp_counts.entry(r.as_raw()).or_insert(0) += 1;
+			//let replacement = r.compress().to_vec();
+			*rlp_sizes.entry(r.as_raw()).or_insert(0) += space_saving(r.as_raw());
+		}
+	}
+	let mut size_vec: Vec<_> = rlp_sizes.iter().collect();
+	size_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+	for v in size_vec.iter().filter(|v| rlp_counts.get(v.0).unwrap()>&100).take(20) {
+		println!("{:?}, {:?}", v, rlp_counts.get(v.0).unwrap());
+	}
+	println!("DONE");
+}
+
+#[test]
+#[ignore]
+fn test_compression() {
+	use kvdb::*;
+	let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/state".to_string();
+	let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
+	let mut init_size = 0;
+	let mut comp_size = 0;
+
+	for v in values.iter() {
+		init_size += v.len();
+		let rlp = UntrustedRlp::new(&v);
+		let compressed = rlp.compress().to_vec();
+		comp_size += compressed.len();
+		assert_eq!(UntrustedRlp::new(&compressed.as_slice()).decompress().to_vec(), v.to_vec());
+	}
+	println!("Initial bytes {:?}, compressed bytes: {:?}", init_size, comp_size);
 }
