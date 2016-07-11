@@ -10,34 +10,29 @@
 # $ cmake .. && make && sudo make install
 
 ### Running coverage
-if ! type kcov > /dev/null; then
+
+KCOV=${1:-kcov}
+
+if ! type $KCOV > /dev/null; then
    	echo "Install kcov first (details inside this file). Aborting."
 	exit 1
 fi
 
-cargo test \
-	-p ethkey \
-	-p ethstore \
-	-p ethash \
-	-p ethcore-util \
-	-p ethcore \
-	-p ethsync \
-	-p ethcore-rpc \
-	-p parity \
-	-p ethcore-signer \
-	-p ethcore-dapps \
-	--no-run || exit $?
-rm -rf target/coverage
-mkdir -p target/coverage
+. ./scripts/targets.sh
+
+cargo test $TARGETS --no-run || exit $?
+rm -rf target/kcov
+mkdir -p target/kcov
 
 EXCLUDE="~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests,ethstore/tests"
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethkey-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethstore-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethcore-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethash-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethcore_util-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethsync-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethcore_rpc-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethcore_signer-*
-kcov --exclude-pattern $EXCLUDE --include-pattern src target/coverage target/debug/deps/ethcore_dapps-*
-xdg-open target/coverage/index.html
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethkey-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethstore-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethash-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_util-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethsync-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_rpc-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_signer-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_dapps-*
+$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethjson-*
+$KCOV --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern $EXCLUDE target/kcov target/debug/parity-*
