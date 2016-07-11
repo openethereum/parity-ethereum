@@ -174,7 +174,7 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 	}
 
 	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
-	let result = migrate(&db_path);
+	let result = migrate(&db_path, client_config.pruning);
 	if let Err(err) = result {
 		die_with_message(&format!("{}", err));
 	}

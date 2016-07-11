@@ -295,7 +295,7 @@ impl Configuration {
 		ret
 	}
 
-	pub fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
+	fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
 		let mut ret = None;
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
@@ -312,6 +312,17 @@ impl Configuration {
 			}
 		}
 		ret
+	}
+
+	pub fn pruning_algorithm(&self, spec: &Spec) -> journaldb::Algorithm {
+		match self.args.flag_pruning.as_str() {
+			"archive" => journaldb::Algorithm::Archive,
+			"light" => journaldb::Algorithm::EarlyMerge,
+			"fast" => journaldb::Algorithm::OverlayRecent,
+			"basic" => journaldb::Algorithm::RefCounted,
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
+			_ => { die!("Invalid pruning method given."); }
+		}
 	}
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
@@ -341,14 +352,7 @@ impl Configuration {
 		// forced trace db cache size if provided
 		client_config.tracing.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
-		client_config.pruning = match self.args.flag_pruning.as_str() {
-			"archive" => journaldb::Algorithm::Archive,
-			"light" => journaldb::Algorithm::EarlyMerge,
-			"fast" => journaldb::Algorithm::OverlayRecent,
-			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
-			_ => { die!("Invalid pruning method given."); }
-		};
+		client_config.pruning = self.pruning_algorithm(spec);
 
 		if self.args.flag_fat_db {
 			if let journaldb::Algorithm::Archive = client_config.pruning {
