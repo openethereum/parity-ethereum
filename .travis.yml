@@ -47,9 +47,6 @@ addons:
     - gcc-4.8
     - g++-4.8
 
-script:
-  - if [ "$RUN_TESTS" = "true" ]; then ./test.sh; fi
-
 install: |
   [ "$RUN_COVERAGE" = "false" ] ||
   (wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
@@ -60,12 +57,15 @@ install: |
   make && make install DESTDIR=../tmp &&
   cd)
 
-after_success:
-  - true && [ "$RUN_COVERAGE" = "true" ] && ./scripts/cov.sh "$KCOV_CMD"
-  - true && [ $TRAVIS_BRANCH = master ] &&
-    [ $TRAVIS_PULL_REQUEST = false ] &&
-    [ $TRAVIS_RUST_VERSION = stable ] &&
-    ./scripts/doc.sh &&
-    pip install --user ghp-import &&
-    /home/travis/.local/bin/ghp-import -n target/doc &&
-    git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+script:
+  - if [ "$RUN_TESTS" = "true" ]; then ./test.sh; fi
+  - if [ "$RUN_COVERAGE" = "true" ]; then ./scripts/cov.sh "$KCOV_CMD"; fi
+
+after_success: |
+  [ $TRAVIS_BRANCH = master ] &&
+  [ $TRAVIS_PULL_REQUEST = false ] &&
+  [ $TRAVIS_RUST_VERSION = stable ] &&
+  ./scripts/doc.sh &&
+  pip install --user ghp-import &&
+  /home/travis/.local/bin/ghp-import -n target/doc &&
+  git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
