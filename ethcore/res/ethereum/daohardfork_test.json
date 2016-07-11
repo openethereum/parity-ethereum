@@ -9,8 +9,8 @@
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0x0",
-				"daoHardforkTransition": "0x0",
+				"frontierCompatibilityModeLimit": "0x5",
+				"daoHardforkTransition": "0x8",
 				"daoHardforkBeneficiary": "0xabcabcabcabcabcabcabcabcabcabcabcabcabca",
 				"daoHardforkAccounts": [
 					"0x304a554a310c7e546dfe434669c62820b7d83490",
