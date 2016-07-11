@@ -39,6 +39,12 @@ pub struct EthashParams {
 	pub registrar: Address,
 	/// Homestead transition block number.
 	pub frontier_compatibility_mode_limit: u64,
+	/// DAO hard-fork transition block (X).
+	pub dao_hardfork_transition: u64,
+	/// DAO hard-fork refund contract address (C).
+	pub dao_hardfork_beneficiary: Address,
+	/// DAO hard-fork DAO accounts list (L) 
+	pub dao_hardfork_accounts: Vec<Address>,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -51,6 +57,9 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.into(),
 			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.into(),
+			dao_hardfork_transition: p.dao_hardfork_transition.into(),
+			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.into(),
+			dao_hardfork_accounts: p.dao_hardfork_accounts.into_iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -124,20 +133,15 @@ impl Engine for Ethash {
 	}
 
 	fn on_new_block(&self, block: &mut ExecutedBlock) {
-		let dao_fork_blknum = 2000000;
-		let main_dao = Address::from_str("bb9bc244d798123fde783fcc1c72d3bb8c189413").unwrap();
-		let child_daos: Vec<Address> = vec![];
-		let new_dao_code: Bytes = vec![];
-		// TODO: check trigger function
-		if block.fields().header.number == dao_fork_blknum {
-			if block.fields().header.gas_limit <= 4_000_000.into() {
+		if block.fields().header.number == self.ethash_params.dao_hardfork_transition {
+			// TODO: enable trigger function maybe?
+//			if block.fields().header.gas_limit <= 4_000_000.into() {
 				let mut state = block.fields_mut().state;
-				for child in child_daos.iter() {
+				for child in self.ethash_params.dao_hardfork_accounts.iter() {
 					let b = state.balance(child);
-					state.transfer_balance(child, &main_dao, &b);
+					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b);
 				}
-				state.reset_code(&main_dao, new_dao_code);
-			}
+//			}
 		}
 	}
 
