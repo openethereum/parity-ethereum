@@ -23,10 +23,9 @@ use ethcore::client::{Client, ChainNotify};
 use io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
 use std::net::{SocketAddr, AddrParseError};
-use ipc::BinaryConvertable;
+use ipc::{BinaryConvertable, BinaryConvertError};
 use std::mem;
 use std::collections::VecDeque;
-use util::Populatable;
 
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: &'static str = "eth";
@@ -69,7 +68,7 @@ impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(config: SyncConfig, chain: Arc<Client>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, UtilError> {
 		let chain_sync = ChainSync::new(config, chain.deref());
-		let service = try!(NetworkService::new(network_config));
+		let service = try!(NetworkService::new(try!(network_config.into_basic())));
 		let sync = Arc::new(EthSync{
 			network: service,
 			handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain }),
@@ -189,7 +188,7 @@ impl ManageNetwork for EthSync {
 	}
 
 	fn network_config(&self) -> NetworkConfiguration {
-		self.network.config().clone()
+		NetworkConfiguration::from(self.network.config().clone())
 	}
 }
 
@@ -217,17 +216,17 @@ pub struct NetworkConfiguration {
 	/// List of reserved node addresses.
 	pub reserved_nodes: Vec<String>,
 	/// The non-reserved peer mode.
-	pub non_reserved_mode: NonReservedPeerMode,
+	pub allow_non_reserved: bool,
 }
 
 impl NetworkConfiguration {
-	fn basic(self) -> Result<BasicNetworkConfiguration, AddrParseError> {
+	fn into_basic(self) -> Result<BasicNetworkConfiguration, AddrParseError> {
 		use std::str::FromStr;
 
 		Ok(BasicNetworkConfiguration {
 			config_path: self.config_path,
-			listen_address: self.listen_address.and_then(|addr| Some(try!(SocketAddr::from_str(&addr)))),
-			public_address: self.public_address.and_then(|addr| Some(try!(SocketAddr::from_str(&addr)))),
+			listen_address: match self.listen_address { None => None, Some(addr) => Some(try!(SocketAddr::from_str(&addr))) },
+			public_address:  match self.public_address { None => None, Some(addr) => Some(try!(SocketAddr::from_str(&addr))) },
 			udp_port: self.udp_port,
 			nat_enabled: self.nat_enabled,
 			discovery_enabled: self.discovery_enabled,
@@ -235,7 +234,7 @@ impl NetworkConfiguration {
 			use_secret: self.use_secret,
 			ideal_peers: self.ideal_peers,
 			reserved_nodes: self.reserved_nodes,
-			non_reserved_mode: self.non_reserved_mode,
+			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
 		})
 	}
 }
@@ -253,7 +252,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			use_secret: other.use_secret,
 			ideal_peers: other.ideal_peers,
 			reserved_nodes: other.reserved_nodes,
-			non_reserved_mode: other.non_reserved_mode,
+			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
 		}
 	}
 }
