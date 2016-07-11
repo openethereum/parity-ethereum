@@ -67,6 +67,7 @@ mod migration;
 mod signer;
 mod rpc_apis;
 mod url;
+mod params;
 
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
@@ -87,7 +88,8 @@ use rpc::RpcServer;
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use configuration::{Policy, Configuration, IOPasswordReader, mode};
+use configuration::{Policy, Configuration, IOPasswordReader};
+use params::to_mode;
 use std::process;
 
 fn main() {
@@ -204,7 +206,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		miner.clone(),
 		//match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
 		//match conf.mode().unwrap() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
-		match mode(&conf.args.flag_mode, conf.args.flag_mode_timeout, conf.args.flag_mode_alarm).unwrap() {
+		match to_mode(&conf.args.flag_mode, conf.args.flag_mode_timeout, conf.args.flag_mode_alarm).unwrap() {
 			Mode::Dark(..) => false,
 			_ => !conf.args.flag_no_network,
 		}

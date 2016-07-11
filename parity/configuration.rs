@@ -36,6 +36,7 @@ use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain, LoggerConfig, SpecType};
 use cache::CacheConfig;
+use params::{to_duration, to_mode, to_pruning};
 
 /// Flush output buffer.
 fn flush_stdout() {
@@ -112,38 +113,6 @@ fn block_id(s: &str) -> Result<BlockID, String> {
 	}
 }
 
-fn to_duration(s: &str) -> Result<Duration, String> {
-	to_seconds(s).map(Duration::from_secs)
-}
-
-fn to_seconds(s: &str) -> Result<u64, String> {
-	let bad = |_| {
-		format!("{}: Invalid duration given. See parity --help for more information.", s)
-	};
-
-	match s {
-		"twice-daily" => Ok(12 * 60 * 60),
-		"half-hourly" => Ok(30 * 60),
-		"1second" | "1 second" | "second" => Ok(1),
-		"1minute" | "1 minute" | "minute" => Ok(60),
-		"hourly" | "1hour" | "1 hour" | "hour" => Ok(60 * 60),
-		"daily" | "1day" | "1 day" | "day" => Ok(24 * 60 * 60),
-		x if x.ends_with("seconds") => x[0..x.len() - 7].parse::<u64>().map_err(bad),
-		x if x.ends_with("minutes") => x[0..x.len() -7].parse::<u64>().map_err(bad).map(|x| x * 60),
-		x if x.ends_with("hours") => x[0..x.len() - 5].parse::<u64>().map_err(bad).map(|x| x * 60 * 60),
-		x if x.ends_with("days") => x[0..x.len() - 4].parse::<u64>().map_err(bad).map(|x| x * 24 * 60 * 60),
-		x => x.parse::<u64>().map_err(bad),
-	}
-}
-
-pub fn mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
-	match s {
-		"active" => Ok(Mode::Active),
-		"passive" => Ok(Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))),
-		"dark" => Ok(Mode::Dark(Duration::from_secs(timeout))),
-		_ => Err(format!("{}: Invalid address for --mode. Must be one of active, passive or dark.", s)),
-	}
-}
 
 impl Configuration {
 	pub fn parse<S, I>(command: I) -> Result<Self, DocoptError> where I: IntoIterator<Item=S>, S: AsRef<str> {
@@ -162,9 +131,9 @@ impl Configuration {
 			mode: None,
 			color: false,
 		};
-		let pruning = try!(self.pruning());
+		let pruning = try!(to_pruning(&self.args.flag_pruning));
 		let vm_type = try!(self.vm_type());
-		let mode = try!(mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
+		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -254,17 +223,6 @@ impl Configuration {
 				queue: self.args.flag_cache_size_queue,
 			}
 		}
-	}
-
-	fn pruning(&self) -> Result<Option<journaldb::Algorithm>, String> {
-		match self.args.flag_pruning.as_str() {
-			"auto" => Ok(None),
-			specific => journaldb::Algorithm::from_str(specific).map(Some),
-		}
-	}
-
-	fn net_port(&self) -> u16 {
-		self.args.flag_port
 	}
 
 	fn chain(&self) -> String {
@@ -439,7 +397,7 @@ impl Configuration {
 	}
 
 	pub fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
-		let port = self.net_port();
+		let port = self.args.flag_port;
 		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), port));
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
 			let host = &self.args.flag_nat[6..];
@@ -505,6 +463,7 @@ impl Configuration {
 	}
 
 	pub fn account_service(&self) -> AccountProvider {
+		/*
 		use ethcore::ethstore::{import_accounts, EthStore};
 		use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
 
@@ -545,6 +504,8 @@ impl Configuration {
 			}
 		}
 		account_service
+		*/
+		unimplemented!();
 	}
 
 	pub fn rpc_apis(&self) -> String {
@@ -585,7 +546,7 @@ impl Configuration {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
 			max_peers: self.max_peers(),
-			network_port: self.net_port(),
+			network_port: self.args.flag_port,
 			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
@@ -688,7 +649,6 @@ impl Configuration {
 mod tests {
 	use std::time::Duration;
 	use super::*;
-	use super::to_duration;
 	use cli::USAGE;
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
@@ -716,33 +676,6 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn test_to_duration() {
-		assert_eq!(to_duration("twice-daily").unwrap(), Duration::from_secs(12 * 60 * 60));
-		assert_eq!(to_duration("half-hourly").unwrap(), Duration::from_secs(30 * 60));
-		assert_eq!(to_duration("1second").unwrap(), Duration::from_secs(1));
-		assert_eq!(to_duration("2seconds").unwrap(), Duration::from_secs(2));
-		assert_eq!(to_duration("15seconds").unwrap(), Duration::from_secs(15));
-		assert_eq!(to_duration("1minute").unwrap(), Duration::from_secs(1 * 60));
-		assert_eq!(to_duration("2minutes").unwrap(), Duration::from_secs(2 * 60));
-		assert_eq!(to_duration("15minutes").unwrap(), Duration::from_secs(15 * 60));
-		assert_eq!(to_duration("hourly").unwrap(), Duration::from_secs(60 * 60));
-		assert_eq!(to_duration("daily").unwrap(), Duration::from_secs(24 * 60 * 60));
-		assert_eq!(to_duration("1hour").unwrap(), Duration::from_secs(1 * 60 * 60));
-		assert_eq!(to_duration("2hours").unwrap(), Duration::from_secs(2 * 60 * 60));
-		assert_eq!(to_duration("15hours").unwrap(), Duration::from_secs(15 * 60 * 60));
-		assert_eq!(to_duration("1day").unwrap(), Duration::from_secs(1 * 24 * 60 * 60));
-		assert_eq!(to_duration("2days").unwrap(), Duration::from_secs(2 * 24 *60 * 60));
-		assert_eq!(to_duration("15days").unwrap(), Duration::from_secs(15 * 24 * 60 * 60));
-	}
-
-	#[test]
-	fn test_mode() {
-		assert_eq!(mode("active", 0, 0).unwrap(), Mode::Active);
-		assert_eq!(mode("passive", 10, 20).unwrap(), Mode::Passive(Duration::from_secs(10), Duration::from_secs(20)));
-		assert_eq!(mode("dark", 20, 30).unwrap(), Mode::Dark(Duration::from_secs(20)));
-		assert!(mode("other", 20, 30).is_err());
-	}
 
 	#[test]
 	fn test_command_version() {
