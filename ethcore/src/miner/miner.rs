@@ -299,6 +299,10 @@ impl Miner {
 		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_some();
 		trace!(target: "miner", "enable_and_prepare_sealing: have_work={}", have_work);
 		if !have_work {
+			// --------------------------------------------------------------------------
+			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | Make sure to release the locks before calling that method.             |
+			// --------------------------------------------------------------------------
 			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
 			self.prepare_sealing(chain);
 		}
@@ -313,6 +317,19 @@ impl Miner {
 		!have_work
 	}
 
+	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, origin: TransactionOrigin, transaction_queue: &mut TransactionQueue) ->
+		Vec<Result<TransactionImportResult, Error>> {
+
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: chain.latest_nonce(a),
+			balance: chain.latest_balance(a),
+		};
+
+		transactions.into_iter()
+			.map(|tx| transaction_queue.add(tx, &fetch_account, origin))
+			.collect()
+	}
+
 	/// Are we allowed to do a non-mandatory reseal?
 	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock().unwrap() }
 }
@@ -323,6 +340,10 @@ impl MinerService for Miner {
 
 	fn clear_and_reset(&self, chain: &MiningBlockChainClient) {
 		self.transaction_queue.lock().unwrap().clear();
+		// --------------------------------------------------------------------------
+		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+		// | Make sure to release the locks before calling that method.             |
+		// --------------------------------------------------------------------------
 		self.update_sealing(chain);
 	}
 
@@ -476,27 +497,31 @@ impl MinerService for Miner {
 		self.gas_range_target.read().unwrap().1
 	}
 
-	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
-		Vec<Result<TransactionImportResult, Error>>
-		where T: Fn(&Address) -> AccountDetails {
-		let results: Vec<Result<TransactionImportResult, Error>> = {
+	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+		Vec<Result<TransactionImportResult, Error>> {
+
+		let results = {
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			transactions.into_iter()
-				.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
-				.collect()
+			self.add_transactions_to_queue(
+				chain, transactions, TransactionOrigin::External, &mut transaction_queue
+			)
 		};
-		if !results.is_empty() && self.options.reseal_on_external_tx && 	self.tx_reseal_allowed() {
+
+		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.tx_reseal_allowed() {
+			// --------------------------------------------------------------------------
+			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | Make sure to release the locks before calling that method.             |
+			// --------------------------------------------------------------------------
 			self.update_sealing(chain);
 		}
 		results
 	}
 
-	fn import_own_transaction<T>(
+	fn import_own_transaction(
 		&self,
 		chain: &MiningBlockChainClient,
 		transaction: SignedTransaction,
-		fetch_account: T
-	) -> Result<TransactionImportResult, Error> where T: Fn(&Address) -> AccountDetails {
+	) -> Result<TransactionImportResult, Error> {
 
 		let hash = transaction.hash();
 		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
@@ -504,7 +529,7 @@ impl MinerService for Miner {
 		let imported = {
 			// Be sure to release the lock before we call enable_and_prepare_sealing
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			let import = transaction_queue.add(transaction, &fetch_account, TransactionOrigin::Local);
+			let import = self.add_transactions_to_queue(chain, vec![transaction], TransactionOrigin::Local, &mut transaction_queue).pop().unwrap();
 
 			match import {
 				Ok(ref res) => {
@@ -520,6 +545,10 @@ impl MinerService for Miner {
 			import
 		};
 
+		// --------------------------------------------------------------------------
+		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+		// | Make sure to release the locks before calling that method.             |
+		// --------------------------------------------------------------------------
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing
@@ -614,6 +643,10 @@ impl MinerService for Miner {
 				self.sealing_work.lock().unwrap().reset();
 			} else {
 				*self.next_allowed_reseal.lock().unwrap() = Instant::now() + self.options.reseal_min_period;
+				// --------------------------------------------------------------------------
+				// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+				// | Make sure to release the locks before calling that method.             |
+				// --------------------------------------------------------------------------
 				self.prepare_sealing(chain);
 			}
 		}
@@ -655,7 +688,12 @@ impl MinerService for Miner {
 				// Client should send message after commit to db and inserting to chain.
 				.expect("Expected in-chain blocks.");
 			let block = BlockView::new(&block);
-			block.transactions()
+			let txs = block.transactions();
+			// populate sender
+			for tx in &txs {
+				let _sender = tx.sender();
+			}
+			txs
 		}
 
 		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
@@ -672,14 +710,9 @@ impl MinerService for Miner {
 				.par_iter()
 				.map(|h| fetch_transactions(chain, h));
 			out_of_chain.for_each(|txs| {
-				// populate sender
-				for tx in &txs {
-					let _sender = tx.sender();
-				}
-				let _ = self.import_transactions(chain, txs, |a| AccountDetails {
-					nonce: chain.latest_nonce(a),
-					balance: chain.latest_balance(a),
-				});
+				let mut transaction_queue = self.transaction_queue.lock().unwrap();
+				let _ = self.add_transactions_to_queue(chain, txs, TransactionOrigin::External,
+													   &mut transaction_queue);
 			});
 		}
 
@@ -703,6 +736,10 @@ impl MinerService for Miner {
 			});
 		}
 
+		// --------------------------------------------------------------------------
+		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+		// | Make sure to release the locks before calling that method.             |
+		// --------------------------------------------------------------------------
 		self.update_sealing(chain);
 	}
 }
