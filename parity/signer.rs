@@ -19,17 +19,28 @@ extern crate ansi_term;
 
 use self::ansi_term::Colour;
 use std::io;
+use std::sync::Arc;
 use std::path::PathBuf;
-use util::panics::ForwardPanic;
+use util::panics::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
 use die::*;
 use rpc_apis;
-use super::{Configuration, Dependencies};
 use self::ethcore_signer as signer;
 
 pub use self::ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
+
+pub struct Configuration {
+	pub enabled: bool,
+	pub port: u16,
+	pub signer_path: String,
+}
+
+pub struct Dependencies {
+	pub panic_handler: Arc<PanicHandler>,
+	pub apis: Arc<rpc_apis::Dependencies>,
+}
 
 pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
 	if !conf.enabled {
