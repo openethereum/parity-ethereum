@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Extras database migrations.
+//! State database migrations.
 
-mod v6;
+mod v7;
 
-pub use self::v6::ToV6;
+pub use self::v7::{ArchiveV7, OverlayRecentV7};

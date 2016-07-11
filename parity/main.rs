@@ -150,7 +150,7 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 	}
 
 	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
-	migrate(&db_path).map_err(|e| format!("{}", e))
+	migrate(&db_path, client_config.pruning).map_err(|e| format!("{}", e))
 }
 
 fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) {
