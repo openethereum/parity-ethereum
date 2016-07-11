@@ -43,7 +43,7 @@ mod block;
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
 /// Take a snapshot using the given client and database, writing into `path`.
-pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &HashDB) {
+pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &HashDB) -> Result<(), Error> {
 	let chain_info = client.chain_info();
 
 	let genesis_hash = chain_info.genesis_hash;
@@ -55,12 +55,8 @@ pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &Ha
 
 	let _ = create_dir_all(&path);
 
-	// lock the state db while we create the state chunks.
-	let state_hashes = {
-		chunk_state(state_db, &state_root, &path).unwrap()
-	};
-
-	let block_hashes = chunk_blocks(client, best_header.hash(), genesis_hash, &path).unwrap();
+	let state_hashes = try!(chunk_state(state_db, &state_root, &path));
+	let block_hashes = try!(chunk_blocks(client, best_header.hash(), genesis_hash, &path));
 
 	trace!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
@@ -68,12 +64,17 @@ pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &Ha
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
 		state_root: state_root,
+		block_number: chain_info.best_block_number,
+		block_hash: chain_info.best_block_hash,
 	};
 
 	path.push("MANIFEST");
 
-	let mut manifest_file = File::create(&path).unwrap();
-	manifest_file.write_all(&manifest_data.to_rlp()).unwrap();
+	let mut manifest_file = try!(File::create(&path));
+
+	try!(manifest_file.write_all(&manifest_data.to_rlp()));
+
+	Ok(())
 }
 
 // shared portion of write_chunk
@@ -111,11 +112,13 @@ impl<'a> BlockChunker<'a> {
 		let mut loaded_size = 0;
 
 		while self.current_hash != genesis_hash {
-			let block = self.client.block(BlockID::Hash(self.current_hash)).unwrap();
+			let block = self.client.block(BlockID::Hash(self.current_hash))
+				.expect("started from the head of chain and walking backwards; client stores full chain; qed");
 			let view = BlockView::new(&block);
 			let abridged_rlp = AbridgedBlock::from_block_view(&view).into_inner();
 
-			let receipts = self.client.block_receipts(&self.current_hash).unwrap();
+			let receipts = self.client.block_receipts(&self.current_hash)
+				.expect("started from head of chain and walking backwards; client stores full chain; qed");
 
 			let pair = {
 				let mut pair_stream = RlpStream::new_list(2);
@@ -278,15 +281,21 @@ pub struct ManifestData {
 	pub block_hashes: Vec<H256>,
 	/// The final, expected state root.
 	pub state_root: H256,
+	/// Block number this snapshot was taken at.
+	pub block_number: u64,
+	/// Block hash this snapshot was taken at.
+	pub block_hash: H256,
 }
 
 impl ManifestData {
 	/// Encode the manifest data to rlp.
 	pub fn to_rlp(self) -> Bytes {
-		let mut stream = RlpStream::new_list(3);
+		let mut stream = RlpStream::new_list(5);
 		stream.append(&self.state_hashes);
 		stream.append(&self.block_hashes);
 		stream.append(&self.state_root);
+		stream.append(&self.block_number);
+		stream.append(&self.block_hash);
 
 		stream.out()
 	}
@@ -298,11 +307,15 @@ impl ManifestData {
 		let state_hashes: Vec<H256> = try!(decoder.val_at(0));
 		let block_hashes: Vec<H256> = try!(decoder.val_at(1));
 		let state_root: H256 = try!(decoder.val_at(2));
+		let block_number: u64 = try!(decoder.val_at(3));
+		let block_hash: H256 = try!(decoder.val_at(4));
 
 		Ok(ManifestData {
 			state_hashes: state_hashes,
 			block_hashes: block_hashes,
 			state_root: state_root,
+			block_number: block_number,
+			block_hash: block_hash,
 		})
 	}
 }
