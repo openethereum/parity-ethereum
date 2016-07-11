@@ -98,7 +98,8 @@ pub extern crate ethstore;
 extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
 
-#[cfg(test)] extern crate ethcore_devtools as devtools;
+extern crate ethcore_devtools as devtools;
+
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod account_provider;

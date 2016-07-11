@@ -20,7 +20,7 @@ use std::ops::Deref;
 use std::hash::Hash;
 use std::sync::RwLock;
 use std::collections::HashMap;
-use util::{DBTransaction, Database};
+use util::{DBTransaction, Database, RwLockable};
 use util::rlp::{encode, Encodable, decode, Decodable};
 
 #[derive(Clone, Copy)]
@@ -115,14 +115,14 @@ pub trait Readable {
 		T: Clone + Decodable,
 		C: Cache<K, T> {
 		{
-			let read = cache.read().unwrap();
+			let read = cache.unwrapped_read();
 			if let Some(v) = read.get(key) {
 				return Some(v.clone());
 			}
 		}
 
 		self.read(key).map(|value: T|{
-			let mut write = cache.write().unwrap();
+			let mut write = cache.unwrapped_write();
 			write.insert(key.clone(), value.clone());
 			value
 		})
@@ -137,7 +137,7 @@ pub trait Readable {
 	R: Deref<Target = [u8]>,
 	C: Cache<K, T> {
 		{
-			let read = cache.read().unwrap();
+			let read = cache.unwrapped_read();
 			if read.get(key).is_some() {
 				return true;
 			}

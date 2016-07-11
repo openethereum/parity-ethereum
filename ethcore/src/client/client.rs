@@ -31,7 +31,7 @@ use util::network::*;
 use util::io::*;
 use util::rlp;
 use util::sha3::*;
-use util::Bytes;
+use util::{Bytes, Lockable, RwLockable};
 use util::rlp::{RlpStream, Rlp, UntrustedRlp};
 use util::journaldb;
 use util::journaldb::JournalDB;
@@ -281,7 +281,7 @@ impl Client {
 		// Enact Verified Block
 		let parent = chain_has_parent.unwrap();
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
-		let db = self.state_db.lock().unwrap().boxed_clone();
+		let db = self.state_db.locked().boxed_clone();
 
 		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
@@ -357,7 +357,7 @@ impl Client {
 			let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
 			import_results.push(route);
 
-			self.report.write().unwrap().accrue_block(&block);
+			self.report.unwrapped_write().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
 
@@ -455,7 +455,7 @@ impl Client {
 		};
 
 		self.block_header(id).and_then(|header| {
-			let db = self.state_db.lock().unwrap().boxed_clone();
+			let db = self.state_db.locked().boxed_clone();
 
 			// early exit for pruned blocks
 			if db.is_pruned() && self.chain.best_block_number() >= block_number + HISTORY {
@@ -471,7 +471,7 @@ impl Client {
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
 		State::from_existing(
-			self.state_db.lock().unwrap().boxed_clone(),
+			self.state_db.locked().boxed_clone(),
 			HeaderView::new(&self.best_block_header()).state_root(),
 			self.engine.account_start_nonce(),
 			self.trie_factory.clone())
@@ -485,8 +485,8 @@ impl Client {
 
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
-		let mut report = self.report.read().unwrap().clone();
-		report.state_db_mem = self.state_db.lock().unwrap().mem_used();
+		let mut report = self.report.unwrapped_read().clone();
+		report.state_db_mem = self.state_db.locked().mem_used();
 		report
 	}
 
@@ -498,7 +498,7 @@ impl Client {
 
 		match self.mode {
 			Mode::Dark(timeout) => {
-				let mut ss = self.sleep_state.lock().unwrap();
+				let mut ss = self.sleep_state.locked();
 				if let Some(t) = ss.last_activity {
 					if Instant::now() > t + timeout {
 						self.sleep();
@@ -507,7 +507,7 @@ impl Client {
 				}
 			}
 			Mode::Passive(timeout, wakeup_after) => {
-				let mut ss = self.sleep_state.lock().unwrap();
+				let mut ss = self.sleep_state.locked();
 				let now = Instant::now();
 				if let Some(t) = ss.last_activity {
 					if now > t + timeout {
@@ -580,20 +580,20 @@ impl Client {
 			} else {
 				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
 				// TODO: Consider uncommenting.
-				//*self.last_activity.lock().unwrap() = Some(Instant::now());
+				//*self.last_activity.locked() = Some(Instant::now());
 			}
 		}
 	}
 
 	/// Notify us that the network has been started.
-	pub fn network_started(&self, url: &String) {
-		let mut previous_enode = self.previous_enode.lock().unwrap();
+	pub fn network_started(&self, url: &str) {
+		let mut previous_enode = self.previous_enode.locked();
 		if let Some(ref u) = *previous_enode {
 			if u == url {
 				return;
 			}
 		}
-		*previous_enode = Some(url.clone());
+		*previous_enode = Some(url.into());
 		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
 	}
 }
@@ -641,7 +641,7 @@ impl BlockChainClient for Client {
 	fn keep_alive(&self) {
 		if self.mode != Mode::Active {
 			self.wake_up();
-			(*self.sleep_state.lock().unwrap()).last_activity = Some(Instant::now());
+			(*self.sleep_state.locked()).last_activity = Some(Instant::now());
 		}
 	}
 
@@ -765,7 +765,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn state_data(&self, hash: &H256) -> Option<Bytes> {
-		self.state_db.lock().unwrap().state(hash)
+		self.state_db.locked().state(hash)
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
@@ -926,7 +926,7 @@ impl MiningBlockChainClient for Client {
 			&self.vm_factory,
 			self.trie_factory.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
-			self.state_db.lock().unwrap().boxed_clone(),
+			self.state_db.locked().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
 			self.build_last_hashes(h.clone()),
 			author,

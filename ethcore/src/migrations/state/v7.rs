@@ -99,9 +99,52 @@ pub struct OverlayRecentV7 {
 }
 
 impl OverlayRecentV7 {
-	// walk all journal entries in the database backwards,
-	// replacing any known migrated keys with their counterparts
-	// and then committing again.
+	// walk all journal entries in the database backwards.
+	// find migrations for any possible inserted keys.
+	fn walk_journal(&mut self, source: &Database) -> Result<(), Error> {
+		if let Some(val) = try!(source.get(V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
+			let mut era = decode::<u64>(&val);
+			loop {
+				let mut index: usize = 0;
+				loop {
+					let entry_key = {
+						let mut r = RlpStream::new_list(3);
+						r.append(&era).append(&index).append(&&PADDING[..]);
+						r.out()
+					};
+
+					if let Some(journal_raw) = try!(source.get(&entry_key).map_err(Error::Custom)) {
+						let rlp = Rlp::new(&journal_raw);
+
+						// migrate all inserted keys.
+						for r in rlp.at(1).iter() {
+							let key: H256 = r.val_at(0);
+							let v: Bytes = r.val_at(1);
+
+							if self.migrated_keys.get(&key).is_none() {
+								if let Some(new_key) = attempt_migrate(key, &v) {
+									self.migrated_keys.insert(key, new_key);
+								}
+							}
+						}
+						index += 1;
+					} else {
+						break;
+					}
+				}
+
+				if index == 0 || era == 0 {
+					break;
+				}
+				era -= 1;
+			}
+		}
+		Ok(())
+	}
+
+	// walk all journal entries in the database backwards.
+	// replace all possible inserted/deleted keys with their migrated counterparts
+	// and commit the altered entries.
 	fn migrate_journal(&self, source: &Database, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
 		if let Some(val) = try!(source.get(V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
 			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.to_owned(), dest));
@@ -128,8 +171,6 @@ impl OverlayRecentV7 {
 
 							if let Some(new_key) = self.migrated_keys.get(&key) {
 								key = *new_key;
-							} else if let Some(new_key) = attempt_migrate(key, &v) {
-								key = new_key;
 							}
 
 							inserted_keys.push((key, v));
@@ -200,6 +241,7 @@ impl Migration for OverlayRecentV7 {
 			try!(batch.insert(key, value.into_vec(), dest));
 		}
 
+		try!(self.walk_journal(source));
 		self.migrate_journal(source, batch, dest)
 	}
 }
