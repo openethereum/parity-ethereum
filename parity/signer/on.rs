@@ -17,7 +17,7 @@
 extern crate ethcore_signer;
 extern crate ansi_term;
 
-use self::ansi_term::Colour::White;
+use self::ansi_term::Colour;
 use std::io;
 use std::path::PathBuf;
 use util::panics::ForwardPanic;
@@ -51,7 +51,7 @@ pub fn new_token(path: String) -> io::Result<()> {
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	try!(codes.to_file(&path));
-	println!("This key code will authorise your System Signer UI: {}", White.bold().paint(code));
+	println!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(format!("{}", code)));
 	Ok(())
 }
 

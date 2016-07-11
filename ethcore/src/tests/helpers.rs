@@ -32,26 +32,6 @@ pub enum ChainEra {
 	Homestead,
 }
 
-#[cfg(test)]
-pub struct GuardedTempResult<T> {
-	result: Option<T>,
-	_temp: RandomTempPath
-}
-
-impl<T> GuardedTempResult<T> {
-    pub fn reference(&self) -> &T {
-        self.result.as_ref().unwrap()
-    }
-
-    pub fn reference_mut(&mut self) -> &mut T {
-    	self.result.as_mut().unwrap()
-    }
-
-	pub fn take(&mut self) -> T {
-		self.result.take().unwrap()
-	}
-}
-
 pub struct TestEngine {
 	engine: Box<Engine>,
 	max_depth: usize
@@ -180,7 +160,6 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 			db,
 			&last_header,
 			last_hashes.clone(),
-			None,
 			author.clone(),
 			(3141562.into(), 31415620.into()),
 			vec![]

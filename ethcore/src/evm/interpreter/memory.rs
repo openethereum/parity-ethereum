@@ -94,13 +94,7 @@ impl Memory for Vec<u8> {
 
 	fn write(&mut self, offset: U256, value: U256) {
 		let off = offset.low_u64() as usize;
-		let mut val = value;
-
-		let end = off + 32;
-		for pos in 0..32 {
-			self[end - pos - 1] = val.low_u64() as u8;
-			val = val >> 8;
-		}
+		value.to_big_endian(&mut self[off..off+32]);
 	}
 
 	fn write_byte(&mut self, offset: U256, value: U256) {

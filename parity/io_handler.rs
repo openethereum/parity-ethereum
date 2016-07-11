@@ -40,21 +40,21 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
 		if let INFO_TIMER = timer {
-			self.info.tick(&self.client, Some(&self.sync));
+			if let Some(net) = self.network.upgrade() {
+				self.info.tick(&self.client, Some((&self.sync, &net)));
+			}
 		}
 	}
 
 	fn message(&self, _io: &IoContext<NetSyncMessage>, message: &NetSyncMessage) {
 		match *message {
 			NetworkIoMessage::User(SyncMessage::StartNetwork) => {
-				info!("Starting network");
 				if let Some(network) = self.network.upgrade() {
 					network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
 					EthSync::register(&*network, self.sync.clone()).unwrap_or_else(|e| warn!("Error registering eth protocol handler: {}", e));
 				}
 			},
 			NetworkIoMessage::User(SyncMessage::StopNetwork) => {
-				info!("Stopping network");
 				if let Some(network) = self.network.upgrade() {
 					network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 				}

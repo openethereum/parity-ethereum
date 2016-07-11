@@ -727,7 +727,6 @@ pub fn get_ipc_meta_items(attr: &ast::Attribute) -> Option<&[P<ast::MetaItem>]> 
 fn client_ident_renamed(cx: &ExtCtxt, item: &ast::Item) -> Option<String> {
 	for meta_items in item.attrs().iter().filter_map(get_ipc_meta_items) {
 		for meta_item in meta_items {
-			let span = meta_item.span;
 			match meta_item.node {
 				ast::MetaItemKind::NameValue(ref name, ref lit) if name == &"client_ident" => {
 					if let Ok(s) = get_str_from_lit(cx, name, lit) {

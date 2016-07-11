@@ -28,8 +28,10 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
+use util::Lockable;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
+use ethcore::header::Header as BlockHeader;
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -42,7 +44,6 @@ use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncIn
 use v1::helpers::CallRequest as CRequest;
 use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
-use ethcore::header::Header as BlockHeader;
 
 /// Eth rpc implementation.
 pub struct EthClient<C, S, M, EM> where
@@ -561,7 +562,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 				miner.map_sealing_work(client.deref(), |b| {
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-					let seed_hash = self.seed_compute.lock().unwrap().get_seedhash(b.block().header().number());
+					let seed_hash = self.seed_compute.locked().get_seedhash(b.block().header().number());
 					let block_number = RpcU256::from(b.block().header().number());
 					to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target), block_number))
 				}).unwrap_or(Err(Error::internal_error()))	// no work found.

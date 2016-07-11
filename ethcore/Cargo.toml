@@ -28,9 +28,11 @@ lazy_static = "0.2"
 ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }
 bloomchain = "0.1"
-"ethcore-ipc" = { path = "../ipc/rpc" }
+ethcore-ipc = { path = "../ipc/rpc" }
 rayon = "0.3.1"
 ethstore = { path = "../ethstore" }
+semver = "0.2"
+ethcore-ipc-nano = { path = "../ipc/nano" }
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"

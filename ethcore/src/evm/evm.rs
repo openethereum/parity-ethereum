@@ -95,11 +95,17 @@ impl<'a> Finalize for Result<GasLeft<'a>> {
 	}
 }
 
+/// Cost calculation type. For low-gas usage we calculate costs using usize instead of U256
 pub trait CostType: ops::Mul<Output=Self> + ops::Div<Output=Self> + ops::Add<Output=Self> + ops::Sub<Output=Self> + ops::Shr<usize, Output=Self> + ops::Shl<usize, Output=Self> + cmp::Ord + Sized + From<usize> + Copy {
+	/// Converts this cost into `U256`
 	fn as_u256(&self) -> U256;
+	/// Tries to fit `U256` into this `Cost` type
 	fn from_u256(val: U256) -> Result<Self>;
+	/// Convert to usize (may panic)
 	fn as_usize(&self) -> usize;
+	/// Add with overflow
 	fn overflow_add(self, other: Self) -> (Self, bool);
+	/// Multiple with overflow
 	fn overflow_mul(self, other: Self) -> (Self, bool);
 }
 
