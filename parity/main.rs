@@ -175,7 +175,7 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 	}
 
 	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
-	let result = migrate(&db_path);
+	let result = migrate(&db_path, client_config.pruning);
 	if let Err(err) = result {
 		die_with_message(&format!("{}", err));
 	}
@@ -246,7 +246,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone(), net_settings);
+	let sync = EthSync::new(sync_config, client.clone(), net_settings)
+		.unwrap_or_else(|e| die_with_error(ethcore::error::Error::UtilError(e)));
 	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
 
 	// if network is active by default

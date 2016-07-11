@@ -1,0 +1,11 @@
+[package]
+name = "evm"
+description = "Parity's EVM implementation"
+version = "0.1.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+rustc-serialize = "0.3"
+docopt = { version = "0.6" }
+ethcore = { path = "../ethcore" }
+ethcore-util = { path = "../util" }

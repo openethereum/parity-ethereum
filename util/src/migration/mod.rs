@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 use ::kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
 
 /// Migration config.
+#[derive(Clone)]
 pub struct Config {
 	/// Defines how many elements should be migrated at once.
 	pub batch_size: usize,
@@ -35,6 +36,45 @@ impl Default for Config {
 		Config {
 			batch_size: 1024,
 		}
+	}
+}
+
+/// A batch of key-value pairs to be written into the database.
+pub struct Batch {
+	inner: BTreeMap<Vec<u8>, Vec<u8>>,
+	batch_size: usize,
+}
+
+impl Batch {
+	/// Make a new batch with the given config.
+	pub fn new(config: &Config) -> Self {
+		Batch {
+			inner: BTreeMap::new(),
+			batch_size: config.batch_size,
+		}
+	}
+
+	/// Insert a value into the batch, committing if necessary.
+	pub fn insert(&mut self, key: Vec<u8>, value: Vec<u8>, dest: &mut Database) -> Result<(), Error> {
+		self.inner.insert(key, value);
+		if self.inner.len() == self.batch_size {
+			try!(self.commit(dest));
+		}
+		Ok(())
+	}
+
+	/// Commit all the items in the batch to the given database.
+	pub fn commit(&mut self, dest: &mut Database) -> Result<(), Error> {
+		if self.inner.is_empty() { return Ok(()) }
+
+		let transaction = DBTransaction::new();
+
+		for keypair in &self.inner {
+			try!(transaction.put(&keypair.0, &keypair.1).map_err(Error::Custom));
+		}
+
+		self.inner.clear();
+		dest.write(transaction).map_err(Error::Custom)
 	}
 }
 
@@ -62,7 +102,7 @@ pub trait Migration: 'static {
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
 	/// Migrate a source to a destination.
-	fn migrate(&self, source: &Database, config: &Config, destination: &mut Database) -> Result<(), Error>;
+	fn migrate(&mut self, source: &Database, config: &Config, destination: &mut Database) -> Result<(), Error>;
 }
 
 /// A simple migration over key-value pairs.
@@ -71,44 +111,23 @@ pub trait SimpleMigration: 'static {
 	fn version(&self) -> u32;
 	/// Should migrate existing object to new database.
 	/// Returns `None` if the object does not exist in new version of database.
-	fn simple_migrate(&self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)>;
+	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)>;
 }
 
 impl<T: SimpleMigration> Migration for T {
 	fn version(&self) -> u32 { SimpleMigration::version(self) }
 
-	fn migrate(&self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
-		let mut batch: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
+		let mut batch = Batch::new(config);
 
 		for (key, value) in source.iter() {
-
 			if let Some((key, value)) = self.simple_migrate(key.to_vec(), value.to_vec()) {
-				batch.insert(key, value);
-			}
-
-			if batch.len() == config.batch_size {
-				try!(commit_batch(dest, &batch));
-				batch.clear();
+				try!(batch.insert(key, value, dest));
 			}
 		}
 
-		if !batch.is_empty() {
-			try!(commit_batch(dest, &batch));
-		}
-
-		Ok(())
+		batch.commit(dest)
 	}
-}
-
-/// Commit a batch of writes to a database.
-pub fn commit_batch(db: &mut Database, batch: &BTreeMap<Vec<u8>, Vec<u8>>) -> Result<(), Error> {
-	let transaction = DBTransaction::new();
-
-	for keypair in batch {
-		try!(transaction.put(&keypair.0, &keypair.1).map_err(Error::Custom));
-	}
-
-	db.write(transaction).map_err(Error::Custom)
 }
 
 /// Get the path where all databases reside.
@@ -174,7 +193,8 @@ impl Manager {
 
 	/// Performs migration in order, starting with a source path, migrating between two temporary databases,
 	/// and producing a path where the final migration lives.
-	pub fn execute(&self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
+	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
+		let config = self.config.clone();
 		let migrations = try!(self.migrations_from(version).ok_or(Error::MigrationImpossible));
 		let db_config = DatabaseConfig {
 			prefix_size: None,
@@ -197,7 +217,7 @@ impl Manager {
 			let mut new_db = try!(Database::open(&db_config, temp_path_str).map_err(Error::Custom));
 
 			// perform the migration from cur_db to new_db.
-			try!(migration.migrate(&cur_db, &self.config, &mut new_db));
+			try!(migration.migrate(&cur_db, &config, &mut new_db));
 			// next iteration, we will migrate from this db into the other temp.
 			cur_db = new_db;
 			temp_idx.swap();
@@ -216,10 +236,10 @@ impl Manager {
 		}
 	}
 
-	fn migrations_from(&self, version: u32) -> Option<&[Box<Migration>]> {
+	fn migrations_from(&mut self, version: u32) -> Option<&mut [Box<Migration>]> {
 		// index of the first required migration
 		let position = self.migrations.iter().position(|m| m.version() == version + 1);
-		position.map(|p| &self.migrations[p..])
+		position.map(move |p| &mut self.migrations[p..])
 	}
 }
 

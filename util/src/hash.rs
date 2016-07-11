@@ -445,7 +445,7 @@ macro_rules! impl_hash {
 impl From<U256> for H256 {
 	fn from(value: U256) -> H256 {
 		let mut ret = H256::new();
-		value.to_raw_bytes(&mut ret);
+		value.to_big_endian(&mut ret);
 		ret
 	}
 }
@@ -453,7 +453,7 @@ impl From<U256> for H256 {
 impl<'a> From<&'a U256> for H256 {
 	fn from(value: &'a U256) -> H256 {
 		let mut ret: H256 = H256::new();
-		value.to_raw_bytes(&mut ret);
+		value.to_big_endian(&mut ret);
 		ret
 	}
 }

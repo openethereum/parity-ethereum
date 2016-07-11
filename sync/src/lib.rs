@@ -56,7 +56,7 @@
 //!			miner,
 //!			IoChannel::disconnected()
 //!		).unwrap();
-//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::new());
+//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::new()).unwrpa();
 //! 	sync.start_network();
 //! }
 //! ```
@@ -75,7 +75,7 @@ extern crate heapsize;
 use std::ops::*;
 use std::sync::*;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, NetworkConfiguration};
-use util::{TimerToken, U256, H256, RwLockable};
+use util::{TimerToken, U256, H256, RwLockable, UtilError};
 use ethcore::client::{Client, ChainNotify};
 use io::NetSyncIo;
 use chain::ChainSync;
@@ -125,15 +125,15 @@ pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(config: SyncConfig, chain: Arc<Client>, network_config: NetworkConfiguration) -> Arc<EthSync> {
+	pub fn new(config: SyncConfig, chain: Arc<Client>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, UtilError> {
 		let chain_sync = ChainSync::new(config, chain.deref());
-		let service = NetworkService::new(network_config).unwrap();
+		let service = try!(NetworkService::new(network_config));
 		let sync = Arc::new(EthSync{
 			network: service,
 			handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain }),
 		});
 
-		sync
+		Ok(sync)
 	}
 }
 
