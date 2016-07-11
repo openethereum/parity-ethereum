@@ -73,6 +73,7 @@ extern crate rand;
 extern crate heapsize;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
+extern crate semver;
 
 mod chain;
 mod blocks;

@@ -23,9 +23,10 @@ use ethcore::client::{Client, ChainNotify};
 use io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
 use std::net::{SocketAddr, AddrParseError};
-use ipc::{BinaryConvertable, BinaryConvertError};
+use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::mem;
 use std::collections::VecDeque;
+
 
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: &'static str = "eth";
@@ -146,14 +147,18 @@ impl ChainNotify for EthSync {
 	}
 }
 
+impl IpcConfig for EthSync { }
+
 /// Trait for managing network
 pub trait ManageNetwork : Send + Sync {
-	/// Set mode for reserved peers (allow/deny peers that are unreserved)
-	fn set_non_reserved_mode(&self, mode: ::util::network::NonReservedPeerMode);
+	/// Set to allow unreserved peers to connect
+	fn accept_unreserved_peers(&self);
+	/// Set to deny unreserved peers to connect
+	fn deny_unreserved_peers(&self);
 	/// Remove reservation for the peer
-	fn remove_reserved_peer(&self, peer: &str) -> Result<(), String>;
+	fn remove_reserved_peer(&self, peer: String) -> Result<(), String>;
 	/// Add reserved peer
-	fn add_reserved_peer(&self, peer: &str) -> Result<(), String>;
+	fn add_reserved_peer(&self, peer: String) -> Result<(), String>;
 	/// Start network
 	fn start_network(&self);
 	/// Stop network
@@ -162,17 +167,24 @@ pub trait ManageNetwork : Send + Sync {
 	fn network_config(&self) -> NetworkConfiguration;
 }
 
+
+#[derive(Ipc)]
+#[ipc(client_ident="NetworkManagerClient")]
 impl ManageNetwork for EthSync {
-	fn set_non_reserved_mode(&self, mode: ::util::network::NonReservedPeerMode) {
-		self.network.set_non_reserved_mode(mode);
+	fn accept_unreserved_peers(&self) {
+		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);
 	}
 
-	fn remove_reserved_peer(&self, peer: &str) -> Result<(), String> {
-		self.network.remove_reserved_peer(peer).map_err(|e| format!("{:?}", e))
+	fn deny_unreserved_peers(&self) {
+		self.network.set_non_reserved_mode(NonReservedPeerMode::Deny);
 	}
 
-	fn add_reserved_peer(&self, peer: &str) -> Result<(), String> {
-		self.network.add_reserved_peer(peer).map_err(|e| format!("{:?}", e))
+	fn remove_reserved_peer(&self, peer: String) -> Result<(), String> {
+		self.network.remove_reserved_peer(&peer).map_err(|e| format!("{:?}", e))
+	}
+
+	fn add_reserved_peer(&self, peer: String) -> Result<(), String> {
+		self.network.add_reserved_peer(&peer).map_err(|e| format!("{:?}", e))
 	}
 
 	fn start_network(&self) {
