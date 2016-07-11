@@ -44,9 +44,10 @@ extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
 
 extern crate ethcore_ipc_hypervisor as hypervisor;
-
-#[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
+
+extern crate ethcore_signer;
+extern crate ansi_term;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
@@ -120,8 +121,7 @@ fn execute(conf: Configuration) -> Result<(), String> {
 		try!(daemonize(&conf));
 	}
 
-	execute_client(conf, spec, client_config);
-	Ok(())
+	execute_client(conf, spec, client_config)
 }
 
 #[cfg(not(windows))]
@@ -155,7 +155,7 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 	migrate(&db_path, client_config.pruning).map_err(|e| format!("{}", e))
 }
 
-fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) {
+fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) -> Result<(), String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -268,14 +268,18 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	});
 
 	// Set up a signer
-	let signer_server = signer::start(signer::Configuration {
+	let signer_conf = signer::Configuration {
 		enabled: conf.signer_enabled(),
 		port: conf.args.flag_signer_port,
 		signer_path: conf.directories().signer,
-	}, signer::Dependencies {
+	};
+
+	let signer_deps = signer::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
-	});
+	};
+
+	let signer_server = try!(signer::start(signer_conf, signer_deps));
 
 	// Register IO handler
 	let io_handler = Arc::new(ClientIoHandler {
@@ -296,6 +300,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Handle exit
 	wait_for_exit(panic_handler, rpc_server, dapps_server, signer_server);
+	Ok(())
 }
 
 fn wait_for_exit(
@@ -318,9 +323,4 @@ fn wait_for_exit(
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.locked()).unwrap();
 	info!("Finishing work, please wait...");
-}
-
-/// Parity needs at least 1 test to generate coverage reports correctly.
-#[test]
-fn if_works() {
 }

@@ -14,28 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethcore_signer;
-extern crate ansi_term;
-
 use std::io;
+use std::sync::Arc;
 use std::path::PathBuf;
-use util::panics::ForwardPanic;
-use util::{Colour, Applyable};
+use ansi_term::Colour;
+use util::panics::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
-use die::*;
+use util::Applyable;
 use rpc_apis;
-use super::{Configuration, Dependencies};
-use self::ethcore_signer as signer;
-
-pub use self::ethcore_signer::Server as SignerServer;
+use ethcore_signer as signer;
+pub use ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
 
-pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
+pub struct Configuration {
+	pub enabled: bool,
+	pub port: u16,
+	pub signer_path: String,
+}
+
+pub struct Dependencies {
+	pub panic_handler: Arc<PanicHandler>,
+	pub apis: Arc<rpc_apis::Dependencies>,
+}
+
+pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerServer>, String> {
 	if !conf.enabled {
-		None
+		Ok(None)
 	} else {
-		Some(do_start(conf, deps))
+		Ok(Some(try!(do_start(conf, deps))))
 	}
 }
 
@@ -60,10 +67,10 @@ fn generate_new_token(path: String) -> io::Result<String> {
 	Ok(code)
 }
 
-fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
-	let addr = format!("127.0.0.1:{}", conf.port).parse().unwrap_or_else(|_| {
-		die!("Invalid port specified: {}", conf.port)
-	});
+fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, String> {
+	let addr = try!(format!("127.0.0.1:{}", conf.port)
+		.parse()
+		.map_err(|_| format!("Invalid port specified: {}", conf.port)));
 
 	let start_result = {
 		let server = signer::ServerBuilder::new(
@@ -75,11 +82,11 @@ fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 	};
 
 	match start_result {
-		Err(signer::ServerError::IoError(err)) => die_with_io_error("Trusted Signer", err),
-		Err(e) => die!("Trusted Signer: {:?}", e),
+		Err(signer::ServerError::IoError(err)) => Err(format!("Trusted Signer Error: {}", err)),
+		Err(e) => Err(format!("Trusted Signer Error: {:?}", e)),
 		Ok(server) => {
 			deps.panic_handler.forward_from(&server);
-			server
+			Ok(server)
 		},
 	}
 }
