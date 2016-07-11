@@ -50,6 +50,9 @@ extern crate ethcore_rpc;
 
 extern crate ethcore_signer;
 extern crate ansi_term;
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
