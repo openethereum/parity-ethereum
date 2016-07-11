@@ -79,6 +79,8 @@ impl EthSync {
 	}
 }
 
+#[derive(Ipc)]
+#[ipc(client_ident="SyncClient")]
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
