@@ -54,8 +54,6 @@ extern crate ethcore_dapps;
 
 mod commands;
 mod cache;
-#[macro_use]
-mod die;
 mod upgrade;
 mod setup_log;
 mod rpc;

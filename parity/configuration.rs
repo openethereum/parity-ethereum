@@ -23,7 +23,6 @@ use std::path::PathBuf;
 use cli::{USAGE, Args};
 use docopt::{Docopt, Error as DocoptError};
 
-use die::*;
 use util::*;
 use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
@@ -286,14 +285,15 @@ impl Configuration {
 	}
 
 	pub fn spec(&self) -> Spec {
-		match self.chain().as_str() {
-			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
-			"morden" | "testnet" => ethereum::new_morden(),
-			"olympic" => ethereum::new_olympic(),
-			f => Spec::load(contents(f).unwrap_or_else(|_| {
-				die!("{}: Couldn't read chain specification file. Sure it exists?", f)
-			}).as_ref()),
-		}
+		unimplemented!();
+		//match self.chain().as_str() {
+			//"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
+			//"morden" | "testnet" => ethereum::new_morden(),
+			//"olympic" => ethereum::new_olympic(),
+			//f => Spec::load(contents(f).unwrap_or_else(|_| {
+				//die!("{}: Couldn't read chain specification file. Sure it exists?", f)
+			//}).as_ref()),
+		//}
 	}
 
 	pub fn init_nodes(&self, spec: &Spec) -> Result<Vec<String>, String> {
@@ -489,7 +489,7 @@ impl Configuration {
 	pub fn directories(&self) -> Result<Directories, String> {
 		let db_path = Configuration::replace_home(
 			self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
-		fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		try!(fs::create_dir_all(&db_path).map_err(|e| e.to_string()));
 
 		let keys_path = Configuration::replace_home(
 			if self.args.flag_testnet {
@@ -498,16 +498,15 @@ impl Configuration {
 				&self.args.flag_keys_path
 			}
 		);
-		fs::create_dir_all(&keys_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		try!(fs::create_dir_all(&keys_path).map_err(|e| e.to_string()));
 		let dapps_path = Configuration::replace_home(&self.args.flag_dapps_path);
-		fs::create_dir_all(&dapps_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		try!(fs::create_dir_all(&dapps_path).map_err(|e| e.to_string()));
 		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
-		fs::create_dir_all(&signer_path).unwrap_or_else(|e| die_with_io_error("main", e));
+		try!(fs::create_dir_all(&signer_path).map_err(|e| e.to_string()));
 
 		if self.args.flag_geth {
 			let geth_path = path::ethereum::default();
-			fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
-				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+			try!(fs::create_dir_all(&geth_path).map_err(|e| e.to_string()));
 		}
 
 		let directories = Directories {
