@@ -28,7 +28,7 @@ use util::log::{Applyable, Colour};
 use util::misc::Lockable;
 
 /// Sets up the logger
-pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: Option<String>) -> Arc<RotatingLogger> {
+pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option<String>) -> Arc<RotatingLogger> {
 	use rlog::*;
 
 	let mut levels = String::new();
@@ -51,7 +51,7 @@ pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: Option<
 
 	let logs = Arc::new(RotatingLogger::new(levels, enable_color));
 	let logger = logs.clone();
-	let file = log_to_file.map(|f| Mutex::new(File::create(&f).unwrap_or_else(|_| die!("Cannot write to log file given: {}", f))));
+	let file = log_to_file.as_ref().map(|f| Mutex::new(File::create(f).unwrap_or_else(|_| die!("Cannot write to log file given: {}", f))));
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
