@@ -78,7 +78,7 @@ use std::env;
 use ctrlc::CtrlC;
 use util::{Colour, Applyable, version, Lockable};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, ClientConfig, get_db_path};
+use ethcore::client::{Mode, ClientConfig, get_db_path, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
@@ -201,21 +201,14 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	miner.set_extra_data(try!(conf.extra_data()));
 	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
-	let enable_network = match try!(to_mode(&conf.args.flag_mode, conf.args.flag_mode_timeout, conf.args.flag_mode_alarm)) {
-		Mode::Dark(..) => false,
-		_ => !conf.args.flag_no_network,
-	};
-
 	let directories = try!(conf.directories());
 
 	// Build client
 	let mut service = try!(ClientService::start(
 		client_config,
 		spec,
-		net_settings,
 		Path::new(&directories.db),
 		miner.clone(),
-		enable_network,
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	panic_handler.forward_from(&service);
@@ -225,8 +218,18 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone());
-	try!(EthSync::register(&*service.network(), sync.clone()).map_err(|_| "Error registering eth protocol handler"));
+	let sync = try!(EthSync::new(sync_config, client.clone(), net_settings).map_err(|_| "Error registering eth protocol handler"));
+	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
+
+	// if network is active by default
+	let enable_network = match try!(to_mode(&conf.args.flag_mode, conf.args.flag_mode_timeout, conf.args.flag_mode_alarm)) {
+		Mode::Dark(..) => false,
+		_ => !conf.args.flag_no_network,
+	};
+
+	if enable_network {
+		sync.start();
+	}
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
@@ -239,7 +242,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 		allow_pending_receipt_query: !conf.args.flag_geth,
-		net_service: service.network(),
+		net_service: sync.clone(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -299,7 +302,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
-		network: Arc::downgrade(&service.network()),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 

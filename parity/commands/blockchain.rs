@@ -191,9 +191,11 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	// build client
 	let service = ClientService::start(
-		cfg, spec, net_settings, Path::new(&cmd.db_path), Arc::new(Miner::with_spec(try!(cmd.spec.spec()))), false
-		// TODO: pretty error
-	).unwrap();
+		cfg,
+		spec,
+		Path::new(&cmd.db_path),
+		Arc::new(Miner::with_spec(try!(cmd.spec.spec()))),
+	).expect("TODO");
 
 	panic_handler.forward_from(&service);
 	let client = service.client();
@@ -232,7 +234,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 			},
 			Ok(_) => {},
 		}
-		informant.tick::<&'static ()>(&client, None);
+		informant.tick(&client, None);
 		Ok(())
 	};
 
@@ -303,9 +305,11 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let cfg = client_config(&cmd.cache_config, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
 
 	let service = ClientService::start(
-		cfg, spec, net_settings, Path::new(&cmd.db_path), Arc::new(Miner::with_spec(try!(cmd.spec.spec()))), false
-		// TODO: pretty error
-	).unwrap();
+		cfg,
+		spec,
+		Path::new(&cmd.db_path),
+		Arc::new(Miner::with_spec(try!(cmd.spec.spec())))
+	).expect("TODO");
 
 	panic_handler.forward_from(&service);
 	let client = service.client();

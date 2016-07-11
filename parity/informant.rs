@@ -21,8 +21,8 @@ use self::ansi_term::Style;
 use std::time::{Instant, Duration};
 use std::sync::RwLock;
 use std::ops::{Deref, DerefMut};
-use ethsync::{EthSync, SyncProvider};
-use util::{Uint, RwLockable, NetworkService};
+use ethsync::SyncStatus;
+use util::{Uint, RwLockable, NetworkConfiguration};
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 
@@ -75,7 +75,8 @@ impl Informant {
 		}
 	}
 
-	pub fn tick<Message>(&self, client: &Client, maybe_sync: Option<(&EthSync, &NetworkService<Message>)>) where Message: Send + Sync + Clone + 'static {
+	#[cfg_attr(feature="dev", allow(match_bool))]
+	pub fn tick(&self, client: &Client, maybe_status: Option<(SyncStatus, NetworkConfiguration)>) {
 		let elapsed = self.last_tick.unwrapped_read().elapsed();
 		if elapsed < Duration::from_secs(5) {
 			return;
@@ -108,10 +109,8 @@ impl Informant {
 				paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
 				paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64())),
 
-				match maybe_sync {
-					Some((sync, net)) => {
-						let sync_info = sync.status();
-						let net_config = net.config();
+				match maybe_status {
+					Some((ref sync_info, ref net_config)) => {
 						format!("{}/{}/{} peers   {} ",
 							paint(Green.bold(), format!("{:2}", sync_info.num_active_peers)),
 							paint(Green.bold(), format!("{:2}", sync_info.num_peers)),
@@ -128,13 +127,9 @@ impl Informant {
 				paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(report.state_db_mem))),
 				paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(cache_info.total()))),
 				paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(queue_info.mem_used))),
-				match maybe_sync {
-					Some((sync, _)) => {
-						let sync_info = sync.status();
-						format!(" {} sync", paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(sync_info.mem_used))))
-					}
-					None => String::new()
-				},
+				if let Some((ref sync_info, _)) = maybe_status {
+					format!(" {} sync", paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(sync_info.mem_used))))
+				} else { String::new() },
 			);
 		}
 
