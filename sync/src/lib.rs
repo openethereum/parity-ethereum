@@ -71,6 +71,8 @@ extern crate time;
 extern crate rand;
 #[macro_use]
 extern crate heapsize;
+#[macro_use]
+extern crate ethcore_ipc as ipc;
 
 mod chain;
 mod blocks;

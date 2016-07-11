@@ -554,6 +554,7 @@ macro_rules! binary_fixed_size {
 	}
 }
 
+binary_fixed_size!(u16);
 binary_fixed_size!(u64);
 binary_fixed_size!(u32);
 binary_fixed_size!(usize);

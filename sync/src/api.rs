@@ -16,11 +16,17 @@
 
 use std::ops::*;
 use std::sync::*;
-use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, NetworkConfiguration};
-use util::{TimerToken, U256, H256, RwLockable, UtilError};
+use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode};
+use util::{TimerToken, U256, H256, RwLockable, UtilError, Secret, Populatable};
 use ethcore::client::{Client, ChainNotify};
 use io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
+use std::net::{SocketAddr, AddrParseError};
+use ipc::BinaryConvertable;
+use std::mem;
+use std::collections::VecDeque;
+use util::Populatable;
 
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: &'static str = "eth";
@@ -41,6 +47,9 @@ impl Default for SyncConfig {
 		}
 	}
 }
+
+binary_fixed_size!(SyncConfig);
+binary_fixed_size!(SyncStatus);
 
 /// Current sync status
 pub trait SyncProvider: Send + Sync {
@@ -181,5 +190,70 @@ impl ManageNetwork for EthSync {
 
 	fn network_config(&self) -> NetworkConfiguration {
 		self.network.config().clone()
+	}
+}
+
+#[derive(Binary, Debug, Clone)]
+/// Network service configuration
+pub struct NetworkConfiguration {
+	/// Directory path to store network configuration. None means nothing will be saved
+	pub config_path: Option<String>,
+	/// IP address to listen for incoming connections. Listen to all connections by default
+	pub listen_address: Option<String>,
+	/// IP address to advertise. Detected automatically if none.
+	pub public_address: Option<String>,
+	/// Port for UDP connections, same as TCP by default
+	pub udp_port: Option<u16>,
+	/// Enable NAT configuration
+	pub nat_enabled: bool,
+	/// Enable discovery
+	pub discovery_enabled: bool,
+	/// List of initial node addresses
+	pub boot_nodes: Vec<String>,
+	/// Use provided node key instead of default
+	pub use_secret: Option<Secret>,
+	/// Number of connected peers to maintain
+	pub ideal_peers: u32,
+	/// List of reserved node addresses.
+	pub reserved_nodes: Vec<String>,
+	/// The non-reserved peer mode.
+	pub non_reserved_mode: NonReservedPeerMode,
+}
+
+impl NetworkConfiguration {
+	fn basic(self) -> Result<BasicNetworkConfiguration, AddrParseError> {
+		use std::str::FromStr;
+
+		Ok(BasicNetworkConfiguration {
+			config_path: self.config_path,
+			listen_address: self.listen_address.and_then(|addr| Some(try!(SocketAddr::from_str(&addr)))),
+			public_address: self.public_address.and_then(|addr| Some(try!(SocketAddr::from_str(&addr)))),
+			udp_port: self.udp_port,
+			nat_enabled: self.nat_enabled,
+			discovery_enabled: self.discovery_enabled,
+			boot_nodes: self.boot_nodes,
+			use_secret: self.use_secret,
+			ideal_peers: self.ideal_peers,
+			reserved_nodes: self.reserved_nodes,
+			non_reserved_mode: self.non_reserved_mode,
+		})
+	}
+}
+
+impl From<BasicNetworkConfiguration> for NetworkConfiguration {
+	fn from(other: BasicNetworkConfiguration) -> Self {
+		NetworkConfiguration {
+			config_path: other.config_path,
+			listen_address: other.listen_address.and_then(|addr| Some(format!("{}", addr))),
+			public_address: other.public_address.and_then(|addr| Some(format!("{}", addr))),
+			udp_port: other.udp_port,
+			nat_enabled: other.nat_enabled,
+			discovery_enabled: other.discovery_enabled,
+			boot_nodes: other.boot_nodes,
+			use_secret: other.use_secret,
+			ideal_peers: other.ideal_peers,
+			reserved_nodes: other.reserved_nodes,
+			non_reserved_mode: other.non_reserved_mode,
+		}
 	}
 }
