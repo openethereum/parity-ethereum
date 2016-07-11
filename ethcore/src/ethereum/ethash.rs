@@ -128,6 +128,10 @@ impl Engine for Ethash {
 							(header.gas_used * 6.into() / 5.into()) / bound_divisor))
 			}
 		};
+		if header.number >= self.ethash_params.dao_hardfork_transition &&
+			header.number <= self.ethash_params.dao_hardfork_transition + 9 {
+			header.extra_data = b"dao-hard-fork"[..].to_owned();
+		}  
 		header.note_dirty();
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
@@ -186,6 +190,17 @@ impl Engine for Ethash {
 		if difficulty < header.difficulty {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
 		}
+
+		if header.number >= self.ethash_params.dao_hardfork_transition &&
+			header.number <= self.ethash_params.dao_hardfork_transition + 9 &&
+			header.extra_data[..] != b"dao-hard-fork"[..] {
+			return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: None, found: 0 })));
+		}
+
+		if header.gas_limit > 0x7fffffffffffffffu64.into() {
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit })));
+		}  
+		
 		Ok(())
 	}
 
