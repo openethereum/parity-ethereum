@@ -24,9 +24,9 @@ use header::Header;
 
 use views::BlockView;
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
-use util::{Bytes, H256};
+use util::{Bytes, Hashable, H256};
 
-const HEADER_FIELDS: usize = 11;
+const HEADER_FIELDS: usize = 10;
 const BLOCK_FIELDS: usize = 2;
 
 pub struct AbridgedBlock {
@@ -53,7 +53,7 @@ impl AbridgedBlock {
 
 		let seal_fields = header.seal();
 
-		// 11 header fields, unknown amount of seal fields, and 2 block fields.
+		// 10 header fields, unknown amount of seal fields, and 2 block fields.
 		let mut stream = RlpStream::new_list(
 			HEADER_FIELDS +
 			seal_fields.len() +
@@ -62,7 +62,6 @@ impl AbridgedBlock {
 
 		// write header values.
 		stream
-			.append(&header.uncles_hash())
 			.append(&header.author())
 			.append(&header.state_root())
 			.append(&header.transactions_root())
@@ -74,13 +73,13 @@ impl AbridgedBlock {
 			.append(&header.timestamp())
 			.append(&header.extra_data());
 
+		// write block values.
+		stream.append(&block_view.transactions()).append(&block_view.uncles());
+
 		// write seal fields.
 		for field in seal_fields {
 			stream.append_raw(&field, 1);
 		}
-
-		// write block values.
-		stream.append(&block_view.transactions()).append(&block_view.uncles());
 
 		AbridgedBlock {
 			rlp: stream.out(),
@@ -95,29 +94,46 @@ impl AbridgedBlock {
 
 		let mut header = Header {
 			parent_hash: parent_hash,
-			uncles_hash: try!(rlp.val_at(0)),
-			author: try!(rlp.val_at(1)),
-			state_root: try!(rlp.val_at(2)),
-			transactions_root: try!(rlp.val_at(3)),
-			receipts_root: try!(rlp.val_at(4)),
-			log_bloom: try!(rlp.val_at(5)),
-			difficulty: try!(rlp.val_at(6)),
+			author: try!(rlp.val_at(0)),
+			state_root: try!(rlp.val_at(1)),
+			transactions_root: try!(rlp.val_at(2)),
+			receipts_root: try!(rlp.val_at(3)),
+			log_bloom: try!(rlp.val_at(4)),
+			difficulty: try!(rlp.val_at(5)),
 			number: number,
-			gas_limit: try!(rlp.val_at(7)),
-			gas_used: try!(rlp.val_at(8)),
-			timestamp: try!(rlp.val_at(9)),
-			extra_data: try!(rlp.val_at(10)),
+			gas_limit: try!(rlp.val_at(6)),
+			gas_used: try!(rlp.val_at(7)),
+			timestamp: try!(rlp.val_at(8)),
+			extra_data: try!(rlp.val_at(9)),
 			..Default::default()
 		};
+		let transactions = try!(rlp.val_at(10));
+		let uncles: Vec<Header> = try!(rlp.val_at(11));
 
-		let seal: Vec<Bytes> = try!(rlp.val_at(11));
+		// iterator-based approach is cleaner but doesn't work w/ try.
+		let seal = {
+			let mut seal = Vec::new();
+
+			for i in 12..rlp.item_count() {
+				seal.push(try!(rlp.val_at(i)));
+			}
+
+			seal
+		};
 
 		header.set_seal(seal);
 
+		let uncle_bytes = uncles.iter()
+			.fold(RlpStream::new_list(uncles.len()), |mut s, u| {
+				s.append_raw(&u.rlp(::basic_types::Seal::With), 1);
+				s
+			}).out();
+		header.uncles_hash = uncle_bytes.sha3();
+
 		Ok(Block {
 			header: header,
-			transactions: try!(rlp.val_at(12)),
-			uncles: try!(rlp.val_at(13)),
+			transactions: transactions,
+			uncles: uncles,
 		})
 	}
 }
