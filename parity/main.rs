@@ -75,7 +75,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
 use std::env;
 use ctrlc::CtrlC;
-use util::{UtilError, Colour, Applyable, version, Lockable};
+use util::{Colour, Applyable, version, Lockable};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, ClientConfig, get_db_path};
 use ethcore::service::ClientService;
@@ -85,7 +85,6 @@ use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
 
-use die::*;
 use rpc::RpcServer;
 use signer::SignerServer;
 use dapps::WebappServer;
@@ -142,7 +141,8 @@ fn daemonize(_conf: &Configuration) -> ! {
 }
 
 fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) -> Result<(), String> {
-	match upgrade::upgrade(Some(&conf.path())) {
+	let db_path = try!(conf.directories()).db;
+	match upgrade::upgrade(Some(&db_path)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			println!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},
@@ -152,7 +152,7 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 		_ => {},
 	}
 
-	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
+	let db_path = get_db_path(Path::new(&db_path), client_config.pruning, spec.genesis_header().hash());
 	migrate(&db_path, client_config.pruning).map_err(|e| format!("{}", e))
 }
 
@@ -165,7 +165,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	info!("Starting {}", format!("{}", version()).apply(Colour::White.bold()));
+	info!("Starting {}", version().apply(Colour::White.bold()));
 	info!("Using state DB journalling strategy {}", client_config.pruning.as_str().apply(Colour::White.bold()));
 
 	// Display warning about using experimental journaldb types
@@ -184,7 +184,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 
-	let net_settings = conf.net_settings(&spec);
+	let net_settings = try!(conf.net_settings(&spec));
 	let sync_config = conf.sync_config(&spec);
 
 	// Secret Store
@@ -198,20 +198,22 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	miner.set_extra_data(conf.extra_data());
 	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
+	let enable_network = match try!(to_mode(&conf.args.flag_mode, conf.args.flag_mode_timeout, conf.args.flag_mode_alarm)) {
+		Mode::Dark(..) => false,
+		_ => !conf.args.flag_no_network,
+	};
+
+	let directories = try!(conf.directories());
+
 	// Build client
-	let mut service = ClientService::start(
+	let mut service = try!(ClientService::start(
 		client_config,
 		spec,
 		net_settings,
-		Path::new(&conf.path()),
+		Path::new(&directories.db),
 		miner.clone(),
-		//match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
-		//match conf.mode().unwrap() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
-		match to_mode(&conf.args.flag_mode, conf.args.flag_mode_timeout, conf.args.flag_mode_alarm).unwrap() {
-			Mode::Dark(..) => false,
-			_ => !conf.args.flag_no_network,
-		}
-	).unwrap_or_else(|e| die_with_error("Client", e));
+		enable_network,
+	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	panic_handler.forward_from(&service);
 	let client = service.client();
@@ -221,7 +223,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Sync
 	let sync = EthSync::new(sync_config, client.clone());
-	EthSync::register(&*service.network(), sync.clone()).unwrap_or_else(|e| die_with_error("Error registering eth protocol handler", UtilError::from(e).into()));
+	try!(EthSync::register(&*service.network(), sync.clone()).map_err(|_| "Error registering eth protocol handler"));
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
@@ -258,15 +260,13 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	debug!("IPC: {}", conf.ipc_settings());
 
 	// Set up dapps
-	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
-
 	let dapps_conf = dapps::Configuration {
 		enabled: conf.dapps_enabled(),
 		interface: conf.dapps_interface(),
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
 		pass: conf.args.flag_dapps_pass.clone(),
-		dapps_path: conf.directories().dapps,
+		dapps_path: directories.dapps,
 	};
 
 	let dapps_deps = dapps::Dependencies {
@@ -280,7 +280,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let signer_conf = signer::Configuration {
 		enabled: conf.signer_enabled(),
 		port: conf.args.flag_signer_port,
-		signer_path: conf.directories().signer,
+		signer_path: directories.signer,
 	};
 
 	let signer_deps = signer::Dependencies {
@@ -302,7 +302,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	if conf.args.cmd_ui {
 		if !conf.dapps_enabled() {
-			die_with_message("Cannot use UI command with Dapps turned off.");
+			return Err("Cannot use UI command with Dapps turned off.".into())
 		}
 		url::open(&format!("http://{}:{}/", conf.dapps_interface(), conf.args.flag_dapps_port));
 	}

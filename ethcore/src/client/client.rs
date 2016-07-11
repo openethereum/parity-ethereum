@@ -155,8 +155,8 @@ const HISTORY: u64 = 1200;
 const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 /// Get the path for the databases given the root path and information on the databases.
-pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf {
-	let mut dir = path.to_path_buf();
+pub fn get_db_path<P>(path: P, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf where P: AsRef<Path> {
+	let mut dir = path.as_ref().to_path_buf();
 	dir.push(H64::from(genesis_hash).hex());
 	//TODO: sec/fat: pruned/full versioning
 	// version here is a bit useless now, since it's controlled only be the pruning algo.
@@ -165,8 +165,8 @@ pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H25
 }
 
 /// Append a path element to the given path and return the string.
-pub fn append_path(path: &Path, item: &str) -> String {
-	let mut p = path.to_path_buf();
+pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
+	let mut p = path.as_ref().to_path_buf();
 	p.push(item);
 	p.to_str().unwrap().to_owned()
 }

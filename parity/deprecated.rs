@@ -52,6 +52,14 @@ impl Deprecated {
 	fn dapps_off() -> Self {
 		Deprecated::Replaced("--dapps-off", "--no-daps")
 	}
+
+	fn ipcdisable() -> Self {
+		Deprecated::Replaced("--ipcdisable", "--no-ipc")
+	}
+
+	fn ipc_off() -> Self {
+		Deprecated::Replaced("--ipc-off", "--no-ipc")
+	}
 }
 
 pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
@@ -77,6 +85,14 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::dapps_off());
 	}
 
+	if args.flag_ipcdisable {
+		result.push(Deprecated::ipcdisable());
+	}
+
+	if args.flag_ipc_off {
+		result.push(Deprecated::ipc_off());
+	}
+
 	result
 }
 
@@ -95,6 +111,8 @@ mod tests {
 			args.flag_jsonrpc_off = true;
 			args.flag_webapp = true;
 			args.flag_dapps_off = true;
+			args.flag_ipcdisable = true;
+			args.flag_ipc_off = true;
 			args
 		}), vec![
 			Deprecated::jsonrpc(),
@@ -102,6 +120,8 @@ mod tests {
 			Deprecated::jsonrpc_off(),
 			Deprecated::webapp(),
 			Deprecated::dapps_off(),
+			Deprecated::ipcdisable(),
+			Deprecated::ipc_off(),
 		]);
 	}
 }

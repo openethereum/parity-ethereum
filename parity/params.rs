@@ -17,7 +17,8 @@
 use std::str::FromStr;
 use std::time::Duration;
 use util::journaldb::Algorithm;
-use ethcore::client::Mode;
+use util::{clean_0x, U256, Uint};
+use ethcore::client::{Mode, BlockID};
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -59,12 +60,36 @@ pub fn to_pruning(pruning: &str) -> Result<Option<Algorithm>, String> {
 	}
 }
 
+pub fn to_block_id(s: &str) -> Result<BlockID, String> {
+	if s == "latest" {
+		Ok(BlockID::Latest)
+	} else if let Ok(num) = s.parse::<u64>() {
+		Ok(BlockID::Number(num))
+	} else if let Ok(hash) = FromStr::from_str(s) {
+		Ok(BlockID::Hash(hash))
+	} else {
+		Err("Invalid block.".into())
+	}
+}
+
+pub fn to_u256(s: &str) -> Result<U256, String> {
+	if let Ok(decimal) = U256::from_dec_str(s) {
+		Ok(decimal)
+	} else if let Ok(hex) = U256::from_str(clean_0x(s)) {
+		Ok(hex)
+	} else {
+		Err(format!("Invalid numeric value: {}", s))
+	}
+}
+
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use std::time::Duration;
+	use util::U256;
 	use util::journaldb::Algorithm;
-	use ethcore::client::Mode;
-	use super::{to_duration, to_mode, to_pruning};
+	use ethcore::client::{Mode, BlockID};
+	use super::{to_duration, to_mode, to_pruning, to_block_id, to_u256};
 
 	#[test]
 	fn test_to_duration() {
@@ -103,4 +128,25 @@ mod tests {
 		assert_eq!(to_pruning("refcounted").unwrap(), Some(Algorithm::RefCounted));
 		assert!(to_pruning("utop").is_err());
 	}
+
+	#[test]
+	fn test_to_block_id() {
+		assert_eq!(to_block_id("latest").unwrap(), BlockID::Latest);
+		assert_eq!(to_block_id("0").unwrap(), BlockID::Number(0));
+		assert_eq!(to_block_id("2").unwrap(), BlockID::Number(2));
+		assert_eq!(to_block_id("15").unwrap(), BlockID::Number(15));
+		assert_eq!(
+			to_block_id("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e").unwrap(),
+			BlockID::Hash(FromStr::from_str("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e").unwrap())
+		);
+	}
+
+	#[test]
+	fn test_to_u256() {
+		assert_eq!(to_u256("0").unwrap(), U256::from(0));
+		assert_eq!(to_u256("11").unwrap(), U256::from(11));
+		assert_eq!(to_u256("0x11").unwrap(), U256::from(17));
+		assert!(to_u256("u").is_err())
+	}
 }
+

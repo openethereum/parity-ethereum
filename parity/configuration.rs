@@ -28,7 +28,7 @@ use util::*;
 use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, Mode, ClientConfig, DatabaseCompactionProfile, Switch, VMType, BlockID};
+use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
 use ethcore::miner::{MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
@@ -36,7 +36,7 @@ use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain, LoggerConfig, SpecType};
 use cache::CacheConfig;
-use params::{to_duration, to_mode, to_pruning};
+use params::{to_duration, to_mode, to_pruning, to_block_id};
 
 /// Flush output buffer.
 fn flush_stdout() {
@@ -101,18 +101,6 @@ pub enum Policy {
 	Dogmatic,
 }
 
-fn block_id(s: &str) -> Result<BlockID, String> {
-	if s == "latest" {
-		Ok(BlockID::Latest)
-	} else if let Ok(num) = s.parse::<u64>() {
-		Ok(BlockID::Number(num))
-	} else if let Ok(hash) = H256::from_str(s) {
-		Ok(BlockID::Hash(hash))
-	} else {
-		Err("Invalid block.".into())
-	}
-}
-
 
 impl Configuration {
 	pub fn parse<S, I>(command: I) -> Result<Self, DocoptError> where I: IntoIterator<Item=S>, S: AsRef<str> {
@@ -126,7 +114,7 @@ impl Configuration {
 	}
 
 	pub fn into_command(self, password: &PasswordReader) -> Result<Cmd, String> {
-		let dirs = self.directories();
+		let dirs = try!(self.directories());
 		let logger_config = LoggerConfig {
 			mode: None,
 			color: false,
@@ -194,8 +182,8 @@ impl Configuration {
 				compaction: try!(DatabaseCompactionProfile::from_str(&self.args.flag_db_compaction)),
 				mode: mode,
 				tracing: try!(Switch::from_str(&self.args.flag_tracing)),
-				from_block: try!(block_id(&self.args.flag_from)),
-				to_block: try!(block_id(&self.args.flag_to)),
+				from_block: try!(to_block_id(&self.args.flag_from)),
+				to_block: try!(to_block_id(&self.args.flag_to)),
 			};
 			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
 		} else {
@@ -357,27 +345,21 @@ impl Configuration {
 		}
 	}
 
-	pub fn normalize_enode(e: &str) -> Option<String> {
-		if is_valid_node_url(e) {
-			Some(e.to_owned())
-		} else {
-			None
-		}
-	}
-
-	pub fn init_nodes(&self, spec: &Spec) -> Vec<String> {
+	pub fn init_nodes(&self, spec: &Spec) -> Result<Vec<String>, String> {
 		match self.args.flag_bootnodes {
 			Some(ref x) if !x.is_empty() => x.split(',').map(|s| {
-				Self::normalize_enode(s).unwrap_or_else(|| {
-					die!("{}: Invalid node address format given for a boot node.", s)
-				})
+				if is_valid_node_url(s) {
+					Ok(s.to_owned())
+				} else {
+					Err(format!("Invalid node address format given for a boot node: {}", s))
+				}
 			}).collect(),
-			Some(_) => Vec::new(),
-			None => spec.nodes().clone(),
+			Some(_) => Ok(Vec::new()),
+			None => Ok(spec.nodes().clone()),
 		}
 	}
 
-	pub fn init_reserved_nodes(&self) -> Vec<String> {
+	pub fn init_reserved_nodes(&self) -> Result<Vec<String>, String> {
 		use std::fs::File;
 
 		if let Some(ref path) = self.args.flag_reserved_peers {
@@ -387,12 +369,14 @@ impl Configuration {
 			});
 			node_file.read_to_string(&mut buffer).expect("Error reading reserved node file");
 			buffer.lines().map(|s| {
-				Self::normalize_enode(s).unwrap_or_else(|| {
-					die!("{}: Invalid node address format given for a reserved node.", s);
-				})
+				if is_valid_node_url(s) {
+					Ok(s.to_owned())
+				} else {
+					Err(format!("Invalid node address format given for a boot node: {}", s))
+				}
 			}).collect()
 		} else {
-			Vec::new()
+			Ok(Vec::new())
 		}
 	}
 
@@ -409,25 +393,26 @@ impl Configuration {
 		(listen_address, public_address)
 	}
 
-	pub fn net_settings(&self, spec: &Spec) -> NetworkConfiguration {
+	pub fn net_settings(&self, spec: &Spec) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
 		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
-		ret.boot_nodes = self.init_nodes(spec);
+		ret.boot_nodes = try!(self.init_nodes(spec));
 		let (listen, public) = self.net_addresses();
 		ret.listen_address = listen;
 		ret.public_address = public;
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(s).unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.ideal_peers = self.max_peers();
-		let mut net_path = PathBuf::from(&self.path());
+		let mut net_path = PathBuf::from(try!(self.directories()).db);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
-		ret.reserved_nodes = self.init_reserved_nodes();
+		ret.reserved_nodes = try!(self.init_reserved_nodes());
 
 		if self.args.flag_reserved_only {
 			ret.non_reserved_mode = ::util::network::NonReservedPeerMode::Deny;
 		}
-		ret
+
+		Ok(ret)
 	}
 
 	pub fn find_best_db(&self, spec: &Spec) -> journaldb::Algorithm {
@@ -436,8 +421,10 @@ impl Configuration {
 		// if all dbs have the same latest era, the last element is the default one
 		jdb_types.push(journaldb::Algorithm::default());
 
+		let db_path = self.directories().expect("TODO").db;
+
 		jdb_types.into_iter().max_by_key(|i| {
-			let state_path = append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state");
+			let state_path = append_path(get_db_path(&db_path, *i, spec.genesis_header().hash()), "state");
 			let db = journaldb::new(&state_path, *i, kvdb::DatabaseConfig::default());
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			db.latest_era()
@@ -528,10 +515,6 @@ impl Configuration {
 		}
 	}
 
-	pub fn keys_iterations(&self) -> u32 {
-		self.args.flag_keys_iterations
-	}
-
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
@@ -541,7 +524,6 @@ impl Configuration {
 	}
 
 	pub fn network_settings(&self) -> NetworkSettings {
-		if self.args.flag_jsonrpc { println!("WARNING: Flag -j/--json-rpc is deprecated. JSON-RPC is now on by default. Ignoring."); }
 		NetworkSettings {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
@@ -553,7 +535,7 @@ impl Configuration {
 		}
 	}
 
-	pub fn directories(&self) -> Directories {
+	pub fn directories(&self) -> Result<Directories, String> {
 		let db_path = Configuration::replace_home(
 			self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 		fs::create_dir_all(&db_path).unwrap_or_else(|e| die_with_io_error("main", e));
@@ -577,20 +559,14 @@ impl Configuration {
 				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
 		}
 
-		Directories {
+		let directories = Directories {
 			keys: keys_path,
 			db: db_path,
 			dapps: dapps_path,
 			signer: signer_path,
-		}
-	}
+		};
 
-	pub fn keys_path(&self) -> String {
-		self.directories().keys
-	}
-
-	pub fn path(&self) -> String {
-		self.directories().db
+		Ok(directories)
 	}
 
 	fn replace_home(arg: &str) -> String {
@@ -647,12 +623,10 @@ impl Configuration {
 
 #[cfg(test)]
 mod tests {
-	use std::time::Duration;
 	use super::*;
 	use cli::USAGE;
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
-	use util::journaldb;
 	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, SpecType, ImportBlockchain, ExportBlockchain, LoggerConfig};
 	use cache::CacheConfig;
