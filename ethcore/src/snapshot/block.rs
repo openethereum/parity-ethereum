@@ -137,3 +137,75 @@ impl AbridgedBlock {
 		})
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use views::BlockView;
+	use block::Block;
+	use super::AbridgedBlock;
+	use types::transaction::{Action, Transaction};
+
+	use util::numbers::U256;
+	use util::hash::{Address, H256, FixedHash};
+	use util::{Bytes, RlpStream, Stream};
+
+	fn encode_block(b: &Block) -> Bytes {
+		let mut s = RlpStream::new_list(3);
+
+		b.header.stream_rlp(&mut s, ::basic_types::Seal::With);
+		s.append(&b.transactions);
+		s.append(&b.uncles);
+
+		s.out()
+	}
+
+	#[test]
+	fn empty_block_abridging() {
+		let b = Block::default();
+		let encoded = encode_block(&b);
+
+		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded));
+		assert_eq!(abridged.to_block(H256::new(), 0).unwrap(), b);
+	}
+
+	#[test]
+	#[should_panic]
+	fn wrong_number() {
+		let b = Block::default();
+		let encoded = encode_block(&b);
+
+		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded));
+		assert_eq!(abridged.to_block(H256::new(), 2).unwrap(), b);
+	}
+
+	#[test]
+	fn with_transactions() {
+		let mut b = Block::default();
+
+		let t1 = Transaction {
+			action: Action::Create,
+			nonce: U256::from(42),
+			gas_price: U256::from(3000),
+			gas: U256::from(50_000),
+			value: U256::from(1),
+			data: b"Hello!".to_vec()
+		}.fake_sign(Address::from(0x69));
+
+		let t2 = Transaction {
+			action: Action::Create,
+			nonce: U256::from(88),
+			gas_price: U256::from(12345),
+			gas: U256::from(300000),
+			value: U256::from(1000000000),
+			data: "Eep!".into(),
+		}.fake_sign(Address::from(0x55));
+
+		b.transactions.push(t1);
+		b.transactions.push(t2);
+
+		let encoded = encode_block(&b);
+
+		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded[..]));
+		assert_eq!(abridged.to_block(H256::new(), 0).unwrap(), b);
+	}
+}
