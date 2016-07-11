@@ -32,26 +32,6 @@ pub enum ChainEra {
 	Homestead,
 }
 
-#[cfg(test)]
-pub struct GuardedTempResult<T> {
-	result: Option<T>,
-	_temp: RandomTempPath
-}
-
-impl<T> GuardedTempResult<T> {
-    pub fn reference(&self) -> &T {
-        self.result.as_ref().unwrap()
-    }
-
-    pub fn reference_mut(&mut self) -> &mut T {
-    	self.result.as_mut().unwrap()
-    }
-
-	pub fn take(&mut self) -> T {
-		self.result.take().unwrap()
-	}
-}
-
 pub struct TestEngine {
 	engine: Box<Engine>,
 	max_depth: usize

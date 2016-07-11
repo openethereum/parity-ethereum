@@ -23,6 +23,7 @@ use env_logger::LogBuilder;
 use std::sync::{RwLock, RwLockReadGuard};
 use std::sync::atomic::{Ordering, AtomicBool};
 use arrayvec::ArrayVec;
+use misc::RwLockable;
 pub use ansi_term::{Colour, Style};
 
 lazy_static! {
@@ -54,7 +55,7 @@ lazy_static! {
 			builder.parse(&log);
 		}
 
-		if let Ok(_) = builder.init() {
+		if builder.init().is_ok() {
 			println!("logger initialized");
 		}
 		true
@@ -90,7 +91,7 @@ impl RotatingLogger {
 
 	/// Append new log entry
 	pub fn append(&self, log: String) {
-		self.logs.write().unwrap().insert(0, log);
+		self.logs.unwrapped_write().insert(0, log);
 	}
 
 	/// Return levels
@@ -100,7 +101,7 @@ impl RotatingLogger {
 
 	/// Return logs
 	pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
-		self.logs.read().unwrap()
+		self.logs.unwrapped_read()
 	}
 
 }
