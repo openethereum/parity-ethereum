@@ -30,6 +30,7 @@ pub use ethcore_rpc::ConfirmationsQueue;
 
 use ethcore_rpc::Extendable;
 
+#[derive(Debug, PartialEq)]
 pub enum Api {
 	Web3,
 	Net,
@@ -42,10 +43,6 @@ pub enum Api {
 	Rpc,
 }
 
-pub enum ApiError {
-	UnknownApi(String)
-}
-
 pub enum ApiSet {
 	SafeContext,
 	UnsafeContext,
@@ -53,7 +50,7 @@ pub enum ApiSet {
 }
 
 impl FromStr for Api {
-	type Err = ApiError;
+	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		use self::Api::*;
@@ -68,7 +65,7 @@ impl FromStr for Api {
 			"ethcore_set" => Ok(EthcoreSet),
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
-			e => Err(ApiError::UnknownApi(e.into())),
+			api => Err(format!("Unknown api: {}", api))
 		}
 	}
 }
@@ -106,13 +103,10 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 	modules
 }
 
-pub fn from_str(apis: Vec<&str>) -> Vec<Api> {
+pub fn from_str(apis: Vec<&str>) -> Result<Vec<Api>, String> {
 	apis.into_iter()
 		.map(Api::from_str)
-		.collect::<Result<Vec<Api>, ApiError>>()
-		.unwrap_or_else(|e| match e {
-			ApiError::UnknownApi(s) => die!("Unknown RPC API specified: {}", s),
-		})
+		.collect()
 }
 
 fn list_apis(apis: ApiSet) -> Vec<Api> {
@@ -172,4 +166,24 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 		}
 	}
 	server
+}
+
+#[cfg(test)]
+mod test {
+	use std::str::FromStr;
+	use super::Api;
+
+	#[test]
+	fn test_api_from_str() {
+		assert_eq!(Api::from_str("web3").unwrap(), Api::Web3);
+		assert_eq!(Api::from_str("net").unwrap(), Api::Net);
+		assert_eq!(Api::from_str("eth").unwrap(), Api::Eth);
+		assert_eq!(Api::from_str("personal").unwrap(), Api::Personal);
+		assert_eq!(Api::from_str("signer").unwrap(), Api::Signer);
+		assert_eq!(Api::from_str("ethcore").unwrap(), Api::Ethcore);
+		assert_eq!(Api::from_str("ethcore_set").unwrap(), Api::EthcoreSet);
+		assert_eq!(Api::from_str("traces").unwrap(), Api::Traces);
+		assert_eq!(Api::from_str("rpc").unwrap(), Api::Rpc);
+		assert!(Api::from_str("rp").is_err());
+	}
 }

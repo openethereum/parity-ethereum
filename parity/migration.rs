@@ -41,6 +41,9 @@ pub enum Error {
 	MigrationImpossible,
 	/// Returned when migration unexpectadly failed.
 	MigrationFailed,
+	/// Returned when migration is unsupporetd.
+	/// Should contain a reason.
+	MigrationUnsupported(String),
 	/// Returned when migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
@@ -52,6 +55,7 @@ impl Display for Error {
 			Error::UnknownDatabaseVersion => "Current database version cannot be read".into(),
 			Error::MigrationImpossible => format!("Migration to version {} is not possible", CURRENT_VERSION),
 			Error::MigrationFailed => "Migration unexpectedly failed".into(),
+			Error::MigrationUnsupported(ref reason) => format!("Migration not supported. Reason: {}", reason),
 			Error::Io(ref err) => format!("Unexpected io error: {}", err),
 		};
 
@@ -159,7 +163,9 @@ fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Err
 	let res = match pruning {
 		Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7),
 		Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
-		_ => die!("Unsupported pruning method for migration. Delete DB and resync"),
+		method => {
+			return Err(Error::MigrationUnsupported(format!("Unsupported pruning method '{}' for migration", method)))
+		},
 	};
 
 	try!(res.map_err(|_| Error::MigrationImpossible));

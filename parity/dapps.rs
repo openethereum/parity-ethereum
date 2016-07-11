@@ -15,10 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::str::FromStr;
 use std::net::SocketAddr;
 use util::panics::PanicHandler;
-use die::*;
 use rpc_apis;
 
 #[cfg(feature = "dapps")]
@@ -40,13 +38,13 @@ pub struct Dependencies {
 	pub apis: Arc<rpc_apis::Dependencies>,
 }
 
-pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappServer> {
+pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<WebappServer>, String> {
 	if !configuration.enabled {
-		return None;
+		return Ok(None);
 	}
 
 	let url = format!("{}:{}", configuration.interface, configuration.port);
-	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid Webapps listen host/port given.", url));
+	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
 
 	let auth = configuration.user.as_ref().map(|username| {
 		let password = configuration.pass.as_ref().map_or_else(|| {
@@ -59,7 +57,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappSer
 		(username.to_owned(), password)
 	});
 
-	Some(setup_dapps_server(deps, configuration.dapps_path, &addr, auth))
+	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, auth))))
 }
 
 #[cfg(not(feature = "dapps"))]
@@ -68,8 +66,8 @@ pub fn setup_dapps_server(
 	_dapps_path: String,
 	_url: &SocketAddr,
 	_auth: Option<(String, String)>,
-) -> ! {
-	die!("Your Parity version has been compiled without WebApps support.")
+) -> Result<WebappServer, String> {
+	"Your Parity version has been compiled without WebApps support.".into();
 }
 
 #[cfg(feature = "dapps")]
@@ -78,7 +76,7 @@ pub fn setup_dapps_server(
 	dapps_path: String,
 	url: &SocketAddr,
 	auth: Option<(String, String)>
-) -> WebappServer {
+) -> Result<WebappServer, String> {
 	use ethcore_dapps as dapps;
 
 	let server = dapps::ServerBuilder::new(dapps_path);
@@ -93,15 +91,14 @@ pub fn setup_dapps_server(
 	};
 
 	match start_result {
-		Err(dapps::ServerError::IoError(err)) => die_with_io_error("WebApps", err),
-		Err(e) => die!("WebApps: {:?}", e),
+		Err(dapps::ServerError::IoError(err)) => Err(format!("WebApps io error: {}", err)),
+		Err(e) => Err(format!("WebApps error: {:?}", e)),
 		Ok(server) => {
 			server.set_panic_handler(move || {
 				deps.panic_handler.notify_all("Panic in WebApp thread.".to_owned());
 			});
-			server
+			Ok(server)
 		},
 	}
-
 }
 

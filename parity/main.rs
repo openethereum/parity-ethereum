@@ -256,18 +256,24 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
 	debug!("IPC: {}", conf.ipc_settings());
 
+	// Set up dapps
 	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Dapps server is now on by default. Ignoring."); }
-	let dapps_server = dapps::new(dapps::Configuration {
+
+	let dapps_conf = dapps::Configuration {
 		enabled: conf.dapps_enabled(),
 		interface: conf.dapps_interface(),
 		port: conf.args.flag_dapps_port,
 		user: conf.args.flag_dapps_user.clone(),
 		pass: conf.args.flag_dapps_pass.clone(),
 		dapps_path: conf.directories().dapps,
-	}, dapps::Dependencies {
+	};
+
+	let dapps_deps = dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
-	});
+	};
+
+	let dapps_server = try!(dapps::new(dapps_conf, dapps_deps));
 
 	// Set up a signer
 	let signer_conf = signer::Configuration {

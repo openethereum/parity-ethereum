@@ -14,12 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::str::FromStr;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use util::panics::PanicHandler;
-use die::*;
 use jsonipc;
 use rpc_apis;
 use std::fmt;
@@ -67,10 +64,10 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<R
 	Ok(Some(try!(setup_http_rpc_server(deps, &addr, conf.cors, apis))))
 }
 
-fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Server {
-	let apis = rpc_apis::from_str(apis);
+fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Result<Server, String> {
+	let apis = try!(rpc_apis::from_str(apis));
 	let server = Server::new();
-	rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::List(apis))
+	Ok(rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::List(apis)))
 }
 
 pub fn setup_http_rpc_server(
@@ -79,7 +76,7 @@ pub fn setup_http_rpc_server(
 	cors_domains: Vec<String>,
 	apis: Vec<&str>,
 ) -> Result<RpcServer, String> {
-	let server = setup_rpc_server(apis, dependencies);
+	let server = try!(setup_rpc_server(apis, dependencies));
 	let start_result = server.start_http(url, cors_domains);
 	let ph = dependencies.panic_handler.clone();
 	match start_result {
@@ -101,7 +98,7 @@ pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<jso
 }
 
 pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: Vec<&str>) -> Result<jsonipc::Server, String> {
-	let server = setup_rpc_server(apis, dependencies);
+	let server = try!(setup_rpc_server(apis, dependencies));
 	match server.start_ipc(addr) {
 		Err(jsonipc::Error::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
 		Err(any_error) => Err(format!("Rpc error: {:?}", any_error)),
