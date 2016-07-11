@@ -57,7 +57,7 @@ impl TestSyncProvider {
 
 impl SyncProvider for TestSyncProvider {
 	fn status(&self) -> SyncStatus {
-		self.status.unwrapped_read().clone()
+		self.status.read().clone()
 	}
 
 	fn start_network(&self) {

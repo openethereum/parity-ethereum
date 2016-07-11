@@ -82,7 +82,7 @@ impl Worker {
 						where Message: Send + Sync + Clone + 'static {
 		loop {
 			{
-				let lock = wait_mutex.locked();
+				let lock = wait_mutex.lock();
 				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}

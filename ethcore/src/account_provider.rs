@@ -177,7 +177,7 @@ impl AccountProvider {
 
 		// check if account is already unlocked pernamently, if it is, do nothing
 		{
-			let unlocked = self.unlocked.unwrapped_read();
+			let unlocked = self.unlocked.read();
 			if let Some(data) = unlocked.get(&account) {
 				if let Unlock::Perm = data.unlock {
 					return Ok(())
@@ -190,7 +190,7 @@ impl AccountProvider {
 			password: password,
 		};
 
-		let mut unlocked = self.unlocked.unwrapped_write();
+		let mut unlocked = self.unlocked.write();
 		unlocked.insert(account, data);
 		Ok(())
 	}
@@ -208,7 +208,7 @@ impl AccountProvider {
 	/// Checks if given account is unlocked
 	pub fn is_unlocked<A>(&self, account: A) -> bool where Address: From<A> {
 		let account = Address::from(account).into();
-		let unlocked = self.unlocked.unwrapped_read();
+		let unlocked = self.unlocked.read();
 		unlocked.get(&account).is_some()
 	}
 
@@ -218,12 +218,12 @@ impl AccountProvider {
 		let message = Message::from(message).into();
 
 		let data = {
-			let unlocked = self.unlocked.unwrapped_read();
+			let unlocked = self.unlocked.read();
 			try!(unlocked.get(&account).ok_or(Error::NotUnlocked)).clone()
 		};
 
 		if let Unlock::Temp = data.unlock {
-			let mut unlocked = self.unlocked.unwrapped_write();
+			let mut unlocked = self.unlocked.write();
 			unlocked.remove(&account).expect("data exists: so key must exist: qed");
 		}
 

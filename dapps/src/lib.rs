@@ -153,7 +153,7 @@ impl Server {
 
 	/// Set callback for panics.
 	pub fn set_panic_handler<F>(&self, handler: F) where F : Fn() -> () + Send + 'static {
-		*self.panic_handler.locked() = Some(Box::new(handler));
+		*self.panic_handler.lock() = Some(Box::new(handler));
 	}
 }
 

@@ -231,7 +231,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 		// at first, let's insert new block traces
 		{
-			let mut traces = self.traces.unwrapped_write();
+			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
 			batch.write_with_cache(traces.deref_mut(), request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
@@ -259,7 +259,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.map(|p| (From::from(p.0), From::from(p.1)))
 				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
 
-			let mut blooms = self.blooms.unwrapped_write();
+			let mut blooms = self.blooms.write();
 			batch.extend_with_cache(blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
 		}
 

@@ -614,7 +614,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.locked()).unwrap();
+	let _ = exit.wait(mutex.lock()).unwrap();
 	info!("Finishing work, please wait...");
 }
 

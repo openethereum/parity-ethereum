@@ -89,7 +89,7 @@ impl PanicHandler {
 	/// Notifies all listeners in case there is a panic.
 	/// You should use `catch_panic` instead of calling this method explicitly.
 	pub fn notify_all(&self, r: String) {
-		let mut listeners = self.listeners.locked();
+		let mut listeners = self.listeners.lock();
 		for listener in listeners.deref_mut() {
 			listener.call(&r);
 		}
@@ -98,7 +98,7 @@ impl PanicHandler {
 
 impl MayPanic for PanicHandler {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.listeners.locked().push(Box::new(closure));
+		self.listeners.lock().push(Box::new(closure));
 	}
 }
 
@@ -125,13 +125,13 @@ fn should_notify_listeners_about_panic () {
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
 	let p = PanicHandler::new();
-	p.on_panic(move |t| i.unwrapped_write().push(t));
+	p.on_panic(move |t| i.write().push(t));
 
 	// when
 	p.catch_panic(|| panic!("Panic!")).unwrap_err();
 
 	// then
-	assert!(invocations.unwrapped_read()[0] == "Panic!");
+	assert!(invocations.read()[0] == "Panic!");
 }
 
 #[test]
@@ -143,13 +143,13 @@ fn should_notify_listeners_about_panic_when_string_is_dynamic () {
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
 	let p = PanicHandler::new();
-	p.on_panic(move |t| i.unwrapped_write().push(t));
+	p.on_panic(move |t| i.write().push(t));
 
 	// when
 	p.catch_panic(|| panic!("Panic: {}", 1)).unwrap_err();
 
 	// then
-	assert!(invocations.unwrapped_read()[0] == "Panic: 1");
+	assert!(invocations.read()[0] == "Panic: 1");
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn should_notify_listeners_about_panic_in_other_thread () {
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
 	let p = PanicHandler::new();
-	p.on_panic(move |t| i.unwrapped_write().push(t));
+	p.on_panic(move |t| i.write().push(t));
 
 	// when
 	let t = thread::spawn(move ||
@@ -171,7 +171,7 @@ fn should_notify_listeners_about_panic_in_other_thread () {
 	t.join().unwrap_err();
 
 	// then
-	assert!(invocations.unwrapped_read()[0] == "Panic!");
+	assert!(invocations.read()[0] == "Panic!");
 }
 
 #[test]
@@ -184,7 +184,7 @@ use std::sync::RwLock;
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
 	let p = PanicHandler::new_in_arc();
-	p.on_panic(move |t| i.unwrapped_write().push(t));
+	p.on_panic(move |t| i.write().push(t));
 
 	let p2 = PanicHandler::new();
 	p.forward_from(&p2);
@@ -193,5 +193,5 @@ use std::sync::RwLock;
 	p2.catch_panic(|| panic!("Panic!")).unwrap_err();
 
 	// then
-	assert!(invocations.unwrapped_read()[0] == "Panic!");
+	assert!(invocations.read()[0] == "Panic!");
 }

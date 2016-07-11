@@ -175,7 +175,7 @@ fn sign_and_send_transaction() {
 
 	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
 
-	tester.miner.last_nonces.unwrapped_write().insert(address.clone(), U256::zero());
+	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
 
 	let t = Transaction {
 		nonce: U256::one(),

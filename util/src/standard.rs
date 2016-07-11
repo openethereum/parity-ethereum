@@ -47,4 +47,4 @@ pub use rustc_serialize::hex::{FromHex, FromHexError};
 pub use heapsize::HeapSizeOf;
 pub use itertools::Itertools;
 
-pub use parking_lot::{Mutex, RwLock};
+pub use parking_lot::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
