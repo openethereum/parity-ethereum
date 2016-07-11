@@ -91,7 +91,7 @@ use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
-use params::{to_mode, to_address, Policy};
+use params::{to_mode, to_address, Policy, to_u256};
 use std::process;
 
 fn main() {
@@ -196,8 +196,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let miner = Miner::new(miner_options, conf.gas_pricer().expect("TODO!"), conf.spec(), Some(account_service.clone()));
 	//miner.set_author(try!(conf.author()));
 	miner.set_author(try!(to_address(conf.args.flag_etherbase.clone().or(conf.args.flag_author.clone()))));
-	miner.set_gas_floor_target(conf.gas_floor_target());
-	miner.set_gas_ceil_target(conf.gas_ceil_target());
+	miner.set_gas_floor_target(try!(to_u256(&conf.args.flag_gas_floor_target)));
+	miner.set_gas_ceil_target(try!(to_u256(&conf.args.flag_gas_cap)));
 	miner.set_extra_data(try!(conf.extra_data()));
 	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 

@@ -117,6 +117,10 @@ impl FromStr for Policy {
 	}
 }
 
+pub fn to_price(s: &str) -> Result<f32, String> {
+	s.parse::<f32>().map_err(|_| format!("Invalid transaciton price 's' given. Must be a decimal number."))
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
@@ -125,7 +129,7 @@ mod tests {
 	use util::journaldb::Algorithm;
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
-	use super::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_address, Policy};
+	use super::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_address, Policy, to_price};
 
 	#[test]
 	fn test_to_duration() {
@@ -211,6 +215,13 @@ mod tests {
 		assert_eq!(Policy::from_str("none").unwrap(), Policy::None);
 		assert_eq!(Policy::from_str("dogmatic").unwrap(), Policy::Dogmatic);
 		assert!(Policy::from_str("sas").is_err());
+	}
+
+	#[test]
+	fn test_to_price() {
+		assert_eq!(to_price("1").unwrap(), 1.0);
+		assert_eq!(to_price("2.3").unwrap(), 2.3);
+		assert_eq!(to_price("2.33").unwrap(), 2.33);
 	}
 }
 

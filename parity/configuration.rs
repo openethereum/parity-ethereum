@@ -36,7 +36,7 @@ use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain, LoggerConfig, SpecType};
 use cache::CacheConfig;
-use params::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set};
+use params::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_price};
 
 /// Flush output buffer.
 fn flush_stdout() {
@@ -252,32 +252,11 @@ impl Configuration {
 		Ok(options)
 	}
 
-	pub fn gas_floor_target(&self) -> U256 {
-		let d = &self.args.flag_gas_floor_target;
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
-		})
-	}
-
-	pub fn gas_ceil_target(&self) -> U256 {
-		let d = &self.args.flag_gas_cap;
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid target gas ceiling given. Must be a decimal unsigned 256-bit number.", d)
-		})
-	}
-
-
 	pub fn gas_pricer(&self) -> Result<GasPricer, String> {
 		match self.args.flag_gasprice.as_ref() {
-			Some(d) => {
-				Ok(GasPricer::Fixed(U256::from_dec_str(d).unwrap_or_else(|_| {
-					die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
-				})))
-			}
+			Some(d) => Ok(GasPricer::Fixed(try!(to_u256(d)))),
 			_ => {
-				let usd_per_tx: f32 = FromStr::from_str(&self.args.flag_usd_per_tx).unwrap_or_else(|_| {
-					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
-				});
+				let usd_per_tx = try!(to_price(&self.args.flag_usd_per_tx));
 				match self.args.flag_usd_per_eth.as_str() {
 					"auto" => {
 						Ok(GasPricer::new_calibrated(GasPriceCalibratorOptions {
@@ -286,7 +265,7 @@ impl Configuration {
 						}))
 					},
 					x => {
-						let usd_per_eth: f32 = FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x));
+						let usd_per_eth = try!(to_price(&self.args.flag_usd_per_eth));
 						let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 						let gas_per_tx: f32 = 21000.0;
 						let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
