@@ -107,8 +107,6 @@ pub trait CostType: ops::Mul<Output=Self> + ops::Div<Output=Self> + ops::Add<Out
 	fn overflow_add(self, other: Self) -> (Self, bool);
 	/// Multiple with overflow
 	fn overflow_mul(self, other: Self) -> (Self, bool);
-	/// Divide with overflow
-	fn overflow_div(self, other: Self) -> (Self, bool);
 	/// Single-step full multiplication and division: `self*other/div`
 	/// Should not overflow on intermediate steps
 	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool);
@@ -133,10 +131,6 @@ impl CostType for U256 {
 
 	fn overflow_mul(self, other: Self) -> (Self, bool) {
 		Uint::overflowing_mul(self, other)
-	}
-
-	fn overflow_div(self, other: Self) -> (Self, bool) {
-		Uint::overflowing_div(self, other)
 	}
 
 	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool) {
@@ -173,10 +167,6 @@ impl CostType for usize {
 
 	fn overflow_mul(self, other: Self) -> (Self, bool) {
 		self.overflowing_mul(other)
-	}
-
-	fn overflow_div(self, other: Self) -> (Self, bool) {
-		self.overflowing_div(other)
 	}
 
 	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool) {
