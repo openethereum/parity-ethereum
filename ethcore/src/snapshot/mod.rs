@@ -262,7 +262,7 @@ pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, E
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlp = try!(account.to_fat_rlp(&account_db, account_key_hash));
+		let fat_rlp = try!(account.to_fat_rlp(&account_db));
 		try!(chunker.push(account_key, fat_rlp));
 	}
 

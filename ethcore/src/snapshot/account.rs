@@ -25,6 +25,7 @@ use util::numbers::U256;
 use util::rlp::{DecoderError, Rlp, RlpStream, Stream, UntrustedRlp, View};
 
 // An alternate account structure from ::account::Account.
+#[derive(PartialEq, Clone, Debug)]
 pub struct Account {
 	nonce: U256,
 	balance: U256,
@@ -59,7 +60,7 @@ impl Account {
 
 	// walk the account's storage trie, returning an RLP item containing the
 	// account properties and the storage.
-	pub fn to_fat_rlp(&self, acct_db: &AccountDB, addr_hash: H256) -> Result<Bytes, Error> {
+	pub fn to_fat_rlp(&self, acct_db: &AccountDB) -> Result<Bytes, Error> {
 		let db = try!(TrieDB::new(acct_db, &self.storage_root));
 
 		let mut pairs = Vec::new();
@@ -89,7 +90,7 @@ impl Account {
 					account_stream.append(&true).append(&c);
 				}
 				None => {
-					warn!("code lookup failed for account with address hash {}, code hash {}", addr_hash, self.code_hash);
+					warn!("code lookup failed during snapshot");
 					account_stream.append(&false).append_empty_data();
 				}
 			}
@@ -131,5 +132,80 @@ impl Account {
 			storage_root: storage_root,
 			code_hash: code_hash,
 		})
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use account_db::{AccountDB, AccountDBMut};
+	use tests::helpers::get_temp_journal_db;
+
+	use util::{SHA3_NULL_RLP, SHA3_EMPTY};
+	use util::hash::{Address, FixedHash, H256};
+	use util::rlp::{UntrustedRlp, View};
+	use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
+
+	use super::Account;
+
+	fn fill_storage(mut db: AccountDBMut) -> H256 {
+		let map = StandardMap {
+			alphabet: Alphabet::All,
+			min_key: 6,
+			journal_key: 6,
+			value_mode: ValueMode::Random,
+			count: 100
+		};
+
+		let mut root = H256::new();
+		{
+			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
+			for (k, v) in map.make() {
+				trie.insert(&k, &v);
+			}
+		}
+		root
+	}
+
+	#[test]
+	fn encoding_basic() {
+		let mut db = get_temp_journal_db();
+		let mut db = &mut **db;
+		let addr = Address::random();
+
+		let account = Account {
+			nonce: 50.into(),
+			balance: 123456789.into(),
+			storage_root: SHA3_NULL_RLP,
+			code_hash: SHA3_EMPTY,
+		};
+
+		let thin_rlp = account.to_thin_rlp();
+		assert_eq!(Account::from_thin_rlp(&thin_rlp), account);
+
+		let fat_rlp = account.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr)).unwrap();
+		let fat_rlp = UntrustedRlp::new(&fat_rlp);
+		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp).unwrap(), account);
+	}
+
+	#[test]
+	fn encoding_storage() {
+		let mut db = get_temp_journal_db();
+		let mut db = &mut **db;
+		let addr = Address::random();
+
+		let root = fill_storage(AccountDBMut::new(db.as_hashdb_mut(), &addr));
+		let account = Account {
+			nonce: 25.into(),
+			balance: 987654321.into(),
+			storage_root: root,
+			code_hash: SHA3_EMPTY,
+		};
+
+		let thin_rlp = account.to_thin_rlp();
+		assert_eq!(Account::from_thin_rlp(&thin_rlp), account);
+
+		let fat_rlp = account.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr)).unwrap();
+		let fat_rlp = UntrustedRlp::new(&fat_rlp);
+		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp).unwrap(), account);
 	}
 }
