@@ -17,6 +17,7 @@
 //! Parity EVM interpreter binary.
 
 #![warn(missing_docs)]
+#![allow(dead_code)]
 extern crate ethcore;
 extern crate rustc_serialize;
 extern crate docopt;
