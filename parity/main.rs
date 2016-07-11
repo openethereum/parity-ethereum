@@ -186,7 +186,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	}
 
 	let net_settings = try!(conf.net_settings(&spec));
-	let sync_config = conf.sync_config(&spec);
+	let sync_config = try!(conf.sync_config(&spec));
 
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());

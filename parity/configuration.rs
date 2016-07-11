@@ -313,42 +313,39 @@ impl Configuration {
 	pub fn init_reserved_nodes(&self) -> Result<Vec<String>, String> {
 		use std::fs::File;
 
-		if let Some(ref path) = self.args.flag_reserved_peers {
-			let mut buffer = String::new();
-			let mut node_file = File::open(path).unwrap_or_else(|e| {
-				die!("Error opening reserved nodes file: {}", e);
-			});
-			node_file.read_to_string(&mut buffer).expect("Error reading reserved node file");
-			buffer.lines().map(|s| {
-				if is_valid_node_url(s) {
-					Ok(s.to_owned())
+		match self.args.flag_reserved_peers {
+			Some(ref path) => {
+				let mut buffer = String::new();
+				let mut node_file = try!(File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e)));
+				try!(node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file"));
+				if let Some(invalid) = buffer.lines().find(|s| !is_valid_node_url(s)) {
+					Err(format!("Invalid node address format given for a boot node: {}", invalid))
 				} else {
-					Err(format!("Invalid node address format given for a boot node: {}", s))
+					Ok(buffer.lines().map(|s| s.to_owned()).collect())
 				}
-			}).collect()
-		} else {
-			Ok(Vec::new())
+			},
+			None => Ok(Vec::new())
 		}
 	}
 
-	pub fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
+	pub fn net_addresses(&self) -> Result<(Option<SocketAddr>, Option<SocketAddr>), String> {
 		let port = self.args.flag_port;
-		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), port));
+		let listen_address = Some(SocketAddr::new("0.0.0.0".parse().unwrap(), port));
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
 			let host = &self.args.flag_nat[6..];
-			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
+			let host = try!(host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host)));
 			Some(SocketAddr::new(host, port))
 		} else {
 			None
 		};
-		(listen_address, public_address)
+		Ok((listen_address, public_address))
 	}
 
 	pub fn net_settings(&self, spec: &Spec) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
 		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
 		ret.boot_nodes = try!(self.init_nodes(spec));
-		let (listen, public) = self.net_addresses();
+		let (listen, public) = try!(self.net_addresses());
 		ret.listen_address = listen;
 		ret.public_address = public;
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(s).unwrap_or_else(|_| s.sha3()));
@@ -392,12 +389,15 @@ impl Configuration {
 		unimplemented!();
 	}
 
-	pub fn sync_config(&self, spec: &Spec) -> SyncConfig {
+	pub fn sync_config(&self, spec: &Spec) -> Result<SyncConfig, String> {
 		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref()).map_or(spec.network_id(), |id| {
-			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --network-id/--networkid", id))
-		});
-		sync_config
+		let net_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref());
+		sync_config.network_id = match net_id {
+			Some(id) => try!(to_u256(id)),
+			None => spec.network_id()
+		};
+
+		Ok(sync_config)
 	}
 
 	pub fn account_service(&self) -> AccountProvider {
