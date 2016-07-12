@@ -25,6 +25,7 @@ use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStat
 	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	BlockImportError};
 use header::{Header as BlockHeader, BlockNumber};
+use block::Block;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
@@ -241,7 +242,7 @@ impl TestBlockChainClient {
 			BlockID::Hash(hash) => Some(hash),
 			BlockID::Number(n) => self.numbers.unwrapped_read().get(&(n as usize)).cloned(),
 			BlockID::Earliest => self.numbers.unwrapped_read().get(&0).cloned(),
-			BlockID::Latest => self.numbers.unwrapped_read().get(&(self.numbers.unwrapped_read().len() - 1)).cloned()
+			BlockID::Latest | BlockID::Pending => self.numbers.unwrapped_read().get(&(self.numbers.unwrapped_read().len() - 1)).cloned()
 		}
 	}
 }

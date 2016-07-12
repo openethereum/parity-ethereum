@@ -461,9 +461,17 @@ impl Client {
 	/// This will not fail if given BlockID::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at(&self, id: BlockID) -> Option<State> {
+		// fast path for pending state.
+		if let &BlockID::Pending = &id {
+			if let Some(state) = self.miner.pending_state() { 
+				return Some(state)
+			}
+		}
+
 		// fast path for latest state.
-		if let BlockID::Latest = id.clone() {
-			return Some(self.state())
+		match id.clone() {
+			BlockID::Latest | BlockID::Pending => return Some(self.state()),
+			_ => {},
 		}
 
 		let block_number = match self.block_number(id.clone()) {
@@ -556,7 +564,7 @@ impl Client {
 			BlockID::Number(number) => Some(number),
 			BlockID::Hash(ref hash) => self.chain.block_number(hash),
 			BlockID::Earliest => Some(0),
-			BlockID::Latest => Some(self.chain.best_block_number())
+			BlockID::Latest | BlockID::Pending => Some(self.chain.best_block_number()),
 		}
 	}
 
@@ -565,7 +573,7 @@ impl Client {
 			BlockID::Hash(hash) => Some(hash),
 			BlockID::Number(number) => chain.block_hash(number),
 			BlockID::Earliest => chain.block_hash(0),
-			BlockID::Latest => Some(chain.best_block_hash())
+			BlockID::Latest | BlockID::Pending => Some(chain.best_block_hash()),
 		}
 	}
 
@@ -683,6 +691,9 @@ impl BlockChainClient for Client {
 	}
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
+		if let &BlockID::Pending == &id {
+			return Some(self.miner.pending_block().rlp_bytes())
+		}
 		Self::block_hash(&self.chain, id).and_then(|hash| {
 			self.chain.block(&hash)
 		})
@@ -697,6 +708,9 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_total_difficulty(&self, id: BlockID) -> Option<U256> {
+		if let &BlockID::Pending == &id {
+			return Some(self.miner.pending_block().header.difficulty() + self.block_total_difficulty(BlockID::Latest) 
+		}
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
