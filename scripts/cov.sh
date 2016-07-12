@@ -27,18 +27,17 @@ cargo test $TARGETS --no-run || exit $?
 
 KCOV_TARGET="target/kcov"
 KCOV_FLAGS="--verify"
-EXCLUDE="\
-	/usr/lib,\
-	/usr/include,\
-	$HOME/.cargo,\
-	$HOME/.multirust,\
-	rocksdb,\
-	secp256k1,\
-	src/tests,\
-	util/json-tests,\
-	util/src/network/tests,\
-	ethcore/src/evm/tests,\
-	ethstore/tests\
+EXCLUDE="/usr/lib,\
+/usr/include,\
+$HOME/.cargo,\
+$HOME/.multirust,\
+rocksdb,\
+secp256k1,\
+src/tests,\
+util/json-tests,\
+util/src/network/tests,\
+ethcore/src/evm/tests,\
+ethstore/tests\
 "
 
 rm -rf $KCOV_TARGET
