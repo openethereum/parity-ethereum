@@ -77,7 +77,6 @@ impl PriceInfo {
 	}
 }
 
-//#[ignore]
 #[test]
 fn should_get_price_info() {
 	use std::sync::{Condvar, Mutex, Arc};

@@ -182,7 +182,7 @@ impl MinerService for TestMinerService {
 	}
 
 	fn map_sealing_work<F, T>(&self, _chain: &MiningBlockChainClient, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
-		unimplemented!();
+		None
 	}
 
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
