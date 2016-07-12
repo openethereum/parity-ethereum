@@ -146,7 +146,7 @@ impl InstructionInfo {
 }
 
 lazy_static! {
-	static ref INSTRUCTIONS: [InstructionInfo; 0x100] = {
+	pub static ref INSTRUCTIONS: [InstructionInfo; 0x100] = {
 		let mut arr = [InstructionInfo::default(); 0x100];
 		arr[STOP as usize] =			InstructionInfo::new("STOP",			0, 0, 0, true, GasPriceTier::Zero);
 		arr[ADD as usize] = 			InstructionInfo::new("ADD",				0, 2, 1, false, GasPriceTier::VeryLow);
@@ -280,11 +280,6 @@ lazy_static! {
 		arr[SUICIDE as usize] = 		InstructionInfo::new("SUICIDE",			0, 1, 0, true, GasPriceTier::Zero);
 		arr
 	};
-}
-
-/// Return details about specific instruction
-pub fn get_info(instruction: Instruction) -> &'static InstructionInfo {
-	&INSTRUCTIONS[instruction as usize]
 }
 
 /// Virtual machine bytecode instruction.
