@@ -195,7 +195,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	}
 
 	// take slices
-	let key: &Vec<u8> = &input[0].0;
+	let key: &[u8] = &input[0].0;
 	let value: &[u8] = &input[0].1;
 
 	// if the slice contains just one item, append the suffix of the key

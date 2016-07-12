@@ -50,7 +50,7 @@ macro_rules! impl_uint {
 			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				let mut bytes = [0u8; 8 * $size];
-				self.0.to_raw_bytes(&mut bytes);
+				self.0.to_big_endian(&mut bytes);
 				let len = cmp::max((self.0.bits() + 7) / 8, 1);
 				hex.push_str(&bytes[bytes.len() - len..].to_hex());
 				serializer.serialize_str(&hex)

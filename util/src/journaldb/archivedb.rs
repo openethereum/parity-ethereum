@@ -202,7 +202,7 @@ impl JournalDB for ArchiveDB {
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
-		self.backing.get_by_prefix(&id[0..12]).and_then(|b| Some(b.to_vec()))
+		self.backing.get_by_prefix(&id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
 	}
 
 	fn is_pruned(&self) -> bool { false }

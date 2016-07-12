@@ -98,7 +98,8 @@ pub extern crate ethstore;
 extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
 
-#[cfg(test)] extern crate ethcore_devtools as devtools;
+extern crate ethcore_devtools as devtools;
+
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod account_provider;
@@ -117,18 +118,18 @@ pub mod pod_state;
 pub mod engine;
 pub mod migrations;
 pub mod miner;
+#[macro_use] pub mod evm;
+pub mod action_params;
 
 mod blooms;
 mod db;
 mod common;
 mod basic_types;
-#[macro_use] mod evm;
 mod env_info;
 mod pod_account;
 mod state;
 mod account;
 mod account_db;
-mod action_params;
 mod null_engine;
 mod builtin;
 mod substate;

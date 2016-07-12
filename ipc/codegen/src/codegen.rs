@@ -62,22 +62,8 @@ pub fn expand_ipc_implementation(
 	};
 
 	push_client(cx, &builder, &interface_map, push);
-	push_handshake_struct(cx, push);
 
 	push(Annotatable::Item(interface_map.item));
-}
-
-fn push_handshake_struct(cx: &ExtCtxt, push: &mut FnMut(Annotatable)) {
-	let handshake_item = quote_item!(cx,
-		#[derive(Binary)]
-		pub struct BinHandshake {
-			api_version: String,
-			protocol_version: String,
-			reserved: Vec<u8>,
-		}
-	).unwrap();
-
-	push(Annotatable::Item(handshake_item));
 }
 
 fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
@@ -601,15 +587,14 @@ fn push_client_implementation(
 
 	let handshake_item = quote_impl_item!(cx,
 		pub fn handshake(&self) -> Result<(), ::ipc::Error> {
-			let payload = BinHandshake {
-				protocol_version: $item_ident::protocol_version().to_string(),
-				api_version: $item_ident::api_version().to_string(),
-				reserved: vec![0u8; 64],
+			let payload = ::ipc::Handshake {
+				protocol_version: $item_ident::protocol_version(),
+				api_version: $item_ident::api_version(),
 			};
 
 			::ipc::invoke(
 				0,
-				&Some(::ipc::binary::serialize(&payload).unwrap()),
+				&Some(::ipc::binary::serialize(&::ipc::BinHandshake::from(payload)).unwrap()),
 				&mut *self.socket.write().unwrap());
 
 			let mut result = vec![0u8; 1];
@@ -673,18 +658,15 @@ fn implement_handshake_arm(
 ) -> (ast::Arm, ast::Arm)
 {
 	let handshake_deserialize = quote_stmt!(&cx,
-		let handshake_payload = ::ipc::binary::deserialize_from::<BinHandshake, _>(r).unwrap();
+		let handshake_payload = ::ipc::binary::deserialize_from::<::ipc::BinHandshake, _>(r).unwrap();
 	);
 
 	let handshake_deserialize_buf = quote_stmt!(&cx,
-		let handshake_payload = ::ipc::binary::deserialize::<BinHandshake>(buf).unwrap();
+		let handshake_payload = ::ipc::binary::deserialize::<::ipc::BinHandshake>(buf).unwrap();
 	);
 
 	let handshake_serialize = quote_expr!(&cx,
-		::ipc::binary::serialize::<bool>(&Self::handshake(&::ipc::Handshake {
-			api_version: ::semver::Version::parse(&handshake_payload.api_version).unwrap(),
-			protocol_version: ::semver::Version::parse(&handshake_payload.protocol_version).unwrap(),
-		})).unwrap()
+		::ipc::binary::serialize::<bool>(&Self::handshake(&handshake_payload.to_semver())).unwrap()
 	);
 
 	(
