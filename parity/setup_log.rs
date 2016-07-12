@@ -19,13 +19,11 @@ use std::env;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::Write;
-use std::sync::Mutex;
 use time;
 use env_logger::LogBuilder;
 use regex::Regex;
 use util::RotatingLogger;
 use util::log::{Applyable, Colour};
-use util::misc::Lockable;
 
 /// Sets up the logger
 pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option<String>) -> Arc<RotatingLogger> {
@@ -51,7 +49,7 @@ pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option
 
 	let logs = Arc::new(RotatingLogger::new(levels, enable_color));
 	let logger = logs.clone();
-	let maybe_file = log_to_file.as_ref().map(|f| Mutex::new(File::create(f).unwrap_or_else(|_| die!("Cannot write to log file given: {}", f))));
+	let maybe_file = log_to_file.as_ref().map(|f| File::create(f).unwrap_or_else(|_| die!("Cannot write to log file given: {}", f)));
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
@@ -62,11 +60,10 @@ pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option
 		};
 
 		let removed_color = kill_color(format.as_ref());
-		if let &Some(ref file_mutex) = &maybe_file {
+		if let Some(mut file) = maybe_file.as_ref() {
 			// ignore errors - there's nothing we can do
-			let file = file_mutex.locked();
-			file.write_all(removed_color.as_bytes());
-			file.write_all(b"\n");
+			let _ = file.write_all(removed_color.as_bytes());
+			let _ = file.write_all(b"\n");
 		}
 		logger.append(removed_color);
 
@@ -93,7 +90,7 @@ fn should_remove_colour() {
 
 #[test]
 fn should_remove_multiple_colour() {
-	let t = format!("{} {}", Colour::Red.bold().paint("test"), Colour::White.normal().paint("again"));  
+	let t = format!("{} {}", Colour::Red.bold().paint("test"), Colour::White.normal().paint("again"));
 	let after = kill_color(&t);
 	assert_eq!(after, "test again");
 }
