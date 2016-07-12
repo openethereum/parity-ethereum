@@ -305,7 +305,7 @@ impl Configuration {
 				}
 			}).collect(),
 			Some(_) => Ok(Vec::new()),
-			None => Ok(spec.nodes().clone()),
+			None => Ok(spec.nodes().to_owned()),
 		}
 	}
 

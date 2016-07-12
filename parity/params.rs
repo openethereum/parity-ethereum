@@ -37,11 +37,11 @@ fn to_seconds(s: &str) -> Result<u64, String> {
 		"1minute" | "1 minute" | "minute" => Ok(60),
 		"hourly" | "1hour" | "1 hour" | "hour" => Ok(60 * 60),
 		"daily" | "1day" | "1 day" | "day" => Ok(24 * 60 * 60),
-		x if x.ends_with("seconds") => x[0..x.len() - 7].parse::<u64>().map_err(bad),
+		x if x.ends_with("seconds") => x[0..x.len() - 7].parse().map_err(bad),
 		x if x.ends_with("minutes") => x[0..x.len() -7].parse::<u64>().map_err(bad).map(|x| x * 60),
 		x if x.ends_with("hours") => x[0..x.len() - 5].parse::<u64>().map_err(bad).map(|x| x * 60 * 60),
 		x if x.ends_with("days") => x[0..x.len() - 4].parse::<u64>().map_err(bad).map(|x| x * 24 * 60 * 60),
-		x => x.parse::<u64>().map_err(bad),
+		x => x.parse().map_err(bad),
 	}
 }
 
@@ -57,16 +57,16 @@ pub fn to_mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
 pub fn to_pruning(pruning: &str) -> Result<Option<Algorithm>, String> {
 	match pruning {
 		"auto" => Ok(None),
-		specific => Algorithm::from_str(specific).map(Some),
+		specific => specific.parse().map(Some),
 	}
 }
 
 pub fn to_block_id(s: &str) -> Result<BlockID, String> {
 	if s == "latest" {
 		Ok(BlockID::Latest)
-	} else if let Ok(num) = s.parse::<u64>() {
+	} else if let Ok(num) = s.parse() {
 		Ok(BlockID::Number(num))
-	} else if let Ok(hash) = FromStr::from_str(s) {
+	} else if let Ok(hash) = s.parse() {
 		Ok(BlockID::Hash(hash))
 	} else {
 		Err("Invalid block.".into())
@@ -76,7 +76,7 @@ pub fn to_block_id(s: &str) -> Result<BlockID, String> {
 pub fn to_u256(s: &str) -> Result<U256, String> {
 	if let Ok(decimal) = U256::from_dec_str(s) {
 		Ok(decimal)
-	} else if let Ok(hex) = U256::from_str(clean_0x(s)) {
+	} else if let Ok(hex) = clean_0x(s).parse() {
 		Ok(hex)
 	} else {
 		Err(format!("Invalid numeric value: {}", s))
@@ -94,7 +94,7 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 
 pub fn to_address(s: Option<String>) -> Result<Address, String> {
 	match s {
-		Some(ref a) => Address::from_str(clean_0x(a)).map_err(|_| format!("Invalid address: {:?}", a)),
+		Some(ref a) =>clean_0x(a).parse().map_err(|_| format!("Invalid address: {:?}", a)),
 		None => Ok(Address::default())
 	}
 }
@@ -123,9 +123,8 @@ pub fn to_price(s: &str) -> Result<f32, String> {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
 	use std::time::Duration;
-	use util::{U256, Address};
+	use util::U256;
 	use util::journaldb::Algorithm;
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
@@ -177,7 +176,7 @@ mod tests {
 		assert_eq!(to_block_id("15").unwrap(), BlockID::Number(15));
 		assert_eq!(
 			to_block_id("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e").unwrap(),
-			BlockID::Hash(FromStr::from_str("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e").unwrap())
+			BlockID::Hash("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e".parse().unwrap())
 		);
 	}
 
@@ -201,20 +200,20 @@ mod tests {
 	fn test_to_address() {
 		assert_eq!(
 			to_address(Some("0xD9A111feda3f362f55Ef1744347CDC8Dd9964a41".into())).unwrap(),
-			Address::from_str("D9A111feda3f362f55Ef1744347CDC8Dd9964a41").unwrap()
+			"D9A111feda3f362f55Ef1744347CDC8Dd9964a41".parse().unwrap()
 		);
 		assert_eq!(
 			to_address(Some("D9A111feda3f362f55Ef1744347CDC8Dd9964a41".into())).unwrap(),
-			Address::from_str("D9A111feda3f362f55Ef1744347CDC8Dd9964a41").unwrap()
+			"D9A111feda3f362f55Ef1744347CDC8Dd9964a41".parse().unwrap()
 		);
-		assert_eq!(to_address(None).unwrap(), Address::default());
+		assert_eq!(to_address(None).unwrap(), Default::default());
 	}
 
 	#[test]
 	fn test_policy_parsing() {
-		assert_eq!(Policy::from_str("none").unwrap(), Policy::None);
-		assert_eq!(Policy::from_str("dogmatic").unwrap(), Policy::Dogmatic);
-		assert!(Policy::from_str("sas").is_err());
+		assert_eq!(Policy::None, "none".parse().unwrap());
+		assert_eq!(Policy::Dogmatic, "dogmatic".parse().unwrap());
+		assert!("sas".parse::<Policy>().is_err());
 	}
 
 	#[test]
