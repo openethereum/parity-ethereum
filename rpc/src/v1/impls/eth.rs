@@ -33,7 +33,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::header::Header as BlockHeader;
 use ethcore::block::IsBlock;
-use ethcore::header::Header;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
@@ -83,6 +82,7 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 	}
 
 	fn block(&self, id: BlockID, include_txs: bool) -> Result<Value, Error> {
+		let client = take_weak!(self.client);
 		match (client.block(id.clone()), client.block_total_difficulty(id)) {
 			(Some(bytes), Some(total_difficulty)) => {
 				let block_view = BlockView::new(&bytes);

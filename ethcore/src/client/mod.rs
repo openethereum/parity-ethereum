@@ -38,7 +38,7 @@ use util::numbers::U256;
 use util::Itertools;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::{OpenBlock, SealedBlock, Block};
+use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;

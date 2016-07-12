@@ -691,8 +691,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
-		if let &BlockID::Pending == &id {
-			return Some(self.miner.pending_block().rlp_bytes())
+		if let &BlockID::Pending = &id {
+			if let Some(block) = self.miner.pending_block() { 
+				return Some(block.rlp_bytes());
+			}
 		}
 		Self::block_hash(&self.chain, id).and_then(|hash| {
 			self.chain.block(&hash)
@@ -708,8 +710,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_total_difficulty(&self, id: BlockID) -> Option<U256> {
-		if let &BlockID::Pending == &id {
-			return Some(self.miner.pending_block().header.difficulty() + self.block_total_difficulty(BlockID::Latest) 
+		if let &BlockID::Pending = &id {
+			if let Some(block) = self.miner.pending_block() {
+				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
+			} 
 		}
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}

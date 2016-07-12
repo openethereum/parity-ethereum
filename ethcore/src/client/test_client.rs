@@ -25,7 +25,6 @@ use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStat
 	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	BlockImportError};
 use header::{Header as BlockHeader, BlockNumber};
-use block::Block;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
