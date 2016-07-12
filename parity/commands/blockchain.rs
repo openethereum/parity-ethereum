@@ -30,9 +30,9 @@ use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMT
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
-use setup_log::setup_log;
+use setup_log::{setup_log, LoggerConfig};
 use informant::Informant;
-use params::{SpecType, LoggerConfig, Pruning};
+use params::{SpecType, Pruning};
 use fdlimit;
 
 #[derive(Debug, PartialEq)]
@@ -127,7 +127,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let spec = try!(cmd.spec.spec());
 
 	// Setup logging
-	let _logger = setup_log(&cmd.logger_config.mode, cmd.logger_config.color);
+	let _logger = setup_log(&cmd.logger_config);
 
 	unsafe { fdlimit::raise_fd_limit(); }
 
@@ -227,7 +227,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let spec = try!(cmd.spec.spec());
 
 	// Setup logging
-	let _logger = setup_log(&cmd.logger_config.mode, cmd.logger_config.color);
+	let _logger = setup_log(&cmd.logger_config);
 
 	unsafe { fdlimit::raise_fd_limit(); }
 

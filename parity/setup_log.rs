@@ -21,8 +21,14 @@ use time;
 use env_logger::LogBuilder;
 use util::RotatingLogger;
 
+#[derive(Debug, PartialEq)]
+pub struct LoggerConfig {
+	pub mode: Option<String>,
+	pub color: bool,
+}
+
 /// Sets up the logger
-pub fn setup_log(init: &Option<String>, enable_color: bool) -> Arc<RotatingLogger> {
+pub fn setup_log(config: &LoggerConfig) -> Arc<RotatingLogger> {
 	use rlog::*;
 
 	let mut levels = String::new();
@@ -38,12 +44,12 @@ pub fn setup_log(init: &Option<String>, enable_color: bool) -> Arc<RotatingLogge
 		builder.parse(lvl);
 	}
 
-	if let Some(ref s) = *init {
+	if let Some(ref s) = config.mode {
 		levels.push_str(s);
 		builder.parse(s);
 	}
 
-	let logs = Arc::new(RotatingLogger::new(levels, enable_color));
+	let logs = Arc::new(RotatingLogger::new(levels, config.color));
 	let logger = logs.clone();
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();

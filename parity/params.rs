@@ -73,12 +73,6 @@ impl SpecType {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct LoggerConfig {
-	pub mode: Option<String>,
-	pub color: bool,
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Pruning {
 	Specific(Algorithm),
 	Auto,

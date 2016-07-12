@@ -94,6 +94,7 @@ use configuration::{Configuration, IOPasswordReader};
 use helpers::{to_mode, to_address, to_u256};
 use params::{Policy, SpecType, Pruning};
 use dir::Directories;
+use setup_log::LoggerConfig;
 use std::process;
 
 fn main() {
@@ -122,16 +123,23 @@ pub struct RunCmd {
 	pruning: Pruning,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	daemon: Option<String>,
+	logger_config: LoggerConfig,
 }
 
 fn execute(cmd: RunCmd) -> Result<(), String> {
+	try!(cmd.directories.create_dirs());
 	let spec = try!(cmd.spec.spec());
 	let genesis_hash = spec.genesis_header().hash();
 	let algorithm = cmd.pruning.to_algorithm(&cmd.directories, genesis_hash);
+
 	try!(execute_upgrades(&cmd.directories, genesis_hash, algorithm));
+
 	if let Some(pid_file) = cmd.daemon {
 		try!(daemonize(pid_file));
 	}
+
+	let _logger = setup_log::setup_log(&cmd.logger_config);
+
 	Ok(())
 	//let spec = conf.spec();
 	//let client_config = conf.client_config(&spec);
@@ -181,7 +189,10 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
+	//let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
+	let logger = setup_log::setup_log({
+		unimplemented!()
+	});
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 

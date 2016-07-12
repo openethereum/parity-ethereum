@@ -34,7 +34,8 @@ use rpc::IpcConfiguration;
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home};
-use params::{SpecType, LoggerConfig};
+use params::{SpecType};
+use setup_log::LoggerConfig;
 use dir::Directories;
 use RunCmd;
 
@@ -180,6 +181,7 @@ impl Configuration {
 				policy: try!(self.args.flag_fork.parse()),
 				pruning: pruning,
 				daemon: daemon,
+				logger_config: logger_config,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -551,8 +553,9 @@ mod tests {
 	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use cache::CacheConfig;
-	use params::{SpecType, LoggerConfig, Pruning};
+	use params::{SpecType, Pruning};
 	use helpers::replace_home;
+	use setup_log::LoggerConfig;
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
