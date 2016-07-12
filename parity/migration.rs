@@ -25,7 +25,7 @@ use ethcore::migrations;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 6;
+const CURRENT_VERSION: u32 = 7;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -103,6 +103,13 @@ fn update_version(path: &PathBuf) -> Result<(), Error> {
 	Ok(())
 }
 
+/// State database path.
+fn state_database_path(path: &PathBuf) -> PathBuf {
+	let mut state_path = path.clone();
+	state_path.push("state");
+	state_path
+}
+
 /// Blocks database path.
 fn blocks_database_path(path: &PathBuf) -> PathBuf {
 	let mut blocks_path = path.clone();
@@ -130,6 +137,13 @@ fn default_migration_settings() -> MigrationConfig {
 	MigrationConfig {
 		batch_size: BATCH_SIZE,
 	}
+}
+
+/// Migrations on state database.
+fn state_database_migrations() -> Result<MigrationManager, Error> {
+	let mut manager = MigrationManager::new(default_migration_settings());
+	try!(manager.add_migration(migrations::state::ToV7).map_err(|_| Error::MigrationImpossible));
+	Ok(manager)
 }
 
 /// Migrations on blocks database.
@@ -186,8 +200,11 @@ pub fn migrate(path: &PathBuf) -> Result<(), Error> {
 
 	// migrate the databases.
 	// main db directory may already exists, so let's check if we have blocks dir
-	if version != CURRENT_VERSION && exists(&blocks_database_path(path)) {
+	if version != CURRENT_VERSION && exists(&state_database_path(path)) {
 		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
+		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations())));
+	}
+	if version != CURRENT_VERSION && exists(&blocks_database_path(path)) {
 		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
 		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
 		println!("Migration finished");
