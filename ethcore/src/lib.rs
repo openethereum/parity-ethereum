@@ -147,5 +147,4 @@ mod tests;
 mod json_tests;
 
 pub use types::*;
-pub use evm::get_info;
 pub use executive::contract_address;
