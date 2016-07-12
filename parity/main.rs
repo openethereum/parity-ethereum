@@ -51,7 +51,7 @@ extern crate ethcore_rpc;
 extern crate ethcore_signer;
 extern crate ansi_term;
 
-#[cfg(feature = "dapps")]
+#[cfg(all(feature = "dapps", not(feature = "no-ui")))]
 extern crate ethcore_dapps;
 
 #[macro_use]

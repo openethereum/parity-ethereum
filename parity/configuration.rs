@@ -561,7 +561,7 @@ impl Configuration {
 	}
 
 	pub fn dapps_enabled(&self) -> bool {
-		!self.args.flag_dapps_off && !self.args.flag_no_dapps
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(not(feature = "no-ui"))
 	}
 
 	pub fn signer_enabled(&self) -> bool {
