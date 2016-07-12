@@ -99,8 +99,7 @@ pub struct ClientConfig {
 
 #[cfg(test)]
 mod test {
-	use std::str::FromStr;
-	use super::DatabaseCompactionProfile;
+	use super::{DatabaseCompactionProfile, Mode};
 
 	#[test]
 	fn test_default_compaction_profile() {
@@ -109,8 +108,13 @@ mod test {
 
 	#[test]
 	fn test_parsing_compaction_profile() {
-		assert_eq!(DatabaseCompactionProfile::from_str("ssd").unwrap(), DatabaseCompactionProfile::Default);
-		assert_eq!(DatabaseCompactionProfile::from_str("default").unwrap(), DatabaseCompactionProfile::Default);
-		assert_eq!(DatabaseCompactionProfile::from_str("hdd").unwrap(), DatabaseCompactionProfile::HDD);
+		assert_eq!(DatabaseCompactionProfile::Default, "ssd".parse().unwrap());
+		assert_eq!(DatabaseCompactionProfile::Default, "default".parse().unwrap());
+		assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
+	}
+
+	#[test]
+	fn test_mode_default() {
+		assert_eq!(Mode::default(), Mode::Active);
 	}
 }

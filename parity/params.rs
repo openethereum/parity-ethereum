@@ -27,6 +27,12 @@ pub enum Policy {
 	Dogmatic,
 }
 
+impl Default for Policy {
+	fn default() -> Self {
+		Policy::None
+	}
+}
+
 impl FromStr for Policy {
 	type Err = String;
 
@@ -45,6 +51,12 @@ pub enum SpecType {
 	Testnet,
 	Olympic,
 	Custom(String),
+}
+
+impl Default for SpecType {
+	fn default() -> Self {
+		SpecType::Mainnet
+	}
 }
 
 impl FromStr for SpecType {
@@ -76,6 +88,12 @@ impl SpecType {
 pub enum Pruning {
 	Specific(Algorithm),
 	Auto,
+}
+
+impl Default for Pruning {
+	fn default() -> Self {
+		Pruning::Auto
+	}
 }
 
 impl FromStr for Pruning {
@@ -126,6 +144,11 @@ mod tests {
 	}
 
 	#[test]
+	fn test_policy_default() {
+		assert_eq!(Policy::None, Policy::default());
+	}
+
+	#[test]
 	fn test_spec_type_parsing() {
 		assert_eq!(SpecType::Mainnet, "frontier".parse().unwrap());
 		assert_eq!(SpecType::Mainnet, "homestead".parse().unwrap());
@@ -136,11 +159,21 @@ mod tests {
 	}
 
 	#[test]
+	fn test_spec_type_default() {
+		assert_eq!(SpecType::Mainnet, SpecType::default());
+	}
+
+	#[test]
 	fn test_pruning_parsing() {
 		assert_eq!(Pruning::Auto, "auto".parse().unwrap());
 		assert_eq!(Pruning::Specific(Algorithm::Archive), "archive".parse().unwrap());
 		assert_eq!(Pruning::Specific(Algorithm::EarlyMerge), "earlymerge".parse().unwrap());
 		assert_eq!(Pruning::Specific(Algorithm::OverlayRecent), "overlayrecent".parse().unwrap());
 		assert_eq!(Pruning::Specific(Algorithm::RefCounted), "refcounted".parse().unwrap());
+	}
+
+	#[test]
+	fn test_pruning_default() {
+		assert_eq!(Pruning::Auto, Pruning::default());
 	}
 }

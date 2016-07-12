@@ -18,6 +18,7 @@ use std::fs;
 use std::path::{PathBuf, Path};
 use util::{H64, H256};
 use util::journaldb::Algorithm;
+use helpers::replace_home;
 
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
@@ -29,6 +30,17 @@ pub struct Directories {
 	pub keys: String,
 	pub signer: String,
 	pub dapps: String,
+}
+
+impl Default for Directories {
+	fn default() -> Self {
+		Directories {
+			db: replace_home("$HOME/.parity"),
+			keys: replace_home("$HOME/.parity/keys"),
+			signer: replace_home("$HOME/.parity/signer"),
+			dapps: replace_home("$HOME/.parity/dapps"),
+		}
+	}
 }
 
 impl Directories {
@@ -46,5 +58,22 @@ impl Directories {
 		dir.push(H64::from(genesis_hash).hex());
 		dir.push(format!("v{}-sec-{}", LEGACY_CLIENT_DB_VER_STR, pruning));
 		dir
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::Directories;
+	use helpers::replace_home;
+
+	#[test]
+	fn test_default_directories() {
+		let expected = Directories {
+			db: replace_home("$HOME/.parity"),
+			keys: replace_home("$HOME/.parity/keys"),
+			signer: replace_home("$HOME/.parity/signer"),
+			dapps: replace_home("$HOME/.parity/dapps"),
+		};
+		assert_eq!(expected, Directories::default());
 	}
 }

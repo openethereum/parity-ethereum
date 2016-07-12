@@ -553,9 +553,11 @@ mod tests {
 	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use cache::CacheConfig;
-	use params::{SpecType, Pruning};
+	use params::{SpecType, Pruning, Policy};
 	use helpers::replace_home;
 	use setup_log::LoggerConfig;
+	use dir::Directories;
+	use RunCmd;
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -642,14 +644,14 @@ mod tests {
 				mode: None,
 				color: false,
 			},
-			cache_config: CacheConfig::default(),
+			cache_config: Default::default(),
 			db_path: replace_home("$HOME/.parity"),
 			file_path: Some("blockchain.json".into()),
 			format: None,
-			pruning: Pruning::Auto,
-			compaction: DatabaseCompactionProfile::default(),
-			mode: Mode::Active,
-			tracing: Switch::Auto,
+			pruning: Default::default(),
+			compaction: Default::default(),
+			mode: Default::default(),
+			tracing: Default::default(),
 			vm_type: VMType::Interpreter,
 		})));
 	}
@@ -665,14 +667,14 @@ mod tests {
 				mode: None,
 				color: false,
 			},
-			cache_config: CacheConfig::default(),
+			cache_config: Default::default(),
 			db_path: replace_home("$HOME/.parity"),
 			file_path: Some("blockchain.json".into()),
-			pruning: Pruning::Auto,
-			format: None,
-			compaction: DatabaseCompactionProfile::default(),
-			mode: Mode::Active,
-			tracing: Switch::Auto,
+			pruning: Default::default(),
+			format: Default::default(),
+			compaction: Default::default(),
+			mode: Default::default(),
+			tracing: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
 		})));
@@ -685,6 +687,24 @@ mod tests {
 		let password = TestPasswordReader("test");
 		let expected = replace_home("$HOME/.parity/signer");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::SignerToken(expected));
+	}
+
+	#[test]
+	fn test_run_cmd() {
+		let args = vec!["parity"];
+		let conf = Configuration::parse(args).unwrap();
+		let password = TestPasswordReader("test");
+		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Run(RunCmd {
+			directories: Default::default(),
+			spec: Default::default(),
+			policy: Default::default(),
+			pruning: Default::default(),
+			daemon: None,
+			logger_config: LoggerConfig {
+				mode: None,
+				color: false,
+			}
+		}));
 	}
 
 	#[test]

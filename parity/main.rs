@@ -94,7 +94,8 @@ use configuration::{Configuration, IOPasswordReader};
 use helpers::{to_mode, to_address, to_u256};
 use params::{Policy, SpecType, Pruning};
 use dir::Directories;
-use setup_log::LoggerConfig;
+use setup_log::{LoggerConfig, setup_log};
+use fdlimit::raise_fd_limit;
 use std::process;
 
 fn main() {
@@ -127,30 +128,46 @@ pub struct RunCmd {
 }
 
 fn execute(cmd: RunCmd) -> Result<(), String> {
+	// increase max number of open files
+	raise_fd_limit();
+
+	// set up logger
+	let _logger = setup_log(&cmd.logger_config);
+
+	// set up panic handler
+	let panic_handler = PanicHandler::new_in_arc();
+
+	// create directories used by parity
 	try!(cmd.directories.create_dirs());
+
+	// load spec
 	let spec = try!(cmd.spec.spec());
+
+	// store genesis hash
 	let genesis_hash = spec.genesis_header().hash();
+
+	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.directories, genesis_hash);
 
+	// execute upgrades
 	try!(execute_upgrades(&cmd.directories, genesis_hash, algorithm));
 
+	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
 		try!(daemonize(pid_file));
 	}
 
-	let _logger = setup_log::setup_log(&cmd.logger_config);
+	// display warning about using experimental journaldb alorithm
+	if !algorithm.is_stable() {
+		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
+	}
+
+	// Check fork settings.
+	if Policy::None == cmd.policy {
+		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
+	}
 
 	Ok(())
-	//let spec = conf.spec();
-	//let client_config = conf.client_config(&spec);
-
-	//try!(execute_upgrades(&conf.directories(), spec.genesis_header().hash(), client_config.pruning));
-
-	//if conf.args.cmd_daemon {
-		//try!(daemonize(&conf));
-	//}
-
-	//execute_client(conf, spec, client_config)
 }
 
 #[cfg(not(windows))]

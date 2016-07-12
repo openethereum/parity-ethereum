@@ -122,23 +122,22 @@ const VERSION_KEY : [u8; DB_PREFIX_LEN] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
 	use super::Algorithm;
 
 	#[test]
 	fn test_journal_algorithm_parsing() {
-		assert_eq!(Algorithm::from_str("archive").unwrap(), Algorithm::Archive);
-		assert_eq!(Algorithm::from_str("earlymerge").unwrap(), Algorithm::EarlyMerge);
-		assert_eq!(Algorithm::from_str("overlayrecent").unwrap(), Algorithm::OverlayRecent);
-		assert_eq!(Algorithm::from_str("refcounted").unwrap(), Algorithm::RefCounted);
+		assert_eq!(Algorithm::Archive, "archive".parse().unwrap());
+		assert_eq!(Algorithm::EarlyMerge, "earlymerge".parse().unwrap());
+		assert_eq!(Algorithm::OverlayRecent, "overlayrecent".parse().unwrap());
+		assert_eq!(Algorithm::RefCounted, "refcounted".parse().unwrap());
 	}
 
 	#[test]
 	fn test_journal_algorithm_printing() {
-		assert_eq!(Algorithm::Archive.as_str(), "archive");
-		assert_eq!(Algorithm::EarlyMerge.as_str(), "earlymerge");
-		assert_eq!(Algorithm::OverlayRecent.as_str(), "overlayrecent");
-		assert_eq!(Algorithm::RefCounted.as_str(), "refcounted");
+		assert_eq!(Algorithm::Archive.to_string(), "archive".to_owned());
+		assert_eq!(Algorithm::EarlyMerge.to_string(), "earlymerge".to_owned());
+		assert_eq!(Algorithm::OverlayRecent.to_string(), "overlayrecent".to_owned());
+		assert_eq!(Algorithm::RefCounted.to_string(), "refcounted".to_owned());
 	}
 
 	#[test]
@@ -151,7 +150,7 @@ mod tests {
 
 	#[test]
 	fn test_journal_algorithm_default() {
-		assert_eq!(Algorithm::default(), Algorithm::Archive);
+		assert_eq!(Algorithm::default(), Algorithm::OverlayRecent);
 	}
 
 	#[test]

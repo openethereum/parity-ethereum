@@ -30,6 +30,12 @@ pub enum Switch {
 	Auto,
 }
 
+impl Default for Switch {
+	fn default() -> Self {
+		Switch::Auto
+	}
+}
+
 impl FromStr for Switch {
 	type Err = String;
 
@@ -69,7 +75,7 @@ pub struct Config {
 impl Default for Config {
 	fn default() -> Self {
 		Config {
-			enabled: Switch::Auto,
+			enabled: Switch::default(),
 			blooms: BloomConfig {
 				levels: 3,
 				elements_per_index: 16,
@@ -81,13 +87,17 @@ impl Default for Config {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
 	use super::Switch;
 
 	#[test]
 	fn test_switch_parsing() {
-		assert_eq!(Switch::from_str("on").unwrap(), Switch::On);
-		assert_eq!(Switch::from_str("off").unwrap(), Switch::Off);
-		assert_eq!(Switch::from_str("auto").unwrap(), Switch::Auto);
+		assert_eq!(Switch::On, "on".parse().unwrap());
+		assert_eq!(Switch::Off, "off".parse().unwrap());
+		assert_eq!(Switch::Auto, "auto".parse().unwrap());
+	}
+
+	#[test]
+	fn test_switch_default() {
+		assert_eq!(Switch::default(), Switch::Auto);
 	}
 }
