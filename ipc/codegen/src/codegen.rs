@@ -574,8 +574,6 @@ fn push_client_implementation(
 	interface_map: &InterfaceMap,
 	push: &mut FnMut(Annotatable),
 ) {
-	let item_ident = interface_map.ident_map.qualified_ident(builder);
-
 	let mut index = -1i32;
 	let items = interface_map.dispatches.iter()
 		.map(|_| { index = index + 1; P(implement_client_method(cx, builder, index as u16, interface_map)) })
@@ -754,10 +752,6 @@ impl IdentMap {
 		else {
 			builder.id(format!("{}Client", self.original_path.segments[0].identifier))
 		}
-	}
-
-	fn qualified_ident(&self, builder: &aster::AstBuilder) -> Ident {
-		builder.id(format!("{}", ::syntax::print::pprust::path_to_string(&self.original_path).replace("<", "::<")))
 	}
 }
 

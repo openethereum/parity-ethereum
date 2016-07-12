@@ -426,7 +426,7 @@ impl Client {
 		};
 
 		// Commit results
-		let receipts = block.receipts().clone();
+		let receipts = block.receipts().to_owned();
 		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
