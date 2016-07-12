@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-///! Rust VM implementation
+//! Rust VM implementation
 
 #[cfg(not(feature = "evm-debug"))]
 macro_rules! evm_debug {
@@ -182,6 +182,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				instruction: instruction
 			});
 		}
+
 		if info.tier == instructions::GasPriceTier::Invalid {
 			return Err(evm::Error::BadInstruction {
 				instruction: instruction
