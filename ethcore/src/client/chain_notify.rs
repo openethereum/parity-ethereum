@@ -14,14 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! IPC RPC interface
+use util::numbers::*;
 
-extern crate ethcore_devtools as devtools;
-extern crate semver;
-extern crate nanomsg;
-extern crate ethcore_util as util;
+/// Represents what has to be handled by actor listening to chain events
+pub trait ChainNotify : Send + Sync {
+	/// fires when chain has new blocks
+	fn new_blocks(&self,
+		_imported: Vec<H256>,
+		_invalid: Vec<H256>,
+		_enacted: Vec<H256>,
+		_retracted: Vec<H256>,
+		_sealed: Vec<H256>) {
+		// does nothing by default
+	}
 
-pub mod interface;
-pub mod binary;
-pub use interface::{IpcInterface, IpcSocket, invoke, IpcConfig, Handshake, Error, WithSocket};
-pub use binary::{BinaryConvertable, BinaryConvertError, BinHandshake};
+	/// fires when chain achieves active mode
+	fn start(&self) {
+		// does nothing by default
+	}
+
+	/// fires when chain achieves passive mode
+	fn stop(&self) {
+		// does nothing by default
+	}
+}

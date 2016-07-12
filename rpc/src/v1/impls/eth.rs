@@ -508,7 +508,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		match params {
-			Params::None => to_value(&vec![] as &Vec<String>),
+			Params::None => to_value(&(&[] as &[String])),
 			_ => Err(Error::invalid_params())
 		}
 	}

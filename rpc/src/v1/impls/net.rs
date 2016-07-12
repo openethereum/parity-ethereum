@@ -48,13 +48,4 @@ impl<S> Net for NetClient<S> where S: SyncProvider + 'static {
 		Ok(Value::Bool(true))
 	}
 
-	fn start_network(&self, _: Params) -> Result<Value, Error> {
-		take_weak!(self.sync).start_network();
-		Ok(Value::Bool(true))
-	}
-
-	fn stop_network(&self, _: Params) -> Result<Value, Error> {
-		take_weak!(self.sync).stop_network();
-		Ok(Value::Bool(true))
-	}
 }

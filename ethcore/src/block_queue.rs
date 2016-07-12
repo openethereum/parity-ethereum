@@ -104,7 +104,7 @@ struct VerifyingBlock {
 struct QueueSignal {
 	deleting: Arc<AtomicBool>,
 	signalled: AtomicBool,
-	message_channel: IoChannel<NetSyncMessage>,
+	message_channel: IoChannel<ClientIoMessage>,
 }
 
 impl QueueSignal {
@@ -116,7 +116,7 @@ impl QueueSignal {
 		}
 
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
-			if let Err(e) = self.message_channel.send(UserMessage(SyncMessage::BlockVerified)) {
+			if let Err(e) = self.message_channel.send(ClientIoMessage::BlockVerified) {
 				debug!("Error sending BlockVerified message: {:?}", e);
 			}
 		}
@@ -137,7 +137,7 @@ struct Verification {
 
 impl BlockQueue {
 	/// Creates a new queue instance.
-	pub fn new(config: BlockQueueConfig, engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
+	pub fn new(config: BlockQueueConfig, engine: Arc<Box<Engine>>, message_channel: IoChannel<ClientIoMessage>) -> BlockQueue {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
 			verified: Mutex::new(VecDeque::new()),
