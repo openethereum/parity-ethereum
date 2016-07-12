@@ -34,10 +34,9 @@
 //! extern crate ethsync;
 //! use std::env;
 //! use std::sync::Arc;
-//! use util::network::{NetworkConfiguration};
 //! use util::io::IoChannel;
 //! use ethcore::client::{Client, ClientConfig};
-//! use ethsync::{EthSync, SyncConfig, ManageNetwork};
+//! use ethsync::{EthSync, SyncConfig, ManageNetwork, NetworkConfiguration};
 //! use ethcore::ethereum;
 //! use ethcore::miner::{GasPricer, Miner};
 //!
@@ -56,7 +55,7 @@
 //!			miner,
 //!			IoChannel::disconnected()
 //!		).unwrap();
-//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::new()).unwrap();
+//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::from(util::NetworkConfiguration::new())).unwrap();
 //! 	sync.start_network();
 //! }
 //! ```
