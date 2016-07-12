@@ -149,7 +149,8 @@ impl ChainNotify for EthSync {
 	}
 }
 
-impl IpcConfig for EthSync { }
+impl IpcConfig<ManageNetwork> for Arc<ManageNetwork> { }
+impl IpcConfig<SyncProvider> for Arc<SyncProvider> { }
 
 /// Trait for managing network
 pub trait ManageNetwork : Send + Sync {
@@ -234,7 +235,7 @@ pub struct NetworkConfiguration {
 }
 
 impl NetworkConfiguration {
-	fn into_basic(self) -> Result<BasicNetworkConfiguration, AddrParseError> {
+	pub fn into_basic(self) -> Result<BasicNetworkConfiguration, AddrParseError> {
 		use std::str::FromStr;
 
 		Ok(BasicNetworkConfiguration {
