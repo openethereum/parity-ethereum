@@ -40,9 +40,9 @@ impl Into<Vec<u8>> for Bytes {
 }
 
 impl Deref for Bytes {
-	type Target = Vec<u8>;
+	type Target = [u8];
 
-	fn deref(&self) -> &Vec<u8> {
+	fn deref(&self) -> &[u8] {
 		&self.0
 	}
 }

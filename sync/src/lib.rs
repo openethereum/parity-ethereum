@@ -34,15 +34,14 @@
 //! extern crate ethsync;
 //! use std::env;
 //! use std::sync::Arc;
-//! use util::network::{NetworkService, NetworkConfiguration};
+//! use util::network::{NetworkConfiguration};
+//! use util::io::IoChannel;
 //! use ethcore::client::{Client, ClientConfig};
-//! use ethsync::{EthSync, SyncConfig};
+//! use ethsync::{EthSync, SyncConfig, ManageNetwork};
 //! use ethcore::ethereum;
 //! use ethcore::miner::{GasPricer, Miner};
 //!
 //! fn main() {
-//! 	let mut service = NetworkService::new(NetworkConfiguration::new()).unwrap();
-//! 	service.start().unwrap();
 //! 	let dir = env::temp_dir();
 //! 	let miner = Miner::new(
 //! 		Default::default(),
@@ -55,10 +54,10 @@
 //!			ethereum::new_frontier(),
 //!			&dir,
 //!			miner,
-//!			service.io().channel()
+//!			IoChannel::disconnected()
 //!		).unwrap();
-//! 	let sync = EthSync::new(SyncConfig::default(), client);
-//! 	EthSync::register(&mut service, sync);
+//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::new()).unwrap();
+//! 	sync.start_network();
 //! }
 //! ```
 
@@ -75,13 +74,10 @@ extern crate heapsize;
 
 use std::ops::*;
 use std::sync::*;
-use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
-use util::{TimerToken, U256, RwLockable};
-use ethcore::client::Client;
-use ethcore::service::{SyncMessage, NetSyncMessage};
+use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, NetworkConfiguration};
+use util::{TimerToken, U256, H256, RwLockable, UtilError};
+use ethcore::client::{Client, ChainNotify};
 use io::NetSyncIo;
-use util::io::IoChannel;
-use util::{NetworkIoMessage, NetworkError};
 use chain::ChainSync;
 
 mod chain;
@@ -90,6 +86,9 @@ mod io;
 
 #[cfg(test)]
 mod tests;
+
+/// Ethereum sync protocol
+pub const ETH_PROTOCOL: &'static str = "eth";
 
 /// Sync configuration
 pub struct SyncConfig {
@@ -112,99 +111,142 @@ impl Default for SyncConfig {
 pub trait SyncProvider: Send + Sync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus;
-	/// Start the network
-	fn start_network(&self);
-	/// Stop the network
-	fn stop_network(&self);
 }
 
 /// Ethereum network protocol handler
 pub struct EthSync {
-	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
-	chain: Arc<Client>,
-	/// Sync strategy
-	sync: RwLock<ChainSync>,
-	/// IO communication chnnel.
-	io_channel: RwLock<IoChannel<NetSyncMessage>>,
+	/// Network service
+	network: NetworkService,
+	/// Protocol handler
+	handler: Arc<SyncProtocolHandler>,
 }
 
 pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
-		let sync = ChainSync::new(config, chain.deref());
-		Arc::new(EthSync {
-			chain: chain,
-			sync: RwLock::new(sync),
-			io_channel: RwLock::new(IoChannel::disconnected()),
-		})
-	}
+	pub fn new(config: SyncConfig, chain: Arc<Client>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, UtilError> {
+		let chain_sync = ChainSync::new(config, chain.deref());
+		let service = try!(NetworkService::new(network_config));
+		let sync = Arc::new(EthSync{
+			network: service,
+			handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain }),
+		});
 
-	/// Register protocol with the network service
-	pub fn register(service: &NetworkService<SyncMessage>, sync: Arc<EthSync>) -> Result<(), NetworkError> {
-		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8])
-	}
-
-	/// Stop sync
-	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
-		self.sync.unwrapped_write().abort(&mut NetSyncIo::new(io, self.chain.deref()));
-	}
-
-	/// Restart sync
-	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
-		self.sync.unwrapped_write().restart(&mut NetSyncIo::new(io, self.chain.deref()));
+		Ok(sync)
 	}
 }
 
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
-		self.sync.unwrapped_read().status()
-	}
-
-	fn start_network(&self) {
-		self.io_channel.unwrapped_read().send(NetworkIoMessage::User(SyncMessage::StartNetwork))
-			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
-	}
-
-	fn stop_network(&self) {
-		self.io_channel.unwrapped_read().send(NetworkIoMessage::User(SyncMessage::StopNetwork))
-			.unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+		self.handler.sync.unwrapped_read().status()
 	}
 }
 
-impl NetworkProtocolHandler<SyncMessage> for EthSync {
-	fn initialize(&self, io: &NetworkContext<SyncMessage>) {
+struct SyncProtocolHandler {
+	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
+	chain: Arc<Client>,
+	/// Sync strategy
+	sync: RwLock<ChainSync>,
+}
+
+impl NetworkProtocolHandler for SyncProtocolHandler {
+	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(0, 1000).expect("Error registering sync timer");
-		*self.io_channel.unwrapped_write() = io.io_channel();
 	}
 
-	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, self.chain.deref()) , *peer, packet_id, data);
+	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, self.chain.deref()), *peer, packet_id, data);
 	}
 
-	fn connected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
+	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
 		self.sync.unwrapped_write().on_peer_connected(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
 	}
 
-	fn disconnected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
+	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
 		self.sync.unwrapped_write().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
 	}
 
-	fn timeout(&self, io: &NetworkContext<SyncMessage>, _timer: TimerToken) {
+	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
 		self.sync.unwrapped_write().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
 		self.sync.unwrapped_write().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
+}
 
-	#[cfg_attr(feature="dev", allow(single_match))]
-	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
-		match *message {
-			SyncMessage::NewChainBlocks { ref imported, ref invalid, ref enacted, ref retracted, ref sealed } => {
-				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
-				self.sync.unwrapped_write().chain_new_blocks(&mut sync_io, imported, invalid, enacted, retracted, sealed);
-			},
-			_ => {/* Ignore other messages */},
-		}
+impl ChainNotify for EthSync {
+	fn new_blocks(&self,
+		imported: Vec<H256>,
+		invalid: Vec<H256>,
+		enacted: Vec<H256>,
+		retracted: Vec<H256>,
+		sealed: Vec<H256>)
+	{
+		self.network.with_context(ETH_PROTOCOL, |context| {
+			let mut sync_io = NetSyncIo::new(context, self.handler.chain.deref());
+			self.handler.sync.unwrapped_write().chain_new_blocks(
+				&mut sync_io,
+				&imported,
+				&invalid,
+				&enacted,
+				&retracted,
+				&sealed);
+		});
+	}
+
+	fn start(&self) {
+		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
+		self.network.register_protocol(self.handler.clone(), ETH_PROTOCOL, &[62u8, 63u8])
+			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
+	}
+
+	fn stop(&self) {
+		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
+	}
+}
+
+/// Trait for managing network
+pub trait ManageNetwork : Send + Sync {
+	/// Set mode for reserved peers (allow/deny peers that are unreserved)
+	fn set_non_reserved_mode(&self, mode: ::util::network::NonReservedPeerMode);
+	/// Remove reservation for the peer
+	fn remove_reserved_peer(&self, peer: &str) -> Result<(), String>;
+	/// Add reserved peer
+	fn add_reserved_peer(&self, peer: &str) -> Result<(), String>;
+	/// Start network
+	fn start_network(&self);
+	/// Stop network
+	fn stop_network(&self);
+	/// Query the current configuration of the network
+	fn network_config(&self) -> NetworkConfiguration;
+}
+
+impl ManageNetwork for EthSync {
+	fn set_non_reserved_mode(&self, mode: ::util::network::NonReservedPeerMode) {
+		self.network.set_non_reserved_mode(mode);
+	}
+
+	fn remove_reserved_peer(&self, peer: &str) -> Result<(), String> {
+		self.network.remove_reserved_peer(peer).map_err(|e| format!("{:?}", e))
+	}
+
+	fn add_reserved_peer(&self, peer: &str) -> Result<(), String> {
+		self.network.add_reserved_peer(peer).map_err(|e| format!("{:?}", e))
+	}
+
+	fn start_network(&self) {
+		self.start();
+	}
+
+	fn stop_network(&self) {
+		self.network.with_context(ETH_PROTOCOL, |context| {
+			let mut sync_io = NetSyncIo::new(context, self.handler.chain.deref());
+			self.handler.sync.unwrapped_write().abort(&mut sync_io);
+		});
+		self.stop();
+	}
+
+	fn network_config(&self) -> NetworkConfiguration {
+		self.network.config().clone()
 	}
 }

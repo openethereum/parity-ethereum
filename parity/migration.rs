@@ -157,7 +157,7 @@ fn extras_database_migrations() -> Result<MigrationManager, Error> {
 fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings());
 	let res = match pruning {
-		Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7),
+		Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7::default()),
 		Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
 		_ => die!("Unsupported pruning method for migration. Delete DB and resync"),
 	};

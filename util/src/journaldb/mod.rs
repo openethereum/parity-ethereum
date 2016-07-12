@@ -57,7 +57,7 @@ pub enum Algorithm {
 }
 
 impl Default for Algorithm {
-	fn default() -> Algorithm { Algorithm::Archive }
+	fn default() -> Algorithm { Algorithm::OverlayRecent }
 }
 
 impl fmt::Display for Algorithm {

@@ -62,7 +62,8 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 }
 
 /// Version for ArchiveDB.
-pub struct ArchiveV7;
+#[derive(Default)]
+pub struct ArchiveV7(usize);
 
 impl SimpleMigration for ArchiveV7 {
 	fn version(&self) -> u32 {
@@ -70,6 +71,12 @@ impl SimpleMigration for ArchiveV7 {
 	}
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
+		self.0 += 1;
+		if self.0 == 100_000 {
+			self.0 = 0;
+			flush!(".");
+		}
+
 		if key.len() != 32 {
 			// metadata key, ignore.
 			return Some((key, value));
@@ -91,7 +98,7 @@ const V7_VERSION_KEY: &'static [u8] = &[ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 
 const DB_VERSION: u32 = 0x203;
 const PADDING : [u8; 10] = [0u8; 10];
 
-/// Version for OverlayRecent database.
+/// Version for `OverlayRecent` database.
 /// more involved than the archive version because of journaling.
 #[derive(Default)]
 pub struct OverlayRecentV7 {
@@ -228,7 +235,14 @@ impl Migration for OverlayRecentV7 {
 			_ => return Err(Error::MigrationImpossible), // missing or wrong version
 		}
 
+		let mut count = 0;
 		for (key, value) in source.iter() {
+			count += 1;
+			if count == 100_000 {
+				count = 0;
+				flush!(".");
+			}
+
 			let mut key = key.into_vec();
 			if key.len() == 32 {
 				let key_h = H256::from_slice(&key[..]);

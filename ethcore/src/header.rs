@@ -143,12 +143,22 @@ impl Header {
 	/// Get the difficulty field of the header.
 	pub fn difficulty(&self) -> &U256 { &self.difficulty }
 	/// Get the seal field of the header.
-	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
+	pub fn seal(&self) -> &[Bytes] { &self.seal }
 
 	// TODO: seal_at, set_seal_at &c.
 
 	/// Set the number field of the header.
 	pub fn set_parent_hash(&mut self, a: H256) { self.parent_hash = a; self.note_dirty(); }
+	/// Set the uncles hash field of the header.
+	pub fn set_uncles_hash(&mut self, a: H256) { self.uncles_hash = a; self.note_dirty(); }
+	/// Set the state root field of the header.
+	pub fn set_state_root(&mut self, a: H256) { self.state_root = a; self.note_dirty(); }
+	/// Set the transactions root field of the header.
+	pub fn set_transactions_root(&mut self, a: H256) { self.transactions_root = a; self.note_dirty() }
+	/// Set the receipts root field of the header.
+	pub fn set_receipts_root(&mut self, a: H256) { self.receipts_root = a; self.note_dirty() }
+	/// Set the log bloom field of the header.
+	pub fn set_log_bloom(&mut self, a: LogBloom) { self.log_bloom = a; self.note_dirty() }
 	/// Set the timestamp field of the header.
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
 	/// Set the timestamp field of the header to the current time.

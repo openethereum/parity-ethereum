@@ -21,6 +21,7 @@ matrix:
 
 env:
   global:
+  - TRAVIS_NODE_VERSION="6"
   - CXX="g++-4.8"
   - CC="gcc-4.8"
   - RUST_BACKTRACE="1"
@@ -48,15 +49,16 @@ addons:
     - gcc-4.8
     - g++-4.8
 
-install: |
-  [ "$RUN_COVERAGE" = "false" ] ||
-  (wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-  tar xzf master.tar.gz &&
-  mkdir -p kcov-master/build &&
-  cd kcov-master/build &&
-  cmake .. &&
-  make && make install DESTDIR=../tmp &&
-  cd)
+install:
+  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
+  - (true && [ "$RUN_COVERAGE" = "false" ]) ||
+    (wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+    tar xzf master.tar.gz &&
+    mkdir -p kcov-master/build &&
+    cd kcov-master/build &&
+    cmake .. &&
+    make && make install DESTDIR=../tmp &&
+    cd)
 
 script:
   - if [ "$RUN_TESTS" = "true" ]; then ./test.sh; fi

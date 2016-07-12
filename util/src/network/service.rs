@@ -20,30 +20,30 @@ use panics::*;
 use misc::RwLockable;
 use network::{NetworkProtocolHandler, NetworkConfiguration};
 use network::error::NetworkError;
-use network::host::{Host, NetworkIoMessage, ProtocolId};
+use network::host::{Host, NetworkContext, NetworkIoMessage, ProtocolId};
 use network::stats::NetworkStats;
 use io::*;
 
 /// IO Service with networking
 /// `Message` defines a notification data type.
-pub struct NetworkService<Message> where Message: Send + Sync + Clone + 'static {
-	io_service: IoService<NetworkIoMessage<Message>>,
+pub struct NetworkService {
+	io_service: IoService<NetworkIoMessage>,
 	host_info: String,
-	host: RwLock<Option<Arc<Host<Message>>>>,
+	host: RwLock<Option<Arc<Host>>>,
 	stats: Arc<NetworkStats>,
 	panic_handler: Arc<PanicHandler>,
 	config: NetworkConfiguration,
 }
 
-impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'static {
+impl NetworkService {
 	/// Starts IO event loop
-	pub fn new(config: NetworkConfiguration) -> Result<NetworkService<Message>, UtilError> {
+	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, UtilError> {
 		let panic_handler = PanicHandler::new_in_arc();
-		let io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
+		let io_service = try!(IoService::<NetworkIoMessage>::start());
 		panic_handler.forward_from(&io_service);
 
 		let stats = Arc::new(NetworkStats::new());
-		let host_info = Host::<Message>::client_version();
+		let host_info = Host::client_version();
 		Ok(NetworkService {
 			io_service: io_service,
 			host_info: host_info,
@@ -55,7 +55,7 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 	}
 
 	/// Regiter a new protocol handler with the event loop.
-	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler<Message>+Send + Sync>, protocol: ProtocolId, versions: &[u8]) -> Result<(), NetworkError> {
+	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, versions: &[u8]) -> Result<(), NetworkError> {
 		try!(self.io_service.send_message(NetworkIoMessage::AddHandler {
 			handler: handler,
 			protocol: protocol,
@@ -70,7 +70,7 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 	}
 
 	/// Returns underlying io service.
-	pub fn io(&self) -> &IoService<NetworkIoMessage<Message>> {
+	pub fn io(&self) -> &IoService<NetworkIoMessage> {
 		&self.io_service
 	}
 
@@ -146,9 +146,18 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 			host.set_non_reserved_mode(mode, &io_ctxt);
 		}
 	}
+
+	/// Executes action in the network context
+	pub fn with_context<F>(&self, protocol: ProtocolId, action: F) where F: Fn(&NetworkContext) {
+		let io = IoContext::new(self.io_service.channel(), 0);
+		let host = self.host.unwrapped_read();
+		if let Some(ref host) = host.as_ref() {
+			host.with_context(protocol, &io, action);
+		};
+	}
 }
 
-impl<Message> MayPanic for NetworkService<Message> where Message: Send + Sync + Clone + 'static {
+impl MayPanic for NetworkService {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
