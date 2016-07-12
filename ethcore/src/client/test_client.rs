@@ -262,6 +262,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		self.spec.ensure_db_good(db.as_hashdb_mut());
+
 		let last_hashes = vec![genesis_header.hash()];
 		OpenBlock::new(
 			engine.deref(),
