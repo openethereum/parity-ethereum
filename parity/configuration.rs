@@ -14,19 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{env};
+use std::{env, fs};
 use std::fs::File;
 use std::time::Duration;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use cli::{USAGE, Args};
 use docopt::{Docopt, Error as DocoptError};
-
-use util::*;
-use util::log::Colour::*;
-use ethcore::account_provider::AccountProvider;
+use util::{Hashable, journaldb, Applyable, NetworkConfiguration, kvdb, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, path};
 use util::network_settings::NetworkSettings;
+use util::log::Colour;
+use ethcore::account_provider::AccountProvider;
 use ethcore::client::{append_path, get_db_path, ClientConfig, VMType};
 use ethcore::miner::{MinerOptions, GasPricer, GasPriceCalibratorOptions};
 use ethcore::spec::Spec;
@@ -268,7 +267,7 @@ impl Configuration {
 						let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 						let gas_per_tx: f32 = 21000.0;
 						let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-						info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(White.bold()), format!("{}", wei_per_gas).apply(Yellow.bold()));
+						info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(Colour::White.bold()), format!("{}", wei_per_gas).apply(Colour::Yellow.bold()));
 						Ok(GasPricer::Fixed(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()))
 					}
 				}
