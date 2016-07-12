@@ -372,10 +372,4 @@ pub trait Compressible: Sized {
 	fn compress(&self) -> ElasticArray1024<u8>;
 	/// Recover valid RLP from a compressed form.
 	fn decompress(&self) -> ElasticArray1024<u8>;
-	/// Substitute or leave alone according to swapper.
-	fn swap<F>(&self, swapper: &F) -> ElasticArray1024<u8>
-		where F: Fn(&[u8]) -> Option<&[u8]>;
-	/// Traverse RLP and swap using swapper (attempts to traverse data as well).
-	fn swap_all<F>(&self, swapper: &F, account_size: usize, decompress_data: bool) -> ElasticArray1024<u8>
-		where F: Fn(&[u8]) -> Option<&[u8]>;
 }

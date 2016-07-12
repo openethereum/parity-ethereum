@@ -67,108 +67,55 @@ fn to_elastic(slice: &[u8]) -> ElasticArray1024<u8> {
 
 
 impl<'a> Compressible for UntrustedRlp<'a> {
-	fn swap<F>(&self, swapper: &F) -> ElasticArray1024<u8>
-	where F: Fn(&[u8]) -> Option<&[u8]> {
-		let raw = self.as_raw();
-		to_elastic(swapper(raw).unwrap_or(raw))
-	}
-
-	fn swap_all<F>(&self, swapper: &F, account_size: usize, decompress_data: bool) -> ElasticArray1024<u8>
-	where F: Fn(&[u8]) -> Option<&[u8]> {
-		if self.is_data() {
-			match self.payload_info() {
-				// Simply try to replace the value.
-				Ok(ref p) if p.value_len < account_size => self.swap(swapper),
-				// Try to treat the inside as RLP.
-				Ok(ref p) => self.data().ok().map_or(self.swap(swapper), |d| {
-					if decompress_data && d[0] == 0 {
-						let new_d = UntrustedRlp::new(&d[0..]).swap_all(swapper, account_size, decompress_data).to_vec();
-						encode(&new_d)
-					} else {
-						// Attach correct prefix if changed.
-						let new_d = UntrustedRlp::new(d).swap_all(swapper, account_size, decompress_data).to_vec();
-						encode(&new_d)
-					}
-				}),
-				_ => self.swap(swapper),
-			}
-		} else {
-			// Try to iterate if it might be a list.
-			match self.item_count() {
-				0 => self.swap(swapper),
-				c => {
-  				let mut rlp = RlpStream::new_list(c);
-  				for subrlp in self.iter() {
-  					let new = subrlp.swap_all(swapper, account_size, decompress_data);
-						rlp.append_raw(&new, 1);
-					}
-  				rlp.drain()
-  			},
-  		}
-  	}
-	}
-
 	fn compress(&self) -> ElasticArray1024<u8> {
-		// Shortest decompressed account is 70.
 		let swapper = |b: &UntrustedRlp| { let raw = b.as_raw(); to_elastic(&INVALID_RLP_SWAPPER.get_invalid(raw).unwrap_or(raw)) };
 		if self.is_data() {
+			// Try to treat the inside as RLP.
 			match self.payload_info() {
-				// Simply try to replace the value.
+				// Shortest decompressed account is 70, so simply try to swap the value.
 				Ok(ref p) if p.value_len < 70 => swapper(self),
-				// Try to treat the inside as RLP.
-				//Ok(_) => encode(&UntrustedRlp::new(self.data().unwrap()).compress().to_vec()),
-				Ok(_) => {
-						let new_d = UntrustedRlp::new(&self.data().unwrap()).compress().to_vec();
-						if new_d != self.data().unwrap() {
-						// Attach correct prefix if changed.
-						let mut rlp = RlpStream::new_list(2);
-						rlp.append_raw(&[0x81, 0xcc], 1);
-						rlp.append_raw(&new_d, 1);
-						rlp.drain()
-						} else {
-							swapper(self)
+				_ => {
+					if let Ok(d) = self.data() {
+						let new_d = UntrustedRlp::new(&d).compress().to_vec();
+						// If compressed put in a special list, with first element being invalid code.
+						if new_d != d {
+							let mut rlp = RlpStream::new_list(2);
+							rlp.append_raw(&[0x81, 0xcc], 1);
+							rlp.append_raw(&new_d, 1);
+							return rlp.drain();
 						}
-					},
-				_ => swapper(self),
+					}
+					swapper(self)
+				},
 			}
 		} else {
-			// Try to iterate if it might be a list.
-			match self.item_count() {
-				0 => swapper(self),
-				c => {
-  				let mut rlp = RlpStream::new_list(c);
-  				for subrlp in self.iter() {
-  					let new = subrlp.compress();
-						rlp.append_raw(&new, 1);
-					}
-  				rlp.drain()
-  			},
-  		}
+  		let mut rlp = RlpStream::new_list(self.item_count());
+  		for subrlp in self.iter() {
+  			let new = subrlp.compress();
+				rlp.append_raw(&new, 1);
+			}
+  		rlp.drain()
   	}
 	}
 
 	fn decompress(&self) -> ElasticArray1024<u8> {
-		// Shortest compressed account is 7.
 		let swapper = |b: &UntrustedRlp| { let raw = b.as_raw(); to_elastic(&INVALID_RLP_SWAPPER.get_valid(raw).unwrap_or(raw)) };
-		if self.is_data() {
-			swapper(self)
-		} else {
-			// Try to iterate if it might be a list.
-			match self.item_count() {
-				0 => swapper(self),
-				2 if self.at(0).map(|rlp| rlp.as_raw()).unwrap_or(&[0]) == &[0x81, 0xcc] => {
-					let inner_rlp = self.at(1).unwrap().decompress().to_vec();
-					encode(&inner_rlp)
-				},
-				c => {
-  				let mut rlp = RlpStream::new_list(c);
-  				for subrlp in self.iter() {
-  					let new = subrlp.decompress();
-						rlp.append_raw(&new, 1);
-					}
-  				rlp.drain()
-  			},
-  		}
+		// Simply decompress data.
+		if self.is_data() { return swapper(self); }
+		match self.item_count() {
+			//0 => swapper(self),
+			// Look for special compressed list, which contains nested data.
+			2 if self.at(0).map(|r| r.as_raw() == &[0x81, 0xcc]).unwrap_or(false) =>
+				self.at(1).ok().map_or(swapper(self), |r| encode(&r.decompress().to_vec())),
+			// Decompress into list.
+			c => {
+  			let mut rlp = RlpStream::new_list(c);
+  			for subrlp in self.iter() {
+  				let new = subrlp.decompress();
+					rlp.append_raw(&new, 1);
+				}
+  			rlp.drain()
+  		},
   	}
 	}
 }
