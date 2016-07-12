@@ -69,7 +69,6 @@ mod url;
 mod params;
 mod deprecated;
 
-use std::str::FromStr;
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
 use std::env;
@@ -179,7 +178,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	}
 
 	// Check fork settings.
-	if let Policy::None = try!(Policy::from_str(&conf.args.flag_fork)) {
+	if let Policy::None = try!(conf.args.flag_fork.parse()) {
 		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 

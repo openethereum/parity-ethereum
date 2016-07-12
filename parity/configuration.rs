@@ -347,7 +347,7 @@ impl Configuration {
 		let (listen, public) = try!(self.net_addresses());
 		ret.listen_address = listen;
 		ret.public_address = public;
-		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(s).unwrap_or_else(|_| s.sha3()));
+		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.ideal_peers = self.max_peers();
 		let mut net_path = PathBuf::from(try!(self.directories()).db);

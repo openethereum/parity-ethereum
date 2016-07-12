@@ -335,24 +335,23 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 #[cfg(test)]
 mod test {
-	use std::str::FromStr;
 	use ethcore::ethereum;
 	use super::{DataFormat, SpecType};
 
 	#[test]
 	fn test_data_format_parsing() {
-		assert_eq!(DataFormat::from_str("binary").unwrap(), DataFormat::Binary);
-		assert_eq!(DataFormat::from_str("bin").unwrap(), DataFormat::Binary);
-		assert_eq!(DataFormat::from_str("hex").unwrap(), DataFormat::Hex);
+		assert_eq!(DataFormat::Binary, "binary".parse().unwrap());
+		assert_eq!(DataFormat::Binary, "bin".parse().unwrap());
+		assert_eq!(DataFormat::Hex, "hex".parse().unwrap());
 	}
 
 	#[test]
 	fn test_spec_type_parsing() {
-		assert_eq!(SpecType::from_str("frontier").unwrap(), SpecType::Mainnet);
-		assert_eq!(SpecType::from_str("homestead").unwrap(), SpecType::Mainnet);
-		assert_eq!(SpecType::from_str("mainnet").unwrap(), SpecType::Mainnet);
-		assert_eq!(SpecType::from_str("morden").unwrap(), SpecType::Testnet);
-		assert_eq!(SpecType::from_str("testnet").unwrap(), SpecType::Testnet);
-		assert_eq!(SpecType::from_str("olympic").unwrap(), SpecType::Olympic);
+		assert_eq!(SpecType::Mainnet, "frontier".parse().unwrap());
+		assert_eq!(SpecType::Mainnet, "homestead".parse().unwrap());
+		assert_eq!(SpecType::Mainnet, "mainnet".parse().unwrap());
+		assert_eq!(SpecType::Testnet, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Testnet, "morden".parse().unwrap());
+		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
 	}
 }
