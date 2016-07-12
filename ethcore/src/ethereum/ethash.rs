@@ -55,11 +55,11 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
-			registrar: p.registrar.into(),
-			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.into(),
-			dao_hardfork_transition: p.dao_hardfork_transition.into(),
-			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.into(),
-			dao_hardfork_accounts: p.dao_hardfork_accounts.into_iter().map(Into::into).collect(),
+			registrar: p.registrar.map(Into::into).unwrap_or(Address::new()),
+			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.map(Into::into).unwrap_or(0),
+			dao_hardfork_transition: p.dao_hardfork_transition.map(Into::into).unwrap_or(0xffffffffffffffff),
+			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map(Into::into).unwrap_or(Address::new()),
+			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or(vec![]).into_iter().map(Into::into).collect(),
 		}
 	}
 }

@@ -38,19 +38,19 @@ pub struct EthashParams {
 	#[serde(rename="blockReward")]
 	pub block_reward: Uint,
 	/// See main EthashParams docs.
-	pub registrar: Address,
+	pub registrar: Option<Address>,
 	/// See main EthashParams docs.
 	#[serde(rename="frontierCompatibilityModeLimit")]
-	pub frontier_compatibility_mode_limit: Uint,
+	pub frontier_compatibility_mode_limit: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkTransition")]
-	pub dao_hardfork_transition: Uint,
+	pub dao_hardfork_transition: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkBeneficiary")]
-	pub dao_hardfork_beneficiary: Address,
+	pub dao_hardfork_beneficiary: Option<Address>,
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkAccounts")]
-	pub dao_hardfork_accounts: Vec<Address>,
+	pub dao_hardfork_accounts: Option<Vec<Address>>,
 }
 
 /// Ethash engine deserialization.
@@ -100,6 +100,21 @@ mod tests {
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				]
+			}
+		}"#;
+
+		let _deserialized: Ethash = serde_json::from_str(s).unwrap();
+	}
+
+	#[test]
+	fn ethash_deserialization_missing_optionals() {
+		let s = r#"{
+			"params": {
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000"
 			}
 		}"#;
 
