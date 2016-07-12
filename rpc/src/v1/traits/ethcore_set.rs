@@ -55,6 +55,12 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 	/// Accept non-reserved peers (default behavior)
 	fn accept_non_reserved_peers(&self, _: Params) -> Result<Value, Error>;
 
+	/// Start the network.
+	fn start_network(&self, _: Params) -> Result<Value, Error>;
+
+	/// Stop the network.
+	fn stop_network(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));

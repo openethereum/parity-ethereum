@@ -28,7 +28,6 @@ use std::time::Instant;
 // util
 use util::numbers::*;
 use util::panics::*;
-use util::network::*;
 use util::io::*;
 use util::rlp;
 use util::sha3::*;
@@ -47,7 +46,7 @@ use state::State;
 use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
-use service::{NetSyncMessage, SyncMessage};
+use service::ClientIoMessage;
 use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
@@ -60,7 +59,7 @@ use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
 	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
-	TraceFilter, CallAnalytics, BlockImportError, Mode};
+	TraceFilter, CallAnalytics, BlockImportError, Mode, ChainNotify};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -141,7 +140,8 @@ pub struct Client {
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
-	io_channel: IoChannel<NetSyncMessage>,
+	io_channel: IoChannel<ClientIoMessage>,
+	notify: RwLock<Option<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	previous_enode: Mutex<Option<String>>,
 }
@@ -178,7 +178,7 @@ impl Client {
 		spec: Spec,
 		path: &Path,
 		miner: Arc<Miner>,
-		message_channel: IoChannel<NetSyncMessage>
+		message_channel: IoChannel<ClientIoMessage>,
 	) -> Result<Arc<Client>, ClientError> {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
@@ -228,10 +228,22 @@ impl Client {
 			trie_factory: TrieFactory::new(config.trie_spec),
 			miner: miner,
 			io_channel: message_channel,
+			notify: RwLock::new(None),
 			queue_transactions: AtomicUsize::new(0),
 			previous_enode: Mutex::new(None),
 		};
 		Ok(Arc::new(client))
+	}
+
+	/// Sets the actor to be notified on certain events
+	pub fn set_notify(&self, target: &Arc<ChainNotify>) {
+		let mut write_lock = self.notify.unwrapped_write();
+		*write_lock = Some(Arc::downgrade(target));
+	}
+
+	fn notify(&self) -> Option<Arc<ChainNotify>> {
+		let read_lock = self.notify.unwrapped_read();
+		read_lock.as_ref().and_then(|weak| weak.upgrade())
 	}
 
 	/// Flush the block import queue.
@@ -327,52 +339,54 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
+	pub fn import_verified_blocks(&self, io: &IoChannel<ClientIoMessage>) -> usize {
 		let max_blocks_to_import = 64;
+		let (imported_blocks, import_results, invalid_blocks, original_best, imported) = {
+			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
+			let mut invalid_blocks = HashSet::new();
+			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
-		let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
-		let mut invalid_blocks = HashSet::new();
-		let mut import_results = Vec::with_capacity(max_blocks_to_import);
+			let _import_lock = self.import_lock.lock();
+			let _timer = PerfTimer::new("import_verified_blocks");
+			let blocks = self.block_queue.drain(max_blocks_to_import);
 
-		let _import_lock = self.import_lock.lock();
-		let _timer = PerfTimer::new("import_verified_blocks");
-		let blocks = self.block_queue.drain(max_blocks_to_import);
+			let original_best = self.chain_info().best_block_hash;
 
-		let original_best = self.chain_info().best_block_hash;
+			for block in blocks {
+				let header = &block.header;
 
-		for block in blocks {
-			let header = &block.header;
+				if invalid_blocks.contains(&header.parent_hash) {
+					invalid_blocks.insert(header.hash());
+					continue;
+				}
+				let closed_block = self.check_and_close_block(&block);
+				if let Err(_) = closed_block {
+					invalid_blocks.insert(header.hash());
+					continue;
+				}
+				let closed_block = closed_block.unwrap();
+				imported_blocks.push(header.hash());
 
-			if invalid_blocks.contains(&header.parent_hash) {
-				invalid_blocks.insert(header.hash());
-				continue;
+				let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
+				import_results.push(route);
+
+				self.report.unwrapped_write().accrue_block(&block);
+				trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			}
-			let closed_block = self.check_and_close_block(&block);
-			if let Err(_) = closed_block {
-				invalid_blocks.insert(header.hash());
-				continue;
+
+			let imported = imported_blocks.len();
+			let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
+
+			{
+				if !invalid_blocks.is_empty() {
+					self.block_queue.mark_as_bad(&invalid_blocks);
+				}
+				if !imported_blocks.is_empty() {
+					self.block_queue.mark_as_good(&imported_blocks);
+				}
 			}
-			let closed_block = closed_block.unwrap();
-			imported_blocks.push(header.hash());
-
-			let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
-			import_results.push(route);
-
-			self.report.unwrapped_write().accrue_block(&block);
-			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
-		}
-
-		let imported = imported_blocks.len();
-		let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
-
-		{
-			if !invalid_blocks.is_empty() {
-				self.block_queue.mark_as_bad(&invalid_blocks);
-			}
-			if !imported_blocks.is_empty() {
-				self.block_queue.mark_as_good(&imported_blocks);
-			}
-		}
+			(imported_blocks, import_results, invalid_blocks, original_best, imported)
+		};
 
 		{
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
@@ -382,13 +396,15 @@ impl Client {
 					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
 				}
 
-				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
-					imported: imported_blocks,
-					invalid: invalid_blocks,
-					enacted: enacted,
-					retracted: retracted,
-					sealed: Vec::new(),
-				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+				if let Some(notify) = self.notify() {
+					notify.new_blocks(
+						imported_blocks,
+						invalid_blocks,
+						enacted,
+						retracted,
+						Vec::new(),
+					);
+				}
 			}
 		}
 
@@ -410,7 +426,7 @@ impl Client {
 		};
 
 		// Commit results
-		let receipts = block.receipts().clone();
+		let receipts = block.receipts().to_owned();
 		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
@@ -566,7 +582,9 @@ impl Client {
 	fn wake_up(&self) {
 		if !self.liveness.load(AtomicOrdering::Relaxed) {
 			self.liveness.store(true, AtomicOrdering::Relaxed);
-			self.io_channel.send(NetworkIoMessage::User(SyncMessage::StartNetwork)).unwrap();
+			if let Some(notify) = self.notify() {
+				notify.start();
+			}
 			trace!(target: "mode", "wake_up: Waking.");
 		}
 	}
@@ -576,7 +594,9 @@ impl Client {
 			// only sleep if the import queue is mostly empty.
 			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
 				self.liveness.store(false, AtomicOrdering::Relaxed);
-				self.io_channel.send(NetworkIoMessage::User(SyncMessage::StopNetwork)).unwrap();
+				if let Some(notify) = self.notify() {
+					notify.stop();
+				}
 				trace!(target: "mode", "sleep: Sleeping.");
 			} else {
 				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
@@ -901,7 +921,7 @@ impl BlockChainClient for Client {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
-			match self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewTransactions(transactions))) {
+			match self.io_channel.send(ClientIoMessage::NewTransactions(transactions)) {
 				Ok(_) => {
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
 				}
@@ -969,13 +989,15 @@ impl MiningBlockChainClient for Client {
 			let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
 			self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
 
-			self.io_channel.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
-				imported: vec![h.clone()],
-				invalid: vec![],
-				enacted: enacted,
-				retracted: retracted,
-				sealed: vec![h.clone()],
-			})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
+			if let Some(notify) = self.notify() {
+				notify.new_blocks(
+					vec![h.clone()],
+					vec![],
+					enacted,
+					retracted,
+					vec![h.clone()],
+				);
+			}
 		}
 
 		if self.chain_info().best_block_hash != original_best {

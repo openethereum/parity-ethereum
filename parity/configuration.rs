@@ -238,7 +238,7 @@ impl Configuration {
 				})
 			}).collect(),
 			Some(_) => Vec::new(),
-			None => spec.nodes().clone(),
+			None => spec.nodes().to_owned(),
 		}
 	}
 
