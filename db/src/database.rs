@@ -60,7 +60,7 @@ impl WriteCache {
 		self.entries.insert(key, WriteCacheEntry::Remove);
 	}
 
-	fn get(&self, key: &Vec<u8>) -> Option<Vec<u8>> {
+	fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
 		self.entries.get(key).and_then(
 			|vec_ref| match vec_ref {
 				&WriteCacheEntry::Write(ref val) => Some(val.clone()),
