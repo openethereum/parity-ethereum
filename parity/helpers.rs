@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::{io, env};
+use std::io::Write;
 use std::time::Duration;
 use util::journaldb::Algorithm;
 use util::{clean_0x, U256, Uint, Address};
@@ -100,6 +102,15 @@ pub fn to_address(s: Option<String>) -> Result<Address, String> {
 
 pub fn to_price(s: &str) -> Result<f32, String> {
 	s.parse::<f32>().map_err(|_| format!("Invalid transaciton price 's' given. Must be a decimal number."))
+}
+
+pub fn replace_home(arg: &str) -> String {
+	arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+}
+
+/// Flush output buffer.
+pub fn flush_stdout() {
+	io::stdout().flush().expect("stdout is flushable; qed");
 }
 
 #[cfg(test)]

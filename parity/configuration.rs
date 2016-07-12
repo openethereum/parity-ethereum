@@ -26,20 +26,16 @@ use util::{Hashable, journaldb, Applyable, NetworkConfiguration, kvdb, U256, Uin
 use util::network_settings::NetworkSettings;
 use util::log::Colour;
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{append_path, get_db_path, ClientConfig, VMType};
+use ethcore::client::{append_path, ClientConfig, VMType};
 use ethcore::miner::{MinerOptions, GasPricer, GasPriceCalibratorOptions};
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_price};
+use helpers::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home};
 use params::{SpecType, LoggerConfig};
-
-/// Flush output buffer.
-fn flush_stdout() {
-	::std::io::stdout().flush().expect("stdout is flushable; qed");
-}
+use dir::Directories;
 
 /// Should be used to read password.
 pub trait PasswordReader {
@@ -86,13 +82,6 @@ pub struct Configuration {
 	pub args: Args,
 }
 
-pub struct Directories {
-	pub keys: String,
-	pub db: String,
-	pub dapps: String,
-	pub signer: String,
-}
-
 impl Configuration {
 	pub fn parse<S, I>(command: I) -> Result<Self, DocoptError> where I: IntoIterator<Item=S>, S: AsRef<str> {
 		let args = try!(Docopt::new(USAGE).and_then(|d| d.argv(command).decode()));
@@ -105,7 +94,7 @@ impl Configuration {
 	}
 
 	pub fn into_command(self, password: &PasswordReader) -> Result<Cmd, String> {
-		let dirs = try!(self.directories());
+		let dirs = self.directories();
 		let logger_config = LoggerConfig {
 			mode: None,
 			color: false,
@@ -350,7 +339,7 @@ impl Configuration {
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.ideal_peers = self.max_peers();
-		let mut net_path = PathBuf::from(try!(self.directories()).db);
+		let mut net_path = PathBuf::from(self.directories().db);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
@@ -368,10 +357,11 @@ impl Configuration {
 		// if all dbs have the same latest era, the last element is the default one
 		jdb_types.push(journaldb::Algorithm::default());
 
-		let db_path = self.directories().expect("TODO").db;
+		let dirs = self.directories();
+		let hash = spec.genesis_header().hash();
 
 		jdb_types.into_iter().max_by_key(|i| {
-			let state_path = append_path(get_db_path(&db_path, *i, spec.genesis_header().hash()), "state");
+			let state_path = append_path(dirs.client_path(hash, *i), "state");
 			let db = journaldb::new(&state_path, *i, kvdb::DatabaseConfig::default());
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			db.latest_era()
@@ -485,41 +475,26 @@ impl Configuration {
 		}
 	}
 
-	pub fn directories(&self) -> Result<Directories, String> {
-		let db_path = Configuration::replace_home(
-			self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
-		try!(fs::create_dir_all(&db_path).map_err(|e| e.to_string()));
+	pub fn directories(&self) -> Directories {
+		let db_path = replace_home(self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 
-		let keys_path = Configuration::replace_home(
+		let keys_path = replace_home(
 			if self.args.flag_testnet {
 				"$HOME/.parity/testnet_keys"
 			} else {
 				&self.args.flag_keys_path
 			}
 		);
-		try!(fs::create_dir_all(&keys_path).map_err(|e| e.to_string()));
-		let dapps_path = Configuration::replace_home(&self.args.flag_dapps_path);
-		try!(fs::create_dir_all(&dapps_path).map_err(|e| e.to_string()));
-		let signer_path = Configuration::replace_home(&self.args.flag_signer_path);
-		try!(fs::create_dir_all(&signer_path).map_err(|e| e.to_string()));
 
-		if self.args.flag_geth {
-			let geth_path = path::ethereum::default();
-			try!(fs::create_dir_all(&geth_path).map_err(|e| e.to_string()));
-		}
+		let dapps_path = replace_home(&self.args.flag_dapps_path);
+		let signer_path = replace_home(&self.args.flag_signer_path);
 
-		let directories = Directories {
+		Directories {
 			keys: keys_path,
 			db: db_path,
 			dapps: dapps_path,
 			signer: signer_path,
-		};
-
-		Ok(directories)
-	}
-
-	fn replace_home(arg: &str) -> String {
-		arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+		}
 	}
 
 	fn ipc_path(&self) -> String {
@@ -528,7 +503,7 @@ impl Configuration {
 		} else if cfg!(windows) {
 			r"\\.\pipe\parity.jsonrpc".to_owned()
 		} else {
-			Configuration::replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
 		}
 	}
 
@@ -580,6 +555,7 @@ mod tests {
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use cache::CacheConfig;
 	use params::{SpecType, LoggerConfig};
+	use helpers::replace_home;
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -616,7 +592,7 @@ mod tests {
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
-			path: Configuration::replace_home("$HOME/.parity/keys"),
+			path: replace_home("$HOME/.parity/keys"),
 			password: "test".into(),
 		})));
 	}
@@ -627,7 +603,7 @@ mod tests {
 		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(
-			AccountCmd::List(Configuration::replace_home("$HOME/.parity/keys")))
+			AccountCmd::List(replace_home("$HOME/.parity/keys")))
 		);
 	}
 
@@ -638,7 +614,7 @@ mod tests {
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
-			to: Configuration::replace_home("$HOME/.parity/keys"),
+			to: replace_home("$HOME/.parity/keys"),
 		})));
 	}
 
@@ -649,7 +625,7 @@ mod tests {
 		let password = TestPasswordReader("content_of_pwd");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
-			path: Configuration::replace_home("$HOME/.parity/keys"),
+			path: replace_home("$HOME/.parity/keys"),
 			wallet_path: "my_wallet.json".into(),
 			password: "content_of_pwd".into(),
 		}));
@@ -667,7 +643,7 @@ mod tests {
 				color: false,
 			},
 			cache_config: CacheConfig::default(),
-			db_path: Configuration::replace_home("$HOME/.parity"),
+			db_path: replace_home("$HOME/.parity"),
 			file_path: Some("blockchain.json".into()),
 			format: None,
 			pruning: None,
@@ -690,7 +666,7 @@ mod tests {
 				color: false,
 			},
 			cache_config: CacheConfig::default(),
-			db_path: Configuration::replace_home("$HOME/.parity"),
+			db_path: replace_home("$HOME/.parity"),
 			file_path: Some("blockchain.json".into()),
 			pruning: None,
 			format: None,
@@ -707,7 +683,7 @@ mod tests {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
-		let expected = Configuration::replace_home("$HOME/.parity/signer");
+		let expected = replace_home("$HOME/.parity/signer");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::SignerToken(expected));
 	}
 

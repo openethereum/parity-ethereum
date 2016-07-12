@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::path::PathBuf;
 use std::collections::{HashSet, HashMap};
 use std::ops::Deref;
 use std::mem;
@@ -154,16 +153,6 @@ const HISTORY: u64 = 1200;
 // of which you actually want force an upgrade.
 const CLIENT_DB_VER_STR: &'static str = "5.3";
 
-/// Get the path for the databases given the root path and information on the databases.
-pub fn get_db_path<P>(path: P, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf where P: AsRef<Path> {
-	let mut dir = path.as_ref().to_path_buf();
-	dir.push(H64::from(genesis_hash).hex());
-	//TODO: sec/fat: pruned/full versioning
-	// version here is a bit useless now, since it's controlled only be the pruning algo.
-	dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, pruning));
-	dir
-}
-
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
 	let mut p = path.as_ref().to_path_buf();
@@ -180,7 +169,7 @@ impl Client {
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
 	) -> Result<Arc<Client>, ClientError> {
-		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
+		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));

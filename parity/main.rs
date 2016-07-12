@@ -69,14 +69,16 @@ mod url;
 mod helpers;
 mod params;
 mod deprecated;
+mod dir;
 
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
 use std::env;
 use ctrlc::CtrlC;
-use util::{Colour, Applyable, version, Lockable};
+use util::{Colour, Applyable, version, Lockable, H256};
+use util::journaldb::Algorithm;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, ClientConfig, get_db_path, ChainNotify};
+use ethcore::client::{Mode, ClientConfig, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
@@ -91,6 +93,7 @@ use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
 use helpers::{to_mode, to_address, to_u256};
 use params::Policy;
+use dir::Directories;
 use std::process;
 
 fn main() {
@@ -115,7 +118,7 @@ fn execute(conf: Configuration) -> Result<(), String> {
 	let spec = conf.spec();
 	let client_config = conf.client_config(&spec);
 
-	try!(execute_upgrades(&conf, &spec, &client_config));
+	try!(execute_upgrades(&conf.directories(), spec.genesis_header().hash(), client_config.pruning));
 
 	if conf.args.cmd_daemon {
 		try!(daemonize(&conf));
@@ -140,9 +143,8 @@ fn daemonize(conf: &Configuration) -> Result<(), String> {
 fn daemonize(_conf: &Configuration) -> ! {
 }
 
-fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) -> Result<(), String> {
-	let db_path = try!(conf.directories()).db;
-	match upgrade::upgrade(Some(&db_path)) {
+fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorithm) -> Result<(), String> {
+	match upgrade::upgrade(Some(&dirs.db)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			println!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},
@@ -152,8 +154,8 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 		_ => {},
 	}
 
-	let db_path = get_db_path(Path::new(&db_path), client_config.pruning, spec.genesis_header().hash());
-	migrate(&db_path, client_config.pruning).map_err(|e| format!("{}", e))
+	let client_path = dirs.client_path(genesis_hash, pruning);
+	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
 }
 
 fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) -> Result<(), String> {
@@ -200,7 +202,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	miner.set_extra_data(try!(conf.extra_data()));
 	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
-	let directories = try!(conf.directories());
+	let directories = conf.directories();
 
 	// Build client
 	let mut service = try!(ClientService::start(
