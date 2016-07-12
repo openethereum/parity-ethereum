@@ -23,7 +23,7 @@ use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::transaction::SignedTransaction;
 use ethcore::receipt::Receipt;
-use ethcore::miner::{MinerService, MinerStatus, AccountDetails, TransactionImportResult};
+use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult};
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -130,14 +130,13 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, _chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
-		Vec<Result<TransactionImportResult, Error>>
-		where T: Fn(&Address) -> AccountDetails {
+	fn import_external_transactions(&self, _chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+		Vec<Result<TransactionImportResult, Error>> {
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
 
 		for sender in transactions.iter().filter_map(|t| t.sender().ok()) {
-			let nonce = self.last_nonce(&sender).unwrap_or(fetch_account(&sender).nonce);
+			let nonce = self.last_nonce(&sender).expect("last_nonce must be populated in tests");
 			self.last_nonces.write().unwrap().insert(sender, nonce + U256::from(1));
 		}
 		transactions
@@ -147,9 +146,8 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction<T>(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction, _fetch_account: T) ->
-		Result<TransactionImportResult, Error>
-		where T: Fn(&Address) -> AccountDetails {
+	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction) ->
+		Result<TransactionImportResult, Error> {
 
 		// keep the pending nonces up to date
 		if let Ok(ref sender) = transaction.sender() {

@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use util::panics::*;
 use views::BlockView;
-use error::{Error, ImportError, ExecutionError, BlockError, ImportResult};
+use error::{ImportError, ExecutionError, BlockError, ImportResult};
 use header::{BlockNumber, Header};
 use state::State;
 use spec::Spec;
@@ -38,7 +38,8 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics};
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, DatabaseCompactionProfile,
+	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics };
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -49,7 +50,7 @@ use trace;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
-use miner::{Miner, MinerService, TransactionImportResult, AccountDetails};
+use miner::{Miner, MinerService};
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 
@@ -384,12 +385,8 @@ impl Client {
 	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: self.latest_nonce(a),
-			balance: self.latest_balance(a),
-		};
-		let tx = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
-		let results = self.miner.import_transactions(self, tx, fetch_account);
+		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
 	}
 
@@ -770,14 +767,6 @@ impl BlockChainClient for Client {
 
 	fn last_hashes(&self) -> LastHashes {
 		self.build_last_hashes(self.chain.best_block_hash())
-	}
-
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, Error>> {
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: self.latest_nonce(a),
-			balance: self.latest_balance(a),
-		};
-		self.miner.import_transactions(self, transactions, fetch_account)
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
