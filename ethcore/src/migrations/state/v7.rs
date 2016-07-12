@@ -61,7 +61,7 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 	}
 }
 
-/// Version for ArchiveDB.
+/// Version for `ArchiveDB`.
 pub struct ArchiveV7;
 
 impl SimpleMigration for ArchiveV7 {
@@ -91,7 +91,7 @@ const V7_VERSION_KEY: &'static [u8] = &[ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 
 const DB_VERSION: u32 = 0x203;
 const PADDING : [u8; 10] = [0u8; 10];
 
-/// Version for OverlayRecent database.
+/// Version for `OverlayRecent` database.
 /// more involved than the archive version because of journaling.
 #[derive(Default)]
 pub struct OverlayRecentV7 {

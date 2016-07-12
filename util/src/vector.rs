@@ -17,23 +17,23 @@
 //! Vector extensions.
 
 /// Returns len of prefix shared with elem
-/// 
+///
 /// ```rust
 ///	extern crate ethcore_util as util;
 ///	use util::vector::SharedPrefix;
-///	
+///
 ///	fn main () {
 ///		let a = vec![1,2,3,3,5];
 ///		let b = vec![1,2,3];
 ///		assert_eq!(a.shared_prefix_len(&b), 3);
 ///	}
 /// ```
-pub trait SharedPrefix <T> {
+pub trait SharedPrefix<T> {
 	/// Get common prefix length
 	fn shared_prefix_len(&self, elem: &[T]) -> usize;
 }
 
-impl <T> SharedPrefix<T> for Vec<T> where T: Eq {
+impl<T> SharedPrefix<T> for [T] where T: Eq {
 	fn shared_prefix_len(&self, elem: &[T]) -> usize {
 		use std::cmp;
 		let len = cmp::min(self.len(), elem.len());
@@ -58,7 +58,7 @@ mod test {
 		let b = vec![1,2,3];
 		assert_eq!(a.shared_prefix_len(&b), 3);
 	}
-	
+
 	#[test]
 	fn test_shared_prefix3() {
 		let a = vec![1,2,3,4,5,6];

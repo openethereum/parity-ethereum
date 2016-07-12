@@ -665,7 +665,7 @@ impl MinerService for Miner {
 		};
 		match (&self.options.pending_set, sealing_set) {
 			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.top_transactions(),
-			(_, sealing) => sealing.map_or_else(Vec::new, |s| s.transactions().clone()),
+			(_, sealing) => sealing.map_or_else(Vec::new, |s| s.transactions().to_owned()),
 		}
 	}
 
@@ -702,7 +702,7 @@ impl MinerService for Miner {
 					.iter()
 					.map(|t| t.hash());
 
-				let receipts = pending.receipts().clone().into_iter();
+				let receipts = pending.receipts().iter().cloned();
 
 				hashes.zip(receipts).collect()
 			},
