@@ -32,7 +32,7 @@ use ethcore::miner::Miner;
 use cache::CacheConfig;
 use setup_log::setup_log;
 use informant::Informant;
-use params::{SpecType, LoggerConfig};
+use params::{SpecType, LoggerConfig, Pruning};
 use fdlimit;
 
 #[derive(Debug, PartialEq)]
@@ -67,7 +67,7 @@ pub struct ImportBlockchain {
 	pub db_path: String,
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
-	pub pruning: Option<journaldb::Algorithm>,
+	pub pruning: Pruning,
 	pub compaction: DatabaseCompactionProfile,
 	pub mode: Mode,
 	pub tracing: Switch,
@@ -82,7 +82,7 @@ pub struct ExportBlockchain {
 	pub db_path: String,
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
-	pub pruning: Option<journaldb::Algorithm>,
+	pub pruning: Pruning,
 	pub compaction: DatabaseCompactionProfile,
 	pub mode: Mode,
 	pub tracing: Switch,
@@ -101,7 +101,7 @@ fn client_config(
 		cache_config: &CacheConfig,
 		mode: Mode,
 		tracing: Switch,
-		pruning: Option<journaldb::Algorithm>,
+		pruning: Pruning,
 		compaction: DatabaseCompactionProfile
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
@@ -113,7 +113,8 @@ fn client_config(
 	client_config.db_cache_size = Some(cache_config.rocksdb_state_cache_size() as usize);
 	client_config.tracing.enabled = tracing;
 	// chose best db here (requires state root hash)
-	client_config.pruning = pruning.unwrap_or_else(|| { unimplemented!(); });
+	//client_config.pruning = pruning.unwrap_or_else(|| { unimplemented!(); });
+	// TODO
 	client_config.db_compaction = compaction;
 	client_config
 }

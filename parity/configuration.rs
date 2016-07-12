@@ -33,9 +33,10 @@ use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home};
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home};
 use params::{SpecType, LoggerConfig};
 use dir::Directories;
+use RunCmd;
 
 /// Should be used to read password.
 pub trait PasswordReader {
@@ -99,7 +100,7 @@ impl Configuration {
 			mode: None,
 			color: false,
 		};
-		let pruning = try!(to_pruning(&self.args.flag_pruning));
+		let pruning = try!(self.args.flag_pruning.parse());
 		let vm_type = try!(self.vm_type());
 		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
 
@@ -167,7 +168,20 @@ impl Configuration {
 			};
 			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
 		} else {
-			Cmd::Run(self)
+			let daemon = if self.args.cmd_daemon {
+				Some(self.args.arg_pid_file.clone())
+			} else {
+				None
+			};
+
+			let run_cmd = RunCmd {
+				directories: dirs,
+				spec: try!(self.chain().parse()),
+				policy: try!(self.args.flag_fork.parse()),
+				pruning: pruning,
+				daemon: daemon,
+			};
+			Cmd::Run(run_cmd)
 		};
 
 		Ok(cmd)
@@ -349,23 +363,6 @@ impl Configuration {
 		}
 
 		Ok(ret)
-	}
-
-	pub fn find_best_db(&self, spec: &Spec) -> journaldb::Algorithm {
-		let mut jdb_types = journaldb::Algorithm::all_types();
-
-		// if all dbs have the same latest era, the last element is the default one
-		jdb_types.push(journaldb::Algorithm::default());
-
-		let dirs = self.directories();
-		let hash = spec.genesis_header().hash();
-
-		jdb_types.into_iter().max_by_key(|i| {
-			let state_path = append_path(dirs.client_path(hash, *i), "state");
-			let db = journaldb::new(&state_path, *i, kvdb::DatabaseConfig::default());
-			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
-			db.latest_era()
-		}).unwrap()
 	}
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
@@ -554,7 +551,7 @@ mod tests {
 	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use cache::CacheConfig;
-	use params::{SpecType, LoggerConfig};
+	use params::{SpecType, LoggerConfig, Pruning};
 	use helpers::replace_home;
 
 	#[derive(Debug, PartialEq)]
@@ -646,7 +643,7 @@ mod tests {
 			db_path: replace_home("$HOME/.parity"),
 			file_path: Some("blockchain.json".into()),
 			format: None,
-			pruning: None,
+			pruning: Pruning::Auto,
 			compaction: DatabaseCompactionProfile::default(),
 			mode: Mode::Active,
 			tracing: Switch::Auto,
@@ -668,7 +665,7 @@ mod tests {
 			cache_config: CacheConfig::default(),
 			db_path: replace_home("$HOME/.parity"),
 			file_path: Some("blockchain.json".into()),
-			pruning: None,
+			pruning: Pruning::Auto,
 			format: None,
 			compaction: DatabaseCompactionProfile::default(),
 			mode: Mode::Active,

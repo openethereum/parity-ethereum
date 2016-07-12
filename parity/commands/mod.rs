@@ -25,10 +25,11 @@ use cli::print_version;
 use configuration::Configuration;
 use execute as main_execute;
 use signer;
+use RunCmd;
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
-	Run(Configuration),
+	Run(RunCmd),
 	Version,
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
@@ -38,8 +39,8 @@ pub enum Cmd {
 
 pub fn execute(command: Cmd) -> Result<String, String> {
 	match command {
-		Cmd::Run(configuration) => {
-			try!(main_execute(configuration));
+		Cmd::Run(run_cmd) => {
+			try!(main_execute(run_cmd));
 			Ok("Quit parity".into())
 		},
 		Cmd::Version => Ok(print_version()),

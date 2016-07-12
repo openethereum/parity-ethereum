@@ -92,7 +92,7 @@ use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
 use helpers::{to_mode, to_address, to_u256};
-use params::Policy;
+use params::{Policy, SpecType, Pruning};
 use dir::Directories;
 use std::process;
 
@@ -114,25 +114,43 @@ fn new_execute(conf: Configuration) -> Result<String, String> {
 	commands::execute(cmd)
 }
 
-fn execute(conf: Configuration) -> Result<(), String> {
-	let spec = conf.spec();
-	let client_config = conf.client_config(&spec);
+#[derive(Debug, PartialEq)]
+pub struct RunCmd {
+	directories: Directories,
+	spec: SpecType,
+	policy: Policy,
+	pruning: Pruning,
+	/// Some if execution should be daemonized. Contains pid_file path.
+	daemon: Option<String>,
+}
 
-	try!(execute_upgrades(&conf.directories(), spec.genesis_header().hash(), client_config.pruning));
-
-	if conf.args.cmd_daemon {
-		try!(daemonize(&conf));
+fn execute(cmd: RunCmd) -> Result<(), String> {
+	let spec = try!(cmd.spec.spec());
+	let genesis_hash = spec.genesis_header().hash();
+	let algorithm = cmd.pruning.to_algorithm(&cmd.directories, genesis_hash);
+	try!(execute_upgrades(&cmd.directories, genesis_hash, algorithm));
+	if let Some(pid_file) = cmd.daemon {
+		try!(daemonize(pid_file));
 	}
+	Ok(())
+	//let spec = conf.spec();
+	//let client_config = conf.client_config(&spec);
 
-	execute_client(conf, spec, client_config)
+	//try!(execute_upgrades(&conf.directories(), spec.genesis_header().hash(), client_config.pruning));
+
+	//if conf.args.cmd_daemon {
+		//try!(daemonize(&conf));
+	//}
+
+	//execute_client(conf, spec, client_config)
 }
 
 #[cfg(not(windows))]
-fn daemonize(conf: &Configuration) -> Result<(), String> {
+fn daemonize(pid_file: String) -> Result<(), String> {
 	extern crate daemonize;
 
 	daemonize::Daemonize::new()
-			.pid_file(conf.args.arg_pid_file.clone())
+			.pid_file(pid_file)
 			.chown_pid_file(true)
 			.start()
 			.map(|_| ())

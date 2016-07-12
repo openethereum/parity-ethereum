@@ -55,13 +55,6 @@ pub fn to_mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
 	}
 }
 
-pub fn to_pruning(pruning: &str) -> Result<Option<Algorithm>, String> {
-	match pruning {
-		"auto" => Ok(None),
-		specific => specific.parse().map(Some),
-	}
-}
-
 pub fn to_block_id(s: &str) -> Result<BlockID, String> {
 	if s == "latest" {
 		Ok(BlockID::Latest)
@@ -120,7 +113,7 @@ mod tests {
 	use util::journaldb::Algorithm;
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
-	use super::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_address, to_price};
+	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_price};
 
 	#[test]
 	fn test_to_duration() {
@@ -148,16 +141,6 @@ mod tests {
 		assert_eq!(to_mode("passive", 10, 20).unwrap(), Mode::Passive(Duration::from_secs(10), Duration::from_secs(20)));
 		assert_eq!(to_mode("dark", 20, 30).unwrap(), Mode::Dark(Duration::from_secs(20)));
 		assert!(to_mode("other", 20, 30).is_err());
-	}
-
-	#[test]
-	fn test_to_pruning() {
-		assert_eq!(to_pruning("auto").unwrap(), None);
-		assert_eq!(to_pruning("archive").unwrap(), Some(Algorithm::Archive));
-		assert_eq!(to_pruning("earlymerge").unwrap(), Some(Algorithm::EarlyMerge));
-		assert_eq!(to_pruning("overlayrecent").unwrap(), Some(Algorithm::OverlayRecent));
-		assert_eq!(to_pruning("refcounted").unwrap(), Some(Algorithm::RefCounted));
-		assert!(to_pruning("utop").is_err());
 	}
 
 	#[test]

@@ -17,7 +17,9 @@
 use std::str::FromStr;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
-use util::contents;
+use util::{contents, DatabaseConfig, journaldb, H256};
+use util::journaldb::Algorithm;
+use dir::Directories;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum Policy {
@@ -76,9 +78,51 @@ pub struct LoggerConfig {
 	pub color: bool,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Pruning {
+	Specific(Algorithm),
+	Auto,
+}
+
+impl FromStr for Pruning {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"auto" => Ok(Pruning::Auto),
+			other => other.parse().map(Pruning::Specific),
+		}
+	}
+}
+
+impl Pruning {
+	pub fn to_algorithm(&self, dirs: &Directories, genesis_hash: H256) -> Algorithm {
+		match *self {
+			Pruning::Specific(algo) => algo,
+			Pruning::Auto => Self::find_best_db(dirs, genesis_hash),
+		}
+	}
+
+	fn find_best_db(dirs: &Directories, genesis_hash: H256) -> Algorithm {
+		let mut algo_types = Algorithm::all_types();
+
+		// if all dbs have the same latest era, the last element is the default one
+		algo_types.push(Algorithm::default());
+
+		algo_types.into_iter().max_by_key(|i| {
+			let mut client_path = dirs.client_path(genesis_hash, *i);
+			client_path.push("state");
+			let db = journaldb::new(client_path.to_str().unwrap(), *i, DatabaseConfig::default());
+			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
+			db.latest_era()
+		}).unwrap()
+	}
+}
+
 #[cfg(test)]
 mod tests {
-	use super::{Policy, SpecType};
+	use util::journaldb::Algorithm;
+	use super::{Policy, SpecType, Pruning};
 
 	#[test]
 	fn test_policy_parsing() {
@@ -95,5 +139,14 @@ mod tests {
 		assert_eq!(SpecType::Testnet, "testnet".parse().unwrap());
 		assert_eq!(SpecType::Testnet, "morden".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
+	}
+
+	#[test]
+	fn test_pruning_parsing() {
+		assert_eq!(Pruning::Auto, "auto".parse().unwrap());
+		assert_eq!(Pruning::Specific(Algorithm::Archive), "archive".parse().unwrap());
+		assert_eq!(Pruning::Specific(Algorithm::EarlyMerge), "earlymerge".parse().unwrap());
+		assert_eq!(Pruning::Specific(Algorithm::OverlayRecent), "overlayrecent".parse().unwrap());
+		assert_eq!(Pruning::Specific(Algorithm::RefCounted), "refcounted".parse().unwrap());
 	}
 }

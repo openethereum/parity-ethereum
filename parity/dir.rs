@@ -23,6 +23,7 @@ use util::journaldb::Algorithm;
 // but we still use it for backwards compatibility
 const LEGACY_CLIENT_DB_VER_STR: &'static str = "5.3";
 
+#[derive(Debug, PartialEq)]
 pub struct Directories {
 	pub db: String,
 	pub keys: String,
