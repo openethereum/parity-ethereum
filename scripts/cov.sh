@@ -11,6 +11,8 @@
 
 ### Running coverage
 
+set -x
+
 KCOV=${1:-kcov}
 
 if ! type $KCOV > /dev/null; then
@@ -19,21 +21,34 @@ if ! type $KCOV > /dev/null; then
 fi
 
 . ./scripts/targets.sh
-
 cargo test $TARGETS --no-run || exit $?
-rm -rf target/kcov
-mkdir -p target/kcov
 
-EXCLUDE="~/.cargo,~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests,ethstore/tests"
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethkey-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethstore-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethash-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_util-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethsync-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_rpc-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_signer-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_dapps-*
-$KCOV --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern $EXCLUDE target/kcov target/debug/parity-*
+
+
+KCOV_TARGET="target/kcov"
+KCOV_FLAGS="--verify"
+EXCLUDE="\
+	/usr/lib,\
+	/usr/include,\
+	$HOME/.cargo,\
+	$HOME/.multirust,\
+	rocksdb,\
+	secp256k1,\
+	src/tests,\
+	util/json-tests,\
+	util/src/network/tests,\
+	ethcore/src/evm/tests,\
+	ethstore/tests\
+"
+
+rm -rf $KCOV_TARGET
+mkdir -p $KCOV_TARGET
+
+for FILE in `find target/debug/deps ! -name "*.*"`
+do
+	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
+done
+
+$KCOV --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
 
 exit 0
