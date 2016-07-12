@@ -74,7 +74,7 @@ impl SimpleMigration for ArchiveV7 {
 		self.0 += 1;
 		if self.0 == 100_000 {
 			self.0 = 0;
-			println!(".");
+			flush!(".");
 		}
 
 		if key.len() != 32 {
@@ -240,7 +240,7 @@ impl Migration for OverlayRecentV7 {
 			count += 1;
 			if count == 100_000 {
 				count = 0;
-				println!(".");
+				flush!(".");
 			}
 
 			let mut key = key.into_vec();
