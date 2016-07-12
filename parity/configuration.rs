@@ -32,9 +32,10 @@ use ethcore::miner::{MinerOptions, GasPricer, GasPriceCalibratorOptions};
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
-use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain, LoggerConfig, SpecType};
+use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
-use params::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_price};
+use helpers::{to_duration, to_mode, to_pruning, to_block_id, to_u256, to_pending_set, to_price};
+use params::{SpecType, LoggerConfig};
 
 /// Flush output buffer.
 fn flush_stdout() {
@@ -577,8 +578,9 @@ mod tests {
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
 	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
-	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, SpecType, ImportBlockchain, ExportBlockchain, LoggerConfig};
+	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use cache::CacheConfig;
+	use params::{SpecType, LoggerConfig};
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);

@@ -29,11 +29,10 @@ use ethcore::service::ClientService;
 use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
-use ethcore::spec::Spec;
-use ethcore::ethereum;
 use cache::CacheConfig;
 use setup_log::setup_log;
 use informant::Informant;
+use params::{SpecType, LoggerConfig};
 use fdlimit;
 
 #[derive(Debug, PartialEq)]
@@ -58,45 +57,6 @@ impl FromStr for DataFormat {
 pub enum BlockchainCmd {
 	Import(ImportBlockchain),
 	Export(ExportBlockchain),
-}
-
-#[derive(Debug, PartialEq)]
-pub struct LoggerConfig {
-	pub mode: Option<String>,
-	pub color: bool,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum SpecType {
-	Mainnet,
-	Testnet,
-	Olympic,
-	Custom(String),
-}
-
-impl FromStr for SpecType {
-	type Err = String;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let spec = match s {
-			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
-			"morden" | "testnet" => SpecType::Testnet,
-			"olympic" => SpecType::Olympic,
-			other => SpecType::Custom(other.into()),
-		};
-		Ok(spec)
-	}
-}
-
-impl SpecType {
-	fn spec(&self) -> Result<Spec, String> {
-		match *self {
-			SpecType::Mainnet => Ok(ethereum::new_frontier()),
-			SpecType::Testnet => Ok(ethereum::new_morden()),
-			SpecType::Olympic => Ok(ethereum::new_olympic()),
-			SpecType::Custom(ref file) => Ok(Spec::load(&try!(contents(file).map_err(|_| "Could not load specification file."))))
-		}
-	}
 }
 
 #[derive(Debug, PartialEq)]
@@ -164,21 +124,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
-
-	// setup network configuration
-	let net_settings = NetworkConfiguration {
-		config_path: None,
-		listen_address: None,
-		public_address: None,
-		udp_port: None,
-		nat_enabled: false,
-		discovery_enabled: false,
-		boot_nodes: vec![],
-		use_secret: None,
-		ideal_peers: 0,
-		reserved_nodes: vec![],
-		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
-	};
 
 	// Setup logging
 	let _logger = setup_log(&cmd.logger_config.mode, cmd.logger_config.color);
@@ -280,21 +225,6 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// load spec file
 	let spec = try!(cmd.spec.spec());
 
-	// setup network configuration
-	let net_settings = NetworkConfiguration {
-		config_path: None,
-		listen_address: None,
-		public_address: None,
-		udp_port: None,
-		nat_enabled: false,
-		discovery_enabled: false,
-		boot_nodes: vec![],
-		use_secret: None,
-		ideal_peers: 0,
-		reserved_nodes: vec![],
-		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
-	};
-
 	// Setup logging
 	let _logger = setup_log(&cmd.logger_config.mode, cmd.logger_config.color);
 
@@ -335,23 +265,12 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 #[cfg(test)]
 mod test {
-	use ethcore::ethereum;
-	use super::{DataFormat, SpecType};
+	use super::DataFormat;
 
 	#[test]
 	fn test_data_format_parsing() {
 		assert_eq!(DataFormat::Binary, "binary".parse().unwrap());
 		assert_eq!(DataFormat::Binary, "bin".parse().unwrap());
 		assert_eq!(DataFormat::Hex, "hex".parse().unwrap());
-	}
-
-	#[test]
-	fn test_spec_type_parsing() {
-		assert_eq!(SpecType::Mainnet, "frontier".parse().unwrap());
-		assert_eq!(SpecType::Mainnet, "homestead".parse().unwrap());
-		assert_eq!(SpecType::Mainnet, "mainnet".parse().unwrap());
-		assert_eq!(SpecType::Testnet, "testnet".parse().unwrap());
-		assert_eq!(SpecType::Testnet, "morden".parse().unwrap());
-		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
 	}
 }

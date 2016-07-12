@@ -66,6 +66,7 @@ mod migration;
 mod signer;
 mod rpc_apis;
 mod url;
+mod helpers;
 mod params;
 mod deprecated;
 
@@ -88,7 +89,8 @@ use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
-use params::{to_mode, to_address, Policy, to_u256};
+use helpers::{to_mode, to_address, to_u256};
+use params::Policy;
 use std::process;
 
 fn main() {
