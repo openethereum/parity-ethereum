@@ -73,23 +73,24 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 		to_elastic(swapper(raw).unwrap_or(raw))
 	}
 
-	fn swap_all<F>(&self, swapper: &F, account_size: usize) -> ElasticArray1024<u8>
+	fn swap_all<F>(&self, swapper: &F, account_size: usize, decompress_data: bool) -> ElasticArray1024<u8>
 	where F: Fn(&[u8]) -> Option<&[u8]> {
 		if self.is_data() {
 			match self.payload_info() {
 				// Simply try to replace the value.
 				Ok(ref p) if p.value_len < account_size => self.swap(swapper),
 				// Try to treat the inside as RLP.
-				_ => self.data().ok().map_or(self.swap(swapper), |d| {
-					let new_d = UntrustedRlp::new(d).swap_all(swapper, account_size).to_vec();
-					if &new_d == &d {
-						// Just return if no compression was achieved.
-						to_elastic(self.as_raw())
+				Ok(ref p) => self.data().ok().map_or(self.swap(swapper), |d| {
+					if decompress_data && d[0] == 0 {
+						let new_d = UntrustedRlp::new(&d[0..]).swap_all(swapper, account_size, decompress_data).to_vec();
+						encode(&new_d)
 					} else {
 						// Attach correct prefix if changed.
+						let new_d = UntrustedRlp::new(d).swap_all(swapper, account_size, decompress_data).to_vec();
 						encode(&new_d)
 					}
-				},)
+				}),
+				_ => self.swap(swapper),
 			}
 		} else {
 			// Try to iterate if it might be a list.
@@ -98,7 +99,7 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 				c => {
   				let mut rlp = RlpStream::new_list(c);
   				for subrlp in self.iter() {
-  					let new = subrlp.swap_all(swapper, account_size);
+  					let new = subrlp.swap_all(swapper, account_size, decompress_data);
 						rlp.append_raw(&new, 1);
 					}
   				rlp.drain()
@@ -109,12 +110,66 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 
 	fn compress(&self) -> ElasticArray1024<u8> {
 		// Shortest decompressed account is 70.
-		self.swap_all(&|b| INVALID_RLP_SWAPPER.get_invalid(b), 70)
+		let swapper = |b: &UntrustedRlp| { let raw = b.as_raw(); to_elastic(&INVALID_RLP_SWAPPER.get_invalid(raw).unwrap_or(raw)) };
+		if self.is_data() {
+			match self.payload_info() {
+				// Simply try to replace the value.
+				Ok(ref p) if p.value_len < 70 => swapper(self),
+				// Try to treat the inside as RLP.
+				//Ok(_) => encode(&UntrustedRlp::new(self.data().unwrap()).compress().to_vec()),
+				Ok(_) => {
+						let new_d = UntrustedRlp::new(&self.data().unwrap()).compress().to_vec();
+						if new_d != self.data().unwrap() {
+						// Attach correct prefix if changed.
+						let mut rlp = RlpStream::new_list(2);
+						rlp.append_raw(&[0x81, 0xcc], 1);
+						rlp.append_raw(&new_d, 1);
+						rlp.drain()
+						} else {
+							swapper(self)
+						}
+					},
+				_ => swapper(self),
+			}
+		} else {
+			// Try to iterate if it might be a list.
+			match self.item_count() {
+				0 => swapper(self),
+				c => {
+  				let mut rlp = RlpStream::new_list(c);
+  				for subrlp in self.iter() {
+  					let new = subrlp.compress();
+						rlp.append_raw(&new, 1);
+					}
+  				rlp.drain()
+  			},
+  		}
+  	}
 	}
 
 	fn decompress(&self) -> ElasticArray1024<u8> {
 		// Shortest compressed account is 7.
-		self.swap_all(&|b| INVALID_RLP_SWAPPER.get_valid(b), 7)
+		let swapper = |b: &UntrustedRlp| { let raw = b.as_raw(); to_elastic(&INVALID_RLP_SWAPPER.get_valid(raw).unwrap_or(raw)) };
+		if self.is_data() {
+			swapper(self)
+		} else {
+			// Try to iterate if it might be a list.
+			match self.item_count() {
+				0 => swapper(self),
+				2 if self.at(0).map(|rlp| rlp.as_raw()).unwrap_or(&[0]) == &[0x81, 0xcc] => {
+					let inner_rlp = self.at(1).unwrap().decompress().to_vec();
+					encode(&inner_rlp)
+				},
+				c => {
+  				let mut rlp = RlpStream::new_list(c);
+  				for subrlp in self.iter() {
+  					let new = subrlp.decompress();
+						rlp.append_raw(&new, 1);
+					}
+  				rlp.drain()
+  			},
+  		}
+  	}
 	}
 }
 
@@ -128,7 +183,6 @@ impl<'a> CompressingEncoder<'a> {
 		CompressingEncoder { encoder: BasicEncoder::default(), swapper: &INVALID_RLP_SWAPPER }
 	}
 }
-
 
 struct DecompressingDecoder<'a> {
 	rlp: UntrustedRlp<'a>,
@@ -190,7 +244,7 @@ fn compressible() {
 	let nested_basic_account_rlp = vec![184, 70, 248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
 	let nested_rlp = UntrustedRlp::new(&nested_basic_account_rlp);
 	let compressed = nested_rlp.compress().to_vec();
-	assert_eq!(compressed, vec![135, 198, 4, 2, 129, 0, 129, 1]);
+	assert_eq!(compressed, vec![201, 129, 204, 198, 4, 2, 129, 0, 129, 1]);
 	let compressed_rlp = UntrustedRlp::new(&compressed);
 	assert_eq!(compressed_rlp.decompress().to_vec(), nested_basic_account_rlp);
 }
@@ -214,7 +268,7 @@ fn malformed_rlp_two() {
 #[test]
 /// Fails when trying to encode uncompressed malformed RLP.
 fn weird() {
-	let malformed = vec![248, 209, 128, 160, 146, 24, 68, 160, 113, 92, 44, 60, 0, 241, 148, 70, 160, 116, 187, 249, 198, 250, 117, 167, 91, 228, 47, 141, 178, 19, 10, 140, 240, 44, 243, 242, 160, 161, 255, 56, 165, 128, 159, 103, 130, 16, 185, 164, 89, 162, 102, 213, 232, 217, 0, 220, 160, 239, 6, 74, 131, 97, 101, 20, 41, 22, 226, 125, 154, 128, 128, 160, 102, 86, 0, 87, 45, 179, 131, 226, 67, 177, 62, 251, 191, 236, 59, 42, 55, 52, 137, 101, 93, 42, 242, 29, 147, 51, 250, 255, 89, 128, 31, 110, 128, 128, 128, 160, 213, 61, 174, 16, 148, 93, 60, 68, 40, 61, 3, 247, 17, 184, 93, 133, 138, 190, 84, 180, 47, 110, 18, 137, 201, 163, 234, 7, 98, 131, 242, 47, 128, 160, 253, 44, 128, 26, 71, 171, 210, 250, 235, 47, 143, 38, 121, 159, 213, 57, 21, 187, 174, 247, 197, 108, 134, 248, 136, 41, 36, 154, 55, 196, 27, 227, 128, 128, 160, 79, 225, 11, 6, 15, 193, 88, 98, 162, 169, 248, 223, 247, 127, 195, 115, 189, 234, 87, 197, 192, 147, 133, 230, 191, 58, 65, 250, 57, 199, 2, 116, 128, 128];
+	let malformed = vec![248, 177, 160, 172, 82, 175, 123, 14, 12, 150, 216, 222, 16, 231, 70, 170, 206, 18, 230, 182, 21, 27, 241, 187, 178, 145, 2, 178, 44, 215, 151, 177, 211, 72, 218, 128, 128, 128, 128, 160, 205, 50, 235, 13, 136, 215, 224, 171, 254, 5, 84, 66, 198, 178, 79, 64, 242, 250, 247, 70, 185, 159, 187, 223, 162, 7, 249, 215, 100, 236, 10, 212, 128, 128, 128, 160, 192, 21, 198, 154, 120, 177, 51, 20, 152, 182, 155, 26, 84, 200, 168, 123, 113, 191, 45, 233, 130, 220, 8, 123, 182, 208, 205, 174, 63, 47, 125, 228, 128, 128, 160, 209, 246, 57, 178, 249, 173, 190, 159, 67, 75, 46, 56, 93, 224, 253, 116, 242, 180, 192, 30, 189, 39, 229, 194, 201, 179, 108, 140, 177, 63, 57, 98, 128, 128, 160, 149, 53, 225, 159, 45, 85, 96, 150, 60, 230, 160, 49, 233, 226, 167, 152, 68, 199, 224, 14, 45, 163, 96, 187, 221, 34, 184, 165, 10, 131, 195, 73, 128];
 	let malformed_rlp = UntrustedRlp::new(&malformed);
 	assert_eq!(malformed_rlp.decompress().to_vec(), malformed);
 }

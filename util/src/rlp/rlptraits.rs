@@ -376,6 +376,6 @@ pub trait Compressible: Sized {
 	fn swap<F>(&self, swapper: &F) -> ElasticArray1024<u8>
 		where F: Fn(&[u8]) -> Option<&[u8]>;
 	/// Traverse RLP and swap using swapper (attempts to traverse data as well).
-	fn swap_all<F>(&self, swapper: &F, account_size: usize) -> ElasticArray1024<u8>
+	fn swap_all<F>(&self, swapper: &F, account_size: usize, decompress_data: bool) -> ElasticArray1024<u8>
 		where F: Fn(&[u8]) -> Option<&[u8]>;
 }
