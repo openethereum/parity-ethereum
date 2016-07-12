@@ -19,12 +19,12 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use v1::{EthcoreSet, EthcoreSetClient};
 use ethcore::miner::MinerService;
-use ethcore::service::SyncMessage;
 use ethcore::client::TestBlockChainClient;
 use v1::tests::helpers::TestMinerService;
 use util::numbers::*;
-use util::network::{NetworkConfiguration, NetworkService};
 use rustc_serialize::hex::FromHex;
+use super::manage_network::TestManageNetwork;
+use ethsync::ManageNetwork;
 
 fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
@@ -34,12 +34,12 @@ fn client_service() -> Arc<TestBlockChainClient> {
 	Arc::new(TestBlockChainClient::default())
 }
 
-fn network_service() -> Arc<NetworkService<SyncMessage>> {
-	Arc::new(NetworkService::new(NetworkConfiguration::new()).unwrap())
+fn network_service() -> Arc<TestManageNetwork> {
+	Arc::new(TestManageNetwork)
 }
 
-fn ethcore_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>, net: &Arc<NetworkService<SyncMessage>>) -> EthcoreSetClient<TestBlockChainClient, TestMinerService> {
-	EthcoreSetClient::new(client, miner, net)
+fn ethcore_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>, net: &Arc<TestManageNetwork>) -> EthcoreSetClient<TestBlockChainClient, TestMinerService> {
+	EthcoreSetClient::new(client, miner, &(net.clone() as Arc<ManageNetwork>))
 }
 
 #[test]

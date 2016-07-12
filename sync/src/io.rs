@@ -16,7 +16,6 @@
 
 use util::{NetworkContext, PeerId, PacketId,};
 use util::error::UtilError;
-use ethcore::service::SyncMessage;
 use ethcore::client::BlockChainClient;
 
 /// IO interface for the syning handler.
@@ -47,13 +46,13 @@ pub trait SyncIo {
 
 /// Wraps `NetworkContext` and the blockchain client
 pub struct NetSyncIo<'s, 'h> where 'h: 's {
-	network: &'s NetworkContext<'h, SyncMessage>,
+	network: &'s NetworkContext<'h>,
 	chain: &'s BlockChainClient
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext<'h, SyncMessage>, chain: &'s BlockChainClient) -> NetSyncIo<'s, 'h> {
+	pub fn new(network: &'s NetworkContext<'h>, chain: &'s BlockChainClient) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
 			chain: chain,

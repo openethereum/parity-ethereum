@@ -18,21 +18,15 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use ethsync::EthSync;
+use ethsync::{EthSync, ManageNetwork};
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use util::RotatingLogger;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use util::network::NetworkService;
 
-#[cfg(feature="rpc")]
 pub use ethcore_rpc::ConfirmationsQueue;
-#[cfg(not(feature="rpc"))]
-#[derive(Default)]
-pub struct ConfirmationsQueue;
 
-#[cfg(feature="rpc")]
 use ethcore_rpc::Extendable;
 
 pub enum Api {
@@ -89,7 +83,7 @@ pub struct Dependencies {
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub allow_pending_receipt_query: bool,
-	pub net_service: Arc<NetworkService<::ethcore::service::SyncMessage>>,
+	pub net_service: Arc<ManageNetwork>,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
