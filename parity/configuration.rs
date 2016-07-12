@@ -18,7 +18,7 @@ use std::{env};
 use std::fs::File;
 use std::time::Duration;
 use std::io::{BufRead, BufReader};
-use std::net::{SocketAddr, IpAddr};
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use cli::{USAGE, Args};
 use docopt::{Docopt, Error as DocoptError};
@@ -27,9 +27,8 @@ use util::*;
 use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
-use ethcore::miner::{MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
-use ethcore::ethereum;
+use ethcore::client::{append_path, get_db_path, ClientConfig, VMType};
+use ethcore::miner::{MinerOptions, GasPricer, GasPriceCalibratorOptions};
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
@@ -149,31 +148,31 @@ impl Configuration {
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
 			let import_cmd = ImportBlockchain {
-				spec: try!(SpecType::from_str(&self.chain())),
+				spec: try!(self.chain().parse()),
 				logger_config: logger_config,
 				cache_config: self.cache_config(),
 				db_path: dirs.db.clone(),
 				file_path: self.args.arg_file.clone(),
 				format: None,
 				pruning: pruning,
-				compaction: try!(DatabaseCompactionProfile::from_str(&self.args.flag_db_compaction)),
+				compaction: try!(self.args.flag_db_compaction.parse()),
 				mode: mode,
-				tracing: try!(Switch::from_str(&self.args.flag_tracing)),
+				tracing: try!(self.args.flag_tracing.parse()),
 				vm_type: vm_type,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
 			let export_cmd = ExportBlockchain {
-				spec: try!(SpecType::from_str(&self.chain())),
+				spec: try!(self.chain().parse()),
 				logger_config: logger_config,
 				cache_config: self.cache_config(),
 				db_path: dirs.db.clone(),
 				file_path: self.args.arg_file.clone(),
 				format: None,
 				pruning: pruning,
-				compaction: try!(DatabaseCompactionProfile::from_str(&self.args.flag_db_compaction)),
+				compaction: try!(self.args.flag_db_compaction.parse()),
 				mode: mode,
-				tracing: try!(Switch::from_str(&self.args.flag_tracing)),
+				tracing: try!(self.args.flag_tracing.parse()),
 				from_block: try!(to_block_id(&self.args.flag_from)),
 				to_block: try!(to_block_id(&self.args.flag_to)),
 			};
@@ -264,7 +263,7 @@ impl Configuration {
 						}))
 					},
 					x => {
-						let usd_per_eth = try!(to_price(&self.args.flag_usd_per_eth));
+						let usd_per_eth = try!(to_price(x));
 						let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 						let gas_per_tx: f32 = 21000.0;
 						let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
