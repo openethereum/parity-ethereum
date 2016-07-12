@@ -42,12 +42,6 @@ pub enum Api {
 	Rpc,
 }
 
-pub enum ApiSet {
-	SafeContext,
-	UnsafeContext,
-	List(Vec<Api>),
-}
-
 impl FromStr for Api {
 	type Err = String;
 
@@ -66,6 +60,30 @@ impl FromStr for Api {
 			"rpc" => Ok(Rpc),
 			api => Err(format!("Unknown api: {}", api))
 		}
+	}
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ApiSet {
+	SafeContext,
+	UnsafeContext,
+	List(Vec<Api>),
+}
+
+impl Default for ApiSet {
+	fn default() -> Self {
+		ApiSet::UnsafeContext
+	}
+}
+
+impl FromStr for ApiSet {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		s.split(',')
+			.map(Api::from_str)
+			.collect::<Result<_, _>>()
+			.map(ApiSet::List)
 	}
 }
 
@@ -102,28 +120,24 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 	modules
 }
 
-pub fn from_str(apis: Vec<&str>) -> Result<Vec<Api>, String> {
-	apis.into_iter()
-		.map(Api::from_str)
-		.collect()
-}
-
-fn list_apis(apis: ApiSet) -> Vec<Api> {
-	match apis {
-		ApiSet::List(apis) => apis,
-		ApiSet::UnsafeContext => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
-		},
-		_ => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::Traces, Api::Rpc]
-		},
+impl ApiSet {
+	pub fn list_apis(self) -> Vec<Api> {
+		match self {
+			ApiSet::List(apis) => apis,
+			ApiSet::UnsafeContext => {
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+			},
+			_ => {
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::Traces, Api::Rpc]
+			},
+		}
 	}
 }
 
 pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
 	use ethcore_rpc::v1::*;
 
-	let apis = list_apis(apis);
+	let apis = apis.list_apis();
 	for api in &apis {
 		match *api {
 			Api::Web3 => {
@@ -133,8 +147,18 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(NetClient::new(&deps.sync).to_delegate());
 			},
 			Api::Eth => {
-				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner, deps.allow_pending_receipt_query).to_delegate());
-				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
+				let client = EthClient::new(
+					&deps.client,
+					&deps.sync,
+					&deps.secret_store,
+					&deps.miner,
+					&deps.external_miner,
+					deps.allow_pending_receipt_query
+				);
+				server.add_delegate(client.to_delegate());
+
+				let filter_client = EthFilterClient::new(&deps.client, &deps.miner);
+				server.add_delegate(filter_client.to_delegate());
 
 				if deps.signer_port.is_some() {
 					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue, &deps.client, &deps.miner, &deps.secret_store).to_delegate());
@@ -169,20 +193,103 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 
 #[cfg(test)]
 mod test {
-	use std::str::FromStr;
-	use super::Api;
+	use super::{Api, ApiSet};
 
 	#[test]
-	fn test_api_from_str() {
-		assert_eq!(Api::from_str("web3").unwrap(), Api::Web3);
-		assert_eq!(Api::from_str("net").unwrap(), Api::Net);
-		assert_eq!(Api::from_str("eth").unwrap(), Api::Eth);
-		assert_eq!(Api::from_str("personal").unwrap(), Api::Personal);
-		assert_eq!(Api::from_str("signer").unwrap(), Api::Signer);
-		assert_eq!(Api::from_str("ethcore").unwrap(), Api::Ethcore);
-		assert_eq!(Api::from_str("ethcore_set").unwrap(), Api::EthcoreSet);
-		assert_eq!(Api::from_str("traces").unwrap(), Api::Traces);
-		assert_eq!(Api::from_str("rpc").unwrap(), Api::Rpc);
-		assert!(Api::from_str("rp").is_err());
+	fn test_api_parsing() {
+		assert_eq!(Api::Web3, "web3".parse().unwrap());
+		assert_eq!(Api::Net, "net".parse().unwrap());
+		assert_eq!(Api::Eth, "eth".parse().unwrap());
+		assert_eq!(Api::Personal, "personal".parse().unwrap());
+		assert_eq!(Api::Signer, "signer".parse().unwrap());
+		assert_eq!(Api::Ethcore, "ethcore".parse().unwrap());
+		assert_eq!(Api::EthcoreSet, "ethcore_set".parse().unwrap());
+		assert_eq!(Api::Traces, "traces".parse().unwrap());
+		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
+		assert!("rp".parse::<Api>().is_err());
+	}
+
+	#[test]
+	fn test_api_set_default() {
+		assert_eq!(ApiSet::UnsafeContext, ApiSet::default());
+	}
+
+	#[test]
+	fn test_api_set_parsing() {
+		assert_eq!(ApiSet::List(vec![Api::Web3, Api::Eth]), "web3,eth".parse().unwrap());
+	}
+
+	#[test]
+	fn test_api_set_unsafe_context() {
+		let mut web3 = 0;
+		let mut net = 0;
+		let mut eth = 0;
+		let mut personal = 0;
+		let mut signer = 0;
+		let mut ethcore = 0;
+		let mut ethcore_set = 0;
+		let mut traces = 0;
+		let mut rpc = 0;
+
+		for i in &ApiSet::UnsafeContext.list_apis() {
+			match *i {
+				Api::Web3 => web3 += 1,
+				Api::Net => net += 1,
+				Api::Eth => eth += 1,
+				Api::Personal => personal += 1,
+				Api::Signer => signer += 1,
+				Api::Ethcore => ethcore += 1,
+				Api::EthcoreSet => ethcore_set += 1,
+				Api::Traces => traces += 1,
+				Api::Rpc => rpc += 1,
+			}
+		}
+
+		assert_eq!(web3, 1);
+		assert_eq!(net, 1);
+		assert_eq!(eth, 1);
+		assert_eq!(personal, 1);
+		assert_eq!(signer, 0);
+		assert_eq!(ethcore, 1);
+		assert_eq!(ethcore_set, 0);
+		assert_eq!(traces, 1);
+		assert_eq!(rpc, 1);
+	}
+
+	#[test]
+	fn test_api_set_safe_context() {
+		let mut web3 = 0;
+		let mut net = 0;
+		let mut eth = 0;
+		let mut personal = 0;
+		let mut signer = 0;
+		let mut ethcore = 0;
+		let mut ethcore_set = 0;
+		let mut traces = 0;
+		let mut rpc = 0;
+
+		for i in &ApiSet::SafeContext.list_apis() {
+			match *i {
+				Api::Web3 => web3 += 1,
+				Api::Net => net += 1,
+				Api::Eth => eth += 1,
+				Api::Personal => personal += 1,
+				Api::Signer => signer += 1,
+				Api::Ethcore => ethcore += 1,
+				Api::EthcoreSet => ethcore_set += 1,
+				Api::Traces => traces += 1,
+				Api::Rpc => rpc += 1,
+			}
+		}
+
+		assert_eq!(web3, 1);
+		assert_eq!(net, 1);
+		assert_eq!(eth, 1);
+		assert_eq!(personal, 1);
+		assert_eq!(signer, 1);
+		assert_eq!(ethcore, 1);
+		assert_eq!(ethcore_set, 0);
+		assert_eq!(traces, 1);
+		assert_eq!(rpc, 1);
 	}
 }

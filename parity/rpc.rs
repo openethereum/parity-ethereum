@@ -58,23 +58,22 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<R
 		return Ok(None);
 	}
 
-	let apis = conf.apis.split(',').collect();
+	let apis = try!(conf.apis.parse());
 	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = try!(url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url)));
 	Ok(Some(try!(setup_http_rpc_server(deps, &addr, conf.cors, apis))))
 }
 
-fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Result<Server, String> {
-	let apis = try!(rpc_apis::from_str(apis));
+fn setup_rpc_server(apis: rpc_apis::ApiSet, deps: &Dependencies) -> Result<Server, String> {
 	let server = Server::new();
-	Ok(rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::List(apis)))
+	Ok(rpc_apis::setup_rpc(server, deps.apis.clone(), apis))
 }
 
 pub fn setup_http_rpc_server(
 	dependencies: &Dependencies,
 	url: &SocketAddr,
 	cors_domains: Vec<String>,
-	apis: Vec<&str>,
+	apis: rpc_apis::ApiSet
 ) -> Result<RpcServer, String> {
 	let server = try!(setup_rpc_server(apis, dependencies));
 	let start_result = server.start_http(url, cors_domains);
@@ -93,11 +92,11 @@ pub fn setup_http_rpc_server(
 
 pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<jsonipc::Server>, String> {
 	if !conf.enabled { return Ok(None); }
-	let apis = conf.apis.split(',').collect();
+	let apis = try!(conf.apis.parse());
 	Ok(Some(try!(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: Vec<&str>) -> Result<jsonipc::Server, String> {
+pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: rpc_apis::ApiSet) -> Result<jsonipc::Server, String> {
 	let server = try!(setup_rpc_server(apis, dependencies));
 	match server.start_ipc(addr) {
 		Err(jsonipc::Error::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
