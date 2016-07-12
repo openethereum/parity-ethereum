@@ -24,7 +24,7 @@ cargo test $TARGETS --no-run || exit $?
 rm -rf target/kcov
 mkdir -p target/kcov
 
-EXCLUDE="~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests,ethstore/tests"
+EXCLUDE="~/.cargo,~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests,ethstore/tests"
 $KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethkey-*
 $KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethstore-*
 $KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore-*
@@ -34,5 +34,6 @@ $KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/
 $KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_rpc-*
 $KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_signer-*
 $KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethcore_dapps-*
-$KCOV --exclude-pattern $EXCLUDE --include-pattern src target/kcov target/debug/deps/ethjson-*
 $KCOV --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern $EXCLUDE target/kcov target/debug/parity-*
+
+exit 0
