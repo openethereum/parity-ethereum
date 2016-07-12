@@ -153,6 +153,7 @@ pub mod log;
 pub mod panics;
 pub mod network_settings;
 pub mod path;
+pub mod snappy;
 mod timer;
 
 pub use common::*;

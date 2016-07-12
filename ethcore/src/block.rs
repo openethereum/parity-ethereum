@@ -24,7 +24,7 @@ use trace::Trace;
 use evm::Factory as EvmFactory;
 
 /// A block, encoded as it is on the block chain.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct Block {
 	/// The header of this block.
 	pub header: Header,
