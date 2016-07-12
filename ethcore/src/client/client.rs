@@ -19,7 +19,7 @@ use std::ops::Deref;
 use std::mem;
 use std::collections::VecDeque;
 use std::sync::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::Instant;
