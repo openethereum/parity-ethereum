@@ -14,17 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::*;
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::collections::HashMap;
 use mio::*;
 use crossbeam::sync::chase_lev;
 use slab::Slab;
 use error::*;
-use misc::*;
 use io::{IoError, IoHandler};
 use io::worker::{Worker, Work, WorkType};
 use panics::*;
+
+use parking_lot::{Condvar, RwLock, Mutex};
 
 /// Timer ID
 pub type TimerToken = usize;

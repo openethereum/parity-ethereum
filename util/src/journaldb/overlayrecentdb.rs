@@ -20,7 +20,6 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use misc::RwLockable;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]

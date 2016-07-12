@@ -16,10 +16,10 @@
 
 use std::thread;
 use std::time::{Instant, Duration};
-use std::sync::{mpsc, Mutex, RwLock, Arc};
+use std::sync::{mpsc, Arc};
 use std::collections::HashMap;
 use jsonrpc_core;
-use util::{U256, Lockable, RwLockable};
+use util::{Mutex, RwLock, U256};
 use v1::helpers::{TransactionRequest, TransactionConfirmation};
 
 /// Result that can be returned from JSON RPC.
@@ -300,8 +300,8 @@ impl SigningQueue for  ConfirmationsQueue {
 mod test {
 	use std::time::Duration;
 	use std::thread;
-	use std::sync::{Arc, Mutex};
-	use util::{Address, U256, H256, Lockable};
+	use std::sync::Arc;
+	use util::{Address, U256, H256, Mutex};
 	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, TransactionRequest};
 	use v1::types::H256 as NH256;
 	use jsonrpc_core::to_value;

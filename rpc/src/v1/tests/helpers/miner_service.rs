@@ -16,7 +16,7 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes, U256, FixedHash, Uint, Lockable, RwLockable};
+use util::{Address, H256, Bytes, U256, FixedHash, Uint};
 use util::standard::*;
 use ethcore::error::{Error, ExecutionError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};

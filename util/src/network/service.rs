@@ -16,12 +16,15 @@
 
 use error::*;
 use panics::*;
-use misc::*;
 use network::{NetworkProtocolHandler, NetworkConfiguration};
 use network::error::NetworkError;
 use network::host::{Host, NetworkIoMessage, ProtocolId};
 use network::stats::NetworkStats;
 use io::*;
+
+use std::sync::Arc;
+
+use parking_lot::RwLock;
 
 /// IO Service with networking
 /// `Message` defines a notification data type.

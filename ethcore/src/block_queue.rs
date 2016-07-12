@@ -200,7 +200,7 @@ impl BlockQueue {
 				}
 
 				while unverified.is_empty() && !deleting.load(AtomicOrdering::Acquire) {
-					unverified = wait.wait(unverified).unwrap();
+					wait.wait(&mut unverified);
 				}
 
 				if deleting.load(AtomicOrdering::Acquire) {
@@ -278,7 +278,7 @@ impl BlockQueue {
 	pub fn flush(&self) {
 		let mut unverified = self.verification.unverified.lock();
 		while !unverified.is_empty() || !self.verification.verifying.lock().is_empty() {
-			unverified = self.empty.wait(unverified).unwrap();
+			self.empty.wait(&mut unverified);
 		}
 	}
 

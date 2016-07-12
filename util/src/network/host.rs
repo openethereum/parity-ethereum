@@ -17,7 +17,7 @@
 use std::net::SocketAddr;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use std::sync::*;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::ops::*;
 use std::cmp::min;
@@ -42,6 +42,7 @@ use network::error::{NetworkError, DisconnectReason};
 use network::discovery::{Discovery, TableUpdates, NodeEntry};
 use network::ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
+use parking_lot::{Mutex, RwLock};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 

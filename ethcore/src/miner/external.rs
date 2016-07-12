@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use util::{RwLockable, U256, H256};
+use std::sync::Arc;
+use util::{RwLock, U256, H256};
 
 /// External miner interface.
 pub trait ExternalMinerService: Send + Sync {

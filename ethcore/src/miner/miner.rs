@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rayon::prelude::*;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{self, AtomicBool};
 use std::time::{Instant, Duration};
 
 use util::*;
@@ -26,14 +26,13 @@ use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptio
 use block::{ClosedBlock, IsBlock};
 use error::*;
 use transaction::SignedTransaction;
-use receipt::{Receipt};
+use receipt::Receipt;
 use spec::Spec;
 use engine::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionOrigin};
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
-
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug)]
@@ -236,9 +235,9 @@ impl Miner {
 		{
 			trace!(target: "miner", "recalibrating...");
 			let txq = self.transaction_queue.clone();
-			self.gas_pricer.lock().unwrap().recalibrate(move |price| {
+			self.gas_pricer.lock().recalibrate(move |price| {
 				trace!(target: "miner", "Got gas price! {}", price);
-				txq.lock().unwrap().set_minimal_gas_price(price);
+				txq.lock().set_minimal_gas_price(price);
 			});
 			trace!(target: "miner", "done recalibration.");
 		}

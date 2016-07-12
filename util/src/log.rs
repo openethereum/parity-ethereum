@@ -18,12 +18,13 @@
 
 use std::env;
 use std::borrow::Cow;
-use rlog::{LogLevelFilter};
+use rlog::LogLevelFilter;
 use env_logger::LogBuilder;
 use std::sync::atomic::{Ordering, AtomicBool};
 use arrayvec::ArrayVec;
-use misc::RwLockReadGuard;
 pub use ansi_term::{Colour, Style};
+
+use parking_lot::{RwLock, RwLockReadGuard};
 
 lazy_static! {
 	static ref USE_COLOR: AtomicBool = AtomicBool::new(false);

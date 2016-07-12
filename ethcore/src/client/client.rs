@@ -19,7 +19,7 @@ use std::collections::{HashSet, HashMap};
 use std::ops::Deref;
 use std::mem;
 use std::collections::VecDeque;
-use std::sync::*;
+use std::sync::Arc;
 use std::path::Path;
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -32,12 +32,13 @@ use util::network::*;
 use util::io::*;
 use util::rlp;
 use util::sha3::*;
-use util::{Bytes, Lockable, RwLockable};
+use util::Bytes;
 use util::rlp::{RlpStream, Rlp, UntrustedRlp};
 use util::journaldb;
 use util::journaldb::JournalDB;
 use util::kvdb::*;
 use util::{Applyable, Stream, View, PerfTimer, Itertools, Colour};
+use util::{Mutex, RwLock};
 
 // other
 use views::BlockView;

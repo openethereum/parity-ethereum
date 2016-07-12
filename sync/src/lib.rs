@@ -74,14 +74,14 @@ extern crate rand;
 extern crate heapsize;
 
 use std::ops::*;
-use std::sync::*;
+use std::sync::Arc;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
-use util::{TimerToken, U256, RwLockable};
+use util::{TimerToken, U256};
 use ethcore::client::Client;
 use ethcore::service::{SyncMessage, NetSyncMessage};
 use io::NetSyncIo;
 use util::io::IoChannel;
-use util::{NetworkIoMessage, NetworkError};
+use util::{NetworkIoMessage, NetworkError, RwLock};
 use chain::ChainSync;
 
 mod chain;

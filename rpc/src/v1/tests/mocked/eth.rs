@@ -16,11 +16,11 @@
 
 use std::str::FromStr;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use jsonrpc_core::IoHandler;
-use util::RwLockable;
 use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
+use util::RwLock;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};

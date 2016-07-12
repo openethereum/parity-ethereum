@@ -18,7 +18,6 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread;
 use std::time::*;
 use common::*;
-use misc::*;
 use network::*;
 use io::TimerToken;
 use crypto::KeyPair;
@@ -37,10 +36,10 @@ pub struct TestProtocolMessage {
 
 impl TestProtocol {
 	pub fn new(drop_session: bool) -> Self {
-		TestProtocol { 
-			packet: Mutex::new(Vec::new()), 
-			got_timeout: AtomicBool::new(false), 
-			got_disconnect: AtomicBool::new(false), 
+		TestProtocol {
+			packet: Mutex::new(Vec::new()),
+			got_timeout: AtomicBool::new(false),
+			got_disconnect: AtomicBool::new(false),
 			drop_session: drop_session,
 		}
 	}

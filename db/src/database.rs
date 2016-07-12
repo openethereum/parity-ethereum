@@ -17,7 +17,6 @@
 //! Ethcore rocksdb ipc service
 
 use traits::*;
-use misc::RwLockable;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator, IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 use std::sync::{RwLock, Arc};
 use std::convert::From;

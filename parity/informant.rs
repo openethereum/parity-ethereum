@@ -19,10 +19,9 @@ use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue, Purple};
 use self::ansi_term::Style;
 
 use std::time::{Instant, Duration};
-use std::sync::RwLock;
 use std::ops::{Deref, DerefMut};
 use ethsync::{EthSync, SyncProvider};
-use util::{Uint, RwLockable, NetworkService};
+use util::{Uint, NetworkService, RwLock};
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 

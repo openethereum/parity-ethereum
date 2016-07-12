@@ -18,9 +18,10 @@
 
 use std::thread;
 use std::ops::DerefMut;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::default::Default;
-use misc::Lockable;
+
+use parking_lot::Mutex;
 
 /// Thread-safe closure for handling possible panics
 pub trait OnPanicListener: Send + Sync + 'static {
@@ -119,8 +120,7 @@ impl<F> OnPanicListener for F
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_notify_listeners_about_panic () {
-	use std::sync::RwLock;
-	use misc::RwLockable;
+	use parking_lot::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
@@ -137,8 +137,7 @@ fn should_notify_listeners_about_panic () {
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_notify_listeners_about_panic_when_string_is_dynamic () {
-	use std::sync::RwLock;
-	use misc::RwLockable;
+	use parking_lot::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
@@ -155,9 +154,7 @@ fn should_notify_listeners_about_panic_when_string_is_dynamic () {
 #[test]
 fn should_notify_listeners_about_panic_in_other_thread () {
 	use std::thread;
-	use std::sync::RwLock;
-	use misc::RwLockable;
-
+	use parking_lot::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
@@ -177,9 +174,7 @@ fn should_notify_listeners_about_panic_in_other_thread () {
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_forward_panics () {
-use std::sync::RwLock;
-	use misc::RwLockable;
-
+	use parking_lot::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();

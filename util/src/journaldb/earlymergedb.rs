@@ -20,7 +20,6 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use misc::RwLockable;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction, DatabaseConfig};

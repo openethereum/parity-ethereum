@@ -17,18 +17,17 @@
 //! Eth Filter RPC implementation
 
 use std::ops::Deref;
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Weak};
 use std::collections::HashSet;
 use jsonrpc_core::*;
-use util::Lockable;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockID};
+use util::Mutex;
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, Log, H256 as RpcH256, U256 as RpcU256};
 use v1::helpers::{PollFilter, PollManager};
 use v1::impls::eth::pending_logs;
-
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient<C, M> where

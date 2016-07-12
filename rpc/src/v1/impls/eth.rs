@@ -20,7 +20,7 @@ extern crate ethash;
 
 use std::thread;
 use std::time::{Instant, Duration};
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Weak};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
 use ethcore::miner::{MinerService, ExternalMinerService};
@@ -28,7 +28,7 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use util::Lockable;
+use util::Mutex;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::header::Header as BlockHeader;

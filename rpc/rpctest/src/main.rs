@@ -41,7 +41,6 @@ use rpc::v1::tests::helpers::{TestSyncProvider, Config as SyncConfig, TestMinerS
 use rpc::v1::{Eth, EthClient, EthFilter, EthFilterClient};
 use util::panics::MayPanic;
 use util::hash::Address;
-use util::Lockable;
 
 const USAGE: &'static str = r#"
 Parity rpctest client.

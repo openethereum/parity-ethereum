@@ -18,10 +18,10 @@
 
 use std::ops::Deref;
 use std::hash::Hash;
-use std::sync::RwLock;
 use std::collections::HashMap;
-use util::{DBTransaction, Database, RwLockable};
+use util::{DBTransaction, Database, RwLock};
 use util::rlp::{encode, Encodable, decode, Decodable};
+
 
 #[derive(Clone, Copy)]
 pub enum CacheUpdatePolicy {
