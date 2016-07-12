@@ -339,6 +339,10 @@ impl JournalDB for EarlyMergeDB {
 		}
  	}
 
+	fn state(&self, id: &H256) -> Option<Bytes> {
+		self.backing.get_by_prefix(&id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+	}
+
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:

@@ -19,26 +19,26 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::service::SyncMessage;
-use util::network::{NetworkService, NonReservedPeerMode};
+use ethsync::ManageNetwork;
+use util::network::NonReservedPeerMode;
 use v1::traits::EthcoreSet;
 use v1::types::{Bytes, H160, U256};
 
 /// Ethcore-specific rpc interface for operations altering the settings.
 pub struct EthcoreSetClient<C, M> where
 	C: MiningBlockChainClient,
-	M: MinerService {
-
+	M: MinerService
+{
 	client: Weak<C>,
 	miner: Weak<M>,
-	net: Weak<NetworkService<SyncMessage>>,
+	net: Weak<ManageNetwork>,
 }
 
 impl<C, M> EthcoreSetClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService {
 	/// Creates new `EthcoreSetClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<NetworkService<SyncMessage>>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>) -> Self {
 		EthcoreSetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
@@ -143,5 +143,15 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		take_weak!(self.net).set_non_reserved_mode(NonReservedPeerMode::Accept);
 		to_value(&true)
+	}
+
+	fn start_network(&self, _: Params) -> Result<Value, Error> {
+		take_weak!(self.net).start_network();
+		Ok(Value::Bool(true))
+	}
+
+	fn stop_network(&self, _: Params) -> Result<Value, Error> {
+		take_weak!(self.net).stop_network();
+		Ok(Value::Bool(true))
 	}
 }

@@ -14,16 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
-//! method calls properly.
+use ethsync::ManageNetwork;
+use util::network::NetworkConfiguration;
 
-mod eth;
-mod eth_signing;
-mod net;
-mod web3;
-mod personal;
-mod personal_signer;
-mod ethcore;
-mod ethcore_set;
-mod rpc;
-mod manage_network;
+pub struct TestManageNetwork;
+
+// TODO: rob, gavin (originally introduced this functions) - proper tests and test state
+impl ManageNetwork for TestManageNetwork {
+	fn set_non_reserved_mode(&self, _mode: ::util::network::NonReservedPeerMode) {}
+	fn remove_reserved_peer(&self, _peer: &str) -> Result<(), String> { Ok(()) }
+	fn add_reserved_peer(&self, _peer: &str) -> Result<(), String> { Ok(()) }
+	fn start_network(&self) {}
+	fn stop_network(&self) {}
+	fn network_config(&self) -> NetworkConfiguration { NetworkConfiguration::new_local() }
+}
