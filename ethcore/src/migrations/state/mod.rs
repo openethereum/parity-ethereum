@@ -17,5 +17,7 @@
 //! State database migrations.
 
 mod v7;
+mod v8;
 
 pub use self::v7::{ArchiveV7, OverlayRecentV7};
+pub use self::v8::V8;

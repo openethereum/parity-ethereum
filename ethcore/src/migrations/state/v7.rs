@@ -257,6 +257,5 @@ impl Migration for OverlayRecentV7 {
 
 		try!(self.walk_journal(source));
 		self.migrate_journal(source, batch, dest)
->>>>>>> master
 	}
 }

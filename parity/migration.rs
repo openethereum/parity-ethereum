@@ -163,6 +163,7 @@ fn extras_database_migrations() -> Result<MigrationManager, Error> {
 /// Migrations on the state database.
 fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings());
+	//manager.add_migration(migrations::state::V8::default());
 	let res = match pruning {
 		Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7::default()),
 		Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
