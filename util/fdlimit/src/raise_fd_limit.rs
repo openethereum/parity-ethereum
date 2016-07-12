@@ -16,11 +16,11 @@
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 #[allow(non_camel_case_types)]
 pub fn raise_fd_limit() {
-    use libc;
-    use std::cmp;
-    use std::io;
-    use std::mem::size_of_val;
-    use std::ptr::null_mut;
+	use libc;
+	use std::cmp;
+	use std::io;
+	use std::mem::size_of_val;
+	use std::ptr::null_mut;
 
 	unsafe {
 		static CTL_KERN: libc::c_int = 1;
@@ -62,8 +62,8 @@ pub fn raise_fd_limit() {
 #[cfg(any(target_os = "linux"))]
 #[allow(non_camel_case_types)]
 pub fn raise_fd_limit() {
-    use libc;
-    use std::io;
+	use libc;
+	use std::io;
 
 	unsafe {
 		// Fetch the current resource limits
