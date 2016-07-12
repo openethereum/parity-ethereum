@@ -51,7 +51,7 @@ pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option
 
 	let logs = Arc::new(RotatingLogger::new(levels, enable_color));
 	let logger = logs.clone();
-	let file = log_to_file.as_ref().map(|f| Mutex::new(File::create(f).unwrap_or_else(|_| die!("Cannot write to log file given: {}", f))));
+	let maybe_file = log_to_file.as_ref().map(|f| Mutex::new(File::create(f).unwrap_or_else(|_| die!("Cannot write to log file given: {}", f))));
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
@@ -62,10 +62,11 @@ pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option
 		};
 
 		let removed_color = kill_color(format.as_ref());
-		if let &Some(ref f) = &file {
+		if let &Some(ref file_mutex) = &maybe_file {
 			// ignore errors - there's nothing we can do
-			let _ = f.locked().write_all(removed_color.as_bytes());
-			let _ = f.locked().write_all(b"\n");
+			let file = file_mutex.locked();
+			file.write_all(removed_color.as_bytes());
+			file.write_all(b"\n");
 		}
 		logger.append(removed_color);
 
