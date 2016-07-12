@@ -14,17 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethsync::ManageNetwork;
-use util::network::NetworkConfiguration;
+use ethsync::{ManageNetwork, NetworkConfiguration};
+use util;
 
 pub struct TestManageNetwork;
 
 // TODO: rob, gavin (originally introduced this functions) - proper tests and test state
 impl ManageNetwork for TestManageNetwork {
-	fn set_non_reserved_mode(&self, _mode: ::util::network::NonReservedPeerMode) {}
-	fn remove_reserved_peer(&self, _peer: &str) -> Result<(), String> { Ok(()) }
-	fn add_reserved_peer(&self, _peer: &str) -> Result<(), String> { Ok(()) }
+	fn accept_unreserved_peers(&self) { }
+	fn deny_unreserved_peers(&self) { }
+	fn remove_reserved_peer(&self, _peer: String) -> Result<(), String> { Ok(()) }
+	fn add_reserved_peer(&self, _peer: String) -> Result<(), String> { Ok(()) }
 	fn start_network(&self) {}
 	fn stop_network(&self) {}
-	fn network_config(&self) -> NetworkConfiguration { NetworkConfiguration::new_local() }
+	fn network_config(&self) -> NetworkConfiguration { NetworkConfiguration::from(util::NetworkConfiguration::new_local()) }
 }
