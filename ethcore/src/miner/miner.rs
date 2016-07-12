@@ -48,7 +48,7 @@ pub enum PendingSet {
 }
 
 /// Configures the behaviour of the miner.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct MinerOptions {
 	/// URLs to notify when there is new work.
 	pub new_work_notify: Vec<String>,
@@ -82,7 +82,7 @@ impl Default for MinerOptions {
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
-			reseal_min_period: Duration::from_secs(0),
+			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
 			enable_resubmission: true,
 		}

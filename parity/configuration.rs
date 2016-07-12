@@ -30,11 +30,11 @@ use ethcore::client::{append_path, ClientConfig, VMType};
 use ethcore::miner::{MinerOptions, GasPricer, GasPriceCalibratorOptions};
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
-use rpc::IpcConfiguration;
+use rpc::{IpcConfiguration, HttpConfiguration};
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home};
-use params::{SpecType};
+use params::{SpecType, ResealPolicy};
 use setup_log::LoggerConfig;
 use dir::Directories;
 use RunCmd;
@@ -104,6 +104,17 @@ impl Configuration {
 		let pruning = try!(self.args.flag_pruning.parse());
 		let vm_type = try!(self.vm_type());
 		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
+		let miner_options = try!(self.miner_options());
+
+		let http_conf = HttpConfiguration {
+			enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
+			interface: self.rpc_interface(),
+			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
+			apis: try!(self.rpc_apis().parse()),
+			cors: self.rpc_cors(),
+		};
+
+		let ipc_conf = try!(self.ipc_settings());
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -182,6 +193,9 @@ impl Configuration {
 				pruning: pruning,
 				daemon: daemon,
 				logger_config: logger_config,
+				miner_options: miner_options,
+				http_conf: http_conf,
+				ipc_conf: ipc_conf,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -226,21 +240,13 @@ impl Configuration {
 	}
 
 	pub fn miner_options(&self) -> Result<MinerOptions, String> {
-		let (own, ext) = match self.args.flag_reseal_on_txs.as_str() {
-			"none" => (false, false),
-			"own" => (true, false),
-			"ext" => (false, true),
-			"all" => (true, true),
-			x => {
-				return Err(format!("Invalid value '{}' for --reseal option. Use --help for more information", x))
-			},
-		};
+		let reseal = try!(self.args.flag_reseal_on_txs.parse::<ResealPolicy>());
 
 		let options = MinerOptions {
 			new_work_notify: self.work_notify(),
 			force_sealing: self.args.flag_force_sealing,
-			reseal_on_external_tx: ext,
-			reseal_on_own_tx: own,
+			reseal_on_external_tx: reseal.external,
+			reseal_on_own_tx: reseal.own,
 			tx_gas_limit: match self.args.flag_tx_gas_limit {
 				Some(ref d) => try!(to_u256(d)),
 				None => U256::max_value(),
@@ -453,13 +459,13 @@ impl Configuration {
 			}.to_str().unwrap().to_owned()
 		}
 	}
-
-	pub fn ipc_settings(&self) -> IpcConfiguration {
-		IpcConfiguration {
+	pub fn ipc_settings(&self) -> Result<IpcConfiguration, String> {
+		let conf = IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
-			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
-		}
+			apis: try!(self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()).parse()),
+		};
+		Ok(conf)
 	}
 
 	pub fn network_settings(&self) -> NetworkSettings {
@@ -703,7 +709,10 @@ mod tests {
 			logger_config: LoggerConfig {
 				mode: None,
 				color: false,
-			}
+			},
+			miner_options: Default::default(),
+			http_conf: Default::default(),
+			ipc_conf: Default::default(),
 		}));
 	}
 

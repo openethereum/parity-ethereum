@@ -15,21 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
+use std::cmp::PartialEq;
 use std::str::FromStr;
 use std::sync::Arc;
-
-use ethsync::{EthSync, ManageNetwork};
+use util::RotatingLogger;
+use util::network_settings::NetworkSettings;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
-use util::RotatingLogger;
 use ethcore::account_provider::AccountProvider;
-use util::network_settings::NetworkSettings;
-
+use ethsync::{EthSync, ManageNetwork};
+use ethcore_rpc::Extendable;
 pub use ethcore_rpc::ConfirmationsQueue;
 
-use ethcore_rpc::Extendable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
 	Web3,
 	Net,
@@ -63,16 +63,22 @@ impl FromStr for Api {
 	}
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum ApiSet {
 	SafeContext,
 	UnsafeContext,
-	List(Vec<Api>),
+	List(HashSet<Api>),
 }
 
 impl Default for ApiSet {
 	fn default() -> Self {
 		ApiSet::UnsafeContext
+	}
+}
+
+impl PartialEq for ApiSet {
+	fn eq(&self, other: &Self) -> bool {
+		self.list_apis() == other.list_apis()
 	}
 }
 
@@ -121,14 +127,16 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 }
 
 impl ApiSet {
-	pub fn list_apis(self) -> Vec<Api> {
-		match self {
-			ApiSet::List(apis) => apis,
+	pub fn list_apis(&self) -> HashSet<Api> {
+		match *self {
+			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::UnsafeContext => {
 				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+					.into_iter().collect()
 			},
 			_ => {
 				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::Traces, Api::Rpc]
+					.into_iter().collect()
 			},
 		}
 	}
@@ -137,7 +145,8 @@ impl ApiSet {
 pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
 	use ethcore_rpc::v1::*;
 
-	let apis = apis.list_apis();
+	// it's turned into vector, cause ont of the cases requires &[]
+	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
 	for api in &apis {
 		match *api {
 			Api::Web3 => {
@@ -216,80 +225,20 @@ mod test {
 
 	#[test]
 	fn test_api_set_parsing() {
-		assert_eq!(ApiSet::List(vec![Api::Web3, Api::Eth]), "web3,eth".parse().unwrap());
+		assert_eq!(ApiSet::List(vec![Api::Web3, Api::Eth].into_iter().collect()), "web3,eth".parse().unwrap());
 	}
 
 	#[test]
 	fn test_api_set_unsafe_context() {
-		let mut web3 = 0;
-		let mut net = 0;
-		let mut eth = 0;
-		let mut personal = 0;
-		let mut signer = 0;
-		let mut ethcore = 0;
-		let mut ethcore_set = 0;
-		let mut traces = 0;
-		let mut rpc = 0;
-
-		for i in &ApiSet::UnsafeContext.list_apis() {
-			match *i {
-				Api::Web3 => web3 += 1,
-				Api::Net => net += 1,
-				Api::Eth => eth += 1,
-				Api::Personal => personal += 1,
-				Api::Signer => signer += 1,
-				Api::Ethcore => ethcore += 1,
-				Api::EthcoreSet => ethcore_set += 1,
-				Api::Traces => traces += 1,
-				Api::Rpc => rpc += 1,
-			}
-		}
-
-		assert_eq!(web3, 1);
-		assert_eq!(net, 1);
-		assert_eq!(eth, 1);
-		assert_eq!(personal, 1);
-		assert_eq!(signer, 0);
-		assert_eq!(ethcore, 1);
-		assert_eq!(ethcore_set, 0);
-		assert_eq!(traces, 1);
-		assert_eq!(rpc, 1);
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+			.into_iter().collect();
+		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
 
 	#[test]
 	fn test_api_set_safe_context() {
-		let mut web3 = 0;
-		let mut net = 0;
-		let mut eth = 0;
-		let mut personal = 0;
-		let mut signer = 0;
-		let mut ethcore = 0;
-		let mut ethcore_set = 0;
-		let mut traces = 0;
-		let mut rpc = 0;
-
-		for i in &ApiSet::SafeContext.list_apis() {
-			match *i {
-				Api::Web3 => web3 += 1,
-				Api::Net => net += 1,
-				Api::Eth => eth += 1,
-				Api::Personal => personal += 1,
-				Api::Signer => signer += 1,
-				Api::Ethcore => ethcore += 1,
-				Api::EthcoreSet => ethcore_set += 1,
-				Api::Traces => traces += 1,
-				Api::Rpc => rpc += 1,
-			}
-		}
-
-		assert_eq!(web3, 1);
-		assert_eq!(net, 1);
-		assert_eq!(eth, 1);
-		assert_eq!(personal, 1);
-		assert_eq!(signer, 1);
-		assert_eq!(ethcore, 1);
-		assert_eq!(ethcore_set, 0);
-		assert_eq!(traces, 1);
-		assert_eq!(rpc, 1);
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::Traces, Api::Rpc]
+			.into_iter().collect();
+		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}
 }

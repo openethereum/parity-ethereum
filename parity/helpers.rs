@@ -17,7 +17,6 @@
 use std::{io, env};
 use std::io::Write;
 use std::time::Duration;
-use util::journaldb::Algorithm;
 use util::{clean_0x, U256, Uint, Address};
 use ethcore::client::{Mode, BlockID};
 use ethcore::miner::PendingSet;
@@ -110,7 +109,6 @@ pub fn flush_stdout() {
 mod tests {
 	use std::time::Duration;
 	use util::U256;
-	use util::journaldb::Algorithm;
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_price};

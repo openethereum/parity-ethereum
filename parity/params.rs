@@ -131,10 +131,47 @@ impl Pruning {
 	}
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ResealPolicy {
+	pub own: bool,
+	pub external: bool,
+}
+
+impl Default for ResealPolicy {
+	fn default() -> Self {
+		ResealPolicy {
+			own: true,
+			external: true,
+		}
+	}
+}
+
+impl FromStr for ResealPolicy {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		let (own, external) = match s {
+			"none" => (false, false),
+			"own" => (true, false),
+			"ext" => (false, true),
+			"all" => (true, true),
+			x => return Err(format!("Invalid reseal value: {}", x)),
+		};
+
+		let reseal = ResealPolicy {
+			own: own,
+			external: external,
+		};
+
+		Ok(reseal)
+	}
+}
+
+
 #[cfg(test)]
 mod tests {
 	use util::journaldb::Algorithm;
-	use super::{Policy, SpecType, Pruning};
+	use super::{Policy, SpecType, Pruning, ResealPolicy};
 
 	#[test]
 	fn test_policy_parsing() {
@@ -175,5 +212,23 @@ mod tests {
 	#[test]
 	fn test_pruning_default() {
 		assert_eq!(Pruning::Auto, Pruning::default());
+	}
+
+	#[test]
+	fn test_reseal_policy_parsing() {
+		let none = ResealPolicy { own: false, external: false };
+		let own = ResealPolicy { own: true, external: false };
+		let ext = ResealPolicy { own: false, external: true };
+		let all = ResealPolicy { own: true, external: true };
+		assert_eq!(none, "none".parse().unwrap());
+		assert_eq!(own, "own".parse().unwrap());
+		assert_eq!(ext, "ext".parse().unwrap());
+		assert_eq!(all, "all".parse().unwrap());
+	}
+
+	#[test]
+	fn test_reseal_policy_default() {
+		let all = ResealPolicy { own: true, external: true };
+		assert_eq!(all, ResealPolicy::default());
 	}
 }

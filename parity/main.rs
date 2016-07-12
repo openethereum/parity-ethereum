@@ -82,11 +82,11 @@ use ethcore::client::{Mode, ClientConfig, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethsync::EthSync;
-use ethcore::miner::{Miner, MinerService, ExternalMiner};
+use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use migration::migrate;
 use informant::Informant;
 
-use rpc::RpcServer;
+use rpc::{RpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
@@ -125,6 +125,9 @@ pub struct RunCmd {
 	/// Some if execution should be daemonized. Contains pid_file path.
 	daemon: Option<String>,
 	logger_config: LoggerConfig,
+	miner_options: MinerOptions,
+	http_conf: HttpConfiguration,
+	ipc_conf: IpcConfiguration,
 }
 
 fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -302,15 +305,16 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		enabled: network_settings.rpc_enabled,
 		interface: conf.rpc_interface(),
 		port: network_settings.rpc_port,
-		apis: conf.rpc_apis(),
+		apis: try!(conf.rpc_apis().parse()),
 		cors: conf.rpc_cors(),
 	};
 
 	let rpc_server = try!(rpc::new_http(rpc_conf, &dependencies));
 
 	// setup ipc rpc
-	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
-	debug!("IPC: {}", conf.ipc_settings());
+	let ipc_settings = try!(conf.ipc_settings());
+	debug!("IPC: {}", ipc_settings);
+	let _ipc_server = rpc::new_ipc(ipc_settings, &dependencies);
 
 	// Set up dapps
 	let dapps_conf = dapps::Configuration {

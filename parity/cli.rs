@@ -112,7 +112,7 @@ API and Console Options:
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
                            ethcore, ethcore_set, traces.
-                           [default: web3,eth,net,ethcore,personal,traces].
+                           [default: web3,eth,net,ethcore,personal,traces,rpc].
 
   --no-ipc                 Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
