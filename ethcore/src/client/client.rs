@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, HashMap};
-use std::ops::Deref;
 use std::mem;
 use std::collections::VecDeque;
 use std::sync::*;
@@ -254,7 +253,7 @@ impl Client {
 	}
 
 	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<LockedBlock, ()> {
-		let engine = self.engine.deref().deref();
+		let engine = &**self.engine;
 		let header = &block.header;
 
 		// Check the block isn't so old we won't be able to enact it.
@@ -265,7 +264,7 @@ impl Client {
 		}
 
 		// Verify Block Family
-		let verify_family_result = self.verifier.verify_block_family(&header, &block.bytes, engine, self.chain.deref());
+		let verify_family_result = self.verifier.verify_block_family(&header, &block.bytes, engine, &*self.chain);
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -627,7 +626,7 @@ impl BlockChainClient for Client {
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+		let mut ret = Executive::new(&mut state, &env_info, &**self.engine, &self.vm_factory).transact(t, options);
 
 		// TODO gav move this into Executive.
 		if analytics.state_diffing {
@@ -918,7 +917,7 @@ impl BlockChainClient for Client {
 
 impl MiningBlockChainClient for Client {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
-		let engine = self.engine.deref().deref();
+		let engine = &**self.engine;
 		let h = self.chain.best_block_hash();
 
 		let mut open_block = OpenBlock::new(
