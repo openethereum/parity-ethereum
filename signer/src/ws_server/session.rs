@@ -24,7 +24,7 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::H256;
 
-#[cfg(not(feature = "no-ui"))]
+#[cfg(feature = "ui")]
 mod signer {
 	use signer;
 
@@ -32,7 +32,7 @@ mod signer {
 		signer::handle(req)
 	}
 }
-#[cfg(feature = "no-ui")]
+#[cfg(not(feature = "ui"))]
 mod signer {
 	pub struct File {
 		pub content: String,

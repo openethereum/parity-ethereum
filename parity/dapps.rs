@@ -21,9 +21,9 @@ use util::panics::PanicHandler;
 use die::*;
 use rpc_apis;
 
-#[cfg(all(feature = "dapps", not(feature = "no-ui")))]
+#[cfg(feature = "dapps")]
 pub use ethcore_dapps::Server as WebappServer;
-#[cfg(any(not(feature = "dapps"), feature = "no-ui"))]
+#[cfg(not(feature = "dapps"))]
 pub struct WebappServer;
 
 pub struct Configuration {
@@ -62,7 +62,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappSer
 	Some(setup_dapps_server(deps, configuration.dapps_path, &addr, auth))
 }
 
-#[cfg(any(not(feature = "dapps"), feature = "no-ui"))]
+#[cfg(not(feature = "dapps"))]
 pub fn setup_dapps_server(
 	_deps: Dependencies,
 	_dapps_path: String,
@@ -72,7 +72,7 @@ pub fn setup_dapps_server(
 	die!("Your Parity version has been compiled without WebApps support.")
 }
 
-#[cfg(all(feature = "dapps", not(feature = "no-ui")))]
+#[cfg(feature = "dapps")]
 pub fn setup_dapps_server(
 	deps: Dependencies,
 	dapps_path: String,
