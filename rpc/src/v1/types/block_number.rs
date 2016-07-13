@@ -63,7 +63,6 @@ impl Into<BlockID> for BlockNumber {
 		match self {
 			BlockNumber::Num(n) => BlockID::Number(n),
 			BlockNumber::Earliest => BlockID::Earliest,
-			// TODO: change this once blockid support pendingst,
 			BlockNumber::Latest => BlockID::Latest,
 			BlockNumber::Pending => BlockID::Pending,
 		}

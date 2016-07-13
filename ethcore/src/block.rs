@@ -43,9 +43,9 @@ impl Block {
 	}
 
 	/// Get the RLP-encoding of the block without the seal.
-	pub fn rlp_bytes(&self) -> Bytes {
+	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
-		self.header.stream_rlp(&mut block_rlp, Seal::Without);
+		self.header.stream_rlp(&mut block_rlp, seal);
 		block_rlp.append(&self.transactions);
 		block_rlp.append(&self.uncles);
 		block_rlp.out()

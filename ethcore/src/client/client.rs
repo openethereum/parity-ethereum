@@ -44,6 +44,7 @@ use error::{ImportError, ExecutionError, BlockError, ImportResult};
 use header::BlockNumber;
 use state::State;
 use spec::Spec;
+use basic_types::Seal;
 use engine::Engine;
 use views::HeaderView;
 use service::ClientIoMessage;
@@ -461,16 +462,10 @@ impl Client {
 	/// This will not fail if given BlockID::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at(&self, id: BlockID) -> Option<State> {
-		// fast path for pending state.
-		if let &BlockID::Pending = &id {
-			if let Some(state) = self.miner.pending_state() { 
-				return Some(state)
-			}
-		}
-
 		// fast path for latest state.
 		match id.clone() {
-			BlockID::Latest | BlockID::Pending => return Some(self.state()),
+			BlockID::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
+			BlockID::Latest => return Some(self.state()),
 			_ => {},
 		}
 
@@ -693,7 +688,7 @@ impl BlockChainClient for Client {
 	fn block(&self, id: BlockID) -> Option<Bytes> {
 		if let &BlockID::Pending = &id {
 			if let Some(block) = self.miner.pending_block() { 
-				return Some(block.rlp_bytes());
+				return Some(block.rlp_bytes(Seal::Without));
 			}
 		}
 		Self::block_hash(&self.chain, id).and_then(|hash| {
