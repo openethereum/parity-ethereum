@@ -18,7 +18,7 @@
 
 use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
-	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
+	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -169,35 +169,21 @@ impl Database {
 
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
-		if let Some(cache_size) = config.cache_size {
-			// half goes to read cache
-			opts.set_block_cache_size_mb(cache_size as u64 / 2);
-			// quarter goes to each of the two write buffers
-			opts.set_write_buffer_size(cache_size * 1024 * 256);
-		}
-		/*
-		opts.set_bytes_per_sync(8388608);
-		opts.set_disable_data_sync(false);
-		opts.set_block_cache_size_mb(1024);
-		opts.set_table_cache_num_shard_bits(6);
-		opts.set_max_write_buffer_number(32);
-		opts.set_write_buffer_size(536870912);
-		opts.set_target_file_size_base(1073741824);
-		opts.set_min_write_buffer_number_to_merge(4);
-		opts.set_level_zero_stop_writes_trigger(2000);
-		opts.set_level_zero_slowdown_writes_trigger(0);
-		opts.set_compaction_style(DBUniversalCompaction);
-		opts.set_max_background_compactions(4);
-		opts.set_max_background_flushes(4);
-		opts.set_filter_deletes(false);
-		opts.set_disable_auto_compactions(false);
-		*/
 
 		if let Some(size) = config.prefix_size {
 			let mut block_opts = BlockBasedOptions::new();
 			block_opts.set_index_type(IndexType::HashSearch);
 			opts.set_block_based_table_factory(&block_opts);
 			opts.set_prefix_extractor_fixed_size(size);
+			if let Some(cache_size) = config.cache_size {
+				block_opts.set_cache(Cache::new(cache_size * 1024 * 256));
+				opts.set_write_buffer_size(cache_size * 1024 * 256);
+			}
+		} else if let Some(cache_size) = config.cache_size {
+			// half goes to read cache
+			opts.set_block_cache_size_mb(cache_size as u64 / 2);
+			// quarter goes to each of the two write buffers
+			opts.set_write_buffer_size(cache_size * 1024 * 256);
 		}
 		let db = match DB::open(&opts, path) {
 			Ok(db) => db,
