@@ -169,12 +169,6 @@ impl Database {
 
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
-		if let Some(cache_size) = config.cache_size {
-			// half goes to read cache
-			opts.set_block_cache_size_mb(cache_size as u64 / 2);
-			// quarter goes to each of the two write buffers
-			opts.set_write_buffer_size(cache_size * 1024 * 256);
-		}
 		/*
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);
