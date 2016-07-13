@@ -687,24 +687,25 @@ macro_rules! construct_uint {
 			/// Fast exponentation by squaring
 			/// https://en.wikipedia.org/wiki/Exponentiation_by_squaring
 			fn pow(self, expon: Self) -> Self {
-				if expon == Self::zero() {
+				if expon.is_zero() {
 					return Self::one()
 				}
 				let is_even = |x : &Self| x.low_u64() & 1 == 0;
 
 				let u_one = Self::one();
-				let u_two = Self::from(2);
 				let mut y = u_one;
 				let mut n = expon;
 				let mut x = self;
 				while n > u_one {
 					if is_even(&n) {
 						x = x * x;
-						n = n / u_two;
+						n = n >> 1;
 					} else {
 						y = x * y;
 						x = x * x;
-						n = (n - u_one) / u_two;
+						// to reduce odd number by 1 we should just clear the last bit
+						n.0[$n_words-1] = n.0[$n_words-1] & ((!0u64)>>1);
+						n = n >> 1;
 					}
 				}
 				x * y
@@ -718,7 +719,6 @@ macro_rules! construct_uint {
 				let is_even = |x : &Self| x.low_u64() & 1 == 0;
 
 				let u_one = Self::one();
-				let u_two = Self::from(2);
 				let mut y = u_one;
 				let mut n = expon;
 				let mut x = self;
@@ -1067,7 +1067,7 @@ macro_rules! construct_uint {
 
 		impl fmt::Display for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				if *self == $name::zero() {
+				if self.is_zero() {
 					return write!(f, "0");
 				}
 
@@ -1075,7 +1075,7 @@ macro_rules! construct_uint {
 				let mut current = *self;
 				let ten = $name::from(10);
 
-				while current != $name::zero() {
+				while !current.is_zero() {
 					s = format!("{}{}", (current % ten).low_u32(), s);
 					current = current / ten;
 				}
