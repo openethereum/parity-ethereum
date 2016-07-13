@@ -19,6 +19,7 @@
 use std::path::*;
 use std::fs;
 use std::env;
+use std::ops::{Deref, DerefMut};
 use rand::random;
 
 pub struct RandomTempPath {
@@ -91,6 +92,16 @@ impl<T> GuardedTempResult<T> {
 	pub fn take(&mut self) -> T {
 		self.result.take().unwrap()
 	}
+}
+
+impl<T> Deref for GuardedTempResult<T> {
+	type Target = T;
+
+	fn deref(&self) -> &T { self.result.as_ref().unwrap() }
+}
+
+impl<T> DerefMut for GuardedTempResult<T> {
+	fn deref_mut(&mut self) -> &mut T { self.result.as_mut().unwrap() }
 }
 
 #[test]

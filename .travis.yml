@@ -31,6 +31,7 @@ matrix:
     env: FEATURES="--features travis-nightly" RUN_TESTS="true"
 env:
   global:
+  - TRAVIS_NODE_VERSION="6"
   # GH_TOKEN
   - secure: bumJASbZSU8bxJ0EyPUJmu16AiV9EXOpyOj86Jlq/Ty9CfwGqsSXt96uDyE+OUJf34RUFQMsw0nk37/zC4lcn6kqk2wpuH3N/o85Zo/cVZY/NusBWLQqtT5VbYWsV+u2Ua4Tmmsw8yVYQhYwU2ZOejNpflL+Cs9XGgORp1L+/gMRMC2y5Se6ZhwnKPQlRJ8LGsG1dzjQULxzADIt3/zuspNBS8a2urJwlHfGMkvHDoUWCviP/GXoSqw3TZR7FmKyxE19I8n9+iSvm9+oZZquvcgfUxMHn8Gq/b44UbPvjtFOg2yam4xdWXF/RyWCHdc/R9EHorSABeCbefIsm+zcUF3/YQxwpSxM4IZEeH2rTiC7dcrsKw3XsO16xFQz5YI5Bay+CT/wTdMmJd7DdYz7Dyf+pOvcM9WOf/zorxYWSBOMYy0uzbusU2iyIghQ82s7E/Ahg+WARtPgkuTLSB5aL1oCTBKHqQscMr7lo5Ti6RpWLxEdTQMBznc+bMr+6dEtkEcG9zqc6cE9XX+ox3wTU6+HVMfQ1ltCntJ4UKcw3A6INEbw9wgocQa812CIASQ2fE+SCAbz6JxBjIAlFUnD1lUB7S8PdMPwn9plfQgKQ2A5YZqg6FnBdf0rQXIJYxQWKHXj/rBHSUCT0tHACDlzTA+EwWggvkP5AGIxRxm8jhw=
   - TARGETS="-p ethkey -p ethstore -p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethjson -p ethcore-dapps -p ethcore-signer -p bigint"
@@ -53,6 +54,9 @@ addons:
     - libcurl4-openssl-dev
     - libelf-dev
     - libdw-dev
+
+install:
+  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
 
 script:
   - if [ "$RUN_TESTS" = "true" ]; then cargo test --release --verbose ${FEATURES} ${TARGETS}; fi
