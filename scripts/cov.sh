@@ -21,7 +21,7 @@ if ! type $KCOV > /dev/null; then
 fi
 
 . ./scripts/targets.sh
-cargo test $TARGETS --no-run || exit $?
+cargo test $TARGETS --no-default-features --no-run || exit $?
 
 
 
