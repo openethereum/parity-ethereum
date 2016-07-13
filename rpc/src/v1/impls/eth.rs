@@ -669,7 +669,6 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 				if let Ok(mut child) = maybe_child {
 					if let Ok(_) = child.stdin.as_mut().expect("we called child.stdin(Stdio::piped()) before spawn; qed").write_all(code.as_bytes()) {
 						if let Ok(output) = child.wait_with_output() {
-							// TODO: just want the 4th line.
 							let s = String::from_utf8_lossy(&output.stdout);
 							if let Some(hex) = s.lines().skip_while(|ref l| !l.contains("Binary")).skip(1).next() {
 								return to_value(&Bytes::new(hex.from_hex().unwrap_or(vec![])));
