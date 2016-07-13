@@ -242,7 +242,7 @@ pub enum FromBytesError {
 }
 
 /// Value that can be serialized from bytes array
-pub trait FromRawBytes : Sized {
+pub trait FromRawBytes: Sized {
 	/// function that will instantiate and initialize object from slice
 	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
 }
@@ -255,7 +255,7 @@ impl<T> FromRawBytes for T where T: FixedHash {
 			Ordering::Equal => ()
 		};
 
-		let mut res: Self = unsafe { mem::uninitialized() };
+		let mut res = T::zero();
 		res.copy_raw(bytes);
 		Ok(res)
 	}
@@ -271,7 +271,7 @@ macro_rules! sized_binary_map {
 					::std::cmp::Ordering::Greater => return Err(FromBytesError::TooLong),
 					::std::cmp::Ordering::Equal => ()
 				};
-				let mut res: Self = unsafe { ::std::mem::uninitialized() };
+				let mut res: Self = 0;
 				res.copy_raw(bytes);
 				Ok(res)
 			}
@@ -298,7 +298,7 @@ sized_binary_map!(u32);
 sized_binary_map!(u64);
 
 /// Value that can be serialized from variable-length byte array
-pub trait FromRawBytesVariable : Sized {
+pub trait FromRawBytesVariable: Sized {
 	/// Create value from slice
 	fn from_bytes_variable(bytes: &[u8]) -> Result<Self, FromBytesError>;
 }
@@ -326,7 +326,7 @@ impl<T> FromRawBytesVariable for Vec<T> where T: FromRawBytes {
 		let size_of_t = mem::size_of::<T>();
 		let length_in_chunks = bytes.len() / size_of_t;
 
-		let mut result = Vec::with_capacity(length_in_chunks );
+		let mut result = Vec::with_capacity(length_in_chunks);
 		unsafe { result.set_len(length_in_chunks) };
 		for i in 0..length_in_chunks {
 			*result.get_mut(i).unwrap() = try!(T::from_bytes(
@@ -339,7 +339,7 @@ impl<T> FromRawBytesVariable for Vec<T> where T: FromRawBytes {
 impl<V1, T2> FromRawBytes for (V1, T2) where V1: FromRawBytesVariable, T2: FromRawBytes {
 	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
 		let header = 8usize;
-		let mut map: (u64, ) = unsafe { mem::uninitialized() };
+		let mut map: (u64, ) = (0,);
 
 		if bytes.len() < header { return  Err(FromBytesError::NotLongEnough); }
 		map.copy_raw(&bytes[0..header]);
@@ -358,7 +358,7 @@ impl<V1, V2, T3> FromRawBytes for (V1, V2, T3)
 {
 	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
 		let header = 16usize;
-		let mut map: (u64, u64, ) = unsafe { mem::uninitialized() };
+		let mut map: (u64, u64, ) = (0, 0,);
 
 		if bytes.len() < header { return  Err(FromBytesError::NotLongEnough); }
 		map.copy_raw(&bytes[0..header]);
@@ -373,7 +373,7 @@ impl<V1, V2, T3> FromRawBytes for (V1, V2, T3)
 	}
 }
 
-impl<'a, V1, T2> ToBytesWithMap for (&'a Vec<V1>, &'a T2) where V1: ToBytesWithMap, T2: ToBytesWithMap {
+impl<'a, V1, X1, T2> ToBytesWithMap for (X1, &'a T2) where V1: ToBytesWithMap, X1: Deref<Target=[V1]>, T2: ToBytesWithMap {
 	fn to_bytes_map(&self) -> Vec<u8> {
 		let header = 8usize;
 		let v1_size = mem::size_of::<V1>();
@@ -390,9 +390,9 @@ impl<'a, V1, T2> ToBytesWithMap for (&'a Vec<V1>, &'a T2) where V1: ToBytesWithM
 
 }
 
-impl<'a, V1, V2, T3> ToBytesWithMap for (&'a Vec<V1>, &'a Vec<V2>, &'a T3)
-	where V1: ToBytesWithMap,
-		V2: ToBytesWithMap,
+impl<'a, V1, X1, V2, X2, T3> ToBytesWithMap for (X1, X2, &'a T3)
+	where V1: ToBytesWithMap, X1: Deref<Target=[V1]>,
+		V2: ToBytesWithMap, X2: Deref<Target=[V2]>,
 		T3: ToBytesWithMap
 {
 	fn to_bytes_map(&self) -> Vec<u8> {
@@ -433,7 +433,7 @@ pub trait ToBytesWithMap {
 
 impl<T> ToBytesWithMap for T where T: FixedHash {
 	fn to_bytes_map(&self) -> Vec<u8> {
-		self.as_slice().to_vec()
+		self.as_slice().to_owned()
 	}
 }
 
@@ -493,7 +493,7 @@ fn populate_big_types() {
 fn raw_bytes_from_tuple() {
 	type Tup = (Vec<u16>, u16);
 
-	let tup = (vec![1u16, 1u16, 1u16, 1u16], 10u16);
+	let tup: (&[u16], u16) = (&[1; 4], 10);
 	let bytes = vec![
 		// map
 		8u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
@@ -505,18 +505,19 @@ fn raw_bytes_from_tuple() {
 		// 10u16
 		10u8, 0u8];
 
-	let tup_from = Tup::from_bytes(&bytes).unwrap();
-	assert_eq!(tup, tup_from);
+	let (v, x) = Tup::from_bytes(&bytes).unwrap();
+	assert_eq!(tup, (&v[..], x));
+	let tup_from = (v, x);
 
-	let tup_to = (&tup_from.0, &tup_from.1);
+	let tup_to = (tup_from.0, &tup_from.1);
 	let bytes_to = tup_to.to_bytes_map();
 	assert_eq!(bytes_to, bytes);
 }
 
 #[test]
 fn bytes_map_from_triple() {
-	let data = (vec![2u16; 6], vec![6u32; 3], 12u64);
-	let bytes_map = (&data.0, &data.1, &data.2).to_bytes_map();
+	let data: (&[u16], &[u32], u64) = (&[2; 6], &[6; 3], 12u64);
+	let bytes_map = (data.0, data.1, &data.2).to_bytes_map();
 	assert_eq!(bytes_map, vec![
 		// data map 2 x u64
 		12, 0, 0, 0, 0, 0, 0, 0,

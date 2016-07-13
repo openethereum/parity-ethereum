@@ -143,7 +143,7 @@ impl Header {
 	/// Get the difficulty field of the header.
 	pub fn difficulty(&self) -> &U256 { &self.difficulty }
 	/// Get the seal field of the header.
-	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
+	pub fn seal(&self) -> &[Bytes] { &self.seal }
 
 	// TODO: seal_at, set_seal_at &c.
 

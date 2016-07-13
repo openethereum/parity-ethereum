@@ -68,6 +68,9 @@ impl<Gas: CostType> Gasometer<Gas> {
 		let default_gas = Gas::from(schedule.tier_step_gas[tier]);
 
 		let cost = match instruction {
+			instructions::JUMPDEST => {
+				InstructionCost::Gas(Gas::from(1))
+			},
 			instructions::SSTORE => {
 				let address = H256::from(stack.peek(0));
 				let newval = stack.peek(1);
@@ -105,9 +108,6 @@ impl<Gas: CostType> Gasometer<Gas> {
 			},
 			instructions::EXTCODECOPY => {
 				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(1), stack.peek(3))), try!(Gas::from_u256(*stack.peek(3))))
-			},
-			instructions::JUMPDEST => {
-				InstructionCost::Gas(Gas::from(1))
 			},
 			instructions::LOG0...instructions::LOG4 => {
 				let no_of_topics = instructions::get_log_topics(instruction);
@@ -199,14 +199,12 @@ impl<Gas: CostType> Gasometer<Gas> {
 			let s = mem_size >> 5;
 			// s * memory_gas + s * s / quad_coeff_div
 			let a = overflowing!(s.overflow_mul(Gas::from(schedule.memory_gas)));
-			// We need to go to U512 to calculate s*s/quad_coeff_div
-			let b = U512::from(s.as_u256()) * U512::from(s.as_u256()) / U512::from(schedule.quad_coeff_div);
-			if b > U512::from(!U256::zero()) {
-				Err(evm::Error::OutOfGas)
-			} else {
-				Ok(overflowing!(a.overflow_add(try!(Gas::from_u256(U256::from(b))))))
-			}
+
+			// Calculate s*s/quad_coeff_div
+			let b = overflowing!(s.overflow_mul_div(s, Gas::from(schedule.quad_coeff_div)));
+			Ok(overflowing!(a.overflow_add(b)))
 		};
+
 		let current_mem_size = Gas::from(current_mem_size);
 		let req_mem_size_rounded = (overflowing!(mem_size.overflow_add(Gas::from(31 as usize))) >> 5) << 5;
 

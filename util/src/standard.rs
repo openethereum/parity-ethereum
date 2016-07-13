@@ -36,7 +36,7 @@ pub use std::error::Error as StdError;
 
 pub use std::ops::*;
 pub use std::cmp::*;
-pub use std::sync::*;
+pub use std::sync::Arc;
 pub use std::cell::*;
 pub use std::collections::*;
 
@@ -46,3 +46,5 @@ pub use rustc_serialize::hex::{FromHex, FromHexError};
 
 pub use heapsize::HeapSizeOf;
 pub use itertools::Itertools;
+
+pub use parking_lot::{Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};

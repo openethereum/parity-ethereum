@@ -46,15 +46,16 @@ extern crate hyper; // for price_info.rs
 extern crate json_ipc_server as jsonipc;
 
 extern crate ethcore_ipc_hypervisor as hypervisor;
-
-#[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
+
+extern crate ethcore_signer;
+extern crate ansi_term;
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
-
-#[cfg(feature = "ethcore-signer")]
-extern crate ethcore_signer;
 
 #[macro_use]
 mod die;
@@ -73,7 +74,7 @@ mod url;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::Arc;
 use std::path::Path;
 use std::fs::File;
 use std::str::{FromStr, from_utf8};
@@ -81,9 +82,10 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{Lockable, H256, ToPretty, NetworkConfiguration, PayloadInfo, Bytes, UtilError, Colour, Applyable, version, journaldb};
+use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError,
+	ChainNotify, Mode};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -91,6 +93,7 @@ use ethsync::EthSync;
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
+use util::{Mutex, Condvar};
 
 use die::*;
 use cli::print_version;
@@ -185,7 +188,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
+	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -231,13 +234,11 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
 	// Build client
-	let mut service = ClientService::start(
+	let  service = ClientService::start(
 		client_config,
 		spec,
-		net_settings,
 		Path::new(&conf.path()),
 		miner.clone(),
-		match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network }
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -247,8 +248,14 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone());
-	EthSync::register(&*service.network(), sync.clone()).unwrap_or_else(|e| die_with_error("Error registering eth protocol handler", UtilError::from(e).into()));
+	let sync = EthSync::new(sync_config, client.clone(), net_settings)
+		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
+	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
+
+	// if network is active by default
+	if match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network } {
+		sync.start();
+	}
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
@@ -261,7 +268,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 		allow_pending_receipt_query: !conf.args.flag_geth,
-		net_service: service.network(),
+		net_service: sync.clone(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -311,7 +318,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		info: Informant::new(conf.have_color()),
 		sync: sync.clone(),
 		accounts: account_service.clone(),
-		network: Arc::downgrade(&service.network()),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
@@ -340,29 +346,16 @@ fn execute_export(conf: Configuration) {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	let spec = conf.spec();
-	let net_settings = NetworkConfiguration {
-		config_path: None,
-		listen_address: None,
-		public_address: None,
-		udp_port: None,
-		nat_enabled: false,
-		discovery_enabled: false,
-		boot_nodes: Vec::new(),
-		use_secret: None,
-		ideal_peers: 0,
-		reserved_nodes: Vec::new(),
-		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
-	};
 	let client_config = conf.client_config(&spec);
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
+		client_config, spec, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec()))
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -414,29 +407,16 @@ fn execute_import(conf: Configuration) {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	let spec = conf.spec();
-	let net_settings = NetworkConfiguration {
-		config_path: None,
-		listen_address: None,
-		public_address: None,
-		udp_port: None,
-		nat_enabled: false,
-		discovery_enabled: false,
-		boot_nodes: Vec::new(),
-		use_secret: None,
-		ideal_peers: 0,
-		reserved_nodes: Vec::new(),
-		non_reserved_mode: ::util::network::NonReservedPeerMode::Accept,
-	};
 	let client_config = conf.client_config(&spec);
 
 	// Build client
 	let service = ClientService::start(
-		client_config, spec, net_settings, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec())), false
+		client_config, spec, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec()))
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
@@ -485,7 +465,7 @@ fn execute_import(conf: Configuration) {
 			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
-		informant.tick::<&'static ()>(client.deref(), None);
+		informant.tick(client.deref(), None);
 	};
 
 	match format {
@@ -614,7 +594,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.locked()).unwrap();
+	let _ = exit.wait(&mut mutex.lock());
 	info!("Finishing work, please wait...");
 }
 

@@ -111,6 +111,10 @@ impl JournalDB for RefCountedDB {
 
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
+	fn state(&self, id: &H256) -> Option<Bytes> {
+		self.backing.get_by_prefix(&id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+	}
+
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]

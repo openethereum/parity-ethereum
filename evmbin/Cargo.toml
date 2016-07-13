@@ -4,6 +4,14 @@ description = "Parity's EVM implementation"
 version = "0.1.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
+[lib]
+name = "evm"
+path = "./src/main.rs"
+
+[[bin]]
+name = "evm"
+path = "./src/main.rs"
+
 [dependencies]
 rustc-serialize = "0.3"
 docopt = { version = "0.6" }

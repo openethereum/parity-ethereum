@@ -16,8 +16,6 @@
 
 //! Blockchain block.
 
-#![cfg_attr(feature="dev", allow(ptr_arg))] // Because of &LastHashes -> &Vec<_>
-
 use common::*;
 use engine::*;
 use state::*;
@@ -76,11 +74,11 @@ pub struct BlockRefMut<'a> {
 	/// Block header.
 	pub header: &'a mut Header,
 	/// Block transactions.
-	pub transactions: &'a Vec<SignedTransaction>,
+	pub transactions: &'a [SignedTransaction],
 	/// Block uncles.
-	pub uncles: &'a Vec<Header>,
+	pub uncles: &'a [Header],
 	/// Transaction receipts.
-	pub receipts: &'a Vec<Receipt>,
+	pub receipts: &'a [Receipt],
 	/// State.
 	pub state: &'a mut State,
 	/// Traces.
@@ -92,11 +90,11 @@ pub struct BlockRef<'a> {
 	/// Block header.
 	pub header: &'a Header,
 	/// Block transactions.
-	pub transactions: &'a Vec<SignedTransaction>,
+	pub transactions: &'a [SignedTransaction],
 	/// Block uncles.
-	pub uncles: &'a Vec<Header>,
+	pub uncles: &'a [Header],
 	/// Transaction receipts.
-	pub receipts: &'a Vec<Receipt>,
+	pub receipts: &'a [Receipt],
 	/// State.
 	pub state: &'a State,
 	/// Traces.
@@ -152,16 +150,16 @@ pub trait IsBlock {
 	fn state(&self) -> &State { &self.block().state }
 
 	/// Get all information on transactions in this block.
-	fn transactions(&self) -> &Vec<SignedTransaction> { &self.block().base.transactions }
+	fn transactions(&self) -> &[SignedTransaction] { &self.block().base.transactions }
 
 	/// Get all information on receipts in this block.
-	fn receipts(&self) -> &Vec<Receipt> { &self.block().receipts }
+	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
 
 	/// Get all information concerning transaction tracing in this block.
 	fn traces(&self) -> &Option<Vec<Trace>> { &self.block().traces }
 
 	/// Get all uncles in this block.
-	fn uncles(&self) -> &Vec<Header> { &self.block().base.uncles }
+	fn uncles(&self) -> &[Header] { &self.block().base.uncles }
 }
 
 /// Trait for a object that has a state database.
