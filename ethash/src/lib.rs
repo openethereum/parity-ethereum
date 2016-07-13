@@ -18,6 +18,8 @@
 //! See https://github.com/ethereum/wiki/wiki/Ethash
 extern crate primal;
 extern crate sha3;
+extern crate parking_lot;
+
 #[macro_use]
 extern crate log;
 mod compute;
@@ -26,7 +28,8 @@ use std::mem;
 use compute::Light;
 pub use compute::{ETHASH_EPOCH_LENGTH, H256, ProofOfWork, SeedHashCompute, quick_get_difficulty};
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 struct LightCache {
 	recent_epoch: Option<u64>,
@@ -61,7 +64,7 @@ impl EthashManager {
 	pub fn compute_light(&self, block_number: u64, header_hash: &H256, nonce: u64) -> ProofOfWork {
 		let epoch = block_number / ETHASH_EPOCH_LENGTH;
 		let light = {
-			let mut lights = self.cache.lock().unwrap();
+			let mut lights = self.cache.lock();
 			let light = match lights.recent_epoch.clone() {
 				Some(ref e) if *e == epoch => lights.recent.clone(),
 				_ => match lights.prev_epoch.clone() {
@@ -108,12 +111,12 @@ fn test_lru() {
 	let hash = [0u8; 32];
 	ethash.compute_light(1, &hash, 1);
 	ethash.compute_light(50000, &hash, 1);
-	assert_eq!(ethash.cache.lock().unwrap().recent_epoch.unwrap(), 1);
-	assert_eq!(ethash.cache.lock().unwrap().prev_epoch.unwrap(), 0);
+	assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 1);
+	assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 0);
 	ethash.compute_light(1, &hash, 1);
-	assert_eq!(ethash.cache.lock().unwrap().recent_epoch.unwrap(), 0);
-	assert_eq!(ethash.cache.lock().unwrap().prev_epoch.unwrap(), 1);
+	assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 0);
+	assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 1);
 	ethash.compute_light(70000, &hash, 1);
-	assert_eq!(ethash.cache.lock().unwrap().recent_epoch.unwrap(), 2);
-	assert_eq!(ethash.cache.lock().unwrap().prev_epoch.unwrap(), 0);
+	assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 2);
+	assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 0);
 }

@@ -20,6 +20,7 @@ use std::io::{Read, Write};
 use std::marker::Sync;
 use semver::Version;
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Handshake for client and server to negotiate api/protocol version
 pub struct Handshake {
 	pub protocol_version: Version,

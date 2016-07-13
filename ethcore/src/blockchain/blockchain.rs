@@ -170,7 +170,7 @@ impl BlockProvider for BlockChain {
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes> {
 		{
-			let read = self.blocks.unwrapped_read();
+			let read = self.blocks.read();
 			if let Some(v) = read.get(hash) {
 				return Some(v.clone());
 			}
@@ -184,7 +184,7 @@ impl BlockProvider for BlockChain {
 		match opt {
 			Some(b) => {
 				let bytes: Bytes = b.to_vec();
-				let mut write = self.blocks.unwrapped_write();
+				let mut write = self.blocks.write();
 				write.insert(hash.clone(), bytes.clone());
 				Some(bytes)
 			},
@@ -338,7 +338,7 @@ impl BlockChain {
 		};
 
 		{
-			let mut best_block = bc.best_block.unwrapped_write();
+			let mut best_block = bc.best_block.write();
 			best_block.number = bc.block_number(&best_block_hash).unwrap();
 			best_block.total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
 			best_block.hash = best_block_hash;
@@ -483,25 +483,25 @@ impl BlockChain {
 				self.note_used(CacheID::BlockDetails(hash));
 			}
 
-			let mut write_details = self.block_details.unwrapped_write();
+			let mut write_details = self.block_details.write();
 			batch.extend_with_cache(write_details.deref_mut(), update.block_details, CacheUpdatePolicy::Overwrite);
 		}
 
 		{
-			let mut write_receipts = self.block_receipts.unwrapped_write();
+			let mut write_receipts = self.block_receipts.write();
 			batch.extend_with_cache(write_receipts.deref_mut(), update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
 		{
-			let mut write_blocks_blooms = self.blocks_blooms.unwrapped_write();
+			let mut write_blocks_blooms = self.blocks_blooms.write();
 			batch.extend_with_cache(write_blocks_blooms.deref_mut(), update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
 		// These cached values must be updated last and togeterh
 		{
-			let mut best_block = self.best_block.unwrapped_write();
-			let mut write_hashes = self.block_hashes.unwrapped_write();
-			let mut write_txs = self.transaction_addresses.unwrapped_write();
+			let mut best_block = self.best_block.write();
+			let mut write_hashes = self.block_hashes.write();
+			let mut write_txs = self.transaction_addresses.write();
 
 			// update best block
 			match update.info.location {
@@ -728,33 +728,33 @@ impl BlockChain {
 
 	/// Get best block hash.
 	pub fn best_block_hash(&self) -> H256 {
-		self.best_block.unwrapped_read().hash.clone()
+		self.best_block.read().hash.clone()
 	}
 
 	/// Get best block number.
 	pub fn best_block_number(&self) -> BlockNumber {
-		self.best_block.unwrapped_read().number
+		self.best_block.read().number
 	}
 
 	/// Get best block total difficulty.
 	pub fn best_block_total_difficulty(&self) -> U256 {
-		self.best_block.unwrapped_read().total_difficulty
+		self.best_block.read().total_difficulty
 	}
 
 	/// Get current cache size.
 	pub fn cache_size(&self) -> CacheSize {
 		CacheSize {
-			blocks: self.blocks.unwrapped_read().heap_size_of_children(),
-			block_details: self.block_details.unwrapped_read().heap_size_of_children(),
-			transaction_addresses: self.transaction_addresses.unwrapped_read().heap_size_of_children(),
-			blocks_blooms: self.blocks_blooms.unwrapped_read().heap_size_of_children(),
-			block_receipts: self.block_receipts.unwrapped_read().heap_size_of_children(),
+			blocks: self.blocks.read().heap_size_of_children(),
+			block_details: self.block_details.read().heap_size_of_children(),
+			transaction_addresses: self.transaction_addresses.read().heap_size_of_children(),
+			blocks_blooms: self.blocks_blooms.read().heap_size_of_children(),
+			block_receipts: self.block_receipts.read().heap_size_of_children(),
 		}
 	}
 
 	/// Let the cache system know that a cacheable item has been used.
 	fn note_used(&self, id: CacheID) {
-		let mut cache_man = self.cache_man.unwrapped_write();
+		let mut cache_man = self.cache_man.write();
 		if !cache_man.cache_usage[0].contains(&id) {
 			cache_man.cache_usage[0].insert(id.clone());
 			if cache_man.in_use.contains(&id) {
@@ -773,13 +773,13 @@ impl BlockChain {
 
 		for _ in 0..COLLECTION_QUEUE_SIZE {
 			{
-				let mut blocks = self.blocks.unwrapped_write();
-				let mut block_details = self.block_details.unwrapped_write();
-				let mut block_hashes = self.block_hashes.unwrapped_write();
-				let mut transaction_addresses = self.transaction_addresses.unwrapped_write();
-				let mut blocks_blooms = self.blocks_blooms.unwrapped_write();
-				let mut block_receipts = self.block_receipts.unwrapped_write();
-				let mut cache_man = self.cache_man.unwrapped_write();
+				let mut blocks = self.blocks.write();
+				let mut block_details = self.block_details.write();
+				let mut block_hashes = self.block_hashes.write();
+				let mut transaction_addresses = self.transaction_addresses.write();
+				let mut blocks_blooms = self.blocks_blooms.write();
+				let mut block_receipts = self.block_receipts.write();
+				let mut cache_man = self.cache_man.write();
 
 				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
 					cache_man.in_use.remove(&id);

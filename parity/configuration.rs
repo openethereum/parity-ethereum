@@ -238,7 +238,7 @@ impl Configuration {
 				})
 			}).collect(),
 			Some(_) => Vec::new(),
-			None => spec.nodes().clone(),
+			None => spec.nodes().to_owned(),
 		}
 	}
 
@@ -561,7 +561,7 @@ impl Configuration {
 	}
 
 	pub fn dapps_enabled(&self) -> bool {
-		!self.args.flag_dapps_off && !self.args.flag_no_dapps
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
 	}
 
 	pub fn signer_enabled(&self) -> bool {
