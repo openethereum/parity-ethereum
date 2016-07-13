@@ -18,7 +18,7 @@
 
 use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
-	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
+	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -198,7 +198,19 @@ impl Database {
 			block_opts.set_index_type(IndexType::HashSearch);
 			opts.set_block_based_table_factory(&block_opts);
 			opts.set_prefix_extractor_fixed_size(size);
+			if let Some(cache_size) = config.cache_size {
+				block_opts.set_cache(Cache::new(cache_size * 1024 * 256));
+				opts.set_write_buffer_size(cache_size * 1024 * 256);
+			}
+		} else if let Some(cache_size) = config.cache_size {
+			let mut block_opts = BlockBasedOptions::new();
+			// half goes to read cache
+			block_opts.set_cache(Cache::new(cache_size * 1024 * 256));
+			opts.set_block_based_table_factory(&block_opts);
+			// quarter goes to each of the two write buffers
+			opts.set_write_buffer_size(cache_size * 1024 * 256);
 		}
+
 		let db = match DB::open(&opts, path) {
 			Ok(db) => db,
 			Err(ref s) if s.starts_with("Corruption:") => {
