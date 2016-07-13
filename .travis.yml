@@ -8,104 +8,67 @@ branches:
   - /^stable-.*$/
   - /^beta$/
   - /^stable$/
+
 git:
   depth: 3
+
 matrix:
-  fast_finish: true
-  allow_failures:
-  - rust: nightly
   include:
   - rust: stable
     env: FEATURES="--features travis-beta" RUN_TESTS="true"
-  # - rust: beta
-    # env: FEATURES="--features travis-beta" RUN_TESTS="true"
-  - rust: stable
-    env: FEATURES="--features travis-beta" RUN_BUILD="true"
   - rust: beta
-    env: FEATURES="--features travis-beta" RUN_BUILD="true"
-  - rust: stable
     env: FEATURES="--features travis-beta" RUN_COVERAGE="true"
-  # - rust: nightly
-    # env: FEATURES="--features travis-nightly" RUN_BENCHES="true"
-  - rust: nightly
-    env: FEATURES="--features travis-nightly" RUN_TESTS="true"
+
 env:
   global:
   - TRAVIS_NODE_VERSION="6"
-  # GH_TOKEN
-  - secure: bumJASbZSU8bxJ0EyPUJmu16AiV9EXOpyOj86Jlq/Ty9CfwGqsSXt96uDyE+OUJf34RUFQMsw0nk37/zC4lcn6kqk2wpuH3N/o85Zo/cVZY/NusBWLQqtT5VbYWsV+u2Ua4Tmmsw8yVYQhYwU2ZOejNpflL+Cs9XGgORp1L+/gMRMC2y5Se6ZhwnKPQlRJ8LGsG1dzjQULxzADIt3/zuspNBS8a2urJwlHfGMkvHDoUWCviP/GXoSqw3TZR7FmKyxE19I8n9+iSvm9+oZZquvcgfUxMHn8Gq/b44UbPvjtFOg2yam4xdWXF/RyWCHdc/R9EHorSABeCbefIsm+zcUF3/YQxwpSxM4IZEeH2rTiC7dcrsKw3XsO16xFQz5YI5Bay+CT/wTdMmJd7DdYz7Dyf+pOvcM9WOf/zorxYWSBOMYy0uzbusU2iyIghQ82s7E/Ahg+WARtPgkuTLSB5aL1oCTBKHqQscMr7lo5Ti6RpWLxEdTQMBznc+bMr+6dEtkEcG9zqc6cE9XX+ox3wTU6+HVMfQ1ltCntJ4UKcw3A6INEbw9wgocQa812CIASQ2fE+SCAbz6JxBjIAlFUnD1lUB7S8PdMPwn9plfQgKQ2A5YZqg6FnBdf0rQXIJYxQWKHXj/rBHSUCT0tHACDlzTA+EwWggvkP5AGIxRxm8jhw=
-  - TARGETS="-p ethkey -p ethstore -p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethjson -p ethcore-signer -p bigint"
-  - ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
-  - KCOV_FEATURES=""
-  - KCOV_CMD="./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests,ethstore/tests target/kcov"
+  - CXX="g++-4.8"
+  - CC="gcc-4.8"
+  - RUST_BACKTRACE="1"
   - RUN_TESTS="false"
   - RUN_COVERAGE="false"
-  - RUN_BUILD="false"
-  - RUN_BENCHES="false"
-  - RUST_BACKTRACE="1"
+  # GH_TOKEN for documentation
+  - secure: bumJASbZSU8bxJ0EyPUJmu16AiV9EXOpyOj86Jlq/Ty9CfwGqsSXt96uDyE+OUJf34RUFQMsw0nk37/zC4lcn6kqk2wpuH3N/o85Zo/cVZY/NusBWLQqtT5VbYWsV+u2Ua4Tmmsw8yVYQhYwU2ZOejNpflL+Cs9XGgORp1L+/gMRMC2y5Se6ZhwnKPQlRJ8LGsG1dzjQULxzADIt3/zuspNBS8a2urJwlHfGMkvHDoUWCviP/GXoSqw3TZR7FmKyxE19I8n9+iSvm9+oZZquvcgfUxMHn8Gq/b44UbPvjtFOg2yam4xdWXF/RyWCHdc/R9EHorSABeCbefIsm+zcUF3/YQxwpSxM4IZEeH2rTiC7dcrsKw3XsO16xFQz5YI5Bay+CT/wTdMmJd7DdYz7Dyf+pOvcM9WOf/zorxYWSBOMYy0uzbusU2iyIghQ82s7E/Ahg+WARtPgkuTLSB5aL1oCTBKHqQscMr7lo5Ti6RpWLxEdTQMBznc+bMr+6dEtkEcG9zqc6cE9XX+ox3wTU6+HVMfQ1ltCntJ4UKcw3A6INEbw9wgocQa812CIASQ2fE+SCAbz6JxBjIAlFUnD1lUB7S8PdMPwn9plfQgKQ2A5YZqg6FnBdf0rQXIJYxQWKHXj/rBHSUCT0tHACDlzTA+EwWggvkP5AGIxRxm8jhw=
+  - KCOV_CMD="./kcov-master/tmp/usr/local/bin/kcov"
+
 cache:
   apt: true
   directories:
   - $TRAVIS_BUILD_DIR/target
+  - $TRAVIS_BUILD_DIR/kcov-master
   - $HOME/.cargo
+
 addons:
   apt:
+    sources:
+    - ubuntu-toolchain-r-test
     packages:
     - libcurl4-openssl-dev
     - libelf-dev
     - libdw-dev
+    - gcc-4.8
+    - g++-4.8
 
 install:
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
+  - (true && [ "$RUN_COVERAGE" = "false" ]) ||
+    (wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+    tar xzf master.tar.gz &&
+    mkdir -p kcov-master/build &&
+    cd kcov-master/build &&
+    cmake .. &&
+    make && make install DESTDIR=../tmp &&
+    cd)
 
 script:
-  - if [ "$RUN_TESTS" = "true" ]; then cargo test --release --verbose --no-default-features ${FEATURES} ${TARGETS}; fi
-  - if [ "$RUN_BENCHES" = "true" ]; then cargo bench --no-run --no-default-features ${FEATURES} ${TARGETS}; fi
-  - if [ "$RUN_BUILD" = "true" ]; then cargo build --release --verbose --no-default-features ${FEATURES}; fi
-  - if [ "$RUN_BUILD" = "true" ]; then tar cvzf parity${ARCHIVE_SUFFIX}.tar.gz -C target/release parity; fi
+  - if [ "$RUN_TESTS" = "true" ]; then ./test.sh; fi
+  - if [ "$RUN_COVERAGE" = "true" ]; then ./scripts/cov.sh "$KCOV_CMD"; fi
 
 after_success: |
-  [ "$RUN_COVERAGE" = "true" ] &&
-  wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-  tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
-  cargo test --no-run ${KCOV_FEATURES} ${TARGETS} &&
-  $KCOV_CMD target/debug/deps/ethkey-* &&
-  $KCOV_CMD target/debug/deps/ethstore-* &&
-  $KCOV_CMD target/debug/deps/ethcore_util-* &&
-  $KCOV_CMD target/debug/deps/ethash-* &&
-  $KCOV_CMD target/debug/deps/ethcore-* &&
-  $KCOV_CMD target/debug/deps/ethsync-* &&
-  $KCOV_CMD target/debug/deps/ethcore_rpc-* &&
-  $KCOV_CMD target/debug/deps/ethcore_signer-* &&
-  $KCOV_CMD target/debug/deps/ethjson-* &&
-  $KCOV_CMD target/debug/parity-* &&
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = stable ] &&
-  cargo doc --no-deps --verbose ${KCOV_FEATURES} ${TARGETS} &&
-  echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
+  ./scripts/doc.sh &&
   pip install --user ghp-import &&
   /home/travis/.local/bin/ghp-import -n target/doc &&
   git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
-
-deploy:
-  provider: releases
-  api_key:
-    secure: "t+oGT/4lsy7IScw5s86Dpntl5Nyck4qG6nhHwMScc6FYzwLldgwgJaafL8Ej+HG+b7nFLriN+Snoa4YQ5o74X5ZlSWubVREOYQlL/fq7vcPB0DwAZ0Jufq1QW2R1M+3SwwF1eAwTv2W3G7A2K7dxjCVvENcy/gdxnZ36NeUPsqaCC9UcI2Yc7+4jyQwvx6ZfBvQeu+HbKENA0eUNs2ZQOID/1IPy0LJBvSyxAQYsysXdjTzGdNu4+Iba20E8uWYe4fAbgz+gwGarXg1L6D6gKyMlWkViqWjvXWBuDJJqMQZ3rw41AwZOoh3mKd2Lc0l6l4oZcEqPuob0yKTNjz1tuJy9xKTC2F2bDzsvUgk1IRfMK5ukXXXS09ZCZWuA9/GtnsqJ1xGTiwX+DhQzpVBHaBiseSNlYE1YN/3jNyGY+iSts1qut+1BwE7swmcTLsAPoAy8Ue+f7ErNoCg1lm71vq7VO2DLn7x2NqHyHUEuJ+7olDHSdE84G7d9otDRu/+TfMOw7GXwTaha6yJRInuNsnj4CFMLNVvYACzCC2idB7f7nUZoSFi9jf18S9fCMPVmazMrFj4g95HWrVHkjpV5zRTeUdTWw6DJl6pC9HFqORHdCvLv4Rc4dm5r3CmOcAQ0ZuiccV2oKzw4/Wic96daae8M5f5KSQ/WTr+h0wXZKp0="
-  skip_cleanup: true
-  file: parity${ARCHIVE_SUFFIX}.tar.gz
-  on:
-    tags: true
-
-notifications:
-  webhooks:
-    urls:
-      - https://hooks.slack.com/services/${SLACK_WEBHOOK}
-    on_success: always
-    on_failure: always
-    on_start: never
-
-notifications:
-  slack:
-    rooms:
-      - ethcore:4EGxt9WP6AS7uX4JKXSfR9vi#chatops
