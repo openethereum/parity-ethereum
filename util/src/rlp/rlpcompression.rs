@@ -65,62 +65,79 @@ fn to_elastic(slice: &[u8]) -> ElasticArray1024<u8> {
 	out
 }
 
+fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<ElasticArray1024<u8>> where
+	F: Fn(&UntrustedRlp) -> Option<ElasticArray1024<u8>> {
+	match rlp.iter()
+  .fold((false, RlpStream::new_list(rlp.item_count())),
+  |(is_some, mut acc), subrlp| {
+  	let new = f(&subrlp);
+  	if let Some(ref insert) = new {
+  		acc.append_raw(&insert[..], 1);
+  	} else {
+  		acc.append_raw(subrlp.as_raw(), 1);
+  	}
+  	(is_some || new.is_some(), acc)
+  }) {
+  	(true, s) => Some(s.drain()),
+  	_ => None,
+  }
+}
 
 impl<'a> Compressible for UntrustedRlp<'a> {
-	fn compress(&self) -> ElasticArray1024<u8> {
-		let simple_swap = || {
-			let raw = self.as_raw();
-			to_elastic(&INVALID_RLP_SWAPPER.get_invalid(raw).unwrap_or(raw))
-		};
+	fn simple_compress(&self) -> ElasticArray1024<u8> {
+		if self.is_data() {
+			to_elastic(INVALID_RLP_SWAPPER.get_invalid(self.as_raw()).unwrap_or(self.as_raw()))
+		} else {
+			map_rlp(self, |rlp| Some(rlp.simple_compress())).unwrap_or(to_elastic(self.as_raw()))
+		}
+	}
+
+	fn simple_decompress(&self) -> ElasticArray1024<u8> {
+		if self.is_data() {
+			to_elastic(INVALID_RLP_SWAPPER.get_valid(self.as_raw()).unwrap_or(self.as_raw()))
+		} else {
+			map_rlp(self, |rlp| Some(rlp.simple_decompress())).unwrap_or(to_elastic(self.as_raw()))
+		}
+	}
+
+	fn compress(&self) -> Option<ElasticArray1024<u8>> {
+		let simple_swap = ||
+			INVALID_RLP_SWAPPER.get_invalid(self.as_raw()).map(|b| to_elastic(&b));
 		if self.is_data() {
 			// Try to treat the inside as RLP.
-			match self.payload_info() {
+			return match self.payload_info() {
 				// Shortest decompressed account is 70, so simply try to swap the value.
 				Ok(ref p) if p.value_len < 70 => simple_swap(),
 				_ => {
 					if let Ok(d) = self.data() {
-						let new_d = UntrustedRlp::new(&d).compress().to_vec();
-						// If compressed put in a special list, with first element being invalid code.
-						if new_d != d {
+						if let Some(new_d) = UntrustedRlp::new(&d).compress() {
+							// If compressed put in a special list, with first element being invalid code.
 							let mut rlp = RlpStream::new_list(2);
 							rlp.append_raw(&[0x81, 0xcc], 1);
-							rlp.append_raw(&new_d, 1);
-							return rlp.drain();
+							rlp.append_raw(&new_d[..], 1);
+							return Some(rlp.drain());
 						}
 					}
 					simple_swap()
 				},
-			}
-		} else {
-  		let mut rlp = RlpStream::new_list(self.item_count());
-  		for subrlp in self.iter() {
-  			let new = subrlp.compress();
-				rlp.append_raw(&new, 1);
-			}
-  		rlp.drain()
-  	}
+			};
+		}
+		// Iterate through RLP while checking if it has been compressed.
+		map_rlp(self, |rlp| rlp.compress())
 	}
 
-	fn decompress(&self) -> ElasticArray1024<u8> {
-		let simple_swap = || {
-			let raw = self.as_raw();
-			to_elastic(&INVALID_RLP_SWAPPER.get_valid(raw).unwrap_or(raw))
-		};
+	fn decompress(&self) -> Option<ElasticArray1024<u8>> {
+		let simple_swap = ||
+			INVALID_RLP_SWAPPER.get_valid(self.as_raw()).map(|b| to_elastic(&b));
 		// Simply decompress data.
 		if self.is_data() { return simple_swap(); }
 		match self.item_count() {
 			// Look for special compressed list, which contains nested data.
 			2 if self.at(0).map(|r| r.as_raw() == &[0x81, 0xcc]).unwrap_or(false) =>
-				self.at(1).ok().map_or(simple_swap(), |r| encode(&r.decompress().to_vec())),
-			// Decompress into list.
-			c => {
-  			let mut rlp = RlpStream::new_list(c);
-  			for subrlp in self.iter() {
-  				let new = subrlp.decompress();
-					rlp.append_raw(&new, 1);
-				}
-  			rlp.drain()
-  		},
+				self.at(1).ok().map_or(simple_swap(),
+				|r| r.decompress().map(|d| { let v = d.to_vec(); encode(&v) })),
+			// Iterate through RLP while checking if it has been compressed.
+			_ => map_rlp(self, |rlp| rlp.decompress()),
   	}
 	}
 }
@@ -165,8 +182,11 @@ impl<'a> Decoder for DecompressingDecoder<'a> {
 		match BasicDecoder::new(self.rlp.clone()).read_value(f) {
 			// Try again with decompression.
 			Err(DecoderError::RlpInvalidIndirection) => {
-				let decompressed = self.rlp.decompress();
-				BasicDecoder::new(UntrustedRlp::new(&decompressed)).read_value(f)
+				if let Some(decompressed) = self.rlp.decompress() {
+					BasicDecoder::new(UntrustedRlp::new(&decompressed)).read_value(f)
+				} else {
+					Err(DecoderError::RlpInvalidIndirection)
+				}
 			},
 			// Just return on valid RLP.
 			x => x,
@@ -195,26 +215,18 @@ fn invalid_rlp_swapper() {
 fn compressible() {
 	let nested_basic_account_rlp = vec![184, 70, 248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
 	let nested_rlp = UntrustedRlp::new(&nested_basic_account_rlp);
-	let compressed = nested_rlp.compress().to_vec();
+	let compressed = nested_rlp.compress().unwrap().to_vec();
 	assert_eq!(compressed, vec![201, 129, 204, 198, 4, 2, 129, 0, 129, 1]);
 	let compressed_rlp = UntrustedRlp::new(&compressed);
-	assert_eq!(compressed_rlp.decompress().to_vec(), nested_basic_account_rlp);
-}
-
-#[test]
-/// Fails when not checking for empty RLP iterator.
-fn malformed_rlp_one() {
-	let malformed = vec![197, 165, 153, 36, 204, 227, 139, 156, 139, 239, 24, 223, 247, 53, 105, 160, 226, 251, 141, 8];
-	let malformed_rlp = UntrustedRlp::new(&malformed);
-	assert_eq!(malformed_rlp.decompress().to_vec(), malformed);
+	assert_eq!(compressed_rlp.decompress().unwrap().to_vec(), nested_basic_account_rlp);
 }
 
 #[test]
 /// Fails when trying to encode uncompressed malformed RLP.
-fn malformed_rlp_two() {
+fn malformed_rlp() {
 	let malformed = vec![248, 81, 128, 128, 128, 128, 128, 160, 12, 51, 241, 93, 69, 218, 74, 138, 79, 115, 227, 44, 216, 81, 46, 132, 85, 235, 96, 45, 252, 48, 181, 29, 75, 141, 217, 215, 86, 160, 109, 130, 160, 140, 36, 93, 200, 109, 215, 100, 241, 246, 99, 135, 92, 168, 149, 170, 114, 9, 143, 4, 93, 25, 76, 54, 176, 119, 230, 170, 154, 105, 47, 121, 10, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128];
 	let malformed_rlp = UntrustedRlp::new(&malformed);
-	assert_eq!(malformed_rlp.decompress().to_vec(), malformed);
+	assert!(malformed_rlp.decompress().is_none());
 }
 
 #[test]
@@ -222,10 +234,10 @@ fn decompressing_decoder() {
 	use rustc_serialize::hex::ToHex;
 	let basic_account_rlp = vec![248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
 	let rlp = UntrustedRlp::new(&basic_account_rlp);
-	let compressed = rlp.compress().to_vec();
-	assert_eq!(compressed, vec![198, 4, 2, 129, 0, 129, 1]);
-	let compressed_rlp = UntrustedRlp::new(&compressed);
+	let compressed = rlp.compress().unwrap();
+	assert_eq!(&compressed[..], &[198, 4, 2, 129, 0, 129, 1]);
 	let f = | b: &[u8] | Ok(b.to_vec());
+	let compressed_rlp = UntrustedRlp::new(&compressed);
 	let decoded: Vec<_> = compressed_rlp.iter().map(|v| DecompressingDecoder::new(v).read_value(&f).expect("")).collect();
 	assert_eq!(decoded[0], vec![4]);
 	assert_eq!(decoded[1], vec![2]);
@@ -301,9 +313,9 @@ fn test_compression() {
 	for v in values.iter() {
 		init_size += v.len();
 		let rlp = UntrustedRlp::new(&v);
-		let compressed = rlp.compress().to_vec();
+		let compressed = rlp.compress().map(|b| b.to_vec()).unwrap_or(v.to_vec());
 		comp_size += compressed.len();
-		assert_eq!(UntrustedRlp::new(&compressed.as_slice()).decompress().to_vec(), v.to_vec());
+		assert_eq!(UntrustedRlp::new(&compressed.as_slice()).decompress().map(|b| b.to_vec()).unwrap_or(v.to_vec()), v.to_vec());
 	}
 	println!("Initial bytes {:?}, compressed bytes: {:?}", init_size, comp_size);
 	assert!(init_size > comp_size);

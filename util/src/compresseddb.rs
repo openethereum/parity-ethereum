@@ -47,8 +47,8 @@ impl<'db> HashDB for CompressedDB<'db> {
 			.and_then(|raw| if raw.1 > 0 { Some(raw.0.as_slice()) } else { None })
 			.or(self.backing.get(key)
 					.and_then(|v| {
-						let decompressed = UntrustedRlp::new(v).decompress().to_vec();
-						Some(self.overlay.denote(key, decompressed).0.as_slice())
+						let decompressed = UntrustedRlp::new(v).decompress().map(|r| r.to_vec());
+						Some(self.overlay.denote(key, decompressed.unwrap_or(v.to_vec())).0.as_slice())
 					}))
 	}
 
@@ -98,8 +98,8 @@ impl<'db> HashDB for CompressedDBMut<'db> {
 			.and_then(|raw| if raw.1 > 0 { Some(raw.0.as_slice()) } else { None })
 			.or(self.backing.get(key)
 					.and_then(|v| {
-						let decompressed = UntrustedRlp::new(v).decompress().to_vec();
-						Some(self.overlay.denote(key, decompressed).0.as_slice())
+						let decompressed = UntrustedRlp::new(v).decompress().map(|r| r.to_vec());
+						Some(self.overlay.denote(key, decompressed.unwrap_or(v.to_vec())).0.as_slice())
 					}))
 	}
 
@@ -109,12 +109,19 @@ impl<'db> HashDB for CompressedDBMut<'db> {
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		let key = value.sha3();
-		self.backing.emplace(key, UntrustedRlp::new(value).compress().to_vec());
+		self.backing.emplace(key,
+												 UntrustedRlp::new(value).compress()
+												 .map(|r| r.to_vec())
+												 .unwrap_or(value.to_vec()));
 		key
 	}
 
 	fn emplace(&mut self, key: H256, value: Bytes) {
-		self.backing.emplace(key, UntrustedRlp::new(&value).compress().to_vec())
+		self.backing.emplace(key,
+												 UntrustedRlp::new(&value).compress()
+												 .map(|r| r.to_vec())
+												 .unwrap_or(value));
+
 	}	
 
 	fn remove(&mut self, key: &H256) {

@@ -26,7 +26,7 @@ use ethcore::migrations;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 7;
+const CURRENT_VERSION: u32 = 8;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -105,8 +105,8 @@ fn update_version(path: &Path) -> Result<(), Error> {
 }
 
 /// State database path.
-fn state_database_path(path: &PathBuf) -> PathBuf {
-	let mut state_path = path.clone();
+fn state_database_path(path: &Path) -> PathBuf {
+	let mut state_path = path.to_owned();
 	state_path.push("state");
 	state_path
 }
@@ -123,13 +123,6 @@ fn extras_database_path(path: &Path) -> PathBuf {
 	let mut extras_path = path.to_owned();
 	extras_path.push("extras");
 	extras_path
-}
-
-/// State database path.
-fn state_database_path(path: &Path) -> PathBuf {
-	let mut state_path = path.to_owned();
-	state_path.push("state");
-	state_path
 }
 
 /// Database backup
@@ -163,13 +156,13 @@ fn extras_database_migrations() -> Result<MigrationManager, Error> {
 /// Migrations on the state database.
 fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings());
-	//manager.add_migration(migrations::state::V8::default());
 	let res = match pruning {
 		Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7::default()),
 		Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
 		_ => die!("Unsupported pruning method for migration. Delete DB and resync"),
 	};
 
+	try!(manager.add_migration(migrations::state::V8::default()).map_err(|_| Error::MigrationImpossible));
 	try!(res.map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
@@ -217,9 +210,6 @@ pub fn migrate(path: &Path, pruning: Algorithm) -> Result<(), Error> {
 	// main db directory may already exists, so let's check if we have blocks dir
 	if version != CURRENT_VERSION && exists(&state_database_path(path)) {
 		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
-		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations())));
-	}
-	if version != CURRENT_VERSION && exists(&blocks_database_path(path)) {
 		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
 		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
 		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations(pruning))));
