@@ -435,6 +435,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
 		self.reserved_nodes.write().unwrap().insert(n.id.clone());
+		self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
 
 		if let Some(ref mut discovery) = *self.discovery.lock().unwrap() {
 			discovery.add_node(entry);
@@ -758,7 +759,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
 						if let UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) = e {
 							if let Some(id) = s.id() {
-								self.nodes.write().unwrap().mark_as_useless(id);
+								if !self.reserved_nodes.read().unwrap().contains(id) {
+									self.nodes.write().unwrap().mark_as_useless(id);
+								}
 							}
 						}
 						kill = true;
@@ -892,7 +895,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			trace!(target: "network", "Removed from node table: {}", i);
 			self.kill_connection(i, io, false);
 		}
-		self.nodes.write().unwrap().update(node_changes);
+		self.nodes.write().unwrap().update(node_changes, &*self.reserved_nodes.read().unwrap());
 	}
 }
 
