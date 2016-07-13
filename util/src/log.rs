@@ -18,13 +18,13 @@
 
 use std::env;
 use std::borrow::Cow;
-use rlog::{LogLevelFilter};
+use rlog::LogLevelFilter;
 use env_logger::LogBuilder;
-use std::sync::{RwLock, RwLockReadGuard};
 use std::sync::atomic::{Ordering, AtomicBool};
 use arrayvec::ArrayVec;
-use misc::RwLockable;
 pub use ansi_term::{Colour, Style};
+
+use parking_lot::{RwLock, RwLockReadGuard};
 
 lazy_static! {
 	static ref USE_COLOR: AtomicBool = AtomicBool::new(false);
@@ -91,7 +91,7 @@ impl RotatingLogger {
 
 	/// Append new log entry
 	pub fn append(&self, log: String) {
-		self.logs.unwrapped_write().insert(0, log);
+		self.logs.write().insert(0, log);
 	}
 
 	/// Return levels
@@ -101,7 +101,7 @@ impl RotatingLogger {
 
 	/// Return logs
 	pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
-		self.logs.unwrapped_read()
+		self.logs.read()
 	}
 
 }

@@ -17,13 +17,32 @@
 //! Session handlers factory.
 
 use ws;
-use sysui;
 use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::H256;
+
+#[cfg(feature = "ui")]
+mod signer {
+	use signer;
+
+	pub fn handle(req: &str) -> Option<signer::File> {
+		signer::handle(req)
+	}
+}
+#[cfg(not(feature = "ui"))]
+mod signer {
+	pub struct File {
+		pub content: String,
+		pub mime: String,
+	}
+
+	pub fn handle(_req: &str) -> Option<File> {
+		None
+	}
+}
 
 fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	match header {
@@ -111,7 +130,7 @@ impl ws::Handler for Session {
 		}
 
 		// Otherwise try to serve a page.
-		Ok(sysui::handle(req.resource())
+		Ok(signer::handle(req.resource())
 			.map_or_else(
 				// return 404 not found
 				|| add_headers(ws::Response::not_found("Not found".into()), "text/plain"),

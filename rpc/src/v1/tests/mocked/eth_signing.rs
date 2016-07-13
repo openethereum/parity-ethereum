@@ -88,7 +88,7 @@ fn should_add_transaction_to_queue() {
 }
 
 #[test]
-fn should_dispatch_transaction_if_account_is_unlocked() {
+fn should_dispatch_transaction_if_account_is_unlock() {
 	// given
 	let tester = eth_signing();
 	let acc = tester.accounts.new_account("test").unwrap();

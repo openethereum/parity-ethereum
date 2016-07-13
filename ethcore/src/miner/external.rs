@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use util::{RwLockable, U256, H256};
+use std::sync::Arc;
+use util::{RwLock, U256, H256};
 
 /// External miner interface.
 pub trait ExternalMinerService: Send + Sync {
@@ -54,15 +54,15 @@ impl ExternalMiner {
 
 impl ExternalMinerService for ExternalMiner {
 	fn submit_hashrate(&self, hashrate: U256, id: H256) {
-		self.hashrates.unwrapped_write().insert(id, hashrate);
+		self.hashrates.write().insert(id, hashrate);
 	}
 
 	fn hashrate(&self) -> U256 {
-		self.hashrates.unwrapped_read().iter().fold(U256::from(0), |sum, (_, v)| sum + *v)
+		self.hashrates.read().iter().fold(U256::from(0), |sum, (_, v)| sum + *v)
 	}
 
 	fn is_mining(&self) -> bool {
-		!self.hashrates.unwrapped_read().is_empty()
+		!self.hashrates.read().is_empty()
 	}
 }
 
