@@ -54,6 +54,16 @@ impl InvalidRlpSwapper {
 	}
 }
 
+#[cfg(test)]
+fn invalid_rlp_swapper() {
+	let to_swap = vec![vec![0x83, b'c', b'a', b't'], vec![0x83, b'd', b'o', b'g']];
+	let swapper = InvalidRlpSwapper::new(to_swap);
+	let invalid_rlp = vec![vec![0x81, 0x00], vec![0x81, 0x01]];
+	assert_eq!(Some(invalid_rlp[0].as_slice()), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
+	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
+	assert_eq!(Some(vec![0x83, b'd', b'o', b'g'].as_slice()), swapper.get_valid(&invalid_rlp[1]));
+}
+
 lazy_static! {
 	/// Swapper with common long RLPs, up to 128 can be added.
 	static ref INVALID_RLP_SWAPPER: InvalidRlpSwapper = InvalidRlpSwapper::new(vec![encode(&SHA3_NULL_RLP).to_vec(), encode(&SHA3_EMPTY).to_vec()]);
@@ -153,7 +163,7 @@ impl<'a> CompressingEncoder<'a> {
 	}
 }
 
-struct DecompressingDecoder<'a> {
+pub struct DecompressingDecoder<'a> {
 	rlp: UntrustedRlp<'a>,
 	swapper: &'a INVALID_RLP_SWAPPER,
 }
@@ -202,121 +212,117 @@ impl<'a> Decoder for DecompressingDecoder<'a> {
 	}
 }
 
-#[test]
-fn invalid_rlp_swapper() {
-	let swapper = InvalidRlpSwapper::new(vec![vec![0x83, b'c', b'a', b't'], vec![0x83, b'd', b'o', b'g']]);
-	let invalid_rlp = vec![vec![0x81, 0x00], vec![0x81, 0x01]];
-	assert_eq!(Some(invalid_rlp[0].as_slice()), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
-	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
-	assert_eq!(Some(vec![0x83, b'd', b'o', b'g'].as_slice()), swapper.get_valid(&invalid_rlp[1]));
-}
+#[cfg(test)]
+mod tests {
+	use rlp::{UntrustedRlp, Compressible, DecompressingDecoder, View, SHA3_NULL_RLP, Decoder};
+	use sha3::SHA3_EMPTY;
 
-#[test]
-fn compressible() {
-	let nested_basic_account_rlp = vec![184, 70, 248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
-	let nested_rlp = UntrustedRlp::new(&nested_basic_account_rlp);
-	let compressed = nested_rlp.compress().unwrap().to_vec();
-	assert_eq!(compressed, vec![201, 129, 204, 198, 4, 2, 129, 0, 129, 1]);
-	let compressed_rlp = UntrustedRlp::new(&compressed);
-	assert_eq!(compressed_rlp.decompress().unwrap().to_vec(), nested_basic_account_rlp);
-}
+	#[test]
+	fn compressible() {
+		let nested_basic_account_rlp = vec![184, 70, 248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
+		let nested_rlp = UntrustedRlp::new(&nested_basic_account_rlp);
+		let compressed = nested_rlp.compress().unwrap().to_vec();
+		assert_eq!(compressed, vec![201, 129, 204, 198, 4, 2, 129, 0, 129, 1]);
+		let compressed_rlp = UntrustedRlp::new(&compressed);
+		assert_eq!(compressed_rlp.decompress().unwrap().to_vec(), nested_basic_account_rlp);
+	}
 
-#[test]
-/// Fails when trying to encode uncompressed malformed RLP.
-fn malformed_rlp() {
-	let malformed = vec![248, 81, 128, 128, 128, 128, 128, 160, 12, 51, 241, 93, 69, 218, 74, 138, 79, 115, 227, 44, 216, 81, 46, 132, 85, 235, 96, 45, 252, 48, 181, 29, 75, 141, 217, 215, 86, 160, 109, 130, 160, 140, 36, 93, 200, 109, 215, 100, 241, 246, 99, 135, 92, 168, 149, 170, 114, 9, 143, 4, 93, 25, 76, 54, 176, 119, 230, 170, 154, 105, 47, 121, 10, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128];
-	let malformed_rlp = UntrustedRlp::new(&malformed);
-	assert!(malformed_rlp.decompress().is_none());
-}
+	#[test]
+	fn malformed_rlp() {
+		let malformed = vec![248, 81, 128, 128, 128, 128, 128, 160, 12, 51, 241, 93, 69, 218, 74, 138, 79, 115, 227, 44, 216, 81, 46, 132, 85, 235, 96, 45, 252, 48, 181, 29, 75, 141, 217, 215, 86, 160, 109, 130, 160, 140, 36, 93, 200, 109, 215, 100, 241, 246, 99, 135, 92, 168, 149, 170, 114, 9, 143, 4, 93, 25, 76, 54, 176, 119, 230, 170, 154, 105, 47, 121, 10, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128];
+		let malformed_rlp = UntrustedRlp::new(&malformed);
+		assert!(malformed_rlp.decompress().is_none());
+	}
 
-#[test]
-fn decompressing_decoder() {
-	use rustc_serialize::hex::ToHex;
-	let basic_account_rlp = vec![248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
-	let rlp = UntrustedRlp::new(&basic_account_rlp);
-	let compressed = rlp.compress().unwrap();
-	assert_eq!(&compressed[..], &[198, 4, 2, 129, 0, 129, 1]);
-	let f = | b: &[u8] | Ok(b.to_vec());
-	let compressed_rlp = UntrustedRlp::new(&compressed);
-	let decoded: Vec<_> = compressed_rlp.iter().map(|v| DecompressingDecoder::new(v).read_value(&f).expect("")).collect();
-	assert_eq!(decoded[0], vec![4]);
-	assert_eq!(decoded[1], vec![2]);
-	assert_eq!(decoded[2].to_hex(), SHA3_NULL_RLP.hex());
-	assert_eq!(decoded[3].to_hex(), SHA3_EMPTY.hex());
-}
+	#[test]
+	fn decompressing_decoder() {
+		use rustc_serialize::hex::ToHex;
+		let basic_account_rlp = vec![248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
+		let rlp = UntrustedRlp::new(&basic_account_rlp);
+		let compressed = rlp.compress().unwrap();
+		assert_eq!(&compressed[..], &[198, 4, 2, 129, 0, 129, 1]);
+		let f = | b: &[u8] | Ok(b.to_vec());
+		let compressed_rlp = UntrustedRlp::new(&compressed);
+		let decoded: Vec<_> = compressed_rlp.iter().map(|v| DecompressingDecoder::new(v).read_value(&f).expect("")).collect();
+		assert_eq!(decoded[0], vec![4]);
+		assert_eq!(decoded[1], vec![2]);
+		assert_eq!(decoded[2].to_hex(), SHA3_NULL_RLP.hex());
+		assert_eq!(decoded[3].to_hex(), SHA3_EMPTY.hex());
+	}
 
-#[test]
-#[ignore]
-#[allow(dead_code)]
-fn analyze_db() {
-	use std::collections::HashMap;
-	use kvdb::*;
-	let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/state".to_string();
-	let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
-	let mut rlp_counts: HashMap<_, u32> = HashMap::new();
-	let mut rlp_sizes: HashMap<_, u32> = HashMap::new();
+	#[test]
+	#[ignore]
+	#[allow(dead_code)]
+	fn analyze_db() {
+		use std::collections::HashMap;
+		use kvdb::*;
+		let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/state".to_string();
+		let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
+		let mut rlp_counts: HashMap<_, u32> = HashMap::new();
+		let mut rlp_sizes: HashMap<_, u32> = HashMap::new();
 
-	fn flat_rlp<'a>(acc: &mut Vec<UntrustedRlp<'a>>, rlp: UntrustedRlp<'a>) {
-		match rlp.is_data() {
-			true => if rlp.size()>=70 {
-				match rlp.data() {
-					Ok(x) => flat_rlp(acc, UntrustedRlp::new(x)),
-					_ => acc.push(rlp),
-				}
-			} else {
-				acc.push(rlp);
-			},
-			false => for r in rlp.iter() { flat_rlp(acc, r); },
+		fn flat_rlp<'a>(acc: &mut Vec<UntrustedRlp<'a>>, rlp: UntrustedRlp<'a>) {
+			match rlp.is_data() {
+				true => if rlp.size()>=70 {
+					match rlp.data() {
+						Ok(x) => flat_rlp(acc, UntrustedRlp::new(x)),
+						_ => acc.push(rlp),
+					}
+				} else {
+					acc.push(rlp);
+				},
+				false => for r in rlp.iter() { flat_rlp(acc, r); },
+			}
 		}
-	}
 
-	fn space_saving(bytes: &[u8]) -> u32 {
-		let l = bytes.len() as u32;
-		match l >= 2 {
-			true => l-2,
-			false => 0,
+		fn space_saving(bytes: &[u8]) -> u32 {
+			let l = bytes.len() as u32;
+			match l >= 2 {
+				true => l-2,
+				false => 0,
+			}
 		}
-	}
 
-	fn is_account<'a>(rlp: &UntrustedRlp<'a>) -> bool {
-		rlp.is_list() && (rlp.item_count() == 4)
-	}
-
-	for v in values.iter() {
-		let rlp = UntrustedRlp::new(&v);
-		let mut flat = Vec::new();
-		flat_rlp(&mut flat, rlp);
-		for r in flat.iter() {
-			*rlp_counts.entry(r.as_raw()).or_insert(0) += 1;
-			//let replacement = r.compress().to_vec();
-			*rlp_sizes.entry(r.as_raw()).or_insert(0) += space_saving(r.as_raw());
+		fn is_account<'a>(rlp: &UntrustedRlp<'a>) -> bool {
+			rlp.is_list() && (rlp.item_count() == 4)
 		}
-	}
-	let mut size_vec: Vec<_> = rlp_sizes.iter().collect();
-	size_vec.sort_by(|a, b| b.1.cmp(a.1));
 
-	for v in size_vec.iter().filter(|v| rlp_counts.get(v.0).unwrap()>&100).take(20) {
-		println!("{:?}, {:?}", v, rlp_counts.get(v.0).unwrap());
-	}
-	println!("DONE");
-}
+		for v in values.iter() {
+			let rlp = UntrustedRlp::new(&v);
+			let mut flat = Vec::new();
+			flat_rlp(&mut flat, rlp);
+			for r in flat.iter() {
+				*rlp_counts.entry(r.as_raw()).or_insert(0) += 1;
+				//let replacement = r.compress().to_vec();
+				*rlp_sizes.entry(r.as_raw()).or_insert(0) += space_saving(r.as_raw());
+			}
+		}
+		let mut size_vec: Vec<_> = rlp_sizes.iter().collect();
+		size_vec.sort_by(|a, b| b.1.cmp(a.1));
 
-#[test]
-#[ignore]
-fn test_compression() {
-	use kvdb::*;
-	let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/state".to_string();
-	let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
-	let mut init_size = 0;
-	let mut comp_size = 0;
-
-	for v in values.iter() {
-		init_size += v.len();
-		let rlp = UntrustedRlp::new(&v);
-		let compressed = rlp.compress().map(|b| b.to_vec()).unwrap_or(v.to_vec());
-		comp_size += compressed.len();
-		assert_eq!(UntrustedRlp::new(&compressed.as_slice()).decompress().map(|b| b.to_vec()).unwrap_or(v.to_vec()), v.to_vec());
+		for v in size_vec.iter().filter(|v| rlp_counts.get(v.0).unwrap()>&100).take(20) {
+			println!("{:?}, {:?}", v, rlp_counts.get(v.0).unwrap());
+		}
+		println!("DONE");
 	}
-	println!("Initial bytes {:?}, compressed bytes: {:?}", init_size, comp_size);
-	assert!(init_size > comp_size);
+
+	#[test]
+	#[ignore]
+	fn test_compression() {
+		use kvdb::*;
+		let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/state".to_string();
+		let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
+		let mut init_size = 0;
+		let mut comp_size = 0;
+
+		for v in values.iter() {
+			init_size += v.len();
+			let rlp = UntrustedRlp::new(&v);
+			let compressed = rlp.compress().map(|b| b.to_vec()).unwrap_or(v.to_vec());
+			comp_size += compressed.len();
+			assert_eq!(UntrustedRlp::new(&compressed.as_slice()).decompress().map(|b| b.to_vec()).unwrap_or(v.to_vec()), v.to_vec());
+		}
+		println!("Initial bytes {:?}, compressed bytes: {:?}", init_size, comp_size);
+		assert!(init_size > comp_size);
+	}
 }
