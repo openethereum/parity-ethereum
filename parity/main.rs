@@ -50,6 +50,9 @@ extern crate ethcore_rpc;
 
 extern crate ethcore_signer;
 extern crate ansi_term;
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
@@ -71,7 +74,7 @@ mod url;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::Arc;
 use std::path::Path;
 use std::fs::File;
 use std::str::{FromStr, from_utf8};
@@ -79,7 +82,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{Lockable, H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
+use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError,
 	ChainNotify, Mode};
@@ -90,6 +93,7 @@ use ethsync::{EthSync, NetworkConfiguration};
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
+use util::{Mutex, Condvar};
 
 use die::*;
 use cli::print_version;
@@ -184,7 +188,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
+	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -342,7 +346,7 @@ fn execute_export(conf: Configuration) {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -403,7 +407,7 @@ fn execute_import(conf: Configuration) {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// Setup logging
-	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
+	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -590,7 +594,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.locked()).unwrap();
+	let _ = exit.wait(&mut mutex.lock());
 	info!("Finishing work, please wait...");
 }
 

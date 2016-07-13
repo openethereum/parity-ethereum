@@ -24,7 +24,7 @@ heapsize = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
 semver = "0.2"
 ethcore-ipc-nano = { path = "../ipc/nano" }
-
+parking_lot = "0.2.6"
 
 [features]
 default = []

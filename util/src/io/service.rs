@@ -14,17 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::*;
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::collections::HashMap;
 use mio::*;
 use crossbeam::sync::chase_lev;
 use slab::Slab;
 use error::*;
-use misc::*;
 use io::{IoError, IoHandler};
 use io::worker::{Worker, Work, WorkType};
 use panics::*;
+
+use parking_lot::{Condvar, RwLock, Mutex};
 
 /// Timer ID
 pub type TimerToken = usize;
@@ -228,7 +229,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 		let handler_index  = token.as_usize()  / TOKENS_PER_HANDLER;
 		let token_id  = token.as_usize()  % TOKENS_PER_HANDLER;
 		if let Some(handler) = self.handlers.get(handler_index) {
-			if let Some(timer) = self.timers.unwrapped_read().get(&token.as_usize()) {
+			if let Some(timer) = self.timers.read().get(&token.as_usize()) {
 				event_loop.timeout_ms(token, timer.delay).expect("Error re-registering user timer");
 				self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler.clone(), handler_id: handler_index });
 				self.work_ready.notify_all();
@@ -250,7 +251,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 				// TODO: flush event loop
 				self.handlers.remove(handler_id);
 				// unregister timers
-				let mut timers = self.timers.unwrapped_write();
+				let mut timers = self.timers.write();
 				let to_remove: Vec<_> = timers.keys().cloned().filter(|timer_id| timer_id / TOKENS_PER_HANDLER == handler_id).collect();
 				for timer_id in to_remove {
 					let timer = timers.remove(&timer_id).expect("to_remove only contains keys from timers; qed");
@@ -260,11 +261,11 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			IoMessage::AddTimer { handler_id, token, delay } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
 				let timeout = event_loop.timeout_ms(Token(timer_id), delay).expect("Error registering user timer");
-				self.timers.unwrapped_write().insert(timer_id, UserTimer { delay: delay, timeout: timeout });
+				self.timers.write().insert(timer_id, UserTimer { delay: delay, timeout: timeout });
 			},
 			IoMessage::RemoveTimer { handler_id, token } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
-				if let Some(timer) = self.timers.unwrapped_write().remove(&timer_id) {
+				if let Some(timer) = self.timers.write().remove(&timer_id) {
 					event_loop.clear_timeout(timer.timeout);
 				}
 			},
@@ -278,7 +279,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 					handler.deregister_stream(token, event_loop);
 					// unregister a timer associated with the token (if any)
 					let timer_id = token + handler_id * TOKENS_PER_HANDLER;
-					if let Some(timer) = self.timers.unwrapped_write().remove(&timer_id) {
+					if let Some(timer) = self.timers.write().remove(&timer_id) {
 						event_loop.clear_timeout(timer.timeout);
 					}
 				}

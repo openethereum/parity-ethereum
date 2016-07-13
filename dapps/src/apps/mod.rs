@@ -22,7 +22,7 @@ use parity_dapps::WebApp;
 mod fs;
 
 extern crate parity_dapps_status;
-extern crate parity_dapps_builtins;
+extern crate parity_dapps_home;
 
 pub const DAPPS_DOMAIN : &'static str = ".parity";
 pub const RPC_PATH : &'static str =  "rpc";
@@ -34,7 +34,7 @@ pub fn main_page() -> &'static str {
 }
 
 pub fn utils() -> Box<Endpoint> {
-	Box::new(PageEndpoint::with_prefix(parity_dapps_builtins::App::default(), UTILS_PATH.to_owned()))
+	Box::new(PageEndpoint::with_prefix(parity_dapps_home::App::default(), UTILS_PATH.to_owned()))
 }
 
 pub fn all_endpoints(dapps_path: String) -> Endpoints {
@@ -44,7 +44,7 @@ pub fn all_endpoints(dapps_path: String) -> Endpoints {
 	// because we use Cross-Origin LocalStorage.
 	// TODO [ToDr] Account naming should be moved to parity.
 	pages.insert("home".into(), Box::new(
-		PageEndpoint::new_safe_to_embed(parity_dapps_builtins::App::default())
+		PageEndpoint::new_safe_to_embed(parity_dapps_home::App::default())
 	));
 	pages.insert("proxy".into(), ProxyPac::boxed());
 	insert::<parity_dapps_status::App>(&mut pages, "parity");
@@ -52,8 +52,6 @@ pub fn all_endpoints(dapps_path: String) -> Endpoints {
 
 	// Optional dapps
 	wallet_page(&mut pages);
-	daodapp_page(&mut pages);
-	makerotc_page(&mut pages);
 
 	pages
 }
@@ -65,22 +63,6 @@ fn wallet_page(pages: &mut Endpoints) {
 }
 #[cfg(not(feature = "parity-dapps-wallet"))]
 fn wallet_page(_pages: &mut Endpoints) {}
-
-#[cfg(feature = "parity-dapps-dao")]
-fn daodapp_page(pages: &mut Endpoints) {
-	extern crate parity_dapps_dao;
-	insert::<parity_dapps_dao::App>(pages, "dao");
-}
-#[cfg(not(feature = "parity-dapps-dao"))]
-fn daodapp_page(_pages: &mut Endpoints) {}
-
-#[cfg(feature = "parity-dapps-makerotc")]
-fn makerotc_page(pages: &mut Endpoints) {
-	extern crate parity_dapps_makerotc;
-	insert::<parity_dapps_makerotc::App>(pages, "makerotc");
-}
-#[cfg(not(feature = "parity-dapps-makerotc"))]
-fn makerotc_page(_pages: &mut Endpoints) {}
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
 	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));

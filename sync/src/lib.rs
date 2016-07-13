@@ -73,6 +73,7 @@ extern crate heapsize;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
 extern crate semver;
+extern crate parking_lot;
 
 mod chain;
 mod blocks;

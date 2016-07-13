@@ -104,12 +104,13 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			position: 0,
 			code: &code
 		};
+		let infos = &*instructions::INSTRUCTIONS;
 
 		while reader.position < code.len() {
 			let instruction = code[reader.position];
 			reader.position += 1;
 
-			let info = instructions::get_info(instruction);
+			let info = infos[instruction as usize];
 			try!(self.verify_instruction(ext, instruction, &info, &stack));
 
 			// Calculate gas cost
