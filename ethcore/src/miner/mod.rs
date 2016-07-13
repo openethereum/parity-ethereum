@@ -33,12 +33,12 @@
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::with_spec(ethereum::new_frontier(true));
+//!		let miner: Miner = Miner::with_spec(ethereum::new_frontier());
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
 //!		// Check block for sealing
-//!		//assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
+//!		//assert!(miner.sealing_block(client.deref()).locked().is_some());
 //! }
 //! ```
 
@@ -46,9 +46,10 @@ mod miner;
 mod external;
 mod transaction_queue;
 mod work_notify;
+mod price_info;
 
 pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionOrigin};
-pub use self::miner::{Miner, MinerOptions, PendingSet};
+pub use self::miner::{Miner, MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use client::TransactionImportResult;
 
@@ -107,14 +108,12 @@ pub trait MinerService : Send + Sync {
 	fn set_tx_gas_limit(&self, limit: U256);
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, fetch_account: T) ->
-		Vec<Result<TransactionImportResult, Error>>
-		where T: Fn(&Address) -> AccountDetails, Self: Sized;
+	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+		Vec<Result<TransactionImportResult, Error>>;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction<T>(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
-		Result<TransactionImportResult, Error>
-		where T: Fn(&Address) -> AccountDetails, Self: Sized;
+	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction) ->
+		Result<TransactionImportResult, Error>;
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256>;

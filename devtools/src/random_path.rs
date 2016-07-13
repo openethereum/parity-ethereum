@@ -19,6 +19,7 @@
 use std::path::*;
 use std::fs;
 use std::env;
+use std::ops::{Deref, DerefMut};
 use rand::random;
 
 pub struct RandomTempPath {
@@ -72,6 +73,35 @@ impl Drop for RandomTempPath {
 			panic!("Failed to remove temp directory. Here's what prevented this from happening:  ({})", e);
 		}
 	}
+}
+
+pub struct GuardedTempResult<T> {
+	pub result: Option<T>,
+	pub _temp: RandomTempPath
+}
+
+impl<T> GuardedTempResult<T> {
+    pub fn reference(&self) -> &T {
+        self.result.as_ref().unwrap()
+    }
+
+    pub fn reference_mut(&mut self) -> &mut T {
+    	self.result.as_mut().unwrap()
+    }
+
+	pub fn take(&mut self) -> T {
+		self.result.take().unwrap()
+	}
+}
+
+impl<T> Deref for GuardedTempResult<T> {
+	type Target = T;
+
+	fn deref(&self) -> &T { self.result.as_ref().unwrap() }
+}
+
+impl<T> DerefMut for GuardedTempResult<T> {
+	fn deref_mut(&mut self) -> &mut T { self.result.as_mut().unwrap() }
 }
 
 #[test]

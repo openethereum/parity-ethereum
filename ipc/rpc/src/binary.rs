@@ -21,6 +21,7 @@ use util::numbers::{U256, U512, H256, H2048, Address};
 use std::mem;
 use std::collections::{VecDeque, BTreeMap};
 use std::ops::Range;
+use super::Handshake;
 
 #[derive(Debug)]
 pub struct BinaryConvertError;
@@ -315,6 +316,31 @@ impl BinaryConvertable for String {
 	}
 }
 
+impl<T> BinaryConvertable for Range<T> where T: BinaryConvertable {
+	fn size(&self) -> usize {
+		mem::size_of::<T>() * 2
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Err(BinaryConvertError)
+	}
+
+	fn to_bytes(&self, buffer: &mut[u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		try!(self.start.to_bytes(&mut buffer[..mem::size_of::<T>()], length_stack));
+		try!(self.end.to_bytes(&mut buffer[mem::size_of::<T>() + 1..], length_stack));
+		Ok(())
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		Ok(try!(T::from_bytes(&buffer[..mem::size_of::<T>()], length_stack))..try!(T::from_bytes(&buffer[mem::size_of::<T>()+1..], length_stack)))
+	}
+
+	fn len_params() -> usize {
+		assert_eq!(0, T::len_params());
+		0
+	}
+}
+
 impl<T> BinaryConvertable for ::std::cell::RefCell<T> where T: BinaryConvertable {
 	fn size(&self) -> usize {
 		self.borrow().size()
@@ -529,6 +555,61 @@ macro_rules! binary_fixed_size {
 	}
 }
 
+/// Fixed-sized version of Handshake struct
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BinHandshake {
+	api_version: BinVersion,
+	protocol_version: BinVersion,
+}
+
+/// Shorten version of semver Version without `pre` and `build` information
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BinVersion {
+	pub major: u64,
+	pub minor: u64,
+	pub patch: u64,
+}
+
+impl From<Handshake> for BinHandshake {
+	fn from(other: Handshake) -> Self {
+		BinHandshake {
+			api_version: BinVersion::from(other.api_version),
+			protocol_version: BinVersion::from(other.protocol_version),
+		}
+	}
+}
+
+impl BinHandshake {
+	pub fn to_semver(self) -> Handshake {
+		Handshake {
+			api_version: self.api_version.to_semver(),
+			protocol_version: self.protocol_version.to_semver(),
+		}
+	}
+}
+
+impl BinVersion {
+	pub fn to_semver(self) -> ::semver::Version {
+		::semver::Version {
+			major: self.major,
+			minor: self.minor,
+			patch: self.patch,
+			pre: vec![],
+			build: vec![],
+		}
+	}
+}
+
+impl From<::semver::Version> for BinVersion {
+	fn from(other: ::semver::Version) -> Self {
+ 		BinVersion {
+			major: other.major,
+			minor: other.minor,
+			patch: other.patch,
+		}
+	}
+}
+
 binary_fixed_size!(u64);
 binary_fixed_size!(u32);
 binary_fixed_size!(usize);
@@ -539,8 +620,7 @@ binary_fixed_size!(U512);
 binary_fixed_size!(H256);
 binary_fixed_size!(H2048);
 binary_fixed_size!(Address);
-binary_fixed_size!(Range<usize>);
-binary_fixed_size!(Range<u64>);
+binary_fixed_size!(BinHandshake);
 
 #[test]
 fn vec_serialize() {
@@ -683,8 +763,6 @@ fn serialize_opt_vec() {
 
 #[test]
 fn serialize_opt_vec_payload() {
- 	use std::io::Cursor;
-
 	let optional_vec: Option<Vec<u8>> = None;
 	let payload = serialize(&optional_vec).unwrap();
 
@@ -752,4 +830,24 @@ fn serialize_btree() {
 	let res = deserialize_from::<BTreeMap<u64, u64>, _>(&mut buff).unwrap();
 
 	assert_eq!(res[&1u64], 5u64);
+}
+
+#[test]
+fn serialize_handshake() {
+	use std::io::{Cursor, SeekFrom, Seek};
+
+	let mut buff = Cursor::new(Vec::new());
+
+	let handshake = Handshake {
+		api_version: ::semver::Version::parse("1.2.0").unwrap(),
+		protocol_version: ::semver::Version::parse("1.2.0").unwrap(),
+	};
+
+	serialize_into(&BinHandshake::from(handshake.clone()), &mut buff).unwrap();
+
+	buff.seek(SeekFrom::Start(0)).unwrap();
+	let res = deserialize_from::<BinHandshake, _>(&mut buff).unwrap().to_semver();
+
+	assert_eq!(res, handshake);
+
 }

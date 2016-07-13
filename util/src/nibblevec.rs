@@ -1,16 +1,33 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+
 //! An owning, nibble-oriented byte vector.
 
 use ::NibbleSlice;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
-/// Owning, nibble-oriented byte vector. Counterpart to NibbleSlice.
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Debug)]
+/// Owning, nibble-oriented byte vector. Counterpart to `NibbleSlice`.
 pub struct NibbleVec {
 	inner: Vec<u8>,
 	len: usize,
 }
 
 impl NibbleVec {
-	/// Make a new NibbleVec
+	/// Make a new `NibbleVec`
 	pub fn new() -> Self {
 		NibbleVec {
 			inner: Vec::new(),
@@ -18,7 +35,7 @@ impl NibbleVec {
 		}
 	}
 
-	/// Make a NibbleVec with capacity for `n` nibbles.
+	/// Make a `NibbleVec` with capacity for `n` nibbles.
 	pub fn with_capacity(n: usize) -> Self {
 		NibbleVec {
 			inner: Vec::with_capacity((n / 2) + (n % 2)),
@@ -26,10 +43,13 @@ impl NibbleVec {
 		}
 	}
 
-	/// Length of the NibbleVec
+	/// Length of the `NibbleVec`
 	pub fn len(&self) -> usize { self.len }
 
-	/// Capacity of the NibbleVec.
+	/// Retrurns true if `NibbleVec` has zero length
+	pub fn is_empty(&self) -> bool { self.len == 0 }
+
+	/// Capacity of the `NibbleVec`.
 	pub fn capacity(&self) -> usize { self.inner.capacity() * 2 }
 
 	/// Try to get the nibble at the given offset.
@@ -41,7 +61,7 @@ impl NibbleVec {
 		}
 	}
 
-	/// Push a nibble onto the NibbleVec. Ignores the high 4 bits.
+	/// Push a nibble onto the `NibbleVec`. Ignores the high 4 bits.
 	pub fn push(&mut self, nibble: u8) {
 		let nibble = nibble & 0x0F;
 
@@ -54,9 +74,9 @@ impl NibbleVec {
 		self.len += 1;
 	}
 
-	/// Try to pop a nibble off the NibbleVec. Fails if len == 0.
+	/// Try to pop a nibble off the `NibbleVec`. Fails if len == 0.
 	pub fn pop(&mut self) -> Option<u8> {
-		if self.len == 0 {
+		if self.is_empty() {
 			return None;
 		}
 
@@ -72,7 +92,7 @@ impl NibbleVec {
 		Some(nibble)
 	}
 
-	/// Try to treat this NibbleVec as a NibbleSlice. Works only if len is even.
+	/// Try to treat this `NibbleVec` as a `NibbleSlice`. Works only if len is even.
 	pub fn as_nibbleslice(&self) -> Option<NibbleSlice> {
 		if self.len % 2 == 0 {
 			Some(NibbleSlice::new(self.inner()))

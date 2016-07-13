@@ -22,6 +22,7 @@ use crossbeam::sync::chase_lev;
 use io::service::{HandlerId, IoChannel, IoContext};
 use io::{IoHandler};
 use panics::*;
+use misc::Lockable;
 
 pub enum WorkType<Message> {
 	Readable,
@@ -81,7 +82,7 @@ impl Worker {
 						where Message: Send + Sync + Clone + 'static {
 		loop {
 			{
-				let lock = wait_mutex.lock().unwrap();
+				let lock = wait_mutex.locked();
 				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}

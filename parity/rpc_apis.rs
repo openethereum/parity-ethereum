@@ -18,22 +18,15 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use die::*;
-use ethsync::EthSync;
+use ethsync::{EthSync, ManageNetwork};
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use util::RotatingLogger;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
-use util::network::NetworkService;
 
-#[cfg(feature="rpc")]
 pub use ethcore_rpc::ConfirmationsQueue;
-#[cfg(not(feature="rpc"))]
-#[derive(Default)]
-pub struct ConfirmationsQueue;
 
-#[cfg(feature="rpc")]
 use ethcore_rpc::Extendable;
 
 pub enum Api {
@@ -90,7 +83,7 @@ pub struct Dependencies {
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub allow_pending_receipt_query: bool,
-	pub net_service: Arc<NetworkService<::ethcore::service::SyncMessage>>,
+	pub net_service: Arc<ManageNetwork>,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -166,7 +159,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone(), queue).to_delegate())
 			},
 			Api::EthcoreSet => {
-				server.add_delegate(EthcoreSetClient::new(&deps.miner, &deps.net_service).to_delegate())
+				server.add_delegate(EthcoreSetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())

@@ -17,7 +17,7 @@
 //! Session handlers factory.
 
 use ws;
-use sysui;
+use signer;
 use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
@@ -25,11 +25,11 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::H256;
 
-fn origin_is_allowed(self_origin: &str, header: Option<&Vec<u8>>) -> bool {
+fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	match header {
 		None => false,
 		Some(h) => {
-			let v = String::from_utf8(h.clone()).ok();
+			let v = String::from_utf8(h.to_owned()).ok();
 			match v {
 				Some(ref origin) if origin.starts_with("chrome-extension://") => true,
 				Some(ref origin) if origin.starts_with(self_origin) => true,
@@ -84,8 +84,8 @@ pub struct Session {
 
 impl ws::Handler for Session {
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
-		let origin = req.header("origin").or_else(|| req.header("Origin"));
-		let host = req.header("host").or_else(|| req.header("Host"));
+		let origin = req.header("origin").or_else(|| req.header("Origin")).map(|x| &x[..]);
+		let host = req.header("host").or_else(|| req.header("Host")).map(|x| &x[..]);
 
 		// Check request origin and host header.
 		if !origin_is_allowed(&self.self_origin, origin) && !(origin.is_none() && origin_is_allowed(&self.self_origin, host)) {
@@ -111,7 +111,7 @@ impl ws::Handler for Session {
 		}
 
 		// Otherwise try to serve a page.
-		Ok(sysui::handle(req.resource())
+		Ok(signer::handle(req.resource())
 			.map_or_else(
 				// return 404 not found
 				|| add_headers(ws::Response::not_found("Not found".into()), "text/plain"),

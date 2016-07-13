@@ -17,23 +17,33 @@
 //! Common log helper functions
 
 use std::env;
+use std::borrow::Cow;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use std::sync::{RwLock, RwLockReadGuard};
 use std::sync::atomic::{Ordering, AtomicBool};
 use arrayvec::ArrayVec;
+use misc::RwLockable;
 pub use ansi_term::{Colour, Style};
 
 lazy_static! {
 	static ref USE_COLOR: AtomicBool = AtomicBool::new(false);
 }
 
-/// Paint, using colour if desired.
-pub fn paint(c: Style, t: String) -> String {
-	match USE_COLOR.load(Ordering::Relaxed) {
-		true => format!("{}", c.paint(t)),
-		false => t,
-	}
+/// Something which can be apply()ed.
+pub trait Applyable: AsRef<str> {
+	/// Apply the style `c` to ourself, returning us styled in that manner.
+	fn apply(&self, c: Style) -> Cow<str>;
+}
+
+impl<T: AsRef<str>> Applyable for T {
+    fn apply(&self, c: Style) -> Cow<str> {
+        let s = self.as_ref();
+        match USE_COLOR.load(Ordering::Relaxed) {
+            true => Cow::Owned(format!("{}", c.paint(s))),
+            false => Cow::Borrowed(s),
+        }
+    }
 }
 
 lazy_static! {
@@ -45,7 +55,7 @@ lazy_static! {
 			builder.parse(&log);
 		}
 
-		if let Ok(_) = builder.init() {
+		if builder.init().is_ok() {
 			println!("logger initialized");
 		}
 		true
@@ -81,7 +91,7 @@ impl RotatingLogger {
 
 	/// Append new log entry
 	pub fn append(&self, log: String) {
-		self.logs.write().unwrap().insert(0, log);
+		self.logs.unwrapped_write().insert(0, log);
 	}
 
 	/// Return levels
@@ -91,7 +101,7 @@ impl RotatingLogger {
 
 	/// Return logs
 	pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
-		self.logs.read().unwrap()
+		self.logs.unwrapped_read()
 	}
 
 }

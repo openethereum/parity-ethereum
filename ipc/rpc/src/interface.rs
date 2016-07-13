@@ -20,6 +20,7 @@ use std::io::{Read, Write};
 use std::marker::Sync;
 use semver::Version;
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Handshake for client and server to negotiate api/protocol version
 pub struct Handshake {
 	pub protocol_version: Version,
@@ -91,7 +92,7 @@ pub fn invoke<W>(method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: 
 }
 
 /// IpcSocket, read/write generalization
-pub trait IpcSocket: Read + Write + Sync {
+pub trait IpcSocket: Read + Write + Sync + Send {
 }
 
 /// Basically something that needs only socket to be spawned

@@ -32,7 +32,19 @@ Usage:
   parity [options]
   parity ui [options]
 
-Protocol Options:
+Operating Options:
+  --mode MODE              Set the operating mode. MODE can be one of:
+                           active - Parity continuously syncs the chain.
+                           passive - Parity syncs initially, then sleeps and
+                           wakes regularly to resync. 
+                           dark - Parity syncs only when an external interface
+                           is active. [default: active].
+  --mode-timeout SECS      Specify the number of seconds before inactivity
+                           timeout occurs when mode is dark or passive
+                           [default: 300].
+  --mode-alarm SECS        Specify the number of seconds before auto sleep
+                           reawake timeout occurs when mode is passive
+                           [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, or testnet
@@ -45,9 +57,8 @@ Protocol Options:
   --fork POLICY            Specifies the client's fork policy. POLICY must be
                            one of:
                            dogmatic - sticks rigidly to the standard chain.
-                           dao-soft - votes for the DAO-rescue soft-fork.
-                           normal - goes with whatever fork is decided but
-                           votes for none. [default: normal].
+                           none - goes with whatever fork is decided but
+                           votes for none. [default: none].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
@@ -159,6 +170,10 @@ Sealing/Mining Options:
                            amount in USD, a web service or 'auto' to use each
                            web service in turn and fallback on the last known
                            good value [default: auto].
+  --price-update-period T  T will be allowed to pass between each gas price
+                           update. T may be daily, hourly, a number of seconds,
+                           or a time string of the form "2 days", "30 minutes"
+                           etc. [default: hourly].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
                            block [default: 4700000].
   --gas-cap GAS            A cap on how large we will raise the gas limit per
@@ -249,6 +264,8 @@ Legacy Options:
 Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
                            format as RUST_LOG.
+  --log-file FILENAME      Specify a filename into which logging should be
+                           directed.
   --no-color               Don't use terminal color codes in output.
   -v --version             Show information about version.
   -h --help                Show this screen.
@@ -269,6 +286,9 @@ pub struct Args {
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,
+	pub flag_mode: String,
+	pub flag_mode_timeout: u64,
+	pub flag_mode_alarm: u64,
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
@@ -321,6 +341,7 @@ pub struct Args {
 	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,
+	pub flag_price_update_period: String,
 	pub flag_gas_floor_target: String,
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
@@ -332,6 +353,7 @@ pub struct Args {
 	pub flag_to: String,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
+	pub flag_log_file: Option<String>,
 	pub flag_no_color: bool,
 	pub flag_no_network: bool,
 	// legacy...

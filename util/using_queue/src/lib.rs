@@ -13,6 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 //! Queue-like datastructure including notion of usage.
 
 /// Special queue-like datastructure that includes the notion of
@@ -50,7 +51,7 @@ impl<T> UsingQueue<T> where T: Clone {
 	pub fn peek_last_ref(&self) -> Option<&T> {
 		self.pending.as_ref().or(self.in_use.last())
 	}
-	
+
 	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
 	/// this constitutes using the item and will remain in the queue for at least another
 	/// `max_size` invocations of `push()`.

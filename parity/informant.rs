@@ -21,8 +21,8 @@ use self::ansi_term::Style;
 use std::time::{Instant, Duration};
 use std::sync::RwLock;
 use std::ops::{Deref, DerefMut};
-use ethsync::{EthSync, SyncProvider};
-use util::Uint;
+use ethsync::SyncStatus;
+use util::{Uint, RwLockable, NetworkConfiguration};
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 
@@ -76,19 +76,19 @@ impl Informant {
 	}
 
 	#[cfg_attr(feature="dev", allow(match_bool))]
-	pub fn tick(&self, client: &Client, maybe_sync: Option<&EthSync>) {
-		let elapsed = self.last_tick.read().unwrap().elapsed();
+	pub fn tick(&self, client: &Client, maybe_status: Option<(SyncStatus, NetworkConfiguration)>) {
+		let elapsed = self.last_tick.unwrapped_read().elapsed();
 		if elapsed < Duration::from_secs(5) {
 			return;
 		}
 
-		*self.last_tick.write().unwrap() = Instant::now();
+		*self.last_tick.unwrapped_write() = Instant::now();
 
 		let chain_info = client.chain_info();
 		let queue_info = client.queue_info();
 		let cache_info = client.blockchain_cache_info();
 
-		let mut write_report = self.report.write().unwrap();
+		let mut write_report = self.report.unwrapped_write();
 		let report = client.report();
 
 		let paint = |c: Style, t: String| match self.with_color {
@@ -97,8 +97,8 @@ impl Informant {
 		};
 
 		if let (_, _, &Some(ref last_report)) = (
-			self.chain_info.read().unwrap().deref(),
-			self.cache_info.read().unwrap().deref(),
+			self.chain_info.unwrapped_read().deref(),
+			self.cache_info.unwrapped_read().deref(),
 			write_report.deref()
 		) {
 			println!("{} {}   {} blk/s {} tx/s {} Mgas/s   {}{}+{} Qed   {} db {} chain {} queue{}",
@@ -109,12 +109,12 @@ impl Informant {
 				paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
 				paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64())),
 
-				match maybe_sync {
-					Some(sync) => {
-						let sync_info = sync.status();
-						format!("{}/{} peers   {} ",
+				match maybe_status {
+					Some((ref sync_info, ref net_config)) => {
+						format!("{}/{}/{} peers   {} ",
 							paint(Green.bold(), format!("{:2}", sync_info.num_active_peers)),
 							paint(Green.bold(), format!("{:2}", sync_info.num_peers)),
+							paint(Green.bold(), format!("{:2}", net_config.ideal_peers)),
 							paint(Cyan.bold(), format!("{:>8}", format!("#{}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number)))),
 						)
 					}
@@ -127,18 +127,14 @@ impl Informant {
 				paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(report.state_db_mem))),
 				paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(cache_info.total()))),
 				paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(queue_info.mem_used))),
-				match maybe_sync {
-					Some(sync) => {
-						let sync_info = sync.status();
-						format!(" {} sync", paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(sync_info.mem_used))))
-					}
-					None => String::new()
-				},
+				if let Some((ref sync_info, _)) = maybe_status {
+					format!(" {} sync", paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(sync_info.mem_used))))
+				} else { String::new() },
 			);
 		}
 
-		*self.chain_info.write().unwrap().deref_mut() = Some(chain_info);
-		*self.cache_info.write().unwrap().deref_mut() = Some(cache_info);
+		*self.chain_info.unwrapped_write().deref_mut() = Some(chain_info);
+		*self.cache_info.unwrapped_write().deref_mut() = Some(cache_info);
 		*write_report.deref_mut() = Some(report);
 	}
 }

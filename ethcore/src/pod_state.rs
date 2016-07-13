@@ -72,7 +72,7 @@ impl fmt::Display for PodState {
 
 /// Calculate and return diff between `pre` state and `post` state.
 pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
-	StateDiff(pre.get().keys().merge(post.get().keys()).filter_map(|acc| pod_account::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d|(acc.clone(), d))).collect())
+	StateDiff { raw: pre.get().keys().merge(post.get().keys()).filter_map(|acc| pod_account::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d|(acc.clone(), d))).collect() }
 }
 
 #[cfg(test)]
@@ -86,22 +86,22 @@ mod test {
 	#[test]
 	fn create_delete() {
 		let a = PodState::from(map![ 1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]) ]);
-		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff(map![
+		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff { raw: map![
 			1.into() => AccountDiff{
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
 				code: Diff::Died(vec![]),
 				storage: map![],
 			}
-		]));
-		assert_eq!(super::diff_pod(&PodState::new(), &a), StateDiff(map![
+		]});
+		assert_eq!(super::diff_pod(&PodState::new(), &a), StateDiff{ raw: map![
 			1.into() => AccountDiff{
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),
 				code: Diff::Born(vec![]),
 				storage: map![],
 			}
-		]));
+		]});
 	}
 
 	#[test]
@@ -111,22 +111,22 @@ mod test {
 			1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]),
 			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
 		]);
-		assert_eq!(super::diff_pod(&a, &b), StateDiff(map![
+		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
 			2.into() => AccountDiff{
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),
 				code: Diff::Born(vec![]),
 				storage: map![],
 			}
-		]));
-		assert_eq!(super::diff_pod(&b, &a), StateDiff(map![
+		]});
+		assert_eq!(super::diff_pod(&b, &a), StateDiff { raw: map![
 			2.into() => AccountDiff{
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
 				code: Diff::Died(vec![]),
 				storage: map![],
 			}
-		]));
+		]});
 	}
 
 	#[test]
@@ -139,14 +139,14 @@ mod test {
 			1.into() => PodAccount::new(69.into(), 1.into(), vec![], map![]),
 			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
 		]);
-		assert_eq!(super::diff_pod(&a, &b), StateDiff(map![
+		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
 			1.into() => AccountDiff{
 				balance: Diff::Same,
 				nonce: Diff::Changed(0.into(), 1.into()),
 				code: Diff::Same,
 				storage: map![],
 			}
-		]));
+		]});
 	}
 
 }
