@@ -257,6 +257,12 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 	}
 }
 
+#[cfg(windows)]
+static SOLC: &'static str = "solc.exe";
+
+#[cfg(not(windows))]
+static SOLC: &'static str = "solc";
+
 impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
@@ -512,7 +518,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		match params {
 			Params::None => {
 				let mut compilers = vec![];  
-				if Command::new("solc").output().is_ok() {
+				if Command::new(SOLC).output().is_ok() {
 					compilers.push("solidity".to_owned())
 				}
 				to_value(&compilers)
@@ -659,7 +665,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 		from_params::<(String, )>(params)
 			.and_then(|(code, )| {
-				let maybe_child = Command::new("solc")
+				let maybe_child = Command::new(SOLC)
 					.arg("--bin")
 					.arg("--optimize")
 					.stdin(Stdio::piped())

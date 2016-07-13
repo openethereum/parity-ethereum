@@ -707,6 +707,11 @@ fn rpc_eth_compilers() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
+// These tests are incorrect: their output is undefined as long as eth_getCompilers is [].
+// Will ignore for now, but should probably be replaced by more substantial tests which check
+// the output of eth_getCompilers to determine whether to test. CI systems can then be preinstalled
+// with solc/serpent/lllc and they'll be proper again.
+#[ignore]
 #[test]
 fn rpc_eth_compile_lll() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileLLL", "params": [], "id": 1}"#;
@@ -715,6 +720,7 @@ fn rpc_eth_compile_lll() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
+#[ignore]
 #[test]
 fn rpc_eth_compile_solidity() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSolidity", "params": [], "id": 1}"#;
@@ -723,6 +729,7 @@ fn rpc_eth_compile_solidity() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
+#[ignore]
 #[test]
 fn rpc_eth_compile_serpent() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSerpent", "params": [], "id": 1}"#;
