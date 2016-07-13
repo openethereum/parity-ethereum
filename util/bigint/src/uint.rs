@@ -713,9 +713,8 @@ macro_rules! construct_uint {
 			/// Fast exponentation by squaring
 			/// https://en.wikipedia.org/wiki/Exponentiation_by_squaring
 			fn overflowing_pow(self, expon: Self) -> (Self, bool) {
-				if expon == Self::zero() {
-					return (Self::one(), false)
-				}
+				if expon.is_zero() { return (Self::one(), false) }
+
 				let is_even = |x : &Self| x.low_u64() & 1 == 0;
 
 				let u_one = Self::one();
@@ -728,11 +727,11 @@ macro_rules! construct_uint {
 				while n > u_one {
 					if is_even(&n) {
 						x = overflowing!(x.overflowing_mul(x), overflow);
-						n = n / u_two;
+						n = n >> 1;
 					} else {
 						y = overflowing!(x.overflowing_mul(y), overflow);
 						x = overflowing!(x.overflowing_mul(x), overflow);
-						n = (n - u_one) / u_two;
+						n = (n - u_one) >> 1;
 					}
 				}
 				let res = overflowing!(x.overflowing_mul(y), overflow);
