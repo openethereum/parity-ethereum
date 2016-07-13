@@ -59,9 +59,9 @@ install:
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
 
 script:
-  - if [ "$RUN_TESTS" = "true" ]; then cargo test --release --verbose ${FEATURES} ${TARGETS}; fi
-  - if [ "$RUN_BENCHES" = "true" ]; then cargo bench --no-run ${FEATURES} ${TARGETS}; fi
-  - if [ "$RUN_BUILD" = "true" ]; then cargo build --release --verbose ${FEATURES}; fi
+  - if [ "$RUN_TESTS" = "true" ]; then cargo test --release --verbose --no-default-features ${FEATURES} ${TARGETS}; fi
+  - if [ "$RUN_BENCHES" = "true" ]; then cargo bench --no-run --no-default-features ${FEATURES} ${TARGETS}; fi
+  - if [ "$RUN_BUILD" = "true" ]; then cargo build --release --verbose --no-default-features ${FEATURES}; fi
   - if [ "$RUN_BUILD" = "true" ]; then tar cvzf parity${ARCHIVE_SUFFIX}.tar.gz -C target/release parity; fi
 
 after_success: |
