@@ -901,6 +901,11 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
+		if value.is_empty() {
+			self.remove(key);
+			return;
+		}
+
 		let root_handle = self.root_handle();
 		let (new_handle, changed) = self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
 		self.root_handle = new_handle;
