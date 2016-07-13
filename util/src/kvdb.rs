@@ -17,7 +17,7 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
 use std::default::Default;
-use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
+use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
@@ -144,6 +144,7 @@ impl<'a> Iterator for DatabaseIterator {
 /// Key-Value database.
 pub struct Database {
 	db: DB,
+	write_opts: WriteOptions,
 }
 
 impl Database {
@@ -185,6 +186,10 @@ impl Database {
 			// quarter goes to each of the two write buffers
 			opts.set_write_buffer_size(cache_size * 1024 * 256);
 		}
+
+		let mut write_opts = WriteOptions::new();
+		write_opts.disable_wal(true);
+
 		let db = match DB::open(&opts, path) {
 			Ok(db) => db,
 			Err(ref s) if s.starts_with("Corruption:") => {
@@ -195,7 +200,7 @@ impl Database {
 			},
 			Err(s) => { return Err(s); }
 		};
-		Ok(Database { db: db })
+		Ok(Database { db: db, write_opts: write_opts, })
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
@@ -210,7 +215,7 @@ impl Database {
 
 	/// Commit transaction to database.
 	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
-		self.db.write(tr.batch)
+		self.db.write_opt(tr.batch, &self.write_opts)
 	}
 
 	/// Get value by key.
