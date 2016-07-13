@@ -272,9 +272,9 @@ mod tests {
 	fn account_compress() {
     let raw = Account::new_basic(2.into(), 4.into()).rlp();
     let rlp = UntrustedRlp::new(&raw);
-    let compact_vec = rlp.compress().to_vec();
+    let compact_vec = rlp.simple_compress().to_vec();
     assert!(raw.len() > compact_vec.len());
-    let again_raw = UntrustedRlp::new(&compact_vec).decompress();
+    let again_raw = UntrustedRlp::new(&compact_vec).simple_decompress();
     assert_eq!(raw, again_raw.to_vec());
   }
 
