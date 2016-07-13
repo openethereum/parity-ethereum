@@ -31,10 +31,10 @@ install:
 build: off
 
 test_script:
-  - cargo test --verbose --release
+  - cargo test --verbose --release --no-default-features
 
 after_test:
-  - cargo build --verbose --release
+  - cargo build --verbose --release --no-default-features
   - ps: if($env:cert) { Start-FileDownload $env:cert -FileName $env:keyfile }
   - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass target\release\parity.exe }
   - makensis.exe nsis\installer.nsi

@@ -9,6 +9,6 @@ export TARGETS="
 	-p ethsync \
 	-p ethcore-rpc \
 	-p ethcore-signer \
-	-p ethcore-dapps \
 	-p parity \
 	-p bigint"
+# TODO [ToDr] add ethcore-dapps back

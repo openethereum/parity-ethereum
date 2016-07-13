@@ -17,27 +17,27 @@ env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
 time = "0.1"
-ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-fdlimit = { path = "util/fdlimit" }
 num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
-clippy = { version = "0.0.79", optional = true}
+semver = "0.2"
+ansi_term = "0.7"
+lazy_static = "0.2"
+regex = "0.1"
+ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
+fdlimit = { path = "util/fdlimit" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc" }
 ethcore-signer = { path = "signer" }
-ethcore-dapps = { path = "dapps", optional = true }
-semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
-ansi_term = "0.7"
-lazy_static = "0.2"
-regex = "0.1"
+ethcore-dapps = { path = "dapps", optional = true }
+clippy = { version = "0.0.79", optional = true}
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
@@ -50,7 +50,7 @@ version = "0.8"
 default-features = false
 
 [features]
-default = ["dapps"]
+default = ["dapps", "ethcore-signer/ui"]
 dapps = ["ethcore-dapps"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev",
 "ethcore-dapps/dev", "ethcore-signer/dev"]

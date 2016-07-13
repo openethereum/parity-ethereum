@@ -18,7 +18,6 @@ use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::numbers::*;
-use util::Lockable;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
@@ -113,7 +112,7 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 0);
-	assert_eq!(tester.miner.imported_transactions.locked().len(), 0);
+	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
 }
 
 #[test]
@@ -182,6 +181,6 @@ fn should_confirm_transaction_and_dispatch() {
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 0);
-	assert_eq!(tester.miner.imported_transactions.locked().len(), 1);
+	assert_eq!(tester.miner.imported_transactions.lock().len(), 1);
 }
 

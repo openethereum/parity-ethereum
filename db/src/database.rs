@@ -17,7 +17,6 @@
 //! Ethcore rocksdb ipc service
 
 use traits::*;
-use misc::RwLockable;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBIterator, IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 use std::sync::{RwLock, Arc};
 use std::convert::From;
@@ -137,8 +136,8 @@ impl Database {
 	}
 
 	pub fn flush(&self) -> Result<(), Error> {
-		let mut cache_lock = self.write_cache.unwrapped_write();
-		let db_lock = self.db.unwrapped_read();
+		let mut cache_lock = self.write_cache.write();
+		let db_lock = self.db.read();
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().unwrap();
 
@@ -147,8 +146,8 @@ impl Database {
 	}
 
 	pub fn flush_all(&self) -> Result<(), Error> {
-		let mut cache_lock = self.write_cache.unwrapped_write();
-		let db_lock = self.db.unwrapped_read();
+		let mut cache_lock = self.write_cache.write();
+		let db_lock = self.db.read();
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().expect("we should have exited with Ok(()) on the previous step");
 
@@ -167,7 +166,7 @@ impl Drop for Database {
 #[derive(Ipc)]
 impl DatabaseService for Database {
 	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error> {
-		let mut db = self.db.unwrapped_write();
+		let mut db = self.db.write();
 		if db.is_some() { return Err(Error::AlreadyOpen); }
 
 		let mut opts = Options::new();
@@ -194,7 +193,7 @@ impl DatabaseService for Database {
 	fn close(&self) -> Result<(), Error> {
 		try!(self.flush_all());
 
-		let mut db = self.db.unwrapped_write();
+		let mut db = self.db.write();
 		if db.is_none() { return Err(Error::IsClosed); }
 
 		*db = None;
@@ -202,19 +201,19 @@ impl DatabaseService for Database {
 	}
 
 	fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
-		let mut cache_lock = self.write_cache.unwrapped_write();
+		let mut cache_lock = self.write_cache.write();
 		cache_lock.write(key.to_vec(), value.to_vec());
 		Ok(())
 	}
 
 	fn delete(&self, key: &[u8]) -> Result<(), Error> {
-		let mut cache_lock = self.write_cache.unwrapped_write();
+		let mut cache_lock = self.write_cache.write();
 		cache_lock.remove(key.to_vec());
 		Ok(())
 	}
 
 	fn write(&self, transaction: DBTransaction) -> Result<(), Error> {
-		let mut cache_lock = self.write_cache.unwrapped_write();
+		let mut cache_lock = self.write_cache.write();
 
 		let mut writes = transaction.writes.borrow_mut();
 		for kv in writes.drain(..) {
@@ -231,13 +230,13 @@ impl DatabaseService for Database {
 	fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		{
 			let key_vec = key.to_vec();
-			let cache_hit = self.write_cache.unwrapped_read().get(&key_vec);
+			let cache_hit = self.write_cache.read().get(&key_vec);
 
 			if cache_hit.is_some() {
 				return Ok(Some(cache_hit.expect("cache_hit.is_some() = true, still there is none somehow here")))
 			}
 		}
-		let db_lock = self.db.unwrapped_read();
+		let db_lock = self.db.read();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
 		match try!(db.get(key)) {
@@ -249,7 +248,7 @@ impl DatabaseService for Database {
 	}
 
 	fn get_by_prefix(&self, prefix: &[u8]) -> Result<Option<Vec<u8>>, Error> {
-		let db_lock = self.db.unwrapped_read();
+		let db_lock = self.db.read();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
 		let mut iter = db.iterator(IteratorMode::From(prefix, Direction::Forward));
@@ -261,17 +260,17 @@ impl DatabaseService for Database {
 	}
 
 	fn is_empty(&self) -> Result<bool, Error> {
-		let db_lock = self.db.unwrapped_read();
+		let db_lock = self.db.read();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
 		Ok(db.iterator(IteratorMode::Start).next().is_none())
 	}
 
 	fn iter(&self) -> Result<IteratorHandle, Error> {
-		let db_lock = self.db.unwrapped_read();
+		let db_lock = self.db.read();
 		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
 
-		let mut iterators = self.iterators.unwrapped_write();
+		let mut iterators = self.iterators.write();
 		let next_iterator = iterators.keys().last().unwrap_or(&0) + 1;
 		iterators.insert(next_iterator, db.iterator(IteratorMode::Start));
 		Ok(next_iterator)
@@ -279,7 +278,7 @@ impl DatabaseService for Database {
 
 	fn iter_next(&self, handle: IteratorHandle) -> Option<KeyValue>
 	{
-		let mut iterators = self.iterators.unwrapped_write();
+		let mut iterators = self.iterators.write();
 		let mut iterator = match iterators.get_mut(&handle) {
 			Some(some_iterator) => some_iterator,
 			None => { return None; },
@@ -294,7 +293,7 @@ impl DatabaseService for Database {
 	}
 
 	fn dispose_iter(&self, handle: IteratorHandle) -> Result<(), Error> {
-		let mut iterators = self.iterators.unwrapped_write();
+		let mut iterators = self.iterators.write();
 		iterators.remove(&handle);
 		Ok(())
 	}
