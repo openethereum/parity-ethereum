@@ -181,8 +181,10 @@ impl Database {
 				opts.set_write_buffer_size(cache_size * 1024 * 256);
 			}
 		} else if let Some(cache_size) = config.cache_size {
+			let mut block_opts = BlockBasedOptions::new();
 			// half goes to read cache
-			opts.set_block_cache_size_mb(cache_size as u64 / 2);
+			block_opts.set_cache(Cache::new(cache_size * 1024 * 256));
+			opts.set_block_based_table_factory(&block_opts);
 			// quarter goes to each of the two write buffers
 			opts.set_write_buffer_size(cache_size * 1024 * 256);
 		}
