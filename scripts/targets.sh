@@ -1,7 +1,6 @@
-#!/bin/sh
-# generate documentation only for partiy and ethcore libraries
+#!/bin/bash
 
-cargo doc --no-deps --verbose \
+export TARGETS="
 	-p ethkey \
 	-p ethstore \
 	-p ethash \
@@ -12,3 +11,4 @@ cargo doc --no-deps --verbose \
 	-p ethcore-signer \
 	-p ethcore-dapps \
 	-p parity \
+	-p bigint"
