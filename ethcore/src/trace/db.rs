@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trace database.
-use std::ptr;
 use std::ops::{Deref, DerefMut};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -47,9 +46,7 @@ impl Key<BlockTraces> for H256 {
 	fn key(&self) -> H264 {
 		let mut result = H264::default();
 		result[0] = TraceDBIndex::BlockTraces as u8;
-		unsafe {
-			ptr::copy(self.as_ptr(), result.as_mut_ptr().offset(1), 32);
-		}
+		result[1..33].copy_from_slice(self);
 		result
 	}
 }
@@ -84,9 +81,9 @@ impl Key<blooms::BloomGroup> for TraceGroupPosition {
 		result[0] = TraceDBIndex::BloomGroups as u8;
 		result[1] = self.0.level;
 		result[2] = self.0.index as u8;
-		result[3] = (self.0.index << 8) as u8;
-		result[4] = (self.0.index << 16) as u8;
-		result[5] = (self.0.index << 24) as u8;
+		result[3] = (self.0.index >> 8) as u8;
+		result[4] = (self.0.index >> 16) as u8;
+		result[5] = (self.0.index >> 24) as u8;
 		TraceGroupKey(result)
 	}
 }

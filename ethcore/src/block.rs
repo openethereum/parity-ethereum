@@ -39,7 +39,17 @@ impl Block {
 	pub fn is_good(b: &[u8]) -> bool {
 		UntrustedRlp::new(b).as_val::<Block>().is_ok()
 	}
+
+	/// Get the RLP-encoding of the block without the seal.
+	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
+		let mut block_rlp = RlpStream::new_list(3);
+		self.header.stream_rlp(&mut block_rlp, seal);
+		block_rlp.append(&self.transactions);
+		block_rlp.append(&self.uncles);
+		block_rlp.out()
+	}
 }
+
 
 impl Decodable for Block {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
@@ -140,8 +150,11 @@ impl ExecutedBlock {
 
 /// Trait for a object that is a `ExecutedBlock`.
 pub trait IsBlock {
-	/// Get the block associated with this object.
+	/// Get the `ExecutedBlock` associated with this object.
 	fn block(&self) -> &ExecutedBlock;
+
+	/// Get the base `Block` object associated with this.
+	fn base(&self) -> &Block { &self.block().base }
 
 	/// Get the header associated with this object's block.
 	fn header(&self) -> &Header { &self.block().base.header }

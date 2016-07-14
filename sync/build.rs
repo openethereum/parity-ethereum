@@ -14,18 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethsync::{ManageNetwork, NetworkConfiguration};
-use util;
+extern crate syntex;
+extern crate ethcore_ipc_codegen as codegen;
 
-pub struct TestManageNetwork;
+use std::env;
+use std::path::Path;
 
-// TODO: rob, gavin (originally introduced this functions) - proper tests and test state
-impl ManageNetwork for TestManageNetwork {
-	fn accept_unreserved_peers(&self) { }
-	fn deny_unreserved_peers(&self) { }
-	fn remove_reserved_peer(&self, _peer: String) -> Result<(), String> { Ok(()) }
-	fn add_reserved_peer(&self, _peer: String) -> Result<(), String> { Ok(()) }
-	fn start_network(&self) {}
-	fn stop_network(&self) {}
-	fn network_config(&self) -> NetworkConfiguration { NetworkConfiguration::from(util::NetworkConfiguration::new_local()) }
+fn main() {
+	let out_dir = env::var_os("OUT_DIR").unwrap();
+
+	// sync interface
+	{
+		let src = Path::new("src/api.rs");
+		let intermediate = Path::new(&out_dir).join("api.intermediate.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &intermediate).unwrap();
+
+		let dst = Path::new(&out_dir).join("api.ipc.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &intermediate, &dst).unwrap();
+	}
 }

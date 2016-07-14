@@ -89,7 +89,7 @@ use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, Bloc
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
-use ethsync::EthSync;
+use ethsync::{EthSync, NetworkConfiguration};
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
@@ -248,7 +248,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone(), net_settings)
+	let sync = EthSync::new(sync_config, client.clone(), NetworkConfiguration::from(net_settings))
 		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
 	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
 

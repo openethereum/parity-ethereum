@@ -70,4 +70,4 @@ impl Service {
 	}
 }
 
-impl ::ipc::IpcConfig for Service {}
+impl ::ipc::IpcConfig<Service> for ::std::sync::Arc<Service> {}
