@@ -75,7 +75,7 @@ mod url;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::Arc;
 use std::path::Path;
 use std::fs::File;
 use std::str::{FromStr, from_utf8};
@@ -83,17 +83,18 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{Lockable, H256, ToPretty, PayloadInfo, Bytes, Colour, version, journaldb};
+use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError,
 	ChainNotify, Mode};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
-use ethsync::EthSync;
+use ethsync::{EthSync, NetworkConfiguration};
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
+use util::{Mutex, Condvar};
 
 use die::*;
 use cli::print_version;
@@ -248,7 +249,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone(), net_settings)
+	let sync = EthSync::new(sync_config, client.clone(), NetworkConfiguration::from(net_settings))
 		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
 	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
 
@@ -594,7 +595,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.locked()).unwrap();
+	let _ = exit.wait(&mut mutex.lock());
 	info!("Finishing work, please wait...");
 }
 

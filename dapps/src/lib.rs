@@ -70,7 +70,7 @@ mod url;
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
-use ethcore_util::misc::Lockable;
+
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use ethcore_rpc::Extendable;
@@ -153,7 +153,7 @@ impl Server {
 
 	/// Set callback for panics.
 	pub fn set_panic_handler<F>(&self, handler: F) where F : Fn() -> () + Send + 'static {
-		*self.panic_handler.locked() = Some(Box::new(handler));
+		*self.panic_handler.lock().unwrap() = Some(Box::new(handler));
 	}
 }
 

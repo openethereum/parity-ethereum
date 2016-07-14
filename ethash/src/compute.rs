@@ -21,7 +21,6 @@
 
 use primal::is_prime;
 use std::cell::Cell;
-use std::sync::Mutex;
 use std::mem;
 use std::ptr;
 use sha3;
@@ -29,6 +28,8 @@ use std::slice;
 use std::path::PathBuf;
 use std::io::{self, Read, Write};
 use std::fs::{self, File};
+
+use parking_lot::Mutex;
 
 pub const ETHASH_EPOCH_LENGTH: u64 = 30000;
 pub const ETHASH_CACHE_ROUNDS: usize = 3;
@@ -134,7 +135,7 @@ impl Light {
 	}
 
 	pub fn to_file(&self) -> io::Result<()> {
-		let seed_compute = self.seed_compute.lock().unwrap();
+		let seed_compute = self.seed_compute.lock();
 		let path = Light::file_path(seed_compute.get_seedhash(self.block_number));
 		try!(fs::create_dir_all(path.parent().unwrap()));
 		let mut file = try!(File::create(path));

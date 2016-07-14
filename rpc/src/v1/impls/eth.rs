@@ -20,7 +20,7 @@ extern crate ethash;
 
 use std::thread;
 use std::time::{Instant, Duration};
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Weak};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
 use ethcore::miner::{MinerService, ExternalMinerService};
@@ -28,7 +28,7 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use util::Lockable;
+use util::Mutex;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::header::Header as BlockHeader;
@@ -562,7 +562,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 				miner.map_sealing_work(client.deref(), |b| {
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-					let seed_hash = self.seed_compute.locked().get_seedhash(b.block().header().number());
+					let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
 					let block_number = RpcU256::from(b.block().header().number());
 					to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target), block_number))
 				}).unwrap_or(Err(Error::internal_error()))	// no work found.

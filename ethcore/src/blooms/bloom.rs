@@ -20,7 +20,7 @@ use util::HeapSizeOf;
 use basic_types::LogBloom;
 
 /// Helper structure representing bloom of the trace.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Bloom(LogBloom);
 
 impl From<LogBloom> for Bloom {

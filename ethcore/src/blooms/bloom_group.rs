@@ -20,7 +20,7 @@ use util::HeapSizeOf;
 use super::Bloom;
 
 /// Represents group of X consecutive blooms.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct BloomGroup {
 	blooms: Vec<Bloom>,
 }

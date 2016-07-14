@@ -17,12 +17,12 @@
 //! Common log helper functions
 
 use std::env;
-use rlog::{LogLevelFilter};
+use rlog::LogLevelFilter;
 use env_logger::LogBuilder;
-use std::sync::{RwLock, RwLockReadGuard};
 use arrayvec::ArrayVec;
-use misc::RwLockable;
 pub use ansi_term::{Colour, Style};
+
+use parking_lot::{RwLock, RwLockReadGuard};
 
 lazy_static! {
 	static ref LOG_DUMMY: bool = {
@@ -68,7 +68,7 @@ impl RotatingLogger {
 
 	/// Append new log entry
 	pub fn append(&self, log: String) {
-		self.logs.unwrapped_write().insert(0, log);
+		self.logs.write().insert(0, log);
 	}
 
 	/// Return levels
@@ -78,7 +78,7 @@ impl RotatingLogger {
 
 	/// Return logs
 	pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
-		self.logs.unwrapped_read()
+		self.logs.read()
 	}
 
 }
