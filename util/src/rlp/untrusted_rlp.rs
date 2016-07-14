@@ -76,6 +76,7 @@ impl PayloadInfo {
 				let len_of_len = l as usize - 0xb7;
 				let header_len = 1 + len_of_len;
 				if header_bytes[1] == 0 { return Err(DecoderError::RlpDataLenWithZeroPrefix); }
+				if header_bytes.len() < header_len { return Err(DecoderError::RlpIsTooShort); }
 				let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
 				PayloadInfo::new(header_len, value_len)
 			}
@@ -83,6 +84,7 @@ impl PayloadInfo {
 			Some(l @ 0xf8...0xff) => {
 				let len_of_len = l as usize - 0xf7;
 				let header_len = 1 + len_of_len;
+				if header_bytes.len() < header_len { return Err(DecoderError::RlpIsTooShort); }
 				let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
 				if header_bytes[1] == 0 { return Err(DecoderError::RlpListLenWithZeroPrefix); }
 				PayloadInfo::new(header_len, value_len)
