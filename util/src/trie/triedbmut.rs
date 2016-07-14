@@ -588,11 +588,11 @@ impl<'a> TrieDBMut<'a> {
 					// insert into the child node.
 					let (new_child, changed) = self.insert_at(child_branch, partial.mid(cp), value);
 					let new_ext = Node::Extension(existing_key.encoded(false), new_child.into());
-					if changed {
-						InsertAction::Replace(new_ext)
-					} else {
-						// the child branch wasn't changed, meaning this extension remains the same.
-						InsertAction::Restore(new_ext)
+
+					// if the child branch wasn't changed, meaning this extension remains the same.
+					match changed {
+						true => InsertAction::Replace(new_ext),
+						false => InsertAction::Restore(new_ext),
 					}
 				} else {
 					trace!(target: "trie", "partially-shared-prefix (exist={:?}; new={:?}; cp={:?}): AUGMENT-AT-END", existing_key.len(), partial.len(), cp);
@@ -644,12 +644,11 @@ impl<'a> TrieDBMut<'a> {
 						Some((new, changed)) => {
 							children[idx] = Some(new.into());
 							let branch = Node::Branch(children, value);
-							if changed {
+							match changed {
 								// child was changed, so we were too.
-								Action::Replace(branch)
-							} else {
+								true => Action::Replace(branch),
 								// unchanged, so we are too.
-								Action::Restore(branch)
+								false => Action::Restore(branch),
 							}
 						}
 						None => {
@@ -685,14 +684,12 @@ impl<'a> TrieDBMut<'a> {
 					match self.remove_at(child_branch, partial.mid(cp)) {
 						Some((new_child, changed)) => {
 							let new_child = new_child.into();
-							if !changed {
-								// the branch we put in was unchanged.
-								// this means that the extension doesn't need changing either.
-								Action::Restore(Node::Extension(encoded, new_child))
-							} else {
-								// the new node may not be a branch.
-								// always replace since the child was changed somehow.
-								Action::Replace(self.fix(Node::Extension(encoded, new_child)))
+
+							// if the child branch was unchanged, then the extension is too.
+							// otherwise, this extension may need fixing.
+							match changed {
+								true => Action::Replace(self.fix(Node::Extension(encoded, new_child))),
+								false => Action::Restore(Node::Extension(encoded, new_child)),
 							}
 						}
 						None => {
@@ -1023,7 +1020,6 @@ mod tests {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
 	}
 
@@ -1036,7 +1032,6 @@ mod tests {
 		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
 		t1.insert(&[0x01, 0x23], &big_value.to_vec());
 		t1.insert(&[0x01, 0x34], &big_value.to_vec());
-		t1.commit();
 		let mut memdb2 = MemoryDB::new();
 		let mut root2 = H256::new();
 		let mut t2 = TrieDBMut::new(&mut memdb2, &mut root2);
@@ -1044,7 +1039,6 @@ mod tests {
 		t2.insert(&[0x01, 0x23], &big_value.to_vec());
 		t2.insert(&[0x01, 0x34], &big_value.to_vec());
 		t2.remove(&[0x01]);
-		t2.commit();
 	}
 
 	#[test]
@@ -1054,7 +1048,6 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
 	}
 
@@ -1065,7 +1058,6 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
@@ -1074,14 +1066,12 @@ mod tests {
 
 	#[test]
 	fn insert_into_branch_root() {
-		::log::init_log();
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
@@ -1096,7 +1086,6 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[], &[0x0]);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![], vec![0x0]),
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
@@ -1110,7 +1099,6 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x01u8, 0x34], vec![0x01u8, 0x34]),
@@ -1125,7 +1113,6 @@ mod tests {
 		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
 		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
 		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01, 0x23, 0x45], vec![0x01]),
 			(vec![0x01, 0xf3, 0x45], vec![0x02]),
@@ -1143,7 +1130,6 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value0);
 		t.insert(&[0x11u8, 0x23], big_value1);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], big_value0.to_vec()),
 			(vec![0x11u8, 0x23], big_value1.to_vec())
@@ -1159,7 +1145,6 @@ mod tests {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value);
 		t.insert(&[0x11u8, 0x23], big_value);
-		t.commit();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], big_value.to_vec()),
 			(vec![0x11u8, 0x23], big_value.to_vec())
@@ -1225,8 +1210,6 @@ mod tests {
 			let mut memdb2 = MemoryDB::new();
 			let mut root2 = H256::new();
 			let mut memtrie_sorted = populate_trie(&mut memdb2, &mut root2, &y);
-			memtrie.commit();
-			memtrie_sorted.commit();
 			if *memtrie.root() != real || *memtrie_sorted.root() != real {
 				println!("TRIE MISMATCH");
 				println!("");
@@ -1251,7 +1234,6 @@ mod tests {
 		{
 			let mut t = TrieDBMut::new(&mut db, &mut root);
 			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-			t.commit();
 		}
 
 		{
