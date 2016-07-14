@@ -1014,4 +1014,4 @@ impl MayPanic for Client {
 	}
 }
 
-impl IpcConfig for Client { }
+impl IpcConfig<BlockChainClient> for Arc<BlockChainClient> { }

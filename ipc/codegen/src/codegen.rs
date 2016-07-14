@@ -574,8 +574,6 @@ fn push_client_implementation(
 	interface_map: &InterfaceMap,
 	push: &mut FnMut(Annotatable),
 ) {
-	let item_ident = interface_map.ident_map.qualified_ident(builder);
-
 	let mut index = -1i32;
 	let items = interface_map.dispatches.iter()
 		.map(|_| { index = index + 1; P(implement_client_method(cx, builder, index as u16, interface_map)) })
@@ -584,12 +582,13 @@ fn push_client_implementation(
 	let generics = client_generics(builder, interface_map);
 	let client_ident = client_qualified_ident(cx, builder, interface_map);
 	let where_clause = &generics.where_clause;
+	let endpoint = interface_map.endpoint;
 
 	let handshake_item = quote_impl_item!(cx,
 		pub fn handshake(&self) -> Result<(), ::ipc::Error> {
 			let payload = ::ipc::Handshake {
-				protocol_version: $item_ident::protocol_version(),
-				api_version: $item_ident::api_version(),
+				protocol_version: Arc::<$endpoint>::protocol_version(),
+				api_version: Arc::<$endpoint>::api_version(),
 			};
 
 			::ipc::invoke(
@@ -734,6 +733,7 @@ struct InterfaceMap {
 	pub generics: Generics,
 	pub impl_trait: Option<TraitRef>,
 	pub ident_map: IdentMap,
+	pub endpoint: Ident,
 }
 
 struct IdentMap {
@@ -752,10 +752,6 @@ impl IdentMap {
 		else {
 			builder.id(format!("{}Client", self.original_path.segments[0].identifier))
 		}
-	}
-
-	fn qualified_ident(&self, builder: &aster::AstBuilder) -> Ident {
-		builder.id(format!("{}", ::syntax::print::pprust::path_to_string(&self.original_path).replace("<", "::<")))
 	}
 }
 
@@ -804,8 +800,13 @@ fn implement_interface(
 	let (handshake_arm, handshake_arm_buf) = implement_handshake_arm(cx);
 
 	let ty = ty_ident_map(&original_ty).ident(builder);
+	let interface_endpoint = match *impl_trait {
+		Some(ref trait_) => builder.id(::syntax::print::pprust::path_to_string(&trait_.path)),
+		None => ty
+	};
+
 	let ipc_item = quote_item!(cx,
-		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
+		impl $impl_generics ::ipc::IpcInterface<$interface_endpoint> for Arc<$interface_endpoint> $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
 				where R: ::std::io::Read
 			{
@@ -844,5 +845,6 @@ fn implement_interface(
 		dispatches: dispatch_table,
 		generics: generics.clone(),
 		impl_trait: impl_trait.clone(),
+		endpoint: interface_endpoint,
 	})
 }

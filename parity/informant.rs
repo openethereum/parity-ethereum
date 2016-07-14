@@ -20,8 +20,8 @@ use self::ansi_term::Style;
 
 use std::time::{Instant, Duration};
 use std::ops::{Deref, DerefMut};
-use ethsync::SyncStatus;
-use util::{Uint, RwLock, NetworkConfiguration};
+use ethsync::{SyncStatus, NetworkConfiguration};
+use util::{Uint, RwLock};
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 
