@@ -22,6 +22,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use account_db::{AccountDB, AccountDBMut};
+use blockchain::BlockChain;
+use blockchain::extras::BlockDetails;
 use client::BlockChainClient;
 use error::Error;
 use ids::BlockID;
@@ -35,12 +37,54 @@ use self::account::Account;
 use self::block::AbridgedBlock;
 
 use crossbeam::{scope, ScopedJoinHandle};
+use rand::{Rng, OsRng};
 
+pub use self::service::Service;
+
+pub mod service;
 mod account;
 mod block;
 
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
+
+/// The interface for a snapshot network service.
+/// This handles:
+///    - restoration of snapshots to temporary databases.
+///    - responding to queries for snapshot manifests and chunks
+pub trait SnapshotService {
+	/// Query the most recent manifest data.
+	fn manifest(&self) -> Option<ManifestData>;
+
+	/// Get raw chunk for a given hash.
+	fn chunk(&self, hash: H256) -> Result<Bytes, Error>;
+
+	/// Begin snapshot restoration.
+	/// If restoration in-progress, this will reset it.
+	/// From this point on, any previous snapshot may become unavailable.
+	fn begin_restore(&self, manifest: ManifestData);
+
+	/// Finalize snapshot restoration.
+	///
+	/// Requires that all state and block chunks have been fed.
+	/// All fed chunks and the manifest data must become queryable.
+	fn finish_restore(&self);
+
+	/// Feed a raw state chunk to the service.
+	/// no-op if not currently restoring.
+	fn feed_state_chunk(&self, chunk: Bytes);
+
+	/// Feed a raw block chunk to the service.
+	/// no-op if currently restoring.
+	fn feed_block_chunk(&self, chunk: Bytes);
+}
+
+/// Interface for taking snapshots periodically.
+/// This is not IPC-compatible.
+pub trait SnapshotTaker: SnapshotService {
+	/// Take a snapshot using the given client.
+	fn take_snapshot(&self, client: &BlockChainClient);
+}
 
 /// Take a snapshot using the given client and database, writing into `path`.
 pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &HashDB) -> Result<(), Error> {
@@ -129,7 +173,11 @@ impl<'a> BlockChunker<'a> {
 			// cut off the chunk if too large
 			if new_loaded_size > PREFERRED_CHUNK_SIZE {
 				let header = view.header_view();
-				try!(self.write_chunk(header.parent_hash(), header.number(), path));
+				let parent_hash = header.parent_hash();
+				let difficulty = self.client.block_total_difficulty(BlockID::Hash(parent_hash))
+					.expect("started from head of chain and walking backwards; client stores full chain; qed");
+
+				try!(self.write_chunk(parent_hash, path));
 				loaded_size = pair.len();
 			} else {
 				loaded_size = new_loaded_size;
@@ -142,17 +190,34 @@ impl<'a> BlockChunker<'a> {
 		if loaded_size != 0 {
 			// we don't store the genesis block, so once we get to this point,
 			// the "first" block will be number 1.
-			try!(self.write_chunk(genesis_hash, 1, path));
+			try!(self.write_chunk(genesis_hash, path));
 		}
 
 		Ok(())
 	}
 
 	// write out the data in the buffers to a chunk on disk
-	fn write_chunk(&mut self, parent_hash: H256, number: u64, path: &Path) -> Result<(), Error> {
+	//
+	// we preface each chunk with the parent of the first block's details.
+	fn write_chunk(&mut self, parent_hash: H256, path: &Path) -> Result<(), Error> {
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
-		let mut rlp_stream = RlpStream::new_list(self.rlps.len() + 2);
-		rlp_stream.append(&parent_hash).append(&number);
+		let parent_id = BlockID::Hash(parent_hash);
+		let parent_header_bytes = self.client.block_header(parent_id.clone())
+			.expect("parent hash either obtained from other block header or is genesis; qed");
+
+		let parent_header = HeaderView::new(&parent_header_bytes);
+		let grandparent_hash = parent_header.parent_hash();
+		let parent_number = parent_header.number();
+		let parent_difficulty = self.client.block_total_difficulty(parent_id)
+			.expect("lookup of header succeeded, therefore client has this block; qed");
+
+		let mut rlp_stream = RlpStream::new_list(self.rlps.len() + 4);
+		rlp_stream
+			.append(&parent_hash)
+			.append(&grandparent_hash)
+			.append(&parent_number)
+			.append(&parent_difficulty);
+
 		for pair in self.rlps.drain(..) {
 			rlp_stream.append_raw(&pair, 1);
 		}
@@ -322,7 +387,6 @@ impl ManifestData {
 pub struct StateRebuilder {
 	db: Box<JournalDB>,
 	state_root: H256,
-	snappy_buffer: Vec<u8>
 }
 
 impl StateRebuilder {
@@ -331,14 +395,12 @@ impl StateRebuilder {
 		StateRebuilder {
 			db: db,
 			state_root: H256::zero(),
-			snappy_buffer: Vec::new(),
 		}
 	}
 
-	/// Feed a compressed state chunk into the rebuilder.
-	pub fn feed(&mut self, compressed: &[u8]) -> Result<(), Error> {
-		let len = try!(snappy::decompress_into(compressed, &mut self.snappy_buffer));
-		let rlp = UntrustedRlp::new(&self.snappy_buffer[..len]);
+	/// Feed an uncompressed state chunk into the rebuilder.
+	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
+		let rlp = UntrustedRlp::new(chunk);
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
 
@@ -414,4 +476,72 @@ fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mu
 		*out = (hash, thin_rlp);
 	}
 	Ok(())
+}
+
+/// Proportion of blocks which we will verify PoW for.
+const POW_VERIFY_RATE: f32 = 0.02;
+
+/// Rebuilds the blockchain from chunks.
+///
+/// Does basic verification for all blocks, but PoW verification for some.
+pub struct BlockRebuilder {
+	chain: BlockChain,
+	rng: OsRng,
+	parent_hash: H256,
+	cur_number: u64,
+}
+
+impl BlockRebuilder {
+	/// Create a new BlockRebuilder.
+	pub fn new(chain: BlockChain) -> Result<Self, Error> {
+		Ok(BlockRebuilder {
+			chain: chain,
+			rng: try!(OsRng::new()),
+			parent_hash: H256::new(),
+			cur_number: 0,
+		})
+	}
+
+	/// Feed the rebuilder an uncompressed block chunk.
+	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
+		let rlp = UntrustedRlp::new(chunk);
+
+		// get the details of the first block's parent.
+		// TODO: put this all in one struct.
+		self.parent_hash = try!(rlp.val_at(0));
+		let grandparent_hash = try!(rlp.val_at(1));
+		let parent_number = try!(rlp.val_at(2));
+		let parent_difficulty = try!(rlp.val_at(3));
+
+		self.cur_number = parent_number + 1;
+
+		let parent_details = BlockDetails {
+			number: parent_number,
+			total_difficulty: parent_difficulty,
+			parent: grandparent_hash,
+			children: Vec::new(), // this will be filled out when the first block is inserted.
+		};
+
+		// special-case the first block in the chunk.
+		try!(self.process_rlp_pair(try!(rlp.at(4)), Some(parent_details)));
+
+		for pair in rlp.iter().skip(5) {
+			self.process_rlp_pair(pair, None);
+		}
+
+		Ok(())
+	}
+
+	fn process_rlp_pair(&mut self, pair: UntrustedRlp, parent_details: Option<BlockDetails>) -> Result<(), Error> {
+		let abridged_block = AbridgedBlock::from_raw(try!(pair.at(0)).as_raw().to_owned());
+		let receipts = try!(pair.val_at(1));
+		let block = try!(abridged_block.to_block(self.parent_hash, self.cur_number));
+
+		self.chain.insert_canon_block(&block, receipts, parent_details);
+
+		self.parent_hash = BlockView::new(&block).hash();
+		self.cur_number += 1;
+
+		Ok(())
+	}
 }

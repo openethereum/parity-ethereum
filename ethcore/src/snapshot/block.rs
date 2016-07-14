@@ -89,7 +89,7 @@ impl AbridgedBlock {
 	/// Flesh out an abridged block view with the provided parent hash and block number.
 	///
 	/// Will fail if contains invalid rlp.
-	pub fn to_block(&self, parent_hash: H256, number: u64) -> Result<Block, DecoderError> {
+	pub fn to_block(&self, parent_hash: H256, number: u64) -> Result<Bytes, DecoderError> {
 		let rlp = UntrustedRlp::new(&self.rlp);
 
 		let mut header = Header {
@@ -134,7 +134,7 @@ impl AbridgedBlock {
 			header: header,
 			transactions: transactions,
 			uncles: uncles,
-		})
+		}.rlp_bytes(::basic_types::Seal::With))
 	}
 }
 
@@ -150,13 +150,7 @@ mod tests {
 	use util::{Bytes, RlpStream, Stream};
 
 	fn encode_block(b: &Block) -> Bytes {
-		let mut s = RlpStream::new_list(3);
-
-		b.header.stream_rlp(&mut s, ::basic_types::Seal::With);
-		s.append(&b.transactions);
-		s.append(&b.uncles);
-
-		s.out()
+		b.rlp_bytes(::basic_types::Seal::With)
 	}
 
 	#[test]

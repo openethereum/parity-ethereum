@@ -62,7 +62,6 @@ pub mod client {
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
-
 	/// Should be called by any external-facing interface when actively using the client.
 	/// To minimise chatter, there's no need to call more than once every 30s.
 	fn keep_alive(&self) {}

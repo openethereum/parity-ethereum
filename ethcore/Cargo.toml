@@ -33,6 +33,7 @@ rayon = "0.3.1"
 ethstore = { path = "../ethstore" }
 semver = "0.2"
 ethcore-ipc-nano = { path = "../ipc/nano" }
+rand = "0.3"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"
