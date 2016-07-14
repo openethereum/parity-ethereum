@@ -88,7 +88,7 @@ mod test {
 	use super::RotatingLogger;
 
 	fn logger() -> RotatingLogger {
-		RotatingLogger::new("test".to_owned(), false)
+		RotatingLogger::new("test".to_owned())
 	}
 
 	#[test]
