@@ -37,6 +37,11 @@ pub fn new_frontier() -> Spec {
 	Spec::load(include_bytes!("../../res/ethereum/frontier.json"))
 }
 
+/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+pub fn new_frontier_dogmatic() -> Spec {
+	Spec::load(include_bytes!("../../res/ethereum/frontier-dogmatic.json"))
+}
+
 /// Create a new Frontier chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier_test.json")) }
 

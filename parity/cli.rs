@@ -47,18 +47,13 @@ Operating Options:
                            [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, or testnet
-                           [default: homestead].
+                           homestead, mainnet, morden, homestead-dogmatic, or
+                           testnet [default: homestead].
   -d --db-path PATH        Specify the database & configuration directory path
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
-  --fork POLICY            Specifies the client's fork policy. POLICY must be
-                           one of:
-                           dogmatic - sticks rigidly to the standard chain.
-                           none - goes with whatever fork is decided but
-                           votes for none. [default: none].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
