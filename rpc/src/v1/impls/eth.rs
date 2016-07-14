@@ -18,6 +18,8 @@
 
 extern crate ethash;
 
+use std::io::{Write};
+use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
@@ -28,7 +30,7 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
-use util::Mutex;
+use util::{FromHex, Mutex};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::header::Header as BlockHeader;
@@ -254,6 +256,12 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 		Ok(())
 	}
 }
+
+#[cfg(windows)]
+static SOLC: &'static str = "solc.exe";
+
+#[cfg(not(windows))]
+static SOLC: &'static str = "solc";
 
 impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
@@ -508,7 +516,13 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		match params {
-			Params::None => to_value(&(&[] as &[String])),
+			Params::None => {
+				let mut compilers = vec![];  
+				if Command::new(SOLC).output().is_ok() {
+					compilers.push("solidity".to_owned())
+				}
+				to_value(&compilers)
+			}
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -647,8 +661,28 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		rpc_unimplemented!()
 	}
 
-	fn compile_solidity(&self, _: Params) -> Result<Value, Error> {
+	fn compile_solidity(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		rpc_unimplemented!()
+		from_params::<(String, )>(params)
+			.and_then(|(code, )| {
+				let maybe_child = Command::new(SOLC)
+					.arg("--bin")
+					.arg("--optimize")
+					.stdin(Stdio::piped())
+					.stdout(Stdio::piped())
+					.stderr(Stdio::null())
+					.spawn();
+				if let Ok(mut child) = maybe_child {
+					if let Ok(_) = child.stdin.as_mut().expect("we called child.stdin(Stdio::piped()) before spawn; qed").write_all(code.as_bytes()) {
+						if let Ok(output) = child.wait_with_output() {
+							let s = String::from_utf8_lossy(&output.stdout);
+							if let Some(hex) = s.lines().skip_while(|ref l| !l.contains("Binary")).skip(1).next() {
+								return to_value(&Bytes::new(hex.from_hex().unwrap_or(vec![])));
+							}
+						}
+					}
+				}
+				Err(Error::invalid_params())
+			})
 	}
 }
