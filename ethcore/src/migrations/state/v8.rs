@@ -29,8 +29,10 @@ impl SimpleMigration for V8 {
 	}
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
-		Some((key, match UntrustedRlp::new(&value).compress() {
-			Some(r) => r.to_vec(), None => value,
-		}))
+		Some((key,
+					match UntrustedRlp::new(&value).compress() {
+						Some(r) => r.to_vec(),
+						None => value,
+					}))
 	}
 }

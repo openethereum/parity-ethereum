@@ -20,13 +20,12 @@ use rlp::rlpcompression::InvalidRlpSwapper;
 
 #[test]
 #[ignore]
-#[allow(dead_code)]
 fn analyze_db() {
 	use rlp::{UntrustedRlp, View};
 	use std::collections::HashMap;
 	use kvdb::*;
 
-	let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/blocks".to_string();
+	let path = "db to analyze".to_string();
 	let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
 	let mut rlp_counts: HashMap<_, u32> = HashMap::new();
 	let mut rlp_sizes: HashMap<_, u32> = HashMap::new();
@@ -53,23 +52,19 @@ fn analyze_db() {
 		}
 	}
 
-	fn is_account<'a>(rlp: &UntrustedRlp<'a>) -> bool {
-		rlp.is_list() && (rlp.item_count() == 4)
-	}
-
 	for v in values.iter() {
 		let rlp = UntrustedRlp::new(&v);
 		let mut flat = Vec::new();
 		flat_rlp(&mut flat, rlp);
 		for r in flat.iter() {
 			*rlp_counts.entry(r.as_raw()).or_insert(0) += 1;
-			//let replacement = r.compress().to_vec();
 			*rlp_sizes.entry(r.as_raw()).or_insert(0) += space_saving(r.as_raw());
 		}
 	}
 	let mut size_vec: Vec<_> = rlp_sizes.iter().collect();
 	size_vec.sort_by(|a, b| b.1.cmp(a.1));
 
+	// Exclude rare large RLPs.
 	for v in size_vec.iter().filter(|v| rlp_counts.get(v.0).unwrap()>&100).take(20) {
 		println!("{:?}, {:?}", v, rlp_counts.get(v.0).unwrap());
 	}
