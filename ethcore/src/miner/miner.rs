@@ -229,12 +229,12 @@ impl Miner {
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
 	pub fn pending_state(&self) -> Option<State> {
-		self.sealing_work.locked().peek_last_ref().map(|b| b.block().fields().state.clone())
+		self.sealing_work.lock().peek_last_ref().map(|b| b.block().fields().state.clone())
 	}
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
 	pub fn pending_block(&self) -> Option<Block> {
-		self.sealing_work.locked().peek_last_ref().map(|b| b.base().clone())
+		self.sealing_work.lock().peek_last_ref().map(|b| b.base().clone())
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
