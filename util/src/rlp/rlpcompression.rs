@@ -189,7 +189,7 @@ mod tests {
 	#[ignore]
 	fn test_compression() {
 		use kvdb::*;
-		let path = "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/state".to_string();
+		let path = "db to test".to_string();
 		let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
 		let mut decomp_size = 0;
 		let mut comp_size = 0;
@@ -200,7 +200,6 @@ mod tests {
 			comp_size += compressed.len();
 			let decompressed = rlp.decompress().map(|b| b.to_vec()).unwrap_or(v.to_vec());
 			decomp_size += decompressed.len();
-			//assert_eq!(UntrustedRlp::new(&compressed.as_slice()).decompress().map(|b| b.to_vec()).unwrap_or(v.to_vec()), v.to_vec());
 		}
 		println!("Decompressed bytes {:?}, compressed bytes: {:?}", decomp_size, comp_size);
 		assert!(decomp_size > comp_size);
