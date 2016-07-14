@@ -31,7 +31,8 @@ use views::{BlockView, HeaderView};
 
 use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
-use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
+use util::numbers::U256;
+use util::rlp::{Decodable, Decoder, DecoderError, Encodable, RlpStream, Stream, UntrustedRlp, View};
 
 use self::account::Account;
 use self::block::AbridgedBlock;
@@ -137,6 +138,37 @@ fn write_chunk(raw_data: &[u8], compression_buffer: &mut Vec<u8>, path: &Path) -
 	Ok((hash, compressed_size))
 }
 
+/// Header for block chunks.
+struct BlockChunkHeader {
+	parent_hash: H256,
+	grandparent_hash: H256,
+	parent_number: u64,
+	parent_difficulty: U256,
+}
+
+impl Decodable for BlockChunkHeader {
+	fn decode<D: Decoder>(decoder: &D) -> Result<Self, DecoderError> {
+		let d = decoder.as_rlp();
+
+		Ok(BlockChunkHeader {
+			parent_hash:  try!(d.val_at(0)),
+			grandparent_hash: try!(d.val_at(1)),
+			parent_number: try!(d.val_at(2)),
+			parent_difficulty: try!(d.val_at(3)),
+		})
+	}
+}
+
+impl Encodable for BlockChunkHeader {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
+		s.append(&self.parent_hash);
+		s.append(&self.grandparent_hash);
+		s.append(&self.parent_number);
+		s.append(&self.parent_difficulty);
+	}
+}
+
 /// Used to build block chunks.
 struct BlockChunker<'a> {
 	client: &'a BlockChainClient,
@@ -174,8 +206,6 @@ impl<'a> BlockChunker<'a> {
 			if new_loaded_size > PREFERRED_CHUNK_SIZE {
 				let header = view.header_view();
 				let parent_hash = header.parent_hash();
-				let difficulty = self.client.block_total_difficulty(BlockID::Hash(parent_hash))
-					.expect("started from head of chain and walking backwards; client stores full chain; qed");
 
 				try!(self.write_chunk(parent_hash, path));
 				loaded_size = pair.len();
@@ -211,12 +241,13 @@ impl<'a> BlockChunker<'a> {
 		let parent_difficulty = self.client.block_total_difficulty(parent_id)
 			.expect("lookup of header succeeded, therefore client has this block; qed");
 
-		let mut rlp_stream = RlpStream::new_list(self.rlps.len() + 4);
-		rlp_stream
-			.append(&parent_hash)
-			.append(&grandparent_hash)
-			.append(&parent_number)
-			.append(&parent_difficulty);
+		let mut rlp_stream = RlpStream::new_list(1 + self.rlps.len());
+		rlp_stream.append(&BlockChunkHeader {
+			parent_hash: parent_hash,
+			grandparent_hash: grandparent_hash,
+			parent_difficulty: parent_difficulty,
+			parent_number: parent_number
+		});
 
 		for pair in self.rlps.drain(..) {
 			rlp_stream.append_raw(&pair, 1);
@@ -506,27 +537,25 @@ impl BlockRebuilder {
 	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
 		let rlp = UntrustedRlp::new(chunk);
 
-		// get the details of the first block's parent.
-		// TODO: put this all in one struct.
-		self.parent_hash = try!(rlp.val_at(0));
-		let grandparent_hash = try!(rlp.val_at(1));
-		let parent_number = try!(rlp.val_at(2));
-		let parent_difficulty = try!(rlp.val_at(3));
+		// get chunk's header
+		let header: BlockChunkHeader = try!(rlp.val_at(0));
+		self.parent_hash = header.parent_hash;
+		self.cur_number = header.parent_number + 1;
 
-		self.cur_number = parent_number + 1;
-
+		// reconstruct first block's parent's BlockDetails
 		let parent_details = BlockDetails {
-			number: parent_number,
-			total_difficulty: parent_difficulty,
-			parent: grandparent_hash,
+			number: header.parent_number,
+			total_difficulty: header.parent_difficulty,
+			parent: header.grandparent_hash,
 			children: Vec::new(), // this will be filled out when the first block is inserted.
 		};
 
-		// special-case the first block in the chunk.
-		try!(self.process_rlp_pair(try!(rlp.at(4)), Some(parent_details)));
+		// special-case the first block in the chunk with supplied parent details.
+		// block chunks may be processed out-of-order.
+		try!(self.process_rlp_pair(try!(rlp.at(1)), Some(parent_details)));
 
-		for pair in rlp.iter().skip(5) {
-			self.process_rlp_pair(pair, None);
+		for pair in rlp.iter().skip(2) {
+			try!(self.process_rlp_pair(pair, None));
 		}
 
 		Ok(())
