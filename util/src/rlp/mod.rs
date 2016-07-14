@@ -52,6 +52,7 @@ mod rlpin;
 mod untrusted_rlp;
 mod rlpstream;
 mod rlpcompression;
+mod commonrlps;
 mod bytes;
 
 #[cfg(test)]
