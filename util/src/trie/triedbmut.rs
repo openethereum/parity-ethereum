@@ -284,8 +284,7 @@ pub struct TrieDBMut<'a> {
 	storage: NodeStorage,
 	db: &'a mut HashDB,
 	root: &'a mut H256,
-	root_handle: StorageHandle,
-	dirty: bool,
+	root_handle: NodeHandle,
 	death_row: HashSet<H256>,
 	/// The number of hash operations this trie has performed.
 	/// Note that none are performed until changes are committed.
@@ -296,15 +295,13 @@ impl<'a> TrieDBMut<'a> {
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB, root: &'a mut H256) -> Self {
 		*root = SHA3_NULL_RLP;
-		let mut storage = NodeStorage::empty();
-		let root_handle = storage.alloc(Stored::New(Node::Empty));
+		let root_handle = NodeHandle::Hash(SHA3_NULL_RLP);
 
 		TrieDBMut {
-			storage: storage,
+			storage: NodeStorage::empty(),
 			db: db,
 			root: root,
 			root_handle: root_handle,
-			dirty: false,
 			death_row: HashSet::new(),
 			hash_count: 0,
 		}
@@ -313,23 +310,16 @@ impl<'a> TrieDBMut<'a> {
 	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'a mut HashDB, root: &'a mut H256) -> Result<Self, TrieError> {
-		let mut storage = NodeStorage::empty();
-		let root_handle = {
-			let root_rlp = match db.get(root) {
-				Some(root_rlp) => root_rlp,
-				None => return Err(TrieError::InvalidStateRoot),
-			};
+		if !db.contains(root) {
+			return Err(TrieError::InvalidStateRoot);
+		}
 
-			let root_node = Node::from_rlp(root_rlp, db, &mut storage);
-			storage.alloc(Stored::Cached(root_node, *root))
-		};
-
+		let root_handle = NodeHandle::Hash(*root);
 		Ok(TrieDBMut {
-			storage: storage,
+			storage: NodeStorage::empty(),
 			db: db,
 			root: root,
 			root_handle: root_handle,
-			dirty: false,
 			death_row: HashSet::new(),
 			hash_count: 0,
 		})
@@ -472,11 +462,10 @@ impl<'a> TrieDBMut<'a> {
 
 				if partial.is_empty() {
 					let unchanged = stored_value.as_ref() == Some(&value);
-					if unchanged {
-						// no change required.
-						InsertAction::Restore(Node::Branch(children, stored_value))
-					} else {
-						InsertAction::Replace(Node::Branch(children, Some(value)))
+					let branch = Node::Branch(children, Some(value));
+					match unchanged {
+						true => InsertAction::Restore(branch),
+						false => InsertAction::Replace(branch),
 					}
 				} else {
 					let idx = partial.at(0) as usize;
@@ -504,11 +493,10 @@ impl<'a> TrieDBMut<'a> {
 				if cp == existing_key.len() && cp == partial.len() {
 					trace!(target: "trie", "equivalent-leaf: REPLACE");
 					// equivalent leaf.
-					if stored_value == value {
+					match stored_value == value {
 						// unchanged. restore
-						InsertAction::Restore(Node::Leaf(encoded.clone(), value))
-					} else {
-						InsertAction::Replace(Node::Leaf(encoded.clone(), value))
+						true => InsertAction::Restore(Node::Leaf(encoded.clone(), value)),
+						false => InsertAction::Replace(Node::Leaf(encoded.clone(), value)),
 					}
 				} else if cp == 0 {
 					trace!(target: "trie", "no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,AUGMENT", existing_key.len(), partial.len());
@@ -816,7 +804,11 @@ impl<'a> TrieDBMut<'a> {
 	/// Commit the in-memory changes to disk, freeing their storage and
 	/// updating the state root.
 	pub fn commit(&mut self) {
-		if !self.dirty { return }
+		let handle = match self.root_handle() {
+			NodeHandle::Hash(_) => return, // no changes necessary.
+			NodeHandle::InMemory(h) => h,
+		};
+
 		trace!(target: "trie", "Committing trie changes to db.");
 
 		// kill all the nodes on death row.
@@ -825,27 +817,21 @@ impl<'a> TrieDBMut<'a> {
 			self.db.remove(&hash);
 		}
 
-		let root_handle = self.root_handle();
-		match self.storage.destroy(root_handle) {
+		match self.storage.destroy(handle) {
 			Stored::New(node) => {
 				let root_rlp = node.to_rlp(|child, stream| self.commit_node(child, stream));
 				*self.root = self.db.insert(&root_rlp[..]);
 				self.hash_count += 1;
 
 				trace!(target: "trie", "root node rlp: {:?}", (&root_rlp[..]).pretty());
-
-				// restore the root node.
-				let root_node = Node::from_rlp(&root_rlp, &*self.db, &mut self.storage);
-				self.root_handle = self.storage.alloc(Stored::Cached(root_node, *self.root));
+				self.root_handle = NodeHandle::Hash(*self.root);
 			}
 			Stored::Cached(node, hash) => {
 				// probably won't happen, but update the root and move on.
 				*self.root = hash;
-				self.root_handle = self.storage.alloc(Stored::Cached(node, hash))
+				self.root_handle = NodeHandle::InMemory(self.storage.alloc(Stored::Cached(node, hash)));
 			}
 		}
-
-		self.dirty = false;
 	}
 
 	/// commit a node, hashing it, committing it to the db,
@@ -870,8 +856,11 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	// a hack to get the root node's handle
-	fn root_handle(&self) -> StorageHandle {
-		StorageHandle(self.root_handle.0)
+	fn root_handle(&self) -> NodeHandle {
+		match self.root_handle {
+			NodeHandle::Hash(h) => NodeHandle::Hash(h),
+			NodeHandle::InMemory(StorageHandle(x)) => NodeHandle::InMemory(StorageHandle(x)),
+		}
 	}
 }
 
@@ -882,15 +871,17 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 	}
 
 	fn is_empty(&self) -> bool {
-		match self.storage[&self.root_handle] {
-			Node::Empty => true,
-			_ => false,
+		match self.root_handle {
+			NodeHandle::Hash(h) => h == SHA3_NULL_RLP,
+			NodeHandle::InMemory(ref h) => match self.storage[h] {
+				Node::Empty => true,
+				_ => false,
+			}
 		}
 	}
 
 	fn get<'b, 'key>(&'b self, key: &'key [u8]) -> Option<&'b [u8]> where 'b: 'key {
-		let root_handle = self.root_handle();
-		self.lookup(NibbleSlice::new(key), &NodeHandle::InMemory(root_handle))
+		self.lookup(NibbleSlice::new(key), &self.root_handle)
 	}
 
 	fn contains(&self, key: &[u8]) -> bool {
@@ -904,22 +895,20 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 		}
 
 		let root_handle = self.root_handle();
-		let (new_handle, changed) = self.insert_at(root_handle.into(), NibbleSlice::new(key), value.to_owned());
-		self.root_handle = new_handle;
-		self.dirty = self.dirty || changed;
+		let (new_handle, _) = self.insert_at(root_handle, NibbleSlice::new(key), value.to_owned());
+		self.root_handle = NodeHandle::InMemory(new_handle);
 	}
 
 	fn remove(&mut self, key: &[u8]) {
 		let root_handle = self.root_handle();
 		let key = NibbleSlice::new(key);
-		match self.remove_at(root_handle.into(), key) {
-			Some((handle, changed)) => {
-				self.root_handle = handle;
-				self.dirty = self.dirty || changed;
+		match self.remove_at(root_handle, key) {
+			Some((handle, _)) => {
+				self.root_handle = NodeHandle::InMemory(handle);
 			}
 			None => {
-				self.root_handle = self.storage.alloc(Stored::New(Node::Empty));
-				self.dirty = true;
+				self.root_handle = NodeHandle::Hash(SHA3_NULL_RLP);
+				*self.root = SHA3_NULL_RLP;
 			}
 		};
 	}
