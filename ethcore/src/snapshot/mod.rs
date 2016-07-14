@@ -26,6 +26,7 @@ use blockchain::BlockChain;
 use blockchain::extras::BlockDetails;
 use client::BlockChainClient;
 use error::Error;
+use engine::Engine;
 use ids::BlockID;
 use views::{BlockView, HeaderView};
 
@@ -73,11 +74,11 @@ pub trait SnapshotService {
 
 	/// Feed a raw state chunk to the service.
 	/// no-op if not currently restoring.
-	fn feed_state_chunk(&self, chunk: Bytes);
+	fn feed_state_chunk(&self, hash: H256, chunk: Bytes);
 
 	/// Feed a raw block chunk to the service.
 	/// no-op if currently restoring.
-	fn feed_block_chunk(&self, chunk: Bytes);
+	fn feed_block_chunk(&self, hash: H256, chunk: Bytes);
 }
 
 /// Interface for taking snapshots periodically.
@@ -534,7 +535,7 @@ impl BlockRebuilder {
 	}
 
 	/// Feed the rebuilder an uncompressed block chunk.
-	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
+	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<(), Error> {
 		let rlp = UntrustedRlp::new(chunk);
 
 		// get chunk's header
@@ -552,23 +553,38 @@ impl BlockRebuilder {
 
 		// special-case the first block in the chunk with supplied parent details.
 		// block chunks may be processed out-of-order.
-		try!(self.process_rlp_pair(try!(rlp.at(1)), Some(parent_details)));
+		try!(self.process_rlp_pair(try!(rlp.at(1)), Some(parent_details), engine));
 
 		for pair in rlp.iter().skip(2) {
-			try!(self.process_rlp_pair(pair, None));
+			try!(self.process_rlp_pair(pair, None, engine));
 		}
 
 		Ok(())
 	}
 
-	fn process_rlp_pair(&mut self, pair: UntrustedRlp, parent_details: Option<BlockDetails>) -> Result<(), Error> {
+	fn process_rlp_pair(
+		&mut self,
+		pair: UntrustedRlp,
+		parent_details: Option<BlockDetails>,
+		engine: &Engine
+	) -> Result<(), Error>
+	{
+		use basic_types::Seal::With;
+
 		let abridged_block = AbridgedBlock::from_raw(try!(pair.at(0)).as_raw().to_owned());
 		let receipts = try!(pair.val_at(1));
 		let block = try!(abridged_block.to_block(self.parent_hash, self.cur_number));
+		let block_bytes = block.rlp_bytes(With);
 
-		self.chain.insert_canon_block(&block, receipts, parent_details);
+		if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
+			try!(engine.verify_block_seal(&block.header))
+		} else {
+			try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
+		}
 
-		self.parent_hash = BlockView::new(&block).hash();
+		self.chain.insert_canon_block(&block_bytes, receipts, parent_details);
+
+		self.parent_hash = BlockView::new(&block_bytes).hash();
 		self.cur_number += 1;
 
 		Ok(())

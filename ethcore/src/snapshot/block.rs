@@ -16,9 +16,6 @@
 
 //! Block RLP compression.
 
-// TODO [rob] remove when BlockRebuilder done.
-#![allow(dead_code)]
-
 use block::Block;
 use header::Header;
 
@@ -89,7 +86,7 @@ impl AbridgedBlock {
 	/// Flesh out an abridged block view with the provided parent hash and block number.
 	///
 	/// Will fail if contains invalid rlp.
-	pub fn to_block(&self, parent_hash: H256, number: u64) -> Result<Bytes, DecoderError> {
+	pub fn to_block(&self, parent_hash: H256, number: u64) -> Result<Block, DecoderError> {
 		let rlp = UntrustedRlp::new(&self.rlp);
 
 		let mut header = Header {
@@ -134,7 +131,7 @@ impl AbridgedBlock {
 			header: header,
 			transactions: transactions,
 			uncles: uncles,
-		}.rlp_bytes(::basic_types::Seal::With))
+		})
 	}
 }
 
