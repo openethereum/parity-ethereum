@@ -320,7 +320,7 @@ impl<'a, 'view> Iterator for UntrustedRlpIterator<'a, 'view> {
 	}
 }
 
-pub struct BasicDecoder<'a> {
+struct BasicDecoder<'a> {
 	rlp: UntrustedRlp<'a>
 }
 
