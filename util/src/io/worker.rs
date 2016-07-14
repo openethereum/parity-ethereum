@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::*;
+use std::sync::Arc;
 use std::mem;
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
@@ -22,7 +22,8 @@ use crossbeam::sync::chase_lev;
 use io::service::{HandlerId, IoChannel, IoContext};
 use io::{IoHandler};
 use panics::*;
-use misc::Lockable;
+
+use parking_lot::{Condvar, Mutex};
 
 pub enum WorkType<Message> {
 	Readable,
@@ -82,11 +83,11 @@ impl Worker {
 						where Message: Send + Sync + Clone + 'static {
 		loop {
 			{
-				let lock = wait_mutex.locked();
+				let mut lock = wait_mutex.lock();
 				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}
-				let _ = wait.wait(lock).unwrap();
+				let _ = wait.wait(&mut lock);
 			}
 
 			if deleting.load(AtomicOrdering::Acquire) {

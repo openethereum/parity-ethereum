@@ -193,14 +193,14 @@ impl BlockQueue {
 	fn verify(verification: Arc<Verification>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
 		while !deleting.load(AtomicOrdering::Acquire) {
 			{
-				let mut unverified = verification.unverified.locked();
+				let mut unverified = verification.unverified.lock();
 
-				if unverified.is_empty() && verification.verifying.locked().is_empty() {
+				if unverified.is_empty() && verification.verifying.lock().is_empty() {
 					empty.notify_all();
 				}
 
 				while unverified.is_empty() && !deleting.load(AtomicOrdering::Acquire) {
-					unverified = wait.wait(unverified).unwrap();
+					wait.wait(&mut unverified);
 				}
 
 				if deleting.load(AtomicOrdering::Acquire) {
@@ -209,11 +209,11 @@ impl BlockQueue {
 			}
 
 			let block = {
-				let mut unverified = verification.unverified.locked();
+				let mut unverified = verification.unverified.lock();
 				if unverified.is_empty() {
 					continue;
 				}
-				let mut verifying = verification.verifying.locked();
+				let mut verifying = verification.verifying.lock();
 				let block = unverified.pop_front().unwrap();
 				verifying.push_back(VerifyingBlock{ hash: block.header.hash(), block: None });
 				block
@@ -222,7 +222,7 @@ impl BlockQueue {
 			let block_hash = block.header.hash();
 			match verify_block_unordered(block.header, block.bytes, engine.deref().deref()) {
 				Ok(verified) => {
-					let mut verifying = verification.verifying.locked();
+					let mut verifying = verification.verifying.lock();
 					for e in verifying.iter_mut() {
 						if e.hash == block_hash {
 							e.block = Some(verified);
@@ -231,16 +231,16 @@ impl BlockQueue {
 					}
 					if !verifying.is_empty() && verifying.front().unwrap().hash == block_hash {
 						// we're next!
-						let mut verified = verification.verified.locked();
-						let mut bad = verification.bad.locked();
+						let mut verified = verification.verified.lock();
+						let mut bad = verification.bad.lock();
 						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
 						ready.set();
 					}
 				},
 				Err(err) => {
-					let mut verifying = verification.verifying.locked();
-					let mut verified = verification.verified.locked();
-					let mut bad = verification.bad.locked();
+					let mut verifying = verification.verifying.lock();
+					let mut verified = verification.verified.lock();
+					let mut bad = verification.bad.lock();
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					bad.insert(block_hash.clone());
 					verifying.retain(|e| e.hash != block_hash);
@@ -265,29 +265,29 @@ impl BlockQueue {
 
 	/// Clear the queue and stop verification activity.
 	pub fn clear(&self) {
-		let mut unverified = self.verification.unverified.locked();
-		let mut verifying = self.verification.verifying.locked();
-		let mut verified = self.verification.verified.locked();
+		let mut unverified = self.verification.unverified.lock();
+		let mut verifying = self.verification.verifying.lock();
+		let mut verified = self.verification.verified.lock();
 		unverified.clear();
 		verifying.clear();
 		verified.clear();
-		self.processing.unwrapped_write().clear();
+		self.processing.write().clear();
 	}
 
 	/// Wait for unverified queue to be empty
 	pub fn flush(&self) {
-		let mut unverified = self.verification.unverified.locked();
-		while !unverified.is_empty() || !self.verification.verifying.locked().is_empty() {
-			unverified = self.empty.wait(unverified).unwrap();
+		let mut unverified = self.verification.unverified.lock();
+		while !unverified.is_empty() || !self.verification.verifying.lock().is_empty() {
+			self.empty.wait(&mut unverified);
 		}
 	}
 
 	/// Check if the block is currently in the queue
 	pub fn block_status(&self, hash: &H256) -> BlockStatus {
-		if self.processing.unwrapped_read().contains(&hash) {
+		if self.processing.read().contains(&hash) {
 			return BlockStatus::Queued;
 		}
-		if self.verification.bad.locked().contains(&hash) {
+		if self.verification.bad.lock().contains(&hash) {
 			return BlockStatus::Bad;
 		}
 		BlockStatus::Unknown
@@ -298,11 +298,11 @@ impl BlockQueue {
 		let header = BlockView::new(&bytes).header();
 		let h = header.hash();
 		{
-			if self.processing.unwrapped_read().contains(&h) {
+			if self.processing.read().contains(&h) {
 				return Err(ImportError::AlreadyQueued.into());
 			}
 
-			let mut bad = self.verification.bad.locked();
+			let mut bad = self.verification.bad.lock();
 			if bad.contains(&h) {
 				return Err(ImportError::KnownBad.into());
 			}
@@ -315,14 +315,14 @@ impl BlockQueue {
 
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
-				self.processing.unwrapped_write().insert(h.clone());
-				self.verification.unverified.locked().push_back(UnverifiedBlock { header: header, bytes: bytes });
+				self.processing.write().insert(h.clone());
+				self.verification.unverified.lock().push_back(UnverifiedBlock { header: header, bytes: bytes });
 				self.more_to_verify.notify_all();
 				Ok(h)
 			},
 			Err(err) => {
 				warn!(target: "client", "Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
-				self.verification.bad.locked().insert(h.clone());
+				self.verification.bad.lock().insert(h.clone());
 				Err(err)
 			}
 		}
@@ -333,10 +333,10 @@ impl BlockQueue {
 		if block_hashes.is_empty() {
 			return;
 		}
-		let mut verified_lock = self.verification.verified.locked();
+		let mut verified_lock = self.verification.verified.lock();
 		let mut verified = verified_lock.deref_mut();
-		let mut bad = self.verification.bad.locked();
-		let mut processing = self.processing.unwrapped_write();
+		let mut bad = self.verification.bad.lock();
+		let mut processing = self.processing.write();
 		bad.reserve(block_hashes.len());
 		for hash in block_hashes {
 			bad.insert(hash.clone());
@@ -360,7 +360,7 @@ impl BlockQueue {
 		if block_hashes.is_empty() {
 			return;
 		}
-		let mut processing = self.processing.unwrapped_write();
+		let mut processing = self.processing.write();
 		for hash in block_hashes {
 			processing.remove(&hash);
 		}
@@ -368,7 +368,7 @@ impl BlockQueue {
 
 	/// Removes up to `max` verified blocks from the queue
 	pub fn drain(&self, max: usize) -> Vec<PreverifiedBlock> {
-		let mut verified = self.verification.verified.locked();
+		let mut verified = self.verification.verified.lock();
 		let count = min(max, verified.len());
 		let mut result = Vec::with_capacity(count);
 		for _ in 0..count {
@@ -385,15 +385,15 @@ impl BlockQueue {
 	/// Get queue status.
 	pub fn queue_info(&self) -> BlockQueueInfo {
 		let (unverified_len, unverified_bytes) = {
-			let v = self.verification.unverified.locked();
+			let v = self.verification.unverified.lock();
 			(v.len(), v.heap_size_of_children())
 		};
 		let (verifying_len, verifying_bytes) = {
-			let v = self.verification.verifying.locked();
+			let v = self.verification.verifying.lock();
 			(v.len(), v.heap_size_of_children())
 		};
 		let (verified_len, verified_bytes) = {
-			let v = self.verification.verified.locked();
+			let v = self.verification.verified.lock();
 			(v.len(), v.heap_size_of_children())
 		};
 		BlockQueueInfo {
@@ -407,18 +407,18 @@ impl BlockQueue {
 				+ verifying_bytes
 				+ verified_bytes
 				// TODO: https://github.com/servo/heapsize/pull/50
-				//+ self.processing.unwrapped_read().heap_size_of_children(),
+				//+ self.processing.read().heap_size_of_children(),
 		}
 	}
 
 	/// Optimise memory footprint of the heap fields.
 	pub fn collect_garbage(&self) {
 		{
-			self.verification.unverified.locked().shrink_to_fit();
-			self.verification.verifying.locked().shrink_to_fit();
-			self.verification.verified.locked().shrink_to_fit();
+			self.verification.unverified.lock().shrink_to_fit();
+			self.verification.verifying.lock().shrink_to_fit();
+			self.verification.verified.lock().shrink_to_fit();
 		}
-		self.processing.unwrapped_write().shrink_to_fit();
+		self.processing.write().shrink_to_fit();
 	}
 }
 

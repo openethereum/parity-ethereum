@@ -30,7 +30,7 @@ use std::collections::VecDeque;
 /// Addresses filter.
 ///
 /// Used to create bloom possibilities and match filters.
-#[derive(Binary)]
+#[derive(Debug, Binary)]
 pub struct AddressesFilter {
 	list: Vec<Address>
 }
@@ -76,7 +76,7 @@ impl AddressesFilter {
 	}
 }
 
-#[derive(Binary)]
+#[derive(Debug, Binary)]
 /// Traces filter.
 pub struct Filter {
 	/// Block range.

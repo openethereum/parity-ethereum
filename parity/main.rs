@@ -74,7 +74,7 @@ mod url;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::Arc;
 use std::path::Path;
 use std::fs::File;
 use std::str::{FromStr, from_utf8};
@@ -82,7 +82,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{Lockable, H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
+use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError,
 	ChainNotify, Mode};
@@ -93,6 +93,7 @@ use ethsync::EthSync;
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
+use util::{Mutex, Condvar};
 
 use die::*;
 use cli::print_version;
@@ -593,7 +594,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.locked()).unwrap();
+	let _ = exit.wait(&mut mutex.lock());
 	info!("Finishing work, please wait...");
 }
 

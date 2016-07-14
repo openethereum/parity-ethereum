@@ -97,7 +97,6 @@ extern crate ethash;
 pub extern crate ethstore;
 extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
-
 extern crate ethcore_devtools as devtools;
 
 #[cfg(feature = "jit" )] extern crate evmjit;

@@ -17,13 +17,32 @@
 //! Session handlers factory.
 
 use ws;
-use signer;
 use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::H256;
+
+#[cfg(feature = "ui")]
+mod signer {
+	use signer;
+
+	pub fn handle(req: &str) -> Option<signer::File> {
+		signer::handle(req)
+	}
+}
+#[cfg(not(feature = "ui"))]
+mod signer {
+	pub struct File {
+		pub content: String,
+		pub mime: String,
+	}
+
+	pub fn handle(_req: &str) -> Option<File> {
+		None
+	}
+}
 
 fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	match header {

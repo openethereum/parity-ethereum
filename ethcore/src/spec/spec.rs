@@ -136,10 +136,10 @@ impl Spec {
 
 	/// Return the state root for the genesis state, memoising accordingly.
 	pub fn state_root(&self) -> H256 {
-		if self.state_root_memo.unwrapped_read().is_none() {
-			*self.state_root_memo.unwrapped_write() = Some(self.genesis_state.root());
+		if self.state_root_memo.read().is_none() {
+			*self.state_root_memo.write() = Some(self.genesis_state.root());
 		}
-		self.state_root_memo.unwrapped_read().as_ref().unwrap().clone()
+		self.state_root_memo.read().as_ref().unwrap().clone()
 	}
 
 	/// Get the known knodes of the network in enode format.
@@ -209,12 +209,12 @@ impl Spec {
 	/// Alter the value of the genesis state.
 	pub fn set_genesis_state(&mut self, s: PodState) {
 		self.genesis_state = s;
-		*self.state_root_memo.unwrapped_write() = None;
+		*self.state_root_memo.write() = None;
 	}
 
 	/// Returns `false` if the memoized state root is invalid. `true` otherwise.
 	pub fn is_state_root_valid(&self) -> bool {
-		self.state_root_memo.unwrapped_read().clone().map_or(true, |sr| sr == self.genesis_state.root())
+		self.state_root_memo.read().clone().map_or(true, |sr| sr == self.genesis_state.root())
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
