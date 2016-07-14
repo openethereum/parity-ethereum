@@ -55,6 +55,18 @@ pub struct PayloadInfo {
 	pub value_len: usize,
 }
 
+fn calculate_payload_info(header_bytes: &[u8], len_of_len: &usize) -> Result<PayloadInfo, DecoderError> {
+	let header_len = 1 + len_of_len;
+	match header_bytes.get(1) {
+		Some(&0) => return Err(DecoderError::RlpDataLenWithZeroPrefix),
+		None => return Err(DecoderError::RlpIsTooShort),
+		_ => (),
+	}
+	if header_bytes.len() < header_len { return Err(DecoderError::RlpIsTooShort); }
+	let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
+	Ok(PayloadInfo::new(header_len, value_len))
+}
+
 impl PayloadInfo {
 	fn new(header_len: usize, value_len: usize) -> PayloadInfo {
 		PayloadInfo {
@@ -68,30 +80,22 @@ impl PayloadInfo {
 
 	/// Create a new object from the given bytes RLP. The bytes
 	pub fn from(header_bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
-		Ok(match header_bytes.first().cloned() {
-			None => return Err(DecoderError::RlpIsTooShort),
-			Some(0...0x7f) => PayloadInfo::new(0, 1),
-			Some(l @ 0x80...0xb7) => PayloadInfo::new(1, l as usize - 0x80),
+		match header_bytes.first().cloned() {
+			None => Err(DecoderError::RlpIsTooShort),
+			Some(0...0x7f) => Ok(PayloadInfo::new(0, 1)),
+			Some(l @ 0x80...0xb7) => Ok(PayloadInfo::new(1, l as usize - 0x80)),
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
-				let header_len = 1 + len_of_len;
-				if header_bytes[1] == 0 { return Err(DecoderError::RlpDataLenWithZeroPrefix); }
-				if header_bytes.len() < header_len { return Err(DecoderError::RlpIsTooShort); }
-				let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
-				PayloadInfo::new(header_len, value_len)
+				calculate_payload_info(header_bytes, &len_of_len)
 			}
-			Some(l @ 0xc0...0xf7) => PayloadInfo::new(1, l as usize - 0xc0),
+			Some(l @ 0xc0...0xf7) => Ok(PayloadInfo::new(1, l as usize - 0xc0)),
 			Some(l @ 0xf8...0xff) => {
 				let len_of_len = l as usize - 0xf7;
-				let header_len = 1 + len_of_len;
-				if header_bytes.len() < header_len { return Err(DecoderError::RlpIsTooShort); }
-				let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
-				if header_bytes[1] == 0 { return Err(DecoderError::RlpListLenWithZeroPrefix); }
-				PayloadInfo::new(header_len, value_len)
+				calculate_payload_info(header_bytes, &len_of_len)
 			},
 			// we cant reach this place, but rust requires _ to be implemented
 			_ => { unreachable!(); }
-		})
+		}
 	}
 }
 
@@ -193,7 +197,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 	fn size(&self) -> usize {
 		match self.is_data() {
 			// we can safely unwrap (?) cause its data
-			true => BasicDecoder::payload_info(self.bytes).unwrap().value_len,
+			true => BasicDecoder::payload_info(self.bytes).map(|b| b.value_len).unwrap_or(0),
 			false => 0
 		}
 	}
