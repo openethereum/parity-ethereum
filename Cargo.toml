@@ -38,6 +38,7 @@ json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ansi_term = "0.7"
 lazy_static = "0.2"
 regex = "0.1"
+isatty = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
