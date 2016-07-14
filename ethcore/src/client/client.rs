@@ -44,6 +44,7 @@ use error::{ImportError, ExecutionError, BlockError, ImportResult};
 use header::BlockNumber;
 use state::State;
 use spec::Spec;
+use basic_types::Seal;
 use engine::Engine;
 use views::HeaderView;
 use service::ClientIoMessage;
@@ -462,8 +463,10 @@ impl Client {
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at(&self, id: BlockID) -> Option<State> {
 		// fast path for latest state.
-		if let BlockID::Latest = id.clone() {
-			return Some(self.state())
+		match id.clone() {
+			BlockID::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
+			BlockID::Latest => return Some(self.state()),
+			_ => {},
 		}
 
 		let block_number = match self.block_number(id.clone()) {
@@ -556,7 +559,7 @@ impl Client {
 			BlockID::Number(number) => Some(number),
 			BlockID::Hash(ref hash) => self.chain.block_number(hash),
 			BlockID::Earliest => Some(0),
-			BlockID::Latest => Some(self.chain.best_block_number())
+			BlockID::Latest | BlockID::Pending => Some(self.chain.best_block_number()),
 		}
 	}
 
@@ -565,7 +568,7 @@ impl Client {
 			BlockID::Hash(hash) => Some(hash),
 			BlockID::Number(number) => chain.block_hash(number),
 			BlockID::Earliest => chain.block_hash(0),
-			BlockID::Latest => Some(chain.best_block_hash())
+			BlockID::Latest | BlockID::Pending => Some(chain.best_block_hash()),
 		}
 	}
 
@@ -683,6 +686,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
+		if let &BlockID::Pending = &id {
+			if let Some(block) = self.miner.pending_block() { 
+				return Some(block.rlp_bytes(Seal::Without));
+			}
+		}
 		Self::block_hash(&self.chain, id).and_then(|hash| {
 			self.chain.block(&hash)
 		})
@@ -697,6 +705,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_total_difficulty(&self, id: BlockID) -> Option<U256> {
+		if let &BlockID::Pending = &id {
+			if let Some(block) = self.miner.pending_block() {
+				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
+			} 
+		}
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
