@@ -1258,4 +1258,32 @@ mod tests {
 		 	let _ = TrieDBMut::from_existing(&mut db, &mut root);
 		}
 	}
+
+	#[test]
+	fn insert_empty() {
+		let mut seed = H256::new();
+		let x = StandardMap {
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				min_key: 5,
+				journal_key: 0,
+				value_mode: ValueMode::Index,
+				count: 4,
+		}.make_with(&mut seed);
+
+		let mut db = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDBMut::new(&mut db, &mut root);
+		for &(ref key, ref value) in &x {
+			t.insert(key, value);
+		}
+
+		assert_eq!(*t.root(), trie_root(x.clone()));
+
+		for &(ref key, _) in &x {
+			t.insert(key, &[]);
+		}
+
+		assert!(t.is_empty());
+		assert_eq!(*t.root(), SHA3_NULL_RLP);
+	}
 }
