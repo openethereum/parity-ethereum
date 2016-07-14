@@ -149,11 +149,31 @@ mod tests {
 	use rlp::{UntrustedRlp, Compressible, View};
 
 	#[test]
-	fn compressible() {
-		let nested_basic_account_rlp = vec![184, 70, 248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
+	fn simple_compression() {
+		let basic_account_rlp = vec![248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
+		let rlp = UntrustedRlp::new(&basic_account_rlp);
+		let compressed = rlp.simple_compress().to_vec();
+		assert_eq!(compressed, vec![198, 4, 2, 129, 0, 129, 1]);
+		let compressed_rlp = UntrustedRlp::new(&compressed);
+		assert_eq!(compressed_rlp.simple_decompress().to_vec(), basic_account_rlp);
+	}
+
+	#[test]
+	fn data_compression() {
+		let data_basic_account_rlp = vec![184, 70, 248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
+		let data_rlp = UntrustedRlp::new(&data_basic_account_rlp);
+		let compressed = data_rlp.compress().unwrap().to_vec();
+		assert_eq!(compressed, vec![201, 129, 127, 198, 4, 2, 129, 0, 129, 1]);
+		let compressed_rlp = UntrustedRlp::new(&compressed);
+		assert_eq!(compressed_rlp.decompress().unwrap().to_vec(), data_basic_account_rlp);
+	}
+
+	#[test]
+	fn nested_list_rlp() {
+		let nested_basic_account_rlp = vec![228, 4, 226, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33];
 		let nested_rlp = UntrustedRlp::new(&nested_basic_account_rlp);
 		let compressed = nested_rlp.compress().unwrap().to_vec();
-		assert_eq!(compressed, vec![201, 129, 127, 198, 4, 2, 129, 0, 129, 1]);
+		assert_eq!(compressed, vec![197, 4, 195, 2, 129, 0]);
 		let compressed_rlp = UntrustedRlp::new(&compressed);
 		assert_eq!(compressed_rlp.decompress().unwrap().to_vec(), nested_basic_account_rlp);
 	}
@@ -164,8 +184,6 @@ mod tests {
 		let malformed_rlp = UntrustedRlp::new(&malformed);
 		assert!(malformed_rlp.decompress().is_none());
 	}
-	
-
 
 	#[test]
 	#[ignore]
