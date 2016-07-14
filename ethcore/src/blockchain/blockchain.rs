@@ -453,6 +453,43 @@ impl BlockChain {
 		}
 	}
 
+	/// Inserts a verified, known block from the canonical chain.
+	///
+	/// Can be performed out-of-order.
+	/// This is used by snapshot restoration.
+	/// Note that this does not update the block extras.
+	pub fn insert_canon_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_details: Option<BlockDetails>) {
+		let block = BlockView::new(bytes);
+		let header = block.header_view();
+		let hash = header.sha3();
+
+		if self.is_known(&hash) {
+			return;
+		}
+
+		let _lock = self.insert_lock.lock();
+		self.blocks_db.put(&hash, &bytes).unwrap();
+
+		let parent_details = parent_details.or(self.block_details(&header.parent_hash()))
+			.expect("parent details are always submitted for first block in chunk; qed");
+
+		let info = BlockInfo {
+			hash: hash,
+			number: header.number(),
+			total_difficulty: parent_details.total_difficulty + header.difficulty(),
+			location: BlockLocation::CanonChain,
+		};
+
+		self.apply_update(ExtrasUpdate {
+			block_hashes: self.prepare_block_hashes_update(bytes, &info),
+			block_details: self.prepare_block_details_update(bytes, &info, Some(parent_details)),
+			block_receipts: self.prepare_block_receipts_update(receipts, &info),
+			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
+			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+			info: info,
+		});
+	}
+
 	#[cfg_attr(feature="dev", allow(similar_names))]
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
@@ -471,11 +508,11 @@ impl BlockChain {
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
 
-		let info = self.block_info(bytes);
+		let info = self.block_info(bytes, hash);
 
 		self.apply_update(ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
-			block_details: self.prepare_block_details_update(bytes, &info),
+			block_details: self.prepare_block_details_update(bytes, &info, None),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
@@ -488,7 +525,6 @@ impl BlockChain {
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
 		let batch = DBTransaction::new();
-		batch.put(b"best", &update.info.hash).unwrap();
 
 		{
 			for hash in update.block_details.keys().cloned() {
@@ -496,29 +532,28 @@ impl BlockChain {
 			}
 
 			let mut write_details = self.block_details.write();
-			batch.extend_with_cache(write_details.deref_mut(), update.block_details, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(&mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
 		}
 
 		{
 			let mut write_receipts = self.block_receipts.write();
-			batch.extend_with_cache(write_receipts.deref_mut(), update.block_receipts, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
 		{
 			let mut write_blocks_blooms = self.blocks_blooms.write();
-			batch.extend_with_cache(write_blocks_blooms.deref_mut(), update.blocks_blooms, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
-		// These cached values must be updated last and togeterh
-		{
-			let mut best_block = self.best_block.write();
-			let mut write_hashes = self.block_hashes.write();
-			let mut write_txs = self.transaction_addresses.write();
+		// update best block
+		match update.info.location {
+			BlockLocation::Branch => (),
+			_ => {
+				let mut best_block = self.best_block.write();
 
-			// update best block
-			match update.info.location {
-				BlockLocation::Branch => (),
-				_ => {
+				if update.info.total_difficulty > best_block.total_difficulty {
+					batch.put(b"best", &update.info.hash).unwrap();
+
 					*best_block = BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
@@ -526,13 +561,18 @@ impl BlockChain {
 					};
 				}
 			}
-
-			batch.extend_with_cache(write_hashes.deref_mut(), update.block_hashes, CacheUpdatePolicy::Remove);
-			batch.extend_with_cache(write_txs.deref_mut(), update.transactions_addresses, CacheUpdatePolicy::Remove);
-
-			// update extras database
-			self.extras_db.write(batch).unwrap();
 		}
+
+		let mut write_hashes = self.block_hashes.write();
+		let mut write_txs = self.transaction_addresses.write();
+
+		// These cached values must be updated last and together
+		batch.extend_with_cache(&mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
+		batch.extend_with_cache(&mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
+
+		// update extras database
+		self.extras_db.write(batch).unwrap();
+
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
@@ -572,10 +612,9 @@ impl BlockChain {
 	}
 
 	/// Get inserted block info which is critical to prepare extras updates.
-	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
+	fn block_info(&self, block_bytes: &[u8], hash: H256) -> BlockInfo {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
-		let hash = block.sha3();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
 		let parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
@@ -641,13 +680,15 @@ impl BlockChain {
 	}
 
 	/// This function returns modified block details.
-	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlockDetails> {
+	/// Uses the given parent details or attempts to load them from the database.
+	/// The optional parameter is used when inserting blocks out-of-order from a snapshot.
+	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo, parent_details: Option<BlockDetails>) -> HashMap<H256, BlockDetails> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 		let parent_hash = header.parent_hash();
 
 		// update parent
-		let mut parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
+		let mut parent_details = parent_details.or(self.block_details(&parent_hash)).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
 		parent_details.children.push(info.hash.clone());
 
 		// create current block details
