@@ -30,7 +30,7 @@ use blockchain::best_block::BestBlock;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
-use db::{Writable, Readable, CacheUpdatePolicy};
+use db::{Writable, Readable, CacheUpdatePolicy, Key};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -295,7 +295,34 @@ impl BlockChain {
 
 		// load best block
 		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
-			Some(best) => H256::from_slice(&best),
+			Some(best) => {
+				let best = H256::from_slice(&best);
+				let mut b = best.clone();
+				let mut removed = 0;
+				let mut best_num = 0;
+				while !bc.blocks_db.get(&b).unwrap().is_some() {
+					// track back to the best block we have in the blocks database
+					let extras: BlockDetails = bc.extras_db.read(&b).unwrap();
+					type DetailsKey = Key<BlockDetails, Target=H264>;
+					bc.extras_db.delete(&(DetailsKey::key(&b))).unwrap();
+					b = extras.parent;
+					best_num = extras.number;
+					removed += 1;
+				}
+				if b != best {
+					let batch = DBTransaction::new();
+					let range = (best_num + 1) as bc::Number .. (best_num + removed) as bc::Number;
+					let chain = bc::group::BloomGroupChain::new(bc.blooms_config, &bc);
+					let changes = chain.replace(&range, vec![]);
+					for (k, v) in changes.into_iter() {
+						batch.write(&LogGroupPosition::from(k), &BloomGroup::from(v));
+					}
+					batch.put(b"best", &b).unwrap();
+					bc.extras_db.write(batch).unwrap();
+					info!("Restored mismatched best block. Was: {}, new: {}", best.hex(), b.hex());
+				}
+				b
+			}
 			None => {
 				// best block does not exist
 				// we need to insert genesis into the cache
