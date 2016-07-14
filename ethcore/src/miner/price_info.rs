@@ -77,7 +77,6 @@ impl PriceInfo {
 	}
 }
 
-//#[ignore]
 #[test]
 fn should_get_price_info() {
 	use std::sync::Arc;
@@ -88,6 +87,7 @@ fn should_get_price_info() {
 	init_log();
 	let done = Arc::new((Mutex::new(PriceInfo { ethusd: 0f32 }), Condvar::new()));
 	let rdone = done.clone();
+
 	PriceInfo::get(move |price| { let mut p = rdone.0.lock(); *p = price; rdone.1.notify_one(); }).unwrap();
 	let mut p = done.0.lock();
 	let t = done.1.wait_for(&mut p, Duration::from_millis(10000));

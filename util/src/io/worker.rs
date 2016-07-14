@@ -87,7 +87,7 @@ impl Worker {
 				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}
-				let _ = wait.wait(&mut lock);
+				wait.wait(&mut lock);
 			}
 
 			if deleting.load(AtomicOrdering::Acquire) {

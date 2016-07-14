@@ -56,7 +56,7 @@ struct EthTester {
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	pub accounts_provider: Arc<AccountProvider>,
-	miner: Arc<TestMinerService>,
+	pub miner: Arc<TestMinerService>,
 	hashrates: Arc<RwLock<HashMap<H256, U256>>>,
 	pub io: IoHandler,
 }
@@ -742,13 +742,12 @@ fn returns_no_work_if_cant_mine() {
 	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
 }
 
-#[ignore]
-// enable once TestMinerService supports the mining API.
 #[test]
 fn returns_error_if_can_mine_and_no_closed_block() {
 	use ethsync::{SyncState};
 
 	let eth_tester = EthTester::default();
+	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
 	eth_tester.sync.status.write().state = SyncState::Idle;
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;

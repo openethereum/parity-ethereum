@@ -615,7 +615,9 @@ impl MinerService for Miner {
 		let imported = {
 			// Be sure to release the lock before we call enable_and_prepare_sealing
 			let mut transaction_queue = self.transaction_queue.lock();
-			let import = self.add_transactions_to_queue(chain, vec![transaction], TransactionOrigin::Local, &mut transaction_queue).pop().unwrap();
+			let import = self.add_transactions_to_queue(
+				chain, vec![transaction], TransactionOrigin::Local, &mut transaction_queue
+			).pop().unwrap();
 
 			match import {
 				Ok(ref res) => {
@@ -834,10 +836,13 @@ impl MinerService for Miner {
 #[cfg(test)]
 mod tests {
 
+	use std::time::Duration;
 	use super::super::MinerService;
-	use super::Miner;
+	use super::*;
 	use util::*;
 	use client::{TestBlockChainClient, EachBlockWith};
+	use client::{TransactionImportResult};
+	use types::transaction::{Transaction, Action};
 	use block::*;
 	use spec::Spec;
 
@@ -871,5 +876,85 @@ mod tests {
 
 		// solution to original work submitted.
 		assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
+	}
+
+	fn miner() -> Miner {
+		Arc::try_unwrap(Miner::new(
+			MinerOptions {
+				new_work_notify: Vec::new(),
+				force_sealing: false,
+				reseal_on_external_tx: false,
+				reseal_on_own_tx: true,
+				reseal_min_period: Duration::from_secs(5),
+				tx_gas_limit: !U256::zero(),
+				tx_queue_size: 1024,
+				pending_set: PendingSet::AlwaysSealing,
+				work_queue_size: 5,
+				enable_resubmission: true,
+			},
+			GasPricer::new_fixed(0u64.into()),
+			Spec::new_test(),
+			None, // accounts provider
+		)).ok().expect("Miner was just created.")
+	}
+
+	#[test]
+	fn should_make_pending_block_when_importing_own_transaction() {
+		// given
+		let client = TestBlockChainClient::default();
+		let miner = miner();
+		let transaction = {
+			let keypair = KeyPair::create().unwrap();
+			Transaction {
+				action: Action::Create,
+				value: U256::zero(),
+				data: "3331600055".from_hex().unwrap(),
+				gas: U256::from(100_000),
+				gas_price: U256::zero(),
+				nonce: U256::zero(),
+			}.sign(keypair.secret())
+		};
+
+		// when
+		let res = miner.import_own_transaction(&client, transaction);
+
+		// then
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.all_transactions().len(), 1);
+		assert_eq!(miner.pending_transactions().len(), 1);
+		assert_eq!(miner.pending_transactions_hashes().len(), 1);
+		assert_eq!(miner.pending_receipts().len(), 1);
+		// This method will let us know if pending block was created (before calling that method)
+		assert_eq!(miner.enable_and_prepare_sealing(&client), false);
+	}
+
+	#[test]
+	fn should_import_external_transaction() {
+		// given
+		let client = TestBlockChainClient::default();
+		let miner = miner();
+		let transaction = {
+			let keypair = KeyPair::create().unwrap();
+			Transaction {
+				action: Action::Create,
+				value: U256::zero(),
+				data: "3331600055".from_hex().unwrap(),
+				gas: U256::from(100_000),
+				gas_price: U256::zero(),
+				nonce: U256::zero(),
+			}.sign(keypair.secret())
+		};
+
+		// when
+		let res = miner.import_external_transactions(&client, vec![transaction]).pop().unwrap();
+
+		// then
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.all_transactions().len(), 1);
+		assert_eq!(miner.pending_transactions_hashes().len(), 0);
+		assert_eq!(miner.pending_transactions().len(), 0);
+		assert_eq!(miner.pending_receipts().len(), 0);
+		// This method will let us know if pending block was created (before calling that method)
+		assert_eq!(miner.enable_and_prepare_sealing(&client), true);
 	}
 }
