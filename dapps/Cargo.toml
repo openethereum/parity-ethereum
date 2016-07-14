@@ -38,3 +38,9 @@ default = ["serde_codegen", "extra-dapps"]
 extra-dapps = ["parity-dapps-wallet"]
 nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
+
+use-precompiled-js = [
+	"parity-dapps-status/use-precompiled-js",
+	"parity-dapps-home/use-precompiled-js",
+	"parity-dapps-wallet/use-precompiled-js"
+]

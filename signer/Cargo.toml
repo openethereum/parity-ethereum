@@ -25,3 +25,4 @@ clippy = { version = "0.0.79", optional = true}
 [features]
 dev = ["clippy"]
 ui = ["parity-dapps-signer"]
+use-precompiled-js = ["parity-dapps-signer/use-precompiled-js"]
