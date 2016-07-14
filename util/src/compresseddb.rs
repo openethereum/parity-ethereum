@@ -111,19 +111,19 @@ impl<'db> HashDB for CompressedDBMut<'db> {
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		let key = value.sha3();
 		self.backing.emplace(key,
-												 UntrustedRlp::new(value)
-												 .compress()
-												 .map(|r| r.to_vec())
-												 .unwrap_or(value.to_vec()));
+							 UntrustedRlp::new(value)
+							 .compress()
+							 .map(|r| r.to_vec())
+							 .unwrap_or(value.to_vec()));
 		key
 	}
 
 	fn emplace(&mut self, key: H256, value: Bytes) {
 		self.backing.emplace(key,
-												 UntrustedRlp::new(&value)
-												 .compress()
-												 .map(|r| r.to_vec())
-												 .unwrap_or(value));
+							 UntrustedRlp::new(&value)
+							 .compress()
+							 .map(|r| r.to_vec())
+							 .unwrap_or(value));
 	}	
 
 	fn remove(&mut self, key: &H256) {
