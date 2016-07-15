@@ -413,3 +413,23 @@ fn test_rlp_list_length_overflow() {
 	let as_val: Result<String, DecoderError> = rlp.val_at(0);
 	assert_eq!(Err(DecoderError::RlpIsTooShort), as_val);
 }
+
+#[test]
+fn payload_info_err() {
+	let dat = vec![0xb9, 0x00];
+	let pi = UntrustedRlp::new(&dat).payload_info();
+	assert!(match pi { Err(DecoderError::RlpDataLenWithZeroPrefix) => true, _ => false, });
+	let dat = vec![0xf9];
+	let pi = UntrustedRlp::new(&dat).payload_info();
+	assert!(match pi { Err(DecoderError::RlpIsTooShort) => true, _ => false, });
+}
+
+#[test]
+fn invalid_rlp() {
+	let dat = vec![0x81, 0x00];
+	let val: Result<String, DecoderError> = UntrustedRlp::new(&dat).as_val();
+	assert_eq!(Err(DecoderError::RlpInvalidIndirection), val);
+	let dat = vec![0x84, 0x00];
+	let val: Result<String, DecoderError> = UntrustedRlp::new(&dat).as_val();
+	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), val);
+}
