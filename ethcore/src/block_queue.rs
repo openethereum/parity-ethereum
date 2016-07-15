@@ -79,7 +79,7 @@ impl BlockQueueInfo {
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
 	panic_handler: Arc<PanicHandler>,
-	engine: Arc<Box<Engine>>,
+	engine: Arc<Engine>,
 	more_to_verify: Arc<Condvar>,
 	verification: Arc<Verification>,
 	verifiers: Vec<JoinHandle<()>>,
@@ -137,7 +137,7 @@ struct Verification {
 
 impl BlockQueue {
 	/// Creates a new queue instance.
-	pub fn new(config: BlockQueueConfig, engine: Arc<Box<Engine>>, message_channel: IoChannel<ClientIoMessage>) -> BlockQueue {
+	pub fn new(config: BlockQueueConfig, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> BlockQueue {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
 			verified: Mutex::new(VecDeque::new()),
@@ -190,7 +190,7 @@ impl BlockQueue {
 		}
 	}
 
-	fn verify(verification: Arc<Verification>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
+	fn verify(verification: Arc<Verification>, engine: Arc<Engine>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
 		while !deleting.load(AtomicOrdering::Acquire) {
 			{
 				let mut unverified = verification.unverified.lock();
@@ -220,7 +220,7 @@ impl BlockQueue {
 			};
 
 			let block_hash = block.header.hash();
-			match verify_block_unordered(block.header, block.bytes, engine.deref().deref()) {
+			match verify_block_unordered(block.header, block.bytes, &*engine) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
 					for e in verifying.iter_mut() {
@@ -313,7 +313,7 @@ impl BlockQueue {
 			}
 		}
 
-		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
+		match verify_block_basic(&header, &bytes, &*self.engine) {
 			Ok(()) => {
 				self.processing.write().insert(h.clone());
 				self.verification.unverified.lock().push_back(UnverifiedBlock { header: header, bytes: bytes });
@@ -334,7 +334,7 @@ impl BlockQueue {
 			return;
 		}
 		let mut verified_lock = self.verification.verified.lock();
-		let mut verified = verified_lock.deref_mut();
+		let mut verified = &mut *verified_lock;
 		let mut bad = self.verification.bad.lock();
 		let mut processing = self.processing.write();
 		bad.reserve(block_hashes.len());

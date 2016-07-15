@@ -22,6 +22,7 @@ use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
+use snapshot::service::Service as SnapshotService;
 
 /// Message type for external and internal events
 #[derive(Clone)]
@@ -32,12 +33,17 @@ pub enum ClientIoMessage {
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
 	NewTransactions(Vec<Bytes>),
+	/// Feed a state chunk to the snapshot service
+	FeedStateChunk(H256, Bytes),
+	/// Feed a block chunk to the snapshot service
+	FeedBlockChunk(H256, Bytes),
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
 	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
+	snapshot: Arc<SnapshotService>,
 	panic_handler: Arc<PanicHandler>
 }
 
@@ -50,21 +56,30 @@ impl ClientService {
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
 	{
+		let mut db_path = db_path.to_owned();
+		db_path.push(H64::from(spec.genesis_header().hash()).hex());
+
 		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = try!(IoService::<ClientIoMessage>::start());
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", spec.name.clone().apply(Colour::White.bold()), spec.engine.name().apply(Colour::Yellow.bold()));
-		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel()));
-		panic_handler.forward_from(client.deref());
+		let snapshot = try!(SnapshotService::new(&spec, config.pruning, db_path.clone(), io_service.channel()));
+		let client = try!(Client::new(config, &spec, &db_path, miner, io_service.channel()));
+
+		let snapshot = Arc::new(snapshot);
+
+		panic_handler.forward_from(&*client);
 		let client_io = Arc::new(ClientIoHandler {
-			client: client.clone()
+			client: client.clone(),
+			snapshot: snapshot.clone(),
 		});
 		try!(io_service.register_handler(client_io));
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
+			snapshot: snapshot,
 			panic_handler: panic_handler,
 		})
 	}
@@ -103,7 +118,8 @@ impl MayPanic for ClientService {
 
 /// IO interface for the Client handler
 struct ClientIoHandler {
-	client: Arc<Client>
+	client: Arc<Client>,
+	snapshot: Arc<SnapshotService>,
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
@@ -125,6 +141,8 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(&io.channel()); }
 			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
+			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
+			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
 			_ => {} // ignore other messages
 		}
 	}

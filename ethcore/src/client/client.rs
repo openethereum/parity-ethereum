@@ -128,7 +128,7 @@ pub struct Client {
 	mode: Mode,
 	chain: Arc<BlockChain>,
 	tracedb: Arc<TraceDB<BlockChain>>,
-	engine: Arc<Box<Engine>>,
+	engine: Arc<Engine>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
@@ -155,9 +155,8 @@ const HISTORY: u64 = 1200;
 const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 /// Get the path for the databases given the root path and information on the databases.
-pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf {
+pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm) -> PathBuf {
 	let mut dir = path.to_path_buf();
-	dir.push(H64::from(genesis_hash).hex());
 	//TODO: sec/fat: pruned/full versioning
 	// version here is a bit useless now, since it's controlled only be the pruning algo.
 	dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, pruning));
@@ -172,15 +171,15 @@ pub fn append_path(path: &Path, item: &str) -> String {
 }
 
 impl Client {
-	///  Create a new client with given spec and DB path and custom verifier.
+	/// Create a new client with given spec and DB path and custom verifier.
 	pub fn new(
 		config: ClientConfig,
-		spec: Spec,
+		spec: &Spec,
 		path: &Path,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
 	) -> Result<Arc<Client>, ClientError> {
-		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
+		let path = get_db_path(path, config.pruning);
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
@@ -204,7 +203,7 @@ impl Client {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
-		let engine = Arc::new(spec.engine);
+		let engine = spec.engine.clone();
 
 		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel.clone());
 		let panic_handler = PanicHandler::new_in_arc();
@@ -267,7 +266,7 @@ impl Client {
 	}
 
 	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<LockedBlock, ()> {
-		let engine = &**self.engine;
+		let engine = &*self.engine;
 		let header = &block.header;
 
 		// Check the block isn't so old we won't be able to enact it.
@@ -650,7 +649,7 @@ impl BlockChainClient for Client {
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(&mut state, &env_info, &**self.engine, &self.vm_factory).transact(t, options);
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, options);
 
 		// TODO gav move this into Executive.
 		if analytics.state_diffing {
@@ -686,7 +685,7 @@ impl BlockChainClient for Client {
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
 		if let &BlockID::Pending = &id {
-			if let Some(block) = self.miner.pending_block() { 
+			if let Some(block) = self.miner.pending_block() {
 				return Some(block.rlp_bytes(Seal::Without));
 			}
 		}
@@ -707,7 +706,7 @@ impl BlockChainClient for Client {
 		if let &BlockID::Pending = &id {
 			if let Some(block) = self.miner.pending_block() {
 				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
-			} 
+			}
 		}
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
@@ -951,7 +950,7 @@ impl BlockChainClient for Client {
 
 impl MiningBlockChainClient for Client {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
-		let engine = &**self.engine;
+		let engine = &*self.engine;
 		let h = self.chain.best_block_hash();
 
 		let mut open_block = OpenBlock::new(

@@ -61,24 +61,23 @@ pub trait SnapshotService {
 	/// Get raw chunk for a given hash.
 	fn chunk(&self, hash: H256) -> Result<Bytes, Error>;
 
+	/// Query for any errors which have occurred.
+	/// This is necessary due to the asynchronous nature of
+	/// the snapshot service.
+	fn last_error(&self) -> Result<(), Error>;
+
 	/// Begin snapshot restoration.
 	/// If restoration in-progress, this will reset it.
 	/// From this point on, any previous snapshot may become unavailable.
 	fn begin_restore(&self, manifest: ManifestData);
 
-	/// Finalize snapshot restoration.
-	///
-	/// Requires that all state and block chunks have been fed.
-	/// All fed chunks and the manifest data must become queryable.
-	fn finish_restore(&self);
-
-	/// Feed a raw state chunk to the service.
+	/// Feed a raw state chunk to the service to be processed asynchronously.
 	/// no-op if not currently restoring.
-	fn feed_state_chunk(&self, hash: H256, chunk: Bytes);
+	fn restore_state_chunk(&self, hash: H256, chunk: Bytes);
 
-	/// Feed a raw block chunk to the service.
+	/// Feed a raw block chunk to the service to be processed asynchronously.
 	/// no-op if currently restoring.
-	fn feed_block_chunk(&self, hash: H256, chunk: Bytes);
+	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
 }
 
 /// Interface for taking snapshots periodically.
