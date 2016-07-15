@@ -24,6 +24,7 @@ semver = "0.2"
 ansi_term = "0.7"
 lazy_static = "0.2"
 regex = "0.1"
+isatty = "0.1"
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 ethcore = { path = "ethcore" }

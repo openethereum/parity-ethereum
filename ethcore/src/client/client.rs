@@ -35,7 +35,7 @@ use util::rlp::{RlpStream, Rlp, UntrustedRlp};
 use util::journaldb;
 use util::journaldb::JournalDB;
 use util::kvdb::*;
-use util::{Applyable, Stream, View, PerfTimer, Itertools, Colour};
+use util::{Stream, View, PerfTimer, Itertools, Colour};
 use util::{Mutex, RwLock};
 
 // other
@@ -618,7 +618,7 @@ impl Client {
 			}
 		}
 		*previous_enode = Some(url.into());
-		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
+		info!(target: "mode", "Public node URL: {}", Colour::White.bold().paint(url));
 	}
 }
 
