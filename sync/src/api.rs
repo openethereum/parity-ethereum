@@ -27,6 +27,7 @@ use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::mem;
 use std::collections::VecDeque;
 use parking_lot::RwLock;
+use util::Colour;
 
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: &'static str = "eth";
@@ -142,6 +143,10 @@ impl ChainNotify for EthSync {
 		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
 		self.network.register_protocol(self.handler.clone(), ETH_PROTOCOL, &[62u8, 63u8])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
+
+		if let Some(url) = self.network.local_url() {
+			info!(target: "mode", "Public node URL: {}", Colour::White.bold().paint(url.as_ref()));
+		}
 	}
 
 	fn stop(&self) {
