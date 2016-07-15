@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity database ipc service
+//! Parity sync service
 
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_ipc_hypervisor as hypervisor;
