@@ -55,7 +55,7 @@ pub struct PayloadInfo {
 	pub value_len: usize,
 }
 
-fn calculate_payload_info(header_bytes: &[u8], len_of_len: &usize) -> Result<PayloadInfo, DecoderError> {
+fn calculate_payload_info(header_bytes: &[u8], len_of_len: usize) -> Result<PayloadInfo, DecoderError> {
 	let header_len = 1 + len_of_len;
 	match header_bytes.get(1) {
 		Some(&0) => return Err(DecoderError::RlpDataLenWithZeroPrefix),
@@ -86,12 +86,12 @@ impl PayloadInfo {
 			Some(l @ 0x80...0xb7) => Ok(PayloadInfo::new(1, l as usize - 0x80)),
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
-				calculate_payload_info(header_bytes, &len_of_len)
+				calculate_payload_info(header_bytes, len_of_len)
 			}
 			Some(l @ 0xc0...0xf7) => Ok(PayloadInfo::new(1, l as usize - 0xc0)),
 			Some(l @ 0xf8...0xff) => {
 				let len_of_len = l as usize - 0xf7;
-				calculate_payload_info(header_bytes, &len_of_len)
+				calculate_payload_info(header_bytes, len_of_len)
 			},
 			// we cant reach this place, but rust requires _ to be implemented
 			_ => { unreachable!(); }
