@@ -4,8 +4,13 @@ name = "ethsync"
 version = "1.3.0"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io"]
+build = "build.rs"
 
 [lib]
+
+[build-dependencies]
+syntex = "0.33"
+ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 ethcore-util = { path = "../util" }
@@ -16,6 +21,10 @@ env_logger = "0.3"
 time = "0.1.34"
 rand = "0.3.13"
 heapsize = "0.3"
+ethcore-ipc = { path = "../ipc/rpc" }
+semver = "0.2"
+ethcore-ipc-nano = { path = "../ipc/nano" }
+parking_lot = "0.2.6"
 
 [features]
 default = []

@@ -28,7 +28,7 @@ pub enum BlockNumber {
 	/// Earliest block (genesis)
 	Earliest,
 	/// Pending block (being mined)
-	Pending
+	Pending,
 }
 
 impl Deserialize for BlockNumber {
@@ -63,8 +63,8 @@ impl Into<BlockID> for BlockNumber {
 		match self {
 			BlockNumber::Num(n) => BlockID::Number(n),
 			BlockNumber::Earliest => BlockID::Earliest,
-			// TODO: change this once blockid support pendingst,
-			BlockNumber::Pending | BlockNumber::Latest => BlockID::Latest,
+			BlockNumber::Latest => BlockID::Latest,
+			BlockNumber::Pending => BlockID::Pending,
 		}
 	}
 }
@@ -87,7 +87,7 @@ mod tests {
 		assert_eq!(BlockID::Number(100), BlockNumber::Num(100).into());
 		assert_eq!(BlockID::Earliest, BlockNumber::Earliest.into());
 		assert_eq!(BlockID::Latest, BlockNumber::Latest.into());
-		assert_eq!(BlockID::Latest, BlockNumber::Pending.into());
+		assert_eq!(BlockID::Pending, BlockNumber::Pending.into());
 	}
 }
 
