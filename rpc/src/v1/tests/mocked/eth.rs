@@ -56,7 +56,7 @@ struct EthTester {
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	pub accounts_provider: Arc<AccountProvider>,
-	miner: Arc<TestMinerService>,
+	pub miner: Arc<TestMinerService>,
 	hashrates: Arc<RwLock<HashMap<H256, U256>>>,
 	pub io: IoHandler,
 }
@@ -707,6 +707,11 @@ fn rpc_eth_compilers() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
+// These tests are incorrect: their output is undefined as long as eth_getCompilers is [].
+// Will ignore for now, but should probably be replaced by more substantial tests which check
+// the output of eth_getCompilers to determine whether to test. CI systems can then be preinstalled
+// with solc/serpent/lllc and they'll be proper again.
+#[ignore]
 #[test]
 fn rpc_eth_compile_lll() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileLLL", "params": [], "id": 1}"#;
@@ -715,6 +720,7 @@ fn rpc_eth_compile_lll() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
+#[ignore]
 #[test]
 fn rpc_eth_compile_solidity() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSolidity", "params": [], "id": 1}"#;
@@ -723,6 +729,7 @@ fn rpc_eth_compile_solidity() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
+#[ignore]
 #[test]
 fn rpc_eth_compile_serpent() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSerpent", "params": [], "id": 1}"#;
@@ -742,13 +749,12 @@ fn returns_no_work_if_cant_mine() {
 	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
 }
 
-#[ignore]
-// enable once TestMinerService supports the mining API.
 #[test]
 fn returns_error_if_can_mine_and_no_closed_block() {
 	use ethsync::{SyncState};
 
 	let eth_tester = EthTester::default();
+	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
 	eth_tester.sync.status.write().state = SyncState::Idle;
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;

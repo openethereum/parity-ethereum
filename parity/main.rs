@@ -84,7 +84,7 @@ use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, ClientConfig, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
-use ethsync::EthSync;
+use ethsync::{EthSync, NetworkConfiguration};
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use migration::migrate;
 use informant::Informant;
@@ -271,7 +271,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = try!(EthSync::new(sync_config, client.clone(), net_settings).map_err(|_| "Error registering eth protocol handler"));
+	let sync = try!(EthSync::new(sync_config, client.clone(), NetworkConfiguration::from(net_settings)).map_err(|_| "Error registering eth protocol handler"));
 	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
 
 	// if network is active by default

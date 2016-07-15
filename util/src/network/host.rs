@@ -430,6 +430,7 @@ impl Host {
 
 		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
 		self.reserved_nodes.write().insert(n.id.clone());
+		self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
 
 		if let Some(ref mut discovery) = *self.discovery.lock() {
 			discovery.add_node(entry);
@@ -755,7 +756,9 @@ impl Host {
 						trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
 						if let UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) = e {
 							if let Some(id) = s.id() {
-								self.nodes.write().mark_as_useless(id);
+								if !self.reserved_nodes.read().contains(id) {
+									self.nodes.write().mark_as_useless(id);
+								}
 							}
 						}
 						kill = true;
@@ -889,7 +892,7 @@ impl Host {
 			trace!(target: "network", "Removed from node table: {}", i);
 			self.kill_connection(i, io, false);
 		}
-		self.nodes.write().update(node_changes);
+		self.nodes.write().update(node_changes, &*self.reserved_nodes.read());
 	}
 
 	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: Fn(&NetworkContext) {

@@ -236,13 +236,15 @@ impl NodeTable {
 	}
 
 	/// Apply table changes coming from discovery
-	pub fn update(&mut self, mut update: TableUpdates) {
+	pub fn update(&mut self, mut update: TableUpdates, reserved: &HashSet<NodeId>) {
 		for (_, node) in update.added.drain() {
 			let mut entry = self.nodes.entry(node.id.clone()).or_insert_with(|| Node::new(node.id.clone(), node.endpoint.clone()));
 			entry.endpoint = node.endpoint;
 		}
 		for r in update.removed {
-			self.nodes.remove(&r);
+			if !reserved.contains(&r) {
+				self.nodes.remove(&r);
+			}
 		}
 	}
 

@@ -488,7 +488,6 @@ impl BlockChain {
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
 		let batch = DBTransaction::new();
-		batch.put(b"best", &update.info.hash).unwrap();
 
 		{
 			for hash in update.block_details.keys().cloned() {
@@ -496,29 +495,27 @@ impl BlockChain {
 			}
 
 			let mut write_details = self.block_details.write();
-			batch.extend_with_cache(write_details.deref_mut(), update.block_details, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(&mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
 		}
 
 		{
 			let mut write_receipts = self.block_receipts.write();
-			batch.extend_with_cache(write_receipts.deref_mut(), update.block_receipts, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
 		{
 			let mut write_blocks_blooms = self.blocks_blooms.write();
-			batch.extend_with_cache(write_blocks_blooms.deref_mut(), update.blocks_blooms, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
 		// These cached values must be updated last and togeterh
 		{
-			let mut best_block = self.best_block.write();
-			let mut write_hashes = self.block_hashes.write();
-			let mut write_txs = self.transaction_addresses.write();
-
 			// update best block
 			match update.info.location {
 				BlockLocation::Branch => (),
 				_ => {
+					batch.put(b"best", &update.info.hash).unwrap();
+					let mut best_block = self.best_block.write();
 					*best_block = BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
@@ -527,8 +524,11 @@ impl BlockChain {
 				}
 			}
 
-			batch.extend_with_cache(write_hashes.deref_mut(), update.block_hashes, CacheUpdatePolicy::Remove);
-			batch.extend_with_cache(write_txs.deref_mut(), update.transactions_addresses, CacheUpdatePolicy::Remove);
+			let mut write_hashes = self.block_hashes.write();
+			let mut write_txs = self.transaction_addresses.write();
+
+			batch.extend_with_cache(&mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
 
 			// update extras database
 			self.extras_db.write(batch).unwrap();
@@ -1188,5 +1188,32 @@ mod tests {
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 		assert_eq!(blocks_ba, vec![3]);
+	}
+
+	#[test]
+	fn test_best_block_update() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+
+		let temp = RandomTempPath::new();
+
+		{
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+
+			// create a longer fork
+			for _ in 0..5 {
+				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
+				bc.insert_block(&canon_block, vec![]);
+			}
+
+			assert_eq!(bc.best_block_number(), 5);
+			bc.insert_block(&uncle, vec![]);
+		}
+
+		// re-loading the blockchain should load the correct best block.
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		assert_eq!(bc.best_block_number(), 5);
 	}
 }
