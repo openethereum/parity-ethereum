@@ -26,6 +26,9 @@ pub type IpcModuleId = u64;
 /// Blockhain database module id
 pub const CLIENT_MODULE_ID: IpcModuleId = 2000;
 
+/// Sync module id
+pub const SYNC_MODULE_ID: IpcModuleId = 2100;
+
 /// IPC service that handles module management
 pub struct HypervisorService {
 	check_list: RwLock<HashMap<IpcModuleId, bool>>,

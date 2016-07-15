@@ -38,6 +38,7 @@ ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.79", optional = true}
+schedule_recv = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
@@ -60,6 +61,10 @@ travis-nightly = ["ethcore/json-tests", "dev"]
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
+
+[[bin]]
+path = "parity/sync/main.rs"
+name = "sync"
 
 [profile.release]
 debug = true

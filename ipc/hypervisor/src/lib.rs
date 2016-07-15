@@ -33,11 +33,12 @@ use service::{HypervisorService, IpcModuleId};
 use std::process::{Command,Child};
 use std::collections::HashMap;
 
-pub use service::{HypervisorServiceClient, CLIENT_MODULE_ID};
+pub use service::{HypervisorServiceClient, CLIENT_MODULE_ID, SYNC_MODULE_ID};
 
 type BinaryId = &'static str;
 
 const CLIENT_BINARY: BinaryId = "client";
+const SYNC_BINARY: BinaryId = "sync";
 
 pub struct Hypervisor {
 	ipc_addr: String,
@@ -76,6 +77,7 @@ impl Hypervisor {
 	fn match_module(module_id: &IpcModuleId) -> Option<BinaryId> {
 		match *module_id {
 			CLIENT_MODULE_ID => Some(CLIENT_BINARY),
+			SYNC_MODULE_ID => Some(SYNC_BINARY),
 			// none means the module is inside the main binary
 			_ => None
 		}

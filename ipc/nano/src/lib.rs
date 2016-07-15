@@ -54,9 +54,9 @@ impl<S> GuardedSocket<S> where S: WithSocket<Socket> {
 }
 
 impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
-    type Target = S;
+    type Target = Arc<S>;
 
-    fn deref(&self) -> &S {
+    fn deref(&self) -> &Arc<S> {
         &self.client
     }
 }

@@ -19,7 +19,7 @@ use std::sync::Arc;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode};
 use util::{TimerToken, U256, H256, UtilError, Secret, Populatable};
-use ethcore::client::{Client, ChainNotify};
+use ethcore::client::{Client, BlockChainClient, ChainNotify};
 use io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
 use std::net::{SocketAddr, AddrParseError};
@@ -67,7 +67,7 @@ pub struct EthSync {
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(config: SyncConfig, chain: Arc<Client>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, UtilError> {
+	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, UtilError> {
 		let chain_sync = ChainSync::new(config, chain.deref());
 		let service = try!(NetworkService::new(try!(network_config.into_basic())));
 		let sync = Arc::new(EthSync{
@@ -90,7 +90,7 @@ impl SyncProvider for EthSync {
 
 struct SyncProtocolHandler {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
-	chain: Arc<Client>,
+	chain: Arc<BlockChainClient>,
 	/// Sync strategy
 	sync: RwLock<ChainSync>,
 }
