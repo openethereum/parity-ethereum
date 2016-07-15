@@ -49,7 +49,7 @@ pub struct NetworkService {
 	host: RwLock<Option<Arc<Host>>>,
 	stats: Arc<NetworkStats>,
 	panic_handler: Arc<PanicHandler>,
-	_host_handler: Arc<HostHandler>,
+	host_handler: Arc<HostHandler>,
 	config: NetworkConfiguration,
 }
 
@@ -60,7 +60,6 @@ impl NetworkService {
 		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = try!(IoService::<NetworkIoMessage>::start());
 		panic_handler.forward_from(&io_service);
-		try!(io_service.register_handler(host_handler.clone()));
 
 		let stats = Arc::new(NetworkStats::new());
 		let host_info = Host::client_version();
@@ -71,7 +70,7 @@ impl NetworkService {
 			panic_handler: panic_handler,
 			host: RwLock::new(None),
 			config: config,
-			_host_handler: host_handler,
+			host_handler: host_handler,
 		})
 	}
 
@@ -125,6 +124,11 @@ impl NetworkService {
 			try!(self.io_service.register_handler(h.clone()));
 			*host = Some(h);
 		}
+
+		if self.host_handler.public_url.read().is_none() {
+			try!(self.io_service.register_handler(self.host_handler.clone()));
+		}
+
 		Ok(())
 	}
 
