@@ -20,8 +20,9 @@ use self::ansi_term::Style;
 
 use std::time::{Instant, Duration};
 use std::ops::{Deref, DerefMut};
-use ethsync::SyncStatus;
-use util::{Uint, RwLock, NetworkConfiguration};
+use isatty::{stdout_isatty};
+use ethsync::{SyncStatus, NetworkConfiguration};
+use util::{Uint, RwLock};
 use ethcore::client::*;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 
@@ -91,7 +92,7 @@ impl Informant {
 		let mut write_report = self.report.write();
 		let report = client.report();
 
-		let paint = |c: Style, t: String| match self.with_color {
+		let paint = |c: Style, t: String| match self.with_color && stdout_isatty() {
 			true => format!("{}", c.paint(t)),
 			false => t,
 		};

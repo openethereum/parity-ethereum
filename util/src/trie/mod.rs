@@ -38,7 +38,6 @@ pub mod sectriedb;
 pub mod sectriedbmut;
 
 mod fatdb;
-
 mod fatdbmut;
 
 pub use self::trietraits::{Trie, TrieMut};

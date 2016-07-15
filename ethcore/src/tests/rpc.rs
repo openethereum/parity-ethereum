@@ -36,7 +36,7 @@ pub fn run_test_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_p
 			temp.as_path(),
 			Arc::new(Miner::with_spec(get_test_spec())),
 			IoChannel::disconnected()).unwrap();
-		let mut worker = nanoipc::Worker::new(&client);
+		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
 		worker.add_reqrep(&socket_path).unwrap();
 		while !stop.load(Ordering::Relaxed) {
 			worker.poll();

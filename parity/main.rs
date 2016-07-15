@@ -53,6 +53,7 @@ extern crate ansi_term;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
+extern crate isatty;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
@@ -82,14 +83,14 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
+use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError,
 	ChainNotify, Mode};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
-use ethsync::EthSync;
+use ethsync::{EthSync, NetworkConfiguration};
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
@@ -192,18 +193,18 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	info!("Starting {}", format!("{}", version()).apply(Colour::White.bold()));
-	info!("Using state DB journalling strategy {}", match client_config.pruning {
+	info!("Starting {}", Colour::White.bold().paint(format!("{}", version())));
+	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(match client_config.pruning {
 		journaldb::Algorithm::Archive => "archive",
 		journaldb::Algorithm::EarlyMerge => "light",
 		journaldb::Algorithm::OverlayRecent => "fast",
 		journaldb::Algorithm::RefCounted => "basic",
-	}.apply(Colour::White.bold()));
+	}));
 
 	// Display warning about using experimental journaldb types
 	match client_config.pruning {
 		journaldb::Algorithm::EarlyMerge | journaldb::Algorithm::RefCounted => {
-			warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
+			warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
 		}
 		_ => {}
 	}
@@ -248,7 +249,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone(), net_settings)
+	let sync = EthSync::new(sync_config, client.clone(), NetworkConfiguration::from(net_settings))
 		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
 	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
 

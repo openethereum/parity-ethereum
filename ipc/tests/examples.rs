@@ -19,10 +19,11 @@ mod tests {
 
 	use super::super::service::*;
 	use super::super::binary::*;
-	use super::super::nested::{DBClient,DBWriter};
+	use super::super::nested::{DBClient, DBWriter};
 	use ipc::*;
 	use devtools::*;
 	use semver::Version;
+	use std::sync::Arc;
 
 	#[test]
 	fn call_service() {
@@ -33,7 +34,7 @@ mod tests {
 			4, 0, 0, 0, 0, 0, 0, 0,
 			10, 0, 0, 0]);
 
-		let service = Service::new();
+		let service = Arc::new(Service::new());
 		assert_eq!(0, *service.commits.read().unwrap());
 
 		service.dispatch(&mut socket);
@@ -65,7 +66,7 @@ mod tests {
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			]);
 
-		let service = Service::new();
+		let service = Arc::new(Service::new());
 		let result = service.dispatch(&mut socket);
 
 		// single `true`
@@ -109,9 +110,9 @@ mod tests {
 
 	#[test]
 	fn query_default_version() {
-		let ver = Service::protocol_version();
+		let ver = Arc::<Service>::protocol_version();
 		assert_eq!(ver, Version::parse("1.0.0").unwrap());
-		let ver = Service::api_version();
+		let ver = Arc::<Service>::api_version();
 		assert_eq!(ver, Version::parse("1.0.0").unwrap());
 	}
 
