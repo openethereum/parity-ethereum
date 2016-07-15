@@ -143,6 +143,7 @@ fn default_migration_settings() -> MigrationConfig {
 /// Migrations on the blocks database.
 fn blocks_database_migrations() -> Result<MigrationManager, Error> {
 	let manager = MigrationManager::new(default_migration_settings());
+	try!(manager.add_migration(migrations::blocks::V8::default()).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
