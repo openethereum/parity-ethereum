@@ -207,12 +207,14 @@ pub fn migrate(path: &Path, pruning: Algorithm) -> Result<(), Error> {
 
 	// migrate the databases.
 	// main db directory may already exists, so let's check if we have blocks dir
-	if version != CURRENT_VERSION && exists(&blocks_database_path(path)) {
+	if version < CURRENT_VERSION && exists(&blocks_database_path(path)) {
 		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
 		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
 		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
 		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations(pruning))));
 		println!("Migration finished");
+	} else if version > CURRENT_VERSION {
+		die!("DB was created with newer client version. Upgrade your client or delete DB and resync.")
 	}
 
 	// update version file.
