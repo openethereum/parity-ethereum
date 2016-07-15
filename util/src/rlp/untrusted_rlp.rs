@@ -196,7 +196,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 
 	fn size(&self) -> usize {
 		match self.is_data() {
-			// we can safely unwrap (?) cause its data
+			// TODO: No panic on malformed data, but ideally would Err on no PayloadInfo.
 			true => BasicDecoder::payload_info(self.bytes).map(|b| b.value_len).unwrap_or(0),
 			false => 0
 		}
