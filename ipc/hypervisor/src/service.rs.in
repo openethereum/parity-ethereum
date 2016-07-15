@@ -46,7 +46,7 @@ impl HypervisorService {
 impl HypervisorService {
 	/// New service with the default list of modules
 	pub fn new() -> Arc<HypervisorService> {
-		HypervisorService::with_modules(vec![CLIENT_MODULE_ID])
+		HypervisorService::with_modules(vec![])
 	}
 
 	/// New service with list of modules that will report for being ready
@@ -58,6 +58,10 @@ impl HypervisorService {
 		Arc::new(HypervisorService {
 			check_list: RwLock::new(check_list),
 		})
+	}
+
+	pub fn add_module(&self, module_id: IpcModuleId) {
+		self.check_list.write().unwrap().insert(module_id, false);
 	}
 
 	/// Number of modules still being waited for check-in
