@@ -18,9 +18,10 @@
 
 use std::thread;
 use std::ops::DerefMut;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::default::Default;
-use misc::Lockable;
+
+use parking_lot::Mutex;
 
 /// Thread-safe closure for handling possible panics
 pub trait OnPanicListener: Send + Sync + 'static {
@@ -89,7 +90,7 @@ impl PanicHandler {
 	/// Notifies all listeners in case there is a panic.
 	/// You should use `catch_panic` instead of calling this method explicitly.
 	pub fn notify_all(&self, r: String) {
-		let mut listeners = self.listeners.locked();
+		let mut listeners = self.listeners.lock();
 		for listener in listeners.deref_mut() {
 			listener.call(&r);
 		}
@@ -98,7 +99,7 @@ impl PanicHandler {
 
 impl MayPanic for PanicHandler {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.listeners.locked().push(Box::new(closure));
+		self.listeners.lock().push(Box::new(closure));
 	}
 }
 
@@ -119,50 +120,46 @@ impl<F> OnPanicListener for F
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_notify_listeners_about_panic () {
-	use std::sync::RwLock;
-	use misc::RwLockable;
+	use parking_lot::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
 	let p = PanicHandler::new();
-	p.on_panic(move |t| i.unwrapped_write().push(t));
+	p.on_panic(move |t| i.write().push(t));
 
 	// when
 	p.catch_panic(|| panic!("Panic!")).unwrap_err();
 
 	// then
-	assert!(invocations.unwrapped_read()[0] == "Panic!");
+	assert!(invocations.read()[0] == "Panic!");
 }
 
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_notify_listeners_about_panic_when_string_is_dynamic () {
-	use std::sync::RwLock;
-	use misc::RwLockable;
+	use parking_lot::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
 	let p = PanicHandler::new();
-	p.on_panic(move |t| i.unwrapped_write().push(t));
+	p.on_panic(move |t| i.write().push(t));
 
 	// when
 	p.catch_panic(|| panic!("Panic: {}", 1)).unwrap_err();
 
 	// then
-	assert!(invocations.unwrapped_read()[0] == "Panic: 1");
+	assert!(invocations.read()[0] == "Panic: 1");
 }
 
 #[test]
 fn should_notify_listeners_about_panic_in_other_thread () {
 	use std::thread;
-	use std::sync::RwLock;
-	use misc::RwLockable;
-
+	use parking_lot::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
 	let p = PanicHandler::new();
-	p.on_panic(move |t| i.unwrapped_write().push(t));
+	p.on_panic(move |t| i.write().push(t));
 
 	// when
 	let t = thread::spawn(move ||
@@ -171,20 +168,18 @@ fn should_notify_listeners_about_panic_in_other_thread () {
 	t.join().unwrap_err();
 
 	// then
-	assert!(invocations.unwrapped_read()[0] == "Panic!");
+	assert!(invocations.read()[0] == "Panic!");
 }
 
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_forward_panics () {
-use std::sync::RwLock;
-	use misc::RwLockable;
-
+	use parking_lot::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
 	let p = PanicHandler::new_in_arc();
-	p.on_panic(move |t| i.unwrapped_write().push(t));
+	p.on_panic(move |t| i.write().push(t));
 
 	let p2 = PanicHandler::new();
 	p.forward_from(&p2);
@@ -193,5 +188,5 @@ use std::sync::RwLock;
 	p2.catch_panic(|| panic!("Panic!")).unwrap_err();
 
 	// then
-	assert!(invocations.unwrapped_read()[0] == "Panic!");
+	assert!(invocations.read()[0] == "Panic!");
 }

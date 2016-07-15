@@ -17,18 +17,23 @@
 
 use std::env;
 use std::sync::Arc;
+use std::fs::File;
+use std::io::Write;
 use time;
 use env_logger::LogBuilder;
+use regex::Regex;
 use util::RotatingLogger;
+use util::log::{Applyable, Colour};
 
 #[derive(Debug, PartialEq)]
 pub struct LoggerConfig {
 	pub mode: Option<String>,
 	pub color: bool,
+	pub file: Option<String>,
 }
 
 /// Sets up the logger
-pub fn setup_log(config: &LoggerConfig) -> Arc<RotatingLogger> {
+pub fn setup_log(config: &LoggerConfig) -> Result<Arc<RotatingLogger>, String> {
 	use rlog::*;
 
 	let mut levels = String::new();
@@ -51,18 +56,54 @@ pub fn setup_log(config: &LoggerConfig) -> Arc<RotatingLogger> {
 
 	let logs = Arc::new(RotatingLogger::new(levels, config.color));
 	let logger = logs.clone();
+	let maybe_file = match config.file.as_ref() {
+		Some(f) => Some(try!(File::create(f).map_err(|_| format!("Cannot write to log file given: {}", f)))),
+		None => None,
+	};
+	//let maybe_file = config.file.as_ref().map(|f| try!(File::create(f).map_err(|_| format!("Cannot write to log file given: {}", f))));
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
+
 		let format = if max_log_level() <= LogLevelFilter::Info {
-			format!("{}{}", timestamp, record.args())
+			format!("{}{}", timestamp.apply(Colour::Black.bold()), record.args())
 		} else {
-			format!("{}{}:{}: {}", timestamp, record.level(), record.target(), record.args())
+			format!("{}{}:{}: {}", timestamp.apply(Colour::Black.bold()), record.level(), record.target(), record.args())
 		};
-		logger.append(format.clone());
+
+		let removed_color = kill_color(format.as_ref());
+		if let Some(mut file) = maybe_file.as_ref() {
+			// ignore errors - there's nothing we can do
+			let _ = file.write_all(removed_color.as_bytes());
+			let _ = file.write_all(b"\n");
+		}
+		logger.append(removed_color);
+
 		format
     };
+
 	builder.format(format);
 	builder.init().unwrap();
-	logs
+
+	Ok(logs)
 }
 
+fn kill_color(s: &str) -> String {
+	lazy_static! {
+		static ref RE: Regex = Regex::new("\x1b\\[[^m]+m").unwrap();
+	}
+	RE.replace_all(s, "")
+}
+
+#[test]
+fn should_remove_colour() {
+	let before = "test";
+	let after = kill_color(&before.apply(Colour::Red.bold()));
+	assert_eq!(after, "test");
+}
+
+#[test]
+fn should_remove_multiple_colour() {
+	let t = format!("{} {}", Colour::Red.bold().paint("test"), Colour::White.normal().paint("again"));
+	let after = kill_color(&t);
+	assert_eq!(after, "test again");
+}

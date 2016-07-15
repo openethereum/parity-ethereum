@@ -18,7 +18,6 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread;
 use std::time::*;
 use common::*;
-use misc::*;
 use network::*;
 use io::TimerToken;
 use crypto::KeyPair;
@@ -47,7 +46,7 @@ impl TestProtocol {
 	}
 
 	pub fn got_packet(&self) -> bool {
-		self.packet.locked().deref()[..] == b"hello"[..]
+		self.packet.lock().deref()[..] == b"hello"[..]
 	}
 
 	pub fn got_timeout(&self) -> bool {
@@ -66,7 +65,7 @@ impl NetworkProtocolHandler for TestProtocol {
 
 	fn read(&self, _io: &NetworkContext, _peer: &PeerId, packet_id: u8, data: &[u8]) {
 		assert_eq!(packet_id, 33);
-		self.packet.locked().extend(data);
+		self.packet.lock().extend(data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {

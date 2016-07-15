@@ -48,6 +48,9 @@ extern crate ethcore_rpc;
 
 extern crate ethcore_signer;
 extern crate ansi_term;
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
@@ -75,7 +78,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
 use std::env;
 use ctrlc::CtrlC;
-use util::{Colour, Applyable, version, Lockable, H256};
+use util::{Colour, Applyable, version, H256};
 use util::journaldb::Algorithm;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, ClientConfig, ChainNotify};
@@ -210,9 +213,9 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Setup logging
 	//let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
-	let logger = setup_log::setup_log({
+	let logger = try!(setup_log::setup_log({
 		unimplemented!()
-	});
+	}));
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -386,6 +389,6 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.locked()).unwrap();
+	let _ = exit.wait(mutex.lock().unwrap());
 	info!("Finishing work, please wait...");
 }

@@ -100,6 +100,7 @@ impl Configuration {
 		let logger_config = LoggerConfig {
 			mode: None,
 			color: false,
+			file: None,
 		};
 		let pruning = try!(self.args.flag_pruning.parse());
 		let vm_type = try!(self.vm_type());
@@ -541,7 +542,7 @@ impl Configuration {
 	}
 
 	pub fn dapps_enabled(&self) -> bool {
-		!self.args.flag_dapps_off && !self.args.flag_no_dapps
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
 	}
 
 	pub fn signer_enabled(&self) -> bool {
@@ -649,6 +650,7 @@ mod tests {
 			logger_config: LoggerConfig {
 				mode: None,
 				color: false,
+				file: None,
 			},
 			cache_config: Default::default(),
 			db_path: replace_home("$HOME/.parity"),
@@ -672,6 +674,7 @@ mod tests {
 			logger_config: LoggerConfig {
 				mode: None,
 				color: false,
+				file: None,
 			},
 			cache_config: Default::default(),
 			db_path: replace_home("$HOME/.parity"),
@@ -709,6 +712,7 @@ mod tests {
 			logger_config: LoggerConfig {
 				mode: None,
 				color: false,
+				file: None,
 			},
 			miner_options: Default::default(),
 			http_conf: Default::default(),

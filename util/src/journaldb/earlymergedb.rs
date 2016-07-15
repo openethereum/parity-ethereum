@@ -20,7 +20,6 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use misc::RwLockable;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction, DatabaseConfig};
@@ -226,7 +225,7 @@ impl EarlyMergeDB {
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
 		let (latest_era, reconstructed) = Self::read_refs(&self.backing);
-		let refs = self.refs.as_ref().unwrap().unwrapped_write();
+		let refs = self.refs.as_ref().unwrap().write();
 		if *refs != reconstructed || latest_era != self.latest_era {
 			let clean_refs = refs.iter().filter_map(|(k, v)| if reconstructed.get(k) == Some(v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
 			let clean_recon = reconstructed.into_iter().filter_map(|(k, v)| if refs.get(&k) == Some(&v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
@@ -334,7 +333,7 @@ impl JournalDB for EarlyMergeDB {
 
 	fn mem_used(&self) -> usize {
 		self.overlay.mem_used() + match self.refs {
-			Some(ref c) => c.unwrapped_read().heap_size_of_children(),
+			Some(ref c) => c.read().heap_size_of_children(),
 			None => 0
 		}
  	}
@@ -390,7 +389,7 @@ impl JournalDB for EarlyMergeDB {
 		//
 
 		// record new commit's details.
-		let mut refs = self.refs.as_ref().unwrap().unwrapped_write();
+		let mut refs = self.refs.as_ref().unwrap().write();
 		let batch = DBTransaction::new();
 		let trace = false;
 		{
