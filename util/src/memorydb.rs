@@ -24,6 +24,7 @@ use hashdb::*;
 use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::default::Default;
 
 #[derive(Debug,Clone)]
@@ -161,6 +162,20 @@ impl MemoryDB {
 	/// Returns the size of allocated heap memory
 	pub fn mem_used(&self) -> usize {
 		self.data.heap_size_of_children()
+	}
+
+	/// Remove an element and delete it from storage
+	pub fn remove_and_purge(&mut self, key: &H256) {
+		if key == &SHA3_NULL_RLP {
+			return;
+		}
+		if let Entry::Occupied(mut entry) = self.data.entry(key.clone()) {
+			if entry.get().1 == 1 {
+				entry.remove();
+			} else {
+				entry.get_mut().1 -= 1;
+			}
+		}
 	}
 }
 
