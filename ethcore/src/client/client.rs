@@ -25,6 +25,7 @@ use error::{ImportError, ExecutionError, BlockError, ImportResult};
 use header::{BlockNumber, Header};
 use state::State;
 use spec::Spec;
+use basic_types::Seal;
 use engine::Engine;
 use views::HeaderView;
 use service::{NetSyncMessage, SyncMessage};
@@ -234,7 +235,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.dao_rescue_block_gas_limit(header.parent_hash.clone()), &self.vm_factory);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -396,8 +397,10 @@ impl Client {
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at(&self, id: BlockID) -> Option<State> {
 		// fast path for latest state.
-		if let BlockID::Latest = id.clone() {
-			return Some(self.state())
+		match id.clone() {
+			BlockID::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
+			BlockID::Latest => return Some(self.state()),
+			_ => {},
 		}
 
 		let block_number = match self.block_number(id.clone()) {
@@ -454,7 +457,7 @@ impl Client {
 			BlockID::Number(number) => Some(number),
 			BlockID::Hash(ref hash) => self.chain.block_number(hash),
 			BlockID::Earliest => Some(0),
-			BlockID::Latest => Some(self.chain.best_block_number())
+			BlockID::Latest | BlockID::Pending => Some(self.chain.best_block_number()),
 		}
 	}
 
@@ -463,7 +466,7 @@ impl Client {
 			BlockID::Hash(hash) => Some(hash),
 			BlockID::Number(number) => chain.block_hash(number),
 			BlockID::Earliest => chain.block_hash(0),
-			BlockID::Latest => Some(chain.best_block_hash())
+			BlockID::Latest | BlockID::Pending => Some(chain.best_block_hash()),
 		}
 	}
 
@@ -491,7 +494,6 @@ impl BlockChainClient for Client {
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
 			gas_limit: U256::max_value(),
-			dao_rescue_block_gas_limit: self.dao_rescue_block_gas_limit(view.parent_hash()),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state();
@@ -535,6 +537,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
+		if let &BlockID::Pending = &id {
+			if let Some(block) = self.miner.pending_block() { 
+				return Some(block.rlp_bytes(Seal::Without));
+			}
+		}
 		Self::block_hash(&self.chain, id).and_then(|hash| {
 			self.chain.block(&hash)
 		})
@@ -549,6 +556,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_total_difficulty(&self, id: BlockID) -> Option<U256> {
+		if let &BlockID::Pending = &id {
+			if let Some(block) = self.miner.pending_block() {
+				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
+			} 
+		}
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
@@ -802,7 +814,6 @@ impl MiningBlockChainClient for Client {
 			self.state_db.lock().unwrap().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
 			self.build_last_hashes(h.clone()),
-			self.dao_rescue_block_gas_limit(h.clone()),
 			author,
 			gas_range_target,
 			extra_data,

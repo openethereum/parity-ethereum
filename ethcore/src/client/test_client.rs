@@ -233,7 +233,7 @@ impl TestBlockChainClient {
 			BlockID::Hash(hash) => Some(hash),
 			BlockID::Number(n) => self.numbers.read().unwrap().get(&(n as usize)).cloned(),
 			BlockID::Earliest => self.numbers.read().unwrap().get(&0).cloned(),
-			BlockID::Latest => self.numbers.read().unwrap().get(&(self.numbers.read().unwrap().len() - 1)).cloned()
+			BlockID::Latest | BlockID::Pending => self.numbers.read().unwrap().get(&(self.numbers.read().unwrap().len() - 1)).cloned()
 		}
 	}
 }

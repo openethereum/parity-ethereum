@@ -33,7 +33,9 @@ pub enum BlockID {
 	/// Earliest block (genesis).
 	Earliest,
 	/// Latest mined block.
-	Latest
+	Latest,
+	/// Pending block.
+	Pending,
 }
 
 /// Uniquely identifies transaction.

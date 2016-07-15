@@ -22,8 +22,9 @@ use util::*;
 use util::Colour::White;
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
+use state::State;
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
-use block::{ClosedBlock, IsBlock};
+use block::{ClosedBlock, IsBlock, Block};
 use error::*;
 use transaction::SignedTransaction;
 use receipt::{Receipt};
@@ -150,6 +151,16 @@ impl Miner {
 
 	fn forced_sealing(&self) -> bool {
 		self.options.force_sealing || !self.options.new_work_notify.is_empty()
+	}
+
+	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
+	pub fn pending_state(&self) -> Option<State> {
+		self.sealing_work.lock().unwrap().peek_last_ref().map(|b| b.block().fields().state.clone())
+	}
+
+	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
+	pub fn pending_block(&self) -> Option<Block> {
+		self.sealing_work.lock().unwrap().peek_last_ref().map(|b| b.base().clone())
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
@@ -374,7 +385,6 @@ impl MinerService for Miner {
 					last_hashes: last_hashes,
 					gas_used: U256::zero(),
 					gas_limit: U256::max_value(),
-					dao_rescue_block_gas_limit: chain.dao_rescue_block_gas_limit(header.parent_hash().clone()),
 				};
 				// that's just a copy of the state.
 				let mut state = block.state().clone();
