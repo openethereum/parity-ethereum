@@ -193,7 +193,7 @@ impl RlpStream {
 	}
 }
 
-struct BasicEncoder {
+pub struct BasicEncoder {
 	bytes: ElasticArray1024<u8>,
 }
 

@@ -51,13 +51,15 @@ mod rlperrors;
 mod rlpin;
 mod untrusted_rlp;
 mod rlpstream;
+mod rlpcompression;
+mod commonrlps;
 mod bytes;
 
 #[cfg(test)]
 mod tests;
 
 pub use self::rlperrors::DecoderError;
-pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable};
+pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable, Compressible};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlpin::{Rlp, RlpIterator};
 pub use self::rlpstream::{RlpStream};

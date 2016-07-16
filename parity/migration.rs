@@ -26,7 +26,7 @@ use ethcore::migrations;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 7;
+const CURRENT_VERSION: u32 = 8;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -110,6 +110,13 @@ fn update_version(path: &Path) -> Result<(), Error> {
 	Ok(())
 }
 
+/// State database path.
+fn state_database_path(path: &Path) -> PathBuf {
+	let mut state_path = path.to_owned();
+	state_path.push("state");
+	state_path
+}
+
 /// Blocks database path.
 fn blocks_database_path(path: &Path) -> PathBuf {
 	let mut blocks_path = path.to_owned();
@@ -122,13 +129,6 @@ fn extras_database_path(path: &Path) -> PathBuf {
 	let mut extras_path = path.to_owned();
 	extras_path.push("extras");
 	extras_path
-}
-
-/// State database path.
-fn state_database_path(path: &Path) -> PathBuf {
-	let mut state_path = path.to_owned();
-	state_path.push("state");
-	state_path
 }
 
 /// Database backup
@@ -167,8 +167,9 @@ fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Err
 		Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
 		_ => return Err(Error::UnsuportedPruningMethod),
 	};
-
 	try!(res.map_err(|_| Error::MigrationImpossible));
+
+	try!(manager.add_migration(migrations::state::V8::default()).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 

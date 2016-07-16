@@ -26,8 +26,8 @@ use sha3::*;
 /// Type is able to decode RLP.
 pub trait Decoder: Sized {
 	/// Read a value from the RLP into a given type.
-	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
-		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
+	fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
+		where F: Fn(&[u8]) -> Result<T, DecoderError>;
 
 	/// Get underlying `UntrustedRLP` object.
 	fn as_rlp(&self) -> &UntrustedRlp;
@@ -63,7 +63,7 @@ pub trait View<'a, 'view>: Sized {
 	/// Creates a new instance of `Rlp` reader
 	fn new(bytes: &'a [u8]) -> Self;
 
-	/// The raw data of the RLP.
+	/// The raw data of the RLP as slice.
 	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
@@ -364,4 +364,18 @@ pub trait Stream: Sized {
 	///
 	/// panic! if stream is not finished.
 	fn out(self) -> Vec<u8>;
+}
+
+/// Trait for compressing and decompressing RLP by replacement of common terms.
+pub trait Compressible: Sized {
+	/// Replace common RLPs with invalid shorter ones, None if no compression achieved.
+	/// Tries to compress data insides.
+	fn compress(&self) -> Option<ElasticArray1024<u8>>;
+	/// Recover valid RLP from a compressed form, None if no decompression achieved.
+	/// Tries to decompress compressed data insides.
+	fn decompress(&self) -> Option<ElasticArray1024<u8>>;
+	/// Replace common RLPs with invalid shorter ones.
+	fn simple_compress(&self) -> ElasticArray1024<u8>;
+	/// Recover valid RLP from a compressed form.
+	fn simple_decompress(&self) -> ElasticArray1024<u8>;
 }
