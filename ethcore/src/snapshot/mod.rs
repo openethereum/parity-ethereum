@@ -80,13 +80,6 @@ pub trait SnapshotService {
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
 }
 
-/// Interface for taking snapshots periodically.
-/// This is not IPC-compatible.
-pub trait SnapshotTaker: SnapshotService {
-	/// Take a snapshot using the given client.
-	fn take_snapshot(&self, client: &BlockChainClient);
-}
-
 /// Take a snapshot using the given client and database, writing into `path`.
 pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &HashDB) -> Result<(), Error> {
 	let chain_info = client.chain_info();
