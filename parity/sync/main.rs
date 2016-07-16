@@ -30,14 +30,14 @@ extern crate ethcore_util as util;
 use std::sync::Arc;
 use hypervisor::{HypervisorServiceClient, SYNC_MODULE_ID, HYPERVISOR_IPC_URL};
 use ctrlc::CtrlC;
-use std::sync::atomic::*;
+use std::sync::atomic::{AtomicBool, Ordering};
 use docopt::Docopt;
 use ethcore::client::{RemoteClient, ChainNotify};
-use nanoipc::*;
 use ethsync::{SyncProvider, SyncConfig, EthSync, ManageNetwork, NetworkConfiguration};
 use std::thread;
-use util::numbers::*;
+use util::numbers::{U256, H256};
 use std::str::FromStr;
+use nanoipc::IpcInterface;
 
 const USAGE: &'static str = "
 Ethcore sync service
@@ -92,11 +92,10 @@ impl Args {
 	}
 }
 
-fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: &Arc<T>) where Arc<T>: IpcInterface<T> {
+fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>) where Arc<T>: IpcInterface<T> {
 	let socket_url = addr.to_owned();
-	let service_spawn = service.clone();
 	std::thread::spawn(move || {
-		let mut worker = nanoipc::Worker::<T>::new(&service_spawn);
+		let mut worker = nanoipc::Worker::<T>::new(&service);
 		worker.add_reqrep(&socket_url).unwrap();
 
 		while !stop_guard.load(Ordering::Relaxed) {
@@ -117,9 +116,9 @@ fn main() {
 	let stop = Arc::new(AtomicBool::new(false));
 	let sync = EthSync::new(sync_config, remote_client.clone(), network_config).unwrap();
 
-	run_service("ipc:///tmp/parity-sync.ipc", stop.clone(), &(sync.clone() as Arc<SyncProvider>));
-	run_service("ipc:///tmp/parity-manage-net.ipc", stop.clone(), &(sync.clone() as Arc<ManageNetwork>));
-	run_service("ipc:///tmp/parity-sync-notify.ipc", stop.clone(), &(sync.clone() as Arc<ChainNotify>));
+	run_service("ipc:///tmp/parity-sync.ipc", stop.clone(), sync.clone() as Arc<SyncProvider>);
+	run_service("ipc:///tmp/parity-manage-net.ipc", stop.clone(), sync.clone() as Arc<ManageNetwork>);
+	run_service("ipc:///tmp/parity-sync-notify.ipc", stop.clone(), sync.clone() as Arc<ChainNotify>);
 
 	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(HYPERVISOR_IPC_URL).unwrap();
 	hypervisor_client.handshake().unwrap();

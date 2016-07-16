@@ -19,7 +19,6 @@ use syntax::ast::{
 	MetaItem,
 	Item,
 	ImplItemKind,
-	ImplItem,
 	MethodSig,
 	Arg,
 	PatKind,
