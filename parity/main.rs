@@ -71,6 +71,7 @@ mod migration;
 mod signer;
 mod rpc_apis;
 mod url;
+mod modules;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
