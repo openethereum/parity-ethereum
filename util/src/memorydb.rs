@@ -164,16 +164,20 @@ impl MemoryDB {
 		self.data.heap_size_of_children()
 	}
 
-	/// Remove an element and delete it from storage
+	/// Remove an element and delete it from storage if reference count reaches zero.
 	pub fn remove_and_purge(&mut self, key: &H256) {
 		if key == &SHA3_NULL_RLP {
 			return;
 		}
-		if let Entry::Occupied(mut entry) = self.data.entry(key.clone()) {
-			if entry.get().1 == 1 {
-				entry.remove();
-			} else {
-				entry.get_mut().1 -= 1;
+		match self.data.entry(key.clone()) {
+			Entry::Occupied(mut entry) =>
+				if entry.get().1 == 1 {
+					entry.remove();
+				} else {
+					entry.get_mut().1 -= 1;
+				},
+			Entry::Vacant(mut entry) => {
+				entry.insert((Bytes::new(), -1));
 			}
 		}
 	}
@@ -283,4 +287,29 @@ fn memorydb_denote() {
 	}
 
 	assert_eq!(m.get(&hash).unwrap(), b"Hello world!");
+}
+
+#[test]
+fn memorydb_remove_and_purge() {
+	let hello_bytes = b"Hello world!";
+	let hello_key = hello_bytes.sha3();
+
+	let mut m = MemoryDB::new();
+	m.remove(&hello_key);
+	assert_eq!(m.raw(&hello_key).unwrap().1, -1);
+	m.purge();
+	assert_eq!(m.raw(&hello_key).unwrap().1, -1);
+	m.insert(hello_bytes);
+	assert_eq!(m.raw(&hello_key).unwrap().1, 0);
+	m.purge();
+	assert_eq!(m.raw(&hello_key), None);
+
+	let mut m = MemoryDB::new();
+	m.remove_and_purge(&hello_key);
+	assert_eq!(m.raw(&hello_key).unwrap().1, -1);
+	m.insert(hello_bytes);
+	m.insert(hello_bytes);
+	assert_eq!(m.raw(&hello_key).unwrap().1, 1);
+	m.remove_and_purge(&hello_key);
+	assert_eq!(m.raw(&hello_key), None);
 }
