@@ -35,7 +35,7 @@ use util::rlp::{RlpStream, Rlp, UntrustedRlp};
 use util::journaldb;
 use util::journaldb::JournalDB;
 use util::kvdb::*;
-use util::{Stream, View, PerfTimer, Itertools, Colour};
+use util::{Stream, View, PerfTimer, Itertools};
 use util::{Mutex, RwLock};
 
 // other
@@ -608,18 +608,6 @@ impl Client {
 			}
 		}
 	}
-
-	/// Notify us that the network has been started.
-	pub fn network_started(&self, url: &str) {
-		let mut previous_enode = self.previous_enode.lock();
-		if let Some(ref u) = *previous_enode {
-			if u == url {
-				return;
-			}
-		}
-		*previous_enode = Some(url.into());
-		info!(target: "mode", "Public node URL: {}", Colour::White.bold().paint(url));
-	}
 }
 
 #[derive(Ipc)]
@@ -687,7 +675,7 @@ impl BlockChainClient for Client {
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
 		if let &BlockID::Pending = &id {
-			if let Some(block) = self.miner.pending_block() { 
+			if let Some(block) = self.miner.pending_block() {
 				return Some(block.rlp_bytes(Seal::Without));
 			}
 		}
@@ -708,7 +696,7 @@ impl BlockChainClient for Client {
 		if let &BlockID::Pending = &id {
 			if let Some(block) = self.miner.pending_block() {
 				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
-			} 
+			}
 		}
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
