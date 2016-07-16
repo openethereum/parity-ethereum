@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Snapshot creation helpers.
+//! Snapshot creation, restoration, and network service.
 
 use std::collections::VecDeque;
 use std::fs::{create_dir_all, File};
@@ -59,17 +59,17 @@ pub trait SnapshotService {
 	fn manifest(&self) -> Option<ManifestData>;
 
 	/// Get raw chunk for a given hash.
-	fn chunk(&self, hash: H256) -> Result<Bytes, Error>;
+	fn chunk(&self, hash: H256) -> Option<Bytes>;
 
-	/// Query for any errors which have occurred.
-	/// This is necessary due to the asynchronous nature of
-	/// the snapshot service.
-	fn last_error(&self) -> Result<(), Error>;
+	/// Ask the snapshot service if its current restoration is valid.
+	/// If not currently performing a restoration, returns false.
+	fn restoration_valid(&self) -> bool;
 
 	/// Begin snapshot restoration.
 	/// If restoration in-progress, this will reset it.
 	/// From this point on, any previous snapshot may become unavailable.
-	fn begin_restore(&self, manifest: ManifestData);
+	/// Returns true if successful, false otherwise.
+	fn begin_restore(&self, manifest: ManifestData) -> bool;
 
 	/// Feed a raw state chunk to the service to be processed asynchronously.
 	/// no-op if not currently restoring.
