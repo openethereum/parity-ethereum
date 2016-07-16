@@ -320,7 +320,7 @@ impl<'a> StateChunker<'a> {
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
 pub fn chunk_state(db: &HashDB, root: &H256, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
-	let account_view = try!(TrieDB::new(db, &root));
+	let account_trie = try!(TrieDB::new(db, &root));
 
 	let mut chunker = StateChunker {
 		hashes: Vec::new(),
@@ -333,7 +333,7 @@ pub fn chunk_state(db: &HashDB, root: &H256, writer: &mut SnapshotWriter) -> Res
 	trace!(target: "snapshot", "beginning state chunking");
 
 	// account_key here is the address' hash.
-	for (account_key, account_data) in account_view.iter() {
+	for (account_key, account_data) in account_trie.iter() {
 		let account = Account::from_thin_rlp(account_data);
 		let account_key_hash = H256::from_slice(&account_key);
 
