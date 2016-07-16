@@ -272,6 +272,7 @@ impl State {
 	pub fn commit(&mut self) {
 		assert!(self.snapshots.borrow().is_empty());
 		Self::commit_into(&self.trie_factory, self.db.as_hashdb_mut(), &mut self.root, self.cache.borrow_mut().deref_mut());
+		self.cache.borrow_mut().clear();
 	}
 
 	#[cfg(test)]
