@@ -184,11 +184,23 @@ impl Service {
 		let mut our_db = self.db_path.clone();
 		our_db.push(name);
 
-		// TODO [rob] backup?
-		try!(fs::remove_dir_all(&client_db));
-		try!(fs::rename(&our_db, &client_db));
+		let mut backup_db = self.db_path.clone();
+		backup_db.push(format!("backup_{}", name));
 
-		Ok(())
+		try!(fs::remove_dir_all(&backup_db));
+		try!(fs::rename(&client_db, &backup_db));
+		match fs::rename(&our_db, &client_db) {
+			Ok(_) => {
+				// clean up the backup.
+				try!(fs::remove_dir_all(&backup_db));
+				Ok(())
+			}
+			Err(e) => {
+				// restore the backup.
+				try!(fs::rename(&backup_db, client_db));
+				Err(e.into())
+			}
+		}
 	}
 
 	// finalize the restoration.
@@ -218,7 +230,7 @@ impl Service {
 		}
 
 		if finished {
-			// replace state db here.
+			// replace state db here. ensure database handle is closed.
 			*restoration = None;
 			if let Err(e) = self.replace_client_db("state") {
 				warn!("failed to restore client state db: {}", e);
@@ -245,7 +257,7 @@ impl Service {
 		}
 
 		if finished {
-			// replace blocks and extras dbs here.
+			// replace blocks and extras dbs here. ensure database handles are closed.
 			*restoration = None;
 			if let Err(e) = self.replace_client_db("blocks").and_then(|_| self.replace_client_db("extras")) {
 				warn!("failed to restore blocks and extras databases: {}", e);
