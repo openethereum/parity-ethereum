@@ -39,7 +39,6 @@ ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.79", optional = true}
-schedule_recv = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
