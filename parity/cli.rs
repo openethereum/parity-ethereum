@@ -140,7 +140,7 @@ Sealing/Mining Options:
                            none - never reseal on new transactions;
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
-                           all - reseal on all new transactions [default: all].
+                           all - reseal on all new transactions [default: own].
   --reseal-min-period MS   Specify the minimum time between reseals from 
                            incoming transactions. MS is time measured in
                            milliseconds [default: 2000].
