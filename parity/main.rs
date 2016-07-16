@@ -247,9 +247,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let (sync_provider, manage_network, chain_notify) =
 		modules::sync(sync_config, NetworkConfiguration::from(net_settings), client.clone())
 			.unwrap_or_else(|e| die_with_error("Sync", e));
-//
-//	let sync = EthSync::new(sync_config, client.clone(), NetworkConfiguration::from(net_settings))
-//		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
 	service.set_notify(&chain_notify);
 
 	// if network is active by default
