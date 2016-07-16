@@ -31,15 +31,15 @@ fn main() {
 		registry.expand("", &src, &dst).unwrap();
 	}
 
-	// client interface
+	// blockchain client interface
 	{
-		let src = Path::new("src/client/client.rs");
-		let intermediate = Path::new(&out_dir).join("client.intermediate.rs.in");
+		let src = Path::new("src/client/traits.rs");
+		let intermediate = Path::new(&out_dir).join("traits.intermediate.rs.in");
 		let mut registry = syntex::Registry::new();
 		codegen::register(&mut registry);
 		registry.expand("", &src, &intermediate).unwrap();
 
-		let dst = Path::new(&out_dir).join("client.ipc.rs");
+		let dst = Path::new(&out_dir).join("traits.ipc.rs");
 		let mut registry = syntex::Registry::new();
 		codegen::register(&mut registry);
 		registry.expand("", &intermediate, &dst).unwrap();

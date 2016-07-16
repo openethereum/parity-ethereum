@@ -70,8 +70,6 @@ use trace;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
-use ipc::IpcConfig;
-use ipc::binary::{BinaryConvertError};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -610,8 +608,6 @@ impl Client {
 	}
 }
 
-#[derive(Ipc)]
-#[ipc(client_ident="RemoteClient")]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -1014,5 +1010,3 @@ impl MayPanic for Client {
 		self.panic_handler.on_panic(closure);
 	}
 }
-
-impl IpcConfig for BlockChainClient { }
