@@ -44,6 +44,7 @@ use rand::{Rng, OsRng};
 pub use self::service::Service;
 
 pub mod service;
+pub mod io;
 mod account;
 mod block;
 
