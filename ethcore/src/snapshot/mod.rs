@@ -17,9 +17,6 @@
 //! Snapshot creation, restoration, and network service.
 
 use std::collections::VecDeque;
-use std::fs::{create_dir_all, File};
-use std::io::Write;
-use std::path::{Path, PathBuf};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::BlockChain;
@@ -37,14 +34,16 @@ use util::rlp::{Decodable, Decoder, DecoderError, Encodable, RlpStream, Stream, 
 
 use self::account::Account;
 use self::block::AbridgedBlock;
+use self::io::SnapshotWriter;
 
 use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
 
 pub use self::service::Service;
 
-pub mod service;
 pub mod io;
+pub mod service;
+
 mod account;
 mod block;
 
@@ -81,8 +80,8 @@ pub trait SnapshotService {
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
 }
 
-/// Take a snapshot using the given client and database, writing into `path`.
-pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &HashDB) -> Result<(), Error> {
+/// Take a snapshot using the given client and database, writing into the given writer.
+pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient,  state_db: &HashDB, mut writer: W) -> Result<(), Error> {
 	let chain_info = client.chain_info();
 
 	let genesis_hash = chain_info.genesis_hash;
@@ -92,10 +91,8 @@ pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &Ha
 
 	trace!(target: "snapshot", "Taking snapshot starting at block {}", best_header.number());
 
-	let _ = create_dir_all(&path);
-
-	let state_hashes = try!(chunk_state(state_db, &state_root, &path));
-	let block_hashes = try!(chunk_blocks(client, best_header.hash(), genesis_hash, &path));
+	let state_hashes = try!(chunk_state(state_db, &state_root, &mut writer));
+	let block_hashes = try!(chunk_blocks(client, best_header.hash(), genesis_hash, &mut writer));
 
 	trace!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
@@ -107,29 +104,9 @@ pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &Ha
 		block_hash: chain_info.best_block_hash,
 	};
 
-	path.push("MANIFEST");
-
-	let mut manifest_file = try!(File::create(&path));
-
-	try!(manifest_file.write_all(&manifest_data.to_rlp()));
+	try!(writer.finish(manifest_data));
 
 	Ok(())
-}
-
-// shared portion of write_chunk
-// returns either a (hash, compressed_size) pair or an io error.
-fn write_chunk(raw_data: &[u8], compression_buffer: &mut Vec<u8>, path: &Path) -> Result<(H256, usize), Error> {
-	let compressed_size = snappy::compress_into(raw_data, compression_buffer);
-	let compressed = &compression_buffer[..compressed_size];
-	let hash = compressed.sha3();
-
-	let mut file_path = path.to_owned();
-	file_path.push(hash.hex());
-
-	let mut file = try!(File::create(file_path));
-	try!(file.write_all(compressed));
-
-	Ok((hash, compressed_size))
 }
 
 /// Header for block chunks.
@@ -171,12 +148,13 @@ struct BlockChunker<'a> {
 	current_hash: H256,
 	hashes: Vec<H256>,
 	snappy_buffer: Vec<u8>,
+	writer: &'a mut SnapshotWriter,
 }
 
 impl<'a> BlockChunker<'a> {
 	// Repeatedly fill the buffers and writes out chunks, moving backwards from starting block hash.
 	// Loops until we reach the genesis, and writes out the remainder.
-	fn chunk_all(&mut self, genesis_hash: H256, path: &Path) -> Result<(), Error> {
+	fn chunk_all(&mut self, genesis_hash: H256) -> Result<(), Error> {
 		let mut loaded_size = 0;
 
 		while self.current_hash != genesis_hash {
@@ -201,7 +179,7 @@ impl<'a> BlockChunker<'a> {
 				let header = view.header_view();
 				let parent_hash = header.parent_hash();
 
-				try!(self.write_chunk(parent_hash, path));
+				try!(self.write_chunk(parent_hash));
 				loaded_size = pair.len();
 			} else {
 				loaded_size = new_loaded_size;
@@ -214,7 +192,7 @@ impl<'a> BlockChunker<'a> {
 		if loaded_size != 0 {
 			// we don't store the genesis block, so once we get to this point,
 			// the "first" block will be number 1.
-			try!(self.write_chunk(genesis_hash, path));
+			try!(self.write_chunk(genesis_hash));
 		}
 
 		Ok(())
@@ -223,7 +201,7 @@ impl<'a> BlockChunker<'a> {
 	// write out the data in the buffers to a chunk on disk
 	//
 	// we preface each chunk with the parent of the first block's details.
-	fn write_chunk(&mut self, parent_hash: H256, path: &Path) -> Result<(), Error> {
+	fn write_chunk(&mut self, parent_hash: H256) -> Result<(), Error> {
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
 		let parent_id = BlockID::Hash(parent_hash);
 		let parent_header_bytes = self.client.block_header(parent_id.clone())
@@ -248,7 +226,12 @@ impl<'a> BlockChunker<'a> {
 		}
 
 		let raw_data = rlp_stream.out();
-		let (hash, size) = try!(write_chunk(&raw_data, &mut self.snappy_buffer, path));
+
+		let size = snappy::compress_into(&raw_data, &mut self.snappy_buffer);
+		let compressed = &self.snappy_buffer[..size];
+		let hash = compressed.sha3();
+
+		try!(self.writer.write_block_chunk(hash, compressed));
 		trace!(target: "snapshot", "wrote block chunk. hash: {}, size: {}, uncompressed size: {}", hash.hex(), size, raw_data.len());
 
 		self.hashes.push(hash);
@@ -261,16 +244,17 @@ impl<'a> BlockChunker<'a> {
 ///
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
-pub fn chunk_blocks(client: &BlockChainClient, best_block_hash: H256, genesis_hash: H256, path: &Path) -> Result<Vec<H256>, Error> {
+pub fn chunk_blocks(client: &BlockChainClient, best_block_hash: H256, genesis_hash: H256, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
 	let mut chunker = BlockChunker {
 		client: client,
 		rlps: VecDeque::new(),
 		current_hash: best_block_hash,
 		hashes: Vec::new(),
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
+		writer: writer,
 	};
 
-	try!(chunker.chunk_all(genesis_hash, path));
+	try!(chunker.chunk_all(genesis_hash));
 
 	Ok(chunker.hashes)
 }
@@ -280,8 +264,8 @@ struct StateChunker<'a> {
 	hashes: Vec<H256>,
 	rlps: Vec<Bytes>,
 	cur_size: usize,
-	snapshot_path: &'a Path,
 	snappy_buffer: Vec<u8>,
+	writer: &'a mut SnapshotWriter,
 }
 
 impl<'a> StateChunker<'a> {
@@ -315,7 +299,12 @@ impl<'a> StateChunker<'a> {
 		}
 
 		let raw_data = stream.out();
-		let (hash, compressed_size) = try!(write_chunk(&raw_data, &mut self.snappy_buffer, self.snapshot_path));
+
+		let compressed_size = snappy::compress_into(&raw_data, &mut self.snappy_buffer);
+		let compressed = &self.snappy_buffer[..compressed_size];
+		let hash = compressed.sha3();
+
+		try!(self.writer.write_state_chunk(hash, compressed));
 		trace!(target: "snapshot", "wrote state chunk. size: {}, uncompressed size: {}", compressed_size, raw_data.len());
 
 		self.hashes.push(hash);
@@ -330,15 +319,15 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, Error> {
+pub fn chunk_state(db: &HashDB, root: &H256, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
 	let account_view = try!(TrieDB::new(db, &root));
 
 	let mut chunker = StateChunker {
 		hashes: Vec::new(),
 		rlps: Vec::new(),
 		cur_size: 0,
-		snapshot_path: path,
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
+		writer: writer,
 	};
 
 	trace!(target: "snapshot", "beginning state chunking");
