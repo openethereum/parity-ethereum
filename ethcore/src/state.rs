@@ -248,12 +248,12 @@ impl State {
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
-				&mut&mut Some(ref mut account) => {
+				&mut&mut Some(ref mut account) if account.is_dirty() => {
 					let mut account_db = AccountDBMut::new(db, address);
 					account.commit_storage(trie_factory, &mut account_db);
 					account.commit_code(&mut account_db);
 				}
-				&mut&mut None => {}
+				_ => {}
 			}
 		}
 
@@ -261,8 +261,9 @@ impl State {
 			let mut trie = trie_factory.from_existing(db, root).unwrap();
 			for (address, ref a) in accounts.iter() {
 				match **a {
-					Some(ref account) => trie.insert(address, &account.rlp()),
+					Some(ref account) if account.is_dirty() => trie.insert(address, &account.rlp()),
 					None => trie.remove(address),
+					_ => (),
 				}
 			}
 		}
