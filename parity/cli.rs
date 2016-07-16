@@ -47,18 +47,13 @@ Operating Options:
                            [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, or testnet
-                           [default: homestead].
+                           homestead, mainnet, morden, homestead-dogmatic, or
+                           testnet [default: homestead].
   -d --db-path PATH        Specify the database & configuration directory path
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
-  --fork POLICY            Specifies the client's fork policy. POLICY must be
-                           one of:
-                           dogmatic - sticks rigidly to the standard chain.
-                           none - goes with whatever fork is decided but
-                           votes for none. [default: none].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
@@ -145,7 +140,7 @@ Sealing/Mining Options:
                            none - never reseal on new transactions;
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
-                           all - reseal on all new transactions [default: all].
+                           all - reseal on all new transactions [default: own].
   --reseal-min-period MS   Specify the minimum time between reseals from 
                            incoming transactions. MS is time measured in
                            milliseconds [default: 2000].
@@ -292,7 +287,6 @@ pub struct Args {
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
-	pub flag_fork: String,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,

@@ -46,12 +46,6 @@ pub struct Directories {
 	pub signer: String,
 }
 
-#[derive(Eq, PartialEq, Debug)]
-pub enum Policy {
-	None,
-	Dogmatic,
-}
-
 impl Configuration {
 	pub fn parse() -> Self {
 		Configuration {
@@ -131,14 +125,6 @@ impl Configuration {
 			}))
 	}
 
-	pub fn policy(&self) -> Policy {
-		match self.args.flag_fork.as_str() {
-			"none" => Policy::None,
-			"dogmatic" => Policy::Dogmatic,
-			x => die!("{}: Invalid value given for --policy option. Use --help for more info.", x)
-		}
-	}
-
 	pub fn gas_floor_target(&self) -> U256 {
 		let d = &self.args.flag_gas_floor_target;
 		U256::from_dec_str(d).unwrap_or_else(|_| {
@@ -214,6 +200,7 @@ impl Configuration {
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
+			"homestead-dogmatic" => ethereum::new_frontier_dogmatic(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
