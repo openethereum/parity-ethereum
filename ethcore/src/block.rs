@@ -39,7 +39,17 @@ impl Block {
 	pub fn is_good(b: &[u8]) -> bool {
 		UntrustedRlp::new(b).as_val::<Block>().is_ok()
 	}
+
+	/// Get the RLP-encoding of the block without the seal.
+	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
+		let mut block_rlp = RlpStream::new_list(3);
+		self.header.stream_rlp(&mut block_rlp, seal);
+		block_rlp.append(&self.transactions);
+		block_rlp.append(&self.uncles);
+		block_rlp.out()
+	}
 }
+
 
 impl Decodable for Block {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
@@ -140,8 +150,11 @@ impl ExecutedBlock {
 
 /// Trait for a object that is a `ExecutedBlock`.
 pub trait IsBlock {
-	/// Get the block associated with this object.
+	/// Get the `ExecutedBlock` associated with this object.
 	fn block(&self) -> &ExecutedBlock;
+
+	/// Get the base `Block` object associated with this.
+	fn base(&self) -> &Block { &self.block().base }
 
 	/// Get the header associated with this object's block.
 	fn header(&self) -> &Header { &self.block().base.header }
@@ -481,10 +494,12 @@ pub fn enact(
 		}
 	}
 
-	let mut b = try!(OpenBlock::new(engine, vm_factory, trie_factory, tracing, db, parent, last_hashes, header.author().clone(), (3141562.into(), 31415620.into()), header.extra_data().clone()));
+	let mut b = try!(OpenBlock::new(engine, vm_factory, trie_factory, tracing, db, parent, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![]));
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
+	b.set_author(header.author().clone());
+	b.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
 	for t in transactions { try!(b.push_transaction(t.clone(), None)); }
 	for u in uncles { try!(b.push_uncle(u.clone())); }
 	Ok(b.close_and_lock())

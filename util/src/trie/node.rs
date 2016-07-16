@@ -25,11 +25,11 @@ pub enum Node<'a> {
 	/// Null trie node; could be an empty root or an empty branch entry.
 	Empty,
 	/// Leaf node; has key slice and value. Value may not be empty.
-	Leaf(NibbleSlice<'a>, &'a[u8]),
+	Leaf(NibbleSlice<'a>, &'a [u8]),
 	/// Extension node; has key slice and node data. Data may not be null.
-	Extension(NibbleSlice<'a>, &'a[u8]),
+	Extension(NibbleSlice<'a>, &'a [u8]),
 	/// Branch node; has array of 16 child nodes (each possibly null) and an optional immediate node data.
-	Branch([&'a[u8]; 16], Option<&'a [u8]>)
+	Branch([&'a [u8]; 16], Option<&'a [u8]>)
 }
 
 impl<'a> Node<'a> {

@@ -30,6 +30,7 @@ use miner::Miner;
 pub enum ChainEra {
 	Frontier,
 	Homestead,
+	DaoHardfork,
 }
 
 pub struct TestEngine {

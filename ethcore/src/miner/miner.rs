@@ -22,8 +22,9 @@ use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
+use state::State;
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
-use block::{ClosedBlock, IsBlock};
+use block::{ClosedBlock, IsBlock, Block};
 use error::*;
 use transaction::SignedTransaction;
 use receipt::Receipt;
@@ -115,7 +116,7 @@ impl GasPriceCalibrator {
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(Colour::White.bold()), format!("{}", wei_per_gas).apply(Colour::Yellow.bold()));
+				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
 				set_price(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap());
 			}) {
 				self.next_calibration = Instant::now() + self.options.recalibration_period;
@@ -224,6 +225,16 @@ impl Miner {
 
 	fn forced_sealing(&self) -> bool {
 		self.options.force_sealing || !self.options.new_work_notify.is_empty()
+	}
+
+	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
+	pub fn pending_state(&self) -> Option<State> {
+		self.sealing_work.lock().peek_last_ref().map(|b| b.block().fields().state.clone())
+	}
+
+	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
+	pub fn pending_block(&self) -> Option<Block> {
+		self.sealing_work.lock().peek_last_ref().map(|b| b.base().clone())
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
@@ -764,7 +775,7 @@ impl MinerService for Miner {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
 			try!(chain.import_sealed_block(sealed));
-			info!(target: "miner", "Mined block imported OK. #{}: {}", format!("{}", n).apply(Colour::White.bold()), h.hex().apply(Colour::White.bold()));
+			info!(target: "miner", "Mined block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
 			Ok(())
 		})
 	}

@@ -39,6 +39,12 @@ pub struct EthashParams {
 	pub registrar: Address,
 	/// Homestead transition block number.
 	pub frontier_compatibility_mode_limit: u64,
+	/// DAO hard-fork transition block (X).
+	pub dao_hardfork_transition: u64,
+	/// DAO hard-fork refund contract address (C).
+	pub dao_hardfork_beneficiary: Address,
+	/// DAO hard-fork DAO accounts list (L) 
+	pub dao_hardfork_accounts: Vec<Address>,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -49,8 +55,11 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
-			registrar: p.registrar.into(),
-			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.into(),
+			registrar: p.registrar.map(Into::into).unwrap_or(Address::new()),
+			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.map(Into::into).unwrap_or(0),
+			dao_hardfork_transition: p.dao_hardfork_transition.map(Into::into).unwrap_or(0x7fffffffffffffff),
+			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map(Into::into).unwrap_or(Address::new()),
+			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or(vec![]).into_iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -119,8 +128,25 @@ impl Engine for Ethash {
 							(header.gas_used * 6.into() / 5.into()) / bound_divisor))
 			}
 		};
+		if header.number >= self.ethash_params.dao_hardfork_transition &&
+			header.number <= self.ethash_params.dao_hardfork_transition + 9 {
+			header.extra_data = b"dao-hard-fork"[..].to_owned();
+		}  
 		header.note_dirty();
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
+	}
+
+	fn on_new_block(&self, block: &mut ExecutedBlock) {
+		if block.fields().header.number == self.ethash_params.dao_hardfork_transition {
+			// TODO: enable trigger function maybe?
+//			if block.fields().header.gas_limit <= 4_000_000.into() {
+				let mut state = block.fields_mut().state;
+				for child in self.ethash_params.dao_hardfork_accounts.iter() {
+					let b = state.balance(child);
+					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b);
+				}
+//			}
+		}
 	}
 
 	/// Apply the block reward on finalisation of the block.
@@ -164,6 +190,17 @@ impl Engine for Ethash {
 		if difficulty < header.difficulty {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
 		}
+
+		if header.number >= self.ethash_params.dao_hardfork_transition &&
+			header.number <= self.ethash_params.dao_hardfork_transition + 9 &&
+			header.extra_data[..] != b"dao-hard-fork"[..] {
+			return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: None, found: 0 })));
+		}
+
+		if header.gas_limit > 0x7fffffffffffffffu64.into() {
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit })));
+		}  
+		
 		Ok(())
 	}
 
