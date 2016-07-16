@@ -176,7 +176,7 @@ impl MemoryDB {
 				} else {
 					entry.get_mut().1 -= 1;
 				},
-			Entry::Vacant(mut entry) => {
+			Entry::Vacant(entry) => {
 				entry.insert((Bytes::new(), -1));
 			}
 		}
