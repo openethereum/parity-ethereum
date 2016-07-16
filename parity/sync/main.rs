@@ -28,11 +28,11 @@ extern crate ethcore;
 extern crate ethcore_util as util;
 
 use std::sync::Arc;
-use hypervisor::{HypervisorServiceClient, CLIENT_MODULE_ID, SYNC_MODULE_ID, HYPERVISOR_IPC_URL};
+use hypervisor::{HypervisorServiceClient, SYNC_MODULE_ID, HYPERVISOR_IPC_URL};
 use ctrlc::CtrlC;
 use std::sync::atomic::*;
 use docopt::Docopt;
-use ethcore::client::{BlockChainClient, RemoteClient};
+use ethcore::client::{RemoteClient, ChainNotify};
 use nanoipc::*;
 use ethsync::{SyncProvider, SyncConfig, EthSync, ManageNetwork, NetworkConfiguration};
 use std::thread;
@@ -74,7 +74,7 @@ impl Args {
 		let mut sync_config = SyncConfig::default();
 		sync_config.network_id = U256::from_str(&self.arg_network_id).unwrap();
 
-		let mut network_config = NetworkConfiguration {
+		let network_config = NetworkConfiguration {
 			udp_port: self.flag_udp_port,
 			nat_enabled: self.arg_nat_enabled,
 			boot_nodes: self.flag_boot_nodes,
@@ -106,8 +106,6 @@ fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<At
 }
 
 fn main() {
-	use std::ops::Deref;
-
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.decode())
 		.unwrap_or_else(|e| e.exit());
@@ -121,6 +119,7 @@ fn main() {
 
 	run_service("ipc:///tmp/parity-sync.ipc", stop.clone(), &(sync.clone() as Arc<SyncProvider>));
 	run_service("ipc:///tmp/parity-manage-net.ipc", stop.clone(), &(sync.clone() as Arc<ManageNetwork>));
+	run_service("ipc:///tmp/parity-sync-notify.ipc", stop.clone(), &(sync.clone() as Arc<ChainNotify>));
 
 	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(HYPERVISOR_IPC_URL).unwrap();
 	hypervisor_client.handshake().unwrap();

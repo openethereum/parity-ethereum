@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use ethsync::{EthSync, ManageNetwork};
+use ethsync::{ManageNetwork, SyncProvider};
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use util::RotatingLogger;
@@ -76,7 +76,8 @@ pub struct Dependencies {
 	pub signer_port: Option<u16>,
 	pub signer_queue: Arc<ConfirmationsQueue>,
 	pub client: Arc<Client>,
-	pub sync: Arc<EthSync>,
+	pub sync: Arc<SyncProvider>,
+	pub net: Arc<ManageNetwork>,
 	pub secret_store: Arc<AccountProvider>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,

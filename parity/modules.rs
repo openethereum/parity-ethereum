@@ -20,17 +20,16 @@ use ethcore::client::{ChainNotify, BlockChainClient};
 use ethcore;
 
 #[cfg(feature="ipc")]
-fn sync(
+pub fn sync(
 	sync_cfg: SyncConfig,
 	net_cfg: NetworkConfiguration,
 	client: Arc<BlockChainClient>)
 	-> Result<(Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>), ethcore::error::Error>
 {
-
 }
 
 #[cfg(not(feature="ipc"))]
-fn sync(
+pub fn sync(
 	sync_cfg: SyncConfig,
 	net_cfg: NetworkConfiguration,
 	client: Arc<BlockChainClient>)

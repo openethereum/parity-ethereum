@@ -85,12 +85,11 @@ use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, Applyable, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError,
-	ChainNotify, Mode};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, Mode};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
-use ethsync::{EthSync, NetworkConfiguration};
+use ethsync::{NetworkConfiguration};
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
@@ -249,27 +248,32 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone(), NetworkConfiguration::from(net_settings))
-		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
-	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
+	let (sync_provider, manage_network, chain_notify) =
+		modules::sync(sync_config, NetworkConfiguration::from(net_settings), client.clone())
+			.unwrap_or_else(|e| die_with_error("Sync", e));
+//
+//	let sync = EthSync::new(sync_config, client.clone(), NetworkConfiguration::from(net_settings))
+//		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
+	service.set_notify(&chain_notify);
 
 	// if network is active by default
 	if match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network } {
-		sync.start();
+		chain_notify.start();
 	}
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
 		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
 		client: client.clone(),
-		sync: sync.clone(),
+		sync: sync_provider.clone(),
+		net: manage_network.clone(),
 		secret_store: account_service.clone(),
 		miner: miner.clone(),
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 		allow_pending_receipt_query: !conf.args.flag_geth,
-		net_service: sync.clone(),
+		net_service: manage_network.clone(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -317,7 +321,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
 		info: Informant::new(conf.have_color()),
-		sync: sync.clone(),
+		sync: sync_provider.clone(),
+		net: manage_network.clone(),
 		accounts: account_service.clone(),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");

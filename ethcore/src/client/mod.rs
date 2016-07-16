@@ -20,7 +20,6 @@ mod config;
 mod error;
 mod test_client;
 mod trace;
-mod chain_notify;
 
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
@@ -58,6 +57,13 @@ pub mod client {
 
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
 	include!(concat!(env!("OUT_DIR"), "/client.ipc.rs"));
+}
+
+pub mod chain_notify {
+	//! Chain notify interface
+
+	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
+	include!(concat!(env!("OUT_DIR"), "/chain_notify.ipc.rs"));
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
