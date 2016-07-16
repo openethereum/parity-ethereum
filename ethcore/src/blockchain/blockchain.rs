@@ -359,6 +359,12 @@ impl BlockChain {
 		bc
 	}
 
+	/// Returns true if the given parent block has given child
+	/// (though not necessarily a part of the canon chain).
+	fn is_known_child(&self, parent: &H256, hash: &H256) -> bool {
+		self.extras_db.read_with_cache(&self.block_details, parent).map_or(false, |d| d.children.contains(hash))
+	}
+
 	/// Set the cache configuration.
 	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
 		self.pref_cache_size.store(pref_cache_size, AtomicOrder::Relaxed);
@@ -463,7 +469,7 @@ impl BlockChain {
 		let header = block.header_view();
 		let hash = header.sha3();
 
-		if self.is_known(&hash) {
+		if self.is_known_child(&header.parent_hash(), &hash) {
 			return ImportRoute::none();
 		}
 
