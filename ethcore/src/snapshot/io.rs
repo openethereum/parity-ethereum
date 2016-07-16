@@ -20,12 +20,14 @@
 //! Packed snapshots are written to a single file, and loose snapshots are
 //! written to multiple files in one directory.
 
-use std::io::{self, Write};
+use std::collections::HashMap;
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
+use util::Bytes;
 use util::hash::H256;
-use util::rlp::{Encodable, RlpStream, Stream};
+use util::rlp::{self, Encodable, RlpStream, UntrustedRlp, Stream, View};
 
 use super::ManifestData;
 
@@ -50,6 +52,17 @@ struct ChunkInfo(H256, u64, u64);
 impl Encodable for ChunkInfo {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.append(&self.0).append(&self.1).append(&self.2);
+	}
+}
+
+impl rlp::Decodable for ChunkInfo {
+	fn decode<D: rlp::Decoder>(decoder: &D) -> Result<Self, rlp::DecoderError> {
+		let d = decoder.as_rlp();
+
+		let hash = try!(d.val_at(0));
+		let len = try!(d.val_at(1));
+		let off = try!(d.val_at(2));
+		Ok(ChunkInfo(hash, len, off))
 	}
 }
 
@@ -180,5 +193,144 @@ impl SnapshotWriter for LooseWriter {
 		try!(file.write_all(&rlp[..]));
 
 		Ok(())
+	}
+}
+
+/// Something which can read compressed snapshots.
+pub trait SnapshotReader {
+	/// Get the manifest data for this snapshot.
+	fn manifest(&self) -> &ManifestData;
+
+	/// Get raw chunk data by hash. implementation defined behavior
+	/// if a chunk not in the manifest is requested.
+	fn chunk(&self, hash: H256) -> io::Result<Bytes>;
+}
+
+/// Packed snapshot reader.
+pub struct PackedReader {
+	file: File,
+	state_hashes: HashMap<H256, (u64, u64)>, // len, offset
+	block_hashes: HashMap<H256, (u64, u64)>, // len, offset
+	manifest: ManifestData,
+}
+
+impl PackedReader {
+	/// Create a new `PackedReader` for the file at the given path.
+	/// This will fail if any io errors are encountered or the file
+	/// is not a valid packed snapshot.
+	pub fn new(path: &Path) -> Result<Option<Self>, ::error::Error> {
+		let mut file = try!(File::open(path));
+		let file_len = try!(file.metadata()).len();
+		if file_len < 8 {
+			// ensure we don't seek before beginning.
+			return Ok(None);
+		}
+
+
+		try!(file.seek(SeekFrom::End(-8)));
+		let mut off_bytes = [0; 8];
+
+		try!(file.read_exact(&mut off_bytes[..]));
+
+		let manifest_off: u64 =
+			(off_bytes[7] as u64) << 56 +
+			(off_bytes[6] as u64) << 48 +
+			(off_bytes[5] as u64) << 40 +
+			(off_bytes[4] as u64) << 32 +
+			(off_bytes[3] as u64) << 24 +
+			(off_bytes[2] as u64) << 16 +
+			(off_bytes[1] as u64) << 8 +
+			(off_bytes[0] as u64);
+
+		let manifest_len = file_len - manifest_off;
+		let	mut manifest_buf = vec![0; manifest_len as usize];
+
+		try!(file.seek(SeekFrom::Start(manifest_len)));
+		try!(file.read_exact(&mut manifest_buf));
+
+		let rlp = UntrustedRlp::new(&manifest_buf);
+
+		let state: Vec<ChunkInfo> = try!(rlp.val_at(0));
+		let blocks: Vec<ChunkInfo> = try!(rlp.val_at(1));
+
+		let manifest = ManifestData {
+			state_hashes: state.iter().map(|c| c.0).collect(),
+			block_hashes: state.iter().map(|c| c.0).collect(),
+			state_root: try!(rlp.val_at(2)),
+			block_number: try!(rlp.val_at(3)),
+			block_hash: try!(rlp.val_at(4)),
+		};
+
+		Ok(Some(PackedReader {
+			file: file,
+			state_hashes: state.into_iter().map(|c| (c.0, (c.1, c.2))).collect(),
+			block_hashes: blocks.into_iter().map(|c| (c.0, (c.1, c.2))).collect(),
+			manifest: manifest
+		}))
+	}
+}
+
+impl SnapshotReader for PackedReader {
+	fn manifest(&self) -> &ManifestData {
+		&self.manifest
+	}
+
+	fn chunk(&self, hash: H256) -> io::Result<Bytes> {
+		let &(len, off) = self.state_hashes.get(&hash).or_else(|| self.block_hashes.get(&hash))
+			.expect("only chunks in the manifest can be requested; qed");
+
+		let mut file = &self.file;
+
+		try!(file.seek(SeekFrom::Start(off)));
+		let mut buf = vec![0; len as usize];
+
+		try!(file.read_exact(&mut buf[..]));
+
+		Ok(buf)
+	}
+}
+
+/// reader for "loose" snapshots
+pub struct LooseReader {
+	dir: PathBuf,
+	manifest: ManifestData,
+}
+
+impl LooseReader {
+	/// Create a new `LooseReader` which will read the manifest and chunk data from
+	/// the given directory.
+	pub fn new(mut dir: PathBuf) -> Result<Self, ::error::Error> {
+		let mut manifest_buf = Vec::new();
+
+		dir.push("MANIFEST");
+		let mut manifest_file = try!(File::open(&dir));
+		try!(manifest_file.read_to_end(&mut manifest_buf));
+
+		let manifest = try!(ManifestData::from_rlp(&manifest_buf[..]));
+
+		dir.pop();
+
+		Ok(LooseReader {
+			dir: dir,
+			manifest: manifest,
+		})
+	}
+}
+
+impl SnapshotReader for LooseReader {
+	fn manifest(&self) -> &ManifestData {
+		&self.manifest
+	}
+
+	fn chunk(&self, hash: H256) -> io::Result<Bytes> {
+		let mut path = self.dir.clone();
+		path.push(hash.hex());
+
+		let mut buf = Vec::new();
+		let mut file = try!(File::open(&path));
+
+		try!(file.read_to_end(&mut buf));
+
+		Ok(buf)
 	}
 }

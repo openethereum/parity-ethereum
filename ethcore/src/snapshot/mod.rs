@@ -351,6 +351,7 @@ pub fn chunk_state(db: &HashDB, root: &H256, writer: &mut SnapshotWriter) -> Res
 }
 
 /// Manifest data.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManifestData {
 	/// List of state chunk hashes.
 	pub state_hashes: Vec<H256>,
