@@ -75,4 +75,4 @@ impl HypervisorService {
 	}
 }
 
-impl ::ipc::IpcConfig<HypervisorService> for HypervisorService {}
+impl ::ipc::IpcConfig for HypervisorService {}

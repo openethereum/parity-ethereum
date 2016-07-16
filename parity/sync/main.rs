@@ -92,7 +92,7 @@ impl Args {
 	}
 }
 
-fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>) where T: IpcInterface<T> {
+fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>) where T: IpcInterface {
 	let socket_url = addr.to_owned();
 	std::thread::spawn(move || {
 		let mut worker = nanoipc::Worker::<T>::new(&service);
@@ -114,7 +114,7 @@ fn main() {
 	remote_client.handshake().unwrap();
 
 	let stop = Arc::new(AtomicBool::new(false));
-	let sync = EthSync::new(sync_config, remote_client.clone(), network_config).unwrap();
+	let sync = EthSync::new(sync_config, remote_client.service().clone(), network_config).unwrap();
 
 	run_service("ipc:///tmp/parity-sync.ipc", stop.clone(), sync.clone() as Arc<SyncProvider>);
 	run_service("ipc:///tmp/parity-manage-net.ipc", stop.clone(), sync.clone() as Arc<ManageNetwork>);

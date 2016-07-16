@@ -43,4 +43,4 @@ pub trait ChainNotify : Send + Sync {
 	}
 }
 
-impl IpcConfig<ChainNotify> for ChainNotify { }
+impl IpcConfig for ChainNotify { }

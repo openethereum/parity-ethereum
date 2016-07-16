@@ -149,8 +149,8 @@ impl ChainNotify for EthSync {
 	}
 }
 
-impl IpcConfig<ManageNetwork> for ManageNetwork { }
-impl IpcConfig<SyncProvider> for SyncProvider { }
+impl IpcConfig for ManageNetwork { }
+impl IpcConfig for SyncProvider { }
 
 /// Trait for managing network
 pub trait ManageNetwork : Send + Sync {

@@ -768,7 +768,7 @@ fn ty_ident_map(original_ty: &P<Ty>) -> IdentMap {
 	ident_map
 }
 
-/// implements `IpcInterface<C>` for the given class `C`
+/// implements `IpcInterface` for the given class `C`
 fn implement_interface(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -834,7 +834,7 @@ fn implement_interface(
 	};
 
 	let ipc_item = quote_item!(cx,
-		impl $host_generics ::ipc::IpcInterface<$interface_endpoint> for $interface_endpoint $where_clause {
+		impl $host_generics ::ipc::IpcInterface for $interface_endpoint $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
 				where R: ::std::io::Read
 			{

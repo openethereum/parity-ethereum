@@ -33,7 +33,7 @@ const POLL_TIMEOUT: isize = 100;
 const CLIENT_CONNECTION_TIMEOUT: isize = 2500;
 
 /// Generic worker to handle service (binded) sockets
-pub struct Worker<S: ?Sized> where S: IpcInterface<S> {
+pub struct Worker<S: ?Sized> where S: IpcInterface {
 	service: Arc<S>,
 	sockets: Vec<(Socket, Endpoint)>,
 	polls: Vec<PollFd>,
@@ -54,9 +54,9 @@ impl<S> GuardedSocket<S> where S: WithSocket<Socket> {
 }
 
 impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
-    type Target = Arc<S>;
+    type Target = S;
 
-    fn deref(&self) -> &Arc<S> {
+    fn deref(&self) -> &S {
         &self.client
     }
 }
@@ -116,7 +116,7 @@ pub enum SocketError {
 	RequestLink,
 }
 
-impl<S: ?Sized> Worker<S> where S: IpcInterface<S> {
+impl<S: ?Sized> Worker<S> where S: IpcInterface {
 	/// New worker over specified `service`
 	pub fn new(service: &Arc<S>) -> Worker<S> {
 		Worker::<S> {
