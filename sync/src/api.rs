@@ -19,7 +19,7 @@ use std::sync::Arc;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode};
 use util::{TimerToken, U256, H256, UtilError, Secret, Populatable};
-use ethcore::client::{Client, BlockChainClient, ChainNotify};
+use ethcore::client::{BlockChainClient, ChainNotify};
 use io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
 use std::net::{SocketAddr, AddrParseError};
@@ -149,8 +149,8 @@ impl ChainNotify for EthSync {
 	}
 }
 
-impl IpcConfig<ManageNetwork> for Arc<ManageNetwork> { }
-impl IpcConfig<SyncProvider> for Arc<SyncProvider> { }
+impl IpcConfig<ManageNetwork> for ManageNetwork { }
+impl IpcConfig<SyncProvider> for SyncProvider { }
 
 /// Trait for managing network
 pub trait ManageNetwork : Send + Sync {

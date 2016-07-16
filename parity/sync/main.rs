@@ -92,7 +92,7 @@ impl Args {
 	}
 }
 
-fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>) where Arc<T>: IpcInterface<T> {
+fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>) where T: IpcInterface<T> {
 	let socket_url = addr.to_owned();
 	std::thread::spawn(move || {
 		let mut worker = nanoipc::Worker::<T>::new(&service);

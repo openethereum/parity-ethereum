@@ -16,7 +16,6 @@
 
 use util::numbers::*;
 use ipc::{IpcConfig, BinaryConvertError};
-use std::sync::Arc;
 use std::collections::VecDeque;
 use std::mem;
 
@@ -44,4 +43,4 @@ pub trait ChainNotify : Send + Sync {
 	}
 }
 
-impl IpcConfig<ChainNotify> for Arc<ChainNotify> { }
+impl IpcConfig<ChainNotify> for ChainNotify { }
