@@ -34,7 +34,6 @@ pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option
 	let mut builder = LogBuilder::new();
 	// Disable ws info logging by default.
 	builder.filter(Some("ws"), LogLevelFilter::Warn);
-//	builder.filter(Some("import"), LogLevelFilter::Warn);
 	builder.filter(None, LogLevelFilter::Info);
 
 	if env::var("RUST_LOG").is_ok() {
