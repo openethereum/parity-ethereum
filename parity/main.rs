@@ -444,7 +444,7 @@ fn execute_import(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
-		informant.tick(client.deref(), None);
+		informant.tick(&*client, None);
 	};
 
 	match format {
@@ -472,7 +472,7 @@ fn execute_import(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 	}
 	while !client.queue_info().is_empty() {
 		sleep(Duration::from_secs(1));
-		informant.tick(client.deref(), None);
+		informant.tick(&*client, None);
 	}
 	client.flush_queue();
 }
