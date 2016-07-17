@@ -35,6 +35,8 @@ pub struct Account {
 	code_hash: Option<H256>,
 	// Code cache of the account.
 	code_cache: Bytes,
+	// Account is new or has been modified
+	dirty: bool,
 }
 
 impl Account {
@@ -47,7 +49,8 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(code.sha3()),
-			code_cache: code
+			code_cache: code,
+			dirty: true,
 		}
 	}
 
@@ -59,7 +62,8 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(pod.storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(pod.code.sha3()),
-			code_cache: pod.code
+			code_cache: pod.code,
+			dirty: true,
 		}
 	}
 
@@ -72,6 +76,7 @@ impl Account {
 			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: Some(SHA3_EMPTY),
 			code_cache: vec![],
+			dirty: true,
 		}
 	}
 
@@ -85,6 +90,7 @@ impl Account {
 			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: Some(r.val_at(3)),
 			code_cache: vec![],
+			dirty: false,
 		}
 	}
 
@@ -98,6 +104,7 @@ impl Account {
 			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: None,
 			code_cache: vec![],
+			dirty: true,
 		}
 	}
 
@@ -106,6 +113,7 @@ impl Account {
 	pub fn init_code(&mut self, code: Bytes) {
 		assert!(self.code_hash.is_none());
 		self.code_cache = code;
+		self.dirty = true;
 	}
 
 	/// Reset this account's code to the given code.
@@ -117,6 +125,7 @@ impl Account {
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
 		self.storage_overlay.borrow_mut().insert(key, (Filth::Dirty, value));
+		self.dirty = true;
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
@@ -172,6 +181,10 @@ impl Account {
 		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == Some(SHA3_EMPTY))
 	}
 
+	/// Is this a new or modified account?
+	pub fn is_dirty(&self) -> bool {
+		self.dirty
+	}
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &AccountDB) -> bool {
 		// TODO: fill out self.code_cache;
@@ -201,16 +214,23 @@ impl Account {
 	pub fn storage_overlay(&self) -> Ref<HashMap<H256, (Filth, H256)>> { self.storage_overlay.borrow() }
 
 	/// Increment the nonce of the account by one.
-	pub fn inc_nonce(&mut self) { self.nonce = self.nonce + U256::from(1u8); }
+	pub fn inc_nonce(&mut self) {
+		self.nonce = self.nonce + U256::from(1u8);
+		self.dirty = true;
+	}
 
 	/// Increment the nonce of the account by one.
-	pub fn add_balance(&mut self, x: &U256) { self.balance = self.balance + *x; }
+	pub fn add_balance(&mut self, x: &U256) {
+		self.balance = self.balance + *x;
+		self.dirty = true;
+	}
 
 	/// Increment the nonce of the account by one.
 	/// Panics if balance is less than `x`
 	pub fn sub_balance(&mut self, x: &U256) {
 		assert!(self.balance >= *x);
 		self.balance = self.balance - *x;
+		self.dirty = true;
 	}
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.

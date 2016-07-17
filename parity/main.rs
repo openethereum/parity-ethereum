@@ -102,7 +102,7 @@ use rpc::RpcServer;
 use signer::{SignerServer, new_token};
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use configuration::{Policy, Configuration};
+use configuration::{Configuration};
 
 fn main() {
 	let conf = Configuration::parse();
@@ -180,7 +180,7 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
 	let result = migrate(&db_path, client_config.pruning);
 	if let Err(err) = result {
-		die_with_message(&format!("{}", err));
+		die_with_message(&format!("{} DB path: {}", err, db_path.to_string_lossy()));
 	}
 }
 
@@ -213,11 +213,6 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
 		warn!("Using Trusted Signer and --unlock is not recommended!");
 		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
-	}
-
-	// Check fork settings.
-	if conf.policy() != Policy::None {
-		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
 	}
 
 	let net_settings = conf.net_settings(&spec);

@@ -21,10 +21,25 @@ use network::error::NetworkError;
 use network::host::{Host, NetworkContext, NetworkIoMessage, ProtocolId};
 use network::stats::NetworkStats;
 use io::*;
-
-use std::sync::Arc;
-
 use parking_lot::RwLock;
+use std::sync::Arc;
+use ansi_term::Colour;
+
+struct HostHandler {
+	public_url: RwLock<Option<String>>
+}
+
+impl IoHandler<NetworkIoMessage> for HostHandler {
+	fn message(&self, _io: &IoContext<NetworkIoMessage>, message: &NetworkIoMessage) {
+		if let NetworkIoMessage::NetworkStarted(ref public_url) = *message {
+			let mut url = self.public_url.write();
+			if url.as_ref().map(|uref| uref != public_url).unwrap_or(true) {
+				info!(target: "network", "Public node URL: {}", Colour::White.bold().paint(public_url.as_ref()));
+			}
+			*url = Some(public_url.to_owned());
+		}
+	}
+}
 
 /// IO Service with networking
 /// `Message` defines a notification data type.
@@ -34,12 +49,14 @@ pub struct NetworkService {
 	host: RwLock<Option<Arc<Host>>>,
 	stats: Arc<NetworkStats>,
 	panic_handler: Arc<PanicHandler>,
+	host_handler: Arc<HostHandler>,
 	config: NetworkConfiguration,
 }
 
 impl NetworkService {
 	/// Starts IO event loop
 	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, UtilError> {
+		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
 		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = try!(IoService::<NetworkIoMessage>::start());
 		panic_handler.forward_from(&io_service);
@@ -53,6 +70,7 @@ impl NetworkService {
 			panic_handler: panic_handler,
 			host: RwLock::new(None),
 			config: config,
+			host_handler: host_handler,
 		})
 	}
 
@@ -106,6 +124,11 @@ impl NetworkService {
 			try!(self.io_service.register_handler(h.clone()));
 			*host = Some(h);
 		}
+
+		if self.host_handler.public_url.read().is_none() {
+			try!(self.io_service.register_handler(self.host_handler.clone()));
+		}
+
 		Ok(())
 	}
 
