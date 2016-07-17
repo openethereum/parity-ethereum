@@ -25,7 +25,7 @@ use miner::Miner;
 fn imports_from_empty() {
 	let dir = RandomTempPath::new();
 	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::with_spec(get_test_spec())), IoChannel::disconnected()).unwrap();
-	client.import_verified_blocks(&IoChannel::disconnected());
+	client.import_verified_blocks();
 	client.flush_queue();
 }
 
@@ -48,7 +48,7 @@ fn imports_good_block() {
 		panic!("error importing block being good by definition");
 	}
 	client.flush_queue();
-	client.import_verified_blocks(&IoChannel::disconnected());
+	client.import_verified_blocks();
 
 	let block = client.block_header(BlockID::Number(1)).unwrap();
 	assert!(!block.is_empty());
@@ -130,7 +130,7 @@ fn can_handle_long_fork() {
 	let client_result = generate_dummy_client(1200);
 	let client = client_result.reference();
 	for _ in 0..20 {
-		client.import_verified_blocks(&IoChannel::disconnected());
+		client.import_verified_blocks();
 	}
 	assert_eq!(1200, client.chain_info().best_block_number);
 
@@ -139,7 +139,7 @@ fn can_handle_long_fork() {
 	push_blocks_to_client(client, 53, 1201, 600);
 
 	for _ in 0..40 {
-		client.import_verified_blocks(&IoChannel::disconnected());
+		client.import_verified_blocks();
 	}
 	assert_eq!(2000, client.chain_info().best_block_number);
 }

@@ -32,16 +32,15 @@ use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
 use types::ids::*;
 use types::trace_filter::Filter as TraceFilter;
-use executive::{Executed, Executive, TransactOptions};
-use env_info::{LastHashes, EnvInfo};
+use executive::Executed;
+use env_info::LastHashes;
 use types::call_analytics::CallAnalytics;
 use block_import_error::BlockImportError;
-use transaction_import::TransactionImportResult;
-use transaction_import::TransactionImportError;
-use traits::{BlockChainClient, MiningBlockChainClient};
 use std::mem;
 use std::collections::VecDeque;
 use ipc::{IpcConfig, BinaryConvertError};
+use types::blockchain_info::BlockChainInfo;
+use types::block_status::BlockStatus;
 
 #[derive(Ipc)]
 #[ipc(client_ident="RemoteClient")]

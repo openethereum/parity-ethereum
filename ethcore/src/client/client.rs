@@ -16,8 +16,6 @@
 
 use std::collections::{HashSet, HashMap};
 use std::ops::Deref;
-use std::mem;
-use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
 use std::path::{Path, PathBuf};
 use std::fmt;
@@ -142,7 +140,6 @@ pub struct Client {
 	io_channel: IoChannel<ClientIoMessage>,
 	notify: RwLock<Option<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
-	previous_enode: Mutex<Option<String>>,
 }
 
 const HISTORY: u64 = 1200;
@@ -229,7 +226,6 @@ impl Client {
 			io_channel: message_channel,
 			notify: RwLock::new(None),
 			queue_transactions: AtomicUsize::new(0),
-			previous_enode: Mutex::new(None),
 		};
 		Ok(Arc::new(client))
 	}
@@ -338,7 +334,7 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, io: &IoChannel<ClientIoMessage>) -> usize {
+	pub fn import_verified_blocks(&self) -> usize {
 		let max_blocks_to_import = 64;
 		let (imported_blocks, import_results, invalid_blocks, original_best, imported) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);

@@ -36,7 +36,7 @@ pub use types::call_analytics::CallAnalytics;
 pub use block_import_error::BlockImportError;
 pub use transaction_import::TransactionImportResult;
 pub use transaction_import::TransactionImportError;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient};
+pub use self::traits::{BlockChainClient, MiningBlockChainClient, RemoteClient};
 
 mod traits {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
