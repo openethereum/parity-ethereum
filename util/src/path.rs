@@ -60,7 +60,7 @@ pub mod ethereum {
 	use std::path::PathBuf;
 
 	/// Default path for ethereum installation on Mac Os
-	pub fn default() -> PathBuf { config_path("Ethereum") }
+	pub fn default() -> PathBuf { super::config_path("Ethereum") }
 
 	/// Get the specific folder inside default ethereum installation
 	pub fn with_default(s: &str) -> PathBuf {
