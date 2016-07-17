@@ -18,7 +18,7 @@
 
 use util::*;
 use basic_types::*;
-use time::now_utc;
+use time::get_time;
 
 /// Type for Block number
 pub type BlockNumber = u64;
@@ -137,6 +137,10 @@ impl Header {
 	pub fn state_root(&self) -> &H256 { &self.state_root }
 	/// Get the receipts root field of the header.
 	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
+	/// Get the transactions root field of the header.
+	pub fn transactions_root(&self) -> &H256 { &self.transactions_root }
+	/// Get the uncles hash field of the header.
+	pub fn uncles_hash(&self) -> &H256 { &self.uncles_hash }
 	/// Get the gas limit field of the header.
 	pub fn gas_limit(&self) -> &U256 { &self.gas_limit }
 
@@ -162,7 +166,7 @@ impl Header {
 	/// Set the timestamp field of the header.
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
 	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = max(now_utc().to_timespec().sec as u64, but_later_than + 1); self.note_dirty(); }
+	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = max(get_time().sec as u64, but_later_than + 1); self.note_dirty(); }
 	/// Set the number field of the header.
 	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
 	/// Set the author field of the header.
