@@ -470,6 +470,10 @@ fn execute_import(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 			}
 		}
 	}
+	while !client.queue_info().is_empty() {
+		sleep(Duration::from_secs(1));
+		informant.tick(client.deref(), None);
+	}
 	client.flush_queue();
 }
 
