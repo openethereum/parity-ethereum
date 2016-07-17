@@ -38,6 +38,7 @@ use std::thread;
 use util::numbers::{U256, H256};
 use std::str::FromStr;
 use nanoipc::IpcInterface;
+use util::sha3::*;
 
 const USAGE: &'static str = "
 Ethcore sync service
@@ -80,7 +81,7 @@ impl Args {
 			boot_nodes: self.flag_boot_nodes,
 			listen_address: Some(self.arg_listen_address),
 			public_address: self.flag_public_address,
-			use_secret: self.flag_secret.as_ref().map(|s| H256::from_str(s).unwrap()),
+			use_secret: self.flag_secret.as_ref().map(|s| H256::from_str(s).unwrap_or_else(|_| s.sha3())),
 			discovery_enabled: self.arg_discovery_enabled,
 			ideal_peers: self.arg_ideal_peers,
 			config_path: Some(self.arg_config_path),
