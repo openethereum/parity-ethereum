@@ -394,7 +394,7 @@ impl Client {
 							Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used.low_u64() as f32 / 1000000f32)),
 							Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
 							Colour::Purple.bold().paint(format!("{:.2}", duration_ns as f32 / 1000000f32)),
-							if skipped > 0 { format!(" + another {} block(s)", Colour::Red.paint(format!("{}", skipped))) } else { String::new() } 
+							if skipped > 0 { format!(" + another {} block(s)", Colour::Red.bold().paint(format!("{}", skipped))) } else { String::new() } 
 						);
 						*last_import = Instant::now();
 					}
