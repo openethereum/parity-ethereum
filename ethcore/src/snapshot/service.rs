@@ -17,13 +17,13 @@
 //! Snapshot network service implementation.
 
 use std::collections::HashSet;
-use std::fs::{self, File};
-use std::io::Read;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::{take_snapshot, ManifestData, StateRebuilder, BlockRebuilder, SnapshotService};
+use super::io::{SnapshotReader, LooseReader};
 
 use blockchain::BlockChain;
 use client::get_db_path;
@@ -116,11 +116,19 @@ pub struct Service {
 	pruning: Algorithm,
 	restoration_valid: AtomicBool,
 	genesis: Bytes,
+	reader: Option<LooseReader>,
 }
 
 impl Service {
 	/// Create a new snapshot service.
 	pub fn new(spec: &Spec, pruning: Algorithm, db_path: PathBuf, io_channel: Channel) -> Result<Self, Error> {
+		let reader = {
+			let mut snapshot_path = db_path.clone();
+			snapshot_path.push("snapshot");
+
+			LooseReader::new(snapshot_path).ok()
+		};
+
 		let service = Service {
 			engine: spec.engine.clone(),
 			state_restoration: Mutex::new(None),
@@ -130,6 +138,7 @@ impl Service {
 			pruning: pruning,
 			restoration_valid: AtomicBool::new(false),
 			genesis: spec.genesis_block(),
+			reader: reader
 		};
 
 		// create the snapshot dir if it doesn't exist.
@@ -158,21 +167,6 @@ impl Service {
 		let mut path = self.snapshot_dir();
 		path.push("restoration");
 		path
-	}
-
-	fn read_local_file(&self, name: &str) -> Result<Bytes, ::std::io::Error> {
-		let mut filename = self.snapshot_dir();
-		filename.push(name);
-
-		let mut file = try!(File::open(&filename));
-
-		// TODO [rob] handle big files
-		let len = file.metadata().map(|m| m.len()).unwrap_or(0);
-		let mut bytes = Vec::with_capacity(len as usize);
-
-		try!(file.read_to_end(&mut bytes));
-
-		Ok(bytes)
 	}
 
 	// replace one of the client's databases with our own.
@@ -274,14 +268,11 @@ impl Service {
 
 impl SnapshotService for Service {
 	fn manifest(&self) -> Option<ManifestData> {
-		match self.read_local_file("MANIFEST") {
-			Ok(raw) => ManifestData::from_rlp(&raw).ok(),
-			Err(_) => None,
-		}
+		self.reader.as_ref().map(|r| r.manifest().clone())
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
-		self.read_local_file(&hash.hex()).ok()
+		self.reader.as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
 	fn restoration_valid(&self) -> bool {
