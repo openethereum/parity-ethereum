@@ -90,7 +90,7 @@ impl ClientService {
 	}
 
 	/// Set the actor to be notified on certain chain events
-	pub fn set_notify(&self, notify: &Arc<ChainNotify>) {
+	pub fn set_notify(&self, notify: Arc<ChainNotify>) {
 		self.client.set_notify(notify);
 	}
 }

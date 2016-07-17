@@ -233,9 +233,9 @@ impl Client {
 	}
 
 	/// Sets the actor to be notified on certain events
-	pub fn set_notify(&self, target: &Arc<ChainNotify>) {
+	pub fn set_notify(&self, target: Arc<ChainNotify>) {
 		let mut write_lock = self.notify.write();
-		*write_lock = Some(Arc::downgrade(target));
+		*write_lock = Some(Arc::downgrade(&target));
 	}
 
 	fn notify(&self) -> Option<Arc<ChainNotify>> {

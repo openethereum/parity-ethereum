@@ -86,7 +86,7 @@ use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, version, journaldb};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, Mode};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, Mode, ChainNotify};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -193,6 +193,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
+	let mut hypervisor = modules::hypervisor();
+
 	info!("Starting {}", Colour::White.bold().paint(format!("{}", version())));
 	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(match client_config.pruning {
 		journaldb::Algorithm::Archive => "archive",
@@ -245,9 +247,9 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 
 	// Sync
 	let (sync_provider, manage_network, chain_notify) =
-		modules::sync(sync_config, NetworkConfiguration::from(net_settings), client.clone())
+		modules::sync(&mut hypervisor, sync_config, NetworkConfiguration::from(net_settings), client.clone())
 			.unwrap_or_else(|e| die_with_error("Sync", e));
-	service.set_notify(&chain_notify);
+	service.set_notify(chain_notify.clone());
 
 	// if network is active by default
 	if match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network } {
