@@ -297,7 +297,7 @@ impl BlockChain {
 		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
 			Some(best) => {
 				let mut new_best = H256::from_slice(&best);
-				while !bc.blocks_db.get(&best).unwrap().is_some() {
+				while !bc.blocks_db.get(&new_best).unwrap().is_some() {
 					match bc.rewind() {
 						Some(h) => {
 							new_best = h;
@@ -355,27 +355,38 @@ impl BlockChain {
 
 	/// Rewind to a previous block
 	pub fn rewind(&self) -> Option<H256> {
-		//TODO: clear cache
 		let batch = DBTransaction::new();
 		// track back to the best block we have in the blocks database
 		if let Some(best_block_hash) = self.extras_db.get(b"best").unwrap() {
 			let best_block_hash = H256::from_slice(&best_block_hash);
+			if best_block_hash == self.genesis_hash() {
+				return None;
+			}
 			if let Some(extras) = self.extras_db.read(&best_block_hash) as Option<BlockDetails> {
 				type DetailsKey = Key<BlockDetails, Target=H264>;
 				batch.delete(&(DetailsKey::key(&best_block_hash))).unwrap();
 				let hash = extras.parent;
-				let range = (extras.number + 1) as bc::Number .. (extras.number + 1) as bc::Number;
+				let range = extras.number as bc::Number .. extras.number as bc::Number;
 				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
 				let changes = chain.replace(&range, vec![]);
 				for (k, v) in changes.into_iter() {
 					batch.write(&LogGroupPosition::from(k), &BloomGroup::from(v));
 				}
 				batch.put(b"best", &hash).unwrap();
-				self.extras_db.write(batch).unwrap();
 				let mut best_block = self.best_block.write();
-				best_block.number = self.block_number(&hash).unwrap();
+				best_block.number = extras.number - 1;
 				best_block.total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
 				best_block.hash = hash;
+				// update parent extras
+				if let Some(mut details) = self.extras_db.read(&hash) as Option<BlockDetails> {
+					details.children.clear();
+					batch.write(&hash, &details);
+				}
+				self.extras_db.write(batch).unwrap();
+				self.block_details.write().clear();
+				self.block_hashes.write().clear();
+				self.blocks.write().clear();
+				self.block_receipts.write().clear();
 				return Some(hash);
 			}
 		}
@@ -531,7 +542,8 @@ impl BlockChain {
 			batch.extend_with_cache(&mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
-		// These cached values must be updated last and together
+		// These cached values must be updated last with all three locks taken to avoid
+		// cache decoherence
 		{
 			let mut best_block = self.best_block.write();
 			// update best block
@@ -1238,5 +1250,31 @@ mod tests {
 		// re-loading the blockchain should load the correct best block.
 		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 		assert_eq!(bc.best_block_number(), 5);
+	}
+
+	#[test]
+	fn test_rewind() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let first = canon_chain.generate(&mut finalizer).unwrap();
+		let second = canon_chain.generate(&mut finalizer).unwrap();
+		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
+		let first_hash = BlockView::new(&first).header_view().sha3();
+		let second_hash = BlockView::new(&second).header_view().sha3();
+
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+
+		bc.insert_block(&first, vec![]);
+		bc.insert_block(&second, vec![]);
+
+		assert_eq!(bc.rewind(), Some(first_hash.clone()));
+		assert!(!bc.is_known(&second_hash));
+		assert_eq!(bc.best_block_number(), 1);
+		assert_eq!(bc.best_block_hash(), first_hash.clone());
+
+		assert_eq!(bc.rewind(), Some(genesis_hash.clone()));
+		assert_eq!(bc.rewind(), None);
 	}
 }
