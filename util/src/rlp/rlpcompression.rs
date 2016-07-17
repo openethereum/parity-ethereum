@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rlp::{UntrustedRlp, View, Compressible, encode, ElasticArray1024, Stream, RlpStream};
-use rlp::commonrlps::INVALID_RLP_SWAPPER;
+use rlp::commonrlps::BLOCKS_RLP_SWAPPER;
 use std::collections::HashMap;
 
 /// Stores RLPs used for compression
@@ -61,6 +61,11 @@ fn invalid_rlp_swapper() {
 	assert_eq!(Some(to_swap[1]), swapper.get_valid(invalid_rlp[1]));
 }
 
+enum RlpSet {
+	Blocks,
+	Snapshot,
+}
+
 fn to_elastic(slice: &[u8]) -> ElasticArray1024<u8> {
 	let mut out = ElasticArray1024::new();
 	out.append_slice(slice);
@@ -70,16 +75,16 @@ fn to_elastic(slice: &[u8]) -> ElasticArray1024<u8> {
 fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<ElasticArray1024<u8>> where
 	F: Fn(&UntrustedRlp) -> Option<ElasticArray1024<u8>> {
 	match rlp.iter()
-  .fold((false, RlpStream::new_list(rlp.item_count())),
-  |(is_some, mut acc), subrlp| {
-  	let new = f(&subrlp);
-  	if let Some(ref insert) = new {
-  		acc.append_raw(&insert[..], 1);
-  	} else {
-  		acc.append_raw(subrlp.as_raw(), 1);
-  	}
-  	(is_some || new.is_some(), acc)
-  }) {
+	.fold((false, RlpStream::new_list(rlp.item_count())),
+		|(is_some, mut acc), subrlp| {
+  		let new = f(&subrlp);
+  		if let Some(ref insert) = new {
+  			acc.append_raw(&insert[..], 1);
+  		} else {
+  			acc.append_raw(subrlp.as_raw(), 1);
+  		}
+  		(is_some || new.is_some(), acc)
+  	  }) {
   	(true, s) => Some(s.drain()),
   	_ => None,
   }
@@ -88,7 +93,7 @@ fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<ElasticArray1024<u8>> where
 impl<'a> Compressible for UntrustedRlp<'a> {
 	fn simple_compress(&self) -> ElasticArray1024<u8> {
 		if self.is_data() {
-			to_elastic(INVALID_RLP_SWAPPER.get_invalid(self.as_raw()).unwrap_or(self.as_raw()))
+			to_elastic(BLOCKS_RLP_SWAPPER.get_invalid(self.as_raw()).unwrap_or(self.as_raw()))
 		} else {
 			map_rlp(self, |rlp| Some(rlp.simple_compress())).unwrap_or(to_elastic(self.as_raw()))
 		}
@@ -96,7 +101,7 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 
 	fn simple_decompress(&self) -> ElasticArray1024<u8> {
 		if self.is_data() {
-			to_elastic(INVALID_RLP_SWAPPER.get_valid(self.as_raw()).unwrap_or(self.as_raw()))
+			to_elastic(BLOCKS_RLP_SWAPPER.get_valid(self.as_raw()).unwrap_or(self.as_raw()))
 		} else {
 			map_rlp(self, |rlp| Some(rlp.simple_decompress())).unwrap_or(to_elastic(self.as_raw()))
 		}
@@ -104,7 +109,7 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 
 	fn compress(&self) -> Option<ElasticArray1024<u8>> {
 		let simple_swap = ||
-			INVALID_RLP_SWAPPER.get_invalid(self.as_raw()).map(|b| to_elastic(&b));
+			BLOCKS_RLP_SWAPPER.get_invalid(self.as_raw()).map(|b| to_elastic(&b));
 		if self.is_data() {
 			// Try to treat the inside as RLP.
 			return match self.payload_info() {
@@ -130,7 +135,7 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 
 	fn decompress(&self) -> Option<ElasticArray1024<u8>> {
 		let simple_swap = ||
-			INVALID_RLP_SWAPPER.get_valid(self.as_raw()).map(|b| to_elastic(&b));
+			BLOCKS_RLP_SWAPPER.get_valid(self.as_raw()).map(|b| to_elastic(&b));
 		// Simply decompress data.
 		if self.is_data() { return simple_swap(); }
 		match self.item_count() {
@@ -140,7 +145,7 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 				|r| r.decompress().map(|d| { let v = d.to_vec(); encode(&v) })),
 			// Iterate through RLP while checking if it has been compressed.
 			_ => map_rlp(self, |rlp| rlp.decompress()),
-  	}
+  		}
 	}
 }
 
