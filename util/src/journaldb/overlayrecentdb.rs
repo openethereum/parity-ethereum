@@ -162,11 +162,7 @@ impl OverlayRecentDB {
 					&r.drain()
 				}).expect("Low-level database error.") {
 					trace!("read_overlay: era={}, index={}", era, index);
-					let decompressed = match UntrustedRlp::new(&rlp_data).decompress() {
-						Some(r) => r.to_vec(),
-						None => rlp_data.to_vec(),
-					};
-					let rlp = Rlp::new(&decompressed);
+					let rlp = Rlp::new(&rlp_data);
 					let id: H256 = rlp.val_at(0);
 					let insertions = rlp.at(1);
 					let deletions: Vec<H256> = rlp.val_at(2);

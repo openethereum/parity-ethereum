@@ -164,7 +164,6 @@ fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Err
 	};
 	try!(res.map_err(|_| Error::MigrationImpossible));
 
-	try!(manager.add_migration(migrations::state::V8::default()).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 

@@ -21,11 +21,11 @@ use rlp::rlpcompression::InvalidRlpSwapper;
 #[test]
 #[ignore]
 fn analyze_db() {
-	use rlp::{UntrustedRlp, View};
+	use rlp::{UntrustedRlp, View, Compressible};
 	use std::collections::HashMap;
 	use kvdb::*;
 
-	let path =  "db".to_string();
+	let path =  "/home/keorn/.parity/906a34e69aec8c0d/v5.3-sec-overlayrecent/blocks".to_string();
 	let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
 	let mut rlp_counts: HashMap<_, u32> = HashMap::new();
 	let mut rlp_sizes: HashMap<_, u32> = HashMap::new();
@@ -57,8 +57,10 @@ fn analyze_db() {
 		let mut flat = Vec::new();
 		flat_rlp(&mut flat, rlp);
 		for r in flat.iter() {
+			if r.compress().is_none() {
 			*rlp_counts.entry(r.as_raw()).or_insert(0) += 1;
 			*rlp_sizes.entry(r.as_raw()).or_insert(0) += space_saving(r.as_raw());
+			}
 		}
 	}
 	let mut size_vec: Vec<_> = rlp_sizes.iter().collect();

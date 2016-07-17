@@ -55,8 +55,7 @@ impl State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
-			let mut compressed_db = CompressedDBMut::new(db.as_hashdb_mut());
-			let _ = trie_factory.create(&mut compressed_db, &mut root);
+			let _ = trie_factory.create(db.as_hashdb_mut(), &mut root);
 		}
 
 		State {
@@ -162,8 +161,7 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		let compressed_db = CompressedDB::new(self.db.as_hashdb());
-		let db = self.trie_factory.readonly(&compressed_db, &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+		let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || db.contains(&a)
 	}
 
@@ -179,7 +177,7 @@ impl State {
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.get(address, false).as_ref().map_or(H256::new(), |a| a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key))
+		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
@@ -249,9 +247,8 @@ impl State {
 				for a in &addresses {
 					if self.code(a).map_or(false, |c| c.sha3() == broken_dao) {
 						// Figure out if the balance has been reduced.
-						let compressed_db = CompressedDB::new(self.db.as_hashdb());
 						let maybe_original = self.trie_factory
-							.readonly(&compressed_db, &self.root)
+							.readonly(self.db.as_hashdb(), &self.root)
 							.expect(SEC_TRIE_DB_UNWRAP_STR)
 							.get(&a).map(Account::from_rlp);
 						if maybe_original.map_or(false, |original| *original.balance() > self.balance(a)) {
@@ -288,8 +285,7 @@ impl State {
 		}
 
 		{
-			let mut compressed_db = CompressedDBMut::new(db);
-			let mut trie = trie_factory.from_existing(&mut compressed_db, root).unwrap();
+			let mut trie = trie_factory.from_existing(db, root).unwrap();
 			for (address, ref a) in accounts.iter() {
 				match **a {
 					Some(ref account) => trie.insert(address, &account.rlp()),
@@ -352,8 +348,7 @@ impl State {
 	fn get<'a>(&'a self, a: &Address, require_code: bool) -> &'a Option<Account> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			let compressed_db = CompressedDB::new(self.db.as_hashdb());
-			let db = self.trie_factory.readonly(&compressed_db as &HashDB, &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
 		}
 		if require_code {
@@ -374,8 +369,7 @@ impl State {
 	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> &'a mut Account {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			let compressed_db = CompressedDB::new(self.db.as_hashdb());
-			let db = self.trie_factory.readonly(&compressed_db, &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
 		} else {
 			self.note_cache(a);
