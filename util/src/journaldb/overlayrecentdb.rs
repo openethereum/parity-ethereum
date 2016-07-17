@@ -295,7 +295,7 @@ impl JournalDB for OverlayRecentDB {
 				}
 				// update the overlay
 				for k in overlay_deletions {
-					journal_overlay.backing_overlay.remove(&OverlayRecentDB::to_short_key(&k));
+					journal_overlay.backing_overlay.remove_and_purge(&OverlayRecentDB::to_short_key(&k));
 				}
 				// apply canon deletions
 				for k in canon_deletions {
@@ -303,7 +303,6 @@ impl JournalDB for OverlayRecentDB {
 						try!(batch.delete(&k));
 					}
 				}
-				journal_overlay.backing_overlay.purge();
 			}
 			journal_overlay.journal.remove(&end_era);
 		}

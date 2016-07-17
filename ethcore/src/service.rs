@@ -54,7 +54,7 @@ impl ClientService {
 		let io_service = try!(IoService::<ClientIoMessage>::start());
 		panic_handler.forward_from(&io_service);
 
-		info!("Configured for {} using {} engine", spec.name.clone().apply(Colour::White.bold()), spec.engine.name().apply(Colour::Yellow.bold()));
+		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {

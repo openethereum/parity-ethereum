@@ -19,29 +19,38 @@
 use uint::Uint;
 use hash::Address;
 
-/// Ethash params deserialization.
+/// Deserializable doppelganger of EthashParams.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct EthashParams {
-	/// Gas limit divisor.
+	/// See main EthashParams docs.
 	#[serde(rename="gasLimitBoundDivisor")]
 	pub gas_limit_bound_divisor: Uint,
-	/// Minimum difficulty.
+	/// See main EthashParams docs.
 	#[serde(rename="minimumDifficulty")]
 	pub minimum_difficulty: Uint,
-	/// Difficulty bound divisor.
+	/// See main EthashParams docs.
 	#[serde(rename="difficultyBoundDivisor")]
 	pub difficulty_bound_divisor: Uint,
-	/// Block duration.
+	/// See main EthashParams docs.
 	#[serde(rename="durationLimit")]
 	pub duration_limit: Uint,
-	/// Block reward.
+	/// See main EthashParams docs.
 	#[serde(rename="blockReward")]
 	pub block_reward: Uint,
-	/// Namereg contract address.
-	pub registrar: Address,
-	/// Homestead transition block number.
+	/// See main EthashParams docs.
+	pub registrar: Option<Address>,
+	/// See main EthashParams docs.
 	#[serde(rename="frontierCompatibilityModeLimit")]
-	pub frontier_compatibility_mode_limit: Uint,
+	pub frontier_compatibility_mode_limit: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="daoHardforkTransition")]
+	pub dao_hardfork_transition: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="daoHardforkBeneficiary")]
+	pub dao_hardfork_beneficiary: Option<Address>,
+	/// See main EthashParams docs.
+	#[serde(rename="daoHardforkAccounts")]
+	pub dao_hardfork_accounts: Option<Vec<Address>>,
 }
 
 /// Ethash engine deserialization.
@@ -66,7 +75,46 @@ mod tests {
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar": "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0x42"
+				"frontierCompatibilityModeLimit": "0x42",
+				"daoHardforkTransition": "0x08",
+				"daoHardforkBeneficiary": "0xabcabcabcabcabcabcabcabcabcabcabcabcabca",
+				"daoHardforkAccounts": [
+					"0x304a554a310c7e546dfe434669c62820b7d83490",
+					"0x914d1b8b43e92723e64fd0a06f5bdb8dd9b10c79",
+					"0xfe24cdd8648121a43a7c86d289be4dd2951ed49f",
+					"0x17802f43a0137c506ba92291391a8a8f207f487d",
+					"0xb136707642a4ea12fb4bae820f03d2562ebff487",
+					"0xdbe9b615a3ae8709af8b93336ce9b477e4ac0940",
+					"0xf14c14075d6c4ed84b86798af0956deef67365b5",
+					"0xca544e5c4687d109611d0f8f928b53a25af72448",
+					"0xaeeb8ff27288bdabc0fa5ebb731b6f409507516c",
+					"0xcbb9d3703e651b0d496cdefb8b92c25aeb2171f7",
+					"0xaccc230e8a6e5be9160b8cdf2864dd2a001c28b6",
+					"0x2b3455ec7fedf16e646268bf88846bd7a2319bb2",
+					"0x4613f3bca5c44ea06337a9e439fbc6d42e501d0a",
+					"0xd343b217de44030afaa275f54d31a9317c7f441e",
+					"0x84ef4b2357079cd7a7c69fd7a37cd0609a679106",
+					"0xda2fef9e4a3230988ff17df2165440f37e8b1708",
+					"0xf4c64518ea10f995918a454158c6b61407ea345c",
+					"0x7602b46df5390e432ef1c307d4f2c9ff6d65cc97",
+					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
+					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
+				]
+			}
+		}"#;
+
+		let _deserialized: Ethash = serde_json::from_str(s).unwrap();
+	}
+
+	#[test]
+	fn ethash_deserialization_missing_optionals() {
+		let s = r#"{
+			"params": {
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000"
 			}
 		}"#;
 
