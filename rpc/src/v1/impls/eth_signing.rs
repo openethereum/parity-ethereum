@@ -98,9 +98,8 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 
 				let queue = take_weak!(self.queue);
 				fill_optional_fields(&mut request, &*client, &*miner);
-				let id = queue.add_request(request);
-				let result = id.wait_with_timeout();
-				result.unwrap_or_else(|| to_value(&RpcH256::default()))
+				queue.add_request(request);
+				to_value(&RpcH256::default())
 		})
 	}
 }
