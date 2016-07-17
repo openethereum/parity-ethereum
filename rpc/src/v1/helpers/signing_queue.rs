@@ -150,7 +150,7 @@ impl ConfirmationPromise {
 	/// Returns `None` if transaction was rejected or timeout reached.
 	/// Returns `Some(result)` if transaction was confirmed.
 	pub fn wait_until(&self, deadline: Instant) -> ConfirmationResult {
-		info!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", self.id);
+		trace!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", self.id);
 		loop {
 			let now = Instant::now();
 			// Check the result...

@@ -70,21 +70,8 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 		take_weak!(self.client).keep_alive();
 		Ok(())
 	}
-}
 
-impl<C, M> EthSigning for EthSigningQueueClient<C, M>
-	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
-{
-
-	fn sign(&self, _params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		warn!("Invoking eth_sign is not yet supported with signer enabled.");
-		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
-		rpc_unimplemented!()
-	}
-
-	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
+	fn dispatch<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
 				let mut request: TRequest = request.into();
@@ -102,11 +89,35 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 				let queue = take_weak!(self.queue);
 				fill_optional_fields(&mut request, &*client, &*miner);
 				let promise = queue.add_request(request);
-				let ret = to_value(&RpcU256::from(promise.id()));
-				self.pending.lock().insert(promise.id(), promise);
-				ret
-/*				let result = id.wait_with_timeout();
-				result.unwrap_or_else(|| to_value(&RpcH256::default()))*/
+				f(promise)
+		})
+	}
+}
+
+impl<C, M> EthSigning for EthSigningQueueClient<C, M>
+	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
+{
+
+	fn sign(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		warn!("Invoking eth_sign is not yet supported with signer enabled.");
+		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
+		rpc_unimplemented!()
+	}
+
+	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		self.dispatch(params, |promise: ConfirmationPromise| {
+			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH256::default()))
+		})
+	}
+
+	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		self.dispatch(params, |promise: ConfirmationPromise| {
+			let ret = to_value(&RpcU256::from(promise.id()));
+			self.pending.lock().insert(promise.id(), promise);
+			ret
 		})
 	}
 
@@ -115,7 +126,6 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 		let mut pending = self.pending.lock();
 		from_params::<(RpcU256, )>(params).and_then(|(id, )| {
 			let id: U256 = id.into();
-			info!("check_transaction({})", id);
 			let res = match pending.get(&id) {
 				Some(ref promise) => match promise.result() {
 					ConfirmationResult::Waiting => { return Ok(Value::Null); }
@@ -186,7 +196,13 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		})
 	}
 
+	fn post_transaction(&self, _: Params) -> Result<Value, Error> {
+		// We don't support this in non-signer mode.
+		Err(Error::invalid_params())
+	}
+
 	fn check_transaction(&self, _: Params) -> Result<Value, Error> {
+		// We don't support this in non-signer mode.
 		Err(Error::invalid_params())
 	}
 }
