@@ -83,7 +83,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Estimate gas needed for execution of given contract.
 	fn estimate_gas(&self, _: Params) -> Result<Value, Error>;
 
-	/// Get transaction by it's hash.
+	/// Get transaction by its hash.
 	fn transaction_by_hash(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns transaction at given block hash and index.
