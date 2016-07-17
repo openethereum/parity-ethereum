@@ -155,11 +155,13 @@ impl ConfirmationPromise {
 			let now = Instant::now();
 			// Check the result...
 			match *self.result.lock() {
-				// Waiting and deadline not yet passed - wait a while longer.  
-				ConfirmationResult::Waiting if now < deadline => thread::park_timeout(deadline - now),
+				// Waiting and deadline not yet passed continue looping.  
+				ConfirmationResult::Waiting if now < deadline => {}
 				// Anything else - return.
 				ref a => return a.clone(),
 			}
+			// wait a while longer - maybe the solution will arrive.
+			thread::park_timeout(deadline - now);
 		}
 	}
 }
