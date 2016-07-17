@@ -296,32 +296,20 @@ impl BlockChain {
 		// load best block
 		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
 			Some(best) => {
-				let best = H256::from_slice(&best);
-				let mut b = best.clone();
-				let mut removed = 0;
-				let mut best_num = 0;
-				let batch = DBTransaction::new();
-				while !bc.blocks_db.get(&b).unwrap().is_some() {
-					// track back to the best block we have in the blocks database
-					let extras: BlockDetails = bc.extras_db.read(&b).unwrap();
-					type DetailsKey = Key<BlockDetails, Target=H264>;
-					batch.delete(&(DetailsKey::key(&b))).unwrap();
-					b = extras.parent;
-					best_num = extras.number;
-					removed += 1;
-				}
-				if b != best {
-					let range = (best_num + 1) as bc::Number .. (best_num + removed) as bc::Number;
-					let chain = bc::group::BloomGroupChain::new(bc.blooms_config, &bc);
-					let changes = chain.replace(&range, vec![]);
-					for (k, v) in changes.into_iter() {
-						batch.write(&LogGroupPosition::from(k), &BloomGroup::from(v));
+				let mut new_best = H256::from_slice(&best);
+				while !bc.blocks_db.get(&best).unwrap().is_some() {
+					match bc.rewind() {
+						Some(h) => {
+							new_best = h;
+						}
+						None => {
+							warn!("Can't rewind blockchain");
+							break;
+						}
 					}
-					batch.put(b"best", &b).unwrap();
-					bc.extras_db.write(batch).unwrap();
-					info!("Restored mismatched best block. Was: {}, new: {}", best.hex(), b.hex());
+					info!("Restored mismatched best block. Was: {}, new: {}", H256::from_slice(&best).hex(), new_best.hex());
 				}
-				b
+				new_best
 			}
 			None => {
 				// best block does not exist
@@ -363,6 +351,35 @@ impl BlockChain {
 	/// (though not necessarily a part of the canon chain).
 	fn is_known_child(&self, parent: &H256, hash: &H256) -> bool {
 		self.extras_db.read_with_cache(&self.block_details, parent).map_or(false, |d| d.children.contains(hash))
+	}
+
+	/// Rewind to a previous block
+	pub fn rewind(&self) -> Option<H256> {
+		//TODO: clear cache
+		let batch = DBTransaction::new();
+		// track back to the best block we have in the blocks database
+		if let Some(best_block_hash) = self.extras_db.get(b"best").unwrap() {
+			let best_block_hash = H256::from_slice(&best_block_hash);
+			if let Some(extras) = self.extras_db.read(&best_block_hash) as Option<BlockDetails> {
+				type DetailsKey = Key<BlockDetails, Target=H264>;
+				batch.delete(&(DetailsKey::key(&best_block_hash))).unwrap();
+				let hash = extras.parent;
+				let range = (extras.number + 1) as bc::Number .. (extras.number + 1) as bc::Number;
+				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
+				let changes = chain.replace(&range, vec![]);
+				for (k, v) in changes.into_iter() {
+					batch.write(&LogGroupPosition::from(k), &BloomGroup::from(v));
+				}
+				batch.put(b"best", &hash).unwrap();
+				self.extras_db.write(batch).unwrap();
+				let mut best_block = self.best_block.write();
+				best_block.number = self.block_number(&hash).unwrap();
+				best_block.total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
+				best_block.hash = hash;
+				return Some(hash);
+			}
+		}
+		return None;
 	}
 
 	/// Set the cache configuration.
