@@ -64,7 +64,6 @@ impl UpgradeKey {
 
 // dummy upgrade (remove when the first one is in)
 fn dummy_upgrade() -> Result<(), Error> {
-	println!("Adding ver.lock");
 	Ok(())
 }
 
