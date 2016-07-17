@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate ansi_term;
-use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue, Purple};
+use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue};
 use self::ansi_term::Style;
 
 use std::time::{Instant, Duration};
@@ -102,49 +102,46 @@ impl Informant {
 			false => t,
 		};
 
-		if let (_, _, &Some(ref last_report)) = (
-			self.chain_info.read().deref(),
-			self.cache_info.read().deref(),
-			write_report.deref()
-		) {
-			info!("{}   {}   {}",
-				match importing {
-					true => format!("{} {}   {} blk/s {} tx/s {} Mgas/s   {}+{} Qed", 
-						paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
-						paint(White.bold(), format!("{}", chain_info.best_block_hash)),
-
-						paint(Yellow.bold(), format!("{:4}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
-						paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
-						paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64())),
-
-						paint(Green.bold(), format!("{:5}", queue_info.unverified_queue_size)),
-						paint(Green.bold(), format!("{:5}", queue_info.verified_queue_size))
-					),
-					false => String::new(),
-				},
+		info!("{}   {}   {}",
+			match importing {
+				true => format!("{} {}   {}   {}+{} Qed", 
+					paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
+					paint(White.bold(), format!("{}", chain_info.best_block_hash)),
+					{
+						let last_report = match write_report.deref() { &Some(ref last_report) => last_report.clone(), _ => ClientReport::default() };
+						format!("{} blk/s {} tx/s {} Mgas/s",  
+							paint(Yellow.bold(), format!("{:4}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
+							paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
+							paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
+						)
+					},
+					paint(Green.bold(), format!("{:5}", queue_info.unverified_queue_size)),
+					paint(Green.bold(), format!("{:5}", queue_info.verified_queue_size))
+				),
+				false => String::new(),
+			},
+			match maybe_status {
+				Some((ref sync_info, ref net_config)) => format!("{}{}/{}/{} peers",
+					match importing {
+						true => format!("{}   ", paint(Green.bold(), format!("{:>8}", format!("#{}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number))))),
+						false => String::new(),
+					},
+					paint(Cyan.bold(), format!("{:2}", sync_info.num_active_peers)),
+					paint(Cyan.bold(), format!("{:2}", sync_info.num_peers)),
+					paint(Cyan.bold(), format!("{:2}", net_config.ideal_peers))
+				),
+				None => String::new(),
+			},
+			format!("{} db {} chain {} queue{}", 
+				paint(Blue.bold(), format!("{:>8}", Informant::format_bytes(report.state_db_mem))),
+				paint(Blue.bold(), format!("{:>8}", Informant::format_bytes(cache_info.total()))),
+				paint(Blue.bold(), format!("{:>8}", Informant::format_bytes(queue_info.mem_used))),
 				match maybe_status {
-					Some((ref sync_info, ref net_config)) => format!("{}{}/{}/{} peers",
-						match importing {
-							true => format!("{}   ", paint(Cyan.bold(), format!("{:>8}", format!("#{}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number))))),
-							false => String::new(),
-						},
-						paint(Blue.bold(), format!("{:2}", sync_info.num_active_peers)),
-						paint(Blue.bold(), format!("{:2}", sync_info.num_peers)),
-						paint(Blue.bold(), format!("{:2}", net_config.ideal_peers))
-					),
-					None => String::new(),
-				},
-				format!("{} db {} chain {} queue{}", 
-					paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(report.state_db_mem))),
-					paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(cache_info.total()))),
-					paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(queue_info.mem_used))),
-					match maybe_status {
-						Some((ref sync_info, _)) => format!(" {} sync", paint(Purple.bold(), format!("{:>8}", Informant::format_bytes(sync_info.mem_used)))), 
-						_ => String::new(),
-					}
-				)
-			);
-		}
+					Some((ref sync_info, _)) => format!(" {} sync", paint(Blue.bold(), format!("{:>8}", Informant::format_bytes(sync_info.mem_used)))), 
+					_ => String::new(),
+				}
+			)
+		);
 
 		*self.chain_info.write().deref_mut() = Some(chain_info);
 		*self.cache_info.write().deref_mut() = Some(cache_info);
