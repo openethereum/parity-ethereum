@@ -16,6 +16,7 @@
 
 use network::{NetworkContext, PeerId, PacketId, NetworkError};
 use ethcore::client::BlockChainClient;
+use ethcore::snapshot::SnapshotService;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -31,6 +32,8 @@ pub trait SyncIo {
 	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
 	/// Get the blockchain
 	fn chain(&self) -> &BlockChainClient;
+	/// Get the snapshot service.
+	fn snapshot_service(&self) -> &SnapshotService;
 	/// Returns peer client identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
@@ -46,15 +49,17 @@ pub trait SyncIo {
 /// Wraps `NetworkContext` and the blockchain client
 pub struct NetSyncIo<'s, 'h> where 'h: 's {
 	network: &'s NetworkContext<'h>,
-	chain: &'s BlockChainClient
+	chain: &'s BlockChainClient,
+	snapshot_service: &'s SnapshotService,
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext<'h>, chain: &'s BlockChainClient) -> NetSyncIo<'s, 'h> {
+	pub fn new(network: &'s NetworkContext<'h>, chain: &'s BlockChainClient, snapshot_service: &'s SnapshotService) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
 			chain: chain,
+			snapshot_service: snapshot_service,
 		}
 	}
 }
@@ -78,6 +83,10 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 
 	fn chain(&self) -> &BlockChainClient {
 		self.chain
+	}
+
+	fn snapshot_service(&self) -> &SnapshotService {
+		self.snapshot_service
 	}
 
 	fn peer_info(&self, peer_id: PeerId) -> String {

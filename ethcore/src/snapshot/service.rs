@@ -54,7 +54,7 @@ pub enum RestorationStatus {
 /// This handles:
 ///    - restoration of snapshots to temporary databases.
 ///    - responding to queries for snapshot manifests and chunks
-pub trait SnapshotService {
+pub trait SnapshotService : Sync + Send {
 	/// Query the most recent manifest data.
 	fn manifest(&self) -> Option<ManifestData>;
 
@@ -75,6 +75,9 @@ pub trait SnapshotService {
 	fn begin_restore(&self, manifest: ManifestData);
 
 	/// Abort an in-progress restoration if there is one.
+	fn abort_restore(&self);
+
+	/// Abort restoration process.
 	fn abort_restore(&self);
 
 	/// Feed a raw state chunk to the service to be processed asynchronously.
@@ -509,6 +512,17 @@ impl SnapshotService for Service {
 		}
 	}
 
+	fn abort_restore(&self) {
+		*self.restoration.lock() = None;
+		*self.status.lock() = RestorationStatus::Inactive;
+		if let Err(e) = fs::remove_dir_all(&self.restoration_dir()) {
+			match e.kind() {
+				ErrorKind::NotFound => {},
+				_ => warn!("encountered error {} while deleting snapshot restoration dir.", e),
+			}
+		}
+	}
+
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
 		self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk))
 			.expect("snapshot service and io service are kept alive by client service; qed");
@@ -564,5 +578,11 @@ mod tests {
 		service.abort_restore();
 		service.restore_state_chunk(Default::default(), vec![]);
 		service.restore_block_chunk(Default::default(), vec![]);
+	}
+}
+
+impl Drop for Service {
+	fn drop(&mut self) {
+		self.abort_restore();
 	}
 }

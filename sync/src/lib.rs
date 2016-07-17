@@ -83,6 +83,7 @@ extern crate ethcore_ipc as ipc;
 mod chain;
 mod blocks;
 mod sync_io;
+mod snapshot;
 
 #[cfg(test)]
 mod tests;
@@ -96,4 +97,3 @@ pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNet
 	ServiceConfiguration, NetworkConfiguration};
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
-
