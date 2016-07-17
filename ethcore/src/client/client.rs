@@ -205,6 +205,11 @@ impl Client {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
+		while !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
+			warn!("State root not found for block #{} ({}), recovering...", chain.best_block_number(), chain.best_block_hash().hex());
+			chain.rewind();
+		}
+
 		let engine = Arc::new(spec.engine);
 
 		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel.clone());
