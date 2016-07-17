@@ -71,7 +71,7 @@ impl rlp::Decodable for ChunkInfo {
 /// The file format is very simple and consists of three parts:
 /// 	[Concatenated chunk data]
 /// 	[manifest as RLP]
-///     [manifest start offset]
+///     [manifest start offset (8 bytes little-endian)]
 ///
 /// The manifest contains all the same information as a standard `ManifestData`,
 /// but also maps chunk hashes to their lengths and offsets in the file
