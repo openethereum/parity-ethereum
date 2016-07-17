@@ -300,17 +300,17 @@ impl BlockChain {
 				let mut b = best.clone();
 				let mut removed = 0;
 				let mut best_num = 0;
+				let batch = DBTransaction::new();
 				while !bc.blocks_db.get(&b).unwrap().is_some() {
 					// track back to the best block we have in the blocks database
 					let extras: BlockDetails = bc.extras_db.read(&b).unwrap();
 					type DetailsKey = Key<BlockDetails, Target=H264>;
-					bc.extras_db.delete(&(DetailsKey::key(&b))).unwrap();
+					batch.delete(&(DetailsKey::key(&b))).unwrap();
 					b = extras.parent;
 					best_num = extras.number;
 					removed += 1;
 				}
 				if b != best {
-					let batch = DBTransaction::new();
 					let range = (best_num + 1) as bc::Number .. (best_num + removed) as bc::Number;
 					let chain = bc::group::BloomGroupChain::new(bc.blooms_config, &bc);
 					let changes = chain.replace(&range, vec![]);
@@ -514,14 +514,14 @@ impl BlockChain {
 			batch.extend_with_cache(&mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
-		// These cached values must be updated last and togeterh
+		// These cached values must be updated last and together
 		{
+			let mut best_block = self.best_block.write();
 			// update best block
 			match update.info.location {
 				BlockLocation::Branch => (),
 				_ => {
 					batch.put(b"best", &update.info.hash).unwrap();
-					let mut best_block = self.best_block.write();
 					*best_block = BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
