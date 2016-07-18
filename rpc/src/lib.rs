@@ -41,9 +41,10 @@ extern crate ethcore_devtools as devtools;
 
 use std::sync::Arc;
 use std::net::SocketAddr;
+use util::panics::PanicHandler;
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 
-pub use jsonrpc_http_server::{Server, RpcServerError};
+pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
 pub mod v1;
 pub use v1::{SigningQueue, ConfirmationsQueue};
 
@@ -74,15 +75,31 @@ impl RpcServer {
 	}
 
 	/// Start http server asynchronously and returns result with `Server` handle on success or an error.
-	pub fn start_http(&self, addr: &SocketAddr, cors_domains: Vec<String>) -> Result<Server, RpcServerError> {
-		let cors_domains = cors_domains.into_iter()
-			.map(|v| match v.as_str() {
-				"*" => jsonrpc_http_server::AccessControlAllowOrigin::Any,
-				"null" => jsonrpc_http_server::AccessControlAllowOrigin::Null,
-				v => jsonrpc_http_server::AccessControlAllowOrigin::Value(v.into()),
+	pub fn start_http(
+		&self,
+		addr: &SocketAddr,
+		cors_domains: Option<Vec<String>>,
+		allowed_hosts: Option<Vec<String>>,
+		panic_handler: Arc<PanicHandler>,
+		) -> Result<Server, RpcServerError> {
+
+		let cors_domains = cors_domains.map(|domains| {
+			domains.into_iter()
+				.map(|v| match v.as_str() {
+					"*" => jsonrpc_http_server::AccessControlAllowOrigin::Any,
+					"null" => jsonrpc_http_server::AccessControlAllowOrigin::Null,
+					v => jsonrpc_http_server::AccessControlAllowOrigin::Value(v.into()),
+				})
+				.collect()
+		});
+
+		ServerBuilder::new(self.handler.clone())
+			.cors(cors_domains.into())
+			.allowed_hosts(allowed_hosts.into())
+			.panic_handler(move || {
+				panic_handler.notify_all("Panic in RPC thread.".to_owned());
 			})
-			.collect();
-		Server::start(addr, self.handler.clone(), cors_domains)
+			.start_http(addr)
 	}
 
 	/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
