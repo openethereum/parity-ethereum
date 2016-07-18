@@ -292,8 +292,8 @@ impl Miner {
 		for tx in transactions {
 			let hash = tx.hash();
 			match open_block.push_transaction(tx, None) {
-				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
+					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
 					// Exit early if gas left is smaller then min_tx_gas
 					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
 					if gas_limit - gas_used < min_tx_gas {
@@ -302,8 +302,8 @@ impl Miner {
 				},
 				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
 				// If there is errornous state of transaction queue it will be fixed when next block is imported.
-				Err(Error::Execution(ExecutionError::InvalidNonce { .. })) => {
-					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?}", hash);
+				Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) => {
+					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
 				},
 				// already have transaction - ignore
 				Err(Error::Transaction(TransactionError::AlreadyImported)) => {},
