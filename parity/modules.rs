@@ -34,7 +34,7 @@ mod no_ipc_deps {
 mod ipc_deps {
 	pub use ethsync::{SyncClient, NetworkManagerClient};
 	pub use ethcore::client::ChainNotifyClient;
-	pub use hypervisor::SYNC_MODULE_ID;
+	pub use hypervisor::{SYNC_MODULE_ID, BootArgs};
 	pub use nanoipc::{GuardedSocket, NanoSocket, init_client};
 	pub use ipc::IpcSocket;
 }
@@ -61,6 +61,7 @@ fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration) -> Vec<St
 	result.push(format!("{}", net_cfg.ideal_peers));
 	result.push(format!("{}", net_cfg.config_path.unwrap_or(".".to_owned())));
 	result.push(format!("{}", match net_cfg.allow_non_reserved { true => "yes".to_owned(), false => "no".to_owned() }));
+
 	result
 }
 
@@ -79,7 +80,7 @@ pub fn sync (
 		ethcore::error::Error>
 {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
-	hypervisor = hypervisor.module(SYNC_MODULE_ID, "sync", sync_arguments(sync_cfg, net_cfg));
+	hypervisor = hypervisor.module(SYNC_MODULE_ID, "sync", BootArgs::new().cli(sync_arguments(sync_cfg, net_cfg)));
 
 	hypervisor.start();
 	hypervisor.wait_for_startup();
