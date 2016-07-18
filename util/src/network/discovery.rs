@@ -119,10 +119,12 @@ impl Discovery {
 	}
 
 	/// Add a new node to discovery table. Pings the node.
-	pub fn add_node(&mut self, e: NodeEntry) {
+	pub fn add_node(&mut self, e: NodeEntry, new: bool) {
 		let endpoint = e.endpoint.clone();
 		self.update_node(e);
-		self.ping(&endpoint);
+		if new {
+			self.ping(&endpoint);
+		}
 	}
 
 	/// Add a list of known nodes to the table.
@@ -549,10 +551,10 @@ mod tests {
 
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();
-		discovery1.add_node(NodeEntry { id: node1.id.clone(), endpoint: node1.endpoint.clone() });
-		discovery1.add_node(NodeEntry { id: node2.id.clone(), endpoint: node2.endpoint.clone() });
+		discovery1.add_node(NodeEntry { id: node1.id.clone(), endpoint: node1.endpoint.clone() }, true);
+		discovery1.add_node(NodeEntry { id: node2.id.clone(), endpoint: node2.endpoint.clone() }, true);
 
-		discovery2.add_node(NodeEntry { id: key1.public().clone(), endpoint: ep1.clone() });
+		discovery2.add_node(NodeEntry { id: key1.public().clone(), endpoint: ep1.clone() }, true);
 		discovery2.refresh();
 
 		for _ in 0 .. 10 {
