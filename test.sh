@@ -14,5 +14,5 @@ case $1 in
 esac
 
 . ./scripts/targets.sh
-cargo test --no-default-features $FEATURES $TARGETS $1 \
+cargo test --release --verbose $FEATURES $TARGETS $1 \
 
