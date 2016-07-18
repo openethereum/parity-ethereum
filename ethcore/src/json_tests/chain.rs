@@ -48,6 +48,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				let mut spec = match era {
 					ChainEra::Frontier => ethereum::new_frontier_test(),
 					ChainEra::Homestead => ethereum::new_homestead_test(),
+					ChainEra::DaoHardfork => ethereum::new_daohardfork_test(),
 				};
 				spec.set_genesis_state(state);
 				spec.overwrite_genesis_params(genesis);
@@ -84,26 +85,43 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	failed
 }
 
-fn do_json_test(json_data: &[u8]) -> Vec<String> {
-	json_chain_test(json_data, ChainEra::Frontier)
+mod frontier_era_tests {
+	use tests::helpers::*;
+	use super::json_chain_test;
+
+	fn do_json_test(json_data: &[u8]) -> Vec<String> {
+		json_chain_test(json_data, ChainEra::Frontier)
+	}
+
+	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
+	declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
+	declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}
+	declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}
+	declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
+	declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
+	// TODO [ToDr] Ignored because of incorrect JSON (https://github.com/ethereum/tests/pull/113)
+	declare_test!{ignore => BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
+	declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
+	declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
+	declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
+	declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
+	declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}
+	declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
+	declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
+	declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
+
+	declare_test!{BlockchainTests_RandomTests_bl10251623GO, "BlockchainTests/RandomTests/bl10251623GO"}
+	declare_test!{BlockchainTests_RandomTests_bl201507071825GO, "BlockchainTests/RandomTests/bl201507071825GO"}
 }
 
-declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
-declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
-declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}
-declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}
-declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
-declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
-// TODO [ToDr] Ignored because of incorrect JSON (https://github.com/ethereum/tests/pull/113)
-declare_test!{ignore => BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
-declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
-declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
-declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
-declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
-declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}
-declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
-declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
-declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
+mod daohardfork_tests {
+	use tests::helpers::*;
+	use super::json_chain_test;
 
-declare_test!{BlockchainTests_RandomTests_bl10251623GO, "BlockchainTests/RandomTests/bl10251623GO"}
-declare_test!{BlockchainTests_RandomTests_bl201507071825GO, "BlockchainTests/RandomTests/bl201507071825GO"}
+	fn do_json_test(json_data: &[u8]) -> Vec<String> {
+		json_chain_test(json_data, ChainEra::DaoHardfork)
+	}
+
+	declare_test!{BlockchainTests_TestNetwork_bcSimpleTransitionTest, "BlockchainTests/TestNetwork/bcSimpleTransitionTest"}
+	declare_test!{BlockchainTests_TestNetwork_bcTheDaoTest, "BlockchainTests/TestNetwork/bcTheDaoTest"}
+}

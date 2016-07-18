@@ -201,7 +201,10 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0xffffffffffffffff"
+				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
+				"daoHardforkTransition": "0xffffffffffffffff",
+				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
+				"daoHardforkAccounts": []
 			}
 		}
 	},

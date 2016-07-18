@@ -51,6 +51,7 @@ extern crate ansi_term;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
+extern crate isatty;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
@@ -78,7 +79,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
 use std::env;
 use ctrlc::CtrlC;
-use util::{Colour, Applyable, version, H256};
+use util::{Colour, version, H256};
 use util::journaldb::Algorithm;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, ClientConfig, ChainNotify};
@@ -95,7 +96,7 @@ use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
 use helpers::{to_mode, to_address, to_u256};
-use params::{Policy, SpecType, Pruning};
+use params::{SpecType, Pruning};
 use dir::Directories;
 use setup_log::{LoggerConfig, setup_log};
 use fdlimit::raise_fd_limit;
@@ -123,7 +124,6 @@ fn new_execute(conf: Configuration) -> Result<String, String> {
 pub struct RunCmd {
 	directories: Directories,
 	spec: SpecType,
-	policy: Policy,
 	pruning: Pruning,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	daemon: Option<String>,
@@ -165,12 +165,7 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
-		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
-	}
-
-	// Check fork settings.
-	if Policy::None == cmd.policy {
-		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
+		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
 	}
 
 	Ok(())
@@ -195,7 +190,7 @@ fn daemonize(_conf: &Configuration) -> ! {
 fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorithm) -> Result<(), String> {
 	match upgrade::upgrade(Some(&dirs.db)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
-			println!("Executed {} upgrade scripts - ok", upgrades_applied);
+			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},
 		Err(e) => {
 			return Err(format!("Error upgrading parity data: {:?}", e));
@@ -219,12 +214,12 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	info!("Starting {}", version().apply(Colour::White.bold()));
-	info!("Using state DB journalling strategy {}", client_config.pruning.as_str().apply(Colour::White.bold()));
+	info!("Starting {}", Colour::White.bold().paint(version()));
+	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(client_config.pruning.as_str()));
 
 	// Display warning about using experimental journaldb types
 	if !client_config.pruning.is_stable() {
-		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", "unstable".apply(Colour::Red.bold()));
+		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
 	}
 
 	// Display warning about using unlock with signer
@@ -233,14 +228,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
 	}
 
-	// Check fork settings.
-	if let Policy::None = try!(conf.args.flag_fork.parse()) {
-		warn!("Value given for --policy, yet no proposed forks exist. Ignoring.");
-	}
-
 	let net_settings = try!(conf.net_settings(&spec));
 	let sync_config = try!(conf.sync_config(&spec));
-
 	// Secret Store
 	let account_service = Arc::new(conf.account_service());
 

@@ -21,30 +21,6 @@ use util::{contents, DatabaseConfig, journaldb, H256};
 use util::journaldb::Algorithm;
 use dir::Directories;
 
-#[derive(Eq, PartialEq, Debug)]
-pub enum Policy {
-	None,
-	Dogmatic,
-}
-
-impl Default for Policy {
-	fn default() -> Self {
-		Policy::None
-	}
-}
-
-impl FromStr for Policy {
-	type Err = String;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"none" => Ok(Policy::None),
-			"dogmatic" => Ok(Policy::Dogmatic),
-			other => Err(format!("Invalid policy value: {}", other)),
-		}
-	}
-}
-
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
 	Mainnet,
@@ -171,19 +147,7 @@ impl FromStr for ResealPolicy {
 #[cfg(test)]
 mod tests {
 	use util::journaldb::Algorithm;
-	use super::{Policy, SpecType, Pruning, ResealPolicy};
-
-	#[test]
-	fn test_policy_parsing() {
-		assert_eq!(Policy::None, "none".parse().unwrap());
-		assert_eq!(Policy::Dogmatic, "dogmatic".parse().unwrap());
-		assert!("sas".parse::<Policy>().is_err());
-	}
-
-	#[test]
-	fn test_policy_default() {
-		assert_eq!(Policy::None, Policy::default());
-	}
+	use super::{SpecType, Pruning, ResealPolicy};
 
 	#[test]
 	fn test_spec_type_parsing() {

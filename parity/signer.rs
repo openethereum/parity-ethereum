@@ -20,7 +20,6 @@ use std::path::PathBuf;
 use ansi_term::Colour;
 use util::panics::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
-use util::Applyable;
 use rpc_apis;
 use ethcore_signer as signer;
 pub use ethcore_signer::Server as SignerServer;
@@ -55,7 +54,7 @@ fn codes_path(path: String) -> PathBuf {
 
 pub fn new_token(path: String) -> Result<String, String> {
 	generate_new_token(path)
-		.map(|code| format!("This key code will authorise your System Signer UI: {}", code.apply(Colour::White.bold())))
+		.map(|code| format!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(code)))
 		.map_err(|err| format!("Error generating token: {:?}", err))
 }
 
@@ -64,6 +63,7 @@ fn generate_new_token(path: String) -> io::Result<String> {
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	try!(codes.to_file(&path));
+	trace!("New key code created: {}", Colour::White.bold().paint(&code[..]));
 	Ok(code)
 }
 

@@ -22,21 +22,18 @@ use std::sync::{Arc, Weak};
 use std::path::{Path, PathBuf};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
-use std::time::Instant;
+use std::time::{Instant, Duration};
+use time::precise_time_ns;
 
 // util
+use util::{journaldb, rlp, Bytes, Stream, View, PerfTimer, Itertools, Mutex, RwLock, Colour};
+use util::journaldb::JournalDB;
+use util::rlp::{RlpStream, Rlp, UntrustedRlp};
 use util::numbers::*;
 use util::panics::*;
 use util::io::*;
-use util::rlp;
 use util::sha3::*;
-use util::Bytes;
-use util::rlp::{RlpStream, Rlp, UntrustedRlp};
-use util::journaldb;
-use util::journaldb::JournalDB;
 use util::kvdb::*;
-use util::{Applyable, Stream, View, PerfTimer, Itertools, Colour};
-use util::{Mutex, RwLock};
 
 // other
 use views::BlockView;
@@ -145,6 +142,9 @@ pub struct Client {
 	notify: RwLock<Option<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	previous_enode: Mutex<Option<String>>,
+	skipped: AtomicUsize,
+	last_import: Mutex<Instant>,
+	last_hashes: RwLock<VecDeque<H256>>,
 }
 
 const HISTORY: u64 = 1200;
@@ -195,6 +195,11 @@ impl Client {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
+		while !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
+			warn!("State root not found for block #{} ({}), recovering...", chain.best_block_number(), chain.best_block_hash().hex());
+			chain.rewind();
+		}
+
 		let engine = Arc::new(spec.engine);
 
 		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel.clone());
@@ -222,6 +227,9 @@ impl Client {
 			notify: RwLock::new(None),
 			queue_transactions: AtomicUsize::new(0),
 			previous_enode: Mutex::new(None),
+			skipped: AtomicUsize::new(0),
+			last_import: Mutex::new(Instant::now()),
+			last_hashes: RwLock::new(VecDeque::new()),
 		};
 		Ok(Arc::new(client))
 	}
@@ -243,6 +251,14 @@ impl Client {
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
+		{
+			let hashes = self.last_hashes.read();
+			if hashes.front().map_or(false, |h| h == &parent_hash) {
+				let mut res = Vec::from(hashes.clone());
+				res.resize(256, H256::default());
+				return res;
+			}
+		}
 		let mut last_hashes = LastHashes::new();
 		last_hashes.resize(256, H256::new());
 		last_hashes[0] = parent_hash;
@@ -254,6 +270,8 @@ impl Client {
 				None => break,
 			}
 		}
+		let mut cached_hashes = self.last_hashes.write();
+		*cached_hashes = VecDeque::from(last_hashes.clone());
 		last_hashes
 	}
 
@@ -345,16 +363,21 @@ impl Client {
 
 			for block in blocks {
 				let header = &block.header;
+				let start = precise_time_ns();
 
 				if invalid_blocks.contains(&header.parent_hash) {
 					invalid_blocks.insert(header.hash());
 					continue;
 				}
+				let tx_count = block.transactions.len();
+				let size = block.bytes.len();
+
 				let closed_block = self.check_and_close_block(&block);
 				if let Err(_) = closed_block {
 					invalid_blocks.insert(header.hash());
 					continue;
 				}
+
 				let closed_block = closed_block.unwrap();
 				imported_blocks.push(header.hash());
 
@@ -362,7 +385,30 @@ impl Client {
 				import_results.push(route);
 
 				self.report.write().accrue_block(&block);
-				trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
+
+				let duration_ns = precise_time_ns() - start;
+
+				let mut last_import = self.last_import.lock();
+				if Instant::now() > *last_import + Duration::from_secs(1) {
+					let queue_info = self.queue_info();
+					let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+					if !importing { 
+						let skipped = self.skipped.load(AtomicOrdering::Relaxed);
+						info!(target: "import", "Imported {} {} ({} txs, {} Mgas, {} ms, {} KiB){}",
+							Colour::White.bold().paint(format!("#{}", header.number())),
+							Colour::White.bold().paint(format!("{}", header.hash())),
+							Colour::Yellow.bold().paint(format!("{}", tx_count)),
+							Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used.low_u64() as f32 / 1000000f32)),
+							Colour::Purple.bold().paint(format!("{:.2}", duration_ns as f32 / 1000000f32)),
+							Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
+							if skipped > 0 { format!(" + another {} block(s)", Colour::Red.bold().paint(format!("{}", skipped))) } else { String::new() } 
+						);
+						*last_import = Instant::now();
+					}
+					self.skipped.store(0, AtomicOrdering::Relaxed);
+				} else {
+					self.skipped.fetch_add(1, AtomicOrdering::Relaxed); 
+				}
 			}
 
 			let imported = imported_blocks.len();
@@ -408,6 +454,7 @@ impl Client {
 
 	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
 		let number = block.header().number();
+		let parent = block.header().parent_hash().clone();
 		// Are we committing an era?
 		let ancient = if number >= HISTORY {
 			let n = number - HISTORY;
@@ -435,7 +482,18 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
+		self.update_last_hashes(&parent, hash);
 		route
+	}
+
+	fn update_last_hashes(&self, parent: &H256, hash: &H256) {
+		let mut hashes = self.last_hashes.write();
+		if hashes.front().map_or(false, |h| h == parent) {
+			if hashes.len() > 255 {
+				hashes.pop_back();
+			}
+			hashes.push_front(hash.clone());
+		}
 	}
 
 	/// Import transactions from the IO queue
@@ -598,18 +656,6 @@ impl Client {
 			}
 		}
 	}
-
-	/// Notify us that the network has been started.
-	pub fn network_started(&self, url: &str) {
-		let mut previous_enode = self.previous_enode.lock();
-		if let Some(ref u) = *previous_enode {
-			if u == url {
-				return;
-			}
-		}
-		*previous_enode = Some(url.into());
-		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
-	}
 }
 
 #[derive(Ipc)]
@@ -677,7 +723,7 @@ impl BlockChainClient for Client {
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
 		if let &BlockID::Pending = &id {
-			if let Some(block) = self.miner.pending_block() { 
+			if let Some(block) = self.miner.pending_block() {
 				return Some(block.rlp_bytes(Seal::Without));
 			}
 		}
@@ -698,7 +744,7 @@ impl BlockChainClient for Client {
 		if let &BlockID::Pending = &id {
 			if let Some(block) = self.miner.pending_block() {
 				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
-			} 
+			}
 		}
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}

@@ -19,11 +19,12 @@ use std::env;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::Write;
+use isatty::{stderr_isatty};
 use time;
 use env_logger::LogBuilder;
 use regex::Regex;
 use util::RotatingLogger;
-use util::log::{Applyable, Colour};
+use util::log::Colour;
 
 #[derive(Debug, PartialEq)]
 pub struct LoggerConfig {
@@ -54,7 +55,8 @@ pub fn setup_log(config: &LoggerConfig) -> Result<Arc<RotatingLogger>, String> {
 		builder.parse(s);
 	}
 
-	let logs = Arc::new(RotatingLogger::new(levels, config.color));
+	let enable_color = config.color && stderr_isatty();
+	let logs = Arc::new(RotatingLogger::new(levels));
 	let logger = logs.clone();
 	let maybe_file = match config.file.as_ref() {
 		Some(f) => Some(try!(File::create(f).map_err(|_| format!("Cannot write to log file given: {}", f)))),
@@ -64,13 +66,19 @@ pub fn setup_log(config: &LoggerConfig) -> Result<Arc<RotatingLogger>, String> {
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
-		let format = if max_log_level() <= LogLevelFilter::Info {
-			format!("{}{}", timestamp.apply(Colour::Black.bold()), record.args())
+		let with_color = if max_log_level() <= LogLevelFilter::Info {
+			format!("{}{}", Colour::Black.bold().paint(timestamp), record.args())
 		} else {
-			format!("{}{}:{}: {}", timestamp.apply(Colour::Black.bold()), record.level(), record.target(), record.args())
+			format!("{}{}:{}: {}", Colour::Black.bold().paint(timestamp), record.level(), record.target(), record.args())
 		};
 
-		let removed_color = kill_color(format.as_ref());
+		let removed_color = kill_color(with_color.as_ref());
+
+		let ret = match enable_color {
+			true => with_color,
+			false => removed_color.clone(),
+		};
+
 		if let Some(mut file) = maybe_file.as_ref() {
 			// ignore errors - there's nothing we can do
 			let _ = file.write_all(removed_color.as_bytes());
@@ -78,7 +86,7 @@ pub fn setup_log(config: &LoggerConfig) -> Result<Arc<RotatingLogger>, String> {
 		}
 		logger.append(removed_color);
 
-		format
+		ret
     };
 
 	builder.format(format);
@@ -97,7 +105,7 @@ fn kill_color(s: &str) -> String {
 #[test]
 fn should_remove_colour() {
 	let before = "test";
-	let after = kill_color(&before.apply(Colour::Red.bold()));
+	let after = kill_color(&Colour::Red.bold().paint(before));
 	assert_eq!(after, "test");
 }
 

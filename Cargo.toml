@@ -24,6 +24,7 @@ semver = "0.2"
 ansi_term = "0.7"
 lazy_static = "0.2"
 regex = "0.1"
+isatty = "0.1"
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 ethcore = { path = "ethcore" }
@@ -50,7 +51,9 @@ version = "0.8"
 default-features = false
 
 [features]
-default = ["dapps", "ethcore-signer/ui"]
+default = ["ui", "use-precompiled-js"]
+ui = ["dapps", "ethcore-signer/ui"]
+use-precompiled-js = ["ethcore-dapps/use-precompiled-js", "ethcore-signer/use-precompiled-js"]
 dapps = ["ethcore-dapps"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev",
 "ethcore-dapps/dev", "ethcore-signer/dev"]

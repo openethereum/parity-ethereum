@@ -22,7 +22,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use cli::{USAGE, Args};
 use docopt::{Docopt, Error as DocoptError};
-use util::{Hashable, journaldb, Applyable, NetworkConfiguration, kvdb, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, path};
+use util::{Hashable, journaldb, NetworkConfiguration, kvdb, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, path};
 use util::network_settings::NetworkSettings;
 use util::log::Colour;
 use ethcore::account_provider::AccountProvider;
@@ -184,7 +184,6 @@ impl Configuration {
 			let run_cmd = RunCmd {
 				directories: dirs,
 				spec: try!(self.chain().parse()),
-				policy: try!(self.args.flag_fork.parse()),
 				pruning: pruning,
 				daemon: daemon,
 				logger_config: logger_config,
@@ -273,7 +272,7 @@ impl Configuration {
 						let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 						let gas_per_tx: f32 = 21000.0;
 						let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-						info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", format!("US${}", usd_per_eth).apply(Colour::White.bold()), format!("{}", wei_per_gas).apply(Colour::Yellow.bold()));
+						info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
 						Ok(GasPricer::Fixed(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()))
 					}
 				}
@@ -555,7 +554,7 @@ mod tests {
 	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use cache::CacheConfig;
-	use params::{SpecType, Pruning, Policy};
+	use params::{SpecType, Pruning};
 	use helpers::replace_home;
 	use setup_log::LoggerConfig;
 	use dir::Directories;
@@ -701,7 +700,6 @@ mod tests {
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Run(RunCmd {
 			directories: Default::default(),
 			spec: Default::default(),
-			policy: Default::default(),
 			pruning: Default::default(),
 			daemon: None,
 			logger_config: LoggerConfig {

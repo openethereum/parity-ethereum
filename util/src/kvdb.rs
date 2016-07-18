@@ -177,16 +177,13 @@ impl Database {
 			opts.set_block_based_table_factory(&block_opts);
 			opts.set_prefix_extractor_fixed_size(size);
 			if let Some(cache_size) = config.cache_size {
-				block_opts.set_cache(Cache::new(cache_size * 1024 * 256));
-				opts.set_write_buffer_size(cache_size * 1024 * 256);
+				block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
 			}
 		} else if let Some(cache_size) = config.cache_size {
 			let mut block_opts = BlockBasedOptions::new();
 			// half goes to read cache
-			block_opts.set_cache(Cache::new(cache_size * 1024 * 256));
+			block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
 			opts.set_block_based_table_factory(&block_opts);
-			// quarter goes to each of the two write buffers
-			opts.set_write_buffer_size(cache_size * 1024 * 256);
 		}
 
 		let mut write_opts = WriteOptions::new();
@@ -207,12 +204,12 @@ impl Database {
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
 	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
-		self.db.put(key, value)
+		self.db.put_opt(key, value, &self.write_opts)
 	}
 
 	/// Delete value by key.
 	pub fn delete(&self, key: &[u8]) -> Result<(), String> {
-		self.db.delete(key)
+		self.db.delete_opt(key, &self.write_opts)
 	}
 
 	/// Commit transaction to database.
