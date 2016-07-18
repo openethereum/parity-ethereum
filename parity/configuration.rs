@@ -142,7 +142,7 @@ impl Configuration {
 				iterations: self.args.flag_keys_iterations,
 				path: dirs.keys,
 				wallet_path: self.args.arg_path.first().unwrap().clone(),
-				password: try!(password.file(&self.args.flag_password.unwrap())),
+				password: try!(password.file(&self.args.flag_password.first().unwrap())),
 			};
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
@@ -245,7 +245,7 @@ impl Configuration {
 			iterations: self.args.flag_keys_iterations,
 			import_keys: !self.args.flag_no_import_keys,
 			testnet: self.args.flag_testnet,
-			password_file: self.args.flag_password.clone(),
+			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: try!(to_addresses(&self.args.flag_unlock)),
 		};
 
@@ -378,52 +378,6 @@ impl Configuration {
 			Some(id) => Ok(Some(try!(to_u256(id)))),
 			None => Ok(None),
 		}
-	}
-
-	pub fn account_service(&self) -> AccountProvider {
-		/*
-		use ethcore::ethstore::{import_accounts, EthStore};
-		use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
-
-		// Secret Store
-		let passwords = self.args.flag_password.iter().flat_map(|filename| {
-			BufReader::new(&File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)))
-				.lines()
-				.map(|l| l.unwrap())
-				.collect::<Vec<_>>()
-				.into_iter()
-		}).collect::<Vec<_>>();
-
-		if !self.args.flag_no_import_keys {
-			let dir_type = if self.args.flag_testnet {
-				DirectoryType::Testnet
-			} else {
-				DirectoryType::Main
-			};
-
-			let from = GethDirectory::open(dir_type);
-			let to = DiskDirectory::create(self.keys_path()).unwrap();
-			// ignore error, cause geth may not exist
-			let _ = import_accounts(&from, &to);
-		}
-
-		let dir = Box::new(DiskDirectory::create(self.keys_path()).unwrap());
-		let iterations = self.keys_iterations();
-		let account_service = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, iterations).unwrap()));
-
-		if let Some(ref unlocks) = self.args.flag_unlock {
-			for d in unlocks.split(',') {
-				let a = Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-					die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
-				});
-				if passwords.iter().find(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()).is_none() {
-					die!("No password given to unlock account {}. Pass the password using `--password`.", a);
-				}
-			}
-		}
-		account_service
-		*/
-		unimplemented!();
 	}
 
 	pub fn rpc_apis(&self) -> String {

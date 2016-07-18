@@ -150,7 +150,7 @@ pub struct AccountsConfig {
 	pub iterations: u32,
 	pub import_keys: bool,
 	pub testnet: bool,
-	pub password_file: Option<String>,
+	pub password_files: Vec<String>,
 	pub unlocked_accounts: Vec<Address>,
 }
 
@@ -160,7 +160,7 @@ impl Default for AccountsConfig {
 			iterations: 10240,
 			import_keys: true,
 			testnet: false,
-			password_file: None,
+			password_files: Vec::new(),
 			unlocked_accounts: Vec::new(),
 		}
 	}

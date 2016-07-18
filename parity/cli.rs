@@ -287,7 +287,7 @@ pub struct Args {
 	pub flag_db_path: String,
 	pub flag_identity: String,
 	pub flag_unlock: Option<String>,
-	pub flag_password: Option<String>,
+	pub flag_password: Vec<String>,
 	pub flag_keys_path: String,
 	pub flag_keys_iterations: u32,
 	pub flag_no_import_keys: bool,

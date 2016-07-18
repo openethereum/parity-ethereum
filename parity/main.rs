@@ -86,6 +86,7 @@ use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, ClientConfig, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
+use ethcore::account_provider::AccountProvider;
 use ethsync::EthSync;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethsync::SyncConfig;
@@ -182,6 +183,12 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 		None => spec.network_id(),
 	};
 
+	// prepare account provider
+	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.directories, cmd.acc_conf)));
+
+	// create miner
+	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), spec, Some(account_provider.clone()));
+
 	Ok(())
 }
 
@@ -214,6 +221,38 @@ fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorithm) 
 
 	let client_path = dirs.client_path(genesis_hash, pruning);
 	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
+}
+
+fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
+	use ethcore::ethstore::{import_accounts, EthStore};
+	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
+
+	// TODO: read passwords from files
+	let passwords = Vec::<String>::new();
+
+	if cfg.import_keys {
+		let t = if cfg.testnet {
+			DirectoryType::Testnet
+		} else {
+			DirectoryType::Main
+		};
+
+		let from = GethDirectory::open(t);
+		let to = DiskDirectory::create(dirs.keys.clone()).unwrap();
+		// ignore error, cause geth may not exist
+		let _ = import_accounts(&from, &to);
+	}
+
+	let dir = Box::new(DiskDirectory::create(dirs.keys.clone()).unwrap());
+	let account_service = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, cfg.iterations).unwrap()));
+
+	for a in cfg.unlocked_accounts {
+		if passwords.iter().find(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()).is_none() {
+			return Err(format!("No password given to unlock account {}. Pass the password using `--password`.", a));
+		}
+	}
+
+	Ok(account_service)
 }
 
 fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) -> Result<(), String> {
