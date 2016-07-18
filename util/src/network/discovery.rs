@@ -581,7 +581,7 @@ mod tests {
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
 		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
 		for _ in 0..1200 {
-			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
+			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() }, true);
 		}
 		assert!(Discovery::nearest_node_entries(&NodeId::new(), &discovery.node_buckets).len() <= 16);
 		let removed = discovery.check_expired(true).len();
