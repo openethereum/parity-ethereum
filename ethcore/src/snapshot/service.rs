@@ -21,7 +21,6 @@ use std::io::ErrorKind;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::{ManifestData, StateRebuilder, BlockRebuilder, SnapshotService, RestorationStatus};
 use super::io::{SnapshotReader, LooseReader};
@@ -69,7 +68,6 @@ impl StateRestoration {
 
 		Ok(self.chunks_left.is_empty())
 	}
-
 }
 
 /// Block restoration manager.
@@ -90,13 +88,15 @@ impl BlockRestoration {
 	}
 
 	// feeds a block chunk, returning true if all block chunks have been fed.
-	fn feed(&mut self, hash: H256, chunk: &[u8], engine: &Engine) -> Result<bool, Error> {
+	fn feed(&mut self, hash: H256, chunk: &[u8], engine: &Engine) -> Result<(bool, u64), Error> {
+		let mut block_count = 0;
+
 		if self.chunks_left.remove(&hash) {
 			let len = try!(snappy::decompress_into(&chunk, &mut self.snappy_buffer));
-			try!(self.rebuilder.feed(&self.snappy_buffer[..len], engine));
+			block_count += try!(self.rebuilder.feed(&self.snappy_buffer[..len], engine));
 		}
 
-		Ok(self.chunks_left.is_empty())
+		Ok((self.chunks_left.is_empty(), block_count))
 	}
 }
 
@@ -230,7 +230,13 @@ impl Service {
 
 		if let Some(ref mut rest) = *restoration {
 			match rest.feed(hash, chunk) {
-				Ok(status) => finished = status,
+				Ok(status) => {
+					finished = status;
+					match *self.status.lock() {
+						RestorationStatus::Ongoing(_, ref mut state_chunks) => *state_chunks += 1,
+						_ => panic!("feed_state_chunk guarded for ongoing status only; qed")
+					}
+				},
 				Err(e) => {
 					warn!("state chunk {} restoration failed: {}", hash, e);
 					*self.status.lock() = RestorationStatus::Failed;
@@ -260,7 +266,13 @@ impl Service {
 
 		if let Some(ref mut rest) = *restoration {
 			match rest.feed(hash, chunk, &*self.engine) {
-				Ok(status) => finished = status,
+				Ok((status, bc)) => {
+					finished = status;
+					match *self.status.lock() {
+						RestorationStatus::Ongoing(ref mut block_count, _) => *block_count += bc,
+						_ => panic!("feed_block_chunk guarded for ongoing status only; qed")
+					}
+				}
 				Err(e) => {
 					warn!("block chunk {} restoration failed: {}", hash, e);
 					*self.status.lock() = RestorationStatus::Failed;
@@ -310,8 +322,13 @@ impl SnapshotService for Service {
 
 		// delete and restore the restoration dir.
 		if let Err(e) = fs::remove_dir_all(&rest_dir).and_then(|_| fs::create_dir_all(&rest_dir)) {
-			warn!("encountered error {} while beginning snapshot restoraiton.", e);
-			return false;
+			match e.kind() {
+				ErrorKind::NotFound => {},
+				_ => {
+					warn!("encountered error {} while beginning snapshot restoration.", e);
+					return false;
+				}
+			}
 		}
 
 		// make new restorations.
@@ -324,20 +341,19 @@ impl SnapshotService for Service {
 		};
 		*state_res = Some(StateRestoration::new(&manifest, self.pruning, &rest_dir));
 
-
-		*self.status.lock() = RestorationStatus::Ongoing;
+		*self.status.lock() = RestorationStatus::Ongoing(0, 0);
 		true
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
-		if self.status() != RestorationStatus::Ongoing {
+		if let RestorationStatus::Ongoing(_, _) = self.status() {
 			self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk))
 				.expect("snapshot service and io service are kept alive by client service; qed");
 		}
 	}
 
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
-		if self.status() != RestorationStatus::Ongoing {
+		if let RestorationStatus::Ongoing(_, _) = self.status() {
 			self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk))
 				.expect("snapshot service and io service are kept alive by client service; qed");
 		}

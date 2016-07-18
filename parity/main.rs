@@ -158,7 +158,12 @@ fn execute(conf: Configuration) {
 
 	if conf.args.cmd_snapshot {
 		execute_snapshot(conf, panic_handler);
-		return
+		return;
+	}
+
+	if conf.args.cmd_restore {
+		execute_restore(conf, panic_handler);
+		return;
 	}
 
 	execute_client(conf, spec, client_config, panic_handler, logger);
@@ -504,6 +509,64 @@ fn execute_snapshot(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 		let _ = ::std::fs::remove_file(&filename);
 		die!("Encountered fatal error while taking snapshot: {}", e);
 	}
+}
+
+fn execute_restore(conf: Configuration, panic_handler: Arc<PanicHandler>) {
+	use ethcore::snapshot::io::{SnapshotReader, PackedReader};
+	use ethcore::snapshot::{SnapshotService, RestorationStatus};
+
+	let spec = conf.spec();
+	let client_config = conf.client_config(&spec);
+
+	// Build client
+	let service = ClientService::start(
+		client_config, spec, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec()))
+	).unwrap_or_else(|e| die_with_error("Client", e));
+
+	panic_handler.forward_from(&service);
+
+	let filename = conf.args.arg_file.as_ref().unwrap_or_else(|| die!("No snapshot filename provided."));
+	let maybe_reader = PackedReader::new(Path::new(&filename)).unwrap_or_else(|e| die!("Error reading snapshot file: {}", e));
+	let reader = maybe_reader.unwrap_or_else(|| die!("Invalid snapshot file: {}", filename));
+
+	let manifest = reader.manifest();
+	let snapshot = service.snapshot_service();
+
+	if !snapshot.begin_restore(manifest.clone()) {
+		die!("Failed to begin snapshot restoration.");
+	}
+
+	for &state_hash in &manifest.state_hashes {
+		if snapshot.status() == RestorationStatus::Failed {
+			die!("restoration failed.");
+		}
+
+		let chunk = reader.chunk(state_hash).unwrap_or_else(|_| die!("Failed to read chunk {} from snapshot file.", state_hash));
+		snapshot.restore_state_chunk(state_hash, chunk);
+	}
+
+	for &block_hash in &manifest.block_hashes {
+		if snapshot.status() == RestorationStatus::Failed {
+			die!("restoration failed.");
+		}
+
+		let chunk = reader.chunk(block_hash).unwrap_or_else(|_| die!("Failed to read chunk {} from snapshot file.", block_hash));
+		snapshot.restore_block_chunk(block_hash, chunk);
+	}
+
+	while let RestorationStatus::Ongoing(blocks_processed, state_chunks) = snapshot.status() {
+		info!("Snapshot restoration: imported {} of {} blocks and {} of {} state chunks",
+			blocks_processed, manifest.block_number, state_chunks, manifest.state_hashes.len());
+
+		::std::thread::sleep(Duration::from_secs(5));
+	}
+
+	assert_eq!(snapshot.status(), RestorationStatus::Inactive);
+	let client = service.client();
+	let chain_info = client.chain_info();
+	assert_eq!(chain_info.best_block_number, manifest.block_number);
+	assert_eq!(chain_info.best_block_hash, manifest.block_hash);
+	assert_eq!(client.state().root(), &manifest.state_root);
 }
 
 fn execute_signer(conf: Configuration) {

@@ -29,7 +29,8 @@ Usage:
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
-  parity snapshot <file>
+  parity snapshot <file> [options]
+  parity restore <file> [options]
   parity [options]
   parity ui [options]
 
@@ -279,6 +280,7 @@ pub struct Args {
 	pub cmd_signer: bool,
 	pub cmd_new_token: bool,
   pub cmd_snapshot: bool,
+  pub cmd_restore: bool,
 	pub cmd_ui: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,

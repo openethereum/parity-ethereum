@@ -99,6 +99,11 @@ impl ClientService {
 		self.client.clone()
 	}
 
+	/// Get snapshot interface.
+	pub fn snapshot_service(&self) -> Arc<SnapshotService> {
+		self.snapshot.clone()
+	}
+
 	/// Get network service component
 	pub fn io(&self) -> Arc<IoService<ClientIoMessage>> {
 		self.io_service.clone()

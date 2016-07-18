@@ -55,8 +55,8 @@ const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 pub enum RestorationStatus {
 	///	No restoration.
 	Inactive,
-	/// Ongoing restoration.
-	Ongoing,
+	/// Ongoing restoration. Number of blocks restored and number of state chunks restored.
+	Ongoing(u64, usize),
 	/// Failed restoration.
 	Failed,
 }
@@ -178,7 +178,7 @@ impl<'a> BlockChunker<'a> {
 
 			let pair = {
 				let mut pair_stream = RlpStream::new_list(2);
-				pair_stream.append(&abridged_rlp).append(&receipts);
+				pair_stream.append_raw(&abridged_rlp, 1).append(&receipts);
 				pair_stream.out()
 			};
 
@@ -528,7 +528,8 @@ impl BlockRebuilder {
 	}
 
 	/// Feed the rebuilder an uncompressed block chunk.
-	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<(), Error> {
+	/// Returns the number of blocks fed or any errors.
+	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, Error> {
 		let rlp = UntrustedRlp::new(chunk);
 
 		// get chunk's header
@@ -552,7 +553,7 @@ impl BlockRebuilder {
 			try!(self.process_rlp_pair(pair, None, engine));
 		}
 
-		Ok(())
+		Ok(rlp.item_count() as u64 - 2)
 	}
 
 	fn process_rlp_pair(

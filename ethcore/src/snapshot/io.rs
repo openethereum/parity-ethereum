@@ -51,6 +51,7 @@ struct ChunkInfo(H256, u64, u64);
 
 impl Encodable for ChunkInfo {
 	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(3);
 		s.append(&self.0).append(&self.1).append(&self.2);
 	}
 }
@@ -127,8 +128,12 @@ impl SnapshotWriter for PackedWriter {
 			.append(&manifest.block_number)
 			.append(&manifest.block_hash);
 
-		try!(self.file.write_all(&stream.drain()));
+		let manifest_rlp = stream.out();
+
+		try!(self.file.write_all(&manifest_rlp));
 		let off = self.cur_len;
+		trace!(target: "snapshot_io", "writing manifest of len {} to offset {}", manifest_rlp.len(), off);
+
 		let off_bytes: [u8; 8] =
 			[
 				off as u8,
@@ -228,24 +233,26 @@ impl PackedReader {
 
 
 		try!(file.seek(SeekFrom::End(-8)));
-		let mut off_bytes = [0; 8];
+		let mut off_bytes = [0u8; 8];
 
 		try!(file.read_exact(&mut off_bytes[..]));
 
 		let manifest_off: u64 =
-			(off_bytes[7] as u64) << 56 +
-			(off_bytes[6] as u64) << 48 +
-			(off_bytes[5] as u64) << 40 +
-			(off_bytes[4] as u64) << 32 +
-			(off_bytes[3] as u64) << 24 +
-			(off_bytes[2] as u64) << 16 +
-			(off_bytes[1] as u64) << 8 +
+			((off_bytes[7] as u64) << 56) +
+			((off_bytes[6] as u64) << 48) +
+			((off_bytes[5] as u64) << 40) +
+			((off_bytes[4] as u64) << 32) +
+			((off_bytes[3] as u64) << 24) +
+			((off_bytes[2] as u64) << 16) +
+			((off_bytes[1] as u64) << 8) +
 			(off_bytes[0] as u64);
 
-		let manifest_len = file_len - manifest_off;
+		let manifest_len = file_len - manifest_off - 8;
+		trace!(target: "snapshot_io", "loading manifest of length {} from offset {}", manifest_len, manifest_off);
+
 		let	mut manifest_buf = vec![0; manifest_len as usize];
 
-		try!(file.seek(SeekFrom::Start(manifest_len)));
+		try!(file.seek(SeekFrom::Start(manifest_off)));
 		try!(file.read_exact(&mut manifest_buf));
 
 		let rlp = UntrustedRlp::new(&manifest_buf);
