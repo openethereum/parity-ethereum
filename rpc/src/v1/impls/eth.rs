@@ -48,7 +48,7 @@ use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, M, EM> where
+pub struct EthClient<C, S: ?Sized, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
 	M: MinerService,
@@ -63,7 +63,7 @@ pub struct EthClient<C, S, M, EM> where
 	allow_pending_receipt_query: bool,
 }
 
-impl<C, S, M, EM> EthClient<C, S, M, EM> where
+impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
 	M: MinerService,
@@ -244,7 +244,7 @@ fn no_author_err() -> Error {
 	}
 }
 
-impl<C, S, M, EM> EthClient<C, S, M, EM> where
+impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
@@ -263,7 +263,7 @@ static SOLC: &'static str = "solc.exe";
 #[cfg(not(windows))]
 static SOLC: &'static str = "solc";
 
-impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
+impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
@@ -517,7 +517,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 		match params {
 			Params::None => {
-				let mut compilers = vec![];  
+				let mut compilers = vec![];
 				if Command::new(SOLC).output().is_ok() {
 					compilers.push("solidity".to_owned())
 				}

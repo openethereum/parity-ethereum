@@ -26,6 +26,9 @@ pub type IpcModuleId = u64;
 /// Blockhain database module id
 pub const CLIENT_MODULE_ID: IpcModuleId = 2000;
 
+/// Sync module id
+pub const SYNC_MODULE_ID: IpcModuleId = 2100;
+
 /// IPC service that handles module management
 pub struct HypervisorService {
 	check_list: RwLock<HashMap<IpcModuleId, bool>>,
@@ -43,7 +46,7 @@ impl HypervisorService {
 impl HypervisorService {
 	/// New service with the default list of modules
 	pub fn new() -> Arc<HypervisorService> {
-		HypervisorService::with_modules(vec![CLIENT_MODULE_ID])
+		HypervisorService::with_modules(vec![])
 	}
 
 	/// New service with list of modules that will report for being ready
@@ -57,6 +60,10 @@ impl HypervisorService {
 		})
 	}
 
+	pub fn add_module(&self, module_id: IpcModuleId) {
+		self.check_list.write().unwrap().insert(module_id, false);
+	}
+
 	/// Number of modules still being waited for check-in
 	pub fn unchecked_count(&self) -> usize {
 		self.check_list.read().unwrap().iter().filter(|&(_, status)| !status).count()
@@ -68,4 +75,4 @@ impl HypervisorService {
 	}
 }
 
-impl ::ipc::IpcConfig<HypervisorService> for Arc<HypervisorService> {}
+impl ::ipc::IpcConfig for HypervisorService {}

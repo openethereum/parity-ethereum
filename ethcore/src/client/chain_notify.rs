@@ -15,8 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::numbers::*;
+use ipc::{IpcConfig, BinaryConvertError};
+use std::collections::VecDeque;
+use std::mem;
 
 /// Represents what has to be handled by actor listening to chain events
+#[derive(Ipc)]
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks
 	fn new_blocks(&self,
@@ -38,3 +42,5 @@ pub trait ChainNotify : Send + Sync {
 		// does nothing by default
 	}
 }
+
+impl IpcConfig for ChainNotify { }
