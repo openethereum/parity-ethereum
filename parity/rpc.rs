@@ -21,6 +21,7 @@ use util::panics::PanicHandler;
 use jsonipc;
 use rpc_apis;
 use rpc_apis::ApiSet;
+use helpers::parity_ipc_path;
 
 pub use ethcore_rpc::Server as RpcServer;
 use ethcore_rpc::{RpcServerError, RpcServer as Server};
@@ -56,8 +57,8 @@ pub struct IpcConfiguration {
 impl Default for IpcConfiguration {
 	fn default() -> Self {
 		IpcConfiguration {
-			enabled: false,
-			socket_addr: "".into(),
+			enabled: true,
+			socket_addr: parity_ipc_path("$HOME/.parity/jsonrpc.ipc"),
 			apis: ApiSet::UnsafeContext,
 		}
 	}

@@ -315,8 +315,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let rpc_server = try!(rpc::new_http(rpc_conf, &dependencies));
 
 	// setup ipc rpc
-	let ipc_settings = try!(conf.ipc_settings());
-	debug!("IPC: {}", ipc_settings);
+	let ipc_settings = { unimplemented!() };// try!(conf.ipc_settings());
+	//debug!("IPC: {}", ipc_settings);
 	let _ipc_server = rpc::new_ipc(ipc_settings, &dependencies);
 
 	// Set up dapps

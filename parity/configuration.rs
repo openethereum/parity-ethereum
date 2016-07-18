@@ -33,7 +33,8 @@ use ethsync::SyncConfig;
 use rpc::{IpcConfiguration, HttpConfiguration};
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home};
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home,
+geth_ipc_path, parity_ipc_path};
 use params::{SpecType, ResealPolicy};
 use setup_log::LoggerConfig;
 use dir::Directories;
@@ -107,15 +108,8 @@ impl Configuration {
 		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
 		let miner_options = try!(self.miner_options());
 
-		let http_conf = HttpConfiguration {
-			enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
-			interface: self.rpc_interface(),
-			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
-			apis: try!(self.rpc_apis().parse()),
-			cors: self.rpc_cors(),
-		};
-
-		let ipc_conf = try!(self.ipc_settings());
+		let http_conf = try!(self.http_config());
+		let ipc_conf = try!(self.ipc_config());
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -450,22 +444,25 @@ impl Configuration {
 		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
 	}
 
-	fn geth_ipc_path(&self) -> String {
-		if cfg!(windows) {
-			r"\\.\pipe\geth.ipc".to_owned()
-		} else {
-			match self.args.flag_testnet {
-				true => path::ethereum::with_testnet("geth.ipc"),
-				false => path::ethereum::with_default("geth.ipc"),
-			}.to_str().unwrap().to_owned()
-		}
-	}
-	pub fn ipc_settings(&self) -> Result<IpcConfiguration, String> {
+	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
 		let conf = IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
 			apis: try!(self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()).parse()),
 		};
+
+		Ok(conf)
+	}
+
+	fn http_config(&self) -> Result<HttpConfiguration, String> {
+		let conf = HttpConfiguration {
+			enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
+			interface: self.rpc_interface(),
+			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
+			apis: try!(self.rpc_apis().parse()),
+			cors: self.rpc_cors(),
+		};
+
 		Ok(conf)
 	}
 
@@ -505,11 +502,9 @@ impl Configuration {
 
 	fn ipc_path(&self) -> String {
 		if self.args.flag_geth {
-			self.geth_ipc_path()
-		} else if cfg!(windows) {
-			r"\\.\pipe\parity.jsonrpc".to_owned()
+			geth_ipc_path(self.args.flag_testnet)
 		} else {
-			replace_home(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			parity_ipc_path(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
 		}
 	}
 
