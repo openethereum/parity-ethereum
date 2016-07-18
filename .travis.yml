@@ -22,7 +22,6 @@ matrix:
 
 env:
   global:
-  - TRAVIS_NODE_VERSION="6"
   - CXX="g++-4.8"
   - CC="gcc-4.8"
   - RUST_BACKTRACE="1"
@@ -51,7 +50,6 @@ addons:
     - g++-4.8
 
 install:
-  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
   - ([ "$RUN_COVERAGE" = "false" ]) || (test -x $KCOV_CMD) || (
       wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
       tar xzf master.tar.gz &&
