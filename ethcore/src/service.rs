@@ -20,10 +20,14 @@ use util::*;
 use util::panics::*;
 use spec::Spec;
 use error::*;
-use client::{Client, BlockChainClient, ClientConfig, ChainNotify};
+use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
 use std::sync::atomic::AtomicBool;
+
+#[cfg(feature="ipc")]
 use nanoipc;
+#[cfg(feature="ipc")]
+use client::BlockChainClient;
 
 /// Message type for external and internal events
 #[derive(Clone)]
@@ -41,7 +45,7 @@ pub struct ClientService {
 	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
 	panic_handler: Arc<PanicHandler>,
-	stop_guard: ::devtools::StopGuard,
+	_stop_guard: ::devtools::StopGuard,
 }
 
 impl ClientService {
@@ -72,7 +76,7 @@ impl ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
 			panic_handler: panic_handler,
-			stop_guard: stop_guard,
+			_stop_guard: stop_guard,
 		})
 	}
 
@@ -141,7 +145,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 fn run_ipc(client: Arc<Client>, stop: Arc<AtomicBool>) {
 	::std::thread::spawn(move || {
 		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
-		worker.add_reqrep("ipc:///tmp/parity-chain.ipc");
+		worker.add_reqrep("ipc:///tmp/parity-chain.ipc").expect("Ipc expected to initialize with no issues");
 
 		while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
 			worker.poll();

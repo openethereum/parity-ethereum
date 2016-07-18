@@ -14,21 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethsync::{EthSync, SyncProvider, ManageNetwork, SyncConfig, NetworkConfiguration};
 use std::sync::Arc;
-use ethcore::client::{ChainNotify, BlockChainClient};
+use ethcore::client::BlockChainClient;
 use ethcore;
 use hypervisor::Hypervisor;
-use hypervisor::SYNC_MODULE_ID;
-use nanoipc::{GuardedSocket, NanoSocket, init_client};
-use ipc::IpcSocket;
+use ethsync::{SyncConfig, NetworkConfiguration};
+#[cfg(not(feature="ipc"))]
+use self::no_ipc_deps::*;
+#[cfg(feature="ipc")]
+use self::ipc_deps::*;
+
+#[cfg(not(feature="ipc"))]
+mod no_ipc_deps {
+	pub use ethsync::{EthSync, SyncProvider, ManageNetwork};
+	pub use ethcore::client::ChainNotify;
+}
 
 #[cfg(feature="ipc")]
-use std::ops::Deref;
-#[cfg(feature="ipc")]
-use ethsync::{SyncClient, NetworkManagerClient};
-#[cfg(feature="ipc")]
-use ethcore::client::ChainNotifyClient;
+mod ipc_deps {
+	pub use ethsync::{SyncClient, NetworkManagerClient};
+	pub use ethcore::client::ChainNotifyClient;
+	pub use hypervisor::SYNC_MODULE_ID;
+	pub use nanoipc::{GuardedSocket, NanoSocket, init_client};
+	pub use ipc::IpcSocket;
+}
+
 
 #[cfg(feature="ipc")]
 pub fn hypervisor() -> Option<Hypervisor> {
@@ -59,7 +69,7 @@ pub fn sync (
 	hypervisor_ref: &mut Option<Hypervisor>,
 	sync_cfg: SyncConfig,
 	net_cfg: NetworkConfiguration,
-	client: Arc<BlockChainClient>)
+	_client: Arc<BlockChainClient>)
 	-> Result<
 		(
 			GuardedSocket<SyncClient<NanoSocket>>,
