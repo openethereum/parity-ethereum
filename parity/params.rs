@@ -16,7 +16,7 @@
 
 use std::str::FromStr;
 use std::time::Duration;
-use util::{contents, DatabaseConfig, journaldb, H256, Address, U256};
+use util::{contents, DatabaseConfig, journaldb, H256, Address, U256, version_data};
 use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
@@ -194,6 +194,27 @@ impl Into<GasPricer> for GasPricerConfig {
 					recalibration_period: recalibration_period,
 				})
 			}
+		}
+	}
+}
+
+#[derive(Debug, PartialEq)]
+pub struct MinerExtras {
+	pub author: Address,
+	pub extra_data: Vec<u8>,
+	pub gas_floor_target: U256,
+	pub gas_ceil_target: U256,
+	pub transactions_limit: usize,
+}
+
+impl Default for MinerExtras {
+	fn default() -> Self {
+		MinerExtras {
+			author: Default::default(),
+			extra_data: version_data(),
+			gas_floor_target: U256::from(4_700_000),
+			gas_ceil_target: U256::from(6_283_184),
+			transactions_limit: 1024,
 		}
 	}
 }

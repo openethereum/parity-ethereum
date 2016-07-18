@@ -22,7 +22,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use cli::{USAGE, Args};
 use docopt::{Docopt, Error as DocoptError};
-use util::{Hashable, journaldb, NetworkConfiguration, kvdb, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, path};
+use util::{Hashable, journaldb, NetworkConfiguration, kvdb, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, path, Address};
 use util::network_settings::NetworkSettings;
 use util::log::Colour;
 use ethcore::account_provider::AccountProvider;
@@ -34,8 +34,8 @@ use rpc::{IpcConfiguration, HttpConfiguration};
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home,
-geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig};
+geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use setup_log::LoggerConfig;
 use dir::Directories;
 use RunCmd;
@@ -110,7 +110,7 @@ impl Configuration {
 
 		let http_conf = try!(self.http_config());
 		let ipc_conf = try!(self.ipc_config());
-		let net_conf = try!(self.net_settings());
+		let net_conf = try!(self.net_config());
 		let network_id = try!(self.network_id());
 
 		let cmd = if self.args.flag_version {
@@ -196,7 +196,7 @@ impl Configuration {
 				network_id: network_id,
 				acc_conf: try!(self.accounts_config()),
 				gas_pricer: try!(self.gas_pricer_config()),
-				extra_data: try!(self.extra_data()),
+				miner_extras: try!(self.miner_extras()),
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -211,6 +211,22 @@ impl Configuration {
 		} else {
 			Ok(VMType::Interpreter)
 		}
+	}
+
+	fn miner_extras(&self) -> Result<MinerExtras, String> {
+		let extras = MinerExtras {
+			author: try!(self.author()),
+			extra_data: try!(self.extra_data()),
+			gas_floor_target: try!(to_u256(&self.args.flag_gas_floor_target)),
+			gas_ceil_target: try!(to_u256(&self.args.flag_gas_cap)),
+			transactions_limit: self.args.flag_tx_queue_size,
+		};
+
+		Ok(extras)
+	}
+
+	fn author(&self) -> Result<Address, String> {
+		to_address(self.args.flag_etherbase.clone().or(self.args.flag_author.clone()))
 	}
 
 	fn cache_config(&self) -> CacheConfig {
@@ -309,7 +325,7 @@ impl Configuration {
 		}
 	}
 
-	pub fn init_reserved_nodes(&self) -> Result<Vec<String>, String> {
+	fn init_reserved_nodes(&self) -> Result<Vec<String>, String> {
 		use std::fs::File;
 
 		match self.args.flag_reserved_peers {
@@ -327,7 +343,7 @@ impl Configuration {
 		}
 	}
 
-	pub fn net_addresses(&self) -> Result<(Option<SocketAddr>, Option<SocketAddr>), String> {
+	fn net_addresses(&self) -> Result<(Option<SocketAddr>, Option<SocketAddr>), String> {
 		let port = self.args.flag_port;
 		let listen_address = Some(SocketAddr::new("0.0.0.0".parse().unwrap(), port));
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
@@ -340,7 +356,7 @@ impl Configuration {
 		Ok((listen_address, public_address))
 	}
 
-	pub fn net_settings(&self) -> Result<NetworkConfiguration, String> {
+	fn net_config(&self) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
 		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
 		ret.boot_nodes = try!(to_bootnodes(&self.args.flag_bootnodes));
@@ -362,7 +378,7 @@ impl Configuration {
 		Ok(ret)
 	}
 
-	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
+	fn client_config(&self, spec: &Spec) -> ClientConfig {
 		/*
 		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
@@ -380,11 +396,11 @@ impl Configuration {
 		}
 	}
 
-	pub fn rpc_apis(&self) -> String {
+	fn rpc_apis(&self) -> String {
 		self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone())
 	}
 
-	pub fn rpc_cors(&self) -> Vec<String> {
+	fn rpc_cors(&self) -> Vec<String> {
 		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
 		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
 	}
@@ -423,7 +439,7 @@ impl Configuration {
 		}
 	}
 
-	pub fn directories(&self) -> Directories {
+	fn directories(&self) -> Directories {
 		let db_path = replace_home(self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 
 		let keys_path = replace_home(
@@ -453,11 +469,11 @@ impl Configuration {
 		}
 	}
 
-	pub fn have_color(&self) -> bool {
+	fn have_color(&self) -> bool {
 		!self.args.flag_no_color && !cfg!(windows)
 	}
 
-	pub fn signer_port(&self) -> Option<u16> {
+	fn signer_port(&self) -> Option<u16> {
 		if !self.signer_enabled() {
 			None
 		} else {
@@ -465,7 +481,7 @@ impl Configuration {
 		}
 	}
 
-	pub fn rpc_interface(&self) -> String {
+	fn rpc_interface(&self) -> String {
 		match self.network_settings().rpc_interface.as_str() {
 			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
@@ -473,7 +489,7 @@ impl Configuration {
 		}.into()
 	}
 
-	pub fn dapps_interface(&self) -> String {
+	fn dapps_interface(&self) -> String {
 		match self.args.flag_dapps_interface.as_str() {
 			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
@@ -481,11 +497,11 @@ impl Configuration {
 		}.into()
 	}
 
-	pub fn dapps_enabled(&self) -> bool {
+	fn dapps_enabled(&self) -> bool {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
 	}
 
-	pub fn signer_enabled(&self) -> bool {
+	fn signer_enabled(&self) -> bool {
 		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
 		self.args.flag_force_signer
 	}
@@ -501,7 +517,7 @@ mod tests {
 	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use cache::CacheConfig;
-	use params::{SpecType, Pruning, AccountsConfig};
+	use params::{SpecType, Pruning, AccountsConfig, MinerExtras};
 	use helpers::{replace_home, default_network_config, to_address};
 	use setup_log::LoggerConfig;
 	use dir::Directories;
@@ -661,7 +677,7 @@ mod tests {
 			network_id: None,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
-			extra_data: version_data(),
+			miner_extras: Default::default(),
 		}));
 	}
 

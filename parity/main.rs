@@ -80,7 +80,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
 use std::env;
 use ctrlc::CtrlC;
-use util::{Colour, version, H256, NetworkConfiguration, U256};
+use util::{Colour, version, H256, NetworkConfiguration, U256, Address};
 use util::journaldb::Algorithm;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, ClientConfig, ChainNotify};
@@ -99,7 +99,7 @@ use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
 use helpers::{to_mode, to_address, to_u256};
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig};
+use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
 use dir::Directories;
 use setup_log::{LoggerConfig, setup_log};
 use fdlimit::raise_fd_limit;
@@ -138,7 +138,7 @@ pub struct RunCmd {
 	network_id: Option<U256>,
 	acc_conf: AccountsConfig,
 	gas_pricer: GasPricerConfig,
-	extra_data: Vec<u8>,
+	miner_extras: MinerExtras,
 }
 
 fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -188,6 +188,11 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), spec, Some(account_provider.clone()));
+	miner.set_author(cmd.miner_extras.author);
+	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
+	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
+	miner.set_extra_data(cmd.miner_extras.extra_data);
+	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
 
 	Ok(())
 }
@@ -276,21 +281,21 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	}
 
 	// Display warning about using unlock with signer
-	if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
-		warn!("Using Trusted Signer and --unlock is not recommended!");
-		warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
-	}
+	//if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
+		//warn!("Using Trusted Signer and --unlock is not recommended!");
+		//warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
+	//}
 
-	let net_settings = { unimplemented!() }; //try!(conf.net_settings());
-	let sync_config = { unimplemented!() };
+	//let net_settings = { unimplemented!() }; //try!(conf.net_settings());
+	//let sync_config = { unimplemented!() };
 
 	// Secret Store
 	//let account_service = Arc::new(conf.account_service());
-	let account_service = { unimplemented!() };
+	//let account_service = { unimplemented!() };
 
 	// Miner
-	let miner_options = try!(conf.miner_options());
-	let miner = { unimplemented!() }; // Miner::new(miner_options, conf.gas_pricer().expect("TODO!"), conf.spec(), Some(account_service.clone()));
+	//let miner_options = try!(conf.miner_options());
+	//let miner = { unimplemented!() }; // Miner::new(miner_options, conf.gas_pricer().expect("TODO!"), conf.spec(), Some(account_service.clone()));
 	//miner.set_author(try!(conf.author()));
 	//miner.set_author(try!(to_address(conf.args.flag_etherbase.clone().or(conf.args.flag_author.clone()))));
 	//miner.set_gas_floor_target(try!(to_u256(&conf.args.flag_gas_floor_target)));
