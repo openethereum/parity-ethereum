@@ -359,6 +359,12 @@ impl BlockChain {
 		bc
 	}
 
+	/// Returns true if the given parent block has given child
+	/// (though not necessarily a part of the canon chain).
+	fn is_known_child(&self, parent: &H256, hash: &H256) -> bool {
+		self.extras_db.read_with_cache(&self.block_details, parent).map_or(false, |d| d.children.contains(hash))
+	}
+
 	/// Set the cache configuration.
 	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
 		self.pref_cache_size.store(pref_cache_size, AtomicOrder::Relaxed);
@@ -500,7 +506,7 @@ impl BlockChain {
 		let header = block.header_view();
 		let hash = header.sha3();
 
-		if self.is_known(&hash) {
+		if self.is_known_child(&header.parent_hash(), &hash) {
 			return ImportRoute::none();
 		}
 
@@ -553,7 +559,6 @@ impl BlockChain {
 
 				if update.info.total_difficulty > best_block.total_difficulty {
 					batch.put(b"best", &update.info.hash).unwrap();
-
 					*best_block = BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
@@ -572,7 +577,6 @@ impl BlockChain {
 
 		// update extras database
 		self.extras_db.write(batch).unwrap();
-
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
@@ -1229,5 +1233,32 @@ mod tests {
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 		assert_eq!(blocks_ba, vec![3]);
+	}
+
+	#[test]
+	fn test_best_block_update() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+
+		let temp = RandomTempPath::new();
+
+		{
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+
+			// create a longer fork
+			for _ in 0..5 {
+				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
+				bc.insert_block(&canon_block, vec![]);
+			}
+
+			assert_eq!(bc.best_block_number(), 5);
+			bc.insert_block(&uncle, vec![]);
+		}
+
+		// re-loading the blockchain should load the correct best block.
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		assert_eq!(bc.best_block_number(), 5);
 	}
 }

@@ -34,7 +34,7 @@ use util::rlp::{RlpStream, Rlp, UntrustedRlp};
 use util::journaldb;
 use util::journaldb::JournalDB;
 use util::kvdb::*;
-use util::{Applyable, Stream, View, PerfTimer, Itertools, Colour};
+use util::{Stream, View, PerfTimer, Itertools};
 use util::{Mutex, RwLock};
 
 // other
@@ -144,6 +144,7 @@ pub struct Client {
 	notify: RwLock<Option<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	previous_enode: Mutex<Option<String>>,
+	last_hashes: RwLock<VecDeque<H256>>,
 }
 
 const HISTORY: u64 = 1200;
@@ -230,6 +231,7 @@ impl Client {
 			notify: RwLock::new(None),
 			queue_transactions: AtomicUsize::new(0),
 			previous_enode: Mutex::new(None),
+			last_hashes: RwLock::new(VecDeque::new()),
 		};
 		Ok(Arc::new(client))
 	}
@@ -251,6 +253,14 @@ impl Client {
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
+		{
+			let hashes = self.last_hashes.read();
+			if hashes.front().map_or(false, |h| h == &parent_hash) {
+				let mut res = Vec::from(hashes.clone());
+				res.resize(256, H256::default());
+				return res;
+			}
+		}
 		let mut last_hashes = LastHashes::new();
 		last_hashes.resize(256, H256::new());
 		last_hashes[0] = parent_hash;
@@ -262,6 +272,8 @@ impl Client {
 				None => break,
 			}
 		}
+		let mut cached_hashes = self.last_hashes.write();
+		*cached_hashes = VecDeque::from(last_hashes.clone());
 		last_hashes
 	}
 
@@ -416,6 +428,7 @@ impl Client {
 
 	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
 		let number = block.header().number();
+		let parent = block.header().parent_hash().clone();
 		// Are we committing an era?
 		let ancient = if number >= HISTORY {
 			let n = number - HISTORY;
@@ -443,7 +456,18 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
+		self.update_last_hashes(&parent, hash);
 		route
+	}
+
+	fn update_last_hashes(&self, parent: &H256, hash: &H256) {
+		let mut hashes = self.last_hashes.write();
+		if hashes.front().map_or(false, |h| h == parent) {
+			if hashes.len() > 255 {
+				hashes.pop_back();
+			}
+			hashes.push_front(hash.clone());
+		}
 	}
 
 	/// Import transactions from the IO queue
@@ -605,18 +629,6 @@ impl Client {
 				//*self.last_activity.lock() = Some(Instant::now());
 			}
 		}
-	}
-
-	/// Notify us that the network has been started.
-	pub fn network_started(&self, url: &str) {
-		let mut previous_enode = self.previous_enode.lock();
-		if let Some(ref u) = *previous_enode {
-			if u == url {
-				return;
-			}
-		}
-		*previous_enode = Some(url.into());
-		info!(target: "mode", "Public node URL: {}", url.apply(Colour::White.bold()));
 	}
 }
 

@@ -37,11 +37,15 @@ const VERSION_FILE_NAME: &'static str = "db_version";
 pub enum Error {
 	/// Returned when current version cannot be read or guessed.
 	UnknownDatabaseVersion,
-	/// Returned when migration is not possible.
+	/// Migration does not support existing pruning algorithm.
+	UnsuportedPruningMethod,
+	/// Existing DB is newer than the known one.
+	FutureDBVersion,
+	/// Migration is not possible.
 	MigrationImpossible,
-	/// Returned when migration unexpectadly failed.
+	/// Migration unexpectadly failed.
 	MigrationFailed,
-	/// Returned when migration was completed succesfully,
+	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
 }
@@ -50,9 +54,11 @@ impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		let out = match *self {
 			Error::UnknownDatabaseVersion => "Current database version cannot be read".into(),
-			Error::MigrationImpossible => format!("Migration to version {} is not possible", CURRENT_VERSION),
-			Error::MigrationFailed => "Migration unexpectedly failed".into(),
-			Error::Io(ref err) => format!("Unexpected io error: {}", err),
+			Error::UnsuportedPruningMethod => "Unsupported pruning method for database migration. Delete DB and resync.".into(),
+			Error::FutureDBVersion => "Database was created with newer client version. Upgrade your client or delete DB and resync.".into(),
+			Error::MigrationImpossible => format!("Database migration to version {} is not possible.", CURRENT_VERSION),
+			Error::MigrationFailed => "Database migration unexpectedly failed".into(),
+			Error::Io(ref err) => format!("Unexpected io error on DB migration: {}.", err),
 		};
 
 		write!(f, "{}", out)
@@ -159,7 +165,7 @@ fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Err
 	let res = match pruning {
 		Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7::default()),
 		Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
-		_ => die!("Unsupported pruning method for migration. Delete DB and resync"),
+		_ => return Err(Error::UnsuportedPruningMethod),
 	};
 
 	try!(res.map_err(|_| Error::MigrationImpossible));
@@ -207,12 +213,14 @@ pub fn migrate(path: &Path, pruning: Algorithm) -> Result<(), Error> {
 
 	// migrate the databases.
 	// main db directory may already exists, so let's check if we have blocks dir
-	if version != CURRENT_VERSION && exists(&blocks_database_path(path)) {
+	if version < CURRENT_VERSION && exists(&blocks_database_path(path)) {
 		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
 		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
 		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
 		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations(pruning))));
 		println!("Migration finished");
+	} else if version > CURRENT_VERSION {
+		return Err(Error::FutureDBVersion);
 	}
 
 	// update version file.
