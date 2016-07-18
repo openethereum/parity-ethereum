@@ -17,6 +17,7 @@
 //! Snapshot network service implementation.
 
 use std::collections::HashSet;
+use std::io::ErrorKind;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -142,10 +143,24 @@ impl Service {
 		};
 
 		// create the snapshot dir if it doesn't exist.
-		try!(fs::create_dir_all(service.snapshot_dir()));
+		match fs::create_dir_all(service.snapshot_dir()) {
+			Err(e) => {
+				if e.kind() != ErrorKind::AlreadyExists {
+					return Err(e.into())
+				}
+			}
+			_ => {}
+		}
 
 		// delete the temporary restoration dir if it does exist.
-		try!(fs::remove_dir_all(service.restoration_dir()));
+		match fs::remove_dir_all(service.restoration_dir()) {
+			Err(e) => {
+				if e.kind() != ErrorKind::NotFound {
+					return Err(e.into())
+				}
+			}
+			_ => {}
+		}
 
 		Ok(service)
 	}

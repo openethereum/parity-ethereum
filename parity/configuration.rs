@@ -298,9 +298,13 @@ impl Configuration {
 	fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
 		let mut ret = None;
 		let mut latest_era = None;
+
+		let mut path: PathBuf = self.path().into();
+		path.push(H64::from(spec.genesis_header().hash()).hex());
+
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
-			let db = journaldb::new(&append_path(&get_db_path(Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i, kvdb::DatabaseConfig::default());
+			let db = journaldb::new(&append_path(&get_db_path(&path, *i), "state"), *i, kvdb::DatabaseConfig::default());
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}

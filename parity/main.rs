@@ -166,6 +166,9 @@ fn daemonize(_conf: &Configuration) {
 }
 
 fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) {
+	use std::path::PathBuf;
+	use util::hash::H64;
+
 	match ::upgrade::upgrade(Some(&conf.path())) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			println!("Executed {} upgrade scripts - ok", upgrades_applied);
@@ -176,7 +179,10 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 		_ => {},
 	}
 
-	let db_path = get_db_path(Path::new(&conf.path()), client_config.pruning, spec.genesis_header().hash());
+	let mut db_path: PathBuf = conf.path().into();
+	db_path.push(H64::from(spec.genesis_header().hash()).hex());
+
+	let db_path = get_db_path(&db_path, client_config.pruning);
 	let result = migrate(&db_path, client_config.pruning);
 	if let Err(err) = result {
 		die_with_message(&format!("{}", err));
@@ -492,6 +498,10 @@ fn execute_import(conf: Configuration) {
 		}
 	}
 	client.flush_queue();
+}
+
+fn execute_snapshot(conf: Configuration) {
+	unimplemented!()
 }
 
 fn execute_signer(conf: Configuration) {
