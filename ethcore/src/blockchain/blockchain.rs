@@ -581,20 +581,19 @@ impl BlockChain {
 
 		// These cached values must be updated last with all three locks taken to avoid
 		// cache decoherence
-		{
-			let mut best_block = self.best_block.write();
-			// update best block
-			match update.info.location {
-				BlockLocation::Branch => (),
-				_ => {
-					if update.info.total_difficulty > best_block.total_difficulty {
-						batch.put(b"best", &update.info.hash).unwrap();
-						*best_block = BestBlock {
-							hash: update.info.hash,
-							number: update.info.number,
-							total_difficulty: update.info.total_difficulty
-						};
-					}
+		let mut best_block = self.best_block.write();
+		// update best block
+		match update.info.location {
+			BlockLocation::Branch => (),
+			_ => {
+				// see if this really is the best.
+				if update.info.total_difficulty > best_block.total_difficulty {
+					batch.put(b"best", &update.info.hash).unwrap();
+					*best_block = BestBlock {
+						hash: update.info.hash,
+						number: update.info.number,
+						total_difficulty: update.info.total_difficulty
+					};
 				}
 			}
 		}
