@@ -24,7 +24,7 @@ use util::network_settings::NetworkSettings;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use ethcore::account_provider::AccountProvider;
-use ethsync::{EthSync, ManageNetwork};
+use ethsync::{EthSync, ManageNetwork, SyncProvider};
 use ethcore_rpc::Extendable;
 pub use ethcore_rpc::ConfirmationsQueue;
 
@@ -97,7 +97,8 @@ pub struct Dependencies {
 	pub signer_port: Option<u16>,
 	pub signer_queue: Arc<ConfirmationsQueue>,
 	pub client: Arc<Client>,
-	pub sync: Arc<EthSync>,
+	pub sync: Arc<SyncProvider>,
+	pub net: Arc<ManageNetwork>,
 	pub secret_store: Arc<AccountProvider>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,

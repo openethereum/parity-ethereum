@@ -29,7 +29,7 @@ pub struct Handshake {
 
 /// Allows to configure custom version and custom handshake response for
 /// ipc host
-pub trait IpcConfig<I: ?Sized> {
+pub trait IpcConfig {
 	/// Current service api version
 	/// Should be increased if any of the methods changes signature
 	fn api_version() -> Version {
@@ -60,7 +60,7 @@ pub enum Error {
 
 /// Allows implementor to be attached to generic worker and dispatch rpc requests
 /// over IPC
-pub trait IpcInterface<I :?Sized> : IpcConfig<I> {
+pub trait IpcInterface : IpcConfig {
 	/// reads the message from io, dispatches the call and returns serialized result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
 

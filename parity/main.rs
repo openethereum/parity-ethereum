@@ -74,6 +74,7 @@ mod helpers;
 mod params;
 mod deprecated;
 mod dir;
+mod modules;
 
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
@@ -258,7 +259,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	//miner.set_extra_data(try!(conf.extra_data()));
 	//miner.set_transactions_limit(conf.args.flag_tx_queue_size);
 
-	let directories = conf.directories();
+	//let directories = conf.directories();
 
 	// Build client
 	//let mut service = try!(ClientService::start(
