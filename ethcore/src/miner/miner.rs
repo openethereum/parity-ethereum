@@ -90,6 +90,7 @@ impl Default for MinerOptions {
 }
 
 /// Options for the dynamic gas price recalibrator.
+#[derive(Debug, PartialEq)]
 pub struct GasPriceCalibratorOptions {
 	/// Base transaction price to match against.
 	pub usd_per_tx: f32,
@@ -98,9 +99,9 @@ pub struct GasPriceCalibratorOptions {
 }
 
 /// The gas price validator variant for a `GasPricer`.
+#[derive(Debug, PartialEq)]
 pub struct GasPriceCalibrator {
 	options: GasPriceCalibratorOptions,
-
 	next_calibration: Instant,
 }
 
@@ -128,6 +129,7 @@ impl GasPriceCalibrator {
 }
 
 /// Struct to look after updating the acceptable gas price of a miner.
+#[derive(Debug, PartialEq)]
 pub enum GasPricer {
 	/// A fixed gas price in terms of Wei - always the argument given.
 	Fixed(U256),

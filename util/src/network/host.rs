@@ -51,7 +51,7 @@ const MAX_HANDSHAKES: usize = 80;
 const MAX_HANDSHAKES_PER_ROUND: usize = 32;
 const MAINTENANCE_TIMEOUT: u64 = 1000;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store network configuration. None means nothing will be saved

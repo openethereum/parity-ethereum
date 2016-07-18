@@ -34,8 +34,8 @@ use rpc::{IpcConfiguration, HttpConfiguration};
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home,
-geth_ipc_path, parity_ipc_path};
-use params::{SpecType, ResealPolicy};
+geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses};
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig};
 use setup_log::LoggerConfig;
 use dir::Directories;
 use RunCmd;
@@ -110,6 +110,8 @@ impl Configuration {
 
 		let http_conf = try!(self.http_config());
 		let ipc_conf = try!(self.ipc_config());
+		let net_conf = try!(self.net_settings());
+		let network_id = try!(self.network_id());
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -140,7 +142,7 @@ impl Configuration {
 				iterations: self.args.flag_keys_iterations,
 				path: dirs.keys,
 				wallet_path: self.args.arg_path.first().unwrap().clone(),
-				password: try!(password.file(self.args.flag_password.first().unwrap())),
+				password: try!(password.file(&self.args.flag_password.unwrap())),
 			};
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
@@ -190,6 +192,11 @@ impl Configuration {
 				miner_options: miner_options,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
+				net_conf: net_conf,
+				network_id: network_id,
+				acc_conf: try!(self.accounts_config()),
+				gas_pricer: try!(self.gas_pricer_config()),
+				extra_data: try!(self.extra_data()),
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -233,6 +240,18 @@ impl Configuration {
 		self.args.flag_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
 	}
 
+	fn accounts_config(&self) -> Result<AccountsConfig, String> {
+		let cfg = AccountsConfig {
+			iterations: self.args.flag_keys_iterations,
+			import_keys: !self.args.flag_no_import_keys,
+			testnet: self.args.flag_testnet,
+			password_file: self.args.flag_password.clone(),
+			unlocked_accounts: try!(to_addresses(&self.args.flag_unlock)),
+		};
+
+		Ok(cfg)
+	}
+
 	pub fn miner_options(&self) -> Result<MinerOptions, String> {
 		let reseal = try!(self.args.flag_reseal_on_txs.parse::<ResealPolicy>());
 
@@ -255,62 +274,38 @@ impl Configuration {
 		Ok(options)
 	}
 
-	pub fn gas_pricer(&self) -> Result<GasPricer, String> {
-		match self.args.flag_gasprice.as_ref() {
-			Some(d) => Ok(GasPricer::Fixed(try!(to_u256(d)))),
-			_ => {
-				let usd_per_tx = try!(to_price(&self.args.flag_usd_per_tx));
-				match self.args.flag_usd_per_eth.as_str() {
-					"auto" => {
-						Ok(GasPricer::new_calibrated(GasPriceCalibratorOptions {
-							usd_per_tx: usd_per_tx,
-							recalibration_period: try!(to_duration(self.args.flag_price_update_period.as_str())),
-						}))
-					},
-					x => {
-						let usd_per_eth = try!(to_price(x));
-						let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
-						let gas_per_tx: f32 = 21000.0;
-						let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-						info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
-						Ok(GasPricer::Fixed(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()))
-					}
-				}
-			}
+	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
+		if let Some(d) = self.args.flag_gasprice.as_ref() {
+			return Ok(GasPricerConfig::Fixed(try!(to_u256(d))));
 		}
+
+		let usd_per_tx = try!(to_price(&self.args.flag_usd_per_tx));
+		if "auto" == self.args.flag_usd_per_eth.as_str() {
+			return Ok(GasPricerConfig::Calibrated {
+				usd_per_tx: usd_per_tx,
+				recalibration_period: try!(to_duration(self.args.flag_price_update_period.as_str())),
+			});
+		}
+
+		let usd_per_eth = try!(to_price(&self.args.flag_usd_per_eth));
+		let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
+		let gas_per_tx: f32 = 21000.0;
+		let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
+
+		info!(
+			"Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)",
+			Colour::White.bold().paint(format!("US${}", usd_per_eth)),
+			Colour::Yellow.bold().paint(format!("{}", wei_per_gas))
+		);
+
+		Ok(GasPricerConfig::Fixed(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()))
 	}
 
-	pub fn extra_data(&self) -> Result<Bytes, String> {
+	fn extra_data(&self) -> Result<Bytes, String> {
 		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
 			Some(ref x) if x.len() <= 32 => Ok(x.as_bytes().to_owned()),
 			None => Ok(version_data()),
 			Some(ref x) => Err("Extra data must be at most 32 characters".into()),
-		}
-	}
-
-	pub fn spec(&self) -> Spec {
-		unimplemented!();
-		//match self.chain().as_str() {
-			//"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
-			//"morden" | "testnet" => ethereum::new_morden(),
-			//"olympic" => ethereum::new_olympic(),
-			//f => Spec::load(contents(f).unwrap_or_else(|_| {
-				//die!("{}: Couldn't read chain specification file. Sure it exists?", f)
-			//}).as_ref()),
-		//}
-	}
-
-	pub fn init_nodes(&self, spec: &Spec) -> Result<Vec<String>, String> {
-		match self.args.flag_bootnodes {
-			Some(ref x) if !x.is_empty() => x.split(',').map(|s| {
-				if is_valid_node_url(s) {
-					Ok(s.to_owned())
-				} else {
-					Err(format!("Invalid node address format given for a boot node: {}", s))
-				}
-			}).collect(),
-			Some(_) => Ok(Vec::new()),
-			None => Ok(spec.nodes().to_owned()),
 		}
 	}
 
@@ -345,10 +340,10 @@ impl Configuration {
 		Ok((listen_address, public_address))
 	}
 
-	pub fn net_settings(&self, spec: &Spec) -> Result<NetworkConfiguration, String> {
+	pub fn net_settings(&self) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
 		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
-		ret.boot_nodes = try!(self.init_nodes(spec));
+		ret.boot_nodes = try!(to_bootnodes(&self.args.flag_bootnodes));
 		let (listen, public) = try!(self.net_addresses());
 		ret.listen_address = listen;
 		ret.public_address = public;
@@ -377,15 +372,12 @@ impl Configuration {
 		unimplemented!();
 	}
 
-	pub fn sync_config(&self, spec: &Spec) -> Result<SyncConfig, String> {
-		let mut sync_config = SyncConfig::default();
+	fn network_id(&self) -> Result<Option<U256>, String> {
 		let net_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref());
-		sync_config.network_id = match net_id {
-			Some(id) => try!(to_u256(id)),
-			None => spec.network_id()
-		};
-
-		Ok(sync_config)
+		match net_id {
+			Some(id) => Ok(Some(try!(to_u256(id)))),
+			None => Ok(None),
+		}
 	}
 
 	pub fn account_service(&self) -> AccountProvider {
@@ -465,7 +457,7 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	pub fn network_settings(&self) -> NetworkSettings {
+	fn network_settings(&self) -> NetworkSettings {
 		NetworkSettings {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
@@ -550,12 +542,13 @@ mod tests {
 	use super::*;
 	use cli::USAGE;
 	use docopt::Docopt;
+	use util::version_data;
 	use util::network_settings::NetworkSettings;
 	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use cache::CacheConfig;
-	use params::{SpecType, Pruning};
-	use helpers::replace_home;
+	use params::{SpecType, Pruning, AccountsConfig};
+	use helpers::{replace_home, default_network_config, to_address};
 	use setup_log::LoggerConfig;
 	use dir::Directories;
 	use RunCmd;
@@ -710,6 +703,11 @@ mod tests {
 			miner_options: Default::default(),
 			http_conf: Default::default(),
 			ipc_conf: Default::default(),
+			net_conf: default_network_config(),
+			network_id: None,
+			acc_conf: Default::default(),
+			gas_pricer: Default::default(),
+			extra_data: version_data(),
 		}));
 	}
 
@@ -730,37 +728,6 @@ mod tests {
 			rpc_interface: "local".to_owned(),
 			rpc_port: 8545,
 		});
-	}
-
-	#[test]
-	fn should_parse_rpc_settings_with_geth_compatiblity() {
-		// given
-		fn assert(conf: Configuration) {
-			let net = conf.network_settings();
-			assert_eq!(net.rpc_enabled, true);
-			assert_eq!(net.rpc_interface, "all".to_owned());
-			assert_eq!(net.rpc_port, 8000);
-			assert_eq!(conf.rpc_cors(), vec!["*".to_owned()]);
-			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
-		}
-
-		// when
-		let conf1 = parse(&["parity", "-j",
-						 "--jsonrpc-port", "8000",
-						 "--jsonrpc-interface", "all",
-						 "--jsonrpc-cors", "*",
-						 "--jsonrpc-apis", "web3,eth"
-						 ]);
-		let conf2 = parse(&["parity", "--rpc",
-						  "--rpcport", "8000",
-						  "--rpcaddr", "all",
-						  "--rpccorsdomain", "*",
-						  "--rpcapi", "web3,eth"
-						  ]);
-
-		// then
-		assert(conf1);
-		assert(conf2);
 	}
 }
 

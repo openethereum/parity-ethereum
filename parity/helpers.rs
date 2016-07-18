@@ -17,7 +17,7 @@
 use std::{io, env};
 use std::io::Write;
 use std::time::Duration;
-use util::{clean_0x, U256, Uint, Address, path};
+use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, NetworkConfiguration, NonReservedPeerMode};
 use ethcore::client::{Mode, BlockID};
 use ethcore::miner::PendingSet;
 
@@ -87,8 +87,17 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 
 pub fn to_address(s: Option<String>) -> Result<Address, String> {
 	match s {
-		Some(ref a) =>clean_0x(a).parse().map_err(|_| format!("Invalid address: {:?}", a)),
+		Some(ref a) => clean_0x(a).parse().map_err(|_| format!("Invalid address: {:?}", a)),
 		None => Ok(Address::default())
+	}
+}
+
+pub fn to_addresses(s: &Option<String>) -> Result<Vec<Address>, String> {
+	match *s {
+		Some(ref adds) if adds.is_empty() => adds.split(',')
+			.map(|a| clean_0x(a).parse().map_err(|_| format!("Invalid address: {:?}", a)))
+			.collect(),
+		_ => Ok(Vec::new()),
 	}
 }
 
@@ -133,13 +142,44 @@ pub fn parity_ipc_path(s: &str) -> String {
 	replace_home(s)
 }
 
+/// Validates and formats bootnodes option.
+pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
+	match *bootnodes {
+		Some(ref x) if !x.is_empty() => x.split(',').map(|s| {
+			if is_valid_node_url(s) {
+				Ok(s.to_owned())
+			} else {
+				Err(format!("Invalid node address format given for a boot node: {}", s))
+			}
+		}).collect(),
+		Some(_) => Ok(vec![]),
+		None => Ok(vec![])
+	}
+}
+
+pub fn default_network_config() -> NetworkConfiguration {
+	NetworkConfiguration {
+		config_path: Some(replace_home("$HOME/.parity/network")),
+		listen_address: Some("0.0.0.0:30303".parse().unwrap()),
+		public_address: None,
+		udp_port: None,
+		nat_enabled: true,
+		discovery_enabled: true,
+		boot_nodes: Vec::new(),
+		use_secret: None,
+		ideal_peers: 25,
+		reserved_nodes: Vec::new(),
+		non_reserved_mode: NonReservedPeerMode::Accept,
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::time::Duration;
 	use util::{U256, path};
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
-	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_price, geth_ipc_path};
+	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_price, geth_ipc_path, to_bootnodes};
 
 	#[test]
 	fn test_to_duration() {
@@ -229,6 +269,17 @@ mod tests {
 	fn test_geth_ipc_path() {
 		assert_eq!(geth_ipc_path(true), path::ethereum::with_testnet("geth.ipc").to_str().unwrap().to_owned());
 		assert_eq!(geth_ipc_path(false), path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned());
+	}
+
+	#[test]
+	fn test_to_bootnodes() {
+		let one_bootnode = "enode://e731347db0521f3476e6bbbb83375dcd7133a1601425ebd15fd10f3835fd4c304fba6282087ca5a0deeafadf0aa0d4fd56c3323331901c1f38bd181c283e3e35@128.199.55.137:30303";
+		let two_bootnodes = "enode://e731347db0521f3476e6bbbb83375dcd7133a1601425ebd15fd10f3835fd4c304fba6282087ca5a0deeafadf0aa0d4fd56c3323331901c1f38bd181c283e3e35@128.199.55.137:30303,enode://e731347db0521f3476e6bbbb83375dcd7133a1601425ebd15fd10f3835fd4c304fba6282087ca5a0deeafadf0aa0d4fd56c3323331901c1f38bd181c283e3e35@128.199.55.137:30303";
+
+		assert_eq!(to_bootnodes(&Some("".into())), Ok(vec![]));
+		assert_eq!(to_bootnodes(&None), Ok(vec![]));
+		assert_eq!(to_bootnodes(&Some(one_bootnode.into())), Ok(vec![one_bootnode.into()]));
+		assert_eq!(to_bootnodes(&Some(two_bootnodes.into())), Ok(vec![one_bootnode.into(), one_bootnode.into()]));
 	}
 }
 

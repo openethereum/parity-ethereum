@@ -15,10 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
+use std::time::Duration;
+use util::{contents, DatabaseConfig, journaldb, H256, Address, U256};
+use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
-use util::{contents, DatabaseConfig, journaldb, H256};
-use util::journaldb::Algorithm;
+use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
 use dir::Directories;
 
 #[derive(Debug, PartialEq)]
@@ -143,6 +145,58 @@ impl FromStr for ResealPolicy {
 	}
 }
 
+#[derive(Debug, PartialEq)]
+pub struct AccountsConfig {
+	pub iterations: u32,
+	pub import_keys: bool,
+	pub testnet: bool,
+	pub password_file: Option<String>,
+	pub unlocked_accounts: Vec<Address>,
+}
+
+impl Default for AccountsConfig {
+	fn default() -> Self {
+		AccountsConfig {
+			iterations: 10240,
+			import_keys: true,
+			testnet: false,
+			password_file: None,
+			unlocked_accounts: Vec::new(),
+		}
+	}
+}
+
+#[derive(Debug, PartialEq)]
+pub enum GasPricerConfig {
+	Fixed(U256),
+	Calibrated {
+		usd_per_tx: f32,
+		recalibration_period: Duration,
+	}
+}
+
+impl Default for GasPricerConfig {
+	fn default() -> Self {
+		GasPricerConfig::Calibrated {
+			usd_per_tx: 0.005,
+			recalibration_period: Duration::from_secs(3600),
+		}
+	}
+}
+
+impl Into<GasPricer> for GasPricerConfig {
+	fn into(self) -> GasPricer {
+		match self {
+			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
+			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period } => {
+				GasPricer::new_calibrated(GasPriceCalibratorOptions {
+					usd_per_tx: usd_per_tx,
+					recalibration_period: recalibration_period,
+				})
+			}
+		}
+	}
+}
 
 #[cfg(test)]
 mod tests {
