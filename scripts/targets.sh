@@ -1,14 +1,14 @@
 #!/bin/bash
 
 export TARGETS="
-	-p ethkey \
-	-p ethstore \
+	-p bigint\
 	-p ethash \
-	-p ethcore-util \
 	-p ethcore \
-	-p ethsync \
+	-p ethcore-dapps \
 	-p ethcore-rpc \
 	-p ethcore-signer \
-	-p parity \
-	-p bigint"
-# TODO [ToDr] add ethcore-dapps back
+	-p ethcore-util \
+	-p ethkey \
+	-p ethstore \
+	-p ethsync \
+	-p parity"

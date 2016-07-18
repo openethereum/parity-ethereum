@@ -38,7 +38,7 @@ use std::thread;
 use util::numbers::{U256, H256};
 use std::str::FromStr;
 use nanoipc::IpcInterface;
-use util::sha3::*;
+use util::sha3::Hashable;
 
 const USAGE: &'static str = "
 Ethcore sync service
