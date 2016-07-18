@@ -54,13 +54,13 @@ fn codes_path(path: String) -> PathBuf {
 	p
 }
 
-pub fn new_token(path: String) -> io::Result<()> {
+pub fn new_token(path: String) -> io::Result<String> {
 	let path = codes_path(path);
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
 	try!(codes.to_file(&path));
-	info!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(code));
-	Ok(())
+	trace!("New key code created: {}", Colour::White.bold().paint(&code[..]));
+	Ok(code)
 }
 
 fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
