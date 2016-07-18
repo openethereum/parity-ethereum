@@ -44,7 +44,13 @@ pub fn hypervisor() -> Option<Hypervisor> {
 fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration) -> Vec<String> {
 	let mut result = Vec::new();
 	result.push("ipc:///tmp/parity-chain.ipc".to_owned());
-	result.push(format!("{:?}", sync_cfg.network_id));
+	result.push(format!("{}", sync_cfg.network_id));
+	result.push(format!("{}", net_cfg.listen_address.unwrap_or("0.0.0.0:30303".to_owned())));
+	result.push(format!("{}", match net_cfg.nat_enabled { true => "yes".to_owned(), false => "no".to_owned() }));
+	result.push(format!("{}", match net_cfg.discovery_enabled { true => "yes".to_owned(), false => "no".to_owned() }));
+	result.push(format!("{}", net_cfg.ideal_peers));
+	result.push(format!("{}", net_cfg.config_path.unwrap_or(".".to_owned())));
+	result.push(format!("{}", match net_cfg.allow_non_reserved { true => "yes".to_owned(), false => "no".to_owned() }));
 	result
 }
 

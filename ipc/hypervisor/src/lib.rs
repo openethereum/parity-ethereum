@@ -110,7 +110,12 @@ impl Hypervisor {
 			executable_path.push(binary_id);
 
 			let mut command = Command::new(&executable_path.to_str().unwrap());
+
 			for arg in binary_args { command.arg(arg); }
+
+			command.stderr(std::process::Stdio::inherit());
+			command.stdout(std::process::Stdio::inherit());
+			command.stdin(std::process::Stdio::inherit());
 
 			trace!(target: "hypervisor", "Spawn executable: {:?}", command);
 
