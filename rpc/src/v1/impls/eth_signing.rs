@@ -20,7 +20,8 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use util::{U256, Address, H256, Mutex, HashMap};
+use util::{U256, Address, H256, Mutex};
+use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, TransactionRequest as TRequest};
 use v1::traits::EthSigning;
@@ -50,8 +51,10 @@ pub struct EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 	client: Weak<C>,
 	miner: Weak<M>,
 
-	pending: Mutex<HashMap<U256, ConfirmationPromise>>,
+	pending: Mutex<TransientHashMap<U256, ConfirmationPromise>>,
 }
+
+const MAX_PENDING_DURATION: u64 = 60 * 60;
 
 impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates a new signing queue client given shared signing queue.
@@ -61,7 +64,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 			accounts: Arc::downgrade(accounts),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
-			pending: Mutex::new(HashMap::new()),
+			pending: Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION)),
 		}
 	}
 
