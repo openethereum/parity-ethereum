@@ -432,7 +432,7 @@ impl Configuration {
 	pub fn rpc_hosts(&self) -> Option<Vec<String>> {
 		let hosts = self.args.flag_jsonrpc_hosts.split(',').collect::<Vec<&str>>();
 		// look for special values
-		for h in hosts.iter() {
+		for h in &hosts {
 			match *h {
 				"none" => return Some(Vec::new()),
 				"all" => return None,
