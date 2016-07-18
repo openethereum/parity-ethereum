@@ -29,6 +29,7 @@ Usage:
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
+  parity snapshot <file>
   parity [options]
   parity ui [options]
 
@@ -36,7 +37,7 @@ Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
                            active - Parity continuously syncs the chain.
                            passive - Parity syncs initially, then sleeps and
-                           wakes regularly to resync. 
+                           wakes regularly to resync.
                            dark - Parity syncs only when an external interface
                            is active. [default: active].
   --mode-timeout SECS      Specify the number of seconds before inactivity
@@ -141,11 +142,11 @@ Sealing/Mining Options:
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
                            all - reseal on all new transactions [default: own].
-  --reseal-min-period MS   Specify the minimum time between reseals from 
+  --reseal-min-period MS   Specify the minimum time between reseals from
                            incoming transactions. MS is time measured in
                            milliseconds [default: 2000].
   --work-queue-size ITEMS  Specify the number of historical work packages
-                           which are kept cached lest a solution is found for 
+                           which are kept cached lest a solution is found for
                            them later. High values take more memory but result
                            in fewer unusable solutions [default: 20].
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
@@ -277,6 +278,7 @@ pub struct Args {
 	pub cmd_import: bool,
 	pub cmd_signer: bool,
 	pub cmd_new_token: bool,
+  pub cmd_snapshot: bool,
 	pub cmd_ui: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,

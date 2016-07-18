@@ -50,6 +50,17 @@ mod block;
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
+/// Statuses for restorations.
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum RestorationStatus {
+	///	No restoration.
+	Inactive,
+	/// Ongoing restoration.
+	Ongoing,
+	/// Failed restoration.
+	Failed,
+}
+
 /// The interface for a snapshot network service.
 /// This handles:
 ///    - restoration of snapshots to temporary databases.
@@ -61,9 +72,8 @@ pub trait SnapshotService {
 	/// Get raw chunk for a given hash.
 	fn chunk(&self, hash: H256) -> Option<Bytes>;
 
-	/// Ask the snapshot service if its current restoration is valid.
-	/// If not currently performing a restoration, returns false.
-	fn restoration_valid(&self) -> bool;
+	/// Ask the snapshot service for the restoration status.
+	fn status(&self) -> RestorationStatus;
 
 	/// Begin snapshot restoration.
 	/// If restoration in-progress, this will reset it.
@@ -81,7 +91,7 @@ pub trait SnapshotService {
 }
 
 /// Take a snapshot using the given client and database, writing into the given writer.
-pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient,  state_db: &HashDB, mut writer: W) -> Result<(), Error> {
+pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &HashDB, mut writer: W) -> Result<(), Error> {
 	let chain_info = client.chain_info();
 
 	let genesis_hash = chain_info.genesis_hash;
@@ -89,12 +99,12 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient,  state_db: &H
 	let best_header = HeaderView::new(&best_header_raw);
 	let state_root = best_header.state_root();
 
-	trace!(target: "snapshot", "Taking snapshot starting at block {}", best_header.number());
+	info!("Taking snapshot starting at block {}", best_header.number());
 
 	let state_hashes = try!(chunk_state(state_db, &state_root, &mut writer));
 	let block_hashes = try!(chunk_blocks(client, best_header.hash(), genesis_hash, &mut writer));
 
-	trace!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
+	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
 		state_hashes: state_hashes,

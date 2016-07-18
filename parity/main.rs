@@ -156,6 +156,11 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
+	if conf.args.cmd_snapshot {
+		execute_snapshot(conf, panic_handler);
+		return
+	}
+
 	execute_client(conf, spec, client_config, panic_handler, logger);
 }
 
@@ -371,7 +376,7 @@ fn execute_export(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 	let from = parse_block_id(&conf.args.flag_from, "--from");
 	let to = parse_block_id(&conf.args.flag_to, "--to");
 	let format = match conf.args.flag_format {
-		Some(x) => match x.deref() {
+		Some(x) => match &*x {
 			"binary" | "bin" => DataFormat::Binary,
 			"hex" => DataFormat::Hex,
 			x => die!("Invalid --format parameter given: {:?}", x),
@@ -479,8 +484,26 @@ fn execute_import(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 	client.flush_queue();
 }
 
-fn execute_snapshot(conf: Configuration) {
-	unimplemented!()
+fn execute_snapshot(conf: Configuration, panic_handler: Arc<PanicHandler>) {
+	use ethcore::snapshot::io::PackedWriter;
+
+	let spec = conf.spec();
+	let client_config = conf.client_config(&spec);
+
+	// Build client
+	let service = ClientService::start(
+		client_config, spec, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec()))
+	).unwrap_or_else(|e| die_with_error("Client", e));
+
+	panic_handler.forward_from(&service);
+
+	let filename = conf.args.arg_file.as_ref().unwrap_or_else(|| die!("No snapshot filename provided."));
+	let writer = PackedWriter::new(Path::new(&filename)).unwrap_or_else(|_| die!("Cannot open the file given: {}", filename));
+
+	if let Err(e) = service.client().take_snapshot(writer) {
+		let _ = ::std::fs::remove_file(&filename);
+		die!("Encountered fatal error while taking snapshot: {}", e);
+	}
 }
 
 fn execute_signer(conf: Configuration) {

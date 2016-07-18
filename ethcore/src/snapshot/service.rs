@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use super::{take_snapshot, ManifestData, StateRebuilder, BlockRebuilder, SnapshotService};
+use super::{ManifestData, StateRebuilder, BlockRebuilder, SnapshotService, RestorationStatus};
 use super::io::{SnapshotReader, LooseReader};
 
 use blockchain::BlockChain;
@@ -115,7 +115,7 @@ pub struct Service {
 	db_path: PathBuf,
 	io_channel: Channel,
 	pruning: Algorithm,
-	restoration_valid: AtomicBool,
+	status: Mutex<RestorationStatus>,
 	genesis: Bytes,
 	reader: Option<LooseReader>,
 }
@@ -137,7 +137,7 @@ impl Service {
 			db_path: db_path,
 			io_channel: io_channel,
 			pruning: pruning,
-			restoration_valid: AtomicBool::new(false),
+			status: Mutex::new(RestorationStatus::Inactive),
 			genesis: spec.genesis_block(),
 			reader: reader
 		};
@@ -217,7 +217,7 @@ impl Service {
 		*self.state_restoration.lock() = None;
 		*self.block_restoration.lock() = None;
 
-		self.restoration_valid.store(false, Ordering::SeqCst);
+		*self.status.lock() = RestorationStatus::Inactive;
 
 		// TODO: take control of restored snapshot.
 		let _ = fs::remove_dir_all(self.restoration_dir());
@@ -232,8 +232,8 @@ impl Service {
 			match rest.feed(hash, chunk) {
 				Ok(status) => finished = status,
 				Err(e) => {
-					warn!("state chunk restoration failed: {}", e);
-					self.restoration_valid.store(false, Ordering::SeqCst);
+					warn!("state chunk {} restoration failed: {}", hash, e);
+					*self.status.lock() = RestorationStatus::Failed;
 				}
 			}
 		}
@@ -243,7 +243,7 @@ impl Service {
 			*restoration = None;
 			if let Err(e) = self.replace_client_db("state") {
 				warn!("failed to restore client state db: {}", e);
-				self.restoration_valid.store(false, Ordering::SeqCst);
+				*self.status.lock() = RestorationStatus::Failed;
 				return;
 			}
 
@@ -261,7 +261,10 @@ impl Service {
 		if let Some(ref mut rest) = *restoration {
 			match rest.feed(hash, chunk, &*self.engine) {
 				Ok(status) => finished = status,
-				Err(_) => self.restoration_valid.store(false, Ordering::SeqCst),
+				Err(e) => {
+					warn!("block chunk {} restoration failed: {}", hash, e);
+					*self.status.lock() = RestorationStatus::Failed;
+				}
 			}
 		}
 
@@ -270,7 +273,8 @@ impl Service {
 			*restoration = None;
 			if let Err(e) = self.replace_client_db("blocks").and_then(|_| self.replace_client_db("extras")) {
 				warn!("failed to restore blocks and extras databases: {}", e);
-				self.restoration_valid.store(false, Ordering::SeqCst);
+				*self.status.lock() = RestorationStatus::Failed;
+
 				return;
 			}
 
@@ -290,14 +294,12 @@ impl SnapshotService for Service {
 		self.reader.as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
-	fn restoration_valid(&self) -> bool {
-		self.restoration_valid.load(Ordering::SeqCst)
+	fn status(&self) -> RestorationStatus {
+		*self.status.lock()
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) -> bool {
 		let rest_dir = self.restoration_dir();
-
-		self.restoration_valid.store(false, Ordering::SeqCst);
 
 		let mut state_res = self.state_restoration.lock();
 		let mut block_res = self.block_restoration.lock();
@@ -323,19 +325,19 @@ impl SnapshotService for Service {
 		*state_res = Some(StateRestoration::new(&manifest, self.pruning, &rest_dir));
 
 
-		self.restoration_valid.store(true, Ordering::SeqCst);
+		*self.status.lock() = RestorationStatus::Ongoing;
 		true
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
-		if self.restoration_valid() {
+		if self.status() != RestorationStatus::Ongoing {
 			self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk))
 				.expect("snapshot service and io service are kept alive by client service; qed");
 		}
 	}
 
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
-		if self.restoration_valid() {
+		if self.status() != RestorationStatus::Ongoing {
 			self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk))
 				.expect("snapshot service and io service are kept alive by client service; qed");
 		}
