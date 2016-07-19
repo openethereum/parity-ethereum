@@ -58,6 +58,7 @@ dapps = ["ethcore-dapps"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 travis-beta = ["ethcore/json-tests"]
 travis-nightly = ["ethcore/json-tests", "dev"]
+signer-dev = ["ethcore-signer/signer-dev"] # Development mode for signer. Does not validate origins.
 
 [[bin]]
 path = "parity/main.rs"

@@ -44,6 +44,12 @@ mod signer {
 	}
 }
 
+#[cfg(feature = "signer-dev")]
+fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
+	true
+}
+
+#[cfg(not(feature = "signer-dev"))]
 fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	match header {
 		None => false,
