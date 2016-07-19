@@ -157,7 +157,7 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 	// load spec
 	let spec = try!(cmd.spec.spec());
 
-	// store genesis hash
+	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
 	// select pruning algorithm

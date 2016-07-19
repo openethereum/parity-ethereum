@@ -23,7 +23,7 @@ use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use util::panics::{PanicHandler, ForwardPanic};
-use util::{version, contents, NetworkConfiguration, journaldb, PayloadInfo, ToPretty};
+use util::{version, contents, NetworkConfiguration, journaldb, PayloadInfo, ToPretty, H256};
 use util::log::Colour;
 use ethcore::service::ClientService;
 use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
@@ -33,6 +33,7 @@ use cache::CacheConfig;
 use setup_log::{setup_log, LoggerConfig};
 use informant::Informant;
 use params::{SpecType, Pruning};
+use dir::Directories;
 use fdlimit;
 
 #[derive(Debug, PartialEq)]
@@ -64,7 +65,7 @@ pub struct ImportBlockchain {
 	pub spec: SpecType,
 	pub logger_config: LoggerConfig,
 	pub cache_config: CacheConfig,
-	pub db_path: String,
+	pub dirs: Directories,
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
@@ -79,7 +80,7 @@ pub struct ExportBlockchain {
 	pub spec: SpecType,
 	pub logger_config: LoggerConfig,
 	pub cache_config: CacheConfig,
-	pub db_path: String,
+	pub dirs: Directories,
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
@@ -99,6 +100,8 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 
 fn client_config(
 		cache_config: &CacheConfig,
+		dirs: &Directories,
+		genesis_hash: H256,
 		mode: Mode,
 		tracing: Switch,
 		pruning: Pruning,
@@ -112,9 +115,7 @@ fn client_config(
 	// state db cache size
 	client_config.db_cache_size = Some(cache_config.rocksdb_state_cache_size() as usize);
 	client_config.tracing.enabled = tracing;
-	// chose best db here (requires state root hash)
-	//client_config.pruning = pruning.unwrap_or_else(|| { unimplemented!(); });
-	// TODO
+	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash);
 	client_config.db_compaction = compaction;
 	client_config
 }
@@ -126,6 +127,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// load spec file
 	let spec = try!(cmd.spec.spec());
 
+	// load genesis hash
+	let genesis_hash = spec.genesis_header().hash();
+
 	// Setup logging
 	let _logger = setup_log(&cmd.logger_config);
 
@@ -133,13 +137,13 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
 
-	let cfg = client_config(&cmd.cache_config, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
+	let cfg = client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
 
 	// build client
 	let service = ClientService::start(
 		cfg,
 		spec,
-		Path::new(&cmd.db_path),
+		Path::new(&cmd.dirs.db),
 		Arc::new(Miner::with_spec(try!(cmd.spec.spec()))),
 	).expect("TODO");
 
@@ -226,6 +230,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// load spec file
 	let spec = try!(cmd.spec.spec());
 
+	// load genesis hash
+	let genesis_hash = spec.genesis_header().hash();
+
 	// Setup logging
 	let _logger = setup_log(&cmd.logger_config);
 
@@ -233,12 +240,12 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
 
-	let cfg = client_config(&cmd.cache_config, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
+	let cfg = client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
 
 	let service = ClientService::start(
 		cfg,
 		spec,
-		Path::new(&cmd.db_path),
+		Path::new(&cmd.dirs.db),
 		Arc::new(Miner::with_spec(try!(cmd.spec.spec())))
 	).expect("TODO");
 
