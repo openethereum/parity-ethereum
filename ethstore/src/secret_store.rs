@@ -27,5 +27,13 @@ pub trait SecretStore: Send + Sync {
 	fn remove_account(&self, account: &Address, password: &str) -> Result<(), Error>;
 
 	fn sign(&self, account: &Address, password: &str, message: &Message) -> Result<Signature, Error>;
+
+	fn name(&self, account: &Address) -> Result<String, Error>;
+
+	fn meta(&self, account: &Address) -> Result<String, Error>;
+
+	fn set_name(&self, address: &Address, name: String) -> Result<(), Error>;
+	
+	fn set_meta(&self, address: &Address, meta: String) -> Result<(), Error>;
 }
 
