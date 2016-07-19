@@ -581,7 +581,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(&mut mutex.lock());
+	exit.wait(&mut mutex.lock());
 	info!("Finishing work, please wait...");
 }
 

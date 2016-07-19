@@ -390,7 +390,8 @@ impl BlockChain {
 				return Some(hash);
 			}
 		}
-		return None;
+
+		None
 	}
 
 	/// Set the cache configuration.

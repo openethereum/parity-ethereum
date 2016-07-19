@@ -61,7 +61,7 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 	}
 }
 
-/// Version for ArchiveDB.
+/// Version for `ArchiveDB`.
 #[derive(Default)]
 pub struct ArchiveV7(usize);
 
