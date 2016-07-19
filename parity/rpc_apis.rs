@@ -24,7 +24,7 @@ use util::network_settings::NetworkSettings;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use ethcore::account_provider::AccountProvider;
-use ethsync::{EthSync, ManageNetwork, SyncProvider};
+use ethsync::{ManageNetwork, SyncProvider};
 use ethcore_rpc::Extendable;
 pub use ethcore_rpc::ConfirmationsQueue;
 

@@ -18,13 +18,14 @@ use std::fmt;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use util::panics::PanicHandler;
+use ethcore_rpc::{RpcServerError, RpcServer as Server};
 use jsonipc;
 use rpc_apis;
 use rpc_apis::ApiSet;
 use helpers::parity_ipc_path;
 
-pub use ethcore_rpc::Server as RpcServer;
-use ethcore_rpc::{RpcServerError, RpcServer as Server};
+pub use jsonipc::Server as IpcServer;
+pub use ethcore_rpc::Server as HttpServer;
 
 #[derive(Debug, PartialEq)]
 pub struct HttpConfiguration {
@@ -79,7 +80,7 @@ pub struct Dependencies {
 	pub apis: Arc<rpc_apis::Dependencies>,
 }
 
-pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<RpcServer>, String> {
+pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
@@ -99,7 +100,7 @@ pub fn setup_http_rpc_server(
 	url: &SocketAddr,
 	cors_domains: Vec<String>,
 	apis: ApiSet
-) -> Result<RpcServer, String> {
+) -> Result<HttpServer, String> {
 	let server = try!(setup_rpc_server(apis, dependencies));
 	let start_result = server.start_http(url, cors_domains);
 	let ph = dependencies.panic_handler.clone();
@@ -115,12 +116,12 @@ pub fn setup_http_rpc_server(
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<jsonipc::Server>, String> {
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer>, String> {
 	if !conf.enabled { return Ok(None); }
 	Ok(Some(try!(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis))))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<jsonipc::Server, String> {
+pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
 	let server = try!(setup_rpc_server(apis, dependencies));
 	match server.start_ipc(addr) {
 		Err(jsonipc::Error::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),

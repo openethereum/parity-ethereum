@@ -22,14 +22,26 @@ use util::panics::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
 use rpc_apis;
 use ethcore_signer as signer;
+use helpers::replace_home;
 pub use ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
 
+#[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub enabled: bool,
 	pub port: u16,
 	pub signer_path: String,
+}
+
+impl Default for Configuration {
+	fn default() -> Self {
+		Configuration {
+			enabled: true,
+			port: 8180,
+			signer_path: replace_home("$HOME/.parity/signer"),
+		}
+	}
 }
 
 pub struct Dependencies {

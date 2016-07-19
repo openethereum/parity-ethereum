@@ -23,10 +23,10 @@ use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use util::panics::{PanicHandler, ForwardPanic};
-use util::{version, contents, NetworkConfiguration, journaldb, PayloadInfo, ToPretty, H256};
+use util::{version, PayloadInfo, ToPretty};
 use util::log::Colour;
 use ethcore::service::ClientService;
-use ethcore::client::{ClientConfig, Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
+use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
@@ -142,7 +142,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let format = match cmd.format {
 		Some(format) => format,
 		None => {
-			let first_read = try!(instream.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream."));
+			first_read = try!(instream.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream."));
 			match first_bytes[0] {
 				0xf9 => DataFormat::Binary,
 				_ => DataFormat::Hex,
@@ -182,7 +182,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 				let s = try!(PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))).total();
 				bytes.resize(s, 0);
 				try!(instream.read_exact(&mut bytes[READAHEAD_BYTES..]).map_err(|_| "Error reading from the file/stream."));
-				do_import(bytes);
+				try!(do_import(bytes));
 			}
 		}
 		DataFormat::Hex => {
@@ -191,7 +191,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 				let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
 				first_read = 0;
 				let bytes = try!(s.from_hex().map_err(|_| "Invalid hex in file/stream."));
-				do_import(bytes);
+				try!(do_import(bytes));
 			}
 		}
 	}
@@ -215,7 +215,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup logging
 	let _logger = setup_log(&cmd.logger_config);
 
-	unsafe { fdlimit::raise_fd_limit(); }
+	fdlimit::raise_fd_limit();
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
 

@@ -25,7 +25,7 @@ pub use ethcore_dapps::Server as WebappServer;
 #[cfg(not(feature = "dapps"))]
 pub struct WebappServer;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
 	pub enabled: bool,
 	pub interface: String,

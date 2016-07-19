@@ -78,33 +78,30 @@ mod modules;
 
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
-use std::env;
+use std::{env, process};
 use ctrlc::CtrlC;
+use fdlimit::raise_fd_limit;
 use util::network_settings::NetworkSettings;
-use util::{Colour, version, H256, NetworkConfiguration, U256, Address};
+use util::{Colour, version, H256, NetworkConfiguration, U256};
 use util::journaldb::Algorithm;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, ClientConfig, ChainNotify, Switch, DatabaseCompactionProfile, VMType};
+use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType};
 use ethcore::service::ClientService;
-use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
-use ethsync::EthSync;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethsync::SyncConfig;
 use migration::migrate;
 use informant::Informant;
 
-use rpc::{RpcServer, HttpConfiguration, IpcConfiguration};
+use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
-use helpers::{to_mode, to_address, to_u256, to_client_config};
 use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
+use helpers::to_client_config;
 use dir::Directories;
 use setup_log::{LoggerConfig, setup_log};
-use fdlimit::raise_fd_limit;
-use std::process;
 use cache::CacheConfig;
 
 fn main() {
@@ -151,6 +148,8 @@ pub struct RunCmd {
 	signer_port: Option<u16>,
 	net_settings: NetworkSettings,
 	dapps_conf: dapps::Configuration,
+	signer_conf: signer::Configuration,
+	ui: bool,
 }
 
 fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -182,6 +181,10 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 	if let Some(pid_file) = cmd.daemon {
 		try!(daemonize(pid_file));
 	}
+
+	// display info about used pruning algorithm
+	info!("Starting {}", Colour::White.bold().paint(version()));
+	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(algorithm.as_str()));
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -223,7 +226,7 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 	let spec = try!(cmd.spec.spec());
 
 	// create client
-	let mut service = try!(ClientService::start(
+	let service = try!(ClientService::start(
 		client_config,
 		spec,
 		Path::new(&cmd.directories.db),
@@ -251,6 +254,7 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 		chain_notify.start();
 	}
 
+	// set up dependencies for rpc servers
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: cmd.signer_port,
 		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
@@ -271,9 +275,45 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 		apis: deps_for_rpc_apis.clone(),
 	};
 
+	// start rpc servers
 	let http_server = try!(rpc::new_http(cmd.http_conf, &dependencies));
 	let ipc_server = try!(rpc::new_ipc(cmd.ipc_conf, &dependencies));
 
+	let dapps_deps = dapps::Dependencies {
+		panic_handler: panic_handler.clone(),
+		apis: deps_for_rpc_apis.clone(),
+	};
+
+	// start dapps server
+	let dapps_server = try!(dapps::new(cmd.dapps_conf.clone(), dapps_deps));
+
+	let signer_deps = signer::Dependencies {
+		panic_handler: panic_handler.clone(),
+		apis: deps_for_rpc_apis.clone(),
+	};
+
+	// start signer server
+	let signer_server = try!(signer::start(cmd.signer_conf, signer_deps));
+
+	let io_handler = Arc::new(ClientIoHandler {
+		client: service.client(),
+		info: Informant::new(cmd.logger_config.color),
+		sync: sync_provider.clone(),
+		net: manage_network.clone(),
+		accounts: account_provider.clone(),
+	});
+	service.register_io_handler(io_handler).expect("Error registering IO handler");
+
+	// start ui
+	if cmd.ui {
+		if !cmd.dapps_conf.enabled {
+			return Err("Cannot use UI command with Dapps turned off.".into())
+		}
+		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
+	}
+
+	// Handle exit
+	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
 
 	Ok(())
 }
@@ -341,169 +381,10 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 	Ok(account_service)
 }
 
-fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) -> Result<(), String> {
-	// Setup panic handler
-	let panic_handler = PanicHandler::new_in_arc();
-
-	// Setup logging
-	//let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color());
-	let logger = try!(setup_log::setup_log({
-		unimplemented!()
-	}));
-	// Raise fdlimit
-	unsafe { ::fdlimit::raise_fd_limit(); }
-
-	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(client_config.pruning.as_str()));
-
-	// Display warning about using experimental journaldb types
-	if !client_config.pruning.is_stable() {
-		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
-	}
-
-	// Display warning about using unlock with signer
-	//if conf.signer_enabled() && conf.args.flag_unlock.is_some() {
-		//warn!("Using Trusted Signer and --unlock is not recommended!");
-		//warn!("NOTE that Signer will not ask you to confirm transactions from unlocked account.");
-	//}
-
-	//let net_settings = { unimplemented!() }; //try!(conf.net_settings());
-	//let sync_config = { unimplemented!() };
-
-	// Secret Store
-	//let account_service = Arc::new(conf.account_service());
-	//let account_service = { unimplemented!() };
-
-	// Miner
-	//let miner_options = try!(conf.miner_options());
-	//let miner = { unimplemented!() }; // Miner::new(miner_options, conf.gas_pricer().expect("TODO!"), conf.spec(), Some(account_service.clone()));
-	//miner.set_author(try!(conf.author()));
-	//miner.set_author(try!(to_address(conf.args.flag_etherbase.clone().or(conf.args.flag_author.clone()))));
-	//miner.set_gas_floor_target(try!(to_u256(&conf.args.flag_gas_floor_target)));
-	//miner.set_gas_ceil_target(try!(to_u256(&conf.args.flag_gas_cap)));
-	//miner.set_extra_data(try!(conf.extra_data()));
-	//miner.set_transactions_limit(conf.args.flag_tx_queue_size);
-
-	//let directories = conf.directories();
-
-	// Build client
-	//let mut service = try!(ClientService::start(
-		//client_config,
-		//spec,
-		//Path::new(&directories.db),
-		//miner.clone(),
-	//).map_err(|e| format!("Client service error: {:?}", e)));
-
-	//panic_handler.forward_from(&service);
-	//let client = service.client();
-
-	//let external_miner = Arc::new(ExternalMiner::default());
-	////let network_settings = Arc::new(conf.network_settings());
-
-	//// Sync
-	//let sync = try!(EthSync::new(sync_config, client.clone(), net_settings.into()).map_err(|_| "Error registering eth protocol handler"));
-	//service.set_notify(&(sync.clone() as Arc<ChainNotify>));
-
-	//// if network is active by default
-	//let enable_network = match try!(to_mode(&conf.args.flag_mode, conf.args.flag_mode_timeout, conf.args.flag_mode_alarm)) {
-		//Mode::Dark(..) => false,
-		//_ => !conf.args.flag_no_network,
-	//};
-
-	//if enable_network {
-		//sync.start();
-	//}
-
-	//let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
-		//signer_port: conf.signer_port(),
-		//signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
-		//client: client.clone(),
-		//sync: sync.clone(),
-		//secret_store: account_service.clone(),
-		//miner: miner.clone(),
-		//external_miner: external_miner.clone(),
-		//logger: logger.clone(),
-		//settings: network_settings.clone(),
-		//allow_pending_receipt_query: !conf.args.flag_geth,
-		//net_service: sync.clone(),
-	//});
-
-	//let dependencies = rpc::Dependencies {
-		//panic_handler: panic_handler.clone(),
-		//apis: deps_for_rpc_apis.clone(),
-	//};
-
-	//// Setup http rpc
-	//let rpc_conf = rpc::HttpConfiguration {
-		//enabled: network_settings.rpc_enabled,
-		//interface: conf.rpc_interface(),
-		//port: network_settings.rpc_port,
-		//apis: try!(conf.rpc_apis().parse()),
-		//cors: conf.rpc_cors(),
-	//};
-
-	//let rpc_server = try!(rpc::new_http(rpc_conf, &dependencies));
-
-	//// setup ipc rpc
-	//let ipc_settings = { unimplemented!() };// try!(conf.ipc_settings());
-	////debug!("IPC: {}", ipc_settings);
-	//let _ipc_server = rpc::new_ipc(ipc_settings, &dependencies);
-
-	//// Set up dapps
-	//let dapps_conf = dapps::Configuration {
-		//enabled: conf.dapps_enabled(),
-		//interface: conf.dapps_interface(),
-		//port: conf.args.flag_dapps_port,
-		//user: conf.args.flag_dapps_user.clone(),
-		//pass: conf.args.flag_dapps_pass.clone(),
-		//dapps_path: directories.dapps,
-	//};
-
-	//let dapps_deps = dapps::Dependencies {
-		//panic_handler: panic_handler.clone(),
-		//apis: deps_for_rpc_apis.clone(),
-	//};
-
-	//let dapps_server = try!(dapps::new(dapps_conf, dapps_deps));
-
-	//// Set up a signer
-	//let signer_conf = signer::Configuration {
-		//enabled: conf.signer_enabled(),
-		//port: conf.args.flag_signer_port,
-		//signer_path: directories.signer,
-	//};
-
-	//let signer_deps = signer::Dependencies {
-		//panic_handler: panic_handler.clone(),
-		//apis: deps_for_rpc_apis.clone(),
-	//};
-
-	//let signer_server = try!(signer::start(signer_conf, signer_deps));
-
-	//// Register IO handler
-	//let io_handler = Arc::new(ClientIoHandler {
-		//client: service.client(),
-		//info: Informant::new(conf.have_color()),
-		//sync: sync.clone(),
-		//accounts: account_service.clone(),
-	//});
-	//service.register_io_handler(io_handler).expect("Error registering IO handler");
-
-	//if conf.args.cmd_ui {
-		//if !conf.dapps_enabled() {
-			//return Err("Cannot use UI command with Dapps turned off.".into())
-		//}
-		//url::open(&format!("http://{}:{}/", conf.dapps_interface(), conf.args.flag_dapps_port));
-	//}
-
-	// Handle exit
-	//wait_for_exit(panic_handler, rpc_server, dapps_server, signer_server);
-	Ok(())
-}
-
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
-	_rpc_server: Option<RpcServer>,
+	_http_server: Option<HttpServer>,
+	_ipc_server: Option<IpcServer>,
 	_dapps_server: Option<WebappServer>,
 	_signer_server: Option<SignerServer>
 	) {

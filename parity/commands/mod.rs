@@ -22,7 +22,6 @@ pub use self::account::{AccountCmd, NewAccount, ImportAccounts};
 pub use self::presale::ImportWallet;
 pub use self::blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cli::print_version;
-use configuration::Configuration;
 use execute as main_execute;
 use signer;
 use RunCmd;

@@ -22,23 +22,21 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use cli::{USAGE, Args};
 use docopt::{Docopt, Error as DocoptError};
-use util::{Hashable, journaldb, NetworkConfiguration, kvdb, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, path, Address};
+use util::{Hashable, NetworkConfiguration, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, Address};
 use util::network_settings::NetworkSettings;
 use util::log::Colour;
-use ethcore::account_provider::AccountProvider;
-use ethcore::client::{append_path, ClientConfig, VMType};
-use ethcore::miner::{MinerOptions, GasPricer, GasPriceCalibratorOptions};
-use ethcore::spec::Spec;
-use ethsync::SyncConfig;
+use ethcore::client::{ClientConfig, VMType};
+use ethcore::miner::MinerOptions;
 use rpc::{IpcConfiguration, HttpConfiguration};
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use setup_log::LoggerConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
+use signer::Configuration as SignerConfiguration;
 use RunCmd;
 
 /// Should be used to read password.
@@ -121,6 +119,7 @@ impl Configuration {
 		let geth_compatibility = self.args.flag_geth;
 		let signer_port = self.signer_port();
 		let dapps_conf = self.dapps_config();
+		let signer_conf = self.signer_config();
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -216,6 +215,8 @@ impl Configuration {
 				signer_port: signer_port,
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
+				signer_conf: signer_conf,
+				ui: self.args.cmd_ui,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -309,6 +310,14 @@ impl Configuration {
 		Ok(options)
 	}
 
+	fn signer_config(&self) -> SignerConfiguration {
+		SignerConfiguration {
+			enabled: self.signer_enabled(),
+			port: self.args.flag_signer_port,
+			signer_path: self.directories().signer,
+		}
+	}
+
 	fn dapps_config(&self) -> DappsConfiguration {
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
@@ -351,7 +360,7 @@ impl Configuration {
 		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
 			Some(ref x) if x.len() <= 32 => Ok(x.as_bytes().to_owned()),
 			None => Ok(version_data()),
-			Some(ref x) => Err("Extra data must be at most 32 characters".into()),
+			Some(_) => Err("Extra data must be at most 32 characters".into()),
 		}
 	}
 
@@ -406,16 +415,6 @@ impl Configuration {
 		}
 
 		Ok(ret)
-	}
-
-	fn client_config(&self, spec: &Spec) -> ClientConfig {
-		/*
-		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
-		client_config.name = self.args.flag_identity.clone();
-		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
-		client_config
-		*/
-		unimplemented!();
 	}
 
 	fn network_id(&self) -> Result<Option<U256>, String> {
@@ -499,10 +498,6 @@ impl Configuration {
 		}
 	}
 
-	fn have_color(&self) -> bool {
-		!self.args.flag_no_color && !cfg!(windows)
-	}
-
 	fn signer_port(&self) -> Option<u16> {
 		if !self.signer_enabled() {
 			None
@@ -542,15 +537,11 @@ mod tests {
 	use super::*;
 	use cli::USAGE;
 	use docopt::Docopt;
-	use util::version_data;
 	use util::network_settings::NetworkSettings;
-	use ethcore::client::{DatabaseCompactionProfile, Mode, Switch, VMType, BlockID};
+	use ethcore::client::{VMType, BlockID};
 	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
-	use cache::CacheConfig;
-	use params::{SpecType, Pruning, AccountsConfig, MinerExtras};
-	use helpers::{replace_home, default_network_config, to_address};
+	use helpers::{replace_home, default_network_config};
 	use setup_log::LoggerConfig;
-	use dir::Directories;
 	use RunCmd;
 
 	#[derive(Debug, PartialEq)]
@@ -584,7 +575,7 @@ mod tests {
 	#[test]
 	fn test_command_account_new() {
 		let args = vec!["parity", "account", "new"];
-		let mut conf = Configuration::parse(args).unwrap();
+		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
@@ -617,7 +608,7 @@ mod tests {
 	#[test]
 	fn test_command_wallet_import() {
 		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
-		let mut conf = Configuration::parse(args).unwrap();
+		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("content_of_pwd");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
@@ -633,7 +624,7 @@ mod tests {
 		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
-			spec: SpecType::Mainnet,
+			spec: Default::default(),
 			logger_config: LoggerConfig {
 				mode: None,
 				color: false,
@@ -657,7 +648,7 @@ mod tests {
 		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
-			spec: SpecType::Mainnet,
+			spec: Default::default(),
 			logger_config: LoggerConfig {
 				mode: None,
 				color: false,
@@ -718,6 +709,8 @@ mod tests {
 			signer_port: Some(8180),
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
+			signer_conf: Default::default(),
+			ui: false,
 		}));
 	}
 
