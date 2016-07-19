@@ -141,14 +141,13 @@ impl Hypervisor {
 
 			let executable_path = executable_path.to_str().unwrap();
 			let mut command = Command::new(&executable_path);
+			command.stderr(std::process::Stdio::inherit());
 
 			if let Some(ref cli_args) = binary_args.cli {
 				for arg in cli_args { command.arg(arg); }
 			}
 
 			command.stdin(std::process::Stdio::piped());
-			command.stderr(std::process::Stdio::inherit());
-			command.stdout(std::process::Stdio::inherit());
 
 			trace!(target: "hypervisor", "Spawn executable: {:?}", command);
 
@@ -181,6 +180,7 @@ impl Hypervisor {
 		}
 	}
 
+	/// Shutdown the ipc and all managed child processes
 	pub fn shutdown(&self, wait_time: Option<std::time::Duration>) {
 		if wait_time.is_some() { std::thread::sleep(wait_time.unwrap()) }
 
