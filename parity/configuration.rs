@@ -430,16 +430,13 @@ impl Configuration {
 	}
 
 	pub fn rpc_hosts(&self) -> Option<Vec<String>> {
-		let hosts = self.args.flag_jsonrpc_hosts.split(',').collect::<Vec<&str>>();
-		// look for special values
-		for h in &hosts {
-			match *h {
-				"none" => return Some(Vec::new()),
-				"all" => return None,
-				_ => {},
-			}
+		match self.args.flag_jsonrpc_hosts.as_ref() {
+			"none" => return Some(Vec::new()),
+			"all" => return None,
+			_ => {}
 		}
-		Some(hosts.into_iter().map(|h| h.into()).collect())
+		let hosts = self.args.flag_jsonrpc_hosts.split(',').map(|h| h.into()).collect();
+		Some(hosts)
 	}
 
 	fn geth_ipc_path(&self) -> String {
@@ -554,7 +551,7 @@ impl Configuration {
 
 	pub fn dapps_interface(&self) -> String {
 		match self.args.flag_dapps_interface.as_str() {
-			"local" => "localhost",
+			"local" => "127.0.0.1",
 			x => x,
 		}.into()
 	}

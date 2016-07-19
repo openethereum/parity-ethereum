@@ -123,8 +123,8 @@ API and Console Options:
   --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
-                           server, IP should be an interface's hostname / IP
-                           or local (localhost) [default: local].
+                           server, IP should be an interface's IP address,
+                           or local [default: local].
   --dapps-user USERNAME    Specify username for Dapps server. It will be
                            used in HTTP Basic Authentication Scheme.
                            If --dapps-pass is not specified you will be

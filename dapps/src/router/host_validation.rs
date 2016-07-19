@@ -27,7 +27,10 @@ pub fn is_valid(request: &server::Request<HttpStream>, bind_address: &str, endpo
 	let mut endpoints = endpoints.into_iter()
 		.map(|endpoint| format!("{}{}", endpoint, DAPPS_DOMAIN))
 		.collect::<Vec<String>>();
+	// Add localhost domain as valid too if listening on loopback interface.
+	endpoints.push(bind_address.replace("127.0.0.1", "localhost").into());
 	endpoints.push(bind_address.into());
+
 	is_host_header_valid(request, &endpoints)
 }
 
