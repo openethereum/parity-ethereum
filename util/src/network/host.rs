@@ -419,7 +419,7 @@ impl Host {
 
 				self.nodes.write().add_node(n);
 				if let Some(ref mut discovery) = *self.discovery.lock() {
-					discovery.add_node(entry);
+					discovery.add_node(entry, true);
 				}
 			}
 		}
@@ -433,7 +433,7 @@ impl Host {
 		self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
 
 		if let Some(ref mut discovery) = *self.discovery.lock() {
-			discovery.add_node(entry);
+			discovery.add_node(entry, false);
 		}
 
 		Ok(())
@@ -550,7 +550,7 @@ impl Host {
 		if let Some(mut discovery) = discovery {
 			discovery.init_node_list(self.nodes.read().unordered_entries());
 			for n in self.nodes.read().unordered_entries() {
-				discovery.add_node(n.clone());
+				discovery.add_node(n.clone(), false);
 			}
 			*self.discovery.lock() = Some(discovery);
 			io.register_stream(DISCOVERY).expect("Error registering UDP listener");
@@ -788,7 +788,7 @@ impl Host {
 								self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
 								let mut discovery = self.discovery.lock();
 								if let Some(ref mut discovery) = *discovery.deref_mut() {
-									discovery.add_node(entry);
+									discovery.add_node(entry, true);
 								}
 							}
 						}

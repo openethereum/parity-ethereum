@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use ethcore::client::Client;
 use ethcore::service::ClientIoMessage;
-use ethsync::{EthSync, SyncProvider, ManageNetwork};
+use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
 use util::{TimerToken, IoHandler, IoContext};
 
@@ -27,7 +27,8 @@ const INFO_TIMER: TimerToken = 0;
 
 pub struct ClientIoHandler {
 	pub client: Arc<Client>,
-	pub sync: Arc<EthSync>,
+	pub sync: Arc<SyncProvider>,
+	pub net: Arc<ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
 	pub info: Informant,
 }
@@ -40,7 +41,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		if let INFO_TIMER = timer {
 			let sync_status = self.sync.status();
-			let network_config = self.sync.network_config();
+			let network_config = self.net.network_config();
 			self.info.tick(&self.client, Some((sync_status, network_config)));
 		}
 	}

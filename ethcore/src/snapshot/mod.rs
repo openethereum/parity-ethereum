@@ -340,7 +340,7 @@ pub struct ManifestData {
 
 impl ManifestData {
 	/// Encode the manifest data to rlp.
-	pub fn to_rlp(&self) -> Bytes {
+	pub fn into_rlp(self) -> Bytes {
 		let mut stream = RlpStream::new_list(5);
 		stream.append(&self.state_hashes);
 		stream.append(&self.block_hashes);

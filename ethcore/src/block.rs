@@ -275,6 +275,15 @@ impl<'x> OpenBlock<'x> {
 	/// Alter the gas limit for the block.
 	pub fn set_gas_used(&mut self, a: U256) { self.block.base.header.set_gas_used(a); }
 
+	/// Alter the uncles hash the block.
+	pub fn set_uncles_hash(&mut self, h: H256) { self.block.base.header.set_uncles_hash(h); }
+
+	/// Alter transactions root for the block.
+	pub fn set_transactions_root(&mut self, h: H256) { self.block.base.header.set_transactions_root(h); }
+
+	/// Alter the receipts root for the block.
+	pub fn set_receipts_root(&mut self, h: H256) { self.block.base.header.set_receipts_root(h); }
+
 	/// Alter the extra_data for the block.
 	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
 		if extra_data.len() > self.engine.maximum_extra_data_size() {
@@ -365,11 +374,17 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		s.engine.on_close_block(&mut s.block);
-		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
+		if s.block.base.header.transactions_root.is_zero() || s.block.base.header.transactions_root == SHA3_NULL_RLP {
+			s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
+		}
 		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		s.block.base.header.uncles_hash = uncle_bytes.sha3();
+		if s.block.base.header.uncles_hash.is_zero() {
+			s.block.base.header.uncles_hash = uncle_bytes.sha3();
+		}
+		if s.block.base.header.receipts_root.is_zero() || s.block.base.header.receipts_root == SHA3_NULL_RLP {
+			s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
+		}
 		s.block.base.header.state_root = s.block.state.root().clone();
-		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
 		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b}); //TODO: use |= operator
 		s.block.base.header.gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
 		s.block.base.header.note_dirty();
@@ -500,6 +515,9 @@ pub fn enact(
 	b.set_timestamp(header.timestamp());
 	b.set_author(header.author().clone());
 	b.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
+	b.set_uncles_hash(header.uncles_hash().clone());
+	b.set_transactions_root(header.transactions_root().clone());
+	b.set_receipts_root(header.receipts_root().clone());
 	for t in transactions { try!(b.push_transaction(t.clone(), None)); }
 	for u in uncles { try!(b.push_uncle(u.clone())); }
 	Ok(b.close_and_lock())

@@ -20,11 +20,12 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use util::{U256, Address, H256};
+use util::{U256, Address, H256, Mutex};
+use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
-use v1::helpers::{SigningQueue, ConfirmationsQueue, TransactionRequest as TRequest};
+use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, TransactionRequest as TRequest};
 use v1::traits::EthSigning;
-use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520};
+use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
 use v1::impls::{default_gas_price, sign_and_dispatch};
 
 fn fill_optional_fields<C, M>(request: &mut TRequest, client: &C, miner: &M)
@@ -49,7 +50,11 @@ pub struct EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
+
+	pending: Mutex<TransientHashMap<U256, ConfirmationPromise>>,
 }
+
+const MAX_PENDING_DURATION: u64 = 60 * 60;
 
 impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates a new signing queue client given shared signing queue.
@@ -59,6 +64,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 			accounts: Arc::downgrade(accounts),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
+			pending: Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION)),
 		}
 	}
 
@@ -67,21 +73,8 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 		take_weak!(self.client).keep_alive();
 		Ok(())
 	}
-}
 
-impl<C, M> EthSigning for EthSigningQueueClient<C, M>
-	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
-{
-
-	fn sign(&self, _params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		warn!("Invoking eth_sign is not yet supported with signer enabled.");
-		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
-		rpc_unimplemented!()
-	}
-
-	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
+	fn dispatch<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
 				let mut request: TRequest = request.into();
@@ -98,9 +91,54 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 
 				let queue = take_weak!(self.queue);
 				fill_optional_fields(&mut request, &*client, &*miner);
-				let id = queue.add_request(request);
-				let result = id.wait_with_timeout();
-				result.unwrap_or_else(|| to_value(&RpcH256::default()))
+				let promise = queue.add_request(request);
+				f(promise)
+		})
+	}
+}
+
+impl<C, M> EthSigning for EthSigningQueueClient<C, M>
+	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
+{
+
+	fn sign(&self, _params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		warn!("Invoking eth_sign is not yet supported with signer enabled.");
+		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
+		rpc_unimplemented!()
+	}
+
+	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		self.dispatch(params, |promise: ConfirmationPromise| {
+			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH256::default()))
+		})
+	}
+
+	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		self.dispatch(params, |promise: ConfirmationPromise| {
+			let ret = to_value(&RpcU256::from(promise.id()));
+			self.pending.lock().insert(promise.id(), promise);
+			ret
+		})
+	}
+
+	fn check_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		let mut pending = self.pending.lock();
+		from_params::<(RpcU256, )>(params).and_then(|(id, )| {
+			let id: U256 = id.into();
+			let res = match pending.get(&id) {
+				Some(ref promise) => match promise.result() {
+					ConfirmationResult::Waiting => { return Ok(Value::Null); }
+					ConfirmationResult::Rejected => to_value(&RpcH256::default()),
+					ConfirmationResult::Confirmed(rpc_response) => rpc_response,
+				},
+				_ => { return Err(Error::invalid_params()); }
+			};
+			pending.remove(&id);
+			res
 		})
 	}
 }
@@ -159,5 +197,15 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 					_ => to_value(&RpcH256::default()),
 				}
 		})
+	}
+
+	fn post_transaction(&self, _: Params) -> Result<Value, Error> {
+		// We don't support this in non-signer mode.
+		Err(Error::invalid_params())
+	}
+
+	fn check_transaction(&self, _: Params) -> Result<Value, Error> {
+		// We don't support this in non-signer mode.
+		Err(Error::invalid_params())
 	}
 }

@@ -13,10 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-
-use std::collections::{HashSet, HashMap};
-use std::mem;
-use std::collections::VecDeque;
+use std::collections::{HashSet, HashMap, VecDeque};
 use std::sync::{Arc, Weak};
 use std::path::{Path, PathBuf};
 use std::fmt;
@@ -66,10 +63,7 @@ use trace;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
-use ipc::IpcConfig;
-use ipc::binary::BinaryConvertError;
-use snapshot;
-use snapshot::io::SnapshotWriter;
+use snapshot::{self, io as snapshot_io};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -142,7 +136,6 @@ pub struct Client {
 	io_channel: IoChannel<ClientIoMessage>,
 	notify: RwLock<Option<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
-	previous_enode: Mutex<Option<String>>,
 	skipped: AtomicUsize,
 	last_import: Mutex<Instant>,
 	last_hashes: RwLock<VecDeque<H256>>,
@@ -235,7 +228,6 @@ impl Client {
 			io_channel: message_channel,
 			notify: RwLock::new(None),
 			queue_transactions: AtomicUsize::new(0),
-			previous_enode: Mutex::new(None),
 			skipped: AtomicUsize::new(0),
 			last_import: Mutex::new(Instant::now()),
 			last_hashes: RwLock::new(VecDeque::new()),
@@ -257,6 +249,9 @@ impl Client {
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
 		self.block_queue.flush();
+		while !self.block_queue.queue_info().is_empty() {
+			self.import_verified_blocks();
+		}
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
@@ -357,7 +352,7 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, io: &IoChannel<ClientIoMessage>) -> usize {
+	pub fn import_verified_blocks(&self) -> usize {
 		let max_blocks_to_import = 64;
 		let (imported_blocks, import_results, invalid_blocks, original_best, imported) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
@@ -621,7 +616,7 @@ impl Client {
 	}
 
 	/// Take a snapshot.
-	pub fn take_snapshot<W: SnapshotWriter>(&self, writer: W) -> Result<(), ::error::Error> {
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter>(&self, writer: W) -> Result<(), ::error::Error> {
 		let db = self.state_db.lock();
 		snapshot::take_snapshot(self, db.as_hashdb(), writer)
 	}
@@ -673,8 +668,6 @@ impl Client {
 	}
 }
 
-#[derive(Ipc)]
-#[ipc(client_ident="RemoteClient")]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -1012,7 +1005,7 @@ impl MiningBlockChainClient for Client {
 			self.trie_factory.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().boxed_clone(),
-			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
+			&self.chain.block_header(&h).expect("h is best block hash: so its header must exist: qed"),
 			self.build_last_hashes(h.clone()),
 			author,
 			gas_range_target,
@@ -1077,5 +1070,3 @@ impl MayPanic for Client {
 		self.panic_handler.on_panic(closure);
 	}
 }
-
-impl IpcConfig<BlockChainClient> for Arc<BlockChainClient> { }

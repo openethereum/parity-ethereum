@@ -143,9 +143,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	}
 
 	#[cfg_attr(feature="dev", allow(single_match))]
-	fn message(&self, io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
-			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(&io.channel()); }
+			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
 			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
 			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
 			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),

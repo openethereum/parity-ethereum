@@ -198,7 +198,7 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
-  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
+  --cache-pref-size BYTES  Specify the preferred size of the blockchain cache in
                            bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
                            bytes [default: 262144].

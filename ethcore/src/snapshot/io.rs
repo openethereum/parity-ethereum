@@ -191,7 +191,7 @@ impl SnapshotWriter for LooseWriter {
 	}
 
 	fn finish(self, manifest: ManifestData) -> io::Result<()> {
-		let rlp = manifest.to_rlp();
+		let rlp = manifest.into_rlp();
 		let mut path = self.dir.clone();
 		path.push("MANIFEST");
 

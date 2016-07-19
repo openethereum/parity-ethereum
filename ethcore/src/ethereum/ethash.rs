@@ -55,11 +55,11 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
-			registrar: p.registrar.map(Into::into).unwrap_or(Address::new()),
-			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.map(Into::into).unwrap_or(0),
-			dao_hardfork_transition: p.dao_hardfork_transition.map(Into::into).unwrap_or(0x7fffffffffffffff),
-			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map(Into::into).unwrap_or(Address::new()),
-			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or(vec![]).into_iter().map(Into::into).collect(),
+			registrar: p.registrar.map_or_else(Address::new, Into::into),
+			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.map_or(0, Into::into),
+			dao_hardfork_transition: p.dao_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
+			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
+			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -141,7 +141,7 @@ impl Engine for Ethash {
 			// TODO: enable trigger function maybe?
 //			if block.fields().header.gas_limit <= 4_000_000.into() {
 				let mut state = block.fields_mut().state;
-				for child in self.ethash_params.dao_hardfork_accounts.iter() {
+				for child in &self.ethash_params.dao_hardfork_accounts {
 					let b = state.balance(child);
 					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b);
 				}

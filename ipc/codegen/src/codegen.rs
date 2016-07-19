@@ -19,7 +19,6 @@ use syntax::ast::{
 	MetaItem,
 	Item,
 	ImplItemKind,
-	ImplItem,
 	MethodSig,
 	Arg,
 	PatKind,
@@ -592,8 +591,8 @@ fn push_client_implementation(
 	let handshake_item = quote_impl_item!(cx,
 		pub fn handshake(&self) -> Result<(), ::ipc::Error> {
 			let payload = ::ipc::Handshake {
-				protocol_version: ::std::sync::Arc::<$endpoint>::protocol_version(),
-				api_version: ::std::sync::Arc::<$endpoint>::api_version(),
+				protocol_version: $endpoint::protocol_version(),
+				api_version: $endpoint::api_version(),
 			};
 
 			::ipc::invoke(
@@ -769,7 +768,7 @@ fn ty_ident_map(original_ty: &P<Ty>) -> IdentMap {
 	ident_map
 }
 
-/// implements `IpcInterface<C>` for the given class `C`
+/// implements `IpcInterface` for the given class `C`
 fn implement_interface(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -835,7 +834,7 @@ fn implement_interface(
 	};
 
 	let ipc_item = quote_item!(cx,
-		impl $host_generics ::ipc::IpcInterface<$interface_endpoint> for ::std::sync::Arc<$interface_endpoint> $where_clause {
+		impl $host_generics ::ipc::IpcInterface for $interface_endpoint $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
 				where R: ::std::io::Read
 			{
