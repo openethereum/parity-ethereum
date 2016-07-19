@@ -36,7 +36,7 @@ Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
                            active - Parity continuously syncs the chain.
                            passive - Parity syncs initially, then sleeps and
-                           wakes regularly to resync.
+                           wakes regularly to resync. 
                            dark - Parity syncs only when an external interface
                            is active. [default: active].
   --mode-timeout SECS      Specify the number of seconds before inactivity
@@ -107,11 +107,6 @@ API and Console Options:
                            name. Possible name are web3, eth, net, personal,
                            ethcore, ethcore_set, traces.
                            [default: web3,eth,net,ethcore,personal,traces].
-  --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
-                           validate the Host header sent by the browser, it
-                           is additional security against some attack
-                           vectors. Special options: "all", "none",
-                           [default: none].
 
   --no-ipc                 Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
@@ -123,8 +118,8 @@ API and Console Options:
   --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
-                           server, IP should be an interface's hostname / IP
-                           or local (localhost) [default: local].
+                           server, IP should be an interface's IP address, or
+                           all (all interfaces) or local [default: local].
   --dapps-user USERNAME    Specify username for Dapps server. It will be
                            used in HTTP Basic Authentication Scheme.
                            If --dapps-pass is not specified you will be
@@ -146,11 +141,11 @@ Sealing/Mining Options:
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
                            all - reseal on all new transactions [default: own].
-  --reseal-min-period MS   Specify the minimum time between reseals from
+  --reseal-min-period MS   Specify the minimum time between reseals from 
                            incoming transactions. MS is time measured in
                            milliseconds [default: 2000].
   --work-queue-size ITEMS  Specify the number of historical work packages
-                           which are kept cached lest a solution is found for
+                           which are kept cached lest a solution is found for 
                            them later. High values take more memory but result
                            in fewer unusable solutions [default: 20].
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
@@ -316,7 +311,6 @@ pub struct Args {
 	pub flag_jsonrpc_interface: String,
 	pub flag_jsonrpc_port: u16,
 	pub flag_jsonrpc_cors: Option<String>,
-	pub flag_jsonrpc_hosts: String,
 	pub flag_jsonrpc_apis: String,
 	pub flag_no_ipc: bool,
 	pub flag_ipc_path: String,
