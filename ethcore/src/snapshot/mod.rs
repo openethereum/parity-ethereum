@@ -106,7 +106,7 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 
 	let manifest_data = ManifestData {
 		state_hashes: state_hashes,
-		block_hashes: block_hashes.into_iter().rev().collect(),
+		block_hashes: block_hashes,
 		state_root: state_root,
 		block_number: chain_info.best_block_number,
 		block_hash: chain_info.best_block_hash,
@@ -151,12 +151,10 @@ impl<'a> BlockChunker<'a> {
 
 			let new_loaded_size = loaded_size + pair.len();
 
-			// cut off the chunk if too large
-			if new_loaded_size > PREFERRED_CHUNK_SIZE {
-				let header = view.header_view();
-				let parent_hash = header.parent_hash();
+			// cut off the chunk if too large.
 
-				try!(self.write_chunk(parent_hash));
+			if new_loaded_size > PREFERRED_CHUNK_SIZE {
+				try!(self.write_chunk());
 				loaded_size = pair.len();
 			} else {
 				loaded_size = new_loaded_size;
@@ -169,7 +167,7 @@ impl<'a> BlockChunker<'a> {
 		if loaded_size != 0 {
 			// we don't store the genesis block, so once we get to this point,
 			// the "first" block will be number 1.
-			try!(self.write_chunk(genesis_hash));
+			try!(self.write_chunk());
 		}
 
 		Ok(())
@@ -178,7 +176,12 @@ impl<'a> BlockChunker<'a> {
 	// write out the data in the buffers to a chunk on disk
 	//
 	// we preface each chunk with the parent of the first block's details.
-	fn write_chunk(&mut self, parent_hash: H256) -> Result<(), Error> {
+	fn write_chunk(&mut self) -> Result<(), Error> {
+		// since the block we're inspecting now doesn't go into the
+		// chunk if it's too large, the current hash is the parent hash
+		// for the first block in that chunk.
+		let parent_hash = self.current_hash;
+
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
 		let parent_id = BlockID::Hash(parent_hash);
 		let parent_header_bytes = self.client.block_header(parent_id.clone())
@@ -510,19 +513,16 @@ impl BlockRebuilder {
 	fn process_rlp_pair(&mut self, pair: UntrustedRlp, engine: &Engine) -> Result<(), Error> {
 		use basic_types::Seal::With;
 
-		trace!(target: "snapshot", "processing block pair");
 		let abridged_rlp = try!(pair.at(0)).as_raw().to_owned();
 		let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
-		let receipts = try!(pair.val_at(1));
+		let receipts: Vec<::receipt::Receipt> = try!(pair.val_at(1));
 		let block = try!(abridged_block.to_block(self.parent_hash, self.cur_number));
 		let block_bytes = block.rlp_bytes(With);
 
 
 		if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
-			trace!(target: "snapshot", "verifying PoW");
 			try!(engine.verify_block_seal(&block.header))
 		} else {
-			trace!(target: "snapshot", "verifying basic");
 			try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
 		}
 

@@ -49,8 +49,6 @@ impl AbridgedBlock {
 		let header = block_view.header_view();
 		let seal_fields = header.seal();
 
-		trace!(target: "snapshot", "number: {}, hash: {}", header.number(), header.sha3());
-
 		// 10 header fields, unknown number of seal fields, and 2 block fields.
 		let mut stream = RlpStream::new_list(
 			HEADER_FIELDS +
@@ -119,8 +117,6 @@ impl AbridgedBlock {
 		}
 
 		header.set_seal(seal_fields);
-
-		trace!(target: "snapshot", "number: {}, hash: {}", number, header.hash());
 
 		Ok(Block {
 			header: header,

@@ -146,6 +146,11 @@ fn execute(conf: Configuration) {
 		return;
 	}
 
+	if conf.args.cmd_restore {
+		execute_restore(conf);
+		return;
+	}
+
 	if conf.args.cmd_export {
 		execute_export(conf, panic_handler);
 		return;
@@ -158,11 +163,6 @@ fn execute(conf: Configuration) {
 
 	if conf.args.cmd_snapshot {
 		execute_snapshot(conf, panic_handler);
-		return;
-	}
-
-	if conf.args.cmd_restore {
-		execute_restore(conf, panic_handler);
 		return;
 	}
 
@@ -511,7 +511,7 @@ fn execute_snapshot(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 	}
 }
 
-fn execute_restore(conf: Configuration, panic_handler: Arc<PanicHandler>) {
+fn execute_restore(conf: Configuration) {
 	use ethcore::snapshot::io::{SnapshotReader, PackedReader};
 	use ethcore::snapshot::{SnapshotService, RestorationStatus};
 
@@ -523,14 +523,15 @@ fn execute_restore(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 		client_config, spec, Path::new(&conf.path()), Arc::new(Miner::with_spec(conf.spec()))
 	).unwrap_or_else(|e| die_with_error("Client", e));
 
-	panic_handler.forward_from(&service);
-
 	let filename = conf.args.arg_file.as_ref().unwrap_or_else(|| die!("No snapshot filename provided."));
 	let maybe_reader = PackedReader::new(Path::new(&filename)).unwrap_or_else(|e| die!("Error reading snapshot file: {}", e));
 	let reader = maybe_reader.unwrap_or_else(|| die!("Invalid snapshot file: {}", filename));
 
 	let manifest = reader.manifest();
 	let snapshot = service.snapshot_service();
+
+	// destroy client so we don't restore while it has open DB handles.
+	drop(service);
 
 	if !snapshot.begin_restore(manifest.clone()) {
 		die!("Failed to begin snapshot restoration.");
@@ -550,17 +551,6 @@ fn execute_restore(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 		}
 	});
 
-	info!("Restoring blocks");
-
-	for &block_hash in &manifest.block_hashes {
-		if snapshot.status() == RestorationStatus::Failed {
-			die!("restoration failed.");
-		}
-
-		let chunk = reader.chunk(block_hash).unwrap_or_else(|_| die!("Failed to read chunk {} from snapshot file.", block_hash));
-		snapshot.feed_block_chunk(block_hash, &chunk);
-	}
-
 	info!("Restoring state");
 	for &state_hash in &manifest.state_hashes {
 		if snapshot.status() == RestorationStatus::Failed {
@@ -571,17 +561,23 @@ fn execute_restore(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 		snapshot.feed_state_chunk(state_hash, &chunk);
 	}
 
+	info!("Restoring blocks");
+	for &block_hash in &manifest.block_hashes {
+		if snapshot.status() == RestorationStatus::Failed {
+			die!("restoration failed.");
+		}
+
+		let chunk = reader.chunk(block_hash).unwrap_or_else(|_| die!("Failed to read chunk {} from snapshot file.", block_hash));
+		snapshot.feed_block_chunk(block_hash, &chunk);
+	}
+
 	match snapshot.status() {
 		RestorationStatus::Ongoing(_, _) => die!("snapshot file is incomplete and missing chunks."),
 		RestorationStatus::Failed => die!("restoration failed."),
 		RestorationStatus::Inactive => {}
 	}
 
-	let client = service.client();
-	let chain_info = client.chain_info();
-	assert_eq!(chain_info.best_block_number, manifest.block_number);
-	assert_eq!(chain_info.best_block_hash, manifest.block_hash);
-	assert_eq!(client.state().root(), &manifest.state_root);
+	info!("Restoration complete.");
 }
 
 fn execute_signer(conf: Configuration) {

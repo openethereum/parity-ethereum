@@ -229,9 +229,7 @@ impl Service {
 
 	// finalize the restoration.
 	fn finalize_restoration(&self) {
-		*self.state_restoration.lock() = None;
-		*self.block_restoration.lock() = None;
-
+		trace!(target: "snapshot", "finalizing restoration");
 		*self.status.lock() = RestorationStatus::Inactive;
 
 		// TODO: take control of restored snapshot.
@@ -272,7 +270,7 @@ impl Service {
 				return;
 			}
 
-			if self.block_restoration.lock().as_ref().map(|r| r.chunks_left.is_empty()).unwrap_or(false) {
+			if self.block_restoration.lock().is_none() {
 				self.finalize_restoration();
 			}
 		}
@@ -312,7 +310,7 @@ impl Service {
 				return;
 			}
 
-			if self.state_restoration.lock().as_ref().map(|r| r.chunks_left.is_empty()).unwrap_or(false) {
+			if self.state_restoration.lock().is_none() {
 				self.finalize_restoration();
 			}
 		}
