@@ -33,6 +33,7 @@ use cache::CacheConfig;
 use setup_log::{setup_log, LoggerConfig};
 use informant::Informant;
 use params::{SpecType, Pruning};
+use helpers::to_client_config;
 use dir::Directories;
 use fdlimit;
 
@@ -98,28 +99,6 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 	}
 }
 
-fn client_config(
-		cache_config: &CacheConfig,
-		dirs: &Directories,
-		genesis_hash: H256,
-		mode: Mode,
-		tracing: Switch,
-		pruning: Pruning,
-		compaction: DatabaseCompactionProfile
-	) -> ClientConfig {
-	let mut client_config = ClientConfig::default();
-	client_config.mode = mode;
-	client_config.blockchain.max_cache_size = cache_config.blockchain as usize;
-	client_config.blockchain.pref_cache_size = cache_config.blockchain as usize * 3 / 4;
-	client_config.blockchain.db_cache_size = Some(cache_config.rocksdb_blockchain_cache_size() as usize);
-	// state db cache size
-	client_config.db_cache_size = Some(cache_config.rocksdb_state_cache_size() as usize);
-	client_config.tracing.enabled = tracing;
-	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash);
-	client_config.db_compaction = compaction;
-	client_config
-}
-
 fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
@@ -133,11 +112,11 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// Setup logging
 	let _logger = setup_log(&cmd.logger_config);
 
-	unsafe { fdlimit::raise_fd_limit(); }
+	fdlimit::raise_fd_limit();
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
 
-	let cfg = client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
+	let cfg = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.vm_type);
 
 	// build client
 	let service = ClientService::start(
@@ -240,7 +219,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
 
-	let cfg = client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction);
+	let cfg = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, VMType::default());
 
 	let service = ClientService::start(
 		cfg,

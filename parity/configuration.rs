@@ -112,6 +112,10 @@ impl Configuration {
 		let ipc_conf = try!(self.ipc_config());
 		let net_conf = try!(self.net_config());
 		let network_id = try!(self.network_id());
+		let cache_config = self.cache_config();
+		let spec = try!(self.chain().parse());
+		let tracing = try!(self.args.flag_tracing.parse());
+		let compaction = try!(self.args.flag_db_compaction.parse());
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -147,31 +151,31 @@ impl Configuration {
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
 			let import_cmd = ImportBlockchain {
-				spec: try!(self.chain().parse()),
+				spec: spec,
 				logger_config: logger_config,
-				cache_config: self.cache_config(),
+				cache_config: cache_config,
 				dirs: dirs,
 				file_path: self.args.arg_file.clone(),
 				format: None,
 				pruning: pruning,
-				compaction: try!(self.args.flag_db_compaction.parse()),
+				compaction: compaction,
 				mode: mode,
-				tracing: try!(self.args.flag_tracing.parse()),
+				tracing: tracing,
 				vm_type: vm_type,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
 			let export_cmd = ExportBlockchain {
-				spec: try!(self.chain().parse()),
+				spec: spec,
 				logger_config: logger_config,
-				cache_config: self.cache_config(),
+				cache_config: cache_config,
 				dirs: dirs,
 				file_path: self.args.arg_file.clone(),
 				format: None,
 				pruning: pruning,
-				compaction: try!(self.args.flag_db_compaction.parse()),
+				compaction: compaction,
 				mode: mode,
-				tracing: try!(self.args.flag_tracing.parse()),
+				tracing: tracing,
 				from_block: try!(to_block_id(&self.args.flag_from)),
 				to_block: try!(to_block_id(&self.args.flag_to)),
 			};
@@ -184,8 +188,9 @@ impl Configuration {
 			};
 
 			let run_cmd = RunCmd {
+				cache_config: cache_config,
 				directories: dirs,
-				spec: try!(self.chain().parse()),
+				spec: spec,
 				pruning: pruning,
 				daemon: daemon,
 				logger_config: logger_config,
@@ -197,6 +202,10 @@ impl Configuration {
 				acc_conf: try!(self.accounts_config()),
 				gas_pricer: try!(self.gas_pricer_config()),
 				miner_extras: try!(self.miner_extras()),
+				mode: mode,
+				tracing: tracing,
+				compaction: compaction,
+				vm_type: vm_type,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -661,6 +670,7 @@ mod tests {
 		let conf = Configuration::parse(args).unwrap();
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Run(RunCmd {
+			cache_config: Default::default(),
 			directories: Default::default(),
 			spec: Default::default(),
 			pruning: Default::default(),
@@ -678,6 +688,10 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
+			mode: Default::default(),
+			tracing: Default::default(),
+			compaction: Default::default(),
+			vm_type: Default::default(),
 		}));
 	}
 

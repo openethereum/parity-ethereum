@@ -83,7 +83,7 @@ use ctrlc::CtrlC;
 use util::{Colour, version, H256, NetworkConfiguration, U256, Address};
 use util::journaldb::Algorithm;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, ClientConfig, ChainNotify};
+use ethcore::client::{Mode, ClientConfig, ChainNotify, Switch, DatabaseCompactionProfile, VMType};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
@@ -98,12 +98,13 @@ use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
-use helpers::{to_mode, to_address, to_u256};
+use helpers::{to_mode, to_address, to_u256, to_client_config};
 use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
 use dir::Directories;
 use setup_log::{LoggerConfig, setup_log};
 use fdlimit::raise_fd_limit;
 use std::process;
+use cache::CacheConfig;
 
 fn main() {
 	let conf = Configuration::parse(env::args()).unwrap_or_else(|e| e.exit());
@@ -125,6 +126,7 @@ fn new_execute(conf: Configuration) -> Result<String, String> {
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
+	cache_config: CacheConfig,
 	directories: Directories,
 	spec: SpecType,
 	pruning: Pruning,
@@ -139,6 +141,10 @@ pub struct RunCmd {
 	acc_conf: AccountsConfig,
 	gas_pricer: GasPricerConfig,
 	miner_extras: MinerExtras,
+	mode: Mode,
+	tracing: Switch,
+	compaction: DatabaseCompactionProfile,
+	vm_type: VMType,
 }
 
 fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -193,6 +199,18 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
+
+	// create client config
+	let client_config = to_client_config(
+		&cmd.cache_config,
+		&cmd.directories,
+		genesis_hash,
+		cmd.mode,
+		cmd.tracing,
+		cmd.pruning,
+		cmd.compaction,
+		cmd.vm_type
+	);
 
 	Ok(())
 }

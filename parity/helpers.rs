@@ -17,9 +17,12 @@
 use std::{io, env};
 use std::io::Write;
 use std::time::Duration;
-use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, NetworkConfiguration, NonReservedPeerMode};
-use ethcore::client::{Mode, BlockID};
+use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, NetworkConfiguration, NonReservedPeerMode, H256};
+use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::PendingSet;
+use cache::CacheConfig;
+use dir::Directories;
+use params::Pruning;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -171,6 +174,30 @@ pub fn default_network_config() -> NetworkConfiguration {
 		reserved_nodes: Vec::new(),
 		non_reserved_mode: NonReservedPeerMode::Accept,
 	}
+}
+
+pub fn to_client_config(
+		cache_config: &CacheConfig,
+		dirs: &Directories,
+		genesis_hash: H256,
+		mode: Mode,
+		tracing: Switch,
+		pruning: Pruning,
+		compaction: DatabaseCompactionProfile,
+		vm_type: VMType
+	) -> ClientConfig {
+	let mut client_config = ClientConfig::default();
+	client_config.mode = mode;
+	client_config.blockchain.max_cache_size = cache_config.blockchain as usize;
+	client_config.blockchain.pref_cache_size = cache_config.blockchain as usize * 3 / 4;
+	client_config.blockchain.db_cache_size = Some(cache_config.rocksdb_blockchain_cache_size() as usize);
+	// state db cache size
+	client_config.db_cache_size = Some(cache_config.rocksdb_state_cache_size() as usize);
+	client_config.tracing.enabled = tracing;
+	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash);
+	client_config.db_compaction = compaction;
+	client_config.vm_type = vm_type;
+	client_config
 }
 
 #[cfg(test)]
