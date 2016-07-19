@@ -174,6 +174,9 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.directories, genesis_hash);
 
+	// prepare client_path
+	let client_path = cmd.directories.client_path(genesis_hash, algorithm);
+
 	// execute upgrades
 	try!(execute_upgrades(&cmd.directories, genesis_hash, algorithm));
 
@@ -234,7 +237,7 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 	let service = try!(ClientService::start(
 		client_config,
 		spec,
-		Path::new(&cmd.directories.db),
+		Path::new(&client_path),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
