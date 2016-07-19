@@ -26,6 +26,7 @@ extern crate rustc_serialize;
 extern crate docopt;
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate ethcore_logger;
 
 use std::sync::Arc;
 use hypervisor::{HypervisorServiceClient, SYNC_MODULE_ID, HYPERVISOR_IPC_URL};
@@ -37,15 +38,44 @@ use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
 use std::thread;
 use nanoipc::IpcInterface;
 
+use ethcore_logger::Settings as LogSettings;
+use ethcore_logger::setup_log;
+
 const USAGE: &'static str = "
 Ethcore sync service
 Usage:
-  sync <client-url>
+  sync <client-url> [options]
+
+ Options:
+  -l --logging LOGGING     Specify the logging level. Must conform to the same
+                           format as RUST_LOG.
+  --log-file FILENAME      Specify a filename into which logging should be
+                           directed.
+  --no-color               Don't use terminal color codes in output.
 ";
 
 #[derive(Debug, RustcDecodable)]
 struct Args {
 	arg_client_url: String,
+	flag_logging: Option<String>,
+	flag_log_file: Option<String>,
+	flag_no_color: bool,
+}
+
+impl Args {
+	pub fn log_settings(&self) -> LogSettings {
+		let mut settings = LogSettings::new();
+		if self.flag_no_color || cfg!(windows) {
+			settings = settings.no_color();
+		}
+		if let Some(ref init) = self.flag_logging {
+			settings = settings.init(init.to_owned())
+		}
+		if let Some(ref file) = self.flag_log_file {
+			settings = settings.file(file.to_owned())
+		}
+		settings
+	}
 }
 
 fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>) where T: IpcInterface {
@@ -66,6 +96,8 @@ fn main() {
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.decode())
 		.unwrap_or_else(|e| e.exit());
+
+	setup_log(&args.log_settings());
 
 	let mut buffer = Vec::new();
 	io::stdin().read_to_end(&mut buffer).expect("Failed to read initialisation payload");
