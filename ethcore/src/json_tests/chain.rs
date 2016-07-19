@@ -69,7 +69,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 					if Block::is_good(&b) {
 						let _ = client.import_block(b.clone());
 						client.flush_queue();
-						client.import_verified_blocks(&IoChannel::disconnected());
+						client.import_verified_blocks();
 					}
 				}
 				fail_unless(client.chain_info().best_block_hash == blockchain.best_block.into());
