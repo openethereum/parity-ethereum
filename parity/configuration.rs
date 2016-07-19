@@ -25,11 +25,10 @@ use docopt::{Docopt, Error as DocoptError};
 use util::{Hashable, NetworkConfiguration, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, Address};
 use util::network_settings::NetworkSettings;
 use util::log::Colour;
-use ethcore::client::{ClientConfig, VMType};
+use ethcore::client::VMType;
 use ethcore::miner::MinerOptions;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
-use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
@@ -38,7 +37,11 @@ use setup_log::LoggerConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
 use signer::Configuration as SignerConfiguration;
-use RunCmd;
+use run::RunCmd;
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
+use presale::ImportWallet;
+use account::{AccountCmd, NewAccount, ImportAccounts};
+use Cmd;
 
 /// Should be used to read password.
 pub trait PasswordReader {
@@ -543,10 +546,13 @@ mod tests {
 	use docopt::Docopt;
 	use util::network_settings::NetworkSettings;
 	use ethcore::client::{VMType, BlockID};
-	use commands::{Cmd, AccountCmd, NewAccount, ImportAccounts, ImportWallet, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use helpers::{replace_home, default_network_config};
 	use setup_log::LoggerConfig;
-	use RunCmd;
+	use run::RunCmd;
+	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
+	use presale::ImportWallet;
+	use account::{AccountCmd, NewAccount, ImportAccounts};
+	use Cmd;
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
