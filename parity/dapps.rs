@@ -18,12 +18,14 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use util::panics::PanicHandler;
 use rpc_apis;
+use helpers::replace_home;
 
 #[cfg(feature = "dapps")]
 pub use ethcore_dapps::Server as WebappServer;
 #[cfg(not(feature = "dapps"))]
 pub struct WebappServer;
 
+#[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub enabled: bool,
 	pub interface: String,
@@ -31,6 +33,19 @@ pub struct Configuration {
 	pub user: Option<String>,
 	pub pass: Option<String>,
 	pub dapps_path: String,
+}
+
+impl Default for Configuration {
+	fn default() -> Self {
+		Configuration {
+			enabled: true,
+			interface: "127.0.0.1".into(),
+			port: 8080,
+			user: None,
+			pass: None,
+			dapps_path: replace_home("$HOME/.parity/dapps"),
+		}
+	}
 }
 
 pub struct Dependencies {

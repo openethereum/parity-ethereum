@@ -80,6 +80,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
 use std::env;
 use ctrlc::CtrlC;
+use util::network_settings::NetworkSettings;
 use util::{Colour, version, H256, NetworkConfiguration, U256, Address};
 use util::journaldb::Algorithm;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
@@ -145,6 +146,11 @@ pub struct RunCmd {
 	tracing: Switch,
 	compaction: DatabaseCompactionProfile,
 	vm_type: VMType,
+	enable_network: bool,
+	geth_compatibility: bool,
+	signer_port: Option<u16>,
+	net_settings: NetworkSettings,
+	dapps_conf: dapps::Configuration,
 }
 
 fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -152,7 +158,7 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 	raise_fd_limit();
 
 	// set up logger
-	let _logger = setup_log(&cmd.logger_config);
+	let logger = try!(setup_log(&cmd.logger_config));
 
 	// set up panic handler
 	let panic_handler = PanicHandler::new_in_arc();
@@ -211,6 +217,63 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 		cmd.compaction,
 		cmd.vm_type
 	);
+
+	// load spec
+	// TODO: make it clonable and load it only once!
+	let spec = try!(cmd.spec.spec());
+
+	// create client
+	let mut service = try!(ClientService::start(
+		client_config,
+		spec,
+		Path::new(&cmd.directories.db),
+		miner.clone(),
+	).map_err(|e| format!("Client service error: {:?}", e)));
+
+	// forward panics from service
+	panic_handler.forward_from(&service);
+
+	// take handle to client
+	let client = service.client();
+
+	// create external miner
+	let external_miner = Arc::new(ExternalMiner::default());
+
+	// create sync object
+	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
+		sync_config, cmd.net_conf.into(), client.clone()
+	).map_err(|e| format!("Sync error: {}", e)));
+
+	service.set_notify(&chain_notify);
+
+	// start network
+	if cmd.enable_network {
+		chain_notify.start();
+	}
+
+	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
+		signer_port: cmd.signer_port,
+		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
+		client: client.clone(),
+		sync: sync_provider.clone(),
+		net: manage_network.clone(),
+		secret_store: account_provider.clone(),
+		miner: miner.clone(),
+		external_miner: external_miner.clone(),
+		logger: logger.clone(),
+		settings: Arc::new(cmd.net_settings.clone()),
+		allow_pending_receipt_query: !cmd.geth_compatibility,
+		net_service: manage_network.clone()
+	});
+
+	let dependencies = rpc::Dependencies {
+		panic_handler: panic_handler.clone(),
+		apis: deps_for_rpc_apis.clone(),
+	};
+
+	let http_server = try!(rpc::new_http(cmd.http_conf, &dependencies));
+	let ipc_server = try!(rpc::new_ipc(cmd.ipc_conf, &dependencies));
+
 
 	Ok(())
 }

@@ -38,6 +38,7 @@ geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
 use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use setup_log::LoggerConfig;
 use dir::Directories;
+use dapps::Configuration as DappsConfiguration;
 use RunCmd;
 
 /// Should be used to read password.
@@ -116,6 +117,10 @@ impl Configuration {
 		let spec = try!(self.chain().parse());
 		let tracing = try!(self.args.flag_tracing.parse());
 		let compaction = try!(self.args.flag_db_compaction.parse());
+		let enable_network = true;
+		let geth_compatibility = self.args.flag_geth;
+		let signer_port = self.signer_port();
+		let dapps_conf = self.dapps_config();
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -206,6 +211,11 @@ impl Configuration {
 				tracing: tracing,
 				compaction: compaction,
 				vm_type: vm_type,
+				enable_network: enable_network,
+				geth_compatibility: geth_compatibility,
+				signer_port: signer_port,
+				net_settings: self.network_settings(),
+				dapps_conf: dapps_conf,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -297,6 +307,17 @@ impl Configuration {
 		};
 
 		Ok(options)
+	}
+
+	fn dapps_config(&self) -> DappsConfiguration {
+		DappsConfiguration {
+			enabled: self.dapps_enabled(),
+			interface: self.dapps_interface(),
+			port: self.args.flag_dapps_port,
+			user: self.args.flag_dapps_user.clone(),
+			pass: self.args.flag_dapps_pass.clone(),
+			dapps_path: self.directories().dapps,
+		}
 	}
 
 	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
@@ -692,6 +713,11 @@ mod tests {
 			tracing: Default::default(),
 			compaction: Default::default(),
 			vm_type: Default::default(),
+			enable_network: true,
+			geth_compatibility: false,
+			signer_port: Some(8180),
+			net_settings: Default::default(),
+			dapps_conf: Default::default(),
 		}));
 	}
 
