@@ -53,15 +53,16 @@ extern crate ansi_term;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
+extern crate ethcore_logger;
 extern crate isatty;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
+
 #[macro_use]
 mod die;
 mod upgrade;
-mod setup_log;
 mod rpc;
 mod dapps;
 mod informant;
@@ -95,6 +96,7 @@ use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
 use util::{Mutex, Condvar};
+use ethcore_logger::setup_log;
 
 use die::*;
 use cli::print_version;
@@ -132,7 +134,7 @@ fn execute(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
+	let logger = setup_log(&conf.log_settings());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
