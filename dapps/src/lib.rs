@@ -129,7 +129,6 @@ impl Server {
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special
 		});
-		let bind_address = format!("{}", addr);
 
 		try!(hyper::Server::http(addr))
 			.handle(move |_| router::Router::new(
@@ -137,7 +136,6 @@ impl Server {
 				endpoints.clone(),
 				special.clone(),
 				authorization.clone(),
-				bind_address.clone(),
 			))
 			.map(|(l, srv)| {
 
