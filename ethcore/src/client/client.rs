@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet, HashMap, VecDeque};
 use std::ops::Deref;
-use std::mem;
-use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
 use std::path::{Path, PathBuf};
 use std::fmt;
@@ -67,8 +65,6 @@ use trace;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
-use ipc::IpcConfig;
-use ipc::binary::{BinaryConvertError};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -141,7 +137,6 @@ pub struct Client {
 	io_channel: IoChannel<ClientIoMessage>,
 	notify: RwLock<Option<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
-	previous_enode: Mutex<Option<String>>,
 	skipped: AtomicUsize,
 	last_import: Mutex<Instant>,
 	last_hashes: RwLock<VecDeque<H256>>,
@@ -226,7 +221,6 @@ impl Client {
 			io_channel: message_channel,
 			notify: RwLock::new(None),
 			queue_transactions: AtomicUsize::new(0),
-			previous_enode: Mutex::new(None),
 			skipped: AtomicUsize::new(0),
 			last_import: Mutex::new(Instant::now()),
 			last_hashes: RwLock::new(VecDeque::new()),
@@ -248,6 +242,9 @@ impl Client {
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
 		self.block_queue.flush();
+		while !self.block_queue.queue_info().is_empty() {
+			self.import_verified_blocks();
+		}
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
@@ -348,7 +345,7 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, io: &IoChannel<ClientIoMessage>) -> usize {
+	pub fn import_verified_blocks(&self) -> usize {
 		let max_blocks_to_import = 64;
 		let (imported_blocks, import_results, invalid_blocks, original_best, imported) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
@@ -392,7 +389,7 @@ impl Client {
 				if Instant::now() > *last_import + Duration::from_secs(1) {
 					let queue_info = self.queue_info();
 					let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
-					if !importing { 
+					if !importing {
 						let skipped = self.skipped.load(AtomicOrdering::Relaxed);
 						info!(target: "import", "Imported {} {} ({} txs, {} Mgas, {} ms, {} KiB){}",
 							Colour::White.bold().paint(format!("#{}", header.number())),
@@ -401,13 +398,13 @@ impl Client {
 							Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used.low_u64() as f32 / 1000000f32)),
 							Colour::Purple.bold().paint(format!("{:.2}", duration_ns as f32 / 1000000f32)),
 							Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
-							if skipped > 0 { format!(" + another {} block(s)", Colour::Red.bold().paint(format!("{}", skipped))) } else { String::new() } 
+							if skipped > 0 { format!(" + another {} block(s)", Colour::Red.bold().paint(format!("{}", skipped))) } else { String::new() }
 						);
 						*last_import = Instant::now();
 					}
 					self.skipped.store(0, AtomicOrdering::Relaxed);
 				} else {
-					self.skipped.fetch_add(1, AtomicOrdering::Relaxed); 
+					self.skipped.fetch_add(1, AtomicOrdering::Relaxed);
 				}
 			}
 
@@ -658,8 +655,6 @@ impl Client {
 	}
 }
 
-#[derive(Ipc)]
-#[ipc(client_ident="RemoteClient")]
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
 		let header = self.block_header(BlockID::Latest).unwrap();
@@ -1062,5 +1057,3 @@ impl MayPanic for Client {
 		self.panic_handler.on_panic(closure);
 	}
 }
-
-impl IpcConfig for BlockChainClient { }

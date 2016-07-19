@@ -206,14 +206,29 @@ pub trait EthSigning: Sized + Send + Sync + 'static {
 	/// Signs the data with given address signature.
 	fn sign(&self, _: Params) -> Result<Value, Error>;
 
-	/// Sends transaction.
+	/// Sends transaction; will block for 20s to try to return the
+	/// transaction hash.
+	/// If it cannot yet be signed, it will return a transaction ID for
+	/// later use with check_transaction. 
 	fn send_transaction(&self, _: Params) -> Result<Value, Error>;
+
+	/// Posts transaction asynchronously.
+	/// Will return a transaction ID for later use with check_transaction. 
+	fn post_transaction(&self, _: Params) -> Result<Value, Error>;
+
+	/// Checks the progress of a previously posted transaction.
+	/// Should be given a valid send_transaction ID.
+	/// Returns the transaction hash, the zero hash (not yet available),
+	/// or an error. 
+	fn check_transaction(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("eth_sign", EthSigning::sign);
 		delegate.add_method("eth_sendTransaction", EthSigning::send_transaction);
+		delegate.add_method("eth_postTransaction", EthSigning::post_transaction);
+		delegate.add_method("eth_checkTransaction", EthSigning::check_transaction);
 		delegate
 	}
 }

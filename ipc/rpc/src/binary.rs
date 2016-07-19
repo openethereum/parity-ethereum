@@ -95,6 +95,34 @@ impl<E: BinaryConvertable> BinaryConvertable for Result<(), E> {
 }
 
 
+impl<R: BinaryConvertable> BinaryConvertable for Result<R, ()> {
+	fn size(&self) -> usize {
+		match *self {
+			Ok(ref r) => r.size(),
+			Err(_) => 0,
+		}
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		match *self {
+			Ok(ref r) => Ok(try!(r.to_bytes(buffer, length_stack))),
+			Err(_) => Err(BinaryConvertError),
+		}
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		Ok(Ok(try!(R::from_bytes(&buffer, length_stack))))
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(Err(()))
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
 impl<R: BinaryConvertable, E: BinaryConvertable> BinaryConvertable for Result<R, E> {
 	fn size(&self) -> usize {
 		1usize + match *self {

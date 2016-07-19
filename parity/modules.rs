@@ -19,12 +19,14 @@ use std::sync::Arc;
 use ethcore::client::{ChainNotify, BlockChainClient};
 use ethcore;
 
+pub type Modules = (Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>);
+
 #[cfg(feature="ipc")]
 pub fn sync(
 	sync_cfg: SyncConfig,
 	net_cfg: NetworkConfiguration,
 	client: Arc<BlockChainClient>)
-	-> Result<(Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>), ethcore::error::Error>
+	-> Result<Modules, ethcore::error::Error>
 {
 }
 
@@ -33,8 +35,8 @@ pub fn sync(
 	sync_cfg: SyncConfig,
 	net_cfg: NetworkConfiguration,
 	client: Arc<BlockChainClient>)
-	-> Result<(Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>), ethcore::error::Error>
+	-> Result<Modules, ethcore::error::Error>
 {
-	let eth_sync = try!(EthSync::new(sync_cfg, client, net_cfg).map_err(|e| ethcore::error::Error::Util(e)));
+	let eth_sync = try!(EthSync::new(sync_cfg, client, net_cfg).map_err(ethcore::error::Error::Util));
 	Ok((eth_sync.clone() as Arc<SyncProvider>, eth_sync.clone() as Arc<ManageNetwork>, eth_sync.clone() as Arc<ChainNotify>))
 }

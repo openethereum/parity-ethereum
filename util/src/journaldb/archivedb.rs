@@ -49,8 +49,7 @@ pub struct ArchiveDB {
 impl ArchiveDB {
 	/// Create a new instance from file
 	pub fn new(path: &str, config: DatabaseConfig) -> ArchiveDB {
-		let opts = config.prefix(DB_PREFIX_LEN);
-		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
+		let backing = Database::open(&config, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {

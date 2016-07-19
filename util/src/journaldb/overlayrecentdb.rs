@@ -104,8 +104,7 @@ impl OverlayRecentDB {
 
 	/// Create a new instance from file
 	pub fn from_prefs(path: &str, config: DatabaseConfig) -> OverlayRecentDB {
-		let opts = config.prefix(DB_PREFIX_LEN);
-		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
+		let backing = Database::open(&config, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
