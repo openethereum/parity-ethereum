@@ -31,6 +31,16 @@ mod no_ipc_deps {
 }
 
 #[cfg(feature="ipc")]
+pub type SyncModules = (
+	GuardedSocket<SyncClient<NanoSocket>>,
+	GuardedSocket<NetworkManagerClient<NanoSocket>>,
+	GuardedSocket<ChainNotifyClient<NanoSocket>>
+);
+
+#[cfg(not(feature="ipc"))]
+pub type SyncModules = (Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>);
+
+#[cfg(feature="ipc")]
 mod ipc_deps {
 	pub use ethsync::{SyncClient, NetworkManagerClient, ServiceConfiguration};
 	pub use ethcore::client::ChainNotifyClient;
@@ -70,13 +80,7 @@ pub fn sync (
 	sync_cfg: SyncConfig,
 	net_cfg: NetworkConfiguration,
 	_client: Arc<BlockChainClient>)
-	-> Result<
-		(
-			GuardedSocket<SyncClient<NanoSocket>>,
-			GuardedSocket<NetworkManagerClient<NanoSocket>>,
-			GuardedSocket<ChainNotifyClient<NanoSocket>>
-		),
-		ethcore::error::Error>
+	-> Result<SyncModules, ethcore::error::Error>
 {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
 	hypervisor = hypervisor.module(SYNC_MODULE_ID, "sync", sync_arguments(sync_cfg, net_cfg));
@@ -98,8 +102,8 @@ pub fn sync(
 	sync_cfg: SyncConfig,
 	net_cfg: NetworkConfiguration,
 	client: Arc<BlockChainClient>)
-	-> Result<(Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>), ethcore::error::Error>
+	-> Result<SyncModules, ethcore::error::Error>
 {
-	let eth_sync = try!(EthSync::new(sync_cfg, client, net_cfg).map_err(|e| ethcore::error::Error::Util(e)));
+	let eth_sync = try!(EthSync::new(sync_cfg, client, net_cfg).map_err(ethcore::error::Error::Util));
 	Ok((eth_sync.clone() as Arc<SyncProvider>, eth_sync.clone() as Arc<ManageNetwork>, eth_sync.clone() as Arc<ChainNotify>))
 }

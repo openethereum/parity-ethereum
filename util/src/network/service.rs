@@ -33,7 +33,7 @@ impl IoHandler<NetworkIoMessage> for HostHandler {
 	fn message(&self, _io: &IoContext<NetworkIoMessage>, message: &NetworkIoMessage) {
 		if let NetworkIoMessage::NetworkStarted(ref public_url) = *message {
 			let mut url = self.public_url.write();
-			if url.as_ref().map(|uref| uref != public_url).unwrap_or(true) {
+			if url.as_ref().map_or(true, |uref| uref != public_url) {
 				info!(target: "network", "Public node URL: {}", Colour::White.bold().paint(public_url.as_ref()));
 			}
 			*url = Some(public_url.to_owned());

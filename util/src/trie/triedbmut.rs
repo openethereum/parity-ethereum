@@ -122,7 +122,7 @@ impl Node {
 
 	// encode a node to RLP
 	// TODO: parallelize
-	fn to_rlp<F>(self, mut child_cb: F) -> ElasticArray1024<u8>
+	fn into_rlp<F>(self, mut child_cb: F) -> ElasticArray1024<u8>
 		where F: FnMut(NodeHandle, &mut RlpStream)
 	{
 		match self {
@@ -183,7 +183,7 @@ enum InsertAction {
 }
 
 impl InsertAction {
-	fn as_action(self) -> Action {
+	fn into_action(self) -> Action {
 		match self {
 			InsertAction::Replace(n) => Action::Replace(n),
 			InsertAction::Restore(n) => Action::Restore(n),
@@ -442,13 +442,14 @@ impl<'a> TrieDBMut<'a> {
 		};
 		let stored = self.storage.destroy(h);
 		let (new_stored, changed) = self.inspect(stored, move |trie, stored| {
-			trie.insert_inspector(stored, partial, value).as_action()
+			trie.insert_inspector(stored, partial, value).into_action()
 		}).expect("Insertion never deletes.");
 
 		(self.storage.alloc(new_stored), changed)
 	}
 
 	/// the insertion inspector.
+	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
 	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: Bytes) -> InsertAction {
 		trace!(target: "trie", "augmented (partial: {:?}, value: {:?})", partial, value.pretty());
 
@@ -819,7 +820,7 @@ impl<'a> TrieDBMut<'a> {
 
 		match self.storage.destroy(handle) {
 			Stored::New(node) => {
-				let root_rlp = node.to_rlp(|child, stream| self.commit_node(child, stream));
+				let root_rlp = node.into_rlp(|child, stream| self.commit_node(child, stream));
 				*self.root = self.db.insert(&root_rlp[..]);
 				self.hash_count += 1;
 
@@ -842,7 +843,7 @@ impl<'a> TrieDBMut<'a> {
 			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
 				Stored::Cached(_, h) => stream.append(&h),
 				Stored::New(node) => {
-					let node_rlp = node.to_rlp(|child, stream| self.commit_node(child, stream));
+					let node_rlp = node.into_rlp(|child, stream| self.commit_node(child, stream));
 					if node_rlp.len() >= 32 {
 						let hash = self.db.insert(&node_rlp[..]);
 						self.hash_count += 1;

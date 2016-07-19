@@ -302,7 +302,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				};
 				to_value(&res)
 			}
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 

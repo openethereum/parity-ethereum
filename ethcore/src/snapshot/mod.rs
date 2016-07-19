@@ -72,7 +72,7 @@ pub fn take_snapshot(client: &BlockChainClient, mut path: PathBuf, state_db: &Ha
 
 	let mut manifest_file = try!(File::create(&path));
 
-	try!(manifest_file.write_all(&manifest_data.to_rlp()));
+	try!(manifest_file.write_all(&manifest_data.into_rlp()));
 
 	Ok(())
 }
@@ -287,7 +287,7 @@ pub struct ManifestData {
 
 impl ManifestData {
 	/// Encode the manifest data to rlp.
-	pub fn to_rlp(self) -> Bytes {
+	pub fn into_rlp(self) -> Bytes {
 		let mut stream = RlpStream::new_list(5);
 		stream.append(&self.state_hashes);
 		stream.append(&self.block_hashes);
