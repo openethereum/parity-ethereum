@@ -47,10 +47,9 @@ impl AbridgedBlock {
 	/// producing new rlp.
 	pub fn from_block_view(block_view: &BlockView) -> Self {
 		let header = block_view.header_view();
-
 		let seal_fields = header.seal();
 
-		// 10 header fields, unknown amount of seal fields, and 2 block fields.
+		// 10 header fields, unknown number of seal fields, and 2 block fields.
 		let mut stream = RlpStream::new_list(
 			HEADER_FIELDS +
 			seal_fields.len() +
@@ -107,25 +106,20 @@ impl AbridgedBlock {
 		let transactions = try!(rlp.val_at(10));
 		let uncles: Vec<Header> = try!(rlp.val_at(11));
 
-		// iterator-based approach is cleaner but doesn't work w/ try.
-		let seal = {
-			let mut seal = Vec::new();
-
-			for i in 12..rlp.item_count() {
-				seal.push(try!(rlp.val_at(i)));
-			}
-
-			seal
-		};
-
-		header.set_seal(seal);
-
 		let uncle_bytes = uncles.iter()
 			.fold(RlpStream::new_list(uncles.len()), |mut s, u| {
 				s.append_raw(&u.rlp(::basic_types::Seal::With), 1);
 				s
 			}).out();
 		header.uncles_hash = uncle_bytes.sha3();
+
+		let mut seal_fields = Vec::new();
+		for i in (HEADER_FIELDS + BLOCK_FIELDS)..rlp.item_count() {
+			let seal_rlp = try!(rlp.at(i));
+			seal_fields.push(try!(seal_rlp.as_raw()).to_owned());
+		}
+
+		header.set_seal(seal_fields);
 
 		Ok(Block {
 			header: header,

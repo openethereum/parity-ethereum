@@ -43,7 +43,7 @@ pub struct EthashParams {
 	pub dao_hardfork_transition: u64,
 	/// DAO hard-fork refund contract address (C).
 	pub dao_hardfork_beneficiary: Address,
-	/// DAO hard-fork DAO accounts list (L) 
+	/// DAO hard-fork DAO accounts list (L)
 	pub dao_hardfork_accounts: Vec<Address>,
 }
 
@@ -131,7 +131,7 @@ impl Engine for Ethash {
 		if header.number >= self.ethash_params.dao_hardfork_transition &&
 			header.number <= self.ethash_params.dao_hardfork_transition + 9 {
 			header.extra_data = b"dao-hard-fork"[..].to_owned();
-		}  
+		}
 		header.note_dirty();
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
@@ -199,8 +199,8 @@ impl Engine for Ethash {
 
 		if header.gas_limit > 0x7fffffffffffffffu64.into() {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit })));
-		}  
-		
+		}
+
 		Ok(())
 	}
 
