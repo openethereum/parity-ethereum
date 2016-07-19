@@ -77,8 +77,9 @@ pub trait SigningQueue: Send + Sync {
 	fn is_empty(&self) -> bool;
 }
 
-#[derive(Debug, PartialEq)]
-enum ConfirmationResult {
+#[derive(Debug, Clone, PartialEq)]
+/// Result of a pending transaction.
+pub enum ConfirmationResult {
 	/// The transaction has not yet been confirmed nor rejected.
 	Waiting,
 	/// The transaction has been rejected.
@@ -125,34 +126,43 @@ impl ConfirmationToken {
 }
 
 impl ConfirmationPromise {
+	/// Get the ID for this request.
+	pub fn id(&self) -> U256 { self.id }
+
 	/// Blocks current thread and awaits for
 	/// resolution of the transaction (rejected / confirmed)
 	/// Returns `None` if transaction was rejected or timeout reached.
 	/// Returns `Some(result)` if transaction was confirmed.
 	pub fn wait_with_timeout(&self) -> Option<RpcResult> {
 		let timeout = Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC);
-		let deadline = Instant::now() + timeout;
+		let res = self.wait_until(Instant::now() + timeout);
+		match res {
+			ConfirmationResult::Confirmed(h) => Some(h),
+			ConfirmationResult::Rejected | ConfirmationResult::Waiting => None,
+		}
+	}
 
-		info!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", self.id);
+	/// Just get the result, assuming it exists.
+	pub fn result(&self) -> ConfirmationResult { self.wait_until(Instant::now()) }
+
+	/// Blocks current thread and awaits for
+	/// resolution of the transaction (rejected / confirmed)
+	/// Returns `None` if transaction was rejected or timeout reached.
+	/// Returns `Some(result)` if transaction was confirmed.
+	pub fn wait_until(&self, deadline: Instant) -> ConfirmationResult {
+		trace!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", self.id);
 		loop {
 			let now = Instant::now();
-			if now >= deadline {
-				break;
+			// Check the result...
+			match *self.result.lock() {
+				// Waiting and deadline not yet passed continue looping.  
+				ConfirmationResult::Waiting if now < deadline => {}
+				// Anything else - return.
+				ref a => return a.clone(),
 			}
-			// Park thread (may wake up spuriously)
+			// wait a while longer - maybe the solution will arrive.
 			thread::park_timeout(deadline - now);
-			// Take confirmation result
-			let res = self.result.lock();
-			// Check the result
-			match *res {
-				ConfirmationResult::Rejected => return None,
-				ConfirmationResult::Confirmed(ref h) => return Some(h.clone()),
-				ConfirmationResult::Waiting => continue,
-			}
 		}
-		// We reached the timeout. Just return `None`
-		trace!(target: "own_tx", "Signer: Confirmation timeout reached... ({:?}).", self.id);
-		None
 	}
 }
 
@@ -237,7 +247,7 @@ impl Drop for ConfirmationsQueue {
 	}
 }
 
-impl SigningQueue for  ConfirmationsQueue {
+impl SigningQueue for ConfirmationsQueue {
 	fn add_request(&self, transaction: TransactionRequest) -> ConfirmationPromise {
 		// Increment id
 		let id = {
