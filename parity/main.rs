@@ -248,7 +248,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, 
 
 	// Sync
 	let (sync_provider, manage_network, chain_notify) =
-		modules::sync(&mut hypervisor, sync_config, NetworkConfiguration::from(net_settings), client.clone())
+		modules::sync(&mut hypervisor, sync_config, NetworkConfiguration::from(net_settings), client.clone(), &conf.log_settings())
 			.unwrap_or_else(|e| die_with_error("Sync", e));
 	service.set_notify(chain_notify.clone());
 
