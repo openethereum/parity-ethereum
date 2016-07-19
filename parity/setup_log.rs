@@ -33,6 +33,16 @@ pub struct LoggerConfig {
 	pub file: Option<String>,
 }
 
+impl Default for LoggerConfig {
+	fn default() -> Self {
+		LoggerConfig {
+			mode: None,
+			color: !cfg!(windows),
+			file: None,
+		}
+	}
+}
+
 /// Sets up the logger
 pub fn setup_log(config: &LoggerConfig) -> Result<Arc<RotatingLogger>, String> {
 	use rlog::*;

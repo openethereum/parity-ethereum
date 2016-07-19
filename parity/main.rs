@@ -225,6 +225,11 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 	// TODO: make it clonable and load it only once!
 	let spec = try!(cmd.spec.spec());
 
+	// set up bootnodes
+	let mut net_conf = cmd.net_conf;
+	// TODO: this should happen only if bootnodes where not specified in commandline
+	net_conf.boot_nodes = spec.nodes.clone();
+
 	// create client
 	let service = try!(ClientService::start(
 		client_config,
@@ -244,7 +249,7 @@ fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		sync_config, cmd.net_conf.into(), client.clone()
+		sync_config, net_conf.into(), client.clone()
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.set_notify(&chain_notify);

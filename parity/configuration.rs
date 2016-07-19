@@ -27,6 +27,7 @@ use util::network_settings::NetworkSettings;
 use util::log::Colour;
 use ethcore::client::{ClientConfig, VMType};
 use ethcore::miner::MinerOptions;
+
 use rpc::{IpcConfiguration, HttpConfiguration};
 use commands::{Cmd, AccountCmd, ImportWallet, NewAccount, ImportAccounts, BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use cache::CacheConfig;
@@ -97,16 +98,11 @@ impl Configuration {
 
 	pub fn into_command(self, password: &PasswordReader) -> Result<Cmd, String> {
 		let dirs = self.directories();
-		let logger_config = LoggerConfig {
-			mode: None,
-			color: false,
-			file: None,
-		};
 		let pruning = try!(self.args.flag_pruning.parse());
 		let vm_type = try!(self.vm_type());
 		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
 		let miner_options = try!(self.miner_options());
-
+		let logger_config = self.logger_config();
 		let http_conf = try!(self.http_config());
 		let ipc_conf = try!(self.ipc_config());
 		let net_conf = try!(self.net_config());
@@ -257,6 +253,14 @@ impl Configuration {
 				blockchain: self.args.flag_cache_size_blocks,
 				queue: self.args.flag_cache_size_queue,
 			}
+		}
+	}
+
+	fn logger_config(&self) -> LoggerConfig {
+		LoggerConfig {
+			mode: self.args.flag_logging.clone(),
+			color: !self.args.flag_no_color && !cfg!(windows),
+			file: self.args.flag_log_file.clone(),
 		}
 	}
 
@@ -625,11 +629,7 @@ mod tests {
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
 			spec: Default::default(),
-			logger_config: LoggerConfig {
-				mode: None,
-				color: false,
-				file: None,
-			},
+			logger_config: Default::default(),
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
@@ -649,11 +649,7 @@ mod tests {
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
-			logger_config: LoggerConfig {
-				mode: None,
-				color: false,
-				file: None,
-			},
+			logger_config: Default::default(),
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
@@ -687,11 +683,7 @@ mod tests {
 			spec: Default::default(),
 			pruning: Default::default(),
 			daemon: None,
-			logger_config: LoggerConfig {
-				mode: None,
-				color: false,
-				file: None,
-			},
+			logger_config: Default::default(),
 			miner_options: Default::default(),
 			http_conf: Default::default(),
 			ipc_conf: Default::default(),
