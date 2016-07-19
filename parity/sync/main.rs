@@ -33,7 +33,7 @@ use ctrlc::CtrlC;
 use std::sync::atomic::{AtomicBool, Ordering};
 use docopt::Docopt;
 use ethcore::client::{RemoteClient, ChainNotify};
-use ethsync::{SyncProvider, SyncConfig, EthSync, ManageNetwork, NetworkConfiguration};
+use ethsync::{SyncProvider, SyncConfig, EthSync, ManageNetwork, NetworkConfiguration, ServiceConfiguration};
 use std::thread;
 use util::numbers::{U256, H256};
 use std::str::FromStr;
@@ -43,54 +43,12 @@ use util::sha3::Hashable;
 const USAGE: &'static str = "
 Ethcore sync service
 Usage:
-  sync <client-url> <network-id> <listen-address> <nat-enabled> <discovery-enabled> <ideal-peers> <config-path> <allow-non-reserved> [options]
-
-Options:
-  --public-address IP      Public address.
-  --boot-nodes LIST        List of boot nodes.
-  --reserved-nodes LIST    List of reserved peers,
-  --secret HEX             Use node key hash
-  --udp-port               UDP port
+  sync <client-url>
 ";
 
 #[derive(Debug, RustcDecodable)]
 struct Args {
-	arg_network_id: String,
-	arg_listen_address: String,
-	arg_nat_enabled: bool,
-	arg_discovery_enabled: bool,
-	arg_ideal_peers: u32,
-	arg_config_path: String,
 	arg_client_url: String,
-	arg_allow_non_reserved: bool,
-	flag_public_address: Option<String>,
-	flag_secret: Option<String>,
-	flag_boot_nodes: Vec<String>,
-	flag_reserved_nodes: Vec<String>,
-	flag_udp_port: Option<u16>,
-}
-
-impl Args {
-	pub fn into_config(self) -> (SyncConfig, NetworkConfiguration, String) {
-		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = U256::from_str(&self.arg_network_id).unwrap();
-
-		let network_config = NetworkConfiguration {
-			udp_port: self.flag_udp_port,
-			nat_enabled: self.arg_nat_enabled,
-			boot_nodes: self.flag_boot_nodes,
-			listen_address: Some(self.arg_listen_address),
-			public_address: self.flag_public_address,
-			use_secret: self.flag_secret.as_ref().map(|s| H256::from_str(s).unwrap_or_else(|_| s.sha3())),
-			discovery_enabled: self.arg_discovery_enabled,
-			ideal_peers: self.arg_ideal_peers,
-			config_path: Some(self.arg_config_path),
-			reserved_nodes: self.flag_reserved_nodes,
-			allow_non_reserved: self.arg_allow_non_reserved,
-		};
-
-		(sync_config, network_config, self.arg_client_url)
-	}
 }
 
 fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>) where T: IpcInterface {
@@ -106,16 +64,22 @@ fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<At
 }
 
 fn main() {
+	use std::io::{self, Read};
+
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.decode())
 		.unwrap_or_else(|e| e.exit());
-	let (sync_config, network_config, client_url) = args.into_config();
-	let remote_client = nanoipc::init_client::<RemoteClient<_>>(&client_url).unwrap();
+
+	let mut buffer = Vec::new();
+	io::stdin().read_to_end(&mut buffer).expect("Failed to read initialisation payload");
+	let service_config = ipc::binary::deserialize::<ServiceConfiguration>(&buffer).expect("Failed deserializing initialisation payload");
+
+	let remote_client = nanoipc::init_client::<RemoteClient<_>>(&args.arg_client_url).unwrap();
 
 	remote_client.handshake().unwrap();
 
 	let stop = Arc::new(AtomicBool::new(false));
-	let sync = EthSync::new(sync_config, remote_client.service().clone(), network_config).unwrap();
+	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), service_config.net).unwrap();
 
 	run_service("ipc:///tmp/parity-sync.ipc", stop.clone(), sync.clone() as Arc<SyncProvider>);
 	run_service("ipc:///tmp/parity-manage-net.ipc", stop.clone(), sync.clone() as Arc<ManageNetwork>);

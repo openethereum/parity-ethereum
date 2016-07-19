@@ -32,11 +32,12 @@ mod no_ipc_deps {
 
 #[cfg(feature="ipc")]
 mod ipc_deps {
-	pub use ethsync::{SyncClient, NetworkManagerClient};
+	pub use ethsync::{SyncClient, NetworkManagerClient, ServiceConfiguration};
 	pub use ethcore::client::ChainNotifyClient;
 	pub use hypervisor::{SYNC_MODULE_ID, BootArgs};
 	pub use nanoipc::{GuardedSocket, NanoSocket, init_client};
 	pub use ipc::IpcSocket;
+	pub use ipc::binary::serialize;
 }
 
 
@@ -51,18 +52,16 @@ pub fn hypervisor() -> Option<Hypervisor> {
 }
 
 #[cfg(feature="ipc")]
-fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration) -> Vec<String> {
-	let mut result = Vec::new();
-	result.push("ipc:///tmp/parity-chain.ipc".to_owned());
-	result.push(format!("{}", sync_cfg.network_id));
-	result.push(format!("{}", net_cfg.listen_address.unwrap_or("0.0.0.0:30303".to_owned())));
-	result.push(format!("{}", match net_cfg.nat_enabled { true => "yes".to_owned(), false => "no".to_owned() }));
-	result.push(format!("{}", match net_cfg.discovery_enabled { true => "yes".to_owned(), false => "no".to_owned() }));
-	result.push(format!("{}", net_cfg.ideal_peers));
-	result.push(format!("{}", net_cfg.config_path.unwrap_or(".".to_owned())));
-	result.push(format!("{}", match net_cfg.allow_non_reserved { true => "yes".to_owned(), false => "no".to_owned() }));
+fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration) -> BootArgs {
+	let service_config = ServiceConfiguration {
+		sync: sync_cfg,
+		net: net_cfg,
+	};
 
-	result
+	let service_payload = serialize(&service_config).expect("Any binary-derived struct is serializable by definition");
+
+	// client service url is passed in command line
+	BootArgs::new().stdin(service_payload).cli(vec!["ipc:///tmp/parity-chain.ipc".to_owned()])
 }
 
 #[cfg(feature="ipc")]
@@ -80,7 +79,7 @@ pub fn sync (
 		ethcore::error::Error>
 {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
-	hypervisor = hypervisor.module(SYNC_MODULE_ID, "sync", BootArgs::new().cli(sync_arguments(sync_cfg, net_cfg)));
+	hypervisor = hypervisor.module(SYNC_MODULE_ID, "sync", sync_arguments(sync_cfg, net_cfg));
 
 	hypervisor.start();
 	hypervisor.wait_for_startup();
