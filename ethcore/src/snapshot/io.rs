@@ -248,7 +248,7 @@ impl PackedReader {
 			(off_bytes[0] as u64);
 
 		let manifest_len = file_len - manifest_off - 8;
-		trace!(target: "snapshot_io", "loading manifest of length {} from offset {}", manifest_len, manifest_off);
+		trace!(target: "snapshot", "loading manifest of length {} from offset {}", manifest_len, manifest_off);
 
 		let	mut manifest_buf = vec![0; manifest_len as usize];
 

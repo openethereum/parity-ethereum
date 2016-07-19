@@ -489,10 +489,10 @@ impl BlockChain {
 
 	/// Inserts a verified, known block from the canonical chain.
 	///
-	/// Can be performed out-of-order.
+	/// Cannot be performed out-of-order.
 	/// This is used by snapshot restoration.
 	/// Note that this does not update the block extras.
-	pub fn insert_canon_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_details: Option<BlockDetails>) {
+	pub fn insert_canon_block(&self, bytes: &[u8], receipts: Vec<Receipt>) {
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 		let hash = header.sha3();
@@ -504,8 +504,8 @@ impl BlockChain {
 		let _lock = self.insert_lock.lock();
 		self.blocks_db.put(&hash, &bytes).unwrap();
 
-		let parent_details = parent_details.or(self.block_details(&header.parent_hash()))
-			.expect("parent details are always submitted for first block in chunk; qed");
+		let parent_details = self.block_details(&header.parent_hash())
+			.unwrap_or_else(|| panic!("Invalid parent hash: {:?}", header.parent_hash()));
 
 		let info = BlockInfo {
 			hash: hash,
@@ -516,7 +516,7 @@ impl BlockChain {
 
 		self.apply_update(ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
-			block_details: self.prepare_block_details_update(bytes, &info, Some(parent_details)),
+			block_details: self.prepare_block_details_update(bytes, &info),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
@@ -546,7 +546,7 @@ impl BlockChain {
 
 		self.apply_update(ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
-			block_details: self.prepare_block_details_update(bytes, &info, None),
+			block_details: self.prepare_block_details_update(bytes, &info),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
@@ -716,13 +716,13 @@ impl BlockChain {
 	/// This function returns modified block details.
 	/// Uses the given parent details or attempts to load them from the database.
 	/// The optional parameter is used when inserting blocks out-of-order from a snapshot.
-	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo, parent_details: Option<BlockDetails>) -> HashMap<H256, BlockDetails> {
+	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlockDetails> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 		let parent_hash = header.parent_hash();
 
 		// update parent
-		let mut parent_details = parent_details.or(self.block_details(&parent_hash)).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
+		let mut parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
 		parent_details.children.push(info.hash.clone());
 
 		// create current block details

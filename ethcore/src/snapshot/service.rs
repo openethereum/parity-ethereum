@@ -190,23 +190,38 @@ impl Service {
 		let mut client_db = self.client_db_root();
 		client_db.push(name);
 
-		let mut our_db = self.db_path.clone();
+		let mut our_db = self.restoration_dir();
 		our_db.push(name);
+
+		trace!(target: "snapshot", "replacing {:?} with {:?}", client_db, our_db);
 
 		let mut backup_db = self.db_path.clone();
 		backup_db.push(format!("backup_{}", name));
 
-		try!(fs::remove_dir_all(&backup_db));
-		try!(fs::rename(&client_db, &backup_db));
+		let _ = fs::remove_dir_all(&backup_db);
+
+		let existed = match fs::rename(&client_db, &backup_db) {
+			Ok(_) => true,
+			Err(e) => if let ErrorKind::NotFound = e.kind() {
+				false
+			} else {
+				return Err(e.into());
+			}
+		};
+
 		match fs::rename(&our_db, &client_db) {
 			Ok(_) => {
 				// clean up the backup.
-				try!(fs::remove_dir_all(&backup_db));
+				if existed {
+					try!(fs::remove_dir_all(&backup_db));
+				}
 				Ok(())
 			}
 			Err(e) => {
 				// restore the backup.
-				try!(fs::rename(&backup_db, client_db));
+				if existed {
+					try!(fs::rename(&backup_db, client_db));
+				}
 				Err(e.into())
 			}
 		}
@@ -227,14 +242,18 @@ impl Service {
 	pub fn feed_state_chunk(&self, hash: H256, chunk: &[u8]) {
 		let mut restoration = self.state_restoration.lock();
 		let mut finished = false;
+		let status = self.status();
+		if status == RestorationStatus::Inactive || status == RestorationStatus::Failed {
+			return;
+		}
 
 		if let Some(ref mut rest) = *restoration {
 			match rest.feed(hash, chunk) {
-				Ok(status) => {
-					finished = status;
+				Ok(f) => {
+					finished = f;
 					match *self.status.lock() {
 						RestorationStatus::Ongoing(_, ref mut state_chunks) => *state_chunks += 1,
-						_ => panic!("feed_state_chunk guarded for ongoing status only; qed")
+						_ => return,
 					}
 				},
 				Err(e) => {
@@ -263,14 +282,18 @@ impl Service {
 	pub fn feed_block_chunk(&self, hash: H256, chunk: &[u8]) {
 		let mut restoration = self.block_restoration.lock();
 		let mut finished = false;
+		let status = self.status();
+		if status == RestorationStatus::Inactive || status == RestorationStatus::Failed {
+			return;
+		}
 
 		if let Some(ref mut rest) = *restoration {
 			match rest.feed(hash, chunk, &*self.engine) {
-				Ok((status, bc)) => {
-					finished = status;
+				Ok((f, bc)) => {
+					finished = f;
 					match *self.status.lock() {
 						RestorationStatus::Ongoing(ref mut block_count, _) => *block_count += bc,
-						_ => panic!("feed_block_chunk guarded for ongoing status only; qed")
+						_ => return,
 					}
 				}
 				Err(e) => {
@@ -286,7 +309,6 @@ impl Service {
 			if let Err(e) = self.replace_client_db("blocks").and_then(|_| self.replace_client_db("extras")) {
 				warn!("failed to restore blocks and extras databases: {}", e);
 				*self.status.lock() = RestorationStatus::Failed;
-
 				return;
 			}
 
@@ -346,16 +368,12 @@ impl SnapshotService for Service {
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
-		if let RestorationStatus::Ongoing(_, _) = self.status() {
-			self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk))
-				.expect("snapshot service and io service are kept alive by client service; qed");
-		}
+		self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk))
+			.expect("snapshot service and io service are kept alive by client service; qed");
 	}
 
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
-		if let RestorationStatus::Ongoing(_, _) = self.status() {
-			self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk))
-				.expect("snapshot service and io service are kept alive by client service; qed");
-		}
+		self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk))
+			.expect("snapshot service and io service are kept alive by client service; qed");
 	}
 }

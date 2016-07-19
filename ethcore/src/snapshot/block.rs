@@ -144,7 +144,7 @@ mod tests {
 
 	use util::numbers::U256;
 	use util::hash::{Address, H256, FixedHash};
-	use util::{Bytes, RlpStream, Stream};
+	use util::Bytes;
 
 	fn encode_block(b: &Block) -> Bytes {
 		b.rlp_bytes(::basic_types::Seal::With)

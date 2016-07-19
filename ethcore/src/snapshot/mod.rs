@@ -20,7 +20,6 @@ use std::collections::VecDeque;
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::BlockChain;
-use blockchain::extras::BlockDetails;
 use client::BlockChainClient;
 use error::Error;
 use engine::Engine;
@@ -29,8 +28,7 @@ use views::{BlockView, HeaderView};
 
 use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
-use util::numbers::U256;
-use util::rlp::{Decodable, Decoder, DecoderError, Encodable, RlpStream, Stream, UntrustedRlp, View};
+use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 
 use self::account::Account;
 use self::block::AbridgedBlock;
@@ -108,7 +106,7 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 
 	let manifest_data = ManifestData {
 		state_hashes: state_hashes,
-		block_hashes: block_hashes,
+		block_hashes: block_hashes.into_iter().rev().collect(),
 		state_root: state_root,
 		block_number: chain_info.best_block_number,
 		block_hash: chain_info.best_block_hash,
@@ -117,37 +115,6 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 	try!(writer.finish(manifest_data));
 
 	Ok(())
-}
-
-/// Header for block chunks.
-struct BlockChunkHeader {
-	parent_hash: H256,
-	grandparent_hash: H256,
-	parent_number: u64,
-	parent_difficulty: U256,
-}
-
-impl Decodable for BlockChunkHeader {
-	fn decode<D: Decoder>(decoder: &D) -> Result<Self, DecoderError> {
-		let d = decoder.as_rlp();
-
-		Ok(BlockChunkHeader {
-			parent_hash:  try!(d.val_at(0)),
-			grandparent_hash: try!(d.val_at(1)),
-			parent_number: try!(d.val_at(2)),
-			parent_difficulty: try!(d.val_at(3)),
-		})
-	}
-}
-
-impl Encodable for BlockChunkHeader {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.parent_hash);
-		s.append(&self.grandparent_hash);
-		s.append(&self.parent_number);
-		s.append(&self.parent_difficulty);
-	}
 }
 
 /// Used to build block chunks.
@@ -218,18 +185,10 @@ impl<'a> BlockChunker<'a> {
 			.expect("parent hash either obtained from other block header or is genesis; qed");
 
 		let parent_header = HeaderView::new(&parent_header_bytes);
-		let grandparent_hash = parent_header.parent_hash();
 		let parent_number = parent_header.number();
-		let parent_difficulty = self.client.block_total_difficulty(parent_id)
-			.expect("lookup of header succeeded, therefore client has this block; qed");
 
-		let mut rlp_stream = RlpStream::new_list(1 + self.rlps.len());
-		rlp_stream.append(&BlockChunkHeader {
-			parent_hash: parent_hash,
-			grandparent_hash: grandparent_hash,
-			parent_difficulty: parent_difficulty,
-			parent_number: parent_number
-		});
+		let mut rlp_stream = RlpStream::new_list(2 + self.rlps.len());
+		rlp_stream.append(&parent_number).append(&parent_hash);
 
 		for pair in self.rlps.drain(..) {
 			rlp_stream.append_raw(&pair, 1);
@@ -254,6 +213,7 @@ impl<'a> BlockChunker<'a> {
 ///
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
+/// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
 pub fn chunk_blocks(client: &BlockChainClient, best_block_hash: H256, genesis_hash: H256, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
 	let mut chunker = BlockChunker {
 		client: client,
@@ -509,6 +469,7 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Rebuilds the blockchain from chunks.
 ///
 /// Does basic verification for all blocks, but PoW verification for some.
+/// Blocks must be fed in-order.
 pub struct BlockRebuilder {
 	chain: BlockChain,
 	rng: OsRng,
@@ -531,52 +492,41 @@ impl BlockRebuilder {
 	/// Returns the number of blocks fed or any errors.
 	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, Error> {
 		let rlp = UntrustedRlp::new(chunk);
+		let item_count = rlp.item_count();
 
-		// get chunk's header
-		let header: BlockChunkHeader = try!(rlp.val_at(0));
-		self.parent_hash = header.parent_hash;
-		self.cur_number = header.parent_number + 1;
+		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 2);
 
-		// reconstruct first block's parent's BlockDetails
-		let parent_details = BlockDetails {
-			number: header.parent_number,
-			total_difficulty: header.parent_difficulty,
-			parent: header.grandparent_hash,
-			children: Vec::new(), // this will be filled out when the first block is inserted.
-		};
+		// todo: assert here that these values are consistent with chunks being in order.
+		self.cur_number = try!(rlp.val_at::<u64>(0)) + 1;
+		self.parent_hash = try!(rlp.val_at::<H256>(1));
 
-		// special-case the first block in the chunk with supplied parent details.
-		// block chunks may be processed out-of-order.
-		try!(self.process_rlp_pair(try!(rlp.at(1)), Some(parent_details), engine));
-
-		for pair in rlp.iter().skip(2) {
-			try!(self.process_rlp_pair(pair, None, engine));
+		for idx in 2..item_count {
+			try!(self.process_rlp_pair(try!(rlp.at(idx)), engine));
 		}
 
-		Ok(rlp.item_count() as u64 - 2)
+		Ok(item_count as u64 - 2)
 	}
 
-	fn process_rlp_pair(
-		&mut self,
-		pair: UntrustedRlp,
-		parent_details: Option<BlockDetails>,
-		engine: &Engine
-	) -> Result<(), Error>
-	{
+	fn process_rlp_pair(&mut self, pair: UntrustedRlp, engine: &Engine) -> Result<(), Error> {
 		use basic_types::Seal::With;
 
-		let abridged_block = AbridgedBlock::from_raw(try!(pair.at(0)).as_raw().to_owned());
+		trace!(target: "snapshot", "processing block pair");
+		let abridged_rlp = try!(pair.at(0)).as_raw().to_owned();
+		let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
 		let receipts = try!(pair.val_at(1));
 		let block = try!(abridged_block.to_block(self.parent_hash, self.cur_number));
 		let block_bytes = block.rlp_bytes(With);
 
+
 		if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
+			trace!(target: "snapshot", "verifying PoW");
 			try!(engine.verify_block_seal(&block.header))
 		} else {
+			trace!(target: "snapshot", "verifying basic");
 			try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
 		}
 
-		self.chain.insert_canon_block(&block_bytes, receipts, parent_details);
+		self.chain.insert_canon_block(&block_bytes, receipts);
 
 		self.parent_hash = BlockView::new(&block_bytes).hash();
 		self.cur_number += 1;

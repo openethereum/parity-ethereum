@@ -536,14 +536,21 @@ fn execute_restore(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 		die!("Failed to begin snapshot restoration.");
 	}
 
-	for &state_hash in &manifest.state_hashes {
-		if snapshot.status() == RestorationStatus::Failed {
-			die!("restoration failed.");
-		}
+	info!("Beginning snapshot restoration from {}", filename);
 
-		let chunk = reader.chunk(state_hash).unwrap_or_else(|_| die!("Failed to read chunk {} from snapshot file.", state_hash));
-		snapshot.restore_state_chunk(state_hash, chunk);
-	}
+	let informant_handle = snapshot.clone();
+	let block_number = manifest.block_number;
+	let num_state = manifest.state_hashes.len();
+	::std::thread::spawn(move || {
+		while let RestorationStatus::Ongoing(blocks_processed, state_chunks) = informant_handle.status() {
+			info!("Snapshot restoration: imported {} of {} blocks and {} of {} state chunks",
+				blocks_processed, block_number, state_chunks, num_state);
+
+			::std::thread::sleep(Duration::from_secs(5));
+		}
+	});
+
+	info!("Restoring blocks");
 
 	for &block_hash in &manifest.block_hashes {
 		if snapshot.status() == RestorationStatus::Failed {
@@ -551,17 +558,25 @@ fn execute_restore(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 		}
 
 		let chunk = reader.chunk(block_hash).unwrap_or_else(|_| die!("Failed to read chunk {} from snapshot file.", block_hash));
-		snapshot.restore_block_chunk(block_hash, chunk);
+		snapshot.feed_block_chunk(block_hash, &chunk);
 	}
 
-	while let RestorationStatus::Ongoing(blocks_processed, state_chunks) = snapshot.status() {
-		info!("Snapshot restoration: imported {} of {} blocks and {} of {} state chunks",
-			blocks_processed, manifest.block_number, state_chunks, manifest.state_hashes.len());
+	info!("Restoring state");
+	for &state_hash in &manifest.state_hashes {
+		if snapshot.status() == RestorationStatus::Failed {
+			die!("restoration failed.");
+		}
 
-		::std::thread::sleep(Duration::from_secs(5));
+		let chunk = reader.chunk(state_hash).unwrap_or_else(|_| die!("Failed to read chunk {} from snapshot file.", state_hash));
+		snapshot.feed_state_chunk(state_hash, &chunk);
 	}
 
-	assert_eq!(snapshot.status(), RestorationStatus::Inactive);
+	match snapshot.status() {
+		RestorationStatus::Ongoing(_, _) => die!("snapshot file is incomplete and missing chunks."),
+		RestorationStatus::Failed => die!("restoration failed."),
+		RestorationStatus::Inactive => {}
+	}
+
 	let client = service.client();
 	let chain_info = client.chain_info();
 	assert_eq!(chain_info.best_block_number, manifest.block_number);
