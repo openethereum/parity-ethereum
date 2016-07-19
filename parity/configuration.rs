@@ -192,7 +192,7 @@ impl Configuration {
 
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
-				directories: dirs,
+				dirs: dirs,
 				spec: spec,
 				pruning: pruning,
 				daemon: daemon,
@@ -685,7 +685,7 @@ mod tests {
 		let password = TestPasswordReader("test");
 		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Run(RunCmd {
 			cache_config: Default::default(),
-			directories: Default::default(),
+			dirs: Default::default(),
 			spec: Default::default(),
 			pruning: Default::default(),
 			daemon: None,

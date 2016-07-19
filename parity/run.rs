@@ -37,7 +37,7 @@ use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use configuration::{Configuration, IOPasswordReader};
 use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
-use helpers::to_client_config;
+use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use setup_log::{LoggerConfig, setup_log};
 use cache::CacheConfig;
@@ -52,7 +52,7 @@ use upgrade::upgrade;
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
 	pub cache_config: CacheConfig,
-	pub directories: Directories,
+	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
 	/// Some if execution should be daemonized. Contains pid_file path.
@@ -89,8 +89,8 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// set up panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
-	// create directories used by parity
-	try!(cmd.directories.create_dirs());
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs());
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
@@ -99,13 +99,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let genesis_hash = spec.genesis_header().hash();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.directories, genesis_hash);
+	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash);
 
 	// prepare client_path
-	let client_path = cmd.directories.client_path(genesis_hash, algorithm);
+	let client_path = cmd.dirs.client_path(genesis_hash, algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.directories, genesis_hash, algorithm));
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, algorithm));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -129,7 +129,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	};
 
 	// prepare account provider
-	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.directories, cmd.acc_conf)));
+	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
 
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), spec, Some(account_provider.clone()));
@@ -142,7 +142,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		&cmd.directories,
+		&cmd.dirs,
 		genesis_hash,
 		cmd.mode,
 		cmd.tracing,
@@ -267,21 +267,6 @@ fn daemonize(pid_file: String) -> Result<(), String> {
 
 #[cfg(windows)]
 fn daemonize(_conf: &Configuration) -> ! {
-}
-
-fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorithm) -> Result<(), String> {
-	match upgrade(Some(&dirs.db)) {
-		Ok(upgrades_applied) if upgrades_applied > 0 => {
-			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
-		},
-		Err(e) => {
-			return Err(format!("Error upgrading parity data: {:?}", e));
-		},
-		_ => {},
-	}
-
-	let client_path = dirs.client_path(genesis_hash, pruning);
-	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
 }
 
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {

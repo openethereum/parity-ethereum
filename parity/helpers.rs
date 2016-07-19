@@ -18,11 +18,14 @@ use std::{io, env};
 use std::io::Write;
 use std::time::Duration;
 use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, NetworkConfiguration, NonReservedPeerMode, H256};
+use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::PendingSet;
 use cache::CacheConfig;
 use dir::Directories;
 use params::Pruning;
+use upgrade::upgrade;
+use migration::migrate;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -198,6 +201,21 @@ pub fn to_client_config(
 	client_config.db_compaction = compaction;
 	client_config.vm_type = vm_type;
 	client_config
+}
+
+pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorithm) -> Result<(), String> {
+	match upgrade(Some(&dirs.db)) {
+		Ok(upgrades_applied) if upgrades_applied > 0 => {
+			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
+		},
+		Err(e) => {
+			return Err(format!("Error upgrading parity data: {:?}", e));
+		},
+		_ => {},
+	}
+
+	let client_path = dirs.client_path(genesis_hash, pruning);
+	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
 }
 
 #[cfg(test)]

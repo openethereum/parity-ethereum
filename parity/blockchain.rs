@@ -33,7 +33,7 @@ use cache::CacheConfig;
 use setup_log::{setup_log, LoggerConfig};
 use informant::Informant;
 use params::{SpecType, Pruning};
-use helpers::to_client_config;
+use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use fdlimit;
 
@@ -127,6 +127,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	// prepare client_path
 	let client_path = cmd.dirs.client_path(genesis_hash, algorithm);
+
+	// execute upgrades
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, algorithm));
 
 	// prepare client config
 	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.vm_type);
@@ -237,6 +240,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 	// prepare client_path
 	let client_path = cmd.dirs.client_path(genesis_hash, algorithm);
+
+	// execute upgrades
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, algorithm));
 
 	// prepare client config
 	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, VMType::default());
