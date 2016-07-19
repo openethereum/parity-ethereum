@@ -43,6 +43,12 @@ pub enum DataFormat {
 	Binary,
 }
 
+impl Default for DataFormat {
+	fn default() -> Self {
+		DataFormat::Hex
+	}
+}
+
 impl FromStr for DataFormat {
 	type Err = String;
 
@@ -211,7 +217,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
-	let format = try!(cmd.format.ok_or("Encoding format must be specified!"));
+	let format = cmd.format.unwrap_or_else(Default::default);
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
