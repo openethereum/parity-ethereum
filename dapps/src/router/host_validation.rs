@@ -33,10 +33,10 @@ pub fn is_valid(request: &server::Request<HttpStream>, bind_address: &str, endpo
 
 pub fn host_invalid_response() -> Box<server::Handler<HttpStream> + Send> {
 	Box::new(ContentHandler::forbidden(
-			r#"
-			<h1>Request with disallowed <code>Host</code> header has been blocked.</h1>
-			<p>Check the URL in your browser address bar.</p>
-			"#.into(),
-			"text/html".into()
+		r#"
+		<h1>Request with disallowed <code>Host</code> header has been blocked.</h1>
+		<p>Check the URL in your browser address bar.</p>
+		"#.into(),
+		"text/html".into()
 	))
 }
