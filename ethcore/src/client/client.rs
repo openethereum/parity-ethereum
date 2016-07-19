@@ -252,6 +252,9 @@ impl Client {
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
 		self.block_queue.flush();
+		while !self.block_queue.queue_info().is_empty() {
+			self.import_verified_blocks(&IoChannel::disconnected());
+		}
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {

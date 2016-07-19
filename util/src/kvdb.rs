@@ -18,7 +18,7 @@
 
 use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBVector, DBIterator,
-	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache};
+	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -83,8 +83,6 @@ impl CompactionProfile {
 
 /// Database configuration
 pub struct DatabaseConfig {
-	/// Optional prefix size in bytes. Allows lookup by partial key.
-	pub prefix_size: Option<usize>,
 	/// Max number of open files.
 	pub max_open_files: i32,
 	/// Cache-size
@@ -98,7 +96,6 @@ impl DatabaseConfig {
 	pub fn with_cache(cache_size: usize) -> DatabaseConfig {
 		DatabaseConfig {
 			cache_size: Some(cache_size),
-			prefix_size: None,
 			max_open_files: 256,
 			compaction: CompactionProfile::default(),
 		}
@@ -109,19 +106,12 @@ impl DatabaseConfig {
 		self.compaction = profile;
 		self
 	}
-
-	/// Modify the prefix of the db
-	pub fn prefix(mut self, prefix_size: usize) -> Self {
-		self.prefix_size = Some(prefix_size);
-		self
-	}
 }
 
 impl Default for DatabaseConfig {
 	fn default() -> DatabaseConfig {
 		DatabaseConfig {
 			cache_size: None,
-			prefix_size: None,
 			max_open_files: 256,
 			compaction: CompactionProfile::default(),
 		}
@@ -171,17 +161,9 @@ impl Database {
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
 
-		if let Some(size) = config.prefix_size {
+		if let Some(cache_size) = config.cache_size {
 			let mut block_opts = BlockBasedOptions::new();
-			block_opts.set_index_type(IndexType::HashSearch);
-			opts.set_block_based_table_factory(&block_opts);
-			opts.set_prefix_extractor_fixed_size(size);
-			if let Some(cache_size) = config.cache_size {
-				block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
-			}
-		} else if let Some(cache_size) = config.cache_size {
-			let mut block_opts = BlockBasedOptions::new();
-			// half goes to read cache
+			// all goes to read cache
 			block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
 			opts.set_block_based_table_factory(&block_opts);
 		}
@@ -281,10 +263,8 @@ mod tests {
 		assert!(db.get(&key1).unwrap().is_none());
 		assert_eq!(db.get(&key3).unwrap().unwrap().deref(), b"elephant");
 
-		if config.prefix_size.is_some() {
-			assert_eq!(db.get_by_prefix(&key3).unwrap().deref(), b"elephant");
-			assert_eq!(db.get_by_prefix(&key2).unwrap().deref(), b"dog");
-		}
+		assert_eq!(db.get_by_prefix(&key3).unwrap().deref(), b"elephant");
+		assert_eq!(db.get_by_prefix(&key2).unwrap().deref(), b"dog");
 	}
 
 	#[test]
@@ -293,9 +273,6 @@ mod tests {
 		let smoke = Database::open_default(path.as_path().to_str().unwrap()).unwrap();
 		assert!(smoke.is_empty());
 		test_db(&DatabaseConfig::default());
-		test_db(&DatabaseConfig::default().prefix(12));
-		test_db(&DatabaseConfig::default().prefix(22));
-		test_db(&DatabaseConfig::default().prefix(8));
 	}
 }
 
