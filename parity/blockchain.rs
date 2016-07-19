@@ -116,15 +116,22 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
 
-	let cfg = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.vm_type);
+	// select pruning algorithm
+	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash);
+
+	// prepare client_path
+	let client_path = cmd.dirs.client_path(genesis_hash, algorithm);
+
+	// prepare client config
+	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.vm_type);
 
 	// build client
-	let service = ClientService::start(
-		cfg,
+	let service = try!(ClientService::start(
+		client_config,
 		spec,
-		Path::new(&cmd.dirs.db),
+		Path::new(&client_path),
 		Arc::new(Miner::with_spec(try!(cmd.spec.spec()))),
-	).expect("TODO");
+	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	panic_handler.forward_from(&service);
 	let client = service.client();
@@ -197,7 +204,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	}
 	client.flush_queue();
 
-	unimplemented!();
+	Ok("Import completed.".into())
 }
 
 fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
@@ -219,14 +226,21 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
 
-	let cfg = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, VMType::default());
+	// select pruning algorithm
+	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash);
 
-	let service = ClientService::start(
-		cfg,
+	// prepare client_path
+	let client_path = cmd.dirs.client_path(genesis_hash, algorithm);
+
+	// prepare client config
+	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, VMType::default());
+
+	let service = try!(ClientService::start(
+		client_config,
 		spec,
-		Path::new(&cmd.dirs.db),
+		Path::new(&client_path),
 		Arc::new(Miner::with_spec(try!(cmd.spec.spec())))
-	).expect("TODO");
+	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	panic_handler.forward_from(&service);
 	let client = service.client();
@@ -247,7 +261,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 		}
 	}
 
-	unimplemented!();
+	Ok("Export completed.".into())
 }
 
 #[cfg(test)]
