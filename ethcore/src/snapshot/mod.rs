@@ -106,7 +106,7 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 
 	let manifest_data = ManifestData {
 		state_hashes: state_hashes,
-		block_hashes: block_hashes,
+		block_hashes: block_hashes.into_iter().rev().collect(),
 		state_root: state_root,
 		block_number: chain_info.best_block_number,
 		block_hash: chain_info.best_block_hash,

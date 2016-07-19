@@ -64,8 +64,9 @@ impl ClientService {
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
-		let snapshot = try!(SnapshotService::new(&spec, config.pruning, db_path.clone(), io_service.channel()));
+		let pruning = config.pruning;
 		let client = try!(Client::new(config, &spec, &db_path, miner, io_service.channel()));
+		let snapshot = try!(SnapshotService::new(spec, pruning, db_path, io_service.channel()));
 
 		let snapshot = Arc::new(snapshot);
 

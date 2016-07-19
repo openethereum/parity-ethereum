@@ -20,7 +20,6 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use super::{ManifestData, StateRebuilder, BlockRebuilder, SnapshotService, RestorationStatus};
 use super::io::{SnapshotReader, LooseReader};
@@ -46,11 +45,15 @@ struct StateRestoration {
 
 impl StateRestoration {
 	// make a new state restoration, building databases in the given path.
-	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path) -> Self {
+	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Self {
 		let mut state_db_path = path.to_owned();
 		state_db_path.push("state");
 
-		let state_db = journaldb::new(&*state_db_path.to_string_lossy(), pruning, Default::default());
+		let mut state_db = journaldb::new(&*state_db_path.to_string_lossy(), pruning, Default::default());
+
+		if spec.ensure_db_good(state_db.as_hashdb_mut()) {
+			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+		}
 
 		StateRestoration {
 			chunks_left: manifest.state_hashes.iter().cloned().collect(),
@@ -109,7 +112,6 @@ pub type Channel = IoChannel<ClientIoMessage>;
 /// is fed, and will replace the client's blocks DB when the last block chunk
 /// is fed.
 pub struct Service {
-	engine: Arc<Engine>,
 	state_restoration: Mutex<Option<StateRestoration>>,
 	block_restoration: Mutex<Option<BlockRestoration>>,
 	db_path: PathBuf,
@@ -118,11 +120,12 @@ pub struct Service {
 	status: Mutex<RestorationStatus>,
 	genesis: Bytes,
 	reader: Option<LooseReader>,
+	spec: Spec,
 }
 
 impl Service {
 	/// Create a new snapshot service.
-	pub fn new(spec: &Spec, pruning: Algorithm, db_path: PathBuf, io_channel: Channel) -> Result<Self, Error> {
+	pub fn new(spec: Spec, pruning: Algorithm, db_path: PathBuf, io_channel: Channel) -> Result<Self, Error> {
 		let reader = {
 			let mut snapshot_path = db_path.clone();
 			snapshot_path.push("snapshot");
@@ -131,7 +134,6 @@ impl Service {
 		};
 
 		let service = Service {
-			engine: spec.engine.clone(),
 			state_restoration: Mutex::new(None),
 			block_restoration: Mutex::new(None),
 			db_path: db_path,
@@ -139,7 +141,8 @@ impl Service {
 			pruning: pruning,
 			status: Mutex::new(RestorationStatus::Inactive),
 			genesis: spec.genesis_block(),
-			reader: reader
+			reader: reader,
+			spec: spec,
 		};
 
 		// create the snapshot dir if it doesn't exist.
@@ -286,7 +289,7 @@ impl Service {
 		}
 
 		if let Some(ref mut rest) = *restoration {
-			match rest.feed(hash, chunk, &*self.engine) {
+			match rest.feed(hash, chunk, &*self.spec.engine) {
 				Ok((f, bc)) => {
 					finished = f;
 					match *self.status.lock() {
@@ -359,7 +362,7 @@ impl SnapshotService for Service {
 					return false;
 				}
 		};
-		*state_res = Some(StateRestoration::new(&manifest, self.pruning, &rest_dir));
+		*state_res = Some(StateRestoration::new(&manifest, self.pruning, &rest_dir, &self.spec));
 
 		*self.status.lock() = RestorationStatus::Ongoing(0, 0);
 		true
