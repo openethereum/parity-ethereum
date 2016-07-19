@@ -262,7 +262,7 @@ impl PackedReader {
 
 		let manifest = ManifestData {
 			state_hashes: state.iter().map(|c| c.0).collect(),
-			block_hashes: state.iter().map(|c| c.0).collect(),
+			block_hashes: blocks.iter().map(|c| c.0).collect(),
 			state_root: try!(rlp.val_at(2)),
 			block_number: try!(rlp.val_at(3)),
 			block_hash: try!(rlp.val_at(4)),
