@@ -1002,7 +1002,7 @@ impl MiningBlockChainClient for Client {
 			self.trie_factory.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().boxed_clone(),
-			&self.chain.block_header(&h).expect("h is best block hash: so it's header must exist: qed"),
+			&self.chain.block_header(&h).expect("h is best block hash: so its header must exist: qed"),
 			self.build_last_hashes(h.clone()),
 			author,
 			gas_range_target,

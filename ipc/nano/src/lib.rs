@@ -107,7 +107,7 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 	})
 }
 
-/// Error occured while establising socket or endpoint
+/// Error occurred while establising socket or endpoint
 #[derive(Debug)]
 pub enum SocketError {
 	/// Error establising duplex (paired) socket and/or endpoint

@@ -689,7 +689,7 @@ impl ChainSync {
 		self.state = SyncState::Waiting;
 	}
 
-	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
+	/// Find something to do for a peer. Called for a new peer or when a peer is done with its task.
 	fn sync_peer(&mut self, io: &mut SyncIo, peer_id: PeerId, force: bool) {
 		if !self.active_peers.contains(&peer_id) {
 			trace!(target: "sync", "Skipping deactivated peer");
