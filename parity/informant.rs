@@ -87,7 +87,11 @@ impl Informant {
 		let queue_info = client.queue_info();
 		let cache_info = client.blockchain_cache_info();
 
-		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3 || maybe_status.as_ref()
+			.and_then(|&(ref sync_info, _)| sync_info.last_imported_block_number)
+			.map(|n| n > chain_info.best_block_number + 3)
+			.unwrap_or(false);
+;
 		if !importing && elapsed < Duration::from_secs(30) {
 			return;
 		}
