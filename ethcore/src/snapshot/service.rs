@@ -37,15 +37,17 @@ use util::journaldb::{self, Algorithm};
 use util::snappy;
 
 /// State restoration manager.
-struct StateRestoration {
-	chunks_left: HashSet<H256>,
-	rebuilder: StateRebuilder,
+struct Restoration {
+	state_chunks_left: HashSet<H256>,
+	block_chunks_left: HashSet<H256>,
+	state: StateRebuilder,
+	blocks: BlockRebuilder,
 	snappy_buffer: Bytes,
 }
 
-impl StateRestoration {
-	// make a new state restoration, building databases in the given path.
-	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Self {
+impl Restoration {
+	// make a new restoration, building databases in the given path.
+	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Result<Self, Error> {
 		let mut state_db_path = path.to_owned();
 		state_db_path.push("state");
 
@@ -55,51 +57,45 @@ impl StateRestoration {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
-		StateRestoration {
-			chunks_left: manifest.state_hashes.iter().cloned().collect(),
-			rebuilder: StateRebuilder::new(state_db),
-			snappy_buffer: Vec::new(),
-		}
-	}
+		let blocks = try!(BlockRebuilder::new(BlockChain::new(Default::default(), &spec.genesis_block(), path)));
 
-	// feeds a state chunk, returning true if all state chunks have been fed.
-	fn feed(&mut self, hash: H256, chunk: &[u8]) -> Result<bool, Error> {
-		if self.chunks_left.remove(&hash) {
-			let len = try!(snappy::decompress_into(&chunk, &mut self.snappy_buffer));
-			try!(self.rebuilder.feed(&self.snappy_buffer[..len]));
-		}
-
-		Ok(self.chunks_left.is_empty())
-	}
-}
-
-/// Block restoration manager.
-struct BlockRestoration {
-	chunks_left: HashSet<H256>,
-	rebuilder: BlockRebuilder,
-	snappy_buffer: Bytes,
-}
-
-impl BlockRestoration {
-	// create a new block restoration manager in the given path
-	fn new(manifest: &ManifestData, genesis: &[u8], path: &Path) -> Result<Self, Error> {
-		Ok(BlockRestoration {
-			chunks_left: manifest.block_hashes.iter().cloned().collect(),
-			rebuilder: try!(BlockRebuilder::new(BlockChain::new(Default::default(), genesis, path))),
+		Ok(Restoration {
+			state_chunks_left: manifest.state_hashes.iter().cloned().collect(),
+			block_chunks_left: manifest.block_hashes.iter().cloned().collect(),
+			state: StateRebuilder::new(state_db),
+			blocks: blocks,
 			snappy_buffer: Vec::new(),
 		})
 	}
 
-	// feeds a block chunk, returning true if all block chunks have been fed.
-	fn feed(&mut self, hash: H256, chunk: &[u8], engine: &Engine) -> Result<(bool, u64), Error> {
-		let mut block_count = 0;
-
-		if self.chunks_left.remove(&hash) {
+	// feeds a state chunk
+	fn feed_state(&mut self, hash: H256, chunk: &[u8]) -> Result<(), Error> {
+		if self.state_chunks_left.remove(&hash) {
 			let len = try!(snappy::decompress_into(&chunk, &mut self.snappy_buffer));
-			block_count += try!(self.rebuilder.feed(&self.snappy_buffer[..len], engine));
+			try!(self.state.feed(&self.snappy_buffer[..len]));
 		}
 
-		Ok((self.chunks_left.is_empty(), block_count))
+		Ok(())
+	}
+
+	// feeds a block chunk
+	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &Engine) -> Result<(), Error> {
+		if self.block_chunks_left.remove(&hash) {
+			let len = try!(snappy::decompress_into(&chunk, &mut self.snappy_buffer));
+			try!(self.blocks.feed(&self.snappy_buffer[..len], engine));
+
+			if self.block_chunks_left.is_empty() {
+				// connect out-of-order chunks.
+				self.blocks.glue_chunks();
+			}
+		}
+
+		Ok(())
+	}
+
+	// is everything done?
+	fn is_done(&self) -> bool {
+		self.block_chunks_left.is_empty() && self.state_chunks_left.is_empty()
 	}
 }
 
@@ -112,13 +108,11 @@ pub type Channel = IoChannel<ClientIoMessage>;
 /// is fed, and will replace the client's blocks DB when the last block chunk
 /// is fed.
 pub struct Service {
-	state_restoration: Mutex<Option<StateRestoration>>,
-	block_restoration: Mutex<Option<BlockRestoration>>,
+	restoration: Mutex<Option<Restoration>>,
 	db_path: PathBuf,
 	io_channel: Channel,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
-	genesis: Bytes,
 	reader: Option<LooseReader>,
 	spec: Spec,
 }
@@ -134,13 +128,11 @@ impl Service {
 		};
 
 		let service = Service {
-			state_restoration: Mutex::new(None),
-			block_restoration: Mutex::new(None),
+			restoration: Mutex::new(None),
 			db_path: db_path,
 			io_channel: io_channel,
 			pruning: pruning,
 			status: Mutex::new(RestorationStatus::Inactive),
-			genesis: spec.genesis_block(),
 			reader: reader,
 			spec: spec,
 		};
@@ -230,91 +222,77 @@ impl Service {
 		}
 	}
 
-	// finalize the restoration.
-	fn finalize_restoration(&self) {
+	// finalize the restoration. this accepts an already-locked
+	// restoration as an argument -- so acquiring it again _will_
+	// lead to deadlock.
+	fn finalize_restoration(&self, rest: &mut Option<Restoration>) -> Result<(), Error> {
 		trace!(target: "snapshot", "finalizing restoration");
+
+		// destroy the restoration before replacing databases.
+		*rest = None;
+
+		try!(self.replace_client_db("state"));
+		try!(self.replace_client_db("blocks"));
+		try!(self.replace_client_db("extras"));
+
 		*self.status.lock() = RestorationStatus::Inactive;
 
 		// TODO: take control of restored snapshot.
 		let _ = fs::remove_dir_all(self.restoration_dir());
+
+		Ok(())
+	}
+
+	/// Feed a chunk of either kind. no-op if no restoration or status is wrong.
+	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
+		match self.status() {
+			RestorationStatus::Inactive | RestorationStatus::Failed => Ok(()),
+			RestorationStatus::Ongoing => {
+				// TODO: be able to process block chunks and state chunks at same time?
+				let mut restoration = self.restoration.lock();
+
+				let res = {
+					let rest = match *restoration {
+						Some(ref mut r) => r,
+						None => return Ok(()),
+					};
+
+					match is_state {
+						true => rest.feed_state(hash, chunk),
+						false => rest.feed_blocks(hash, chunk, &*self.spec.engine),
+					}.map(|_| rest.is_done())
+				};
+
+				match res {
+					Ok(true) => self.finalize_restoration(&mut *restoration),
+					other => other.map(drop),
+				}
+			}
+		}
 	}
 
 	/// Feed a state chunk to be processed synchronously.
 	pub fn feed_state_chunk(&self, hash: H256, chunk: &[u8]) {
-		let mut restoration = self.state_restoration.lock();
-		let mut finished = false;
-		let status = self.status();
-		if status == RestorationStatus::Inactive || status == RestorationStatus::Failed {
-			return;
-		}
-
-		if let Some(ref mut rest) = *restoration {
-			match rest.feed(hash, chunk) {
-				Ok(f) => {
-					finished = f;
-					match *self.status.lock() {
-						RestorationStatus::Ongoing(_, ref mut state_chunks) => *state_chunks += 1,
-						_ => return,
-					}
-				},
-				Err(e) => {
-					warn!("state chunk {} restoration failed: {}", hash, e);
-					*self.status.lock() = RestorationStatus::Failed;
-				}
-			}
-		}
-
-		if finished {
-			// replace state db here. ensure database handle is closed.
-			*restoration = None;
-			if let Err(e) = self.replace_client_db("state") {
-				warn!("failed to restore client state db: {}", e);
+		match self.feed_chunk(hash, chunk, true) {
+			Ok(()) => (),
+			Err(e) => {
+				warn!("Encountered error during state restoration: {}", e);
+				*self.restoration.lock() = None;
 				*self.status.lock() = RestorationStatus::Failed;
-				return;
-			}
-
-			if self.block_restoration.lock().is_none() {
-				self.finalize_restoration();
+				let _ = fs::remove_dir_all(self.restoration_dir());
 			}
 		}
 	}
 
 	/// Feed a block chunk to be processed synchronously.
 	pub fn feed_block_chunk(&self, hash: H256, chunk: &[u8]) {
-		let mut restoration = self.block_restoration.lock();
-		let mut finished = false;
-		let status = self.status();
-		if status == RestorationStatus::Inactive || status == RestorationStatus::Failed {
-			return;
-		}
-
-		if let Some(ref mut rest) = *restoration {
-			match rest.feed(hash, chunk, &*self.spec.engine) {
-				Ok((f, bc)) => {
-					finished = f;
-					match *self.status.lock() {
-						RestorationStatus::Ongoing(ref mut block_count, _) => *block_count += bc,
-						_ => return,
-					}
-				}
-				Err(e) => {
-					warn!("block chunk {} restoration failed: {}", hash, e);
-					*self.status.lock() = RestorationStatus::Failed;
-				}
-			}
-		}
-
-		if finished {
-			// replace blocks and extras dbs here. ensure database handles are closed.
-			*restoration = None;
-			if let Err(e) = self.replace_client_db("blocks").and_then(|_| self.replace_client_db("extras")) {
-				warn!("failed to restore blocks and extras databases: {}", e);
+		match self.feed_chunk(hash, chunk, false) {
+			Ok(()) => (),
+			Err(e) => {
+				warn!("Encountered error during block restoration: {}", e);
+				*self.restoration.lock() = None;
 				*self.status.lock() = RestorationStatus::Failed;
-				return;
-			}
-
-			if self.state_restoration.lock().is_none() {
-				self.finalize_restoration();
+				let _ = fs::remove_dir_all(self.restoration_dir());
 			}
 		}
 	}
@@ -336,12 +314,10 @@ impl SnapshotService for Service {
 	fn begin_restore(&self, manifest: ManifestData) -> bool {
 		let rest_dir = self.restoration_dir();
 
-		let mut state_res = self.state_restoration.lock();
-		let mut block_res = self.block_restoration.lock();
+		let mut res = self.restoration.lock();
 
-		// tear down existing restorations.
-		*state_res = None;
-		*block_res = None;
+		// tear down existing restoration.
+		*res = None;
 
 		// delete and restore the restoration dir.
 		if let Err(e) = fs::remove_dir_all(&rest_dir).and_then(|_| fs::create_dir_all(&rest_dir)) {
@@ -354,17 +330,16 @@ impl SnapshotService for Service {
 			}
 		}
 
-		// make new restorations.
-		*block_res = match BlockRestoration::new(&manifest, &self.genesis, &rest_dir) {
+		// make new restoration.
+		*res = match Restoration::new(&manifest, self.pruning, &rest_dir, &self.spec) {
 				Ok(b) => Some(b),
 				Err(e) => {
 					warn!("encountered error {} while beginning snapshot restoration.", e);
 					return false;
 				}
 		};
-		*state_res = Some(StateRestoration::new(&manifest, self.pruning, &rest_dir, &self.spec));
 
-		*self.status.lock() = RestorationStatus::Ongoing(0, 0);
+		*self.status.lock() = RestorationStatus::Ongoing;
 		true
 	}
 

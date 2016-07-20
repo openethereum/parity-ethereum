@@ -121,10 +121,9 @@ impl SnapshotWriter for PackedWriter {
 		// we ignore the hashes fields of the manifest under the assumption that
 		// they are consistent with ours.
 		let mut stream = RlpStream::new_list(5);
-		let reversed_block_hashes: Vec<_> = self.block_hashes.into_iter().rev().collect();
 		stream
 			.append(&self.state_hashes)
-			.append(&reversed_block_hashes)
+			.append(&self.block_hashes)
 			.append(&manifest.state_root)
 			.append(&manifest.block_number)
 			.append(&manifest.block_hash);

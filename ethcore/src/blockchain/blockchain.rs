@@ -501,7 +501,7 @@ impl BlockChain {
 		let hash = header.sha3();
 
 		if self.is_known(&hash) {
-			return;
+			return false;
 		}
 
 		let _lock = self.insert_lock.lock();
@@ -520,7 +520,7 @@ impl BlockChain {
 
 			self.apply_update(ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
-				block_details: details_update,
+				block_details: self.prepare_block_details_update(bytes, &info),
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
@@ -536,7 +536,7 @@ impl BlockChain {
 			let info = BlockInfo {
 				hash: hash,
 				number: header.number(),
-				total_difficulty: d + header.difficulty();
+				total_difficulty: d + header.difficulty(),
 				location: BlockLocation::CanonChain,
 			};
 
@@ -544,11 +544,11 @@ impl BlockChain {
 				number: header.number(),
 				total_difficulty: info.total_difficulty,
 				parent: header.parent_hash(),
-				children: Vec::new()
+				children: Vec::new(),
 			};
 
 			let mut update = HashMap::new();
-			update.insert(hash, details);
+			update.insert(hash, block_details);
 
 			self.apply_update(ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
@@ -571,7 +571,7 @@ impl BlockChain {
 		// todo [rob]: do i need to hold import lock here?
 
 		let mut parent_details = self.block_details(&block_hash)
-			.unwrap_or_else(|| panic!("Invalid parent hash: {:?}", header.parent_hash()));
+			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
 
 		let batch = DBTransaction::new();
 		parent_details.children.push(child_hash);

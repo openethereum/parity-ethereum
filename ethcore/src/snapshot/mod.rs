@@ -53,8 +53,8 @@ const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 pub enum RestorationStatus {
 	///	No restoration.
 	Inactive,
-	/// Ongoing restoration. Number of blocks restored and number of state chunks restored.
-	Ongoing(u64, usize),
+	/// Ongoing restoration.
+	Ongoing,
 	/// Failed restoration.
 	Failed,
 }
@@ -106,7 +106,7 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 
 	let manifest_data = ManifestData {
 		state_hashes: state_hashes,
-		block_hashes: block_hashes.into_iter().rev().collect(),
+		block_hashes: block_hashes,
 		state_root: state_root,
 		block_number: chain_info.best_block_number,
 		block_hash: chain_info.best_block_hash,
@@ -189,9 +189,11 @@ impl<'a> BlockChunker<'a> {
 
 		let parent_header = HeaderView::new(&parent_header_bytes);
 		let parent_number = parent_header.number();
+		let parent_total_difficulty = self.client.block_total_difficulty(BlockID::Hash(parent_hash))
+			.expect("parent header lookup succeeded, therefore block is in chain; qed");
 
-		let mut rlp_stream = RlpStream::new_list(2 + self.rlps.len());
-		rlp_stream.append(&parent_number).append(&parent_hash);
+		let mut rlp_stream = RlpStream::new_list(3 + self.rlps.len());
+		rlp_stream.append(&parent_number).append(&parent_hash).append(&parent_total_difficulty);
 
 		for pair in self.rlps.drain(..) {
 			rlp_stream.append_raw(&pair, 1);
@@ -473,11 +475,15 @@ const POW_VERIFY_RATE: f32 = 0.02;
 ///
 /// Does basic verification for all blocks, but PoW verification for some.
 /// Blocks must be fed in-order.
+///
+/// The first block in every chunk is disconnected from the last block in the
+/// chunk before it, as chunks may be submitted out-of-order.
+///
+/// After all chunks have been submitted, we "glue" the chunks together.
 pub struct BlockRebuilder {
 	chain: BlockChain,
 	rng: OsRng,
-	parent_hash: H256,
-	cur_number: u64,
+	disconnected: Vec<(u64, H256)>,
 }
 
 impl BlockRebuilder {
@@ -486,51 +492,69 @@ impl BlockRebuilder {
 		Ok(BlockRebuilder {
 			chain: chain,
 			rng: try!(OsRng::new()),
-			parent_hash: H256::new(),
-			cur_number: 0,
+			disconnected: Vec::new(),
 		})
 	}
 
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
 	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, Error> {
+		use basic_types::Seal::With;
+		use util::U256;
+
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
 
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 2);
 
 		// todo: assert here that these values are consistent with chunks being in order.
-		self.cur_number = try!(rlp.val_at::<u64>(0)) + 1;
-		self.parent_hash = try!(rlp.val_at::<H256>(1));
+		let mut cur_number = try!(rlp.val_at::<u64>(0)) + 1;
+		let mut parent_hash = try!(rlp.val_at::<H256>(1));
+		let parent_difficulty = try!(rlp.val_at::<U256>(2));
 
-		for idx in 2..item_count {
-			try!(self.process_rlp_pair(try!(rlp.at(idx)), engine));
+		for idx in 3..item_count {
+			let pair = try!(rlp.at(idx));
+			let abridged_rlp = try!(pair.at(0)).as_raw().to_owned();
+			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
+			let receipts: Vec<::receipt::Receipt> = try!(pair.val_at(1));
+			let block = try!(abridged_block.to_block(parent_hash, cur_number));
+			let block_bytes = block.rlp_bytes(With);
+
+			if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
+				try!(engine.verify_block_seal(&block.header))
+			} else {
+				try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
+			}
+
+			// special-case the first block in each chunk.
+			if idx == 3 {
+				if self.chain.insert_snapshot_block(&block_bytes, receipts, Some(parent_difficulty)) {
+					self.disconnected.push((cur_number, block.header.hash()));
+				}
+			} else {
+				self.chain.insert_snapshot_block(&block_bytes, receipts, None);
+			}
+
+			parent_hash = BlockView::new(&block_bytes).hash();
+			cur_number += 1;
 		}
 
-		Ok(item_count as u64 - 2)
+		Ok(item_count as u64 - 3)
 	}
 
-	fn process_rlp_pair(&mut self, pair: UntrustedRlp, engine: &Engine) -> Result<(), Error> {
-		use basic_types::Seal::With;
+	/// Glue together any disconnected chunks. To be called at the end.
+	pub fn glue_chunks(&mut self) {
+		use blockchain::BlockProvider;
 
-		let abridged_rlp = try!(pair.at(0)).as_raw().to_owned();
-		let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
-		let receipts: Vec<::receipt::Receipt> = try!(pair.val_at(1));
-		let block = try!(abridged_block.to_block(self.parent_hash, self.cur_number));
-		let block_bytes = block.rlp_bytes(With);
+		for &(ref first_num, ref first_hash) in &self.disconnected {
+			let parent_num = first_num - 1;
 
-
-		if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
-			try!(engine.verify_block_seal(&block.header))
-		} else {
-			try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
+			// check if the parent is even in the chain.
+			if let Some(parent_hash) = self.chain.block_hash(parent_num) {
+				// if so, add the child to it.
+				// TODO [rob]: update blooms?
+				self.chain.add_child(parent_hash, *first_hash);
+			}
 		}
-
-		self.chain.insert_canon_block(&block_bytes, receipts);
-
-		self.parent_hash = BlockView::new(&block_bytes).hash();
-		self.cur_number += 1;
-
-		Ok(())
 	}
 }

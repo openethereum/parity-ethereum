@@ -547,13 +547,10 @@ fn execute_restore(conf: Configuration) {
 	info!("Beginning snapshot restoration from {}", filename);
 
 	let informant_handle = snapshot.clone();
-	let block_number = manifest.block_number;
-	let num_state = manifest.state_hashes.len();
 	::std::thread::spawn(move || {
-		while let RestorationStatus::Ongoing(blocks_processed, state_chunks) = informant_handle.status() {
-			info!("Snapshot restoration: imported {} of {} blocks and {} of {} state chunks",
-				blocks_processed, block_number, state_chunks, num_state);
-
+		while let RestorationStatus::Ongoing = informant_handle.status() {
+			// Todo [rob] better informant.
+			info!("Restoration ongoing");
 			::std::thread::sleep(Duration::from_secs(5));
 		}
 	});
@@ -579,7 +576,7 @@ fn execute_restore(conf: Configuration) {
 	}
 
 	match snapshot.status() {
-		RestorationStatus::Ongoing(_, _) => die!("snapshot file is incomplete and missing chunks."),
+		RestorationStatus::Ongoing => die!("snapshot file is incomplete and missing chunks."),
 		RestorationStatus::Failed => die!("restoration failed."),
 		RestorationStatus::Inactive => {}
 	}
