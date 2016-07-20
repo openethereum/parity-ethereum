@@ -369,6 +369,9 @@ pub trait Stream: Sized {
 
 /// Trait for compressing and decompressing RLP by replacement of common terms.
 pub trait Compressible: Sized {
+	/// Indicates the origin of RLP to be compressed.
+	type DataType = RlpType;
+
 	/// Replace common RLPs with invalid shorter ones, None if no compression achieved.
 	/// Tries to compress data insides.
 	fn deep_compress(&self, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>>;
@@ -380,7 +383,7 @@ pub trait Compressible: Sized {
 	/// Recover valid RLP from a compressed form.
 	fn simple_decompress(&self, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8>;
 	/// Compress given RLP type using appropriate methods.
-	fn compress(&self, t: RlpType) -> ElasticArray1024<u8>;
+	fn compress(&self, t: Self::DataType) -> ElasticArray1024<u8>;
 	/// Decompress given RLP type using appropriate methods.
-	fn decompress(&self, t: RlpType) -> ElasticArray1024<u8>;
+	fn decompress(&self, t: Self::DataType) -> ElasticArray1024<u8>;
 }

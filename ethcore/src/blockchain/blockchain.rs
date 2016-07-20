@@ -183,9 +183,7 @@ impl BlockProvider for BlockChain {
 
 		match opt {
 			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b)
-					.decompress()
-					.map_or(b.to_vec(), |d| d.to_vec());
+				let bytes: Bytes = UntrustedRlp::new(&b).decompress().to_vec();
 				let mut write = self.blocks.write();
 				write.insert(hash.clone(), bytes.clone());
 				Some(bytes)
@@ -504,12 +502,11 @@ impl BlockChain {
 			return ImportRoute::none();
 		}
 
-		let compressed = UntrustedRlp::new(bytes).compress().map(|b| b.to_vec());
-		let for_db = match compressed { Some(ref v) => v, None => bytes, };
+		let compressed = UntrustedRlp::new(bytes).compress().to_vec();
 
 		let _lock = self.insert_lock.lock();
 		// store block in db
-		self.blocks_db.put(&hash, for_db).unwrap();
+		self.blocks_db.put(&hash, &compressed).unwrap();
 
 		let info = self.block_info(bytes);
 

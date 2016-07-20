@@ -261,7 +261,7 @@ pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, E
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
 		let fat_rlp = try!(account.to_fat_rlp(&account_db));
-		let compressed_rlp = UntrustedRlp::new(&fat_rlp).simple_compress().to_vec();
+		let compressed_rlp = UntrustedRlp::new(&fat_rlp).compress(RlpType::Snapshot).to_vec();
 		try!(chunker.push(account_key, compressed_rlp));
 	}
 
@@ -401,7 +401,7 @@ fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mu
 		let account_rlp = UntrustedRlp::new(account_pair);
 
 		let hash: H256 = try!(account_rlp.val_at(0));
-		let decompressed = try!(account_rlp.at(1)).simple_decompress();
+		let decompressed = try!(account_rlp.at(1)).decompress(RlpType::Snapshot);
 		let fat_rlp = UntrustedRlp::new(&decompressed[..]);
 
 		let thin_rlp = {
