@@ -38,6 +38,15 @@ impl ContentHandler {
 		}
 	}
 
+	pub fn forbidden(content: String, mimetype: String) -> Self {
+		ContentHandler {
+			code: StatusCode::Forbidden,
+			content: content,
+			mimetype: mimetype,
+			write_pos: 0
+		}
+	}
+
 	pub fn not_found(content: String, mimetype: String) -> Self {
 		ContentHandler {
 			code: StatusCode::NotFound,

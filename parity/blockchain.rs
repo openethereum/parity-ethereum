@@ -164,7 +164,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	};
 
-	let informant = Informant::new(cmd.logger_config.color);
+	let informant = Informant::new(client.clone(), None, None, cmd.logger_config.color);
 
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
@@ -177,7 +177,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 			},
 			Ok(_) => {},
 		}
-		informant.tick(&client, None);
+		informant.tick();
 		Ok(())
 	};
 

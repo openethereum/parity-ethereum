@@ -182,7 +182,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		sync_config, net_conf.into(), client.clone()
 	).map_err(|e| format!("Sync error: {}", e)));
 
-	service.set_notify(&chain_notify);
+	service.add_notify(&chain_notify);
 
 	// start network
 	if cmd.enable_network {
@@ -232,7 +232,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
-		info: Informant::new(cmd.logger_config.color),
+		info: Arc::new(Informant::new(client.clone(), Some(sync_provider.clone()), Some(manage_network.clone()), cmd.logger_config.color)),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
 		accounts: account_provider.clone(),

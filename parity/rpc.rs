@@ -33,7 +33,8 @@ pub struct HttpConfiguration {
 	pub interface: String,
 	pub port: u16,
 	pub apis: ApiSet,
-	pub cors: Vec<String>,
+	pub cors: Option<Vec<String>>,
+	pub hosts: Option<Vec<String>>,
 }
 
 impl Default for HttpConfiguration {
@@ -43,7 +44,8 @@ impl Default for HttpConfiguration {
 			interface: "127.0.0.1".into(),
 			port: 8545,
 			apis: ApiSet::UnsafeContext,
-			cors: vec![],
+			cors: None,
+			hosts: Some(Vec::new()),
 		}
 	}
 }
@@ -87,7 +89,7 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<H
 
 	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = try!(url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url)));
-	Ok(Some(try!(setup_http_rpc_server(deps, &addr, conf.cors, conf.apis))))
+	Ok(Some(try!(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis))))
 }
 
 fn setup_rpc_server(apis: ApiSet, deps: &Dependencies) -> Result<Server, String> {
@@ -98,21 +100,17 @@ fn setup_rpc_server(apis: ApiSet, deps: &Dependencies) -> Result<Server, String>
 pub fn setup_http_rpc_server(
 	dependencies: &Dependencies,
 	url: &SocketAddr,
-	cors_domains: Vec<String>,
+	cors_domains: Option<Vec<String>>,
+	allowed_hosts: Option<Vec<String>>,
 	apis: ApiSet
 ) -> Result<HttpServer, String> {
 	let server = try!(setup_rpc_server(apis, dependencies));
-	let start_result = server.start_http(url, cors_domains);
 	let ph = dependencies.panic_handler.clone();
+	let start_result = server.start_http(url, cors_domains, allowed_hosts, ph);
 	match start_result {
 		Err(RpcServerError::IoError(err)) => Err(format!("RPC io error: {}", err)),
 		Err(e) => Err(format!("RPC error: {:?}", e)),
-		Ok(server) => {
-			server.set_panic_handler(move || {
-				ph.notify_all("Panic in RPC thread.".to_owned());
-			});
-			Ok(server)
-		},
+		Ok(server) => Ok(server),
 	}
 }
 

@@ -436,9 +436,19 @@ impl Configuration {
 		self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone())
 	}
 
-	fn rpc_cors(&self) -> Vec<String> {
+	fn rpc_cors(&self) -> Option<Vec<String>> {
 		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
-		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
+		cors.map(|c| c.split(',').map(|s| s.to_owned()).collect())
+	}
+
+	fn rpc_hosts(&self) -> Option<Vec<String>> {
+		match self.args.flag_jsonrpc_hosts.as_ref() {
+			"none" => return Some(Vec::new()),
+			"all" => return None,
+			_ => {}
+		}
+		let hosts = self.args.flag_jsonrpc_hosts.split(',').map(|h| h.into()).collect();
+		Some(hosts)
 	}
 
 	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
@@ -457,6 +467,7 @@ impl Configuration {
 			interface: self.rpc_interface(),
 			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 			apis: try!(self.rpc_apis().parse()),
+			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
 		};
 
@@ -523,7 +534,6 @@ impl Configuration {
 
 	fn dapps_interface(&self) -> String {
 		match self.args.flag_dapps_interface.as_str() {
-			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
