@@ -37,7 +37,7 @@ use self::io::SnapshotWriter;
 use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
 
-pub use self::service::Service;
+pub use self::service::{RestorationStatus, Service, SnapshotService};
 
 pub mod io;
 pub mod service;
@@ -48,51 +48,14 @@ mod block;
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
-/// Statuses for restorations.
-#[derive(PartialEq, Clone, Copy, Debug)]
-pub enum RestorationStatus {
-	///	No restoration.
-	Inactive,
-	/// Ongoing restoration.
-	Ongoing,
-	/// Failed restoration.
-	Failed,
-}
-
-/// The interface for a snapshot network service.
-/// This handles:
-///    - restoration of snapshots to temporary databases.
-///    - responding to queries for snapshot manifests and chunks
-pub trait SnapshotService {
-	/// Query the most recent manifest data.
-	fn manifest(&self) -> Option<ManifestData>;
-
-	/// Get raw chunk for a given hash.
-	fn chunk(&self, hash: H256) -> Option<Bytes>;
-
-	/// Ask the snapshot service for the restoration status.
-	fn status(&self) -> RestorationStatus;
-
-	/// Begin snapshot restoration.
-	/// If restoration in-progress, this will reset it.
-	/// From this point on, any previous snapshot may become unavailable.
-	/// Returns true if successful, false otherwise.
-	fn begin_restore(&self, manifest: ManifestData) -> bool;
-
-	/// Feed a raw state chunk to the service to be processed asynchronously.
-	/// no-op if not currently restoring.
-	fn restore_state_chunk(&self, hash: H256, chunk: Bytes);
-
-	/// Feed a raw block chunk to the service to be processed asynchronously.
-	/// no-op if currently restoring.
-	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
-}
+// How many blocks to include in a snapshot, starting from the head of the chain.
+const SNAPSHOT_BLOCKS: u64 = 30000;
 
 /// Take a snapshot using the given client and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &HashDB, mut writer: W) -> Result<(), Error> {
+
 	let chain_info = client.chain_info();
 
-	let genesis_hash = chain_info.genesis_hash;
 	let best_header_raw = client.best_block_header();
 	let best_header = HeaderView::new(&best_header_raw);
 	let state_root = best_header.state_root();
@@ -100,7 +63,7 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 	info!("Taking snapshot starting at block {}", best_header.number());
 
 	let state_hashes = try!(chunk_state(state_db, &state_root, &mut writer));
-	let block_hashes = try!(chunk_blocks(client, best_header.hash(), genesis_hash, &mut writer));
+	let block_hashes = try!(chunk_blocks(client, best_header.hash(), &mut writer));
 
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
@@ -130,11 +93,11 @@ struct BlockChunker<'a> {
 
 impl<'a> BlockChunker<'a> {
 	// Repeatedly fill the buffers and writes out chunks, moving backwards from starting block hash.
-	// Loops until we reach the genesis, and writes out the remainder.
-	fn chunk_all(&mut self, genesis_hash: H256) -> Result<(), Error> {
+	// Loops until we reach the first desired block, and writes out the remainder.
+	fn chunk_all(&mut self, first_hash: H256) -> Result<(), Error> {
 		let mut loaded_size = 0;
 
-		while self.current_hash != genesis_hash {
+		while self.current_hash != first_hash {
 			let block = self.client.block(BlockID::Hash(self.current_hash))
 				.expect("started from the head of chain and walking backwards; client stores full chain; qed");
 			let view = BlockView::new(&block);
@@ -165,8 +128,8 @@ impl<'a> BlockChunker<'a> {
 		}
 
 		if loaded_size != 0 {
-			// we don't store the genesis block, so once we get to this point,
-			// the "first" block will be number 1.
+			// we don't store the first block, so once we get to this point,
+			// the "first" block will be first_number + 1.
 			try!(self.write_chunk());
 		}
 
@@ -219,17 +182,27 @@ impl<'a> BlockChunker<'a> {
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_blocks(client: &BlockChainClient, best_block_hash: H256, genesis_hash: H256, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
+pub fn chunk_blocks(client: &BlockChainClient, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
+	let chain_info = client.chain_info();
+	let first_hash = if chain_info.best_block_number < SNAPSHOT_BLOCKS {
+		// use the genesis hash.
+		chain_info.genesis_hash
+	} else {
+		let first_num = chain_info.best_block_number - SNAPSHOT_BLOCKS;
+		client.block_hash(BlockID::Number(first_num))
+			.expect("number before best block number; client stores whole chain; qed")
+	};
+
 	let mut chunker = BlockChunker {
 		client: client,
 		rlps: VecDeque::new(),
-		current_hash: best_block_hash,
+		current_hash: chain_info.best_block_hash,
 		hashes: Vec::new(),
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
 		writer: writer,
 	};
 
-	try!(chunker.chunk_all(genesis_hash));
+	try!(chunker.chunk_all(first_hash));
 
 	Ok(chunker.hashes)
 }

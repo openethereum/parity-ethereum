@@ -21,7 +21,7 @@ use std::io::ErrorKind;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{ManifestData, StateRebuilder, BlockRebuilder, SnapshotService, RestorationStatus};
+use super::{ManifestData, StateRebuilder, BlockRebuilder};
 use super::io::{SnapshotReader, LooseReader};
 
 use blockchain::BlockChain;
@@ -35,6 +35,46 @@ use util::{Bytes, H256, Mutex};
 use util::io::IoChannel;
 use util::journaldb::{self, Algorithm};
 use util::snappy;
+
+/// Statuses for restorations.
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum RestorationStatus {
+	///	No restoration.
+	Inactive,
+	/// Ongoing restoration.
+	Ongoing,
+	/// Failed restoration.
+	Failed,
+}
+
+/// The interface for a snapshot network service.
+/// This handles:
+///    - restoration of snapshots to temporary databases.
+///    - responding to queries for snapshot manifests and chunks
+pub trait SnapshotService {
+	/// Query the most recent manifest data.
+	fn manifest(&self) -> Option<ManifestData>;
+
+	/// Get raw chunk for a given hash.
+	fn chunk(&self, hash: H256) -> Option<Bytes>;
+
+	/// Ask the snapshot service for the restoration status.
+	fn status(&self) -> RestorationStatus;
+
+	/// Begin snapshot restoration.
+	/// If restoration in-progress, this will reset it.
+	/// From this point on, any previous snapshot may become unavailable.
+	/// Returns true if successful, false otherwise.
+	fn begin_restore(&self, manifest: ManifestData) -> bool;
+
+	/// Feed a raw state chunk to the service to be processed asynchronously.
+	/// no-op if not currently restoring.
+	fn restore_state_chunk(&self, hash: H256, chunk: Bytes);
+
+	/// Feed a raw block chunk to the service to be processed asynchronously.
+	/// no-op if currently restoring.
+	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
+}
 
 /// State restoration manager.
 struct Restoration {
@@ -73,6 +113,8 @@ impl Restoration {
 		if self.state_chunks_left.remove(&hash) {
 			let len = try!(snappy::decompress_into(&chunk, &mut self.snappy_buffer));
 			try!(self.state.feed(&self.snappy_buffer[..len]));
+
+			// TODO: verify state root when done.
 		}
 
 		Ok(())
