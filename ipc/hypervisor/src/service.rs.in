@@ -60,6 +60,7 @@ impl HypervisorService {
 		})
 	}
 
+	/// Add the module to the check-list
 	pub fn add_module(&self, module_id: IpcModuleId) {
 		self.check_list.write().unwrap().insert(module_id, false);
 	}

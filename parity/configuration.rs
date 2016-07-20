@@ -33,7 +33,7 @@ use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
-use setup_log::LoggerConfig;
+use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
 use signer::Configuration as SignerConfiguration;
@@ -260,8 +260,8 @@ impl Configuration {
 		}
 	}
 
-	fn logger_config(&self) -> LoggerConfig {
-		LoggerConfig {
+	fn logger_config(&self) -> LogConfig {
+		LogConfig {
 			mode: self.args.flag_logging.clone(),
 			color: !self.args.flag_no_color && !cfg!(windows),
 			file: self.args.flag_log_file.clone(),
@@ -558,7 +558,6 @@ mod tests {
 	use util::network_settings::NetworkSettings;
 	use ethcore::client::{VMType, BlockID};
 	use helpers::{replace_home, default_network_config};
-	use setup_log::LoggerConfig;
 	use run::RunCmd;
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use presale::ImportWallet;

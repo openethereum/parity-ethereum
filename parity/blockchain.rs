@@ -22,6 +22,7 @@ use std::thread::sleep;
 use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
+use ethcore_logger::{setup_log, Config as LogConfig};
 use util::panics::{PanicHandler, ForwardPanic};
 use util::{PayloadInfo, ToPretty};
 use util::log::Colour;
@@ -30,7 +31,6 @@ use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImpo
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
-use setup_log::{setup_log, LoggerConfig};
 use informant::Informant;
 use params::{SpecType, Pruning};
 use helpers::{to_client_config, execute_upgrades};
@@ -70,7 +70,7 @@ pub enum BlockchainCmd {
 #[derive(Debug, PartialEq)]
 pub struct ImportBlockchain {
 	pub spec: SpecType,
-	pub logger_config: LoggerConfig,
+	pub logger_config: LogConfig,
 	pub cache_config: CacheConfig,
 	pub dirs: Directories,
 	pub file_path: Option<String>,
@@ -85,7 +85,7 @@ pub struct ImportBlockchain {
 #[derive(Debug, PartialEq)]
 pub struct ExportBlockchain {
 	pub spec: SpecType,
-	pub logger_config: LoggerConfig,
+	pub logger_config: LogConfig,
 	pub cache_config: CacheConfig,
 	pub dirs: Directories,
 	pub file_path: Option<String>,

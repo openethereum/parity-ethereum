@@ -14,28 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Logger for parity executables
+
+extern crate ethcore_util as util;
+#[macro_use]
+extern crate log as rlog;
+extern crate isatty;
+extern crate regex;
+extern crate env_logger;
+extern crate time;
+#[macro_use]
+extern crate lazy_static;
 
 use std::env;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::Write;
 use isatty::{stderr_isatty};
-use time;
 use env_logger::LogBuilder;
 use regex::Regex;
 use util::RotatingLogger;
 use util::log::Colour;
 
 #[derive(Debug, PartialEq)]
-pub struct LoggerConfig {
+pub struct Config {
 	pub mode: Option<String>,
 	pub color: bool,
 	pub file: Option<String>,
 }
 
-impl Default for LoggerConfig {
+impl Default for Config {
 	fn default() -> Self {
-		LoggerConfig {
+		Config {
 			mode: None,
 			color: !cfg!(windows),
 			file: None,
@@ -44,7 +54,7 @@ impl Default for LoggerConfig {
 }
 
 /// Sets up the logger
-pub fn setup_log(config: &LoggerConfig) -> Result<Arc<RotatingLogger>, String> {
+pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	use rlog::*;
 
 	let mut levels = String::new();
@@ -68,11 +78,12 @@ pub fn setup_log(config: &LoggerConfig) -> Result<Arc<RotatingLogger>, String> {
 	let enable_color = config.color && stderr_isatty();
 	let logs = Arc::new(RotatingLogger::new(levels));
 	let logger = logs.clone();
+
 	let maybe_file = match config.file.as_ref() {
 		Some(f) => Some(try!(File::create(f).map_err(|_| format!("Cannot write to log file given: {}", f)))),
 		None => None,
 	};
-	//let maybe_file = config.file.as_ref().map(|f| try!(File::create(f).map_err(|_| format!("Cannot write to log file given: {}", f))));
+
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 

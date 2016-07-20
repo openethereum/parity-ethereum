@@ -54,6 +54,7 @@ impl<T> BinaryConvertable for Option<T> where T: BinaryConvertable {
 	}
 
 	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		if buffer.len() == 0 { return Self::from_empty_bytes(); }
 		Ok(Some(try!(T::from_bytes(buffer, length_stack))))
 	}
 
@@ -777,6 +778,42 @@ fn serialize_into_deserialize_from() {
 	buff.seek(SeekFrom::Start(0)).unwrap();
 	let de_v = deserialize_from::<Vec<Option<u64>>, _>(&mut buff).unwrap();
 	assert_eq!(v, de_v);
+}
+
+#[test]
+fn serialize_vec_str() {
+	// empty
+	let source = Vec::<String>::new();
+	let serialized = serialize(&source).unwrap();
+	let deserialized = deserialize::<Vec<String>>(&serialized).unwrap();
+
+	assert_eq!(source, deserialized);
+
+	// with few values
+	let mut source = Vec::<String>::new();
+	source.push("val1".to_owned());
+	source.push("val2".to_owned());
+	let serialized = serialize(&source).unwrap();
+	let deserialized = deserialize::<Vec<String>>(&serialized).unwrap();
+
+	assert_eq!(source, deserialized);
+}
+
+#[test]
+fn serialize_opt_str() {
+	// none
+	let source: Option<String> = None;
+	let serialized = serialize(&source).unwrap();
+	let deserialized = deserialize::<Option<String>>(&serialized).unwrap();
+
+	assert_eq!(source, deserialized);
+
+	// value
+	let source: Option<String> = Some("i have value".to_owned());
+	let serialized = serialize(&source).unwrap();
+	let deserialized = deserialize::<Option<String>>(&serialized).unwrap();
+
+	assert_eq!(source, deserialized);
 }
 
 #[test]

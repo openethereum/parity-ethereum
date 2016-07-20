@@ -19,6 +19,7 @@ use std::path::Path;
 use std::{env, process};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
+use ethcore_logger::{Config as LogConfig, setup_log};
 use util::network_settings::NetworkSettings;
 use util::{Colour, version, NetworkConfiguration, U256};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
@@ -36,7 +37,6 @@ use io_handler::ClientIoHandler;
 use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
-use setup_log::{LoggerConfig, setup_log};
 use cache::CacheConfig;
 use dapps;
 use signer;
@@ -53,7 +53,7 @@ pub struct RunCmd {
 	pub pruning: Pruning,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
-	pub logger_config: LoggerConfig,
+	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
 	pub http_conf: HttpConfiguration,
 	pub ipc_conf: IpcConfiguration,
@@ -77,6 +77,9 @@ pub struct RunCmd {
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
+	// create supervisor
+	let mut hypervisor = modules::hypervisor();
+
 	// increase max number of open files
 	raise_fd_limit();
 
@@ -177,10 +180,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		sync_config, net_conf.into(), client.clone()
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
-	service.add_notify(&chain_notify);
+	service.add_notify(chain_notify.clone());
 
 	// start network
 	if cmd.enable_network {

@@ -31,6 +31,7 @@ extern crate ethsync;
 #[macro_use]
 extern crate log as rlog;
 extern crate env_logger;
+extern crate ethcore_logger;
 extern crate ctrlc;
 extern crate fdlimit;
 extern crate time;
@@ -58,7 +59,6 @@ extern crate ethcore_dapps;
 
 mod cache;
 mod upgrade;
-mod setup_log;
 mod rpc;
 mod dapps;
 mod informant;

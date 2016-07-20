@@ -14,6 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod helpers;
-mod chain;
-mod rpc;
+use super::super::NetworkConfiguration;
+use util::NetworkConfiguration as BasicNetworkConfiguration;
+use std::convert::From;
+use ipc::binary::{serialize, deserialize};
+
+#[test]
+fn network_settings_serialize() {
+	let net_cfg = NetworkConfiguration::from(BasicNetworkConfiguration::new_local());
+	let serialized = serialize(&net_cfg).unwrap();
+	let deserialized = deserialize::<NetworkConfiguration>(&serialized).unwrap();
+
+	assert_eq!(net_cfg.udp_port, deserialized.udp_port);
+}
