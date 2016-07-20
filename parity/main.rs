@@ -53,15 +53,16 @@ extern crate ansi_term;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
+extern crate ethcore_logger;
 extern crate isatty;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
+
 #[macro_use]
 mod die;
 mod upgrade;
-mod setup_log;
 mod rpc;
 mod dapps;
 mod informant;
@@ -86,7 +87,7 @@ use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, version, journaldb, RotatingLogger};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, Mode, ChainNotify};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, Mode};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -95,6 +96,9 @@ use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
 use util::{Mutex, Condvar};
+use ethcore_logger::setup_log;
+#[cfg(feature="ipc")]
+use ethcore::client::ChainNotify;
 
 use die::*;
 use cli::print_version;
@@ -132,7 +136,7 @@ fn execute(conf: Configuration) {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
+	let logger = setup_log(&conf.log_settings());
 	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -192,6 +196,8 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 }
 
 fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, panic_handler: Arc<PanicHandler>, logger: Arc<RotatingLogger>) {
+	let mut hypervisor = modules::hypervisor();
+
 	info!("Starting {}", Colour::White.bold().paint(format!("{}", version())));
 	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(match client_config.pruning {
 		journaldb::Algorithm::Archive => "archive",
@@ -244,9 +250,10 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, 
 
 	// Sync
 	let (sync_provider, manage_network, chain_notify) =
-		modules::sync(sync_config, NetworkConfiguration::from(net_settings), client.clone())
+		modules::sync(&mut hypervisor, sync_config, NetworkConfiguration::from(net_settings), client.clone(), &conf.log_settings())
 			.unwrap_or_else(|e| die_with_error("Sync", e));
-	service.add_notify(&chain_notify);
+
+	service.add_notify(chain_notify.clone());
 
 	// if network is active by default
 	if match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network } {
@@ -311,8 +318,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, 
 	});
 
 	let informant = Arc::new(Informant::new(service.client(), Some(sync_provider.clone()), Some(manage_network.clone()), conf.have_color()));
-	let info_notify: Arc<ChainNotify> = informant.clone();
-	service.add_notify(&info_notify);
+	service.add_notify(informant.clone());
 	// Register IO handler
 	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),

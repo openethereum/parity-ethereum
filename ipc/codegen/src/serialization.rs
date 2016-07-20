@@ -261,6 +261,10 @@ fn binary_expr_struct(
 
 		let raw_ident = ::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty));
 		let range_ident = builder.id(format!("r{}", index));
+
+		let error_message = "Error serializing member: ".to_owned() + &::syntax::print::pprust::expr_to_string(&member_expr);
+		let error_message_literal = builder.expr().lit().str::<&str>(&error_message);
+
 		match raw_ident.as_ref() {
 			"u8" => {
 				write_stmts.push(quote_stmt!(cx, let next_line = offset + 1;).unwrap());
@@ -280,7 +284,13 @@ fn binary_expr_struct(
 					}).unwrap());
 				write_stmts.push(quote_stmt!(cx, let $range_ident = offset..next_line; ).unwrap());
 				post_write_stmts.push(quote_stmt!(cx,
-					if let Err(e) = $member_expr .to_bytes(&mut buffer[$range_ident], length_stack) { return Err(e) };).unwrap());
+						if $range_ident.end - $range_ident.start > 0 {
+							if let Err(e) = $member_expr .to_bytes(&mut buffer[$range_ident], length_stack) {
+								warn!(target: "ipc", $error_message_literal);
+								return Err(e)
+							};
+						}
+					).unwrap());
 			}
 		}
 

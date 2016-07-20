@@ -34,6 +34,7 @@ use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
+use ethcore_logger::Settings as LogSettings;
 
 pub struct Configuration {
 	pub args: Args
@@ -563,6 +564,20 @@ impl Configuration {
 	pub fn signer_enabled(&self) -> bool {
 		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
 		self.args.flag_force_signer
+	}
+
+	pub fn log_settings(&self) -> LogSettings {
+		let mut settings = LogSettings::new();
+		if self.args.flag_no_color || cfg!(windows) {
+			settings = settings.no_color();
+		}
+		if let Some(ref init) = self.args.flag_logging {
+			settings = settings.init(init.to_owned())
+		}
+		if let Some(ref file) = self.args.flag_log_file {
+			settings = settings.file(file.to_owned())
+		}
+		settings
 	}
 }
 
