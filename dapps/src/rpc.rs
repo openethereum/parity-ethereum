@@ -23,19 +23,22 @@ pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> 
 	Box::new(RpcEndpoint {
 		handler: handler,
 		panic_handler: panic_handler,
-		cors_domain: vec![AccessControlAllowOrigin::Null],
+		cors_domain: Some(vec![AccessControlAllowOrigin::Null]),
+		// NOTE [ToDr] We don't need to do any hosts validation here. It's already done in router.
+		allowed_hosts: None,
 	})
 }
 
 struct RpcEndpoint {
 	handler: Arc<IoHandler>,
 	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
-	cors_domain: Vec<AccessControlAllowOrigin>,
+	cors_domain: Option<Vec<AccessControlAllowOrigin>>,
+	allowed_hosts: Option<Vec<String>>,
 }
 
 impl Endpoint for RpcEndpoint {
 	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
 		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
-		Box::new(ServerHandler::new(self.handler.clone(), self.cors_domain.clone(), panic_handler))
+		Box::new(ServerHandler::new(self.handler.clone(), self.cors_domain.clone(), self.allowed_hosts.clone(), panic_handler))
 	}
 }

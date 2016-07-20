@@ -16,3 +16,4 @@
 
 pub mod helpers;
 mod chain;
+mod rpc;

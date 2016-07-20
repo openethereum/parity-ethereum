@@ -73,6 +73,7 @@ mod error_codes {
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
+	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const SIGNER_DISABLED: i64 = -32030;
 }
 
@@ -109,7 +110,7 @@ fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionReq
 	let signed_transaction = {
 		let t = prepare_transaction(client, miner, request);
 		let hash = t.hash();
-		let signature = try!(account_provider.sign_with_password(address, password, hash).map_err(signing_error));
+		let signature = try!(account_provider.sign_with_password(address, password, hash).map_err(password_error));
 		t.with_signature(signature)
 	};
 
@@ -143,6 +144,14 @@ fn signing_error(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(error_codes::ACCOUNT_LOCKED),
 		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+fn password_error(error: AccountError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::PASSWORD_INVALID),
+		message: "Account password is invalid or account does not exist.".into(),
 		data: Some(Value::String(format!("{:?}", error))),
 	}
 }

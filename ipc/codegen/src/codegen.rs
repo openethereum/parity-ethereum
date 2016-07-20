@@ -273,7 +273,12 @@ fn implement_dispatch_arm(
 {
 	let index_ident = builder.id(format!("{}", index + (RESERVED_MESSAGE_IDS as u32)).as_str());
 	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch, buffer);
-	quote_arm!(cx, $index_ident => { $invoke_expr } )
+	let dispatching_trace = "Dispatching: ".to_owned() + &dispatch.function_name;
+	let dispatching_trace_literal = builder.expr().lit().str::<&str>(&dispatching_trace);
+	quote_arm!(cx, $index_ident => {
+		trace!(target: "ipc", $dispatching_trace_literal);
+		$invoke_expr
+	})
 }
 
 fn implement_dispatch_arms(
@@ -420,17 +425,22 @@ fn implement_client_method_body(
 		request_serialization_statements
 	};
 
+	let invocation_trace = "Invoking: ".to_owned() + &dispatch.function_name;
+	let invocation_trace_literal = builder.expr().lit().str::<&str>(&invocation_trace);
+
 	if let Some(ref return_ty) = dispatch.return_type_ty {
 		let return_expr = quote_expr!(cx,
 			::ipc::binary::deserialize_from::<$return_ty, _>(&mut *socket).unwrap()
 		);
 		quote_expr!(cx, {
+			trace!(target: "ipc", $invocation_trace_literal);
 			$request
 			$return_expr
 		})
 	}
 	else {
 		quote_expr!(cx, {
+			trace!(target: "ipc", $invocation_trace_literal);
 			$request
 		})
 	}

@@ -34,6 +34,7 @@ use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use rpc::IpcConfiguration;
+use ethcore_logger::Settings as LogSettings;
 
 pub struct Configuration {
 	pub args: Args
@@ -428,9 +429,19 @@ impl Configuration {
 		self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone())
 	}
 
-	pub fn rpc_cors(&self) -> Vec<String> {
+	pub fn rpc_cors(&self) -> Option<Vec<String>> {
 		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
-		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
+		cors.map(|c| c.split(',').map(|s| s.to_owned()).collect())
+	}
+
+	pub fn rpc_hosts(&self) -> Option<Vec<String>> {
+		match self.args.flag_jsonrpc_hosts.as_ref() {
+			"none" => return Some(Vec::new()),
+			"all" => return None,
+			_ => {}
+		}
+		let hosts = self.args.flag_jsonrpc_hosts.split(',').map(|h| h.into()).collect();
+		Some(hosts)
 	}
 
 	fn geth_ipc_path(&self) -> String {
@@ -545,7 +556,6 @@ impl Configuration {
 
 	pub fn dapps_interface(&self) -> String {
 		match self.args.flag_dapps_interface.as_str() {
-			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
@@ -558,6 +568,20 @@ impl Configuration {
 	pub fn signer_enabled(&self) -> bool {
 		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
 		self.args.flag_force_signer
+	}
+
+	pub fn log_settings(&self) -> LogSettings {
+		let mut settings = LogSettings::new();
+		if self.args.flag_no_color || cfg!(windows) {
+			settings = settings.no_color();
+		}
+		if let Some(ref init) = self.args.flag_logging {
+			settings = settings.init(init.to_owned())
+		}
+		if let Some(ref file) = self.args.flag_log_file {
+			settings = settings.file(file.to_owned())
+		}
+		settings
 	}
 }
 
@@ -601,7 +625,7 @@ mod tests {
 			assert_eq!(net.rpc_enabled, true);
 			assert_eq!(net.rpc_interface, "all".to_owned());
 			assert_eq!(net.rpc_port, 8000);
-			assert_eq!(conf.rpc_cors(), vec!["*".to_owned()]);
+			assert_eq!(conf.rpc_cors(), Some(vec!["*".to_owned()]));
 			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
 		}
 
@@ -622,6 +646,23 @@ mod tests {
 		// then
 		assert(conf1);
 		assert(conf2);
+	}
+
+	#[test]
+	fn should_parse_rpc_hosts() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--jsonrpc-hosts", "none"]);
+		let conf2 = parse(&["parity", "--jsonrpc-hosts", "all"]);
+		let conf3 = parse(&["parity", "--jsonrpc-hosts", "ethcore.io,something.io"]);
+
+		// then
+		assert_eq!(conf0.rpc_hosts(), Some(Vec::new()));
+		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
+		assert_eq!(conf2.rpc_hosts(), None);
+		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
 	}
 }
 

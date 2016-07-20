@@ -63,7 +63,7 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 	info!("Taking snapshot starting at block {}", best_header.number());
 
 	let state_hashes = try!(chunk_state(state_db, &state_root, &mut writer));
-	let block_hashes = try!(chunk_blocks(client, best_header.hash(), &mut writer));
+	let block_hashes = try!(chunk_blocks(client, &mut writer));
 
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
