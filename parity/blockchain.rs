@@ -45,7 +45,7 @@ pub enum DataFormat {
 
 impl Default for DataFormat {
 	fn default() -> Self {
-		DataFormat::Hex
+		DataFormat::Binary
 	}
 }
 
@@ -119,8 +119,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let _logger = setup_log(&cmd.logger_config);
 
 	fdlimit::raise_fd_limit();
-
-	info!("Starting {}", Colour::White.bold().paint(version()));
 
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash);
@@ -232,8 +230,6 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let _logger = setup_log(&cmd.logger_config);
 
 	fdlimit::raise_fd_limit();
-
-	info!("Starting {}", Colour::White.bold().paint(version()));
 
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash);

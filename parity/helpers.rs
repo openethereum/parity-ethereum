@@ -190,9 +190,10 @@ pub fn to_client_config(
 		vm_type: VMType
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
+	let mb= 1024 * 1024;
 	client_config.mode = mode;
-	client_config.blockchain.max_cache_size = cache_config.blockchain as usize;
-	client_config.blockchain.pref_cache_size = cache_config.blockchain as usize * 3 / 4;
+	client_config.blockchain.max_cache_size = cache_config.blockchain as usize * mb;
+	client_config.blockchain.pref_cache_size = cache_config.blockchain as usize * 3 / 4 * mb;
 	client_config.blockchain.db_cache_size = Some(cache_config.rocksdb_blockchain_cache_size() as usize);
 	// state db cache size
 	client_config.db_cache_size = Some(cache_config.rocksdb_state_cache_size() as usize);
