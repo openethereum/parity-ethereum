@@ -124,7 +124,8 @@ impl ChainNotify for EthSync {
 		invalid: Vec<H256>,
 		enacted: Vec<H256>,
 		retracted: Vec<H256>,
-		sealed: Vec<H256>)
+		sealed: Vec<H256>,
+		_duration: u64)
 	{
 		self.network.with_context(ETH_PROTOCOL, |context| {
 			let mut sync_io = NetSyncIo::new(context, self.handler.chain.deref());
