@@ -181,27 +181,27 @@ mod tests {
 	fn data_compression() {
 		let data_basic_account_rlp = vec![184, 70, 248, 68, 4, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112];
 		let data_rlp = UntrustedRlp::new(&data_basic_account_rlp);
-		let compressed = data_rlp.compress().unwrap().to_vec();
+		let compressed = data_rlp.compress(RlpType::Blocks).unwrap().to_vec();
 		assert_eq!(compressed, vec![201, 129, 127, 198, 4, 2, 129, 0, 129, 1]);
 		let compressed_rlp = UntrustedRlp::new(&compressed);
-		assert_eq!(compressed_rlp.decompress().unwrap().to_vec(), data_basic_account_rlp);
+		assert_eq!(compressed_rlp.decompress(RlpType::Blocks).unwrap().to_vec(), data_basic_account_rlp);
 	}
 
 	#[test]
 	fn nested_list_rlp() {
 		let nested_basic_account_rlp = vec![228, 4, 226, 2, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33];
 		let nested_rlp = UntrustedRlp::new(&nested_basic_account_rlp);
-		let compressed = nested_rlp.compress().unwrap().to_vec();
+		let compressed = nested_rlp.compress(RlpType::Blocks).unwrap().to_vec();
 		assert_eq!(compressed, vec![197, 4, 195, 2, 129, 0]);
 		let compressed_rlp = UntrustedRlp::new(&compressed);
-		assert_eq!(compressed_rlp.decompress().unwrap().to_vec(), nested_basic_account_rlp);
+		assert_eq!(compressed_rlp.decompress(RlpType::Blocks).unwrap().to_vec(), nested_basic_account_rlp);
 	}
 
 	#[test]
 	fn malformed_rlp() {
 		let malformed = vec![248, 81, 128, 128, 128, 128, 128, 160, 12, 51, 241, 93, 69, 218, 74, 138, 79, 115, 227, 44, 216, 81, 46, 132, 85, 235, 96, 45, 252, 48, 181, 29, 75, 141, 217, 215, 86, 160, 109, 130, 160, 140, 36, 93, 200, 109, 215, 100, 241, 246, 99, 135, 92, 168, 149, 170, 114, 9, 143, 4, 93, 25, 76, 54, 176, 119, 230, 170, 154, 105, 47, 121, 10, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128];
 		let malformed_rlp = UntrustedRlp::new(&malformed);
-		assert!(malformed_rlp.decompress().is_none());
+		assert!(malformed_rlp.decompress(RlpType::Blocks).is_none());
 	}
 
 	#[test]
@@ -215,9 +215,9 @@ mod tests {
 
 		for v in values.iter() {
 			let rlp = UntrustedRlp::new(&v);
-			let compressed = rlp.compress().map(|b| b.to_vec()).unwrap_or(v.to_vec());
+			let compressed = rlp.compress(RlpType::Blocks).map(|b| b.to_vec()).unwrap_or(v.to_vec());
 			comp_size += compressed.len();
-			let decompressed = rlp.decompress().map(|b| b.to_vec()).unwrap_or(v.to_vec());
+			let decompressed = rlp.decompress(RlpType::Blocks).map(|b| b.to_vec()).unwrap_or(v.to_vec());
 			decomp_size += decompressed.len();
 		}
 		println!("Decompressed bytes {:?}, compressed bytes: {:?}", decomp_size, comp_size);

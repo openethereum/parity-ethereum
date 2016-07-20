@@ -57,10 +57,8 @@ fn analyze_db() {
 		let mut flat = Vec::new();
 		flat_rlp(&mut flat, rlp);
 		for r in flat.iter() {
-			if r.compress().is_none() {
 			*rlp_counts.entry(r.as_raw()).or_insert(0) += 1;
 			*rlp_sizes.entry(r.as_raw()).or_insert(0) += space_saving(r.as_raw());
-			}
 		}
 	}
 	let mut size_vec: Vec<_> = rlp_sizes.iter().collect();
