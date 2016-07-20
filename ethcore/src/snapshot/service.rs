@@ -31,9 +31,11 @@ use error::Error;
 use service::ClientIoMessage;
 use spec::Spec;
 
-use util::{Bytes, H256, Mutex};
+use util::{Bytes, H256, Mutex, UtilError};
 use util::io::IoChannel;
-use util::journaldb::{self, Algorithm};
+use util::journaldb::Algorithm;
+use util::kvdb::Database;
+use util::overlaydb::OverlayDB;
 use util::snappy;
 
 /// Statuses for restorations.
@@ -87,22 +89,19 @@ struct Restoration {
 
 impl Restoration {
 	// make a new restoration, building databases in the given path.
-	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Result<Self, Error> {
+	fn new(manifest: &ManifestData, path: &Path, spec: &Spec) -> Result<Self, Error> {
 		let mut state_db_path = path.to_owned();
 		state_db_path.push("state");
 
-		let mut state_db = journaldb::new(&*state_db_path.to_string_lossy(), pruning, Default::default());
-
-		if spec.ensure_db_good(state_db.as_hashdb_mut()) {
-			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
-		}
+		let raw_db =
+			try!(Database::open_default(&*state_db_path.to_string_lossy()).map_err(UtilError::SimpleString));
 
 		let blocks = try!(BlockRebuilder::new(BlockChain::new(Default::default(), &spec.genesis_block(), path)));
 
 		Ok(Restoration {
 			state_chunks_left: manifest.state_hashes.iter().cloned().collect(),
 			block_chunks_left: manifest.block_hashes.iter().cloned().collect(),
-			state: StateRebuilder::new(state_db),
+			state: StateRebuilder::new(OverlayDB::new(raw_db)),
 			blocks: blocks,
 			snappy_buffer: Vec::new(),
 		})
@@ -373,7 +372,7 @@ impl SnapshotService for Service {
 		}
 
 		// make new restoration.
-		*res = match Restoration::new(&manifest, self.pruning, &rest_dir, &self.spec) {
+		*res = match Restoration::new(&manifest, &rest_dir, &self.spec) {
 				Ok(b) => Some(b),
 				Err(e) => {
 					warn!("encountered error {} while beginning snapshot restoration.", e);

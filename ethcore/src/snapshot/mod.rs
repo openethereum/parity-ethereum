@@ -26,8 +26,9 @@ use engine::Engine;
 use ids::BlockID;
 use views::{BlockView, HeaderView};
 
-use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut};
+use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
+use util::overlaydb::OverlayDB;
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 
 use self::account::Account;
@@ -348,13 +349,13 @@ impl ManifestData {
 
 /// Used to rebuild the state trie piece by piece.
 pub struct StateRebuilder {
-	db: Box<JournalDB>,
+	db: OverlayDB,
 	state_root: H256,
 }
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: Box<JournalDB>) -> Self {
+	pub fn new(db: OverlayDB) -> Self {
 		StateRebuilder {
 			db: db,
 			state_root: H256::zero(),
@@ -363,6 +364,8 @@ impl StateRebuilder {
 
 	/// Feed an uncompressed state chunk into the rebuilder.
 	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
+		use util::AsHashDB;
+
 		let rlp = UntrustedRlp::new(chunk);
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
@@ -378,12 +381,12 @@ impl StateRebuilder {
 		try!(scope(|scope| {
 			let mut handles = Vec::new();
 			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let mut db = self.db.boxed_clone();
+				let mut db = self.db.clone();
 				let handle: ScopedJoinHandle<Result<(), Error>> = scope.spawn(move || {
 					try!(rebuild_account_trie(db.as_hashdb_mut(), account_chunk, out_pairs_chunk));
 
 					// commit the db changes we made in this thread.
-					try!(db.commit(0, &H256::zero(), None));
+					try!(db.commit());
 
 					Ok(())
 				});
@@ -412,7 +415,7 @@ impl StateRebuilder {
 			}
 		}
 
-		try!(self.db.commit(0, &H256::zero(), None));
+		try!(self.db.commit());
 		Ok(())
 	}
 
