@@ -280,6 +280,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, 
 		port: network_settings.rpc_port,
 		apis: conf.rpc_apis(),
 		cors: conf.rpc_cors(),
+		hosts: conf.rpc_hosts(),
 	}, &dependencies);
 
 	// setup ipc rpc
