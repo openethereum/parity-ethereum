@@ -751,7 +751,8 @@ impl Host {
 		if let Some(session) = session.clone() {
 			let mut s = session.lock();
 			loop {
-				match s.readable(io, &self.info.read()) {
+				let session_result = s.readable(io, &self.info.read());
+				match session_result {
 					Err(e) => {
 						trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
 						if let UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) = e {
@@ -768,7 +769,6 @@ impl Host {
 						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 						if !s.info.originated {
 							let session_count = self.session_count();
-							let reserved_nodes = self.reserved_nodes.read();
 							let (ideal_peers, reserved_only) = {
 								let info = self.info.read();
 								(info.config.ideal_peers, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
@@ -776,7 +776,7 @@ impl Host {
 
 							if session_count >= ideal_peers as usize || reserved_only {
 								// only proceed if the connecting peer is reserved.
-								if !reserved_nodes.contains(s.id().unwrap()) {
+								if !self.reserved_nodes.read().contains(s.id().unwrap()) {
 									s.disconnect(io, DisconnectReason::TooManyPeers);
 									return;
 								}
