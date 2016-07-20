@@ -81,7 +81,19 @@ pub fn new(path: &str, algorithm: Algorithm, config: DatabaseConfig) -> Box<Jour
 	}
 }
 
+/// Get the database version for each pruning algorithm.
+pub fn version(algorithm: Algorithm) -> u32 {
+	match algorithm {
+		Algorithm::Archive => archivedb::DB_VERSION,
+		Algorithm::EarlyMerge => earlymergedb::DB_VERSION,
+		Algorithm::OverlayRecent => overlayrecentdb::DB_VERSION,
+		Algorithm::RefCounted => refcounteddb::DB_VERSION,
+	}
+}
+
 // all keys must be at least 12 bytes
 const DB_PREFIX_LEN : usize = 12;
 const LATEST_ERA_KEY : [u8; DB_PREFIX_LEN] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; DB_PREFIX_LEN] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
+
+/// The version key used in databases.
+pub const VERSION_KEY : [u8; DB_PREFIX_LEN] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];

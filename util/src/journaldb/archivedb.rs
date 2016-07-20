@@ -31,7 +31,7 @@ use std::env;
 const AUX_FLAG: u8 = 255;
 
 /// Database version.
-const DB_VERSION : u32 = 0x103;
+pub const DB_VERSION : u32 = 0x103;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.

@@ -93,7 +93,7 @@ impl Clone for OverlayRecentDB {
 	}
 }
 
-const DB_VERSION : u32 = 0x203;
+pub const DB_VERSION : u32 = 0x203;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {

@@ -41,7 +41,7 @@ pub struct RefCountedDB {
 	removes: Vec<H256>,
 }
 
-const DB_VERSION : u32 = 0x200;
+pub const DB_VERSION : u32 = 0x200;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {

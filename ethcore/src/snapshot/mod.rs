@@ -416,6 +416,7 @@ impl StateRebuilder {
 		}
 
 		try!(self.db.commit());
+
 		Ok(())
 	}
 

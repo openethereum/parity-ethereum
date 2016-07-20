@@ -68,7 +68,7 @@ pub struct EarlyMergeDB {
 	latest_era: Option<u64>,
 }
 
-const DB_VERSION : u32 = 0x003;
+pub const DB_VERSION : u32 = 0x003;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl EarlyMergeDB {

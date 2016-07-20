@@ -33,7 +33,7 @@ use spec::Spec;
 
 use util::{Bytes, H256, Mutex, UtilError};
 use util::io::IoChannel;
-use util::journaldb::Algorithm;
+use util::journaldb::{self, Algorithm};
 use util::kvdb::Database;
 use util::overlaydb::OverlayDB;
 use util::snappy;
@@ -89,12 +89,22 @@ struct Restoration {
 
 impl Restoration {
 	// make a new restoration, building databases in the given path.
-	fn new(manifest: &ManifestData, path: &Path, spec: &Spec) -> Result<Self, Error> {
+	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Result<Self, Error> {
+		// try something that outputs a string as error. used here for DB stuff
+		macro_rules! try_string {
+			($($t: tt)*) => {
+				try!(($($t)*).map_err(UtilError::SimpleString))
+			}
+		}
+
 		let mut state_db_path = path.to_owned();
 		state_db_path.push("state");
 
 		let raw_db =
-			try!(Database::open_default(&*state_db_path.to_string_lossy()).map_err(UtilError::SimpleString));
+			try_string!(Database::open_default(&*state_db_path.to_string_lossy()));
+
+		let version = ::util::rlp::encode(&journaldb::version(pruning));
+		try_string!(raw_db.put(&journaldb::VERSION_KEY[..], &version[..]));
 
 		let blocks = try!(BlockRebuilder::new(BlockChain::new(Default::default(), &spec.genesis_block(), path)));
 
@@ -372,7 +382,7 @@ impl SnapshotService for Service {
 		}
 
 		// make new restoration.
-		*res = match Restoration::new(&manifest, &rest_dir, &self.spec) {
+		*res = match Restoration::new(&manifest, self.pruning, &rest_dir, &self.spec) {
 				Ok(b) => Some(b),
 				Err(e) => {
 					warn!("encountered error {} while beginning snapshot restoration.", e);
