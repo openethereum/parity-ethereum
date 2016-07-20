@@ -62,7 +62,8 @@ pub use self::rlperrors::DecoderError;
 pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable, Compressible};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlpin::{Rlp, RlpIterator};
-pub use self::rlpstream::{RlpStream};
+pub use self::rlpstream::RlpStream;
+pub use self::rlpcompression::RlpType;
 pub use elastic_array::ElasticArray1024;
 use super::hash::H256;
 

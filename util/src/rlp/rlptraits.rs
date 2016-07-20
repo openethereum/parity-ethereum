@@ -19,6 +19,7 @@ use std::ops::Deref;
 use rlp::bytes::VecLike;
 use rlp::{DecoderError, UntrustedRlp};
 use rlp::rlpstream::RlpStream;
+use rlp::rlpcompression::{RlpType, InvalidRlpSwapper};
 use elastic_array::ElasticArray1024;
 use hash::H256;
 use sha3::*;
@@ -370,12 +371,16 @@ pub trait Stream: Sized {
 pub trait Compressible: Sized {
 	/// Replace common RLPs with invalid shorter ones, None if no compression achieved.
 	/// Tries to compress data insides.
-	fn compress(&self) -> Option<ElasticArray1024<u8>>;
+	fn deep_compress(&self, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>>;
 	/// Recover valid RLP from a compressed form, None if no decompression achieved.
 	/// Tries to decompress compressed data insides.
-	fn decompress(&self) -> Option<ElasticArray1024<u8>>;
+	fn deep_decompress(&self, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>>;
 	/// Replace common RLPs with invalid shorter ones.
-	fn simple_compress(&self) -> ElasticArray1024<u8>;
+	fn simple_compress(&self, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8>;
 	/// Recover valid RLP from a compressed form.
-	fn simple_decompress(&self) -> ElasticArray1024<u8>;
+	fn simple_decompress(&self, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8>;
+	/// Compress given RLP type using appropriate methods.
+	fn compress(&self, t: RlpType) -> ElasticArray1024<u8>;
+	/// Decompress given RLP type using appropriate methods.
+	fn decompress(&self, t: RlpType) -> ElasticArray1024<u8>;
 }
