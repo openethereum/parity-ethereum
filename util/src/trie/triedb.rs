@@ -84,7 +84,7 @@ impl<'db> TrieDB<'db> {
 		ret
 	}
 
-	/// Convert a vector of hashes to a hashmap of hash to occurances.
+	/// Convert a vector of hashes to a hashmap of hash to occurrences.
 	pub fn to_map(hashes: Vec<H256>) -> HashMap<H256, u32> {
 		let mut r: HashMap<H256, u32> = HashMap::new();
 		for h in hashes.into_iter() {
@@ -93,7 +93,7 @@ impl<'db> TrieDB<'db> {
 		r
 	}
 
-	/// Determine occurances of items in the backing database which are not related to this
+	/// Determine occurrences of items in the backing database which are not related to this
 	/// trie.
 	pub fn db_items_remaining(&self) -> HashMap<H256, i32> {
 		let mut ret = self.db.keys();

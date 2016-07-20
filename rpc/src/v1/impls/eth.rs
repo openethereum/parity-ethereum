@@ -48,7 +48,7 @@ use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, M, EM> where
+pub struct EthClient<C, S: ?Sized, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
 	M: MinerService,
@@ -63,7 +63,7 @@ pub struct EthClient<C, S, M, EM> where
 	allow_pending_receipt_query: bool,
 }
 
-impl<C, S, M, EM> EthClient<C, S, M, EM> where
+impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
 	M: MinerService,
@@ -91,6 +91,7 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 				let view = block_view.header_view();
 				let block = Block {
 					hash: Some(view.sha3().into()),
+					size: Some(bytes.len()),
 					parent_hash: view.parent_hash().into(),
 					uncles_hash: view.uncles_hash().into(),
 					author: view.author().into(),
@@ -107,12 +108,9 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 					total_difficulty: total_difficulty.into(),
 					seal_fields: view.seal().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
 					uncles: block_view.uncle_hashes().into_iter().map(Into::into).collect(),
-					transactions: {
-						if include_txs {
-							BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect())
-						} else {
-							BlockTransactions::Hashes(block_view.transaction_hashes().into_iter().map(Into::into).collect())
-						}
+					transactions: match include_txs {
+						true => BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect()),
+						false => BlockTransactions::Hashes(block_view.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
 					extra_data: Bytes::new(view.extra_data())
 				};
@@ -142,6 +140,7 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 
 		let block = Block {
 			hash: Some(uncle.hash().into()),
+			size: None,
 			parent_hash: uncle.parent_hash.into(),
 			uncles_hash: uncle.uncles_hash.into(),
 			author: uncle.author.into(),
@@ -244,7 +243,7 @@ fn no_author_err() -> Error {
 	}
 }
 
-impl<C, S, M, EM> EthClient<C, S, M, EM> where
+impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
@@ -263,7 +262,7 @@ static SOLC: &'static str = "solc.exe";
 #[cfg(not(windows))]
 static SOLC: &'static str = "solc";
 
-impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
+impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
@@ -302,7 +301,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 				};
 				to_value(&res)
 			}
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -517,7 +516,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 		match params {
 			Params::None => {
-				let mut compilers = vec![];  
+				let mut compilers = vec![];
 				if Command::new(SOLC).output().is_ok() {
 					compilers.push("solidity".to_owned())
 				}

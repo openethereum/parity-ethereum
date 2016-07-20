@@ -298,32 +298,20 @@ impl BlockChain {
 		// load best block
 		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
 			Some(best) => {
-				let best = H256::from_slice(&best);
-				let mut b = best.clone();
-				let mut removed = 0;
-				let mut best_num = 0;
-				while !bc.blocks_db.get(&b).unwrap().is_some() {
-					// track back to the best block we have in the blocks database
-					let extras: BlockDetails = bc.extras_db.read(&b).unwrap();
-					type DetailsKey = Key<BlockDetails, Target=H264>;
-					bc.extras_db.delete(&(DetailsKey::key(&b))).unwrap();
-					b = extras.parent;
-					best_num = extras.number;
-					removed += 1;
-				}
-				if b != best {
-					let batch = DBTransaction::new();
-					let range = (best_num + 1) as bc::Number .. (best_num + removed) as bc::Number;
-					let chain = bc::group::BloomGroupChain::new(bc.blooms_config, &bc);
-					let changes = chain.replace(&range, vec![]);
-					for (k, v) in changes.into_iter() {
-						batch.write(&LogGroupPosition::from(k), &BloomGroup::from(v));
+				let mut new_best = H256::from_slice(&best);
+				while !bc.blocks_db.get(&new_best).unwrap().is_some() {
+					match bc.rewind() {
+						Some(h) => {
+							new_best = h;
+						}
+						None => {
+							warn!("Can't rewind blockchain");
+							break;
+						}
 					}
-					batch.put(b"best", &b).unwrap();
-					bc.extras_db.write(batch).unwrap();
-					info!("Restored mismatched best block. Was: {}, new: {}", best.hex(), b.hex());
+					info!("Restored mismatched best block. Was: {}, new: {}", H256::from_slice(&best).hex(), new_best.hex());
 				}
-				b
+				new_best
 			}
 			None => {
 				// best block does not exist
@@ -365,6 +353,47 @@ impl BlockChain {
 	/// (though not necessarily a part of the canon chain).
 	fn is_known_child(&self, parent: &H256, hash: &H256) -> bool {
 		self.extras_db.read_with_cache(&self.block_details, parent).map_or(false, |d| d.children.contains(hash))
+	}
+
+	/// Rewind to a previous block
+	pub fn rewind(&self) -> Option<H256> {
+		let batch = DBTransaction::new();
+		// track back to the best block we have in the blocks database
+		if let Some(best_block_hash) = self.extras_db.get(b"best").unwrap() {
+			let best_block_hash = H256::from_slice(&best_block_hash);
+			if best_block_hash == self.genesis_hash() {
+				return None;
+			}
+			if let Some(extras) = self.extras_db.read(&best_block_hash) as Option<BlockDetails> {
+				type DetailsKey = Key<BlockDetails, Target=H264>;
+				batch.delete(&(DetailsKey::key(&best_block_hash))).unwrap();
+				let hash = extras.parent;
+				let range = extras.number as bc::Number .. extras.number as bc::Number;
+				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
+				let changes = chain.replace(&range, vec![]);
+				for (k, v) in changes.into_iter() {
+					batch.write(&LogGroupPosition::from(k), &BloomGroup::from(v));
+				}
+				batch.put(b"best", &hash).unwrap();
+				let mut best_block = self.best_block.write();
+				best_block.number = extras.number - 1;
+				best_block.total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
+				best_block.hash = hash;
+				// update parent extras
+				if let Some(mut details) = self.extras_db.read(&hash) as Option<BlockDetails> {
+					details.children.clear();
+					batch.write(&hash, &details);
+				}
+				self.extras_db.write(batch).unwrap();
+				self.block_details.write().clear();
+				self.block_hashes.write().clear();
+				self.blocks.write().clear();
+				self.block_receipts.write().clear();
+				return Some(hash);
+			}
+		}
+
+		None
 	}
 
 	/// Set the cache configuration.
@@ -419,8 +448,8 @@ impl BlockChain {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = self.block_details(&from).expect(&format!("0. Expected to find details for block {:?}", from));
-		let mut to_details = self.block_details(&to).expect(&format!("1. Expected to find details for block {:?}", to));
+		let mut from_details = self.block_details(&from).unwrap_or_else(|| panic!("0. Expected to find details for block {:?}", from));
+		let mut to_details = self.block_details(&to).unwrap_or_else(|| panic!("1. Expected to find details for block {:?}", to));
 		let mut current_from = from;
 		let mut current_to = to;
 
@@ -428,13 +457,13 @@ impl BlockChain {
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).expect(&format!("2. Expected to find details for block {:?}", from_details.parent));
+			from_details = self.block_details(&from_details.parent).unwrap_or_else(|| panic!("2. Expected to find details for block {:?}", from_details.parent));
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).expect(&format!("3. Expected to find details for block {:?}", to_details.parent));
+			to_details = self.block_details(&to_details.parent).unwrap_or_else(|| panic!("3. Expected to find details for block {:?}", to_details.parent));
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -443,11 +472,11 @@ impl BlockChain {
 		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).expect(&format!("4. Expected to find details for block {:?}", from_details.parent));
+			from_details = self.block_details(&from_details.parent).unwrap_or_else(|| panic!("4. Expected to find details for block {:?}", from_details.parent));
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).expect(&format!("5. Expected to find details for block {:?}", from_details.parent));
+			to_details = self.block_details(&to_details.parent).unwrap_or_else(|| panic!("5. Expected to find details for block {:?}", from_details.parent));
 		}
 
 		let index = from_branch.len();
@@ -519,14 +548,15 @@ impl BlockChain {
 			batch.extend_with_cache(&mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
-		// These cached values must be updated last and togeterh
+		// These cached values must be updated last with all three locks taken to avoid
+		// cache decoherence
 		{
+			let mut best_block = self.best_block.write();
 			// update best block
 			match update.info.location {
 				BlockLocation::Branch => (),
 				_ => {
 					batch.put(b"best", &update.info.hash).unwrap();
-					let mut best_block = self.best_block.write();
 					*best_block = BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
@@ -589,7 +619,7 @@ impl BlockChain {
 		let hash = block.sha3();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
-		let parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
+		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		let total_difficulty = parent_details.total_difficulty + header.difficulty();
 		let is_new_best = total_difficulty > self.best_block_total_difficulty();
 
@@ -658,7 +688,7 @@ impl BlockChain {
 		let parent_hash = header.parent_hash();
 
 		// update parent
-		let mut parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
+		let mut parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		parent_details.children.push(info.hash.clone());
 
 		// create current block details
@@ -1226,5 +1256,31 @@ mod tests {
 		// re-loading the blockchain should load the correct best block.
 		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 		assert_eq!(bc.best_block_number(), 5);
+	}
+
+	#[test]
+	fn test_rewind() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let first = canon_chain.generate(&mut finalizer).unwrap();
+		let second = canon_chain.generate(&mut finalizer).unwrap();
+		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
+		let first_hash = BlockView::new(&first).header_view().sha3();
+		let second_hash = BlockView::new(&second).header_view().sha3();
+
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+
+		bc.insert_block(&first, vec![]);
+		bc.insert_block(&second, vec![]);
+
+		assert_eq!(bc.rewind(), Some(first_hash.clone()));
+		assert!(!bc.is_known(&second_hash));
+		assert_eq!(bc.best_block_number(), 1);
+		assert_eq!(bc.best_block_hash(), first_hash.clone());
+
+		assert_eq!(bc.rewind(), Some(genesis_hash.clone()));
+		assert_eq!(bc.rewind(), None);
 	}
 }

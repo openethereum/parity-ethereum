@@ -95,7 +95,7 @@ impl EthTester {
 			if Block::is_good(&b) {
 				let _ = tester.client.import_block(b.clone());
 				tester.client.flush_queue();
-				tester.client.import_verified_blocks(&IoChannel::disconnected());
+				tester.client.import_verified_blocks();
 			}
 		}
 

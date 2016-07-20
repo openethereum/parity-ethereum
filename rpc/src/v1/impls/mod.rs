@@ -158,7 +158,7 @@ fn transaction_error(error: EthcoreError) -> Error {
 				"Transaction fee is too low. There is another transaction with same nonce in the queue. Try increasing the fee or incrementing the nonce.".into()
 			},
 			LimitReached => {
-				"There is too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
+				"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 			},
 			InsufficientGasPrice { minimal, got } => {
 				format!("Transaction fee is too low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)

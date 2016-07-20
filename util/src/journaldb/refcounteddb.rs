@@ -47,8 +47,7 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(path: &str, config: DatabaseConfig) -> RefCountedDB {
-		let opts = config.prefix(DB_PREFIX_LEN);
-		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
+		let backing = Database::open(&config, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {

@@ -72,6 +72,7 @@ mod migration;
 mod signer;
 mod rpc_apis;
 mod url;
+mod modules;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
@@ -83,14 +84,13 @@ use std::thread::sleep;
 use std::time::Duration;
 use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
-use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, version, journaldb};
+use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, version, journaldb, RotatingLogger};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError,
-	ChainNotify, Mode};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, Mode};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
-use ethsync::{EthSync, NetworkConfiguration};
+use ethsync::{NetworkConfiguration};
 use ethcore::miner::{Miner, MinerService, ExternalMiner};
 use migration::migrate;
 use informant::Informant;
@@ -129,6 +129,13 @@ fn execute(conf: Configuration) {
 		daemonize(&conf);
 	}
 
+	// Setup panic handler
+	let panic_handler = PanicHandler::new_in_arc();
+	// Setup logging
+	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
+	// Raise fdlimit
+	unsafe { ::fdlimit::raise_fd_limit(); }
+
 	if conf.args.cmd_account {
 		execute_account_cli(conf);
 		return;
@@ -140,16 +147,16 @@ fn execute(conf: Configuration) {
 	}
 
 	if conf.args.cmd_export {
-		execute_export(conf);
+		execute_export(conf, panic_handler);
 		return;
 	}
 
 	if conf.args.cmd_import {
-		execute_import(conf);
+		execute_import(conf, panic_handler);
 		return;
 	}
 
-	execute_client(conf, spec, client_config);
+	execute_client(conf, spec, client_config, panic_handler, logger);
 }
 
 #[cfg(not(windows))]
@@ -169,7 +176,7 @@ fn daemonize(_conf: &Configuration) {
 fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientConfig) {
 	match ::upgrade::upgrade(Some(&conf.path())) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
-			println!("Executed {} upgrade scripts - ok", upgrades_applied);
+			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},
 		Err(e) => {
 			die!("Error upgrading parity data: {:?}", e);
@@ -184,15 +191,7 @@ fn execute_upgrades(conf: &Configuration, spec: &Spec, client_config: &ClientCon
 	}
 }
 
-fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) {
-	// Setup panic handler
-	let panic_handler = PanicHandler::new_in_arc();
-
-	// Setup logging
-	let logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
-	// Raise fdlimit
-	unsafe { ::fdlimit::raise_fd_limit(); }
-
+fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, panic_handler: Arc<PanicHandler>, logger: Arc<RotatingLogger>) {
 	info!("Starting {}", Colour::White.bold().paint(format!("{}", version())));
 	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(match client_config.pruning {
 		journaldb::Algorithm::Archive => "archive",
@@ -244,27 +243,29 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
-	let sync = EthSync::new(sync_config, client.clone(), NetworkConfiguration::from(net_settings))
-		.unwrap_or_else(|e| die_with_error("Sync", ethcore::error::Error::Util(e)));
-	service.set_notify(&(sync.clone() as Arc<ChainNotify>));
+	let (sync_provider, manage_network, chain_notify) =
+		modules::sync(sync_config, NetworkConfiguration::from(net_settings), client.clone())
+			.unwrap_or_else(|e| die_with_error("Sync", e));
+	service.set_notify(&chain_notify);
 
 	// if network is active by default
 	if match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network } {
-		sync.start();
+		chain_notify.start();
 	}
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: conf.signer_port(),
 		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
 		client: client.clone(),
-		sync: sync.clone(),
+		sync: sync_provider.clone(),
+		net: manage_network.clone(),
 		secret_store: account_service.clone(),
 		miner: miner.clone(),
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 		allow_pending_receipt_query: !conf.args.flag_geth,
-		net_service: sync.clone(),
+		net_service: manage_network.clone(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -312,7 +313,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig) 
 	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
 		info: Informant::new(conf.have_color()),
-		sync: sync.clone(),
+		sync: sync_provider.clone(),
+		net: manage_network.clone(),
 		accounts: account_service.clone(),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
@@ -337,15 +339,7 @@ enum DataFormat {
 	Binary,
 }
 
-fn execute_export(conf: Configuration) {
-	// Setup panic handler
-	let panic_handler = PanicHandler::new_in_arc();
-
-	// Setup logging
-	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
-	// Raise fdlimit
-	unsafe { ::fdlimit::raise_fd_limit(); }
-
+fn execute_export(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 	let spec = conf.spec();
 	let client_config = conf.client_config(&spec);
 
@@ -398,15 +392,7 @@ fn execute_export(conf: Configuration) {
 	}
 }
 
-fn execute_import(conf: Configuration) {
-	// Setup panic handler
-	let panic_handler = PanicHandler::new_in_arc();
-
-	// Setup logging
-	let _logger = setup_log::setup_log(&conf.args.flag_logging, conf.have_color(), &conf.args.flag_log_file);
-	// Raise fdlimit
-	unsafe { ::fdlimit::raise_fd_limit(); }
-
+fn execute_import(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 	let spec = conf.spec();
 	let client_config = conf.client_config(&spec);
 
@@ -441,11 +427,11 @@ fn execute_import(conf: Configuration) {
 			first_read = instream.read(&mut(first_bytes[..])).unwrap_or_else(|_| die!("Error reading from the file/stream."));
 			match first_bytes[0] {
 				0xf9 => {
-					println!("Autodetected binary data format.");
+					info!("Autodetected binary data format.");
 					DataFormat::Binary
 				}
 				_ => {
-					println!("Autodetected hex data format.");
+					info!("Autodetected hex data format.");
 					DataFormat::Hex
 				}
 			}
@@ -461,7 +447,7 @@ fn execute_import(conf: Configuration) {
 			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
-		informant.tick(client.deref(), None);
+		informant.tick(&*client, None);
 	};
 
 	match format {
@@ -487,6 +473,10 @@ fn execute_import(conf: Configuration) {
 			}
 		}
 	}
+	while !client.queue_info().is_empty() {
+		sleep(Duration::from_secs(1));
+		informant.tick(&*client, None);
+	}
 	client.flush_queue();
 }
 
@@ -496,9 +486,10 @@ fn execute_signer(conf: Configuration) {
 	}
 
 	let path = conf.directories().signer;
-	new_token(path).unwrap_or_else(|e| {
+	let code = new_token(path).unwrap_or_else(|e| {
 		die!("Error generating token: {:?}", e)
 	});
+	println!("This key code will authorise your System Signer UI: {}", if conf.args.flag_no_color { code } else { format!("{}", Colour::White.bold().paint(code)) });
 }
 
 fn execute_account_cli(conf: Configuration) {
@@ -590,7 +581,7 @@ fn wait_for_exit(
 
 	// Wait for signal
 	let mutex = Mutex::new(());
-	let _ = exit.wait(&mut mutex.lock());
+	exit.wait(&mut mutex.lock());
 	info!("Finishing work, please wait...");
 }
 
