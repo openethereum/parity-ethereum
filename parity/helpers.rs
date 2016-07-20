@@ -187,7 +187,8 @@ pub fn to_client_config(
 		tracing: Switch,
 		pruning: Pruning,
 		compaction: DatabaseCompactionProfile,
-		vm_type: VMType
+		vm_type: VMType,
+		name: String,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 	let mb= 1024 * 1024;
@@ -201,6 +202,7 @@ pub fn to_client_config(
 	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash);
 	client_config.db_compaction = compaction;
 	client_config.vm_type = vm_type;
+	client_config.name = name;
 	client_config
 }
 

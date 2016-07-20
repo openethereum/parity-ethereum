@@ -20,22 +20,19 @@ use std::{env, process};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use util::network_settings::NetworkSettings;
-use util::{Colour, version, H256, NetworkConfiguration, U256};
-use util::journaldb::Algorithm;
+use util::{Colour, version, NetworkConfiguration, U256};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethsync::SyncConfig;
-use migration::migrate;
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use configuration::{Configuration, IOPasswordReader};
 use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
@@ -47,7 +44,6 @@ use modules;
 use rpc_apis;
 use rpc;
 use url;
-use upgrade::upgrade;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -77,6 +73,7 @@ pub struct RunCmd {
 	pub dapps_conf: dapps::Configuration,
 	pub signer_conf: signer::Configuration,
 	pub ui: bool,
+	pub name: String,
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -148,7 +145,8 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		cmd.tracing,
 		cmd.pruning,
 		cmd.compaction,
-		cmd.vm_type
+		cmd.vm_type,
+		cmd.name,
 	);
 
 	// load spec

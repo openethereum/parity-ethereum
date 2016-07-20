@@ -23,7 +23,7 @@ use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use util::panics::{PanicHandler, ForwardPanic};
-use util::{version, PayloadInfo, ToPretty};
+use util::{PayloadInfo, ToPretty};
 use util::log::Colour;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
@@ -130,7 +130,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, algorithm));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.vm_type);
+	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.vm_type, "".into());
 
 	// build client
 	let service = try!(ClientService::start(
@@ -241,7 +241,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, algorithm));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, VMType::default());
+	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, VMType::default(), "".into());
 
 	let service = try!(ClientService::start(
 		client_config,

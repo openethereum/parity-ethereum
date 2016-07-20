@@ -216,6 +216,7 @@ impl Configuration {
 				dapps_conf: dapps_conf,
 				signer_conf: signer_conf,
 				ui: self.args.cmd_ui,
+				name: self.args.flag_identity,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -719,6 +720,7 @@ mod tests {
 			dapps_conf: Default::default(),
 			signer_conf: Default::default(),
 			ui: false,
+			name: "".into(),
 		}));
 	}
 

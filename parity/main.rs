@@ -86,6 +86,7 @@ use account::AccountCmd;
 use presale::ImportWallet;
 use blockchain::BlockchainCmd;
 use configuration::{Configuration, IOPasswordReader};
+use deprecated::find_deprecated;
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -113,6 +114,12 @@ pub fn execute(command: Cmd) -> Result<String, String> {
 
 fn start() -> Result<String, String> {
 	let conf = Configuration::parse(env::args()).unwrap_or_else(|e| e.exit());
+
+	let deprecated = find_deprecated(&conf.args);
+	for d in deprecated {
+		println!("{}", d);
+	}
+
 	let cmd = try!(conf.into_command(&IOPasswordReader));
 	execute(cmd)
 }
@@ -128,3 +135,4 @@ fn main() {
 		}
 	}
 }
+
