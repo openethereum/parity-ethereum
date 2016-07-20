@@ -50,7 +50,7 @@ pub fn expand_serialization_implementation(
 	let impl_item = match serialize_item(cx, &builder, &item) {
 		Ok(item) => item,
 		Err(Error) => {
-			// An error occured, but it should have been reported already.
+			// An error occurred, but it should have been reported already.
 			return;
 		},
 	};

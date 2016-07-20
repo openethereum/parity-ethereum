@@ -121,7 +121,7 @@ pub fn sync
 		sync_cfg: SyncConfig,
 		net_cfg: NetworkConfiguration,
 		client: Arc<BlockChainClient>,
-		log_settings: &LogSettings,
+		_log_settings: &LogSettings,
 	)
 	-> Result<SyncModules, ethcore::error::Error>
 {

@@ -91,6 +91,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 				let view = block_view.header_view();
 				let block = Block {
 					hash: Some(view.sha3().into()),
+					size: Some(bytes.len()),
 					parent_hash: view.parent_hash().into(),
 					uncles_hash: view.uncles_hash().into(),
 					author: view.author().into(),
@@ -107,12 +108,9 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 					total_difficulty: total_difficulty.into(),
 					seal_fields: view.seal().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
 					uncles: block_view.uncle_hashes().into_iter().map(Into::into).collect(),
-					transactions: {
-						if include_txs {
-							BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect())
-						} else {
-							BlockTransactions::Hashes(block_view.transaction_hashes().into_iter().map(Into::into).collect())
-						}
+					transactions: match include_txs {
+						true => BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect()),
+						false => BlockTransactions::Hashes(block_view.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
 					extra_data: Bytes::new(view.extra_data())
 				};
@@ -142,6 +140,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 
 		let block = Block {
 			hash: Some(uncle.hash().into()),
+			size: None,
 			parent_hash: uncle.parent_hash.into(),
 			uncles_hash: uncle.uncles_hash.into(),
 			author: uncle.author.into(),

@@ -87,7 +87,7 @@ use rustc_serialize::hex::FromHex;
 use ctrlc::CtrlC;
 use util::{H256, ToPretty, PayloadInfo, Bytes, Colour, version, journaldb, RotatingLogger};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, Mode, ChainNotify};
+use ethcore::client::{BlockID, BlockChainClient, ClientConfig, get_db_path, BlockImportError, Mode};
 use ethcore::error::{ImportError};
 use ethcore::service::ClientService;
 use ethcore::spec::Spec;
@@ -97,6 +97,8 @@ use migration::migrate;
 use informant::Informant;
 use util::{Mutex, Condvar};
 use ethcore_logger::setup_log;
+#[cfg(feature="ipc")]
+use ethcore::client::ChainNotify;
 
 use die::*;
 use cli::print_version;
@@ -250,7 +252,8 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, 
 	let (sync_provider, manage_network, chain_notify) =
 		modules::sync(&mut hypervisor, sync_config, NetworkConfiguration::from(net_settings), client.clone(), &conf.log_settings())
 			.unwrap_or_else(|e| die_with_error("Sync", e));
-	service.set_notify(chain_notify.clone());
+
+	service.add_notify(chain_notify.clone());
 
 	// if network is active by default
 	if match conf.mode() { Mode::Dark(..) => false, _ => !conf.args.flag_no_network } {
@@ -284,6 +287,7 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, 
 		port: network_settings.rpc_port,
 		apis: conf.rpc_apis(),
 		cors: conf.rpc_cors(),
+		hosts: conf.rpc_hosts(),
 	}, &dependencies);
 
 	// setup ipc rpc
@@ -313,10 +317,12 @@ fn execute_client(conf: Configuration, spec: Spec, client_config: ClientConfig, 
 		apis: deps_for_rpc_apis.clone(),
 	});
 
+	let informant = Arc::new(Informant::new(service.client(), Some(sync_provider.clone()), Some(manage_network.clone()), conf.have_color()));
+	service.add_notify(informant.clone());
 	// Register IO handler
 	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
-		info: Informant::new(conf.have_color()),
+		info: informant,
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
 		accounts: account_service.clone(),
@@ -442,7 +448,7 @@ fn execute_import(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 		}
 	};
 
-	let informant = Informant::new(conf.have_color());
+	let informant = Informant::new(client.clone(), None, None, conf.have_color());
 
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
@@ -451,7 +457,7 @@ fn execute_import(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => { trace!("Skipping block already in chain."); }
 			Err(e) => die!("Cannot import block: {:?}", e)
 		}
-		informant.tick(&*client, None);
+		informant.tick();
 	};
 
 	match format {
@@ -479,7 +485,7 @@ fn execute_import(conf: Configuration, panic_handler: Arc<PanicHandler>) {
 	}
 	while !client.queue_info().is_empty() {
 		sleep(Duration::from_secs(1));
-		informant.tick(&*client, None);
+		informant.tick();
 	}
 	client.flush_queue();
 }
