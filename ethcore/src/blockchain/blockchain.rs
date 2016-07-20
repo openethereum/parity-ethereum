@@ -490,10 +490,12 @@ impl BlockChain {
 
 	/// Inserts a verified, known block from the canonical chain.
 	///
-	/// Cannot be performed out-of-order.
+	/// Can be performed out-of-order, but care must be taken that the final chain is in a correct state.
 	/// This is used by snapshot restoration.
-	/// Note that this does not update the block extras.
-	pub fn insert_canon_block(&self, bytes: &[u8], receipts: Vec<Receipt>) {
+	///
+	/// Supply a dummy parent difficulty when the parent block may not be in the chain.
+	/// Returns true if the block is disconnected.
+	pub fn insert_snapshot_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_diff: Option<U256>) -> bool {
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 		let hash = header.sha3();
@@ -505,24 +507,83 @@ impl BlockChain {
 		let _lock = self.insert_lock.lock();
 		self.blocks_db.put(&hash, &bytes).unwrap();
 
-		let parent_details = self.block_details(&header.parent_hash())
+		let maybe_parent = self.block_details(&header.parent_hash());
+
+		if let Some(parent_details) = maybe_parent {
+			// parent known to be in chain.
+			let info = BlockInfo {
+				hash: hash,
+				number: header.number(),
+				total_difficulty: parent_details.total_difficulty + header.difficulty(),
+				location: BlockLocation::CanonChain,
+			};
+
+			self.apply_update(ExtrasUpdate {
+				block_hashes: self.prepare_block_hashes_update(bytes, &info),
+				block_details: details_update,
+				block_receipts: self.prepare_block_receipts_update(receipts, &info),
+				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
+				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+				info: info,
+			});
+
+			false
+		} else {
+			// parent not in the chain yet. we need the parent difficulty to proceed.
+			let d = parent_diff
+				.expect("parent difficulty always supplied for first block in chunk. only first block can have missing parent; qed");
+
+			let info = BlockInfo {
+				hash: hash,
+				number: header.number(),
+				total_difficulty: d + header.difficulty();
+				location: BlockLocation::CanonChain,
+			};
+
+			let block_details = BlockDetails {
+				number: header.number(),
+				total_difficulty: info.total_difficulty,
+				parent: header.parent_hash(),
+				children: Vec::new()
+			};
+
+			let mut update = HashMap::new();
+			update.insert(hash, details);
+
+			self.apply_update(ExtrasUpdate {
+				block_hashes: self.prepare_block_hashes_update(bytes, &info),
+				block_details: update,
+				block_receipts: self.prepare_block_receipts_update(receipts, &info),
+				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
+				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+				info: info,
+			});
+
+			true
+		}
+	}
+
+	/// Add a child to a given block. Assumes that the block hash is in
+	/// the chain and the child's parent is this block.
+	///
+	/// Used in snapshots to glue the chunks together at the end.
+	pub fn add_child(&self, block_hash: H256, child_hash: H256) {
+		// todo [rob]: do i need to hold import lock here?
+
+		let mut parent_details = self.block_details(&block_hash)
 			.unwrap_or_else(|| panic!("Invalid parent hash: {:?}", header.parent_hash()));
 
-		let info = BlockInfo {
-			hash: hash,
-			number: header.number(),
-			total_difficulty: parent_details.total_difficulty + header.difficulty(),
-			location: BlockLocation::CanonChain,
-		};
+		let batch = DBTransaction::new();
+		parent_details.children.push(child_hash);
 
-		self.apply_update(ExtrasUpdate {
-			block_hashes: self.prepare_block_hashes_update(bytes, &info),
-			block_details: self.prepare_block_details_update(bytes, &info),
-			block_receipts: self.prepare_block_receipts_update(receipts, &info),
-			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
-			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
-			info: info,
-		});
+		let mut update = HashMap::new();
+		update.insert(block_hash, parent_details);
+
+		self.note_used(CacheID::BlockDetails(block_hash));
+		let mut write_details = self.block_details.write();
+		batch.extend_with_cache(&mut *write_details, update, CacheUpdatePolicy::Overwrite);
+
+		self.extras_db.write(batch).unwrap();
 	}
 
 	#[cfg_attr(feature="dev", allow(similar_names))]
@@ -716,7 +777,6 @@ impl BlockChain {
 
 	/// This function returns modified block details.
 	/// Uses the given parent details or attempts to load them from the database.
-	/// The optional parameter is used when inserting blocks out-of-order from a snapshot.
 	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlockDetails> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
