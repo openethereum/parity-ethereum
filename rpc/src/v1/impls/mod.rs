@@ -74,6 +74,7 @@ mod error_codes {
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const TRANSACTION_REJECTED: i64 = -32011;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
+	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const SIGNER_DISABLED: i64 = -32030;
 }
 
@@ -110,7 +111,7 @@ fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionReq
 	let signed_transaction = {
 		let t = prepare_transaction(client, miner, request);
 		let hash = t.hash();
-		let signature = try!(account_provider.sign_with_password(address, password, hash).map_err(signing_error));
+		let signature = try!(account_provider.sign_with_password(address, password, hash).map_err(password_error));
 		t.with_signature(signature)
 	};
 
@@ -139,11 +140,18 @@ fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockCh
 		.unwrap_or_else(|_| miner.sensible_gas_price())
 }
 
-
 fn signing_error(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(error_codes::ACCOUNT_LOCKED),
 		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+fn password_error(error: AccountError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::PASSWORD_INVALID),
+		message: "Account password is invalid or account does not exist.".into(),
 		data: Some(Value::String(format!("{:?}", error))),
 	}
 }
@@ -168,7 +176,7 @@ fn transaction_error(error: EthcoreError) -> Error {
 				"Transaction fee is too low. There is another transaction with same nonce in the queue. Try increasing the fee or incrementing the nonce.".into()
 			},
 			LimitReached => {
-				"There is too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
+				"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 			},
 			InsufficientGasPrice { minimal, got } => {
 				format!("Transaction fee is too low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)

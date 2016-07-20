@@ -201,7 +201,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 			return Err(DecoderError::RlpExpectedToBeList);
 		}
 
-		// move to cached position if it's index is less or equal to
+		// move to cached position if its index is less or equal to
 		// current search index, otherwise move to beginning of list
 		let c = self.offset_cache.get();
 		let (mut bytes, to_skip) = match c.index <= index {
@@ -334,9 +334,9 @@ impl<'a> BasicDecoder<'a> {
 	/// Return first item info.
 	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
 		let item = try!(PayloadInfo::from(bytes));
-		match item.header_len.checked_add(item.value_len) { 
-			Some(x) if x <= bytes.len() => Ok(item), 
-			_ => Err(DecoderError::RlpIsTooShort), 
+		match item.header_len.checked_add(item.value_len) {
+			Some(x) if x <= bytes.len() => Ok(item),
+			_ => Err(DecoderError::RlpIsTooShort),
 		}
 	}
 }

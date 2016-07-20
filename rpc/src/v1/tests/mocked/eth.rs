@@ -610,6 +610,27 @@ fn rpc_eth_send_transaction() {
 }
 
 #[test]
+fn rpc_eth_send_transaction_error() {
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account("").unwrap();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
+
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32020,"message":"Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.","data":"NotUnlocked"},"id":1}"#;
+	assert_eq!(tester.io.handle_request(&request), Some(response.into()));
+}
+
+#[test]
 fn rpc_eth_send_raw_transaction() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account("abcd").unwrap();
@@ -699,6 +720,11 @@ fn rpc_eth_transaction_receipt_null() {
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
+// These tests are incorrect: their output is undefined as long as eth_getCompilers is [].
+// Will ignore for now, but should probably be replaced by more substantial tests which check
+// the output of eth_getCompilers to determine whether to test. CI systems can then be preinstalled
+// with solc/serpent/lllc and they'll be proper again.
+#[ignore]
 #[test]
 fn rpc_eth_compilers() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getCompilers", "params": [], "id": 1}"#;
@@ -707,10 +733,6 @@ fn rpc_eth_compilers() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
-// These tests are incorrect: their output is undefined as long as eth_getCompilers is [].
-// Will ignore for now, but should probably be replaced by more substantial tests which check
-// the output of eth_getCompilers to determine whether to test. CI systems can then be preinstalled
-// with solc/serpent/lllc and they'll be proper again.
 #[ignore]
 #[test]
 fn rpc_eth_compile_lll() {
