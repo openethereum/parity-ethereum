@@ -187,7 +187,7 @@ impl AccountProvider {
 
 	/// Returns each account along with name and meta.
 	pub fn account_meta<A>(&self, account: A) -> Result<AccountMeta, Error> where Address: From<A> {
-		let account = account.into();
+		let account = Address::from(account).into();
 		Ok(AccountMeta {
 			name: try!(self.sstore.name(&account)),
 			meta: try!(self.sstore.meta(&account)),

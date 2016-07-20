@@ -24,6 +24,7 @@ use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
 use std::ops::Deref;
+use std::collections::BTreeMap;
 use ethsync::{SyncProvider, SyncState};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
@@ -343,23 +344,19 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		try!(self.active());
-		let accounts = take_weak!(self.accounts);
-
+		let store = take_weak!(self.accounts);
 		to_value(&store.accounts().into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
-	fn account_info(&self, _: Params) -> Result<Value, Error> {
+	fn accounts_info(&self, _: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let store = take_weak!(self.accounts);
-		let accounts_info = store.accounts_info();
-		let mut account_map: BTreeMap<String, Value> = BTreeMap::new();
-		for (a, v) in accounts.into_iter() {
+		to_value(&try!(store.accounts_info().map_err(|_| Error::invalid_params())).into_iter().map(|(a, v)| {
 			let mut m = BTreeMap::new();
 			m.insert("name".to_owned(), to_value(&v.name));
 			m.insert("meta".to_owned(), to_value(&v.meta));
-			account_map.insert(format!("0x{}", a.hex()), to_value(&m));
-		}
-		Ok(to_value(&account_map))
+			(format!("0x{}", a.hex()), to_value(&m))
+		}).collect::<BTreeMap<_, _>>())
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
