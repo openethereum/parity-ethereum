@@ -188,6 +188,22 @@ mod tests {
 		});
 	}
 
+
+	#[test]
+	fn transaction_request_deserialize_error() {
+		let s = r#"{
+			"from":"0xb5f7502a2807cb23615c7456055e1d65b2508625",
+			"to":"",
+			"data":"0x8595bab1",
+			"gas":"0x2fd618",
+			"gasPrice":"0x0ba43b7400"
+		}"#;
+
+		let deserialized = serde_json::from_str::<TransactionRequest>(s);
+
+		assert!(deserialized.is_err(), "Should be error because to is empty");
+	}
+
 	#[test]
 	fn should_deserialize_modification() {
 		// given

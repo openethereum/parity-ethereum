@@ -608,6 +608,28 @@ fn rpc_eth_send_transaction() {
 
 	assert_eq!(tester.io.handle_request(&request), Some(response));
 }
+#[test]
+fn rpc_eth_send_transaction_with_bad_to() {
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account("").unwrap();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
+
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params","data":null},"id":1}"#;
+
+	assert_eq!(tester.io.handle_request(&request), Some(response.into()));
+}
+
 
 #[test]
 fn rpc_eth_send_transaction_error() {
