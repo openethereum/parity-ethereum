@@ -268,7 +268,8 @@ fn daemonize(pid_file: String) -> Result<(), String> {
 }
 
 #[cfg(windows)]
-fn daemonize(_conf: &Configuration) -> ! {
+fn daemonize(_pid_file: String) -> Result<(), String> {
+	Err("daemon is no supported on windows".into())
 }
 
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
