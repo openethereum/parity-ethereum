@@ -34,7 +34,7 @@ use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
-use helpers::{to_client_config, execute_upgrades};
+use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
 use dapps;
@@ -276,8 +276,7 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 	use ethcore::ethstore::{import_accounts, EthStore};
 	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
 
-	// TODO: read passwords from files
-	let passwords = Vec::<String>::new();
+	let passwords = try!(passwords_from_files(cfg.password_files));
 
 	if cfg.import_keys {
 		let t = if cfg.testnet {

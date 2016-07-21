@@ -261,7 +261,7 @@ impl Configuration {
 		Ok(cfg)
 	}
 
-	pub fn miner_options(&self) -> Result<MinerOptions, String> {
+	fn miner_options(&self) -> Result<MinerOptions, String> {
 		let reseal = try!(self.args.flag_reseal_on_txs.parse::<ResealPolicy>());
 
 		let options = MinerOptions {

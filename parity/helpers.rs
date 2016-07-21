@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{io, env};
-use std::io::{Write, Read};
+use std::io::{Write, Read, BufReader, BufRead};
 use std::time::Duration;
 use std::path::Path;
 use std::fs::File;
@@ -230,6 +230,7 @@ pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorit
 	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
 }
 
+/// Prompts user asking for password.
 pub fn password_prompt() -> Result<String, String> {
 	use rpassword::read_password;
 
@@ -251,12 +252,26 @@ pub fn password_prompt() -> Result<String, String> {
 	Ok(password)
 }
 
+/// Read a password from password file.
 pub fn password_from_file<P>(path: P) -> Result<String, String> where P: AsRef<Path> {
 	let mut file = try!(File::open(path).map_err(|_| "Unable to open password file."));
 	let mut file_content = String::new();
 	try!(file.read_to_string(&mut file_content).map_err(|_| "Unable to read password file."));
 	// remove eof
 	Ok((&file_content[..file_content.len() - 1]).to_owned())
+}
+
+/// Reads passwords from files. Treats each line as a separate password.
+pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
+	let passwords = files.iter().map(|filename| {
+		let file = try!(File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)));
+		let reader = BufReader::new(&file);
+		let lines = reader.lines()
+			.map(|l| l.unwrap())
+			.collect::<Vec<String>>();
+		Ok(lines)
+		}).collect::<Result<Vec<Vec<String>>, String>>();
+	Ok(try!(passwords).into_iter().flat_map(|x| x).collect())
 }
 
 #[cfg(test)]
