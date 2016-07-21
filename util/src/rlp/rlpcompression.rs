@@ -93,77 +93,86 @@ fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<ElasticArray1024<u8>> where
   }
 }
 
+/// Replace common RLPs with invalid shorter ones.
+fn simple_compress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8> {
+	if rlp.is_data() {
+		to_elastic(swapper.get_invalid(rlp.as_raw()).unwrap_or(rlp.as_raw()))
+	} else {
+		map_rlp(rlp, |r| Some(simple_compress(r, swapper))).unwrap_or(to_elastic(rlp.as_raw()))
+	}
+}
+
+/// Recover valid RLP from a compressed form.
+fn simple_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8> {
+	if rlp.is_data() {
+		to_elastic(swapper.get_valid(rlp.as_raw()).unwrap_or(rlp.as_raw()))
+	} else {
+		map_rlp(rlp, |r| Some(simple_decompress(r, swapper))).unwrap_or(to_elastic(rlp.as_raw()))
+	}
+}
+
+/// Replace common RLPs with invalid shorter ones, None if no compression achieved.
+/// Tries to compress data insides.
+fn deep_compress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>> {
+	let simple_swap = ||
+		swapper.get_invalid(rlp.as_raw()).map(|b| to_elastic(&b));
+	if rlp.is_data() {
+		// Try to treat the inside as RLP.
+		return match rlp.payload_info() {
+			// Shortest decompressed account is 70, so simply try to swap the value.
+			Ok(ref p) if p.value_len < 70 => simple_swap(),
+			_ => {
+				if let Ok(d) = rlp.data() {
+					let internal_rlp = UntrustedRlp::new(&d);
+					if let Some(new_d) = deep_compress(&internal_rlp, swapper) {
+						// If compressed put in a special list, with first element being invalid code.
+						let mut rlp = RlpStream::new_list(2);
+						rlp.append_raw(&[0x81, 0x7f], 1);
+						rlp.append_raw(&new_d[..], 1);
+						return Some(rlp.drain());
+					}
+				}
+				simple_swap()
+			},
+		};
+	}
+	// Iterate through RLP while checking if it has been compressed.
+	map_rlp(rlp, |r| deep_compress(r, swapper))
+}
+
+/// Recover valid RLP from a compressed form, None if no decompression achieved.
+/// Tries to decompress compressed data insides.
+fn deep_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>> {
+	let simple_swap = ||
+		swapper.get_valid(rlp.as_raw()).map(|b| to_elastic(&b));
+	// Simply decompress data.
+	if rlp.is_data() { return simple_swap(); }
+	match rlp.item_count() {
+		// Look for special compressed list, which contains nested data.
+		2 if rlp.at(0).map(|r| r.as_raw() == &[0x81, 0x7f]).unwrap_or(false) =>
+			rlp.at(1).ok().map_or(simple_swap(),
+			|r| deep_decompress(&r, swapper).map(|d| { let v = d.to_vec(); encode(&v) })),
+		// Iterate through RLP while checking if it has been compressed.
+		_ => map_rlp(rlp, |r| deep_decompress(r, swapper)),
+  	}
+}
+
+
+
 impl<'a> Compressible for UntrustedRlp<'a> {
 	type DataType = RlpType;
 
-	fn simple_compress(&self, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8> {
-		if self.is_data() {
-			to_elastic(swapper.get_invalid(self.as_raw()).unwrap_or(self.as_raw()))
-		} else {
-			map_rlp(self, |rlp| Some(rlp.simple_compress(swapper))).unwrap_or(to_elastic(self.as_raw()))
-		}
-	}
-
-	fn simple_decompress(&self, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8> {
-		if self.is_data() {
-			to_elastic(swapper.get_valid(self.as_raw()).unwrap_or(self.as_raw()))
-		} else {
-			map_rlp(self, |rlp| Some(rlp.simple_decompress(swapper))).unwrap_or(to_elastic(self.as_raw()))
-		}
-	}
-
-	fn deep_compress(&self, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>> {
-		let simple_swap = ||
-			swapper.get_invalid(self.as_raw()).map(|b| to_elastic(&b));
-		if self.is_data() {
-			// Try to treat the inside as RLP.
-			return match self.payload_info() {
-				// Shortest decompressed account is 70, so simply try to swap the value.
-				Ok(ref p) if p.value_len < 70 => simple_swap(),
-				_ => {
-					if let Ok(d) = self.data() {
-						if let Some(new_d) = UntrustedRlp::new(&d).deep_compress(swapper) {
-							// If compressed put in a special list, with first element being invalid code.
-							let mut rlp = RlpStream::new_list(2);
-							rlp.append_raw(&[0x81, 0x7f], 1);
-							rlp.append_raw(&new_d[..], 1);
-							return Some(rlp.drain());
-						}
-					}
-					simple_swap()
-				},
-			};
-		}
-		// Iterate through RLP while checking if it has been compressed.
-		map_rlp(self, |rlp| rlp.deep_compress(swapper))
-	}
-
-	fn deep_decompress(&self, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>> {
-		let simple_swap = ||
-			swapper.get_valid(self.as_raw()).map(|b| to_elastic(&b));
-		// Simply decompress data.
-		if self.is_data() { return simple_swap(); }
-		match self.item_count() {
-			// Look for special compressed list, which contains nested data.
-			2 if self.at(0).map(|r| r.as_raw() == &[0x81, 0x7f]).unwrap_or(false) =>
-				self.at(1).ok().map_or(simple_swap(),
-				|r| r.deep_decompress(swapper).map(|d| { let v = d.to_vec(); encode(&v) })),
-			// Iterate through RLP while checking if it has been compressed.
-			_ => map_rlp(self, |rlp| rlp.deep_decompress(swapper)),
-  		}
-	}
-
 	fn compress(&self, t: RlpType) -> ElasticArray1024<u8> { 
 		match t {
-			RlpType::Snapshot => self.simple_compress(&SNAPSHOT_RLP_SWAPPER),
-			RlpType::Blocks => self.deep_compress(&BLOCKS_RLP_SWAPPER).unwrap_or(to_elastic(self.as_raw())),
+			RlpType::Snapshot => simple_compress(self, &SNAPSHOT_RLP_SWAPPER),
+			RlpType::Blocks => deep_compress(self, &BLOCKS_RLP_SWAPPER).unwrap_or(to_elastic(self.as_raw())),
 		}
 	}
 
 	fn decompress(&self, t: RlpType) -> ElasticArray1024<u8> {
 		match t {
-			RlpType::Snapshot => self.simple_decompress(&SNAPSHOT_RLP_SWAPPER),
-			RlpType::Blocks => self.deep_decompress(&BLOCKS_RLP_SWAPPER).unwrap_or(to_elastic(self.as_raw())),
+			RlpType::Snapshot => simple_decompress(self, &SNAPSHOT_RLP_SWAPPER),
+			RlpType::Blocks => deep_decompress(self, &BLOCKS_RLP_SWAPPER).unwrap_or(to_elastic(self.as_raw())),
 		}
 	}
 }
