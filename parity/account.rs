@@ -17,6 +17,7 @@
 use ethcore::ethstore::{EthStore, import_accounts};
 use ethcore::ethstore::dir::DiskDirectory;
 use ethcore::account_provider::AccountProvider;
+use helpers::{password_prompt, password_from_file};
 
 #[derive(Debug, PartialEq)]
 pub enum AccountCmd {
@@ -29,7 +30,7 @@ pub enum AccountCmd {
 pub struct NewAccount {
 	pub iterations: u32,
 	pub path: String,
-	pub password: String,
+	pub password_file: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -47,10 +48,15 @@ pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 }
 
 fn new(n: NewAccount) -> Result<String, String> {
+	let password: String = match n.password_file {
+		Some(file) => try!(password_from_file(file)),
+		None => try!(password_prompt()),
+	};
+
 	let dir = Box::new(DiskDirectory::create(n.path).unwrap());
 	let secret_store = Box::new(EthStore::open_with_iterations(dir, n.iterations).unwrap());
 	let acc_provider = AccountProvider::new(secret_store);
-	let new_account = acc_provider.new_account(&n.password).unwrap();
+	let new_account = acc_provider.new_account(&password).unwrap();
 	Ok(format!("{:?}", new_account))
 }
 

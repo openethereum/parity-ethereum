@@ -17,6 +17,7 @@
 use std::{io, env};
 use std::io::Write;
 use std::time::Duration;
+use std::path::Path;
 use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, NetworkConfiguration, NonReservedPeerMode, H256};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
@@ -191,13 +192,20 @@ pub fn to_client_config(
 		name: String,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
+
 	let mb= 1024 * 1024;
-	client_config.mode = mode;
+	// in bytes
 	client_config.blockchain.max_cache_size = cache_config.blockchain as usize * mb;
+	// in bytes
 	client_config.blockchain.pref_cache_size = cache_config.blockchain as usize * 3 / 4 * mb;
+	// rocksdb blockchain cache size, in megabytes
 	client_config.blockchain.db_cache_size = Some(cache_config.rocksdb_blockchain_cache_size() as usize);
-	// state db cache size
+	// rocksdb state cache size, in megabytes
 	client_config.db_cache_size = Some(cache_config.rocksdb_state_cache_size() as usize);
+	// rocksdb queue cache size, in bytes
+	client_config.queue.max_mem_use = cache_config.queue as usize * mb;
+
+	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
 	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash);
 	client_config.db_compaction = compaction;
@@ -219,6 +227,31 @@ pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorit
 
 	let client_path = dirs.client_path(genesis_hash, pruning);
 	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
+}
+
+pub fn password_prompt() -> Result<String, String> {
+	use rpassword::read_password;
+
+	println!("Please note that password is NOT RECOVERABLE.");
+	print!("Type password: ");
+	flush_stdout();
+
+	let password = read_password().unwrap();
+
+	print!("Repeat password: ");
+	flush_stdout();
+
+	let password_repeat = read_password().unwrap();
+
+	if password != password_repeat {
+		return Err("Passwords do not match!".into());
+	}
+
+	Ok(password)
+}
+
+pub fn password_from_file<P>(path: P) -> Result<String, String> where P: AsRef<Path> {
+	unimplemented!();
 }
 
 #[cfg(test)]

@@ -25,7 +25,6 @@ use rustc_serialize::hex::FromHex;
 use ethcore_logger::{setup_log, Config as LogConfig};
 use util::panics::{PanicHandler, ForwardPanic};
 use util::{PayloadInfo, ToPretty};
-use util::log::Colour;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;

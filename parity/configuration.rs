@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{env, fs};
-use std::fs::File;
 use std::time::Duration;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use cli::{USAGE, Args};
@@ -30,7 +28,7 @@ use ethcore::miner::MinerOptions;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, flush_stdout, replace_home,
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
@@ -42,46 +40,6 @@ use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts};
 use Cmd;
-
-/// Should be used to read password.
-pub trait PasswordReader {
-	/// Prompts user for password.
-	fn prompt(&self) -> Result<String, String>;
-
-	/// Loads user password from file.
-	fn file(&self, file: &str) -> Result<String, String>;
-}
-
-/// Reads password from standard IO.
-#[derive(Debug, PartialEq)]
-pub struct IOPasswordReader;
-
-impl PasswordReader for IOPasswordReader {
-	fn prompt(&self) -> Result<String, String> {
-		use rpassword::read_password;
-
-		println!("Please note that password is NOT RECOVERABLE.");
-		print!("Type password: ");
-		flush_stdout();
-
-		let password = read_password().unwrap();
-
-		print!("Repeat password: ");
-		flush_stdout();
-
-		let password_repeat = read_password().unwrap();
-
-		if password != password_repeat {
-			return Err("Passwords do not match!".into());
-		}
-
-		Ok(password)
-	}
-
-	fn file(&self, file: &str) -> Result<String, String> {
-		unimplemented!();
-	}
-}
 
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
@@ -99,7 +57,7 @@ impl Configuration {
 		Ok(config)
 	}
 
-	pub fn into_command(self, password: &PasswordReader) -> Result<Cmd, String> {
+	pub fn into_command(self) -> Result<Cmd, String> {
 		let dirs = self.directories();
 		let pruning = try!(self.args.flag_pruning.parse());
 		let vm_type = try!(self.vm_type());
@@ -129,7 +87,7 @@ impl Configuration {
 				let new_acc = NewAccount {
 					iterations: self.args.flag_keys_iterations,
 					path: dirs.keys,
-					password: try!(password.prompt()),
+					password_file: self.args.flag_password.first().cloned(),
 				};
 				AccountCmd::New(new_acc)
 			} else if self.args.cmd_list {
@@ -149,7 +107,7 @@ impl Configuration {
 				iterations: self.args.flag_keys_iterations,
 				path: dirs.keys,
 				wallet_path: self.args.arg_path.first().unwrap().clone(),
-				password: try!(password.file(&self.args.flag_password.first().unwrap())),
+				password_file: self.args.flag_password.first().cloned(),
 			};
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
@@ -567,40 +525,27 @@ mod tests {
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
 
-	impl PasswordReader for TestPasswordReader {
-		fn prompt(&self) -> Result<String, String> {
-			Ok(self.0.to_owned())
-		}
-
-		fn file(&self, _file: &str) -> Result<String, String> {
-			Ok(self.0.to_owned())
-		}
-	}
-
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Docopt::new(USAGE).unwrap().argv(args).decode().unwrap(),
 		}
 	}
 
-
 	#[test]
 	fn test_command_version() {
 		let args = vec!["parity", "--version"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Version);
+		assert_eq!(conf.into_command().unwrap(), Cmd::Version);
 	}
 
 	#[test]
 	fn test_command_account_new() {
 		let args = vec!["parity", "account", "new"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(AccountCmd::New(NewAccount {
+		assert_eq!(conf.into_command().unwrap(), Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
 			path: replace_home("$HOME/.parity/keys"),
-			password: "test".into(),
+			password_file: None,
 		})));
 	}
 
@@ -608,8 +553,7 @@ mod tests {
 	fn test_command_account_list() {
 		let args = vec!["parity", "account", "list"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(
+		assert_eq!(conf.into_command().unwrap(), Cmd::Account(
 			AccountCmd::List(replace_home("$HOME/.parity/keys")))
 		);
 	}
@@ -618,8 +562,7 @@ mod tests {
 	fn test_command_account_import() {
 		let args = vec!["parity", "account", "import", "my_dir", "another_dir"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Account(AccountCmd::Import(ImportAccounts {
+		assert_eq!(conf.into_command().unwrap(), Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
 			to: replace_home("$HOME/.parity/keys"),
 		})));
@@ -629,12 +572,11 @@ mod tests {
 	fn test_command_wallet_import() {
 		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("content_of_pwd");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::ImportPresaleWallet(ImportWallet {
+		assert_eq!(conf.into_command().unwrap(), Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
 			path: replace_home("$HOME/.parity/keys"),
 			wallet_path: "my_wallet.json".into(),
-			password: "content_of_pwd".into(),
+			password_file: Some("pwd".into()),
 		}));
 	}
 
@@ -642,8 +584,7 @@ mod tests {
 	fn test_command_blockchain_import() {
 		let args = vec!["parity", "import", "blockchain.json"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
+		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
 			spec: Default::default(),
 			logger_config: Default::default(),
 			cache_config: Default::default(),
@@ -662,8 +603,7 @@ mod tests {
 	fn test_command_blockchain_export() {
 		let args = vec!["parity", "export", "blockchain.json"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
 			logger_config: Default::default(),
 			cache_config: Default::default(),
@@ -683,17 +623,15 @@ mod tests {
 	fn test_command_signer_new_token() {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("test");
 		let expected = replace_home("$HOME/.parity/signer");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::SignerToken(expected));
+		assert_eq!(conf.into_command().unwrap(), Cmd::SignerToken(expected));
 	}
 
 	#[test]
 	fn test_run_cmd() {
 		let args = vec!["parity"];
 		let conf = Configuration::parse(args).unwrap();
-		let password = TestPasswordReader("test");
-		assert_eq!(conf.into_command(&password).unwrap(), Cmd::Run(RunCmd {
+		assert_eq!(conf.into_command().unwrap(), Cmd::Run(RunCmd {
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			spec: Default::default(),

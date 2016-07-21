@@ -17,21 +17,27 @@
 use ethcore::ethstore::{PresaleWallet, EthStore};
 use ethcore::ethstore::dir::DiskDirectory;
 use ethcore::account_provider::AccountProvider;
+use helpers::{password_prompt, password_from_file};
 
 #[derive(Debug, PartialEq)]
 pub struct ImportWallet {
 	pub iterations: u32,
 	pub path: String,
 	pub wallet_path: String,
-	pub password: String,
+	pub password_file: Option<String>,
 }
 
 pub fn execute(cmd: ImportWallet) -> Result<String, String> {
+	let password: String = match cmd.password_file {
+		Some(file) => try!(password_from_file(file)),
+		None => try!(password_prompt()),
+	};
+
 	let dir = Box::new(DiskDirectory::create(cmd.path).unwrap());
 	let secret_store = Box::new(EthStore::open_with_iterations(dir, cmd.iterations).unwrap());
 	let acc_provider = AccountProvider::new(secret_store);
 	let wallet = try!(PresaleWallet::open(cmd.wallet_path).map_err(|_| "Unable to open presale wallet."));
-	let kp = try!(wallet.decrypt(&cmd.password).map_err(|_| "Invalid password."));
-	let address = acc_provider.insert_account(kp.secret().clone(), &cmd.password).unwrap();
+	let kp = try!(wallet.decrypt(&password).map_err(|_| "Invalid password."));
+	let address = acc_provider.insert_account(kp.secret().clone(), &password).unwrap();
 	Ok(format!("{:?}", address))
 }

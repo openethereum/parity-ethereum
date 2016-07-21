@@ -85,7 +85,7 @@ use cli::print_version;
 use account::AccountCmd;
 use presale::ImportWallet;
 use blockchain::BlockchainCmd;
-use configuration::{Configuration, IOPasswordReader};
+use configuration::Configuration;
 use deprecated::find_deprecated;
 
 #[derive(Debug, PartialEq)]
@@ -120,7 +120,7 @@ fn start() -> Result<String, String> {
 		println!("{}", d);
 	}
 
-	let cmd = try!(conf.into_command(&IOPasswordReader));
+	let cmd = try!(conf.into_command());
 	execute(cmd)
 }
 

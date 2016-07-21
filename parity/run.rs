@@ -16,7 +16,6 @@
 
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
-use std::{env, process};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
