@@ -98,6 +98,7 @@ impl OverlayDB {
 	}
 
 	/// Commit all operations to the backing database. Returns the number of insertions and deletions.
+	/// This does not commit auxiliary data.
 	pub fn commit(&mut self) -> Result<u32, UtilError> {
 		let batch = DBTransaction::new();
 		let ops = try!(self.commit_to_batch(&batch));
@@ -108,6 +109,16 @@ impl OverlayDB {
 
 	/// Revert all operations on this object since last commit.
 	pub fn revert(&mut self) { self.overlay.clear() }
+
+	/// Drain auxiliary entries from the overlay.
+	pub fn drain_aux(&mut self) -> HashMap<Bytes, Bytes> {
+		self.overlay.drain_aux()
+	}
+
+	/// Returns the size of allocated heap memory.
+	pub fn mem_used(&self) -> usize {
+		self.overlay.mem_used()
+	}
 
 	/// Get the value of the given key.
 	fn payload(&self, key: &H256) -> Option<Bytes> {
