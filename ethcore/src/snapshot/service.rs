@@ -35,7 +35,6 @@ use util::{Bytes, H256, Mutex, UtilError};
 use util::io::IoChannel;
 use util::journaldb::{self, Algorithm};
 use util::kvdb::Database;
-use util::overlaydb::OverlayDB;
 use util::snappy;
 
 /// Statuses for restorations.
@@ -111,7 +110,7 @@ impl Restoration {
 		Ok(Restoration {
 			state_chunks_left: manifest.state_hashes.iter().cloned().collect(),
 			block_chunks_left: manifest.block_hashes.iter().cloned().collect(),
-			state: StateRebuilder::new(OverlayDB::new(raw_db)),
+			state: StateRebuilder::new(raw_db),
 			blocks: blocks,
 			snappy_buffer: Vec::new(),
 		})

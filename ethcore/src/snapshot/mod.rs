@@ -28,7 +28,8 @@ use views::{BlockView, HeaderView};
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
-use util::overlaydb::OverlayDB;
+use util::kvdb::{Database, DBTransaction};
+use util::memorydb::MemoryDB;
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 
 use self::account::Account;
@@ -347,15 +348,30 @@ impl ManifestData {
 	}
 }
 
+// helper function for committing memory overlays to database.
+fn commit_overlay(mut memdb: MemoryDB, database: &Database) -> Result<(), String> {
+	let batch = DBTransaction::new();
+
+	for (key, (val, rc)) in memdb.drain() {
+		match rc {
+			1 => try!(batch.put(&*key, &val)),
+			-1 => try!(batch.delete(&*key)),
+			other => return Err(format!("wrong amount of insertions/removals for key: {}", other)),
+		}
+	}
+
+	database.write(batch)
+}
+
 /// Used to rebuild the state trie piece by piece.
 pub struct StateRebuilder {
-	db: OverlayDB,
+	db: Database,
 	state_root: H256,
 }
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: OverlayDB) -> Self {
+	pub fn new(db: Database) -> Self {
 		StateRebuilder {
 			db: db,
 			state_root: H256::zero(),
@@ -364,30 +380,28 @@ impl StateRebuilder {
 
 	/// Feed an uncompressed state chunk into the rebuilder.
 	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
-		use util::AsHashDB;
-
 		let rlp = UntrustedRlp::new(chunk);
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
 
 		// initialize the pairs vector with empty values so we have slots to write into.
-		for _ in 0..rlp.item_count() {
-			pairs.push((H256::new(), Vec::new()));
-		}
+		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
 
 		let chunk_size = account_fat_rlps.len() / ::num_cpus::get();
+		let raw_db = &self.db;
 
 		// build account tries in parallel.
 		try!(scope(|scope| {
 			let mut handles = Vec::new();
 			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let mut db = self.db.clone();
+				let mut db = MemoryDB::new();
 				let handle: ScopedJoinHandle<Result<(), Error>> = scope.spawn(move || {
-					try!(rebuild_account_trie(db.as_hashdb_mut(), account_chunk, out_pairs_chunk));
+					try!(rebuild_account_trie(&mut db, account_chunk, out_pairs_chunk));
 
 					// commit the db changes we made in this thread.
-					try!(db.commit());
+					try!(commit_overlay(db, raw_db).map_err(::util::UtilError::SimpleString));
 
+					trace!(target: "snapshot", "thread committed {} entries to db.", account_chunk.len());
 					Ok(())
 				});
 
@@ -402,12 +416,14 @@ impl StateRebuilder {
 			Ok::<_, Error>(())
 		}));
 
+		let mut db = MemoryDB::new();
+
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != H256::zero() {
-				try!(TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root))
+				try!(TrieDBMut::from_existing(&mut db, &mut self.state_root))
 			} else {
-				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
+				TrieDBMut::new(&mut db, &mut self.state_root)
 			};
 
 			for (hash, thin_rlp) in pairs {
@@ -415,7 +431,8 @@ impl StateRebuilder {
 			}
 		}
 
-		try!(self.db.commit());
+		try!(commit_overlay(db, raw_db).map_err(::util::UtilError::SimpleString));
+		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 
 		Ok(())
 	}
@@ -432,7 +449,7 @@ fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mu
 		let fat_rlp = try!(account_rlp.at(1));
 
 		let thin_rlp = {
-			let mut acct_db = AccountDBMut::from_hash(db.as_hashdb_mut(), hash);
+			let mut acct_db = AccountDBMut::from_hash(db, hash);
 
 			// fill out the storage trie and code while decoding.
 			let acc = try!(Account::from_fat_rlp(&mut acct_db, fat_rlp));
