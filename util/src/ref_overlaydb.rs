@@ -276,106 +276,113 @@ impl HashDB for RefOverlayDB {
 	fn remove(&mut self, key: &H256) { self.overlay.remove(key); }
 }
 
-#[test]
-fn overlaydb_overlay_insert_and_remove() {
-	let mut trie = RefOverlayDB::new_temp();
-	let h = trie.insert(b"hello world");
-	assert_eq!(trie.get(&h).unwrap(), b"hello world");
-	trie.remove(&h);
-	assert_eq!(trie.get(&h), None);
-}
+#[cfg(test)]
+mod tests {
+	use super::RefOverlayDB;
+	use hashdb::HashDB;
+	use kvdb::Database;
 
-#[test]
-fn overlaydb_backing_insert_revert() {
-	let mut trie = RefOverlayDB::new_temp();
-	let h = trie.insert(b"hello world");
-	assert_eq!(trie.get(&h).unwrap(), b"hello world");
-	trie.commit().unwrap();
-	assert_eq!(trie.get(&h).unwrap(), b"hello world");
-	trie.revert();
-	assert_eq!(trie.get(&h).unwrap(), b"hello world");
-}
-
-#[test]
-fn overlaydb_backing_remove() {
-	let mut trie = RefOverlayDB::new_temp();
-	let h = trie.insert(b"hello world");
-	trie.commit().unwrap();
-	trie.remove(&h);
-	assert_eq!(trie.get(&h), None);
-	trie.commit().unwrap();
-	assert_eq!(trie.get(&h), None);
-	trie.revert();
-	assert_eq!(trie.get(&h), None);
-}
-
-#[test]
-fn overlaydb_backing_remove_revert() {
-	let mut trie = RefOverlayDB::new_temp();
-	let h = trie.insert(b"hello world");
-	trie.commit().unwrap();
-	trie.remove(&h);
-	assert_eq!(trie.get(&h), None);
-	trie.revert();
-	assert_eq!(trie.get(&h).unwrap(), b"hello world");
-}
-
-#[test]
-fn overlaydb_negative() {
-	let mut trie = RefOverlayDB::new_temp();
-	let h = trie.insert(b"hello world");
-	trie.commit().unwrap();
-	trie.remove(&h);
-	trie.remove(&h);	//bad - sends us into negative refs.
-	assert_eq!(trie.get(&h), None);
-	assert!(trie.commit().is_err());
-}
-
-#[test]
-fn overlaydb_complex() {
-	let mut trie = RefOverlayDB::new_temp();
-	let hfoo = trie.insert(b"foo");
-	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
-	let hbar = trie.insert(b"bar");
-	assert_eq!(trie.get(&hbar).unwrap(), b"bar");
-	trie.commit().unwrap();
-	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
-	assert_eq!(trie.get(&hbar).unwrap(), b"bar");
-	trie.insert(b"foo");	// two refs
-	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
-	trie.commit().unwrap();
-	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
-	assert_eq!(trie.get(&hbar).unwrap(), b"bar");
-	trie.remove(&hbar);		// zero refs - delete
-	assert_eq!(trie.get(&hbar), None);
-	trie.remove(&hfoo);		// one ref - keep
-	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
-	trie.commit().unwrap();
-	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
-	trie.remove(&hfoo);		// zero ref - would delete, but...
-	assert_eq!(trie.get(&hfoo), None);
-	trie.insert(b"foo");	// one ref - keep after all.
-	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
-	trie.commit().unwrap();
-	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
-	trie.remove(&hfoo);		// zero ref - delete
-	assert_eq!(trie.get(&hfoo), None);
-	trie.commit().unwrap();	//
-	assert_eq!(trie.get(&hfoo), None);
-}
-
-#[test]
-fn playpen() {
-	use std::fs;
-	{
-		let db: Database = Database::open_default("/tmp/test").unwrap();
-		db.put(b"test", b"test2").unwrap();
-		match db.get(b"test") {
-			Ok(Some(value)) => println!("Got value {:?}", value.deref()),
-			Ok(None) => println!("No value for that key"),
-			Err(..) => println!("Gah"),
-		}
-		db.delete(b"test").unwrap();
+	#[test]
+	fn overlaydb_overlay_insert_and_remove() {
+		let mut trie = RefOverlayDB::new_temp();
+		let h = trie.insert(b"hello world");
+		assert_eq!(trie.get(&h).unwrap(), b"hello world");
+		trie.remove(&h);
+		assert_eq!(trie.get(&h), None);
 	}
-	fs::remove_dir_all("/tmp/test").unwrap();
+
+	#[test]
+	fn overlaydb_backing_insert_revert() {
+		let mut trie = RefOverlayDB::new_temp();
+		let h = trie.insert(b"hello world");
+		assert_eq!(trie.get(&h).unwrap(), b"hello world");
+		trie.commit().unwrap();
+		assert_eq!(trie.get(&h).unwrap(), b"hello world");
+		trie.revert();
+		assert_eq!(trie.get(&h).unwrap(), b"hello world");
+	}
+
+	#[test]
+	fn overlaydb_backing_remove() {
+		let mut trie = RefOverlayDB::new_temp();
+		let h = trie.insert(b"hello world");
+		trie.commit().unwrap();
+		trie.remove(&h);
+		assert_eq!(trie.get(&h), None);
+		trie.commit().unwrap();
+		assert_eq!(trie.get(&h), None);
+		trie.revert();
+		assert_eq!(trie.get(&h), None);
+	}
+
+	#[test]
+	fn overlaydb_backing_remove_revert() {
+		let mut trie = RefOverlayDB::new_temp();
+		let h = trie.insert(b"hello world");
+		trie.commit().unwrap();
+		trie.remove(&h);
+		assert_eq!(trie.get(&h), None);
+		trie.revert();
+		assert_eq!(trie.get(&h).unwrap(), b"hello world");
+	}
+
+	#[test]
+	fn overlaydb_negative() {
+		let mut trie = RefOverlayDB::new_temp();
+		let h = trie.insert(b"hello world");
+		trie.commit().unwrap();
+		trie.remove(&h);
+		trie.remove(&h);	//bad - sends us into negative refs.
+		assert_eq!(trie.get(&h), None);
+		assert!(trie.commit().is_err());
+	}
+
+	#[test]
+	fn overlaydb_complex() {
+		let mut trie = RefOverlayDB::new_temp();
+		let hfoo = trie.insert(b"foo");
+		assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+		let hbar = trie.insert(b"bar");
+		assert_eq!(trie.get(&hbar).unwrap(), b"bar");
+		trie.commit().unwrap();
+		assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+		assert_eq!(trie.get(&hbar).unwrap(), b"bar");
+		trie.insert(b"foo");	// two refs
+		assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+		trie.commit().unwrap();
+		assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+		assert_eq!(trie.get(&hbar).unwrap(), b"bar");
+		trie.remove(&hbar);		// zero refs - delete
+		assert_eq!(trie.get(&hbar), None);
+		trie.remove(&hfoo);		// one ref - keep
+		assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+		trie.commit().unwrap();
+		assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+		trie.remove(&hfoo);		// zero ref - would delete, but...
+		assert_eq!(trie.get(&hfoo), None);
+		trie.insert(b"foo");	// one ref - keep after all.
+		assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+		trie.commit().unwrap();
+		assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+		trie.remove(&hfoo);		// zero ref - delete
+		assert_eq!(trie.get(&hfoo), None);
+		trie.commit().unwrap();	//
+		assert_eq!(trie.get(&hfoo), None);
+	}
+
+	#[test]
+	fn playpen() {
+		use std::fs;
+		{
+			let db: Database = Database::open_default("/tmp/test").unwrap();
+			db.put(b"test", b"test2").unwrap();
+			match db.get(b"test") {
+				Ok(Some(value)) => println!("Got value {:?}", &*value),
+				Ok(None) => println!("No value for that key"),
+				Err(..) => println!("Gah"),
+			}
+			db.delete(b"test").unwrap();
+		}
+		fs::remove_dir_all("/tmp/test").unwrap();
+	}
 }

@@ -170,3 +170,44 @@ impl HashDB for OverlayDB {
 		self.overlay.remove_aux(hash);
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::{DeletionMode, OverlayDB};
+	use kvdb::Database;
+	use hashdb::HashDB;
+	use devtools::RandomTempPath;
+
+	// most of the functionality of `OverlayDB` is tested through
+	// `ArchiveDB`'s tests by proxy.
+
+	#[test]
+	fn ignore_remove() {
+		let path = RandomTempPath::create_dir();
+		let backing = Database::open_default(path.as_str()).unwrap();
+		let mut db = OverlayDB::new(backing, DeletionMode::Ignore);
+
+		let hash = db.insert(b"dog");
+		db.commit().unwrap();
+
+		db.remove(&hash);
+		db.commit().unwrap();
+
+		assert!(db.get(&hash).is_some())
+	}
+
+	#[test]
+	fn delete_remove() {
+		let path = RandomTempPath::create_dir();
+		let backing = Database::open_default(path.as_str()).unwrap();
+		let mut db = OverlayDB::new(backing, DeletionMode::Delete);
+
+		let hash = db.insert(b"dog");
+		db.commit().unwrap();
+
+		db.remove(&hash);
+		db.commit().unwrap();
+
+		assert!(db.get(&hash).is_none())
+	}
+}
