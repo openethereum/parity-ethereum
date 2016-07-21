@@ -107,6 +107,11 @@ API and Console Options:
                            name. Possible name are web3, eth, net, personal,
                            ethcore, ethcore_set, traces.
                            [default: web3,eth,net,ethcore,personal,traces].
+  --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
+                           validate the Host header sent by the browser, it
+                           is additional security against some attack
+                           vectors. Special options: "all", "none",
+                           [default: none].
 
   --no-ipc                 Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
@@ -118,8 +123,8 @@ API and Console Options:
   --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
-                           server, IP should be an interface's IP address, or
-                           all (all interfaces) or local [default: local].
+                           server, IP should be an interface's IP address,
+                           or local [default: local].
   --dapps-user USERNAME    Specify username for Dapps server. It will be
                            used in HTTP Basic Authentication Scheme.
                            If --dapps-pass is not specified you will be
@@ -311,6 +316,7 @@ pub struct Args {
 	pub flag_jsonrpc_interface: String,
 	pub flag_jsonrpc_port: u16,
 	pub flag_jsonrpc_cors: Option<String>,
+	pub flag_jsonrpc_hosts: String,
 	pub flag_jsonrpc_apis: String,
 	pub flag_no_ipc: bool,
 	pub flag_ipc_path: String,

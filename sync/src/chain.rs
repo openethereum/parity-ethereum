@@ -178,6 +178,13 @@ pub struct SyncStatus {
 	pub mem_used: usize,
 }
 
+impl SyncStatus {
+	/// Indicates if initial sync is still in progress.
+	pub fn is_major_syncing(&self) -> bool {
+		self.state != SyncState::Idle && self.state != SyncState::NewBlocks
+	}
+}
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Peer data type requested
 enum PeerAsking {

@@ -87,6 +87,7 @@ mod api {
 	include!(concat!(env!("OUT_DIR"), "/api.ipc.rs"));
 }
 
-pub use api::{EthSync, SyncProvider, ManageNetwork, SyncConfig, NetworkConfiguration};
+pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNetwork, SyncConfig,
+	NetworkConfiguration, ServiceConfiguration};
 pub use chain::{SyncStatus, SyncState};
 

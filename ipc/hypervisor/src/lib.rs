@@ -42,7 +42,35 @@ pub struct Hypervisor {
 	service: Arc<HypervisorService>,
 	ipc_worker: RwLock<nanoipc::Worker<HypervisorService>>,
 	processes: RwLock<HashMap<BinaryId, Child>>,
-	modules: HashMap<IpcModuleId, (BinaryId, Vec<String>)>,
+	modules: HashMap<IpcModuleId, (BinaryId, BootArgs)>,
+}
+
+/// Boot arguments for binary
+pub struct BootArgs {
+	cli: Option<Vec<String>>,
+	stdin: Option<Vec<u8>>,
+}
+
+impl BootArgs {
+	/// New empty boot arguments
+	pub fn new() -> BootArgs {
+		BootArgs {
+			cli: None,
+			stdin: None,
+		}
+	}
+
+	/// Set command-line arguments for boot
+	pub fn cli(mut self, cli: Vec<String>) -> BootArgs {
+		self.cli = Some(cli);
+		self
+	}
+
+	/// Set std-in stream for boot
+	pub fn stdin(mut self, stdin: Vec<u8>) -> BootArgs {
+		self.stdin = Some(stdin);
+		self
+	}
 }
 
 impl Hypervisor {
@@ -51,7 +79,7 @@ impl Hypervisor {
 		Hypervisor::with_url(HYPERVISOR_IPC_URL)
 	}
 
-	pub fn module(mut self, module_id: IpcModuleId, binary_id: BinaryId, args: Vec<String>) -> Hypervisor {
+	pub fn module(mut self, module_id: IpcModuleId, binary_id: BinaryId, args: BootArgs) -> Hypervisor {
 		self.modules.insert(module_id, (binary_id, args));
 		self.service.add_module(module_id);
 		self
@@ -78,7 +106,7 @@ impl Hypervisor {
 
 	/// Since one binary can host multiple modules
 	/// we match binaries
-	fn match_module(&self, module_id: &IpcModuleId) -> Option<&(BinaryId, Vec<String>)> {
+	fn match_module(&self, module_id: &IpcModuleId) -> Option<&(BinaryId, BootArgs)> {
 		self.modules.get(module_id)
 	}
 
@@ -96,6 +124,8 @@ impl Hypervisor {
 	/// Does nothing when it is already started on module is inside the
 	/// main binary
 	fn start_module(&self, module_id: IpcModuleId) {
+		use std::io::Write;
+
 		self.match_module(&module_id).map(|&(ref binary_id, ref binary_args)| {
 			let mut processes = self.processes.write().unwrap();
 			{
@@ -109,13 +139,30 @@ impl Hypervisor {
 			executable_path.pop();
 			executable_path.push(binary_id);
 
-			let mut command = Command::new(&executable_path.to_str().unwrap());
-			for arg in binary_args { command.arg(arg); }
+			let executable_path = executable_path.to_str().unwrap();
+			let mut command = Command::new(&executable_path);
+			command.stderr(std::process::Stdio::inherit());
+
+			if let Some(ref cli_args) = binary_args.cli {
+				for arg in cli_args { command.arg(arg); }
+			}
+
+			command.stdin(std::process::Stdio::piped());
 
 			trace!(target: "hypervisor", "Spawn executable: {:?}", command);
 
-			let child = command.spawn().unwrap_or_else(
+			let mut child = command.spawn().unwrap_or_else(
 				|e| panic!("Hypervisor cannot start binary ({:?}): {}", executable_path, e));
+
+			if let Some(ref std_in) = binary_args.stdin {
+				trace!(target: "hypervisor", "Pushing std-in payload...");
+				child.stdin.as_mut()
+					.expect("std-in should be piped above")
+					.write(std_in)
+					.unwrap_or_else(|e| panic!(format!("Error trying to pipe stdin for {}: {:?}", &executable_path, e)));
+				drop(child.stdin.take());
+			}
+
 			processes.insert(binary_id, child);
 		});
 	}
@@ -133,6 +180,7 @@ impl Hypervisor {
 		}
 	}
 
+	/// Shutdown the ipc and all managed child processes
 	pub fn shutdown(&self, wait_time: Option<std::time::Duration>) {
 		if wait_time.is_some() { std::thread::sleep(wait_time.unwrap()) }
 

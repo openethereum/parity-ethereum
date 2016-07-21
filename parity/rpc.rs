@@ -32,7 +32,8 @@ pub struct HttpConfiguration {
 	pub interface: String,
 	pub port: u16,
 	pub apis: String,
-	pub cors: Vec<String>,
+	pub cors: Option<Vec<String>>,
+	pub hosts: Option<Vec<String>>,
 }
 
 pub struct IpcConfiguration {
@@ -66,7 +67,7 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Option<RpcServe
 	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 
-	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))
+	Some(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, apis))
 }
 
 fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Server {
@@ -78,21 +79,17 @@ fn setup_rpc_server(apis: Vec<&str>, deps: &Dependencies) -> Server {
 pub fn setup_http_rpc_server(
 	dependencies: &Dependencies,
 	url: &SocketAddr,
-	cors_domains: Vec<String>,
+	cors_domains: Option<Vec<String>>,
+	allowed_hosts: Option<Vec<String>>,
 	apis: Vec<&str>,
 ) -> RpcServer {
 	let server = setup_rpc_server(apis, dependencies);
-	let start_result = server.start_http(url, cors_domains);
 	let ph = dependencies.panic_handler.clone();
+	let start_result = server.start_http(url, cors_domains, allowed_hosts, ph);
 	match start_result {
 		Err(RpcServerError::IoError(err)) => die_with_io_error("RPC", err),
 		Err(e) => die!("RPC: {:?}", e),
-		Ok(server) => {
-			server.set_panic_handler(move || {
-				ph.notify_all("Panic in RPC thread.".to_owned());
-			});
-			server
-		},
+		Ok(server) => server,
 	}
 }
 

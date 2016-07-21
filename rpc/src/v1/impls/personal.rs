@@ -18,7 +18,7 @@
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::Personal;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, TransactionRequest};
+use v1::types::{H160 as RpcH160, TransactionRequest};
 use v1::impls::unlock_sign_and_dispatch;
 use v1::helpers::{TransactionRequest as TRequest};
 use ethcore::account_provider::AccountProvider;
@@ -101,10 +101,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 				let sender = request.from;
 				let accounts = take_weak!(self.accounts);
 
-				match unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, sender, password) {
-					Ok(hash) => Ok(hash),
-					_ => to_value(&RpcH256::default()),
-				}
-		})
+				unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, sender, password)
+			})
 	}
 }
