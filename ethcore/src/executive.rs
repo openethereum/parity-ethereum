@@ -433,7 +433,7 @@ impl<'a> Executive<'a> {
 		self.state.add_balance(&self.info.author, &fees_value);
 
 		// perform suicides
-		for address in &substate.suicides {
+		for (address, _) in &substate.suicides {
 			self.state.kill_account(address);
 		}
 
