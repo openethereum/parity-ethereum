@@ -23,7 +23,7 @@ use docopt::{Docopt, Error as DocoptError};
 use util::{Hashable, NetworkConfiguration, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, Address};
 use util::network_settings::NetworkSettings;
 use util::log::Colour;
-use ethcore::client::VMType;
+use ethcore::client::{VMType, Mode};
 use ethcore::miner::MinerOptions;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
@@ -72,7 +72,7 @@ impl Configuration {
 		let spec = try!(self.chain().parse());
 		let tracing = try!(self.args.flag_tracing.parse());
 		let compaction = try!(self.args.flag_db_compaction.parse());
-		let enable_network = true;
+		let enable_network = self.enable_network(&mode);
 		let geth_compatibility = self.args.flag_geth;
 		let signer_port = self.signer_port();
 		let dapps_conf = self.dapps_config();
@@ -183,6 +183,12 @@ impl Configuration {
 		Ok(cmd)
 	}
 
+	fn enable_network(&self, mode: &Mode) -> bool {
+		match *mode {
+			Mode::Dark(_) => false,
+			_ => !self.args.flag_no_network,
+		}
+	}
 
 	fn vm_type(&self) -> Result<VMType, String> {
 		if self.args.flag_jitvm {
