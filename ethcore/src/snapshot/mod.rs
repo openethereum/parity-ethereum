@@ -28,8 +28,8 @@ use views::{BlockView, HeaderView};
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
-use util::kvdb::{Database, DBTransaction};
-use util::memorydb::MemoryDB;
+use util::kvdb::Database;
+use util::overlaydb::{DeletionMode, OverlayDB};
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 use util::rlp::SHA3_NULL_RLP;
 
@@ -56,7 +56,6 @@ const SNAPSHOT_BLOCKS: u64 = 30000;
 
 /// Take a snapshot using the given client and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &HashDB, mut writer: W) -> Result<(), Error> {
-
 	let chain_info = client.chain_info();
 
 	let best_header_raw = client.best_block_header();
@@ -349,24 +348,9 @@ impl ManifestData {
 	}
 }
 
-// helper function for committing memory overlays to database.
-fn commit_overlay(mut memdb: MemoryDB, database: &Database) -> Result<(), String> {
-	let batch = DBTransaction::new();
-
-	for (key, (val, rc)) in memdb.drain() {
-		match rc {
-			1 => try!(batch.put(&*key, &val)),
-			-1 => try!(batch.delete(&*key)),
-			other => return Err(format!("wrong amount of insertions/removals for key: {}", other)),
-		}
-	}
-
-	database.write(batch)
-}
-
 /// Used to rebuild the state trie piece by piece.
 pub struct StateRebuilder {
-	db: Database,
+	db: OverlayDB,
 	state_root: H256,
 }
 
@@ -374,7 +358,7 @@ impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
 	pub fn new(db: Database) -> Self {
 		StateRebuilder {
-			db: db,
+			db: OverlayDB::new(db, DeletionMode::Delete),
 			state_root: SHA3_NULL_RLP,
 		}
 	}
@@ -384,23 +368,23 @@ impl StateRebuilder {
 		let rlp = UntrustedRlp::new(chunk);
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
+		self.db.revert(); // ensure we're working with a blank slate here.
 
 		// initialize the pairs vector with empty values so we have slots to write into.
 		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
 
 		let chunk_size = account_fat_rlps.len() / ::num_cpus::get();
-		let raw_db = &self.db;
 
 		// build account tries in parallel.
 		try!(scope(|scope| {
 			let mut handles = Vec::new();
 			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let mut db = MemoryDB::new();
+				let mut db = self.db.clone();
 				let handle: ScopedJoinHandle<Result<(), Error>> = scope.spawn(move || {
 					try!(rebuild_account_trie(&mut db, account_chunk, out_pairs_chunk));
 
 					// commit the db changes we made in this thread.
-					try!(commit_overlay(db, raw_db).map_err(::util::UtilError::SimpleString));
+					try!(db.commit());
 
 					trace!(target: "snapshot", "thread committed {} entries to db.", account_chunk.len());
 					Ok(())
@@ -417,14 +401,13 @@ impl StateRebuilder {
 			Ok::<_, Error>(())
 		}));
 
-		let mut db = MemoryDB::new();
 
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != SHA3_NULL_RLP {
-				try!(TrieDBMut::from_existing(&mut db, &mut self.state_root))
+				try!(TrieDBMut::from_existing(&mut self.db, &mut self.state_root))
 			} else {
-				TrieDBMut::new(&mut db, &mut self.state_root)
+				TrieDBMut::new(&mut self.db, &mut self.state_root)
 			};
 
 			for (hash, thin_rlp) in pairs {
@@ -432,7 +415,7 @@ impl StateRebuilder {
 			}
 		}
 
-		try!(commit_overlay(db, raw_db).map_err(::util::UtilError::SimpleString));
+		try!(self.db.commit());
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 
 		Ok(())

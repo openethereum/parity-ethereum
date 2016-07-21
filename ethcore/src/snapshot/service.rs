@@ -84,6 +84,7 @@ struct Restoration {
 	state: StateRebuilder,
 	blocks: BlockRebuilder,
 	snappy_buffer: Bytes,
+	final_state_root: H256,
 }
 
 impl Restoration {
@@ -113,16 +114,25 @@ impl Restoration {
 			state: StateRebuilder::new(raw_db),
 			blocks: blocks,
 			snappy_buffer: Vec::new(),
+			final_state_root: manifest.state_root,
 		})
 	}
 
 	// feeds a state chunk
 	fn feed_state(&mut self, hash: H256, chunk: &[u8]) -> Result<(), Error> {
+		use util::trie::TrieError;
+
 		if self.state_chunks_left.remove(&hash) {
 			let len = try!(snappy::decompress_into(&chunk, &mut self.snappy_buffer));
 			try!(self.state.feed(&self.snappy_buffer[..len]));
 
-			// TODO: verify state root when done.
+			if self.state_chunks_left.is_empty() {
+				let root = self.state.state_root();
+				if root != self.final_state_root {
+					warn!("Final restored state has wrong state root: expected {:?}, got {:?}", root, self.final_state_root);
+					return Err(TrieError::InvalidStateRoot.into());
+				}
+			}
 		}
 
 		Ok(())
