@@ -82,7 +82,7 @@ pub fn setup_dapps_server(
 	_url: &SocketAddr,
 	_auth: Option<(String, String)>,
 ) -> Result<WebappServer, String> {
-	"Your Parity version has been compiled without WebApps support.".into();
+	Err("Your Parity version has been compiled without WebApps support.".into())
 }
 
 #[cfg(feature = "dapps")]
