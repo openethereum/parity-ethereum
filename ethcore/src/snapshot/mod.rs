@@ -31,6 +31,7 @@ use util::hash::{FixedHash, H256};
 use util::kvdb::{Database, DBTransaction};
 use util::memorydb::MemoryDB;
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
+use util::rlp::SHA3_NULL_RLP;
 
 use self::account::Account;
 use self::block::AbridgedBlock;
@@ -374,7 +375,7 @@ impl StateRebuilder {
 	pub fn new(db: Database) -> Self {
 		StateRebuilder {
 			db: db,
-			state_root: H256::zero(),
+			state_root: SHA3_NULL_RLP,
 		}
 	}
 
@@ -420,7 +421,7 @@ impl StateRebuilder {
 
 		// batch trie writes
 		{
-			let mut account_trie = if self.state_root != H256::zero() {
+			let mut account_trie = if self.state_root != SHA3_NULL_RLP {
 				try!(TrieDBMut::from_existing(&mut db, &mut self.state_root))
 			} else {
 				TrieDBMut::new(&mut db, &mut self.state_root)
