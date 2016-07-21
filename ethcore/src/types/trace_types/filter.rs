@@ -121,15 +121,20 @@ impl Filter {
 				let to_matches = self.to_address.matches_all();
 				from_matches && to_matches
 			}
+			Action::Suicide(ref suicide) => {
+				let from_matches = self.from_address.matches(&suicide.address);
+				let to_matches = self.to_address.matches(&suicide.refund_address);
+				from_matches && to_matches
+			}
 		}
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use util::{FixedHash, Address, U256};
+	use util::{FixedHash, Address};
 	use util::sha3::Hashable;
-	use trace::trace::{Action, Call, Res};
+	use trace::trace::{Action, Call, Res, Suicide};
 	use trace::flat::FlatTrace;
 	use trace::{Filter, AddressesFilter};
 	use basic_types::LogBloom;
@@ -270,15 +275,34 @@ mod tests {
 
 		let trace = FlatTrace {
 			action: Action::Call(Call {
-				from: Address::from(1),
-				to: Address::from(2),
-				value: U256::from(3),
-				gas: U256::from(4),
+				from: 1.into(),
+				to: 2.into(),
+				value: 3.into(),
+				gas: 4.into(),
 				input: vec![0x5],
 			}),
 			result: Res::FailedCall,
 			trace_address: vec![0],
 			subtraces: 0,
+		};
+
+		assert!(f0.matches(&trace));
+		assert!(f1.matches(&trace));
+		assert!(f2.matches(&trace));
+		assert!(f3.matches(&trace));
+		assert!(f4.matches(&trace));
+		assert!(f5.matches(&trace));
+		assert!(!f6.matches(&trace));
+
+		let trace = FlatTrace {
+			action: Action::Suicide(Suicide {
+				address: 1.into(),
+				refund_address: 2.into(),
+				balance: 3.into(),
+			}),
+			result: Res::None,
+			trace_address: vec![],
+			subtraces: 0
 		};
 
 		assert!(f0.matches(&trace));
