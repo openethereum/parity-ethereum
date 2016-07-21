@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{io, env};
-use std::io::Write;
+use std::io::{Write, Read};
 use std::time::Duration;
 use std::path::Path;
+use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, NetworkConfiguration, NonReservedPeerMode, H256};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
@@ -251,7 +252,11 @@ pub fn password_prompt() -> Result<String, String> {
 }
 
 pub fn password_from_file<P>(path: P) -> Result<String, String> where P: AsRef<Path> {
-	unimplemented!();
+	let mut file = try!(File::open(path).map_err(|_| "Unable to open password file."));
+	let mut file_content = String::new();
+	try!(file.read_to_string(&mut file_content).map_err(|_| "Unable to read password file."));
+	// remove eof
+	Ok((&file_content[..file_content.len() - 1]).to_owned())
 }
 
 #[cfg(test)]

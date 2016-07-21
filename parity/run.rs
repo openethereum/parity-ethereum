@@ -73,6 +73,7 @@ pub struct RunCmd {
 	pub signer_conf: signer::Configuration,
 	pub ui: bool,
 	pub name: String,
+	pub custom_bootnodes: bool,
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -157,8 +158,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;
-	// TODO: this should happen only if bootnodes where not specified in commandline
-	net_conf.boot_nodes = spec.nodes.clone();
+	if !cmd.custom_bootnodes {
+		net_conf.boot_nodes = spec.nodes.clone();
+	}
 
 	// create client
 	let service = try!(ClientService::start(

@@ -175,6 +175,7 @@ impl Configuration {
 				signer_conf: signer_conf,
 				ui: self.args.cmd_ui,
 				name: self.args.flag_identity,
+				custom_bootnodes: self.args.flag_bootnodes.is_some(),
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -658,6 +659,7 @@ mod tests {
 			signer_conf: Default::default(),
 			ui: false,
 			name: "".into(),
+			custom_bootnodes: false,
 		}));
 	}
 
