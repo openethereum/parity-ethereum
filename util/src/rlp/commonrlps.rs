@@ -21,7 +21,7 @@ use rlp::rlpcompression::InvalidRlpSwapper;
 #[test]
 #[ignore]
 fn analyze_db() {
-	use rlp::{UntrustedRlp, View, Compressible};
+	use rlp::{UntrustedRlp, View};
 	use std::collections::HashMap;
 	use kvdb::*;
 

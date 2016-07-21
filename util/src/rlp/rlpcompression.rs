@@ -61,8 +61,11 @@ fn invalid_rlp_swapper() {
 	assert_eq!(Some(to_swap[1]), swapper.get_valid(invalid_rlp[1]));
 }
 
+/// Type of RLP indicating its origin database.
 pub enum RlpType {
+	/// RLP used in blocks database.
 	Blocks,
+	/// RLP used in snapshots.
 	Snapshot,
 }
 
@@ -91,6 +94,8 @@ fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<ElasticArray1024<u8>> where
 }
 
 impl<'a> Compressible for UntrustedRlp<'a> {
+	type DataType = RlpType;
+
 	fn simple_compress(&self, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8> {
 		if self.is_data() {
 			to_elastic(swapper.get_invalid(self.as_raw()).unwrap_or(self.as_raw()))

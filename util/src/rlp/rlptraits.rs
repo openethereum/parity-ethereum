@@ -19,7 +19,7 @@ use std::ops::Deref;
 use rlp::bytes::VecLike;
 use rlp::{DecoderError, UntrustedRlp};
 use rlp::rlpstream::RlpStream;
-use rlp::rlpcompression::{RlpType, InvalidRlpSwapper};
+use rlp::rlpcompression::InvalidRlpSwapper;
 use elastic_array::ElasticArray1024;
 use hash::H256;
 use sha3::*;
@@ -370,7 +370,7 @@ pub trait Stream: Sized {
 /// Trait for compressing and decompressing RLP by replacement of common terms.
 pub trait Compressible: Sized {
 	/// Indicates the origin of RLP to be compressed.
-	type DataType = RlpType;
+	type DataType;
 
 	/// Replace common RLPs with invalid shorter ones, None if no compression achieved.
 	/// Tries to compress data insides.

@@ -29,7 +29,7 @@ use views::{BlockView, HeaderView};
 
 use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
-use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible};
+use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
 
 use self::account::Account;
 use self::block::AbridgedBlock;
