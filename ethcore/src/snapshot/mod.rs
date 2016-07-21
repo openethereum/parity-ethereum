@@ -20,7 +20,7 @@ use std::collections::VecDeque;
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::BlockChain;
-use client::BlockChainClient;
+use client::{BlockChainClient, BlockChainInfo};
 use error::Error;
 use engine::Engine;
 use ids::BlockID;
@@ -65,7 +65,7 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 	info!("Taking snapshot starting at block {}", best_header.number());
 
 	let state_hashes = try!(chunk_state(state_db, &state_root, &mut writer));
-	let block_hashes = try!(chunk_blocks(client, &mut writer));
+	let block_hashes = try!(chunk_blocks(client, chain_info.clone(), &mut writer));
 
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
@@ -184,13 +184,12 @@ impl<'a> BlockChunker<'a> {
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_blocks(client: &BlockChainClient, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
-	let chain_info = client.chain_info();
-	let first_hash = if chain_info.best_block_number < SNAPSHOT_BLOCKS {
+pub fn chunk_blocks(client: &BlockChainClient, info: BlockChainInfo, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
+	let first_hash = if info.best_block_number < SNAPSHOT_BLOCKS {
 		// use the genesis hash.
-		chain_info.genesis_hash
+		info.genesis_hash
 	} else {
-		let first_num = chain_info.best_block_number - SNAPSHOT_BLOCKS;
+		let first_num = info.best_block_number - SNAPSHOT_BLOCKS;
 		client.block_hash(BlockID::Number(first_num))
 			.expect("number before best block number; client stores whole chain; qed")
 	};
@@ -198,7 +197,7 @@ pub fn chunk_blocks(client: &BlockChainClient, writer: &mut SnapshotWriter) -> R
 	let mut chunker = BlockChunker {
 		client: client,
 		rlps: VecDeque::new(),
-		current_hash: chain_info.best_block_hash,
+		current_hash: info.best_block_hash,
 		hashes: Vec::new(),
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
 		writer: writer,
