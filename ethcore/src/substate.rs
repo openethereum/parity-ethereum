@@ -15,25 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Execution environment substate.
-use std::collections::HashMap;
+use std::collections::HashSet;
 use util::{Address, U256};
 use log_entry::LogEntry;
-
-/// Details of the commited suicide.
-#[derive(Debug, Default)]
-pub struct SuicideDetails {
-	/// Suicided contract heir.
-	pub refund_address: Address,
-	/// Balance of the contract just before suicide.
-	pub value: U256,
-}
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
 #[derive(Debug, Default)]
 pub struct Substate {
 	/// Any accounts that have suicided.
-	pub suicides: HashMap<Address, SuicideDetails>,
+	pub suicides: HashSet<Address>,
 
 	/// Any logs.
 	pub logs: Vec<LogEntry>,
@@ -81,7 +72,7 @@ mod tests {
 			data: vec![]
 		});
 		sub_state.sstore_clears_count = 5.into();
-		sub_state.suicides.insert(10u64.into(), Default::default());
+		sub_state.suicides.insert(10u64.into());
 
 		let mut sub_state_2 = Substate::new();
 		sub_state_2.contracts_created.push(2u64.into());

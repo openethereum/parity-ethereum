@@ -263,12 +263,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			self.state.transfer_balance(&address, refund_address, &balance);
 		}
 
-		let details = SuicideDetails {
-			refund_address: refund_address.clone(),
-			value: balance,
-		};
-
-		self.substate.suicides.insert(address, details);
+		self.substate.suicides.insert(address);
 	}
 
 	fn schedule(&self) -> &Schedule {
