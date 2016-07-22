@@ -17,4 +17,4 @@
 //! Snapshot tests.
 
 mod blocks;
-mod helpers;
+pub mod helpers;

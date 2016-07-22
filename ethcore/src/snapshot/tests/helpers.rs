@@ -21,10 +21,12 @@ use std::collections::HashMap;
 
 use account_db::{AccountDB, AccountDBMut};
 use rand::Rng;
+use snapshot::account::Account;
 
-use util::hash::{Address, H256};
+use util::hash::{Address, FixedHash, H256};
 use util::hashdb::HashDB;
-use util::trie::{TrieDBMut, TrieDB};
+use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, Trie, ValueMode};
+use util::trie::{TrieDB, TrieDBMut};
 use util::rlp::SHA3_NULL_RLP;
 
 // the proportion of accounts we will alter each tick.
@@ -33,7 +35,8 @@ const ACCOUNT_CHURN: f32 = 0.01;
 /// This structure will incrementally alter a state given an rng and can produce a list of "facts"
 /// for checking state validity.
 pub struct StateProducer {
-	state_root: H256
+	state_root: H256,
+	storage_seed: H256,
 }
 
 impl StateProducer {
@@ -41,12 +44,73 @@ impl StateProducer {
 	pub fn new() -> Self {
 		StateProducer {
 			state_root: SHA3_NULL_RLP,
+			storage_seed: H256::zero(),
 		}
 	}
 
 	/// Tick the state producer. This alters the state, writing new data into
-	/// the database and returning the new state root.
-	pub fn tick(&mut self, rng: &mut Rng, db: &mut HashDB) -> H256 {
-		unimplemented!()
+	/// the database.
+	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {
+		// modify existing accounts.
+		let mut accounts_to_modify: Vec<_> = {
+			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
+			trie.iter()
+				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
+				.map(|(k, v)| (H256::from_slice(&k), v.to_owned()))
+				.collect()
+		};
+
+		// sweep once to alter storage tries.
+		for &mut (ref mut address_hash, ref mut account_data) in &mut accounts_to_modify {
+			let mut account = Account::from_thin_rlp(&*account_data);
+			let acct_db = AccountDBMut::from_hash(db, *address_hash);
+			fill_storage(acct_db, account.storage_root_mut(), &mut self.storage_seed);
+			*account_data = account.to_thin_rlp();
+		}
+
+		// sweep again to alter account trie.
+		let mut trie = TrieDBMut::from_existing(db, &mut self.state_root).unwrap();
+
+		for (address_hash, account_data) in accounts_to_modify {
+			trie.insert(&address_hash[..], &account_data);
+		}
+
+		// add between 0 and 5 new accounts each tick.
+		let new_accs = rng.gen::<u32>() % 5;
+
+		for i in 0..new_accs {
+			let address_hash = H256::random();
+			let balance: usize = rng.gen();
+			let nonce: usize = rng.gen();
+			let acc = ::account::Account::new_basic(balance.into(), nonce.into()).rlp();
+			trie.insert(&address_hash[..], &acc);
+		}
+	}
+
+	/// Get the current state root.
+	pub fn state_root(&self) -> H256 {
+		self.state_root
+	}
+}
+
+/// Fill the storage of an account.
+pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
+	let map = StandardMap {
+		alphabet: Alphabet::All,
+		min_key: 6,
+		journal_key: 6,
+		value_mode: ValueMode::Random,
+		count: 100
+	};
+	{
+		let mut trie = if *root == SHA3_NULL_RLP {
+			SecTrieDBMut::new(&mut db, root)
+		} else {
+			SecTrieDBMut::from_existing(&mut db, root).unwrap()
+		};
+
+		for (k, v) in map.make_with(seed) {
+			trie.insert(&k, &v);
+		}
 	}
 }
