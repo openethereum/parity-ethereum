@@ -87,6 +87,13 @@ impl Decodable for CreateResult {
 	}
 }
 
+impl CreateResult {
+	/// Returns bloom.
+	pub fn bloom(&self) -> LogBloom {
+		LogBloom::from_bloomed(&self.address.sha3())
+	}
+}
+
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
 #[derive(Debug, Clone, PartialEq, Binary)]
 pub struct Call {
@@ -304,6 +311,16 @@ impl Decodable for Res {
 	}
 }
 
+impl Res {
+	/// Returns result bloom.
+	pub fn bloom(&self) -> LogBloom {
+		match *self {
+			Res::Create(ref create) => create.bloom(),
+			Res::Call(_) | Res::FailedCall | Res::FailedCreate => Default::default(),
+		}
+	}
+}
+
 #[derive(Debug, Clone, PartialEq, Binary)]
 /// A trace; includes a description of the action being traced and sub traces of each interior action.
 pub struct Trace {
@@ -345,7 +362,7 @@ impl Decodable for Trace {
 impl Trace {
 	/// Returns trace bloom.
 	pub fn bloom(&self) -> LogBloom {
-		self.subs.iter().fold(self.action.bloom(), |b, s| b | s.bloom())
+		self.subs.iter().fold(self.action.bloom() | self.result.bloom(), |b, s| b | s.bloom())
 	}
 }
 
@@ -518,7 +535,7 @@ mod tests {
 	use util::{Address, U256, FixedHash};
 	use util::rlp::{encode, decode};
 	use util::sha3::Hashable;
-	use trace::trace::{Call, CallResult, Create, Res, Action, Trace};
+	use trace::trace::{Call, CallResult, Create, Res, Action, Trace, CreateResult};
 
 	#[test]
 	fn traces_rlp() {
@@ -576,7 +593,11 @@ mod tests {
 						init: vec![0x9]
 					}),
 					subs: vec![],
-					result: Res::FailedCreate
+					result: Res::Create(CreateResult {
+						gas_used: 10.into(),
+						code: vec![],
+						address: 15.into(),
+					}),
 				}
 			],
 			result: Res::Call(CallResult {
@@ -592,5 +613,6 @@ mod tests {
 		assert!(bloom.contains_bloomed(&Address::from(2).sha3()));
 		assert!(!bloom.contains_bloomed(&Address::from(20).sha3()));
 		assert!(bloom.contains_bloomed(&Address::from(6).sha3()));
+		assert!(bloom.contains_bloomed(&Address::from(15).sha3()));
 	}
 }
