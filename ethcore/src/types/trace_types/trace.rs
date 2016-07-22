@@ -210,7 +210,7 @@ impl Create {
 pub struct Suicide {
 	/// Suicided address.
 	pub address: Address,
-	/// Suicided contract hier.
+	/// Suicided contract heir.
 	pub refund_address: Address,
 	/// Balance of the contract just before suicide.
 	pub balance: U256,
