@@ -61,6 +61,12 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 	/// Stop the network.
 	fn stop_network(&self, _: Params) -> Result<Value, Error>;
 
+	/// Set an account's name.
+	fn set_account_name(&self, _: Params) -> Result<Value, Error>;
+
+	/// Set an account's metadata string.
+	fn set_account_meta(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -75,6 +81,8 @@ pub trait EthcoreSet: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_removeReservedPeer", EthcoreSet::remove_reserved_peer);
 		delegate.add_method("ethcore_dropNonReservedPeers", EthcoreSet::drop_non_reserved_peers);
 		delegate.add_method("ethcore_acceptNonReservedPeers", EthcoreSet::accept_non_reserved_peers);
+		delegate.add_method("ethcore_setAccountName", EthcoreSet::set_account_name);
+		delegate.add_method("ethcore_setAccountMeta", EthcoreSet::set_account_meta);
 
 		delegate
 	}

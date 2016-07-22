@@ -41,9 +41,6 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Returns accounts list.
 	fn accounts(&self, _: Params) -> Result<Value, Error>;
 
-	/// Returns accounts information.
-	fn accounts_info(&self, _: Params) -> Result<Value, Error>;
-
 	/// Returns highest block number.
 	fn block_number(&self, _: Params) -> Result<Value, Error>;
 

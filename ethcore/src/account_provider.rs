@@ -194,6 +194,20 @@ impl AccountProvider {
 		})
 	}
 
+	/// Returns each account along with name and meta.
+	pub fn set_account_name<A>(&self, account: A, name: String) -> Result<(), Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		try!(self.sstore.set_name(&account, name));
+		Ok(())
+	}
+
+	/// Returns each account along with name and meta.
+	pub fn set_account_meta<A>(&self, account: A, meta: String) -> Result<(), Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		try!(self.sstore.set_meta(&account, meta));
+		Ok(())
+	}
+
 	/// Helper method used for unlocking accounts.
 	fn unlock_account<A>(&self, account: A, password: String, unlock: Unlock) -> Result<(), Error> where Address: From<A> {
 		let a = Address::from(account);

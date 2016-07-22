@@ -157,10 +157,10 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 			},
 			Api::Ethcore => {
 				let queue = deps.signer_port.map(|_| deps.signer_queue.clone());
-				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone(), queue).to_delegate())
+				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, deps.logger.clone(), deps.settings.clone(), queue, &deps.secret_store).to_delegate())
 			},
 			Api::EthcoreSet => {
-				server.add_delegate(EthcoreSetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
+				server.add_delegate(EthcoreSetClient::new(&deps.client, &deps.miner, &deps.net_service, &deps.secret_store).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())
