@@ -51,16 +51,6 @@ impl<'a> InvalidRlpSwapper<'a> {
 	}
 }
 
-#[test]
-fn invalid_rlp_swapper() {
-	let to_swap: &[&[u8]] = &[&[0x83, b'c', b'a', b't'], &[0x83, b'd', b'o', b'g']];
-	let invalid_rlp: &[&[u8]] = &[&[0x81, 0x00], &[0x81, 0x01]];
-	let swapper = InvalidRlpSwapper::new(to_swap, invalid_rlp);
-	assert_eq!(Some(invalid_rlp[0]), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
-	assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
-	assert_eq!(Some(to_swap[1]), swapper.get_valid(invalid_rlp[1]));
-}
-
 /// Type of RLP indicating its origin database.
 pub enum RlpType {
 	/// RLP used in blocks database.
@@ -180,6 +170,17 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 #[cfg(test)]
 mod tests {
 	use rlp::{UntrustedRlp, Compressible, View, RlpType};
+	use rlp::rlpcompression::InvalidRlpSwapper;
+
+	#[test]
+	fn invalid_rlp_swapper() {
+		let to_swap: &[&[u8]] = &[&[0x83, b'c', b'a', b't'], &[0x83, b'd', b'o', b'g']];
+		let invalid_rlp: &[&[u8]] = &[&[0x81, 0x00], &[0x81, 0x01]];
+		let swapper = InvalidRlpSwapper::new(to_swap, invalid_rlp);
+		assert_eq!(Some(invalid_rlp[0]), swapper.get_invalid(&[0x83, b'c', b'a', b't']));
+		assert_eq!(None, swapper.get_invalid(&[0x83, b'b', b'a', b't']));
+		assert_eq!(Some(to_swap[1]), swapper.get_valid(invalid_rlp[1]));
+	}
 
 	#[test]
 	fn simple_compression() {
