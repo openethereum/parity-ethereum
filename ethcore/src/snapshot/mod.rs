@@ -519,8 +519,6 @@ impl BlockRebuilder {
 
 	/// Glue together any disconnected chunks. To be called at the end.
 	pub fn glue_chunks(&mut self) {
-		use blockchain::BlockProvider;
-
 		for &(ref first_num, ref first_hash) in &self.disconnected {
 			let parent_num = first_num - 1;
 

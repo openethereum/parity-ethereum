@@ -20,19 +20,24 @@ use devtools::RandomTempPath;
 
 use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 use blockchain::BlockChain;
-use snapshot::{BlockChunker, BlockRebuilder};
+use snapshot::{chunk_blocks, BlockRebuilder};
+use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use views::BlockView;
 
 use util::Hashable;
+use util::snappy;
 
-fn chunk_and_restore(amount: usize) {
+fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();
 	let mut finalizer = BlockFinalizer::default();
 	let genesis = canon_chain.generate(&mut finalizer).unwrap();
 	let genesis_hash = BlockView::new(&genesis).header_view().sha3();
 
-	let orig_path = RandomTempPath::new();
-	let new_path = RandomTempPath::new();
+	let orig_path = RandomTempPath::create_dir();
+	let new_path = RandomTempPath::create_dir();
+	let mut snapshot_path = new_path.as_path().to_owned();
+	snapshot_path.push("SNAP");
+
 	let bc = BlockChain::new(Default::default(), &genesis, orig_path.as_path());
 
 	// build the blockchain.
@@ -41,15 +46,40 @@ fn chunk_and_restore(amount: usize) {
 		bc.insert_block(&block, vec![]);
 	}
 
+	let best_hash = bc.best_block_hash();
+
 	// snapshot it.
+	let mut writer = PackedWriter::new(&snapshot_path).unwrap();
+	let block_hashes = chunk_blocks(&bc, (amount, best_hash), &mut writer).unwrap();
+	writer.finish(::snapshot::ManifestData {
+		state_hashes: Vec::new(),
+		block_hashes: block_hashes,
+		state_root: Default::default(),
+		block_number: amount,
+		block_hash: best_hash,
+	}).unwrap();
 
 	// restore it.
+	let new_chain = BlockChain::new(Default::default(), &genesis, new_path.as_path());
+	let mut rebuilder = BlockRebuilder::new(new_chain).unwrap();
+	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
+	let engine = ::null_engine::NullEngine::new(Default::default(), Default::default());
+	for chunk_hash in &reader.manifest().block_hashes {
+		let compressed = reader.chunk(*chunk_hash).unwrap();
+		let chunk = snappy::decompress(&compressed).unwrap();
+		rebuilder.feed(&chunk, &engine).unwrap();
+	}
+
+	rebuilder.glue_chunks();
+	drop(rebuilder);
 
 	// and test it.
+	let new_chain = BlockChain::new(Default::default(), &genesis, new_path.as_path());
+	assert_eq!(new_chain.best_block_hash(), best_hash);
 }
 
 #[test]
-fn chunk_and_restore_10k() { chunk_and_restore(10_000) }
+fn chunk_and_restore_500() { chunk_and_restore(500) }
 
 #[test]
-fn chunk_and_restore_40k() { chunk_and_restore(40_000) }
+fn chunk_and_restore_40k() { chunk_and_restore(40000) }
