@@ -47,6 +47,9 @@ mod account;
 mod block;
 mod error;
 
+#[cfg(test)]
+mod tests;
+
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
