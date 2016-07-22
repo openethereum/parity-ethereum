@@ -20,8 +20,6 @@ use std::collections::VecDeque;
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use client::BlockChainInfo;
-use error::Error;
 use engine::Engine;
 use views::BlockView;
 
@@ -39,6 +37,7 @@ use self::io::SnapshotWriter;
 use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
 
+pub use self::error::Error;
 pub use self::service::{RestorationStatus, Service, SnapshotService};
 
 pub mod io;
@@ -46,6 +45,7 @@ pub mod service;
 
 mod account;
 mod block;
+mod error;
 
 // Try to have chunks be around 16MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
@@ -53,15 +53,16 @@ const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 // How many blocks to include in a snapshot, starting from the head of the chain.
 const SNAPSHOT_BLOCKS: u64 = 30000;
 
-/// Take a snapshot using the given blockchain, chain info, and database, writing into the given writer.
-pub fn take_snapshot<W: SnapshotWriter>(chain: &BlockChain, chain_info: BlockChainInfo, state_db: &HashDB, mut writer: W) -> Result<(), Error> {
-	let best_header = chain.block_header(&chain_info.best_block_hash).expect("Best block always in chain; qed");
-	let state_root = best_header.state_root();
+/// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
+pub fn take_snapshot<W: SnapshotWriter>(chain: &BlockChain, start_block_hash: H256, state_db: &HashDB, mut writer: W) -> Result<(), Error> {
+	let start_header = try!(chain.block_header(&start_block_hash).ok_or(Error::InvalidStartingBlock(start_block_hash)));
+	let state_root = start_header.state_root();
+	let number = start_header.number();
 
-	info!("Taking snapshot starting at block {}", best_header.number());
+	info!("Taking snapshot starting at block {}", number);
 
 	let state_hashes = try!(chunk_state(state_db, state_root, &mut writer));
-	let block_hashes = try!(chunk_blocks(chain, chain_info.clone(), &mut writer));
+	let block_hashes = try!(chunk_blocks(chain, (number, start_block_hash), &mut writer));
 
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
@@ -69,8 +70,8 @@ pub fn take_snapshot<W: SnapshotWriter>(chain: &BlockChain, chain_info: BlockCha
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
 		state_root: *state_root,
-		block_number: chain_info.best_block_number,
-		block_hash: chain_info.best_block_hash,
+		block_number: number,
+		block_hash: start_block_hash,
 	};
 
 	try!(writer.finish(manifest_data));
@@ -96,13 +97,12 @@ impl<'a> BlockChunker<'a> {
 		let mut loaded_size = 0;
 
 		while self.current_hash != first_hash {
-			let block = self.chain.block(&self.current_hash)
-				.expect("started from the head of chain and walking backwards; full chain is stored; qed");
+			let (block, receipts) = try!(self.chain.block(&self.current_hash)
+				.and_then(|b| self.chain.block_receipts(&self.current_hash).map(|r| (b, r)))
+				.ok_or(Error::BlockNotFound(self.current_hash)));
+
 			let view = BlockView::new(&block);
 			let abridged_rlp = AbridgedBlock::from_block_view(&view).into_inner();
-
-			let receipts = self.chain.block_receipts(&self.current_hash)
-				.expect("started from head of chain and walking backwards; full chain is stored; qed");
 
 			let pair = {
 				let mut pair_stream = RlpStream::new_list(2);
@@ -144,11 +144,9 @@ impl<'a> BlockChunker<'a> {
 		let parent_hash = self.current_hash;
 
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
-		let parent_number= self.chain.block_number(&parent_hash)
-			.expect("parent hash either obtained from other block header or is genesis; qed");
-
-		let parent_details = self.chain.block_details(&parent_hash)
-			.expect("parent number lookup succeeded, therefore block is in chain; qed");
+		let (parent_number, parent_details) = try!(self.chain.block_number(&parent_hash)
+			.and_then(|n| self.chain.block_details(&parent_hash).map(|d| (n, d)))
+			.ok_or(Error::BlockNotFound(parent_hash)));
 
 		let parent_total_difficulty = parent_details.total_difficulty;
 
@@ -179,12 +177,14 @@ impl<'a> BlockChunker<'a> {
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_blocks(chain: &BlockChain, info: BlockChainInfo, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
-	let first_hash = if info.best_block_number < SNAPSHOT_BLOCKS {
+pub fn chunk_blocks(chain: &BlockChain, start_block_info: (u64, H256), writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
+	let (start_number, start_hash) = start_block_info;
+
+	let first_hash = if start_number < SNAPSHOT_BLOCKS {
 		// use the genesis hash.
-		info.genesis_hash
+		chain.genesis_hash()
 	} else {
-		let first_num = info.best_block_number - SNAPSHOT_BLOCKS;
+		let first_num = start_number - SNAPSHOT_BLOCKS;
 		chain.block_hash(first_num)
 			.expect("number before best block number; whole chain is stored; qed")
 	};
@@ -192,7 +192,7 @@ pub fn chunk_blocks(chain: &BlockChain, info: BlockChainInfo, writer: &mut Snaps
 	let mut chunker = BlockChunker {
 		chain: chain,
 		rlps: VecDeque::new(),
-		current_hash: info.best_block_hash,
+		current_hash: start_hash,
 		hashes: Vec::new(),
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
 		writer: writer,
@@ -358,7 +358,7 @@ impl StateRebuilder {
 	}
 
 	/// Feed an uncompressed state chunk into the rebuilder.
-	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), Error> {
+	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
@@ -374,7 +374,7 @@ impl StateRebuilder {
 			let mut handles = Vec::new();
 			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
 				let mut db = self.db.clone();
-				let handle: ScopedJoinHandle<Result<(), Error>> = scope.spawn(move || {
+				let handle: ScopedJoinHandle<Result<(), ::error::Error>> = scope.spawn(move || {
 					try!(rebuild_account_trie(&mut db, account_chunk, out_pairs_chunk));
 
 					// commit the db changes we made in this thread.
@@ -392,7 +392,7 @@ impl StateRebuilder {
 				try!(handle.join());
 			}
 
-			Ok::<_, Error>(())
+			Ok::<_, ::error::Error>(())
 		}));
 
 
@@ -419,7 +419,7 @@ impl StateRebuilder {
 	pub fn state_root(&self) -> H256 { self.state_root }
 }
 
-fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mut [(H256, Bytes)]) -> Result<(), Error> {
+fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mut [(H256, Bytes)]) -> Result<(), ::error::Error> {
 	for (account_pair, out) in account_chunk.into_iter().zip(out_chunk) {
 		let account_rlp = UntrustedRlp::new(account_pair);
 
@@ -460,7 +460,7 @@ pub struct BlockRebuilder {
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain) -> Result<Self, Error> {
+	pub fn new(chain: BlockChain) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
 			rng: try!(OsRng::new()),
@@ -470,7 +470,7 @@ impl BlockRebuilder {
 
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
-	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, Error> {
+	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, ::error::Error> {
 		use basic_types::Seal::With;
 		use util::U256;
 

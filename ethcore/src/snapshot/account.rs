@@ -17,7 +17,7 @@
 //! Account state encoding and decoding
 
 use account_db::{AccountDB, AccountDBMut};
-use error::Error;
+use snapshot::Error;
 
 use util::{Bytes, HashDB, SHA3_EMPTY, TrieDB};
 use util::hash::{FixedHash, H256};

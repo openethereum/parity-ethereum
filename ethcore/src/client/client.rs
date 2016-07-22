@@ -590,8 +590,10 @@ impl Client {
 	/// Take a snapshot.
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter>(&self, writer: W) -> Result<(), ::error::Error> {
 		let db = self.state_db.lock();
-		let info = self.chain_info();
-		snapshot::take_snapshot(&self.chain, info, db.as_hashdb(), writer)
+		let best_hash = self.chain_info().best_block_hash;
+		try!(snapshot::take_snapshot(&self.chain, best_hash, db.as_hashdb(), writer));
+
+		Ok(())
 	}
 
 	fn block_hash(chain: &BlockChain, id: BlockID) -> Option<H256> {
