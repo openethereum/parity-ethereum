@@ -24,6 +24,7 @@ use engine::Engine;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
+use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::kvdb::Database;
 use util::overlaydb::{DeletionMode, OverlayDB};
@@ -57,15 +58,22 @@ const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 const SNAPSHOT_BLOCKS: u64 = 30000;
 
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
-pub fn take_snapshot<W: SnapshotWriter>(chain: &BlockChain, start_block_hash: H256, state_db: &HashDB, mut writer: W) -> Result<(), Error> {
+pub fn take_snapshot<W: SnapshotWriter + Send>(chain: &BlockChain, start_block_hash: H256, state_db: &HashDB, writer: W) -> Result<(), Error> {
 	let start_header = try!(chain.block_header(&start_block_hash).ok_or(Error::InvalidStartingBlock(start_block_hash)));
 	let state_root = start_header.state_root();
 	let number = start_header.number();
 
 	info!("Taking snapshot starting at block {}", number);
 
-	let state_hashes = try!(chunk_state(state_db, state_root, &mut writer));
-	let block_hashes = try!(chunk_blocks(chain, (number, start_block_hash), &mut writer));
+	let writer = Mutex::new(writer);
+	let (state_hashes, block_hashes) = try!(scope(|scope| {
+		let block_guard = scope.spawn(|| chunk_blocks(chain, (number, start_block_hash), &writer));
+		let state_res = chunk_state(state_db, state_root, &writer);
+
+		state_res.and_then(|state_hashes| {
+			block_guard.join().map(|block_hashes| (state_hashes, block_hashes))
+		})
+	}));
 
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
@@ -77,7 +85,7 @@ pub fn take_snapshot<W: SnapshotWriter>(chain: &BlockChain, start_block_hash: H2
 		block_hash: start_block_hash,
 	};
 
-	try!(writer.finish(manifest_data));
+	try!(writer.into_inner().finish(manifest_data));
 
 	Ok(())
 }
@@ -90,7 +98,7 @@ struct BlockChunker<'a> {
 	current_hash: H256,
 	hashes: Vec<H256>,
 	snappy_buffer: Vec<u8>,
-	writer: &'a mut SnapshotWriter,
+	writer: &'a Mutex<SnapshotWriter + 'a>,
 }
 
 impl<'a> BlockChunker<'a> {
@@ -166,7 +174,7 @@ impl<'a> BlockChunker<'a> {
 		let compressed = &self.snappy_buffer[..size];
 		let hash = compressed.sha3();
 
-		try!(self.writer.write_block_chunk(hash, compressed));
+		try!(self.writer.lock().write_block_chunk(hash, compressed));
 		trace!(target: "snapshot", "wrote block chunk. hash: {}, size: {}, uncompressed size: {}", hash.hex(), size, raw_data.len());
 
 		self.hashes.push(hash);
@@ -180,7 +188,7 @@ impl<'a> BlockChunker<'a> {
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_blocks(chain: &BlockChain, start_block_info: (u64, H256), writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
+pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), writer: &Mutex<SnapshotWriter + 'a>) -> Result<Vec<H256>, Error> {
 	let (start_number, start_hash) = start_block_info;
 
 	let first_hash = if start_number < SNAPSHOT_BLOCKS {
@@ -212,7 +220,7 @@ struct StateChunker<'a> {
 	rlps: Vec<Bytes>,
 	cur_size: usize,
 	snappy_buffer: Vec<u8>,
-	writer: &'a mut SnapshotWriter,
+	writer: &'a Mutex<SnapshotWriter + 'a>,
 }
 
 impl<'a> StateChunker<'a> {
@@ -251,7 +259,7 @@ impl<'a> StateChunker<'a> {
 		let compressed = &self.snappy_buffer[..compressed_size];
 		let hash = compressed.sha3();
 
-		try!(self.writer.write_state_chunk(hash, compressed));
+		try!(self.writer.lock().write_state_chunk(hash, compressed));
 		trace!(target: "snapshot", "wrote state chunk. size: {}, uncompressed size: {}", compressed_size, raw_data.len());
 
 		self.hashes.push(hash);
@@ -266,7 +274,7 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state(db: &HashDB, root: &H256, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter + 'a>) -> Result<Vec<H256>, Error> {
 	let account_trie = try!(TrieDB::new(db, &root));
 
 	let mut chunker = StateChunker {

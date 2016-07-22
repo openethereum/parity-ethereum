@@ -588,7 +588,7 @@ impl Client {
 	}
 
 	/// Take a snapshot.
-	pub fn take_snapshot<W: snapshot_io::SnapshotWriter>(&self, writer: W) -> Result<(), ::error::Error> {
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W) -> Result<(), ::error::Error> {
 		let db = self.state_db.lock();
 		let best_hash = self.chain_info().best_block_hash;
 		try!(snapshot::take_snapshot(&self.chain, best_hash, db.as_hashdb(), writer));

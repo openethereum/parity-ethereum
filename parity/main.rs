@@ -557,10 +557,13 @@ fn execute_restore(conf: Configuration) {
 	info!("Beginning snapshot restoration from {}", filename);
 
 	let informant_handle = snapshot.clone();
+	let (num_state, num_blocks) = (manifest.state_hashes.len(), manifest.block_hashes.len());
 	::std::thread::spawn(move || {
 		while let RestorationStatus::Ongoing = informant_handle.status() {
-			// Todo [rob] better informant.
-			info!("Restoration ongoing");
+			let (state_chunks, block_chunks) = informant_handle.chunks_done();
+			info!("Processed {}/{} state chunks and {}/{} block chunks.",
+				state_chunks, num_state, block_chunks, num_blocks);
+
 			::std::thread::sleep(Duration::from_secs(5));
 		}
 	});

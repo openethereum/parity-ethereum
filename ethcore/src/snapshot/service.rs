@@ -20,6 +20,7 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::{ManifestData, StateRebuilder, BlockRebuilder};
 use super::io::{SnapshotReader, LooseReader};
@@ -48,6 +49,8 @@ pub enum RestorationStatus {
 	Failed,
 }
 
+/// Restoration info.
+
 /// The interface for a snapshot network service.
 /// This handles:
 ///    - restoration of snapshots to temporary databases.
@@ -61,6 +64,11 @@ pub trait SnapshotService {
 
 	/// Ask the snapshot service for the restoration status.
 	fn status(&self) -> RestorationStatus;
+
+	/// Ask the snapshot service for the number of chunks completed.
+	/// Return a tuple of (state_chunks, block_chunks).
+	/// Undefined when not restoring.
+	fn chunks_done(&self) -> (usize, usize);
 
 	/// Begin snapshot restoration.
 	/// If restoration in-progress, this will reset it.
@@ -175,6 +183,8 @@ pub struct Service {
 	status: Mutex<RestorationStatus>,
 	reader: Option<LooseReader>,
 	spec: Spec,
+	state_chunks: AtomicUsize,
+	block_chunks: AtomicUsize,
 }
 
 impl Service {
@@ -195,6 +205,8 @@ impl Service {
 			status: Mutex::new(RestorationStatus::Inactive),
 			reader: reader,
 			spec: spec,
+			state_chunks: AtomicUsize::new(0),
+			block_chunks: AtomicUsize::new(0),
 		};
 
 		// create the snapshot dir if it doesn't exist.
@@ -288,6 +300,9 @@ impl Service {
 	fn finalize_restoration(&self, rest: &mut Option<Restoration>) -> Result<(), Error> {
 		trace!(target: "snapshot", "finalizing restoration");
 
+		self.state_chunks.store(0, Ordering::SeqCst);
+		self.block_chunks.store(0, Ordering::SeqCst);
+
 		// destroy the restoration before replacing databases.
 		*rest = None;
 
@@ -324,7 +339,17 @@ impl Service {
 				};
 
 				match res {
-					Ok(true) => self.finalize_restoration(&mut *restoration),
+					Ok(is_done) => {
+						match is_state {
+							true => self.state_chunks.fetch_add(1, Ordering::SeqCst),
+							false => self.block_chunks.fetch_add(1, Ordering::SeqCst),
+						};
+
+						match is_done {
+							true => self.finalize_restoration(&mut *restoration),
+							false => Ok(())
+						}
+					}
 					other => other.map(drop),
 				}
 			}
@@ -369,6 +394,10 @@ impl SnapshotService for Service {
 
 	fn status(&self) -> RestorationStatus {
 		*self.status.lock()
+	}
+
+	fn chunks_done(&self) -> (usize, usize) {
+		(self.state_chunks.load(Ordering::Relaxed), self.block_chunks.load(Ordering::Relaxed))
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) -> bool {
