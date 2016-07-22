@@ -25,6 +25,7 @@ use util::hash::H256;
 use util::kvdb::Database;
 use util::overlaydb::{DeletionMode, OverlayDB};
 use util::memorydb::MemoryDB;
+use util::Mutex;
 use devtools::RandomTempPath;
 
 #[test]
@@ -33,7 +34,7 @@ fn snap_and_restore() {
 	let mut rng = rand::thread_rng();
 	let mut old_db = MemoryDB::new();
 
-	for _ in 0..500 {
+	for _ in 0..150 {
 		producer.tick(&mut rng, &mut old_db);
 	}
 
@@ -42,11 +43,11 @@ fn snap_and_restore() {
 	snap_file.push("SNAP");
 
 	let state_root = producer.state_root();
-	let mut writer = PackedWriter::new(&snap_file).unwrap();
+	let mut writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
-	let state_hashes = chunk_state(&old_db, &state_root, &mut writer).unwrap();
+	let state_hashes = chunk_state(&old_db, &state_root, &writer).unwrap();
 
-	writer.finish(::snapshot::ManifestData {
+	writer.into_inner().finish(::snapshot::ManifestData {
 		state_hashes: state_hashes,
 		block_hashes: Vec::new(),
 		state_root: state_root,

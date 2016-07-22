@@ -23,7 +23,7 @@ use blockchain::BlockChain;
 use snapshot::{chunk_blocks, BlockRebuilder};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
-use util::snappy;
+use util::{Mutex, snappy};
 
 fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();
@@ -46,9 +46,9 @@ fn chunk_and_restore(amount: u64) {
 	let best_hash = bc.best_block_hash();
 
 	// snapshot it.
-	let mut writer = PackedWriter::new(&snapshot_path).unwrap();
-	let block_hashes = chunk_blocks(&bc, (amount, best_hash), &mut writer).unwrap();
-	writer.finish(::snapshot::ManifestData {
+	let mut writer = Mutex::new(PackedWriter::new(&snapshot_path).unwrap());
+	let block_hashes = chunk_blocks(&bc, (amount, best_hash), &writer).unwrap();
+	writer.into_inner().finish(::snapshot::ManifestData {
 		state_hashes: Vec::new(),
 		block_hashes: block_hashes,
 		state_root: Default::default(),
