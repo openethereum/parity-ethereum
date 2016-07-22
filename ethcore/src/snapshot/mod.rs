@@ -19,12 +19,11 @@
 use std::collections::VecDeque;
 
 use account_db::{AccountDB, AccountDBMut};
-use blockchain::BlockChain;
-use client::{BlockChainClient, BlockChainInfo};
+use blockchain::{BlockChain, BlockProvider};
+use client::BlockChainInfo;
 use error::Error;
 use engine::Engine;
-use ids::BlockID;
-use views::{BlockView, HeaderView};
+use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::hash::{FixedHash, H256};
@@ -54,25 +53,22 @@ const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 // How many blocks to include in a snapshot, starting from the head of the chain.
 const SNAPSHOT_BLOCKS: u64 = 30000;
 
-/// Take a snapshot using the given client and database, writing into the given writer.
-pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &HashDB, mut writer: W) -> Result<(), Error> {
-	let chain_info = client.chain_info();
-
-	let best_header_raw = client.best_block_header();
-	let best_header = HeaderView::new(&best_header_raw);
+/// Take a snapshot using the given blockchain, chain info, and database, writing into the given writer.
+pub fn take_snapshot<W: SnapshotWriter>(chain: &BlockChain, chain_info: BlockChainInfo, state_db: &HashDB, mut writer: W) -> Result<(), Error> {
+	let best_header = chain.block_header(&chain_info.best_block_hash).expect("Best block always in chain; qed");
 	let state_root = best_header.state_root();
 
 	info!("Taking snapshot starting at block {}", best_header.number());
 
-	let state_hashes = try!(chunk_state(state_db, &state_root, &mut writer));
-	let block_hashes = try!(chunk_blocks(client, chain_info.clone(), &mut writer));
+	let state_hashes = try!(chunk_state(state_db, state_root, &mut writer));
+	let block_hashes = try!(chunk_blocks(chain, chain_info.clone(), &mut writer));
 
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
-		state_root: state_root,
+		state_root: *state_root,
 		block_number: chain_info.best_block_number,
 		block_hash: chain_info.best_block_hash,
 	};
@@ -84,7 +80,7 @@ pub fn take_snapshot<W: SnapshotWriter>(client: &BlockChainClient, state_db: &Ha
 
 /// Used to build block chunks.
 struct BlockChunker<'a> {
-	client: &'a BlockChainClient,
+	chain: &'a BlockChain,
 	// block, receipt rlp pairs.
 	rlps: VecDeque<Bytes>,
 	current_hash: H256,
@@ -100,13 +96,13 @@ impl<'a> BlockChunker<'a> {
 		let mut loaded_size = 0;
 
 		while self.current_hash != first_hash {
-			let block = self.client.block(BlockID::Hash(self.current_hash))
-				.expect("started from the head of chain and walking backwards; client stores full chain; qed");
+			let block = self.chain.block(&self.current_hash)
+				.expect("started from the head of chain and walking backwards; full chain is stored; qed");
 			let view = BlockView::new(&block);
 			let abridged_rlp = AbridgedBlock::from_block_view(&view).into_inner();
 
-			let receipts = self.client.block_receipts(&self.current_hash)
-				.expect("started from head of chain and walking backwards; client stores full chain; qed");
+			let receipts = self.chain.block_receipts(&self.current_hash)
+				.expect("started from head of chain and walking backwards; full chain is stored; qed");
 
 			let pair = {
 				let mut pair_stream = RlpStream::new_list(2);
@@ -148,14 +144,13 @@ impl<'a> BlockChunker<'a> {
 		let parent_hash = self.current_hash;
 
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
-		let parent_id = BlockID::Hash(parent_hash);
-		let parent_header_bytes = self.client.block_header(parent_id.clone())
+		let parent_number= self.chain.block_number(&parent_hash)
 			.expect("parent hash either obtained from other block header or is genesis; qed");
 
-		let parent_header = HeaderView::new(&parent_header_bytes);
-		let parent_number = parent_header.number();
-		let parent_total_difficulty = self.client.block_total_difficulty(BlockID::Hash(parent_hash))
-			.expect("parent header lookup succeeded, therefore block is in chain; qed");
+		let parent_details = self.chain.block_details(&parent_hash)
+			.expect("parent number lookup succeeded, therefore block is in chain; qed");
+
+		let parent_total_difficulty = parent_details.total_difficulty;
 
 		let mut rlp_stream = RlpStream::new_list(3 + self.rlps.len());
 		rlp_stream.append(&parent_number).append(&parent_hash).append(&parent_total_difficulty);
@@ -184,18 +179,18 @@ impl<'a> BlockChunker<'a> {
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_blocks(client: &BlockChainClient, info: BlockChainInfo, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
+pub fn chunk_blocks(chain: &BlockChain, info: BlockChainInfo, writer: &mut SnapshotWriter) -> Result<Vec<H256>, Error> {
 	let first_hash = if info.best_block_number < SNAPSHOT_BLOCKS {
 		// use the genesis hash.
 		info.genesis_hash
 	} else {
 		let first_num = info.best_block_number - SNAPSHOT_BLOCKS;
-		client.block_hash(BlockID::Number(first_num))
-			.expect("number before best block number; client stores whole chain; qed")
+		chain.block_hash(first_num)
+			.expect("number before best block number; whole chain is stored; qed")
 	};
 
 	let mut chunker = BlockChunker {
-		client: client,
+		chain: chain,
 		rlps: VecDeque::new(),
 		current_hash: info.best_block_hash,
 		hashes: Vec::new(),
@@ -529,7 +524,6 @@ impl BlockRebuilder {
 			// check if the parent is even in the chain.
 			if let Some(parent_hash) = self.chain.block_hash(parent_num) {
 				// if so, add the child to it.
-				// TODO [rob]: update blooms?
 				self.chain.add_child(parent_hash, *first_hash);
 			}
 		}
