@@ -81,6 +81,9 @@ pub trait Tracer: Send {
 	/// Stores failed create trace.
 	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>);
 
+	/// Stores suicide info.
+	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address, depth: usize);
+
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;
 

@@ -72,6 +72,7 @@ mod error_codes {
 	pub const NO_AUTHOR_CODE: i64 = -32002;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
+	pub const TRANSACTION_REJECTED: i64 = -32011;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const SIGNER_DISABLED: i64 = -32030;
@@ -139,7 +140,6 @@ fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockCh
 		.unwrap_or_else(|_| miner.sensible_gas_price())
 }
 
-
 fn signing_error(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(error_codes::ACCOUNT_LOCKED),
@@ -153,6 +153,15 @@ fn password_error(error: AccountError) -> Error {
 		code: ErrorCode::ServerError(error_codes::PASSWORD_INVALID),
 		message: "Account password is invalid or account does not exist.".into(),
 		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+/// Error returned when transaction is rejected (in Trusted Signer).
+pub fn transaction_rejected_error() -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::TRANSACTION_REJECTED),
+		message: "Transaction has been rejected.".into(),
+		data: None,
 	}
 }
 
