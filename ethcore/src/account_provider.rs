@@ -131,12 +131,21 @@ pub struct AccountProvider {
 }
 
 /// Collected account metadata
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AccountMeta {
 	/// The name of the account.
 	pub name: String,
 	/// The rest of the metadata of the account.
 	pub meta: String,
+}
+
+impl Default for AccountMeta {
+	fn default() -> Self {
+		AccountMeta {
+			name: String::new(),
+			meta: "{}".to_owned(),
+		}
+	}
 }
 
 impl AccountProvider {

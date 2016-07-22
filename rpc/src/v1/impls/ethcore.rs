@@ -167,11 +167,9 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 	fn accounts_info(&self, _: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let store = take_weak!(self.accounts);
-		to_value(&try!(store.accounts_info().map_err(|_| Error::invalid_params())).into_iter().map(|(a, v)| {
-			let mut m = BTreeMap::new();
-			m.insert("name".to_owned(), to_value(&v.name));
-			m.insert("meta".to_owned(), to_value(&v.meta));
-			(format!("0x{}", a.hex()), to_value(&m))
-		}).collect::<BTreeMap<_, _>>())
+		Ok(Value::Object(try!(store.accounts_info().map_err(|_| Error::invalid_params())).into_iter().map(|(a, v)| {
+			let m = map!["name".to_owned() => to_value(&v.name).unwrap(), "meta".to_owned() => to_value(&v.meta).unwrap()];
+			(format!("0x{}", a.hex()), Value::Object(m))
+		}).collect::<BTreeMap<_, _>>()))
 	}
 }

@@ -69,7 +69,7 @@ impl From<json::KeyFile> for SafeAccount {
 			address: From::from(json.address), //json.address.into(),
 			crypto: From::from(json.crypto),
 			name: json.name.unwrap_or(String::new()),
-			meta: json.meta.unwrap_or(String::new()),
+			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
 	}
 }
