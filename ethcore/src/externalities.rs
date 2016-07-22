@@ -262,6 +262,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			trace!("Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
 			self.state.transfer_balance(&address, refund_address, &balance);
 		}
+
 		self.substate.suicides.insert(address);
 	}
 

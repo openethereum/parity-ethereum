@@ -132,7 +132,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"personal_confirmTransaction","params":["0x01",{},"xxx"],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidAccount)"},"id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));

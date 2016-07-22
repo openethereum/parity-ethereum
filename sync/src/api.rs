@@ -32,6 +32,7 @@ use parking_lot::RwLock;
 pub const ETH_PROTOCOL: &'static str = "eth";
 
 /// Sync configuration
+#[derive(Debug, Clone)]
 pub struct SyncConfig {
 	/// Max blocks to download ahead
 	pub max_download_ahead_blocks: usize,
@@ -124,7 +125,8 @@ impl ChainNotify for EthSync {
 		invalid: Vec<H256>,
 		enacted: Vec<H256>,
 		retracted: Vec<H256>,
-		sealed: Vec<H256>)
+		sealed: Vec<H256>,
+		_duration: u64)
 	{
 		self.network.with_context(ETH_PROTOCOL, |context| {
 			let mut sync_io = NetSyncIo::new(context, self.handler.chain.deref());
@@ -270,4 +272,10 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
 		}
 	}
+}
+
+#[derive(Debug, Binary, Clone)]
+pub struct ServiceConfiguration {
+	pub sync: SyncConfig,
+	pub net: NetworkConfiguration,
 }

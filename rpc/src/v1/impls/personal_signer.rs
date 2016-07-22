@@ -70,7 +70,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 				let queue = take_weak!(self.queue);
 				let client = take_weak!(self.client);
 				let miner = take_weak!(self.miner);
-				queue.peek(&id).and_then(|confirmation| {
+				queue.peek(&id).map(|confirmation| {
 					let mut request = confirmation.transaction;
 					// apply modification
 					if let Some(gas_price) = modification.gas_price {
@@ -78,18 +78,12 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 					}
 
 					let sender = request.from;
-
-					match unlock_sign_and_dispatch(&*client, &*miner, request, &*accounts, sender, pass) {
-						Ok(hash) => {
-							queue.request_confirmed(id, Ok(hash.clone()));
-							Some(to_value(&hash))
-						},
-						_ => None
+					let result = unlock_sign_and_dispatch(&*client, &*miner, request, &*accounts, sender, pass);
+					if let Ok(ref hash) = result {
+						queue.request_confirmed(id, Ok(hash.clone()));
 					}
-				})
-				.unwrap_or_else(|| {
-					to_value(&false)
-				})
+					result
+				}).unwrap_or_else(|| Err(Error::invalid_params()))
 			}
 		)
 	}

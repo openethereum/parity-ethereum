@@ -14,20 +14,61 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Logger for parity executables
+
+extern crate ethcore_util as util;
+#[macro_use]
+extern crate log as rlog;
+extern crate isatty;
+extern crate regex;
+extern crate env_logger;
+extern crate time;
+#[macro_use]
+extern crate lazy_static;
 
 use std::env;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::Write;
 use isatty::{stderr_isatty};
-use time;
 use env_logger::LogBuilder;
 use regex::Regex;
 use util::RotatingLogger;
 use util::log::Colour;
 
+pub struct Settings {
+	pub color: bool,
+	pub init: Option<String>,
+	pub file: Option<String>,
+}
+
+impl Settings {
+	pub fn new() -> Settings {
+		Settings {
+			color: true,
+			init: None,
+			file: None,
+		}
+	}
+
+	pub fn init(mut self, init: String) -> Settings {
+		self.init = Some(init);
+		self
+	}
+
+	pub fn file(mut self, file: String) -> Settings {
+		self.file = Some(file);
+		self
+	}
+
+	pub fn no_color(mut self) -> Settings {
+		self.color = false;
+		self
+	}
+}
+
 /// Sets up the logger
-pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option<String>) -> Arc<RotatingLogger> {
+pub fn setup_log(settings: &Settings) -> Arc<RotatingLogger> {
 	use rlog::*;
 
 	let mut levels = String::new();
@@ -43,15 +84,15 @@ pub fn setup_log(init: &Option<String>, enable_color: bool, log_to_file: &Option
 		builder.parse(lvl);
 	}
 
-	if let Some(ref s) = *init {
+	if let Some(ref s) = settings.init {
 		levels.push_str(s);
 		builder.parse(s);
 	}
 
-	let enable_color = enable_color && stderr_isatty();
+	let enable_color = settings.color && stderr_isatty();
 	let logs = Arc::new(RotatingLogger::new(levels));
 	let logger = logs.clone();
-	let maybe_file = log_to_file.as_ref().map(|f| File::create(f).unwrap_or_else(|_| die!("Cannot write to log file given: {}", f)));
+	let maybe_file = settings.file.as_ref().map(|f| File::create(f).unwrap_or_else(|_| panic!("Cannot write to log file given: {}", f)));
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 

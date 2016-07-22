@@ -14,34 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::*;
-use ipc::{IpcConfig, BinaryConvertError};
-use std::collections::VecDeque;
-use std::mem;
+use super::super::NetworkConfiguration;
+use util::NetworkConfiguration as BasicNetworkConfiguration;
+use std::convert::From;
+use ipc::binary::{serialize, deserialize};
 
-/// Represents what has to be handled by actor listening to chain events
-#[derive(Ipc)]
-pub trait ChainNotify : Send + Sync {
-	/// fires when chain has new blocks
-	fn new_blocks(&self,
-		_imported: Vec<H256>,
-		_invalid: Vec<H256>,
-		_enacted: Vec<H256>,
-		_retracted: Vec<H256>,
-		_sealed: Vec<H256>,
-		_duration: u64) {
-		// does nothing by default
-	}
+#[test]
+fn network_settings_serialize() {
+	let net_cfg = NetworkConfiguration::from(BasicNetworkConfiguration::new_local());
+	let serialized = serialize(&net_cfg).unwrap();
+	let deserialized = deserialize::<NetworkConfiguration>(&serialized).unwrap();
 
-	/// fires when chain achieves active mode
-	fn start(&self) {
-		// does nothing by default
-	}
-
-	/// fires when chain achieves passive mode
-	fn stop(&self) {
-		// does nothing by default
-	}
+	assert_eq!(net_cfg.udp_port, deserialized.udp_port);
 }
-
-impl IpcConfig for ChainNotify { }
