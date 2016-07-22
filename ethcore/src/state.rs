@@ -222,7 +222,7 @@ impl State {
 	/// Reset the code of account `a` so that it is `code`.
 	pub fn reset_code(&mut self, a: &Address, code: Bytes) {
 		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{}).reset_code(code);
-	}	
+	}
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
@@ -1151,6 +1151,58 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 		}]
 	});
 
+	assert_eq!(result.trace, expected_trace);
+}
+
+#[test]
+fn should_trace_suicide() {
+	init_log();
+
+	let temp = RandomTempPath::new();
+	let mut state = get_temp_state_in(temp.as_path());
+
+	let mut info = EnvInfo::default();
+	info.gas_limit = 1_000_000.into();
+	let engine = TestEngine::new(5);
+
+	let t = Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 100_000.into(),
+		action: Action::Call(0xa.into()),
+		value: 100.into(),
+		data: vec![],
+	}.sign(&"".sha3());
+
+	state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
+	state.add_balance(&0xa.into(), &50.into());
+	state.add_balance(t.sender().as_ref().unwrap(), &100.into());
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let expected_trace = Some(Trace {
+		depth: 0,
+		action: trace::Action::Call(trace::Call {
+			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+			to: 0xa.into(),
+			value: 100.into(),
+			gas: 79000.into(),
+			input: vec![],
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: 3.into(),
+			output: vec![]
+		}),
+		subs: vec![Trace {
+			depth: 1,
+			action: trace::Action::Suicide(trace::Suicide {
+				address: 0xa.into(),
+				refund_address: 0xb.into(),
+				balance: 150.into(),
+			}),
+			result: trace::Res::None,
+			subs: vec![]
+		}]
+	});
 	assert_eq!(result.trace, expected_trace);
 }
 

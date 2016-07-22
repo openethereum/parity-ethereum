@@ -18,7 +18,7 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
+use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide};
 use trace::{Tracer, VMTracer};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
@@ -93,6 +93,20 @@ impl Tracer for ExecutiveTracer {
 			subs: subs,
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCreate,
+		};
+		self.traces.push(trace);
+	}
+
+	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address, depth: usize) {
+		let trace = Trace {
+			depth: depth,
+			subs: vec![],
+			action: Action::Suicide(Suicide {
+				address: address,
+				refund_address: refund_address,
+				balance: balance,
+			}),
+			result: Res::None,
 		};
 		self.traces.push(trace);
 	}
