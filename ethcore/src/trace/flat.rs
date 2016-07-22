@@ -18,12 +18,13 @@
 
 use util::rlp::*;
 use trace::BlockTraces;
+use basic_types::LogBloom;
 use super::trace::{Trace, Action, Res};
 
 /// Trace localized in vector of traces produced by a single transaction.
 ///
 /// Parent and children indexes refer to positions in this vector.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FlatTrace {
 	/// Type of action performed by a transaction.
 	pub action: Action,
@@ -35,6 +36,13 @@ pub struct FlatTrace {
 	///
 	/// [index in root, index in first CALL, index in second CALL, ...]
 	pub trace_address: Vec<usize>,
+}
+
+impl FlatTrace {
+	/// Returns bloom of the trace.
+	pub fn bloom(&self) -> LogBloom {
+		self.action.bloom() | self.result.bloom()
+	}
 }
 
 impl Encodable for FlatTrace {
@@ -62,8 +70,14 @@ impl Decodable for FlatTrace {
 }
 
 /// Represents all traces produced by a single transaction.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FlatTransactionTraces(Vec<FlatTrace>);
+
+impl FlatTransactionTraces {
+	pub fn bloom(&self) -> LogBloom {
+		self.0.iter().fold(Default::default(), | bloom, trace | bloom | trace.bloom())
+	}
+}
 
 impl Encodable for FlatTransactionTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
@@ -84,8 +98,14 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 }
 
 /// Represents all traces produced by transactions in a single block.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
+
+impl FlatBlockTraces {
+	pub fn bloom(&self) -> LogBloom {
+		self.0.iter().fold(Default::default(), | bloom, tx_traces | bloom | tx_traces.bloom())
+	}
+}
 
 impl Encodable for FlatBlockTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
