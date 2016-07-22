@@ -17,23 +17,20 @@
 //! Snapshot test helpers. These are used to build blockchains and state tries
 //! which can be queried before and after a full snapshot/restore cycle.
 
-use std::collections::HashMap;
-
-use account_db::{AccountDB, AccountDBMut};
+use account_db::AccountDBMut;
 use rand::Rng;
 use snapshot::account::Account;
 
-use util::hash::{Address, FixedHash, H256};
+use util::hash::{FixedHash, H256};
 use util::hashdb::HashDB;
-use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, Trie, ValueMode};
+use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 use util::trie::{TrieDB, TrieDBMut};
 use util::rlp::SHA3_NULL_RLP;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
 
-/// This structure will incrementally alter a state given an rng and can produce a list of "facts"
-/// for checking state validity.
+/// This structure will incrementally alter a state given an rng.
 pub struct StateProducer {
 	state_root: H256,
 	storage_seed: H256,
@@ -78,7 +75,7 @@ impl StateProducer {
 		// add between 0 and 5 new accounts each tick.
 		let new_accs = rng.gen::<u32>() % 5;
 
-		for i in 0..new_accs {
+		for _ in 0..new_accs {
 			let address_hash = H256::random();
 			let balance: usize = rng.gen();
 			let nonce: usize = rng.gen();
@@ -112,5 +109,14 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 		for (k, v) in map.make_with(seed) {
 			trie.insert(&k, &v);
 		}
+	}
+}
+
+/// Compare two state dbs.
+pub fn compare_dbs(one: &HashDB, two: &HashDB) {
+	let keys = one.keys();
+
+	for (key, _) in keys {
+		assert_eq!(one.get(&key).unwrap(), two.get(&key).unwrap());
 	}
 }

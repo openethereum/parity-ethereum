@@ -17,4 +17,6 @@
 //! Snapshot tests.
 
 mod blocks;
+mod state;
+
 pub mod helpers;

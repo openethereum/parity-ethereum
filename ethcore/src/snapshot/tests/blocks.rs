@@ -22,16 +22,13 @@ use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 use blockchain::BlockChain;
 use snapshot::{chunk_blocks, BlockRebuilder};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
-use views::BlockView;
 
-use util::Hashable;
 use util::snappy;
 
 fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();
 	let mut finalizer = BlockFinalizer::default();
 	let genesis = canon_chain.generate(&mut finalizer).unwrap();
-	let genesis_hash = BlockView::new(&genesis).header_view().sha3();
 
 	let orig_path = RandomTempPath::create_dir();
 	let new_path = RandomTempPath::create_dir();
