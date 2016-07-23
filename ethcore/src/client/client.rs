@@ -198,10 +198,15 @@ impl Client {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
+		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
+			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
+		}
+
+		/* TODO: enable this once the best block issue is resolved
 		while !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
 			warn!("State root not found for block #{} ({}), recovering...", chain.best_block_number(), chain.best_block_hash().hex());
 			chain.rewind();
-		}
+		}*/
 
 		let engine = Arc::new(spec.engine);
 
