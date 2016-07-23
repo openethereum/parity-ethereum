@@ -23,9 +23,7 @@ use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
 use ethcore::executed;
-use ethcore::client::Executed;
-use util::Uint;
-use v1::types::{Bytes, H160, H256, U256};
+use v1::types::{Bytes};
 
 #[derive(Debug, Serialize)]
 /// A diff of some chunk of memory.
@@ -290,7 +288,7 @@ impl From<trace::Call> for Call {
 			value: c.value,
 			gas: c.gas,
 			input: Bytes::new(c.input),
-			call_type: c.call_type,
+			call_type: c.call_type.into(),
 		}
 	}
 }
@@ -299,10 +297,10 @@ impl From<trace::Call> for Call {
 #[derive(Debug, Serialize)]
 pub struct Suicide {
 	/// Address.
-	pub address: H160,
+	pub address: Address,
 	/// Refund address.
 	#[serde(rename="refundAddress")]
-	pub refund_address: H160,
+	pub refund_address: Address,
 	/// Balance.
 	pub balance: U256,
 }
