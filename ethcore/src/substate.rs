@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Execution environment substate.
-use common::*;
+use std::collections::HashSet;
+use util::{Address, U256};
+use log_entry::LogEntry;
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
@@ -37,12 +39,7 @@ pub struct Substate {
 impl Substate {
 	/// Creates new substate.
 	pub fn new() -> Self {
-		Substate {
-			suicides: Default::default(),
-			logs: Default::default(),
-			sstore_clears_count: Default::default(),
-			contracts_created: Default::default(),
-		}
+		Substate::default()
 	}
 
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
@@ -56,8 +53,8 @@ impl Substate {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use common::*;
+	use super::Substate;
+	use log_entry::LogEntry;
 
 	#[test]
 	fn created() {
@@ -68,19 +65,19 @@ mod tests {
 	#[test]
 	fn accrue() {
 		let mut sub_state = Substate::new();
-		sub_state.contracts_created.push(address_from_u64(1u64));
+		sub_state.contracts_created.push(1u64.into());
 		sub_state.logs.push(LogEntry {
-			address: address_from_u64(1u64),
+			address: 1u64.into(),
 			topics: vec![],
 			data: vec![]
 		});
 		sub_state.sstore_clears_count = 5.into();
-		sub_state.suicides.insert(address_from_u64(10u64));
+		sub_state.suicides.insert(10u64.into());
 
 		let mut sub_state_2 = Substate::new();
-		sub_state_2.contracts_created.push(address_from_u64(2u64));
+		sub_state_2.contracts_created.push(2u64.into());
 		sub_state_2.logs.push(LogEntry {
-			address: address_from_u64(1u64),
+			address: 1u64.into(),
 			topics: vec![],
 			data: vec![]
 		});

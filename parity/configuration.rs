@@ -519,8 +519,15 @@ impl Configuration {
 	}
 
 	fn signer_enabled(&self) -> bool {
-		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
-		self.args.flag_force_signer
+		if self.args.flag_force_signer {
+			return true;
+		}
+
+		let signer_disabled = self.args.flag_unlock.is_some() ||
+			self.args.flag_geth ||
+			self.args.flag_no_signer;
+
+		return !signer_disabled;
 	}
 }
 
@@ -695,6 +702,78 @@ mod tests {
 			rpc_interface: "local".to_owned(),
 			rpc_port: 8545,
 		});
+	}
+
+	#[test]
+	fn should_parse_rpc_settings_with_geth_compatiblity() {
+		// given
+		fn assert(conf: Configuration) {
+			let net = conf.network_settings();
+			assert_eq!(net.rpc_enabled, true);
+			assert_eq!(net.rpc_interface, "all".to_owned());
+			assert_eq!(net.rpc_port, 8000);
+			assert_eq!(conf.rpc_cors(), Some(vec!["*".to_owned()]));
+			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
+		}
+
+		// when
+		let conf1 = parse(&["parity", "-j",
+						 "--jsonrpc-port", "8000",
+						 "--jsonrpc-interface", "all",
+						 "--jsonrpc-cors", "*",
+						 "--jsonrpc-apis", "web3,eth"
+						 ]);
+		let conf2 = parse(&["parity", "--rpc",
+						  "--rpcport", "8000",
+						  "--rpcaddr", "all",
+						  "--rpccorsdomain", "*",
+						  "--rpcapi", "web3,eth"
+						  ]);
+
+		// then
+		assert(conf1);
+		assert(conf2);
+	}
+
+	#[test]
+	fn should_parse_rpc_hosts() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--jsonrpc-hosts", "none"]);
+		let conf2 = parse(&["parity", "--jsonrpc-hosts", "all"]);
+		let conf3 = parse(&["parity", "--jsonrpc-hosts", "ethcore.io,something.io"]);
+
+		// then
+		assert_eq!(conf0.rpc_hosts(), Some(Vec::new()));
+		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
+		assert_eq!(conf2.rpc_hosts(), None);
+		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_disable_signer_in_geth_compat() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--geth"]);
+		let conf1 = parse(&["parity", "--geth", "--force-signer"]);
+
+		// then
+		assert_eq!(conf0.signer_enabled(), false);
+		assert_eq!(conf1.signer_enabled(), true);
+	}
+
+	#[test]
+	fn should_disable_signer_when_account_is_unlocked() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--unlock", "0x0"]);
+
+		// then
+		assert_eq!(conf0.signer_enabled(), false);
 	}
 }
 

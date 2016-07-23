@@ -55,6 +55,9 @@ impl Tracer for NoopTracer {
 		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
 	}
 
+	fn trace_suicide(&mut self, _address: Address, _balance: U256, _refund_address: Address, _depth: usize) {
+	}
+
 	fn subtracer(&self) -> Self {
 		NoopTracer
 	}

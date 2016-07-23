@@ -17,7 +17,7 @@
 use std::collections::{HashSet, HashMap, VecDeque};
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
