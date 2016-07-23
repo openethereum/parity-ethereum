@@ -64,8 +64,8 @@ impl KeyDirectory for ParityDirectory {
 		self.dir.load()
 	}
 
-	fn insert(&self, account: SafeAccount) -> Result<(), Error> {
-		self.dir.insert(account)
+	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
+		self.dir.insert(account.clone())
 	}
 
 	fn remove(&self, address: &Address) -> Result<(), Error> {

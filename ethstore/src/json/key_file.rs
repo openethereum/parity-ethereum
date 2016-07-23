@@ -33,6 +33,7 @@ enum KeyFileField {
 	Version,
 	Crypto,
 	Address,
+	Unknown,
 }
 
 impl Deserialize for KeyFileField {
@@ -57,7 +58,7 @@ impl Visitor for KeyFileFieldVisitor {
 			"crypto" => Ok(KeyFileField::Crypto),
 			"Crypto" => Ok(KeyFileField::Crypto),
 			"address" => Ok(KeyFileField::Address),
-			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
+			_ => Ok(KeyFileField::Unknown),	// Unknown fields are not a problem.
 		}
 	}
 }
@@ -90,6 +91,7 @@ impl Visitor for KeyFileVisitor {
 				Some(KeyFileField::Version) => { version = Some(try!(visitor.visit_value())); }
 				Some(KeyFileField::Crypto) => { crypto = Some(try!(visitor.visit_value())); }
 				Some(KeyFileField::Address) => { address = Some(try!(visitor.visit_value())); }
+				Some(KeyFileField::Unknown) => {}
 				None => { break; }
 			}
 		}

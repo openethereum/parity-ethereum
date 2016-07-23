@@ -17,8 +17,11 @@
 #![cfg_attr(feature="nightly", feature(custom_derive, plugin))]
 #![cfg_attr(feature="nightly", plugin(serde_macros))]
 
+#[macro_use]
+extern crate log;
 extern crate libc;
 extern crate rand;
+extern crate time;
 extern crate serde;
 extern crate serde_json;
 extern crate rustc_serialize;

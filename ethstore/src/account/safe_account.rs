@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
+use std::path::{PathBuf};
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
 use crypto::Keccak256;
@@ -35,6 +36,7 @@ pub struct SafeAccount {
 	pub version: Version,
 	pub address: Address,
 	pub crypto: Crypto,
+	pub path: Option<PathBuf>,
 }
 
 impl From<json::Crypto> for Crypto {
@@ -66,6 +68,7 @@ impl From<json::KeyFile> for SafeAccount {
 			version: From::from(json.version),
 			address: From::from(json.address), //json.address.into(),
 			crypto: From::from(json.crypto),
+			path: None,
 		}
 	}
 }
@@ -144,6 +147,17 @@ impl SafeAccount {
 			version: Version::V3,
 			crypto: Crypto::create(keypair.secret(), password, iterations),
 			address: keypair.address(),
+			path: None,
+		}
+	}
+
+	pub fn from_file(json: json::KeyFile, path: PathBuf) -> Self {
+		SafeAccount {
+			id: json.id.into(),
+			version: From::from(json.version),
+			address: From::from(json.address), //json.address.into(),
+			crypto: From::from(json.crypto),
+			path: Some(path),
 		}
 	}
 
@@ -159,6 +173,7 @@ impl SafeAccount {
 			version: self.version.clone(),
 			crypto: Crypto::create(&secret, new_password, iterations),
 			address: self.address.clone(),
+			path: self.path.clone(),
 		};
 		Ok(result)
 	}

@@ -114,8 +114,8 @@ impl KeyDirectory for NullDir {
 		Ok(vec![])
 	}
 
-	fn insert(&self, _account: SafeAccount) -> Result<(), SSError> {
-		Ok(())
+	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
+		Ok(account)
 	}
 
 	fn remove(&self, _address: &SSAddress) -> Result<(), SSError> {
