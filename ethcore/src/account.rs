@@ -290,13 +290,13 @@ mod tests {
 
 	#[test]
 	fn account_compress() {
-    let raw = Account::new_basic(2.into(), 4.into()).rlp();
-    let rlp = UntrustedRlp::new(&raw);
-    let compact_vec = rlp.compress(RlpType::Snapshot).to_vec();
-    assert!(raw.len() > compact_vec.len());
-    let again_raw = UntrustedRlp::new(&compact_vec).decompress(RlpType::Snapshot);
-    assert_eq!(raw, again_raw.to_vec());
-  }
+		let raw = Account::new_basic(2.into(), 4.into()).rlp();
+		let rlp = UntrustedRlp::new(&raw);
+		let compact_vec = rlp.compress(RlpType::Snapshot).to_vec();
+		assert!(raw.len() > compact_vec.len());
+		let again_raw = UntrustedRlp::new(&compact_vec).decompress(RlpType::Snapshot);
+		assert_eq!(raw, again_raw.to_vec());
+    }
 
 	#[test]
 	fn storage_at() {
