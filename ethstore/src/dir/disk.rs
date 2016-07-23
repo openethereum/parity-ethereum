@@ -70,13 +70,14 @@ impl DiskDirectory {
 
 		let files = try!(files);
 
-		let accounts = files.into_iter()
+		files.into_iter()
 			.map(json::KeyFile::load)
 			.zip(paths.into_iter())
-			.filter_map(|(file, path)| file.ok().map(|file| (path, SafeAccount::from(file))))
-			.collect();
-
-		Ok(accounts)
+			.map(|(file, path)| match file {
+				Ok(file) => Ok((path, file.into())),
+				Err(err) => Err(Error::InvalidKeyFile(err.to_string())),
+			})
+			.collect()
 	}
 }
 
