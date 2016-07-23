@@ -106,9 +106,9 @@ impl Informant {
 			false => t,
 		};
 
-		info!(target: "import", "Syncing {}   {}   {}",
+		info!(target: "import", "{}   {}   {}",
 			match importing {
-				true => format!("{} {}   {}   {}+{} Qed", 
+				true => format!("Syncing {} {}   {}   {}+{} Qed", 
 					paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 					paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 					{
