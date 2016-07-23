@@ -58,7 +58,7 @@ impl AddressesFilter {
 			true => vec![LogBloom::new()],
 			false => self.list.iter()
 				.map(|address| LogBloom::from_bloomed(&address.sha3()))
-				.collect()
+				.collect(),
 		}
 	}
 
@@ -71,7 +71,7 @@ impl AddressesFilter {
 				.flat_map(|bloom| self.list.iter()
 					.map(|address| bloom.with_bloomed(&address.sha3()))
 					.collect::<Vec<_>>())
-				.collect()
+				.collect(),
 		}
 	}
 }
@@ -115,12 +115,12 @@ impl Filter {
 				let from_matches = self.from_address.matches(&call.from);
 				let to_matches = self.to_address.matches(&call.to);
 				from_matches && to_matches
-			},
+			}
 			Action::Create(ref create) => {
 				let from_matches = self.from_address.matches(&create.from);
 				let to_matches = self.to_address.matches_all();
 				from_matches && to_matches
-			},
+			}
 			Action::Suicide(ref suicide) => {
 				let from_matches = self.from_address.matches(&suicide.address);
 				let to_matches = self.to_address.matches(&suicide.refund_address);
