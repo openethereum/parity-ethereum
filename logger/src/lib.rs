@@ -30,7 +30,7 @@ use std::env;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::Write;
-use isatty::{stderr_isatty};
+use isatty::{stderr_isatty, stdout_isatty};
 use env_logger::LogBuilder;
 use regex::Regex;
 use util::RotatingLogger;
@@ -89,7 +89,8 @@ pub fn setup_log(settings: &Settings) -> Arc<RotatingLogger> {
 		builder.parse(s);
 	}
 
-	let enable_color = settings.color && stderr_isatty();
+	let isatty = stderr_isatty();
+	let enable_color = settings.color && isatty;
 	let logs = Arc::new(RotatingLogger::new(levels));
 	let logger = logs.clone();
 	let maybe_file = settings.file.as_ref().map(|f| File::create(f).unwrap_or_else(|_| panic!("Cannot write to log file given: {}", f)));
@@ -115,6 +116,10 @@ pub fn setup_log(settings: &Settings) -> Arc<RotatingLogger> {
 			let _ = file.write_all(b"\n");
 		}
 		logger.append(removed_color);
+		if !isatty && record.level() <= LogLevel::Info && stdout_isatty() {
+			// duplicate INFO/WARN output to console
+			println!("{}", ret);
+		}
 
 		ret
     };
