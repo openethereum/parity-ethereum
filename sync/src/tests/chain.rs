@@ -108,7 +108,7 @@ fn restart() {
 	net.restart_peer(0);
 
 	let status = net.peer(0).sync.read().status();
-	assert_eq!(status.state, SyncState::ChainHead);
+	assert_eq!(status.state, SyncState::Idle);
 }
 
 #[test]

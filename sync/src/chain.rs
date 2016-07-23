@@ -1626,6 +1626,7 @@ mod tests {
 				asking_blocks: Vec::new(),
 				asking_hash: None,
 				ask_time: 0f64,
+				expired: false,
 			});
 		sync
 	}
