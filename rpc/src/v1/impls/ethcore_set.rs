@@ -17,13 +17,11 @@
 /// Ethcore-specific rpc interface for operations altering the settings.
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
-use util::Address;
 use ethcore::miner::MinerService;
-use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 use ethsync::ManageNetwork;
 use v1::traits::EthcoreSet;
-use v1::types::{Bytes, H160, U256, H160 as RpcAddress};
+use v1::types::{Bytes, H160, U256};
 
 /// Ethcore-specific rpc interface for operations altering the settings.
 pub struct EthcoreSetClient<C, M> where
@@ -33,19 +31,17 @@ pub struct EthcoreSetClient<C, M> where
 	client: Weak<C>,
 	miner: Weak<M>,
 	net: Weak<ManageNetwork>,
-	accounts: Weak<AccountProvider>,
 }
 
 impl<C, M> EthcoreSetClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService {
 	/// Creates new `EthcoreSetClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>, accounts: &Arc<AccountProvider>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>) -> Self {
 		EthcoreSetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			net: Arc::downgrade(net),
-			accounts: Arc::downgrade(accounts),
 		}
 	}
 
@@ -156,23 +152,5 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 	fn stop_network(&self, _: Params) -> Result<Value, Error> {
 		take_weak!(self.net).stop_network();
 		Ok(Value::Bool(true))
-	}
-
-	fn set_account_name(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		let store = take_weak!(self.accounts);
-		from_params::<(RpcAddress, String)>(params).and_then(|(addr, name)| {
-			let addr: Address = RpcAddress::into(addr);
-			store.set_account_name(addr, name).map_err(|_| Error::invalid_params()).map(|_| Value::Null)
-		})
-	}
-
-	fn set_account_meta(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		let store = take_weak!(self.accounts);
-		from_params::<(RpcAddress, String)>(params).and_then(|(addr, meta)| {
-			let addr: Address = RpcAddress::into(addr);
-			store.set_account_meta(addr, meta).map_err(|_| Error::invalid_params()).map(|_| Value::Null)
-		})
 	}
 }

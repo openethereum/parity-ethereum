@@ -23,7 +23,6 @@ use std::ops::Deref;
 use std::collections::{BTreeMap};
 use ethcore::client::{MiningBlockChainClient};
 use jsonrpc_core::*;
-use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
 use v1::traits::Ethcore;
 use v1::types::{Bytes, U256};
@@ -40,19 +39,17 @@ pub struct EthcoreClient<C, M> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	confirmations_queue: Option<Arc<ConfirmationsQueue>>,
-	accounts: Weak<AccountProvider>,
 }
 
 impl<C, M> EthcoreClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new `EthcoreClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>, queue: Option<Arc<ConfirmationsQueue>>, accounts: &Arc<AccountProvider>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>, queue: Option<Arc<ConfirmationsQueue>>) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			logger: logger,
 			settings: settings,
 			confirmations_queue: queue,
-			accounts: Arc::downgrade(accounts),
 		}
 	}
 
@@ -162,14 +159,5 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 			}),
 			Some(ref queue) => to_value(&queue.len()),
 		}
-	}
-
-	fn accounts_info(&self, _: Params) -> Result<Value, Error> {
-		try!(self.active());
-		let store = take_weak!(self.accounts);
-		Ok(Value::Object(try!(store.accounts_info().map_err(|_| Error::invalid_params())).into_iter().map(|(a, v)| {
-			let m = map!["name".to_owned() => to_value(&v.name).unwrap(), "meta".to_owned() => to_value(&v.meta).unwrap()];
-			(format!("0x{}", a.hex()), Value::Object(m))
-		}).collect::<BTreeMap<_, _>>()))
 	}
 }

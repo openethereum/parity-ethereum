@@ -86,16 +86,16 @@ impl Informant {
 		let chain_info = client.chain_info();
 		let queue_info = client.queue_info();
 		let cache_info = client.blockchain_cache_info();
+		let report = client.report();
 
-		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+		let last_report = match self.report.read().deref() { &Some(ref last_report) => last_report.clone(), _ => ClientReport::default() };
+
+		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3 || ((report.blocks_imported - last_report.blocks_imported) * 1000000) as u64 / elapsed.as_milliseconds() > 1000;
 		if !importing && elapsed < Duration::from_secs(30) {
 			return;
 		}
 
 		*self.last_tick.write() = Instant::now();
-
-		let mut write_report = self.report.write();
-		let report = client.report();
 
 		let paint = |c: Style, t: String| match self.with_color && stdout_isatty() {
 			true => format!("{}", c.paint(t)),
@@ -107,14 +107,11 @@ impl Informant {
 				true => format!("{} {}   {}   {}+{} Qed", 
 					paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 					paint(White.bold(), format!("{}", chain_info.best_block_hash)),
-					{
-						let last_report = match write_report.deref() { &Some(ref last_report) => last_report.clone(), _ => ClientReport::default() };
-						format!("{} blk/s {} tx/s {} Mgas/s",  
-							paint(Yellow.bold(), format!("{:4}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
-							paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
-							paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
-						)
-					},
+					format!("{} blk/s {} tx/s {} Mgas/s",  
+						paint(Yellow.bold(), format!("{:4}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
+						paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
+						paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
+					),
 					paint(Green.bold(), format!("{:5}", queue_info.unverified_queue_size)),
 					paint(Green.bold(), format!("{:5}", queue_info.verified_queue_size))
 				),
@@ -145,7 +142,7 @@ impl Informant {
 
 		*self.chain_info.write().deref_mut() = Some(chain_info);
 		*self.cache_info.write().deref_mut() = Some(cache_info);
-		*write_report.deref_mut() = Some(report);
+		*self.report.write().deref_mut() = Some(report);
 	}
 }
 
