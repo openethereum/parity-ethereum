@@ -562,8 +562,15 @@ impl Configuration {
 	}
 
 	pub fn signer_enabled(&self) -> bool {
-		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
-		self.args.flag_force_signer
+		if self.args.flag_force_signer {
+			return true;
+		}
+
+		let signer_disabled = self.args.flag_unlock.is_some() ||
+			self.args.flag_geth ||
+			self.args.flag_no_signer;
+
+		return !signer_disabled;
 	}
 
 	pub fn log_settings(&self) -> LogSettings {
@@ -659,6 +666,30 @@ mod tests {
 		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.rpc_hosts(), None);
 		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_disable_signer_in_geth_compat() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--geth"]);
+		let conf1 = parse(&["parity", "--geth", "--force-signer"]);
+
+		// then
+		assert_eq!(conf0.signer_enabled(), false);
+		assert_eq!(conf1.signer_enabled(), true);
+	}
+
+	#[test]
+	fn should_disable_signer_when_account_is_unlocked() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--unlock", "0x0"]);
+
+		// then
+		assert_eq!(conf0.signer_enabled(), false);
 	}
 }
 
