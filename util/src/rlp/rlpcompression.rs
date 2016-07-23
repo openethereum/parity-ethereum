@@ -113,7 +113,7 @@ fn deep_compress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<Elas
 			Ok(ref p) if p.value_len < 70 => simple_swap(),
 			_ => {
 				if let Ok(d) = rlp.data() {
-					let internal_rlp = UntrustedRlp::new(&d);
+					let internal_rlp = UntrustedRlp::new(d);
 					if let Some(new_d) = deep_compress(&internal_rlp, swapper) {
 						// If compressed put in a special list, with first element being invalid code.
 						let mut rlp = RlpStream::new_list(2);
