@@ -202,9 +202,9 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
-  --cache-size-db MB       Override RocksDB database cache size [default: 100].
+  --cache-size-db MB       Override database cache size [default: 64].
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
-                           bytes [default: 50].
+                           megabytes [default: 8].
   --cache-size-queue MB    Specify the maximum size of memory to use for block
                            queue [default: 50].
   --cache-size MEGABYTES   Set total amount of discretionary memory to use for

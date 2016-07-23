@@ -165,8 +165,8 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 	}
 }
 
-#[test]
-pub fn default_network_config() -> NetworkConfiguration {
+#[cfg(test)]
+pub fn default_network_config() -> ::util::NetworkConfiguration {
 	use util::{NetworkConfiguration, NonReservedPeerMode};
 	NetworkConfiguration {
 		config_path: Some(replace_home("$HOME/.parity/network")),
@@ -198,15 +198,15 @@ pub fn to_client_config(
 
 	let mb = 1024 * 1024;
 	// in bytes
-	client_config.blockchain.max_cache_size = cache_config.blockchain as usize * mb;
+	client_config.blockchain.max_cache_size = cache_config.blockchain() as usize * mb;
 	// in bytes
-	client_config.blockchain.pref_cache_size = cache_config.blockchain as usize * 3 / 4 * mb;
-	// rocksdb blockchain cache size, in megabytes
-	client_config.blockchain.db_cache_size = Some(cache_config.rocksdb_blockchain_cache_size() as usize);
-	// rocksdb state cache size, in megabytes
-	client_config.db_cache_size = Some(cache_config.rocksdb_state_cache_size() as usize);
-	// rocksdb queue cache size, in bytes
-	client_config.queue.max_mem_use = cache_config.queue as usize * mb;
+	client_config.blockchain.pref_cache_size = cache_config.blockchain() as usize * 3 / 4 * mb;
+	// db blockchain cache size, in megabytes
+	client_config.blockchain.db_cache_size = Some(cache_config.db_blockchain_cache_size() as usize);
+	// db state cache size, in megabytes
+	client_config.db_cache_size = Some(cache_config.db_state_cache_size() as usize);
+	// db queue cache size, in bytes
+	client_config.queue.max_mem_use = cache_config.queue() as usize * mb;
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;

@@ -226,11 +226,7 @@ impl Configuration {
 	fn cache_config(&self) -> CacheConfig {
 		match self.args.flag_cache_size {
 			Some(size) => CacheConfig::new_with_total_cache_size(size),
-			None => CacheConfig {
-				rocksdb: self.args.flag_cache_size_db,
-				blockchain: self.args.flag_cache_size_blocks,
-				queue: self.args.flag_cache_size_queue,
-			}
+			None => CacheConfig::new(self.args.flag_cache_size_db, self.args.flag_cache_size_blocks, self.args.flag_cache_size_queue),
 		}
 	}
 
@@ -543,7 +539,6 @@ mod tests {
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
-	use Cmd;
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);

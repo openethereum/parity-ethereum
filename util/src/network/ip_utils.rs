@@ -61,8 +61,7 @@ mod getinterfaces {
 	use std::{mem, io, ptr};
 	use libc::{AF_INET, AF_INET6};
 	use libc::{getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
-	use std::net::{Ipv4Addr, Ipv6Addr};
-	use super::IpAddr;
+	use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
 
 	fn convert_sockaddr (sa: *mut sockaddr) -> Option<IpAddr> {
 		if sa == ptr::null_mut() { return None; }
