@@ -120,7 +120,7 @@ impl Filter {
 				let from_matches = self.from_address.matches(&create.from);
 				let to_matches = self.to_address.matches_all();
 				from_matches && to_matches
-			}
+			},
 			Action::Suicide(ref suicide) => {
 				let from_matches = self.from_address.matches(&suicide.address);
 				let to_matches = self.to_address.matches(&suicide.refund_address);
