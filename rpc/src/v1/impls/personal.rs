@@ -131,7 +131,15 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		try!(self.active());
 		let store = take_weak!(self.accounts);
 		Ok(Value::Object(try!(store.accounts_info().map_err(|_| Error::invalid_params())).into_iter().map(|(a, v)| {
-			let m = map!["name".to_owned() => to_value(&v.name).unwrap(), "meta".to_owned() => to_value(&v.meta).unwrap()];
+			let m = map![
+				"name".to_owned() => to_value(&v.name).unwrap(),
+				"meta".to_owned() => to_value(&v.meta).unwrap(),
+				"uuid".to_owned() => if let &Some(ref uuid) = &v.uuid {
+					to_value(uuid).unwrap()
+				} else {
+					Value::Null
+				}
+			];
 			(format!("0x{}", a.hex()), Value::Object(m))
 		}).collect::<BTreeMap<_, _>>()))
 	}

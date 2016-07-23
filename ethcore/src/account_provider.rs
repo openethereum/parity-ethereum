@@ -137,6 +137,8 @@ pub struct AccountMeta {
 	pub name: String,
 	/// The rest of the metadata of the account.
 	pub meta: String,
+	/// The 128-bit UUID of the account, if it has one (brain-wallets don't).
+	pub uuid: Option<String>,
 }
 
 impl Default for AccountMeta {
@@ -144,6 +146,7 @@ impl Default for AccountMeta {
 		AccountMeta {
 			name: String::new(),
 			meta: "{}".to_owned(),
+			uuid: None,
 		}
 	}
 }
@@ -200,6 +203,7 @@ impl AccountProvider {
 		Ok(AccountMeta {
 			name: try!(self.sstore.name(&account)),
 			meta: try!(self.sstore.meta(&account)),
+			uuid: self.sstore.uuid(&account).ok().map(Into::into),	// allowed to not have a UUID
 		})
 	}
 

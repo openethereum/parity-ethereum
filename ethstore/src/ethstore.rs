@@ -107,6 +107,12 @@ impl SecretStore for EthStore {
 		account.sign(password, message)
 	}
 
+	fn uuid(&self, addr: &Address) -> Result<UUID, Error> {
+		let cache = self.cache.read().unwrap();
+		let account = try!(cache.get(addr).ok_or(Error::InvalidAccount));
+		Ok(account.id.into())
+	}
+
 	fn name(&self, addr: &Address) -> Result<String, Error> {
 		let cache = self.cache.read().unwrap();
 		let account = try!(cache.get(addr).ok_or(Error::InvalidAccount));
