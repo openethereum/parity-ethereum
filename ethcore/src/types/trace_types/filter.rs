@@ -22,7 +22,7 @@ use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
-use types::trace_types::trace::Action;
+use types::trace_types::trace::{Action, Res};
 use ipc::binary::BinaryConvertError;
 use std::mem;
 use std::collections::VecDeque;
@@ -58,7 +58,7 @@ impl AddressesFilter {
 			true => vec![LogBloom::new()],
 			false => self.list.iter()
 				.map(|address| LogBloom::from_bloomed(&address.sha3()))
-				.collect()
+				.collect(),
 		}
 	}
 
@@ -71,7 +71,7 @@ impl AddressesFilter {
 				.flat_map(|bloom| self.list.iter()
 					.map(|address| bloom.with_bloomed(&address.sha3()))
 					.collect::<Vec<_>>())
-				.collect()
+				.collect(),
 		}
 	}
 }
@@ -110,12 +110,12 @@ impl Filter {
 
 	/// Returns true if given trace matches the filter.
 	pub fn matches(&self, trace: &FlatTrace) -> bool {
-		match trace.action {
+		let action = match trace.action {
 			Action::Call(ref call) => {
 				let from_matches = self.from_address.matches(&call.from);
 				let to_matches = self.to_address.matches(&call.to);
 				from_matches && to_matches
-			},
+			}
 			Action::Create(ref create) => {
 				let from_matches = self.from_address.matches(&create.from);
 				let to_matches = self.to_address.matches_all();
@@ -126,6 +126,11 @@ impl Filter {
 				let to_matches = self.to_address.matches(&suicide.refund_address);
 				from_matches && to_matches
 			}
+		};
+
+		action || match trace.result {
+			Res::Create(ref create) => self.to_address.matches(&create.address),
+			_ => false
 		}
 	}
 }
@@ -134,7 +139,7 @@ impl Filter {
 mod tests {
 	use util::{FixedHash, Address};
 	use util::sha3::Hashable;
-	use trace::trace::{Action, Call, Res, Suicide};
+	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide};
 	use trace::flat::FlatTrace;
 	use trace::{Filter, AddressesFilter};
 	use basic_types::LogBloom;
@@ -282,6 +287,30 @@ mod tests {
 				input: vec![0x5],
 			}),
 			result: Res::FailedCall,
+			trace_address: vec![0],
+			subtraces: 0,
+		};
+
+		assert!(f0.matches(&trace));
+		assert!(f1.matches(&trace));
+		assert!(f2.matches(&trace));
+		assert!(f3.matches(&trace));
+		assert!(f4.matches(&trace));
+		assert!(f5.matches(&trace));
+		assert!(!f6.matches(&trace));
+
+		let trace = FlatTrace {
+			action: Action::Create(Create {
+				from: 1.into(),
+				value: 3.into(),
+				gas: 4.into(),
+				init: vec![0x5],
+			}),
+			result: Res::Create(CreateResult {
+				gas_used: 10.into(),
+				code: vec![],
+				address: 2.into(),
+			}),
 			trace_address: vec![0],
 			subtraces: 0,
 		};
