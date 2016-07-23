@@ -122,7 +122,7 @@ impl Ord for TransactionOrigin {
 }
 
 #[derive(Clone, Debug)]
-/// Light structure used to identify transaction and it's order
+/// Light structure used to identify transaction and its order
 struct TransactionOrder {
 	/// Primary ordering factory. Difference between transaction nonce and expected nonce in state
 	/// (e.g. Tx(nonce:5), State(nonce:0) -> height: 5)

@@ -255,7 +255,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		begin += len;
 	}
 
-	// if fist key len is equal prefix, append it's value
+	// if fist key len is equal prefix, append its value
 	match pre_len == key.len() {
 		true => { stream.append(&value); },
 		false => { stream.append_empty_data(); }

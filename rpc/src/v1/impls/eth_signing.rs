@@ -26,7 +26,7 @@ use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, TransactionRequest as TRequest};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
-use v1::impls::{default_gas_price, sign_and_dispatch};
+use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error};
 
 fn fill_optional_fields<C, M>(request: &mut TRequest, client: &C, miner: &M)
 	where C: MiningBlockChainClient, M: MinerService {
@@ -83,17 +83,14 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 
 				if accounts.is_unlocked(request.from) {
 					let sender = request.from;
-					return match sign_and_dispatch(&*client, &*miner, request, &*accounts, sender) {
-						Ok(hash) => to_value(&hash),
-						_ => to_value(&RpcH256::default()),
-					}
+					return sign_and_dispatch(&*client, &*miner, request, &*accounts, sender);
 				}
 
 				let queue = take_weak!(self.queue);
 				fill_optional_fields(&mut request, &*client, &*miner);
 				let promise = queue.add_request(request);
 				f(promise)
-		})
+			})
 	}
 }
 
@@ -110,17 +107,17 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch(params, |promise: ConfirmationPromise| {
+		self.dispatch(params, |promise| {
 			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH256::default()))
 		})
 	}
 
 	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch(params, |promise: ConfirmationPromise| {
-			let ret = to_value(&RpcU256::from(promise.id()));
-			self.pending.lock().insert(promise.id(), promise);
-			ret
+		self.dispatch(params, |promise| {
+			let id = promise.id();
+			self.pending.lock().insert(id, promise);
+			to_value(&RpcU256::from(id))
 		})
 	}
 
@@ -132,7 +129,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 			let res = match pending.get(&id) {
 				Some(ref promise) => match promise.result() {
 					ConfirmationResult::Waiting => { return Ok(Value::Null); }
-					ConfirmationResult::Rejected => to_value(&RpcH256::default()),
+					ConfirmationResult::Rejected => Err(transaction_rejected_error()),
 					ConfirmationResult::Confirmed(rpc_response) => rpc_response,
 				},
 				_ => { return Err(Error::invalid_params()); }
@@ -192,11 +189,8 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 			.and_then(|(request, )| {
 				let request: TRequest = request.into();
 				let sender = request.from;
-				match sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender) {
-					Ok(hash) => to_value(&hash),
-					_ => to_value(&RpcH256::default()),
-				}
-		})
+				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender)
+			})
 	}
 
 	fn post_transaction(&self, _: Params) -> Result<Value, Error> {

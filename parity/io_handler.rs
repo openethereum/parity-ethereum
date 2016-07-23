@@ -30,7 +30,7 @@ pub struct ClientIoHandler {
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
-	pub info: Informant,
+	pub info: Arc<Informant>,
 }
 
 impl IoHandler<ClientIoMessage> for ClientIoHandler {
@@ -40,9 +40,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		if let INFO_TIMER = timer {
-			let sync_status = self.sync.status();
-			let network_config = self.net.network_config();
-			self.info.tick(&self.client, Some((sync_status, network_config)));
+			self.info.tick();
 		}
 	}
 }

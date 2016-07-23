@@ -116,13 +116,17 @@ macro_rules! impl_hash {
 					type Value = $name;
 
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+
+						if value.len() != 2 + $size * 2 {
+							return Err(serde::Error::custom("Invalid length."));
+						}
+
 						match value[2..].from_hex() {
-							Ok(ref v) if v.len() == $size => {
+							Ok(ref v) => {
 								let mut result = [0u8; $size];
 								result.copy_from_slice(v);
 								Ok($name(result))
 							},
-							Ok(_) => Err(serde::Error::custom("Invalid length.")),
 							_ => Err(serde::Error::custom("Invalid hex value."))
 						}
 					}
