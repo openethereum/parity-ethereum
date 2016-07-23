@@ -16,16 +16,11 @@
 
 // Based on original work by David Levy https://raw.githubusercontent.com/dlevy47/rust-interfaces
 
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::io;
 use igd::{PortMappingProtocol, search_gateway_from_timeout};
 use std::time::Duration;
 use network::node_table::{NodeEndpoint};
-
-pub enum IpAddr{
-	V4(Ipv4Addr),
-	V6(Ipv6Addr),
-}
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {

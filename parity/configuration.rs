@@ -39,7 +39,16 @@ use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts};
-use Cmd;
+
+#[derive(Debug, PartialEq)]
+pub enum Cmd {
+	Run(RunCmd),
+	Version,
+	Account(AccountCmd),
+	ImportPresaleWallet(ImportWallet),
+	Blockchain(BlockchainCmd),
+	SignerToken(String),
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Configuration {

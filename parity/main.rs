@@ -80,25 +80,11 @@ mod presale;
 mod run;
 
 use std::{process, env};
-use run::RunCmd;
 use cli::print_version;
-use account::AccountCmd;
-use presale::ImportWallet;
-use blockchain::BlockchainCmd;
-use configuration::Configuration;
+use configuration::{Cmd, Configuration};
 use deprecated::find_deprecated;
 
-#[derive(Debug, PartialEq)]
-pub enum Cmd {
-	Run(RunCmd),
-	Version,
-	Account(AccountCmd),
-	ImportPresaleWallet(ImportWallet),
-	Blockchain(BlockchainCmd),
-	SignerToken(String),
-}
-
-pub fn execute(command: Cmd) -> Result<String, String> {
+fn execute(command: Cmd) -> Result<String, String> {
 	match command {
 		Cmd::Run(run_cmd) => {
 			try!(run::execute(run_cmd));

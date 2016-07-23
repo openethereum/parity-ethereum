@@ -90,7 +90,7 @@ fn main() {
 		.and_then(|d| d.decode())
 		.unwrap_or_else(|e| e.exit());
 
-	setup_log(&args.log_settings());
+	setup_log(&args.log_settings()).expect("Log initialization failure");
 
 	let mut buffer = Vec::new();
 	io::stdin().read_to_end(&mut buffer).expect("Failed to read initialisation payload");

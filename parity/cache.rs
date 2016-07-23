@@ -47,17 +47,12 @@ impl CacheConfig {
 
 	/// Size of rocksdb cache for blockchain.
 	pub fn rocksdb_blockchain_cache_size(&self) -> u32 {
-		self.rocksdb / 2
-	}
-
-	/// Size of rocksdb cache for traces.
-	pub fn rocksdb_tracing_cache_size(&self) -> u32 {
 		self.rocksdb / 4
 	}
 
 	/// Size of rocksdb cache for state.
 	pub fn rocksdb_state_cache_size(&self) -> u32 {
-		self.rocksdb / 4
+		self.rocksdb * 3 / 4
 	}
 }
 

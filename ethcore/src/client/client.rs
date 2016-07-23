@@ -141,12 +141,6 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1200;
-// DO NOT TOUCH THIS ANY MORE UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
-// Altering it will force a blanket DB update for *all* JournalDB-derived
-//   databases.
-// Instead, add/upgrade the version string of the individual JournalDB-derived database
-// of which you actually want force an upgrade.
-const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {

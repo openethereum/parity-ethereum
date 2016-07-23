@@ -19,7 +19,7 @@ use std::io::{Write, Read, BufReader, BufRead};
 use std::time::Duration;
 use std::path::Path;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, NetworkConfiguration, NonReservedPeerMode, H256};
+use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, H256};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::PendingSet;
@@ -165,7 +165,9 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 	}
 }
 
+#[test]
 pub fn default_network_config() -> NetworkConfiguration {
+	use util::{NetworkConfiguration, NonReservedPeerMode};
 	NetworkConfiguration {
 		config_path: Some(replace_home("$HOME/.parity/network")),
 		listen_address: Some("0.0.0.0:30303".parse().unwrap()),
@@ -194,7 +196,7 @@ pub fn to_client_config(
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
-	let mb= 1024 * 1024;
+	let mb = 1024 * 1024;
 	// in bytes
 	client_config.blockchain.max_cache_size = cache_config.blockchain as usize * mb;
 	// in bytes
