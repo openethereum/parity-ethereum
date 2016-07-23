@@ -297,6 +297,10 @@ impl BlockChain {
 		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
 			Some(best) => {
 				let mut new_best = H256::from_slice(&best);
+				if !bc.blocks_db.get(&new_best).unwrap().is_some() {
+					warn!("Best block {} not found", new_best.hex());
+				}
+				/* TODO: enable this once the best block issue is resolved
 				while !bc.blocks_db.get(&new_best).unwrap().is_some() {
 					match bc.rewind() {
 						Some(h) => {
@@ -308,7 +312,7 @@ impl BlockChain {
 						}
 					}
 					info!("Restored mismatched best block. Was: {}, new: {}", H256::from_slice(&best).hex(), new_best.hex());
-				}
+				}*/
 				new_best
 			}
 			None => {
