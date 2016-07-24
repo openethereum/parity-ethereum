@@ -20,6 +20,7 @@ use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
 use std::collections::BTreeMap;
 //use util::H256;
+use util::rlp::{UntrustedRlp, View};
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
@@ -142,6 +143,42 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 					return Ok(Value::Object(ret))
 				}
 				Ok(Value::Null)
+			})
+	}
+
+	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		trace!(target: "jsonrpc", "call: {:?}", params);
+		from_params::<(Bytes, _)>(params)
+			.and_then(|(raw_transaction, flags)| {
+				let raw_transaction = raw_transaction.to_vec();
+				let flags: Vec<String> = flags;
+				let analytics = CallAnalytics {
+					transaction_tracing: flags.contains(&("trace".to_owned())),
+					vm_tracing: flags.contains(&("vmTrace".to_owned())),
+					state_diffing: flags.contains(&("stateDiff".to_owned())),
+				};
+				match UntrustedRlp::new(&raw_transaction).as_val() {
+					Ok(signed) => {
+						let r = take_weak!(self.client).call(&signed, analytics);
+						if let Ok(executed) = r {
+							// TODO maybe add other stuff to this?
+							let mut ret = map!["output".to_owned() => to_value(&Bytes(executed.output)).unwrap()];
+							if let Some(trace) = executed.trace {
+								ret.insert("trace".to_owned(), to_value(&Trace::from(trace)).unwrap());
+							}
+							if let Some(vm_trace) = executed.vm_trace {
+								ret.insert("vmTrace".to_owned(), to_value(&VMTrace::from(vm_trace)).unwrap());
+							}
+							if let Some(state_diff) = executed.state_diff {
+								ret.insert("stateDiff".to_owned(), to_value(&StateDiff::from(state_diff)).unwrap());
+							}
+							return Ok(Value::Object(ret))
+						}
+						Ok(Value::Null)
+					}
+					Err(_) => Err(Error::invalid_params()),
+				}
 			})
 	}
 }
