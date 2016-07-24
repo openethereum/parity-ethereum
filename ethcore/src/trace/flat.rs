@@ -74,6 +74,7 @@ impl Decodable for FlatTrace {
 pub struct FlatTransactionTraces(Vec<FlatTrace>);
 
 impl FlatTransactionTraces {
+	/// Returns bloom of all traces in the collection.
 	pub fn bloom(&self) -> LogBloom {
 		self.0.iter().fold(Default::default(), | bloom, trace | bloom | trace.bloom())
 	}
@@ -102,6 +103,7 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
 
 impl FlatBlockTraces {
+	/// Returns bloom of all traces in the block.
 	pub fn bloom(&self) -> LogBloom {
 		self.0.iter().fold(Default::default(), | bloom, tx_traces | bloom | tx_traces.bloom())
 	}
