@@ -259,6 +259,7 @@ Legacy Options:
                            --basic-tx-usd.
   --etherbase ADDRESS      Equivalent to --author ADDRESS.
   --extradata STRING       Equivalent to --extra-data STRING.
+  --cache MB               Equivalent to --cache-size MB.
 
 Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
@@ -312,6 +313,7 @@ pub struct Args {
 	pub flag_cache_size_blocks: u32,
 	pub flag_cache_size_queue: u32,
 	pub flag_cache_size: Option<u32>,
+	pub flag_cache: Option<u32>,
 
 	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
