@@ -243,9 +243,9 @@ mod tests {
 	fn test_pruning_parsing() {
 		assert_eq!(Pruning::Auto, "auto".parse().unwrap());
 		assert_eq!(Pruning::Specific(Algorithm::Archive), "archive".parse().unwrap());
-		assert_eq!(Pruning::Specific(Algorithm::EarlyMerge), "earlymerge".parse().unwrap());
-		assert_eq!(Pruning::Specific(Algorithm::OverlayRecent), "overlayrecent".parse().unwrap());
-		assert_eq!(Pruning::Specific(Algorithm::RefCounted), "refcounted".parse().unwrap());
+		assert_eq!(Pruning::Specific(Algorithm::EarlyMerge), "light".parse().unwrap());
+		assert_eq!(Pruning::Specific(Algorithm::OverlayRecent), "fast".parse().unwrap());
+		assert_eq!(Pruning::Specific(Algorithm::RefCounted), "basic".parse().unwrap());
 	}
 
 	#[test]
