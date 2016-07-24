@@ -78,7 +78,7 @@ impl CacheConfig {
 
 	/// Size of the blockchain cache.
 	pub fn blockchain(&self) -> u32 {
-		max(self.queue, MIN_BC_CACHE_MB)
+		max(self.blockchain, MIN_BC_CACHE_MB)
 	}
 }
 
@@ -90,8 +90,8 @@ mod tests {
 	fn test_cache_config_constructor() {
 		let config = CacheConfig::new_with_total_cache_size(200);
 		assert_eq!(config.db, 175);
-		assert_eq!(config.blockchain, 25);
-		assert_eq!(config.queue, 50);
+		assert_eq!(config.blockchain(), 25);
+		assert_eq!(config.queue(), 50);
 	}
 
 	#[test]
