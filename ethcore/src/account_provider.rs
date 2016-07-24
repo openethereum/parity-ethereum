@@ -130,6 +130,27 @@ pub struct AccountProvider {
 	sstore: Box<SecretStore>,
 }
 
+/// Collected account metadata
+#[derive(Clone, Debug, PartialEq)]
+pub struct AccountMeta {
+	/// The name of the account.
+	pub name: String,
+	/// The rest of the metadata of the account.
+	pub meta: String,
+	/// The 128-bit UUID of the account, if it has one (brain-wallets don't).
+	pub uuid: Option<String>,
+}
+
+impl Default for AccountMeta {
+	fn default() -> Self {
+		AccountMeta {
+			name: String::new(),
+			meta: "{}".to_owned(),
+			uuid: None,
+		}
+	}
+}
+
 impl AccountProvider {
 	/// Creates new account provider.
 	pub fn new(sstore: Box<SecretStore>) -> Self {
@@ -165,6 +186,39 @@ impl AccountProvider {
 	/// Returns addresses of all accounts.
 	pub fn accounts(&self) -> Vec<H160> {
 		self.sstore.accounts().into_iter().map(|a| H160(a.into())).collect()
+	}
+
+	/// Returns each account along with name and meta.
+	pub fn accounts_info(&self) -> Result<HashMap<H160, AccountMeta>, Error> {
+		let r: HashMap<H160, AccountMeta> = self.sstore.accounts()
+			.into_iter()
+			.map(|a| (H160(a.clone().into()), self.account_meta(a).unwrap_or(Default::default())))
+			.collect();
+		Ok(r)
+	}
+
+	/// Returns each account along with name and meta.
+	pub fn account_meta<A>(&self, account: A) -> Result<AccountMeta, Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		Ok(AccountMeta {
+			name: try!(self.sstore.name(&account)),
+			meta: try!(self.sstore.meta(&account)),
+			uuid: self.sstore.uuid(&account).ok().map(Into::into),	// allowed to not have a UUID
+		})
+	}
+
+	/// Returns each account along with name and meta.
+	pub fn set_account_name<A>(&self, account: A, name: String) -> Result<(), Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		try!(self.sstore.set_name(&account, name));
+		Ok(())
+	}
+
+	/// Returns each account along with name and meta.
+	pub fn set_account_meta<A>(&self, account: A, meta: String) -> Result<(), Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		try!(self.sstore.set_meta(&account, meta));
+		Ok(())
 	}
 
 	/// Helper method used for unlocking accounts.
