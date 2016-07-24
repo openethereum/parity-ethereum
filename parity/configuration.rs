@@ -201,7 +201,7 @@ impl Configuration {
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
-			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => ethereum::new_frontier_dogmatic(),
+			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => ethereum::new_classic(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
