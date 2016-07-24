@@ -117,7 +117,8 @@ pub fn to_price(s: &str) -> Result<f32, String> {
 /// Replaces `$HOME` str with home directory path.
 pub fn replace_home(arg: &str) -> String {
 	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
-	arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
+	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string()	)
 }
 
 /// Flush output buffer.
@@ -279,7 +280,7 @@ pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
 #[cfg(test)]
 mod tests {
 	use std::time::Duration;
-	use util::{U256, path};
+	use util::{U256};
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_price, geth_ipc_path, to_bootnodes};
