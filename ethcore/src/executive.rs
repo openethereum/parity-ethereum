@@ -259,38 +259,35 @@ impl<'a> Executive<'a> {
 			let trace_info = tracer.prepare_trace_call(&params);
 
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
-			match cost <= params.gas {
-				true => {
-					self.engine.execute_builtin(&params.code_address, data, &mut output);
-					self.state.clear_snapshot();
+			if cost <= params.gas {
+				self.engine.execute_builtin(&params.code_address, data, &mut output);
+				self.state.clear_snapshot();
 
-					// trace only top level calls to builtins to avoid DDoS attacks
-					if self.depth == 0 {
-						let mut trace_output = tracer.prepare_trace_output();
-						if let Some(mut out) = trace_output.as_mut() {
-							*out = output.to_owned();
-						}
-
-						tracer.trace_call(
-							trace_info,
-							cost,
-							trace_output,
-							self.depth,
-							vec![],
-							delegate_call
-						);
+				// trace only top level calls to builtins to avoid DDoS attacks
+				if self.depth == 0 {
+					let mut trace_output = tracer.prepare_trace_output();
+					if let Some(mut out) = trace_output.as_mut() {
+						*out = output.to_owned();
 					}
 
-					Ok(params.gas - cost)
-				},
-				// just drain the whole gas
-				false => {
-					self.state.revert_snapshot();
-
-					tracer.trace_failed_call(trace_info, self.depth, vec![], delegate_call);
-
-					Err(evm::Error::OutOfGas)
+					tracer.trace_call(
+						trace_info,
+						cost,
+						trace_output,
+						self.depth,
+						vec![],
+						delegate_call
+					);
 				}
+
+				Ok(params.gas - cost)
+			} else {
+				// just drain the whole gas
+				self.state.revert_snapshot();
+
+				tracer.trace_failed_call(trace_info, self.depth, vec![], delegate_call);
+
+				Err(evm::Error::OutOfGas)
 			}
 		} else {
 			let trace_info = tracer.prepare_trace_call(&params);
@@ -304,7 +301,7 @@ impl<'a> Executive<'a> {
 				let mut unconfirmed_substate = Substate::new();
 
 				// TODO: make ActionParams pass by ref then avoid copy altogether.
-				let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("scope is protected by params.code.is_some condition"));
+				let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("scope is conditional on params.code.is_some(); qed"));
 
 				let res = {
 					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
