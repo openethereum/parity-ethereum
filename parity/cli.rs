@@ -207,7 +207,7 @@ Footprint Options:
                            megabytes [default: 8].
   --cache-size-queue MB    Specify the maximum size of memory to use for block
                            queue [default: 50].
-  --cache-size MEGABYTES   Set total amount of discretionary memory to use for
+  --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
 

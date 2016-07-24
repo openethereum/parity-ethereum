@@ -66,9 +66,9 @@ impl FromStr for Algorithm {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
 			"archive" => Ok(Algorithm::Archive),
-			"earlymerge" => Ok(Algorithm::EarlyMerge),
-			"overlayrecent" => Ok(Algorithm::OverlayRecent),
-			"refcounted" => Ok(Algorithm::RefCounted),
+			"light" => Ok(Algorithm::EarlyMerge),
+			"fast" => Ok(Algorithm::OverlayRecent),
+			"basic" => Ok(Algorithm::RefCounted),
 			e => Err(format!("Invalid algorithm: {}", e)),
 		}
 	}
@@ -79,9 +79,9 @@ impl Algorithm {
 	pub fn as_str(&self) -> &'static str {
 		match *self {
 			Algorithm::Archive => "archive",
-			Algorithm::EarlyMerge => "earlymerge",
-			Algorithm::OverlayRecent => "overlayrecent",
-			Algorithm::RefCounted => "refcounted",
+			Algorithm::EarlyMerge => "light",
+			Algorithm::OverlayRecent => "fast",
+			Algorithm::RefCounted => "basic",
 		}
 	}
 
@@ -127,17 +127,17 @@ mod tests {
 	#[test]
 	fn test_journal_algorithm_parsing() {
 		assert_eq!(Algorithm::Archive, "archive".parse().unwrap());
-		assert_eq!(Algorithm::EarlyMerge, "earlymerge".parse().unwrap());
-		assert_eq!(Algorithm::OverlayRecent, "overlayrecent".parse().unwrap());
-		assert_eq!(Algorithm::RefCounted, "refcounted".parse().unwrap());
+		assert_eq!(Algorithm::EarlyMerge, "light".parse().unwrap());
+		assert_eq!(Algorithm::OverlayRecent, "fast".parse().unwrap());
+		assert_eq!(Algorithm::RefCounted, "basic".parse().unwrap());
 	}
 
 	#[test]
 	fn test_journal_algorithm_printing() {
 		assert_eq!(Algorithm::Archive.to_string(), "archive".to_owned());
-		assert_eq!(Algorithm::EarlyMerge.to_string(), "earlymerge".to_owned());
-		assert_eq!(Algorithm::OverlayRecent.to_string(), "overlayrecent".to_owned());
-		assert_eq!(Algorithm::RefCounted.to_string(), "refcounted".to_owned());
+		assert_eq!(Algorithm::EarlyMerge.to_string(), "light".to_owned());
+		assert_eq!(Algorithm::OverlayRecent.to_string(), "fast".to_owned());
+		assert_eq!(Algorithm::RefCounted.to_string(), "basic".to_owned());
 	}
 
 	#[test]
