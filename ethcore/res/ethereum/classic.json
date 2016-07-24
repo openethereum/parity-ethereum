@@ -1,5 +1,5 @@
 {
-	"name": "Frontier/Homestead",
+	"name": "Ethereum Classic",
 	"engine": {
 		"Ethash": {
 			"params": {
