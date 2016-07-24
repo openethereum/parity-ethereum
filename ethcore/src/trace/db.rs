@@ -40,7 +40,7 @@ enum TraceDBIndex {
 	BloomGroups = 1,
 }
 
-impl Key<BlockTraces> for H256 {
+impl Key<FlatBlockTraces> for H256 {
 	type Target = H264;
 
 	fn key(&self) -> H264 {
@@ -91,7 +91,7 @@ impl Key<blooms::BloomGroup> for TraceGroupPosition {
 /// Trace database.
 pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
-	traces: RwLock<HashMap<H256, BlockTraces>>,
+	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
 	// db
 	tracesdb: Database,
@@ -153,15 +153,13 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	}
 
 	/// Returns traces for block with hash.
-	fn traces(&self, block_hash: &H256) -> Option<BlockTraces> {
+	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
 		self.tracesdb.read_with_cache(&self.traces, block_hash)
 	}
 
 	/// Returns vector of transaction traces for given block.
 	fn transactions_traces(&self, block_hash: &H256) -> Option<Vec<FlatTransactionTraces>> {
-		self.traces(block_hash)
-			.map(FlatBlockTraces::from)
-			.map(Into::into)
+		self.traces(block_hash).map(Into::into)
 	}
 
 	fn matching_block_traces(
@@ -232,7 +230,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			batch.write_with_cache(traces.deref_mut(), request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+			batch.write_with_cache(traces.deref_mut(), request.block_hash, request.traces.into(), CacheUpdatePolicy::Overwrite);
 		}
 
 		// now let's rebuild the blooms
@@ -353,8 +351,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 					.expect("Expected to find block hash. Extras db is probably corrupted");
 				let traces = self.traces(&hash)
 					.expect("Expected to find a trace. Db is probably corrupted.");
-				let flat_block = FlatBlockTraces::from(traces);
-				self.matching_block_traces(filter, flat_block, hash, number)
+				self.matching_block_traces(filter, traces, hash, number)
 			})
 			.collect()
 	}
