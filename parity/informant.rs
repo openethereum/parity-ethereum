@@ -108,7 +108,7 @@ impl Informant {
 
 		info!(target: "import", "{}   {}   {}",
 			match importing {
-				true => format!("{} {}   {}   {}+{} Qed", 
+				true => format!("Syncing {} {}   {}   {}+{} Qed", 
 					paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 					paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 					{
@@ -156,18 +156,17 @@ impl Informant {
 impl ChainNotify for Informant {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, duration: u64) {
 		let mut last_import = self.last_import.lock();
-		if Instant::now() > *last_import + Duration::from_secs(1) {
-			let queue_info = self.client.queue_info();
-			let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
-				|| self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
-			if !importing {
-				if let Some(block) = enacted.last().and_then(|h| self.client.block(BlockID::Hash(h.clone()))) {
-					let view = BlockView::new(&block);
-					let header = view.header();
-					let tx_count = view.transactions_count();
-					let size = block.len();
-					let skipped = self.skipped.load(AtomicOrdering::Relaxed);
-					info!(target: "import", "Imported {} {} ({} txs, {} Mgas, {} ms, {} KiB){}",
+		let queue_info = self.client.queue_info();
+		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
+			|| self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
+		if Instant::now() > *last_import + Duration::from_secs(1) && !importing {
+			if let Some(block) = enacted.last().and_then(|h| self.client.block(BlockID::Hash(h.clone()))) {
+				let view = BlockView::new(&block);
+				let header = view.header();
+				let tx_count = view.transactions_count();
+				let size = block.len();
+				let skipped = self.skipped.load(AtomicOrdering::Relaxed);
+				info!(target: "import", "Imported {} {} ({} txs, {} Mgas, {} ms, {} KiB){}",
 					Colour::White.bold().paint(format!("#{}", header.number())),
 					Colour::White.bold().paint(format!("{}", header.hash())),
 					Colour::Yellow.bold().paint(format!("{}", tx_count)),
@@ -175,9 +174,8 @@ impl ChainNotify for Informant {
 					Colour::Purple.bold().paint(format!("{:.2}", duration as f32 / 1000000f32)),
 					Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
 					if skipped > 0 { format!(" + another {} block(s)", Colour::Red.bold().paint(format!("{}", skipped))) } else { String::new() }
-					);
-					*last_import = Instant::now();
-				}
+				);
+				*last_import = Instant::now();
 			}
 			self.skipped.store(0, AtomicOrdering::Relaxed);
 		} else {
