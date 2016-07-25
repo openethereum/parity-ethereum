@@ -56,7 +56,7 @@ impl Directories {
 	pub fn client_path(&self, genesis_hash: H256, fork_name: Option<&String>, pruning: Algorithm) -> PathBuf {
 		let mut dir = Path::new(&self.db).to_path_buf();
 		dir.push(format!("{:?}{}", H64::from(genesis_hash), fork_name.map(|f| format!("-{}", f)).unwrap_or_default()));
-		dir.push(format!("v{}-sec-{}", LEGACY_CLIENT_DB_VER_STR, pruning));
+		dir.push(format!("v{}-sec-{}", LEGACY_CLIENT_DB_VER_STR, pruning.as_internal_name_str()));
 		dir
 	}
 }
