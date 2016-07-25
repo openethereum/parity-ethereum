@@ -94,18 +94,19 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
+	let fork_name = spec.fork_name.clone();
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash);
+	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
 
 	// prepare client_path
-	let client_path = cmd.dirs.client_path(genesis_hash, algorithm);
+	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, algorithm));
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -150,6 +151,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		cmd.compaction,
 		cmd.vm_type,
 		cmd.name,
+		fork_name.as_ref(),
 	);
 
 	// load spec

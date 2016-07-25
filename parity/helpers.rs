@@ -194,6 +194,7 @@ pub fn to_client_config(
 		compaction: DatabaseCompactionProfile,
 		vm_type: VMType,
 		name: String,
+		fork_name: Option<&String>,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -211,14 +212,14 @@ pub fn to_client_config(
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
-	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash);
+	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash, fork_name);
 	client_config.db_compaction = compaction;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
 	client_config
 }
 
-pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorithm) -> Result<(), String> {
+pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, fork_name: Option<&String>, pruning: Algorithm) -> Result<(), String> {
 	match upgrade(Some(&dirs.db)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
@@ -229,7 +230,7 @@ pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, pruning: Algorit
 		_ => {},
 	}
 
-	let client_path = dirs.client_path(genesis_hash, pruning);
+	let client_path = dirs.client_path(genesis_hash, fork_name, pruning);
 	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
 }
 

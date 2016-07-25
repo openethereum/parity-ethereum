@@ -391,7 +391,6 @@ impl Configuration {
 		if self.args.flag_reserved_only {
 			ret.non_reserved_mode = ::util::network::NonReservedPeerMode::Deny;
 		}
-
 		Ok(ret)
 	}
 

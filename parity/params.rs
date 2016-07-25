@@ -28,6 +28,7 @@ pub enum SpecType {
 	Mainnet,
 	Testnet,
 	Olympic,
+	Classic,
 	Custom(String),
 }
 
@@ -43,6 +44,7 @@ impl FromStr for SpecType {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let spec = match s {
 			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
+			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
 			"morden" | "testnet" => SpecType::Testnet,
 			"olympic" => SpecType::Olympic,
 			other => SpecType::Custom(other.into()),
@@ -57,6 +59,7 @@ impl SpecType {
 			SpecType::Mainnet => Ok(ethereum::new_frontier()),
 			SpecType::Testnet => Ok(ethereum::new_morden()),
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
+			SpecType::Classic => Ok(ethereum::new_classic()),
 			SpecType::Custom(ref file) => Ok(Spec::load(&try!(contents(file).map_err(|_| "Could not load specification file."))))
 		}
 	}
@@ -86,21 +89,21 @@ impl FromStr for Pruning {
 }
 
 impl Pruning {
-	pub fn to_algorithm(&self, dirs: &Directories, genesis_hash: H256) -> Algorithm {
+	pub fn to_algorithm(&self, dirs: &Directories, genesis_hash: H256, fork_name: Option<&String>) -> Algorithm {
 		match *self {
 			Pruning::Specific(algo) => algo,
-			Pruning::Auto => Self::find_best_db(dirs, genesis_hash),
+			Pruning::Auto => Self::find_best_db(dirs, genesis_hash, fork_name),
 		}
 	}
 
-	fn find_best_db(dirs: &Directories, genesis_hash: H256) -> Algorithm {
+	fn find_best_db(dirs: &Directories, genesis_hash: H256, fork_name: Option<&String>) -> Algorithm {
 		let mut algo_types = Algorithm::all_types();
 
 		// if all dbs have the same latest era, the last element is the default one
 		algo_types.push(Algorithm::default());
 
 		algo_types.into_iter().max_by_key(|i| {
-			let mut client_path = dirs.client_path(genesis_hash, *i);
+			let mut client_path = dirs.client_path(genesis_hash, fork_name, *i);
 			client_path.push("state");
 			let db = journaldb::new(client_path.to_str().unwrap(), *i, DatabaseConfig::default());
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());

@@ -30,7 +30,7 @@ use blockchain::best_block::BestBlock;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
-use db::{Writable, Readable, CacheUpdatePolicy, Key};
+use db::{Writable, Readable, CacheUpdatePolicy};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -296,7 +296,7 @@ impl BlockChain {
 		// load best block
 		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
 			Some(best) => {
-				let mut new_best = H256::from_slice(&best);
+				let new_best = H256::from_slice(&best);
 				if !bc.blocks_db.get(&new_best).unwrap().is_some() {
 					warn!("Best block {} not found", new_best.hex());
 				}
@@ -358,7 +358,9 @@ impl BlockChain {
 	}
 
 	/// Rewind to a previous block
-	pub fn rewind(&self) -> Option<H256> {
+	#[cfg(test)]
+	fn rewind(&self) -> Option<H256> {
+		use db::Key;
 		let batch = DBTransaction::new();
 		// track back to the best block we have in the blocks database
 		if let Some(best_block_hash) = self.extras_db.get(b"best").unwrap() {

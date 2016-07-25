@@ -94,7 +94,7 @@ fn execute(command: Cmd) -> Result<String, String> {
 		Cmd::Account(account_cmd) => account::execute(account_cmd),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
-		Cmd::SignerToken(path) => signer::new_token(path)
+		Cmd::SignerToken(path) => signer::new_token(path),
 	}
 }
 

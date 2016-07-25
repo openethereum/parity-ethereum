@@ -120,16 +120,16 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash);
+	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
 
 	// prepare client_path
-	let client_path = cmd.dirs.client_path(genesis_hash, algorithm);
+	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, algorithm));
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.vm_type, "".into());
+	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.vm_type, "".into(), spec.fork_name.as_ref());
 
 	// build client
 	let service = try!(ClientService::start(
@@ -231,16 +231,16 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash);
+	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
 
 	// prepare client_path
-	let client_path = cmd.dirs.client_path(genesis_hash, algorithm);
+	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, algorithm));
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, VMType::default(), "".into());
+	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, VMType::default(), "".into(), spec.fork_name.as_ref());
 
 	let service = try!(ClientService::start(
 		client_config,

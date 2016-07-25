@@ -53,9 +53,9 @@ impl Directories {
 	}
 
 	/// Get the path for the databases given the root path and information on the databases.
-	pub fn client_path(&self, genesis_hash: H256, pruning: Algorithm) -> PathBuf {
+	pub fn client_path(&self, genesis_hash: H256, fork_name: Option<&String>, pruning: Algorithm) -> PathBuf {
 		let mut dir = Path::new(&self.db).to_path_buf();
-		dir.push(H64::from(genesis_hash).hex());
+		dir.push(format!("{:?}{}", H64::from(genesis_hash), fork_name.map(|f| format!("-{}", f)).unwrap_or_default()));
 		dir.push(format!("v{}-sec-{}", LEGACY_CLIENT_DB_VER_STR, pruning));
 		dir
 	}
