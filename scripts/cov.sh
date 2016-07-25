@@ -37,8 +37,8 @@ src/tests,\
 util/json-tests,\
 util/src/network/tests,\
 ethcore/src/evm/tests,\
-ethstore/tests\
-target/debug/build\
+ethstore/tests,\
+target/debug/build,\
 target/release/build\
 "
 
