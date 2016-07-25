@@ -61,7 +61,7 @@ impl Account {
 			nonce: pod.nonce,
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(pod.storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
-			code_hash: Some(pod.code.as_ref().map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); SHA3_EMPTY.clone() }, |c| c.sha3())),
+			code_hash: pod.code.as_ref().map(|c| c.sha3()),
 			code_cache: pod.code.as_ref().map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c.clone()),
 			filth: Filth::Dirty,
 		}
