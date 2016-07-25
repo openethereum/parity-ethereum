@@ -22,7 +22,7 @@ use ethcore_logger::{Config as LogConfig, setup_log};
 use util::network_settings::NetworkSettings;
 use util::{Colour, version, NetworkConfiguration, U256};
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType};
+use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -234,9 +234,12 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// start signer server
 	let signer_server = try!(signer::start(cmd.signer_conf, signer_deps));
 
+	let informant = Arc::new(Informant::new(service.client(), Some(sync_provider.clone()), Some(manage_network.clone()), cmd.logger_config.color));
+	let info_notify: Arc<ChainNotify> = informant.clone();
+	service.add_notify(info_notify);
 	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
-		info: Arc::new(Informant::new(client.clone(), Some(sync_provider.clone()), Some(manage_network.clone()), cmd.logger_config.color)),
+		info: informant,
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
 		accounts: account_provider.clone(),
