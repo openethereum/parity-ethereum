@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
+use std::path::{PathBuf};
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
 use crypto::Keccak256;
@@ -35,6 +36,7 @@ pub struct SafeAccount {
 	pub version: Version,
 	pub address: Address,
 	pub crypto: Crypto,
+	pub path: Option<PathBuf>,
 	pub name: String,
 	pub meta: String,
 }
@@ -42,9 +44,9 @@ pub struct SafeAccount {
 impl From<json::Crypto> for Crypto {
 	fn from(json: json::Crypto) -> Self {
 		Crypto {
-			cipher: From::from(json.cipher),
+			cipher: json.cipher.into(),
 			ciphertext: json.ciphertext.into(),
-			kdf: From::from(json.kdf),
+			kdf: json.kdf.into(),
 			mac: json.mac.into(),
 		}
 	}
@@ -54,9 +56,9 @@ impl Into<json::Crypto> for Crypto {
 	fn into(self) -> json::Crypto {
 		json::Crypto {
 			cipher: self.cipher.into(),
-			ciphertext: From::from(self.ciphertext),
+			ciphertext: self.ciphertext.into(),
 			kdf: self.kdf.into(),
-			mac: From::from(self.mac),
+			mac: self.mac.into(),
 		}
 	}
 }
@@ -65,9 +67,10 @@ impl From<json::KeyFile> for SafeAccount {
 	fn from(json: json::KeyFile) -> Self {
 		SafeAccount {
 			id: json.id.into(),
-			version: From::from(json.version),
-			address: From::from(json.address), //json.address.into(),
-			crypto: From::from(json.crypto),
+			version: json.version.into(),
+			address: json.address.into(),
+			crypto: json.crypto.into(),
+			path: None,
 			name: json.name.unwrap_or(String::new()),
 			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
@@ -151,8 +154,21 @@ impl SafeAccount {
 			version: Version::V3,
 			crypto: Crypto::create(keypair.secret(), password, iterations),
 			address: keypair.address(),
+			path: None,
 			name: name,
 			meta: meta,
+		}
+	}
+
+	pub fn from_file(json: json::KeyFile, path: PathBuf) -> Self {
+		SafeAccount {
+			id: json.id.into(),
+			version: json.version.into(),
+			address: json.address.into(),
+			crypto: json.crypto.into(),
+			path: Some(path),
+			name: json.name.unwrap_or(String::new()),
+			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
 	}
 
@@ -168,6 +184,7 @@ impl SafeAccount {
 			version: self.version.clone(),
 			crypto: Crypto::create(&secret, new_password, iterations),
 			address: self.address.clone(),
+			path: self.path.clone(),
 			name: self.name.clone(),
 			meta: self.meta.clone(),
 		};

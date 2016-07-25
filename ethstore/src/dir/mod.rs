@@ -28,7 +28,7 @@ pub enum DirectoryType {
 
 pub trait KeyDirectory: Send + Sync {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
-	fn insert(&self, account: SafeAccount) -> Result<(), Error>;
+	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
 	fn remove(&self, address: &Address) -> Result<(), Error>;
 }
 

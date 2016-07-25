@@ -49,7 +49,7 @@ impl EthStore {
 
 	fn save(&self, account: SafeAccount) -> Result<(), Error> {
 		// save to file
-		try!(self.dir.insert(account.clone()));
+		let account = try!(self.dir.insert(account.clone()));
 
 		// update cache
 		let mut cache = self.cache.write().unwrap();
