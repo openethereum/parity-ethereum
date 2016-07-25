@@ -151,7 +151,7 @@ const CLIENT_DB_VER_STR: &'static str = "5.3";
 /// Get the path for the databases given the root path and information on the databases.
 pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256, fork_name: Option<&String>) -> PathBuf {
 	let mut dir = path.to_path_buf();
-	dir.push(format!("{:?}{}", H64::from(genesis_hash), if let Some(n) = fork_name { format!("-{}", n) } else { "".into() }));
+	dir.push(format!("{:?}{}", H64::from(genesis_hash), fork_name.map(|f| format!("-{}", f)).unwrap_or_default()));
 	//TODO: sec/fat: pruned/full versioning
 	// version here is a bit useless now, since it's controlled only be the pruning algo.
 	dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, pruning));
