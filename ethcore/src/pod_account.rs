@@ -137,8 +137,8 @@ pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 			let r = AccountDiff {
 				balance: Diff::new(pre.balance, post.balance),
 				nonce: Diff::new(pre.nonce, post.nonce),
-				code: match (pre.code.clone(), post.code.clone()) {
-					(Some(pre_code), Some(post_code)) => Diff::new(pre_code, post_code),
+				code: match (pre.code, post.code) {
+					(Some(ref pre_code), Some(ref post_code)) => Diff::new(pre_code.clone(), post_code.clone()),
 					_ => Diff::Same,
 				},
 				storage: storage.into_iter().map(|k|
