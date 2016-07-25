@@ -371,10 +371,9 @@ impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 
 			index = index + next_size;
 			if index == buffer.len() { break; }
-			if index > buffer.len() {
+			if index + next_size > buffer.len() {
 				return Err(BinaryConvertError::boundaries())
 			}
-
 		}
 
 		Ok(result)
@@ -520,7 +519,10 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryError>
 			let fixed_size = mem::size_of::<T>();
 			let mut payload_buffer = Vec::with_capacity(fixed_size);
 			unsafe { payload_buffer.set_len(fixed_size); }
-			try!(r.read(&mut payload_buffer));
+			let bytes_read = try!(r.read(&mut payload_buffer));
+			if bytes_read != mem::size_of::<T>() {
+				return Err(BinaryError::Serialization(BinaryConvertError::size(fixed_size, bytes_read)))
+			}
 			Ok(try!(T::from_bytes(&payload_buffer[..], &mut fake_stack)))
 		},
 		_ => {
@@ -965,6 +967,29 @@ fn serialize_btree() {
 }
 
 #[test]
+fn serialize_refcell() {
+	use std::cell::RefCell;
+
+	let source = RefCell::new(vec![5u32, 12u32, 19u32]);
+	let serialized = serialize(&source).unwrap();
+	let deserialized = deserialize::<RefCell<Vec<u32>>>(&serialized).unwrap();
+
+	assert_eq!(source, deserialized);
+}
+
+#[test]
+fn serialize_cell() {
+	use std::cell::Cell;
+	use std::str::FromStr;
+
+	let source = Cell::new(U256::from_str("01231231231239999").unwrap());
+	let serialized = serialize(&source).unwrap();
+	let deserialized = deserialize::<Cell<U256>>(&serialized).unwrap();
+
+	assert_eq!(source, deserialized);
+}
+
+#[test]
 fn serialize_handshake() {
 	use std::io::{Cursor, SeekFrom, Seek};
 
@@ -981,5 +1006,80 @@ fn serialize_handshake() {
 	let res = deserialize_from::<BinHandshake, _>(&mut buff).unwrap().to_semver();
 
 	assert_eq!(res, handshake);
+}
 
+#[test]
+fn serialize_invalid_size() {
+	// value
+	let deserialized = deserialize::<u64>(&[]);
+	match deserialized {
+		Err(BinaryError::Serialization(
+			BinaryConvertError {
+				kind: BinaryConvertErrorKind::SizeMismatch { expected: 8, found: 0 },
+				member_tree: _
+			})) => {},
+		other => panic!("Not a size mismatched error but:  {:?}", other),
+	}
+}
+
+#[test]
+fn serialize_boundaries() {
+	// value
+	let deserialized = deserialize::<Vec<u32>>(
+		&[
+			// payload header
+			0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+			2u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+			//
+			0u8, 0u8, 0u8, 5u8,
+			0u8, 0u8, 0u8, 4u8,
+			1u8, 1u8, /* not 4 bytes */
+		]
+	);
+	match deserialized {
+		Err(BinaryError::Serialization(
+			BinaryConvertError {
+				kind: BinaryConvertErrorKind::InconsistentBoundaries,
+				member_tree: _
+			})) => {},
+		other => panic!("Not an inconsistent boundaries error but: {:?}", other),
+	}
+}
+
+#[test]
+fn serialize_empty_try() {
+	// value
+	let mut stack = VecDeque::new();
+	let mut data = vec![0u8; 16];
+	let sample: Option<Vec<u8>> = None;
+	let serialized = sample.to_bytes(&mut data, &mut stack);
+	match serialized {
+		Err(BinaryConvertError {
+				kind: BinaryConvertErrorKind::TargetPayloadEmpty,
+				member_tree: _
+			}) => {},
+		other => panic!("Not an error about empty payload to be produced but: {:?}", other),
+	}
+}
+
+#[test]
+fn serialize_not_enough_lengths() {
+	// value
+	let deserialized = deserialize::<Vec<Option<u32>>>(
+		&[
+			// payload header
+			0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+			2u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+			// does not matter because no length param for the first option
+			0u8,
+		]
+	);
+	match deserialized {
+		Err(BinaryError::Serialization(
+			BinaryConvertError {
+				kind: BinaryConvertErrorKind::MissingLengthValue,
+				member_tree: _
+			})) => {},
+		other => panic!("Not an missing length param error but: {:?}", other),
+	}
 }
