@@ -16,7 +16,8 @@
 
 //! Ethcore crypto.
 
-use numbers::*;
+use bigint::uint::*;
+use bigint::hash::*;
 use bytes::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
@@ -174,7 +175,8 @@ impl KeyPair {
 /// EC functions
 #[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ec {
-	use numbers::*;
+	use bigint::hash::*;
+	use bigint::uint::*;
 	use standard::*;
 	use crypto::*;
 	use crypto::{self};

@@ -126,9 +126,7 @@ pub mod standard;
 pub mod from_json;
 #[macro_use]
 pub mod common;
-pub mod numbers;
 pub mod error;
-pub mod hash;
 pub mod bytes;
 pub mod rlp;
 pub mod misc;
@@ -140,7 +138,6 @@ pub mod migration;
 pub mod overlaydb;
 pub mod journaldb;
 pub mod kvdb;
-mod math;
 pub mod crypto;
 pub mod triehash;
 pub mod trie;
@@ -164,7 +161,6 @@ pub use hashdb::*;
 pub use memorydb::*;
 pub use overlaydb::*;
 pub use journaldb::JournalDB;
-pub use math::*;
 pub use crypto::*;
 pub use triehash::*;
 pub use trie::*;
@@ -178,7 +174,6 @@ pub use timer::*;
 
 #[cfg(test)]
 mod tests {
-	use super::numbers::*;
 	use std::str::FromStr;
 
 	#[test]
