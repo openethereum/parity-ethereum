@@ -514,6 +514,13 @@ impl BlockChain {
 
 		let info = self.block_info(bytes);
 
+		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
+			info!(target: "reorg", "{} Using {} (#{})", Colour::Yellow.bold().paint("Switching fork to a new branch."), info.hash, info.number);
+			info!(target: "reorg", "{}{}", Colour::Red.bold().paint("Retracting"), d.retracted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h)));
+			info!(target: "reorg", "{} {} (#{})", Colour::Blue.bold().paint("Leaving"), d.ancestor, self.block_details(&d.ancestor).expect("`ancestor` is in the route; qed").number);
+			info!(target: "reorg", "{}{}", Colour::Green.bold().paint("Enacting"), d.enacted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h)));
+		}
+
 		self.apply_update(ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
 			block_details: self.prepare_block_details_update(bytes, &info),
@@ -524,6 +531,48 @@ impl BlockChain {
 		});
 
 		ImportRoute::from(info)
+	}
+
+	/// Get inserted block info which is critical to prepare extras updates.
+	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
+		let block = BlockView::new(block_bytes);
+		let header = block.header_view();
+		let hash = block.sha3();
+		let number = header.number();
+		let parent_hash = header.parent_hash();
+		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+		let total_difficulty = parent_details.total_difficulty + header.difficulty();
+		let is_new_best = total_difficulty > self.best_block_total_difficulty();
+
+		BlockInfo {
+			hash: hash,
+			number: number,
+			total_difficulty: total_difficulty,
+			location: if is_new_best {
+				// on new best block we need to make sure that all ancestors
+				// are moved to "canon chain"
+				// find the route between old best block and the new one
+				let best_hash = self.best_block_hash();
+				let route = self.tree_route(best_hash, parent_hash);
+
+				assert_eq!(number, parent_details.number + 1);
+
+				match route.blocks.len() {
+					0 => BlockLocation::CanonChain,
+					_ => {
+						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<_>>().into_iter().collect::<Vec<_>>();
+						let enacted = route.blocks.into_iter().skip(route.index).collect::<Vec<_>>();
+						BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
+							ancestor: route.ancestor,
+							enacted: enacted,
+							retracted: retracted,
+						})
+					}
+				}
+			} else {
+				BlockLocation::Branch
+			}
+		}
 	}
 
 	/// Applies extras update.
@@ -611,48 +660,6 @@ impl BlockChain {
 			);
 		}
 		Some(ret)
-	}
-
-	/// Get inserted block info which is critical to prepare extras updates.
-	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
-		let block = BlockView::new(block_bytes);
-		let header = block.header_view();
-		let hash = block.sha3();
-		let number = header.number();
-		let parent_hash = header.parent_hash();
-		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
-		let total_difficulty = parent_details.total_difficulty + header.difficulty();
-		let is_new_best = total_difficulty > self.best_block_total_difficulty();
-
-		BlockInfo {
-			hash: hash,
-			number: number,
-			total_difficulty: total_difficulty,
-			location: if is_new_best {
-				// on new best block we need to make sure that all ancestors
-				// are moved to "canon chain"
-				// find the route between old best block and the new one
-				let best_hash = self.best_block_hash();
-				let route = self.tree_route(best_hash, parent_hash);
-
-				assert_eq!(number, parent_details.number + 1);
-
-				match route.blocks.len() {
-					0 => BlockLocation::CanonChain,
-					_ => {
-						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<H256>>();
-
-						BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
-							ancestor: route.ancestor,
-							enacted: route.blocks.into_iter().skip(route.index).collect(),
-							retracted: retracted.into_iter().rev().collect(),
-						})
-					}
-				}
-			} else {
-				BlockLocation::Branch
-			}
-		}
 	}
 
 	/// This function returns modified block hashes.
