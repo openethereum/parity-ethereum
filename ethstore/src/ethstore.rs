@@ -23,6 +23,7 @@ use ethkey::{Signature, Address, Message, Secret};
 use dir::KeyDirectory;
 use account::SafeAccount;
 use {Error, SecretStore};
+use json::UUID;
 
 pub struct EthStore {
 	dir: Box<KeyDirectory>,
@@ -61,7 +62,7 @@ impl SecretStore for EthStore {
 	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
 		let keypair = try!(KeyPair::from_secret(secret).map_err(|_| Error::CreationFailed));
 		let id: [u8; 16] = Random::random();
-		let account = SafeAccount::create(&keypair, id, password, self.iterations);
+		let account = SafeAccount::create(&keypair, id, password, self.iterations, UUID::from(id).into(), "{}".to_owned());
 		let address = account.address.clone();
 		try!(self.save(account));
 		Ok(address)
@@ -104,5 +105,47 @@ impl SecretStore for EthStore {
 		let cache = self.cache.read().unwrap();
 		let account = try!(cache.get(account).ok_or(Error::InvalidAccount));
 		account.sign(password, message)
+	}
+
+	fn uuid(&self, addr: &Address) -> Result<UUID, Error> {
+		let cache = self.cache.read().unwrap();
+		let account = try!(cache.get(addr).ok_or(Error::InvalidAccount));
+		Ok(account.id.into())
+	}
+
+	fn name(&self, addr: &Address) -> Result<String, Error> {
+		let cache = self.cache.read().unwrap();
+		let account = try!(cache.get(addr).ok_or(Error::InvalidAccount));
+		Ok(account.name.clone())
+	}
+
+	fn meta(&self, addr: &Address) -> Result<String, Error> {
+		let cache = self.cache.read().unwrap();
+		let account = try!(cache.get(addr).ok_or(Error::InvalidAccount));
+		Ok(account.meta.clone())
+	}
+
+	fn set_name(&self, addr: &Address, name: String) -> Result<(), Error> {
+		let account = {
+			let cache = self.cache.read().unwrap();
+			let mut account = try!(cache.get(addr).ok_or(Error::InvalidAccount)).clone();
+			account.name = name;
+			account
+		};
+		
+		// save to file
+		self.save(account)
+	}
+
+	fn set_meta(&self, addr: &Address, meta: String) -> Result<(), Error> {
+		let account = {
+			let cache = self.cache.read().unwrap();
+			let mut account = try!(cache.get(addr).ok_or(Error::InvalidAccount)).clone();
+			account.meta = meta;
+			account
+		};
+		
+		// save to file
+		self.save(account)
 	}
 }

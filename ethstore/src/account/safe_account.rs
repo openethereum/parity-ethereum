@@ -35,6 +35,8 @@ pub struct SafeAccount {
 	pub version: Version,
 	pub address: Address,
 	pub crypto: Crypto,
+	pub name: String,
+	pub meta: String,
 }
 
 impl From<json::Crypto> for Crypto {
@@ -66,6 +68,8 @@ impl From<json::KeyFile> for SafeAccount {
 			version: From::from(json.version),
 			address: From::from(json.address), //json.address.into(),
 			crypto: From::from(json.crypto),
+			name: json.name.unwrap_or(String::new()),
+			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
 	}
 }
@@ -77,6 +81,8 @@ impl Into<json::KeyFile> for SafeAccount {
 			version: self.version.into(),
 			address: self.address.into(), //From::from(self.address),
 			crypto: self.crypto.into(),
+			name: Some(self.name.into()),
+			meta: Some(self.meta.into()),
 		}
 	}
 }
@@ -138,12 +144,15 @@ impl Crypto {
 }
 
 impl SafeAccount {
-	pub fn create(keypair: &KeyPair, id: [u8; 16], password: &str, iterations: u32) -> Self {
+	// DEPRECATED. use `create_with_name` instead
+	pub fn create(keypair: &KeyPair, id: [u8; 16], password: &str, iterations: u32, name: String, meta: String) -> Self {
 		SafeAccount {
 			id: id,
 			version: Version::V3,
 			crypto: Crypto::create(keypair.secret(), password, iterations),
 			address: keypair.address(),
+			name: name,
+			meta: meta,
 		}
 	}
 
@@ -159,6 +168,8 @@ impl SafeAccount {
 			version: self.version.clone(),
 			crypto: Crypto::create(&secret, new_password, iterations),
 			address: self.address.clone(),
+			name: self.name.clone(),
+			meta: self.meta.clone(),
 		};
 		Ok(result)
 	}
@@ -194,7 +205,7 @@ mod tests {
 		let keypair = Random.generate().unwrap();
 		let password = "hello world";
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], password, 10240);
+		let account = SafeAccount::create(&keypair, [0u8; 16], password, 10240, "Test".to_owned(), "{}".to_owned());
 		let signature = account.sign(password, &message).unwrap();
 		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
 	}
@@ -206,7 +217,7 @@ mod tests {
 		let sec_password = "this is sparta";
 		let i = 10240;
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], first_password, i);
+		let account = SafeAccount::create(&keypair, [0u8; 16], first_password, i, "Test".to_owned(), "{}".to_owned());
 		let new_account = account.change_password(first_password, sec_password, i).unwrap();
 		assert!(account.sign(first_password, &message).is_ok());
 		assert!(account.sign(sec_password, &message).is_err());

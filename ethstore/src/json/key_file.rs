@@ -26,6 +26,8 @@ pub struct KeyFile {
 	pub version: Version,
 	pub crypto: Crypto,
 	pub address: H160,
+	pub name: Option<String>,
+	pub meta: Option<String>,
 }
 
 enum KeyFileField {
@@ -33,6 +35,8 @@ enum KeyFileField {
 	Version,
 	Crypto,
 	Address,
+	Name,
+	Meta,
 }
 
 impl Deserialize for KeyFileField {
@@ -57,6 +61,8 @@ impl Visitor for KeyFileFieldVisitor {
 			"crypto" => Ok(KeyFileField::Crypto),
 			"Crypto" => Ok(KeyFileField::Crypto),
 			"address" => Ok(KeyFileField::Address),
+			"name" => Ok(KeyFileField::Name),
+			"meta" => Ok(KeyFileField::Meta),
 			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
 		}
 	}
@@ -83,6 +89,8 @@ impl Visitor for KeyFileVisitor {
 		let mut version = None;
 		let mut crypto = None;
 		let mut address = None;
+		let mut name = None;
+		let mut meta = None;
 
 		loop {
 			match try!(visitor.visit_key()) {
@@ -90,6 +98,8 @@ impl Visitor for KeyFileVisitor {
 				Some(KeyFileField::Version) => { version = Some(try!(visitor.visit_value())); }
 				Some(KeyFileField::Crypto) => { crypto = Some(try!(visitor.visit_value())); }
 				Some(KeyFileField::Address) => { address = Some(try!(visitor.visit_value())); }
+				Some(KeyFileField::Name) => { name = visitor.visit_value().ok(); }	// ignore anyhing that is not a string to be permissive. 
+				Some(KeyFileField::Meta) => { meta = visitor.visit_value().ok(); }	// ignore anyhing that is not a string to be permissive.
 				None => { break; }
 			}
 		}
@@ -121,6 +131,8 @@ impl Visitor for KeyFileVisitor {
 			version: version,
 			crypto: crypto,
 			address: address,
+			name: name,
+			meta: meta,
 		};
 
 		Ok(result)
@@ -165,7 +177,9 @@ mod tests {
 				"mac": "46325c5d4e8c991ad2683d525c7854da387138b6ca45068985aa4959fa2b8c8f"
 			},
 			"id": "8777d9f6-7860-4b9b-88b7-0b57ee6b3a73",
-			"version": 3
+			"version": 3,
+			"name": "Test",
+			"meta": "{}"
 		}"#;
 
 		let expected = KeyFile {
@@ -186,6 +200,8 @@ mod tests {
 				}),
 				mac: H256::from_str("46325c5d4e8c991ad2683d525c7854da387138b6ca45068985aa4959fa2b8c8f").unwrap(),
 			},
+			name: Some("Test".to_owned()),
+			meta: Some("{}".to_owned()),
 		};
 
 		let keyfile: KeyFile = serde_json::from_str(json).unwrap();
@@ -235,6 +251,8 @@ mod tests {
 				}),
 				mac: H256::from_str("46325c5d4e8c991ad2683d525c7854da387138b6ca45068985aa4959fa2b8c8f").unwrap(),
 			},
+			name: None,
+			meta: None,
 		};
 
 		let keyfile: KeyFile = serde_json::from_str(json).unwrap();
@@ -261,9 +279,12 @@ mod tests {
 				}),
 				mac: H256::from_str("46325c5d4e8c991ad2683d525c7854da387138b6ca45068985aa4959fa2b8c8f").unwrap(),
 			},
+			name: Some("Test".to_owned()),
+			meta: None,
 		};
 
 		let serialized = serde_json::to_string(&file).unwrap();
+		println!("{}", serialized);
 		let deserialized = serde_json::from_str(&serialized).unwrap();
 
 		assert_eq!(file, deserialized);

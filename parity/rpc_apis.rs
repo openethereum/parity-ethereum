@@ -136,7 +136,7 @@ impl ApiSet {
 					.into_iter().collect()
 			},
 			_ => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::Traces, Api::Rpc]
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
 					.into_iter().collect()
 			},
 		}
