@@ -329,7 +329,9 @@ impl BlockChain {
 					children: vec![]
 				};
 
-				bc.blocks_db.put(&hash, genesis).unwrap();
+				let block_batch = DBTransaction::new();
+				block_batch.put(&hash, genesis).unwrap();
+				bc.blocks_db.write(block_batch).expect("Low level database error. Some issue with disk?");
 
 				let batch = DBTransaction::new();
 				batch.write(&hash, &details);
