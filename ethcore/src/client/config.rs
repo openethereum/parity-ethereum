@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::str::FromStr;
 pub use std::time::Duration;
 pub use block_queue::BlockQueueConfig;
 pub use blockchain::Config as BlockChainConfig;
@@ -33,7 +34,21 @@ pub enum DatabaseCompactionProfile {
 }
 
 impl Default for DatabaseCompactionProfile {
-	fn default() -> Self { DatabaseCompactionProfile::Default }
+	fn default() -> Self {
+		DatabaseCompactionProfile::Default
+	}
+}
+
+impl FromStr for DatabaseCompactionProfile {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"ssd" | "default" => Ok(DatabaseCompactionProfile::Default),
+			"hdd" => Ok(DatabaseCompactionProfile::HDD),
+			_ => Err(format!("Invalid compaction profile given. Expected hdd/ssd (default).")),
+		}
+	}
 }
 
 /// Operating mode for the client.
@@ -50,11 +65,13 @@ pub enum Mode {
 }
 
 impl Default for Mode {
-	fn default() -> Self { Mode::Active }
+	fn default() -> Self {
+		Mode::Active
+	}
 }
 
 /// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct ClientConfig {
 	/// Block queue configuration.
 	pub queue: BlockQueueConfig,
@@ -78,4 +95,26 @@ pub struct ClientConfig {
 	pub mode: Mode,
 	/// Type of block verifier used by client.
 	pub verifier_type: VerifierType,
+}
+
+#[cfg(test)]
+mod test {
+	use super::{DatabaseCompactionProfile, Mode};
+
+	#[test]
+	fn test_default_compaction_profile() {
+		assert_eq!(DatabaseCompactionProfile::default(), DatabaseCompactionProfile::Default);
+	}
+
+	#[test]
+	fn test_parsing_compaction_profile() {
+		assert_eq!(DatabaseCompactionProfile::Default, "ssd".parse().unwrap());
+		assert_eq!(DatabaseCompactionProfile::Default, "default".parse().unwrap());
+		assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
+	}
+
+	#[test]
+	fn test_mode_default() {
+		assert_eq!(Mode::default(), Mode::Active);
+	}
 }

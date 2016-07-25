@@ -23,8 +23,7 @@ use ethsync::{SyncConfig, NetworkConfiguration};
 use self::no_ipc_deps::*;
 #[cfg(feature="ipc")]
 use self::ipc_deps::*;
-
-use ethcore_logger::Settings as LogSettings;
+use ethcore_logger::Config as LogConfig;
 
 pub mod service_urls {
 	pub const CLIENT: &'static str = "ipc:///tmp/parity-chain.ipc";
@@ -59,7 +58,6 @@ mod ipc_deps {
 	pub use ipc::binary::serialize;
 }
 
-
 #[cfg(feature="ipc")]
 pub fn hypervisor() -> Option<Hypervisor> {
 	Some(Hypervisor::new())
@@ -71,7 +69,7 @@ pub fn hypervisor() -> Option<Hypervisor> {
 }
 
 #[cfg(feature="ipc")]
-fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration, log_settings: &LogSettings) -> BootArgs {
+fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration, log_settings: &LogConfig) -> BootArgs {
 	let service_config = ServiceConfiguration {
 		sync: sync_cfg,
 		net: net_cfg,
@@ -84,9 +82,9 @@ fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration, log_setti
 	let mut cli_args = Vec::new();
 	cli_args.push("sync".to_owned());
 	if !log_settings.color { cli_args.push("--no-color".to_owned()); }
-	if let Some(ref init) = log_settings.init {
+	if let Some(ref mode) = log_settings.mode {
 		cli_args.push("-l".to_owned());
-		cli_args.push(init.to_owned());
+		cli_args.push(mode.to_owned());
 	}
 	if let Some(ref file) = log_settings.file {
 		cli_args.push("--log-file".to_owned());
@@ -103,7 +101,7 @@ pub fn sync
 		sync_cfg: SyncConfig,
 		net_cfg: NetworkConfiguration,
 		_client: Arc<BlockChainClient>,
-		log_settings: &LogSettings,
+		log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, ethcore::error::Error>
 {
@@ -128,7 +126,7 @@ pub fn sync
 		sync_cfg: SyncConfig,
 		net_cfg: NetworkConfiguration,
 		client: Arc<BlockChainClient>,
-		_log_settings: &LogSettings,
+		_log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, ethcore::error::Error>
 {
