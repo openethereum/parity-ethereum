@@ -85,6 +85,16 @@ impl Algorithm {
 		}
 	}
 
+	/// Returns static str describing journal database algorithm.
+	pub fn as_internal_name_str(&self) -> &'static str {
+		match *self {
+			Algorithm::Archive => "archive",
+			Algorithm::EarlyMerge => "earlymerge",
+			Algorithm::OverlayRecent => "overlayrecent",
+			Algorithm::RefCounted => "refcounted",
+		}
+	}
+
 	/// Returns true if pruning strategy is stable
 	pub fn is_stable(&self) -> bool {
 		match *self {
