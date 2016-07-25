@@ -33,6 +33,7 @@ pub enum BinaryConvertErrorKind {
 	UnexpectedVariant(u8),
 	MissingLengthValue,
 	InconsistentBoundaries,
+	NotSupported,
 }
 
 #[derive(Debug)]
@@ -42,7 +43,7 @@ pub struct BinaryConvertError {
 }
 
 impl BinaryConvertError {
-	fn size(expected: usize, found: usize) -> BinaryConvertError {
+	pub fn size(expected: usize, found: usize) -> BinaryConvertError {
 		BinaryConvertError {
 			member_tree: Vec::new(),
 			kind: BinaryConvertErrorKind::SizeMismatch {
@@ -52,23 +53,27 @@ impl BinaryConvertError {
 		}
 	}
 
-	fn empty() -> BinaryConvertError {
+	pub fn empty() -> BinaryConvertError {
 		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::TargetPayloadEmpty }
 	}
 
-	fn variant(val: u8) -> BinaryConvertError {
+	pub fn variant(val: u8) -> BinaryConvertError {
 		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::UnexpectedVariant(val) }
 	}
 
-	fn length() -> BinaryConvertError {
+	pub fn length() -> BinaryConvertError {
 		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::MissingLengthValue }
 	}
 
-	fn boundaries() -> BinaryConvertError {
+	pub fn boundaries() -> BinaryConvertError {
 		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::InconsistentBoundaries }
 	}
 
-	fn named(mut self, name: &'static str) -> BinaryConvertError {
+	pub fn not_supported() -> BinaryConvertError {
+		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::NotSupported }
+	}
+
+	pub fn named(mut self, name: &'static str) -> BinaryConvertError {
 		self.member_tree.push(name);
 		self
 	}

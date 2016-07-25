@@ -320,7 +320,7 @@ fn binary_expr_struct(
 	let read_expr = match fields.iter().any(|f| codegen::has_ptr(&f.ty)) {
 		true => {
 			// cannot create structs with pointers
-			quote_expr!(cx, Err(::ipc::binary::BinaryConvertError))
+			quote_expr!(cx, Err(::ipc::binary::BinaryConvertError::not_supported()))
 		},
 		false => {
 			if value_ident.is_some() {
@@ -412,7 +412,7 @@ fn binary_expr_enum(
 		arms.iter().map(|x| x.write.clone()).collect::<Vec<ast::Arm>>(),
 		arms.iter().map(|x| x.read.clone()).collect::<Vec<ast::Arm>>());
 
-	read_arms.push(quote_arm!(cx, _ => { Err(BinaryConvertError) } ));
+	read_arms.push(quote_arm!(cx, _ => { Err(BinaryConvertError::variant(buffer[0])) } ));
 
 	Ok(BinaryExpressions {
 		size: quote_expr!(cx, 1usize + match *self { $size_arms }),
@@ -530,9 +530,29 @@ fn fields_sequence(
 
 				tt.push(Token(_sp, token::Comma));
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("length_stack"))));
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+
+				// name member if it has resulted in the error
+				tt.push(Token(_sp, token::Dot));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map_err"))));
+
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+				tt.push(Token(_sp, token::BinOp(token::Or)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("e"))));
+				tt.push(Token(_sp, token::BinOp(token::Or)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("e"))));
+				tt.push(Token(_sp, token::Dot));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("named"))));
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+				tt.push(Token(_sp, token::Literal(token::Lit::Str_(
+					field.ident.unwrap_or(ext_cx.ident_of(&format!("f{}", idx))).name),
+					None))
+				);
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
-				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+
 				tt.push(Token(_sp, token::Comma));
 			}
 			if named_members {
@@ -573,7 +593,7 @@ fn named_fields_sequence(
 			tt.push(Token(_sp, token::OpenDelim(token::Brace)));
 
 			for (idx, field) in fields.iter().enumerate() {
-				tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap())));
+				tt.push(Token(_sp, token::Ident(field.ident.clone().expect("function is called for named fields"))));
 				tt.push(Token(_sp, token::Colon));
 
 				// special case for u8, it just takes byte form sequence
@@ -646,9 +666,26 @@ fn named_fields_sequence(
 
 				tt.push(Token(_sp, token::Comma));
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("length_stack"))));
-
-
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+
+				// name member if it has resulted in the error
+				tt.push(Token(_sp, token::Dot));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map_err"))));
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+				tt.push(Token(_sp, token::BinOp(token::Or)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("e"))));
+				tt.push(Token(_sp, token::BinOp(token::Or)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("e"))));
+				tt.push(Token(_sp, token::Dot));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("named"))));
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+				tt.push(Token(_sp, token::Literal(token::Lit::Str_(
+					field.ident.unwrap_or(ext_cx.ident_of(&format!("f{}", idx))).name),
+					None))
+				);
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 				tt.push(Token(_sp, token::Comma));
 			}
