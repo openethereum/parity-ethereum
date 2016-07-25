@@ -111,11 +111,11 @@ const MAX_NODE_DATA_TO_SEND: usize = 1024;
 const MAX_RECEIPTS_TO_SEND: usize = 1024;
 const MAX_RECEIPTS_HEADERS_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_REQUEST: usize = 128;
-const MAX_BODIES_TO_REQUEST: usize = 64;
+const MAX_BODIES_TO_REQUEST: usize = 128;
 const MIN_PEERS_PROPAGATION: usize = 4;
 const MAX_PEERS_PROPAGATION: usize = 128;
 const MAX_PEER_LAG_PROPAGATION: BlockNumber = 20;
-const SUBCHAIN_SIZE: usize = 64;
+const SUBCHAIN_SIZE: usize = 256;
 const MAX_ROUND_PARENTS: usize = 32;
 const MAX_NEW_HASHES: usize = 64;
 const MAX_TX_TO_IMPORT: usize = 512;
@@ -408,7 +408,7 @@ impl ChainSync {
 		let expected_hash = self.peers.get(&peer_id).and_then(|p| p.asking_hash);
 		let expected_asking = if self.state == SyncState::ChainHead { PeerAsking::Heads } else { PeerAsking::BlockHeaders };
 		if !self.reset_peer_asking(peer_id, expected_asking) || expected_hash.is_none() {
-			trace!(target: "sync", "Ignored unexpected headers");
+			trace!(target: "sync", "{}: Ignored unexpected headers", peer_id);
 			self.continue_sync(io);
 			return Ok(());
 		}
@@ -754,7 +754,9 @@ impl ChainSync {
 					// Request subchain headers
 					trace!(target: "sync", "Starting sync with better chain");
 					let last = self.last_imported_hash.clone();
-					self.request_headers_by_hash(io, peer_id, &last, SUBCHAIN_SIZE, MAX_HEADERS_TO_REQUEST - 1, false, PeerAsking::Heads);
+					// Request MAX_HEADERS_TO_REQUEST - 2 headers apart so that
+					// MAX_HEADERS_TO_REQUEST would include headers for neighbouring subchains
+					self.request_headers_by_hash(io, peer_id, &last, SUBCHAIN_SIZE, MAX_HEADERS_TO_REQUEST - 2, false, PeerAsking::Heads);
 				},
 				SyncState::Blocks | SyncState::NewBlocks => {
 					if io.chain().block_status(BlockID::Hash(peer_latest)) == BlockStatus::Unknown {
