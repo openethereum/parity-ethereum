@@ -25,6 +25,13 @@ use self::no_ipc_deps::*;
 use self::ipc_deps::*;
 use ethcore_logger::Config as LogConfig;
 
+pub mod service_urls {
+	pub const CLIENT: &'static str = "ipc:///tmp/parity-chain.ipc";
+	pub const SYNC: &'static str = "ipc:///tmp/parity-sync.ipc";
+	pub const SYNC_NOTIFY: &'static str = "ipc:///tmp/parity-sync-notify.ipc";
+	pub const NETWORK_MANAGER: &'static str = "ipc:///tmp/parity-manage-net.ipc";
+}
+
 #[cfg(not(feature="ipc"))]
 mod no_ipc_deps {
 	pub use ethsync::{EthSync, SyncProvider, ManageNetwork};
@@ -51,7 +58,6 @@ mod ipc_deps {
 	pub use ipc::binary::serialize;
 }
 
-
 #[cfg(feature="ipc")]
 pub fn hypervisor() -> Option<Hypervisor> {
 	Some(Hypervisor::new())
@@ -74,11 +80,11 @@ fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration, log_setti
 
 	// client service url and logging settings are passed in command line
 	let mut cli_args = Vec::new();
-	cli_args.push("ipc:///tmp/parity-chain.ipc".to_owned());
+	cli_args.push("sync".to_owned());
 	if !log_settings.color { cli_args.push("--no-color".to_owned()); }
-	if let Some(ref init) = log_settings.init {
+	if let Some(ref mode) = log_settings.mode {
 		cli_args.push("-l".to_owned());
-		cli_args.push(init.to_owned());
+		cli_args.push(mode.to_owned());
 	}
 	if let Some(ref file) = log_settings.file {
 		cli_args.push("--log-file".to_owned());
@@ -100,14 +106,14 @@ pub fn sync
 	-> Result<SyncModules, ethcore::error::Error>
 {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
-	hypervisor = hypervisor.module(SYNC_MODULE_ID, "sync", sync_arguments(sync_cfg, net_cfg, log_settings));
+	hypervisor = hypervisor.module(SYNC_MODULE_ID, "parity", sync_arguments(sync_cfg, net_cfg, log_settings));
 
 	hypervisor.start();
 	hypervisor.wait_for_startup();
 
-	let sync_client = init_client::<SyncClient<_>>("ipc:///tmp/parity-sync.ipc").unwrap();
-	let notify_client = init_client::<ChainNotifyClient<_>>("ipc:///tmp/parity-sync-notify.ipc").unwrap();
-	let manage_client = init_client::<NetworkManagerClient<_>>("ipc:///tmp/parity-manage-net.ipc").unwrap();
+	let sync_client = init_client::<SyncClient<_>>(service_urls::SYNC).unwrap();
+	let notify_client = init_client::<ChainNotifyClient<_>>(service_urls::SYNC_NOTIFY).unwrap();
+	let manage_client = init_client::<NetworkManagerClient<_>>(service_urls::NETWORK_MANAGER).unwrap();
 
 	*hypervisor_ref = Some(hypervisor);
 	Ok((sync_client, manage_client, notify_client))

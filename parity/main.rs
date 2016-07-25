@@ -78,6 +78,7 @@ mod account;
 mod blockchain;
 mod presale;
 mod run;
+mod sync;
 
 use std::{process, env};
 use cli::print_version;
@@ -111,6 +112,12 @@ fn start() -> Result<String, String> {
 }
 
 fn main() {
+	// just redirect to the sync::main()
+	if std::env::args().nth(1).map(|arg| arg == "sync").unwrap_or(false) {
+		sync::main();
+		return;
+	}
+
 	match start() {
 		Ok(result) => {
 			print!("{}", result);

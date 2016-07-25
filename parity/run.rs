@@ -28,6 +28,8 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethsync::SyncConfig;
 use informant::Informant;
+#[cfg(feature="ipc")]
+use ethcore::client::ChainNotify;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
