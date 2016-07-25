@@ -38,8 +38,7 @@ use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
 use std::thread;
 use nanoipc::IpcInterface;
 
-use ethcore_logger::Settings as LogSettings;
-use ethcore_logger::setup_log;
+use ethcore_logger::{Config as LogConfig, setup_log};
 
 const USAGE: &'static str = "
 Ethcore sync service
@@ -63,18 +62,12 @@ struct Args {
 }
 
 impl Args {
-	pub fn log_settings(&self) -> LogSettings {
-		let mut settings = LogSettings::new();
-		if self.flag_no_color || cfg!(windows) {
-			settings = settings.no_color();
+	pub fn log_settings(&self) -> LogConfig {
+		LogConfig {
+			color: self.flag_no_color || cfg!(windows),
+			mode: self.flag_logging.clone(),
+			file: self.flag_log_file.clone(),
 		}
-		if let Some(ref init) = self.flag_logging {
-			settings = settings.init(init.to_owned())
-		}
-		if let Some(ref file) = self.flag_log_file {
-			settings = settings.file(file.to_owned())
-		}
-		settings
 	}
 }
 
@@ -97,7 +90,7 @@ fn main() {
 		.and_then(|d| d.decode())
 		.unwrap_or_else(|e| e.exit());
 
-	setup_log(&args.log_settings());
+	setup_log(&args.log_settings()).expect("Log initialization failure");
 
 	let mut buffer = Vec::new();
 	io::stdin().read_to_end(&mut buffer).expect("Failed to read initialisation payload");

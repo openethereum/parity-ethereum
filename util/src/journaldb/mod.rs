@@ -30,7 +30,7 @@ mod refcounteddb;
 pub use self::traits::JournalDB;
 
 /// A journal database algorithm.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Algorithm {
 	/// Keep all keys forever.
 	Archive,
@@ -60,14 +60,48 @@ impl Default for Algorithm {
 	fn default() -> Algorithm { Algorithm::OverlayRecent }
 }
 
+impl FromStr for Algorithm {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"archive" => Ok(Algorithm::Archive),
+			"light" => Ok(Algorithm::EarlyMerge),
+			"fast" => Ok(Algorithm::OverlayRecent),
+			"basic" => Ok(Algorithm::RefCounted),
+			e => Err(format!("Invalid algorithm: {}", e)),
+		}
+	}
+}
+
+impl Algorithm {
+	/// Returns static str describing journal database algorithm.
+	pub fn as_str(&self) -> &'static str {
+		match *self {
+			Algorithm::Archive => "archive",
+			Algorithm::EarlyMerge => "light",
+			Algorithm::OverlayRecent => "fast",
+			Algorithm::RefCounted => "basic",
+		}
+	}
+
+	/// Returns true if pruning strategy is stable
+	pub fn is_stable(&self) -> bool {
+		match *self {
+			Algorithm::Archive | Algorithm::OverlayRecent => true,
+			_ => false,
+		}
+	}
+
+	/// Returns all algorithm types.
+	pub fn all_types() -> Vec<Algorithm> {
+		vec![Algorithm::Archive, Algorithm::EarlyMerge, Algorithm::OverlayRecent, Algorithm::RefCounted]
+	}
+}
+
 impl fmt::Display for Algorithm {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", match self {
-			&Algorithm::Archive => "archive",
-			&Algorithm::EarlyMerge => "earlymerge",
-			&Algorithm::OverlayRecent => "overlayrecent",
-			&Algorithm::RefCounted => "refcounted",
-		})
+		write!(f, "{}", self.as_str())
 	}
 }
 
@@ -85,3 +119,60 @@ pub fn new(path: &str, algorithm: Algorithm, config: DatabaseConfig) -> Box<Jour
 const DB_PREFIX_LEN : usize = 12;
 const LATEST_ERA_KEY : [u8; DB_PREFIX_LEN] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const VERSION_KEY : [u8; DB_PREFIX_LEN] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
+
+#[cfg(test)]
+mod tests {
+	use super::Algorithm;
+
+	#[test]
+	fn test_journal_algorithm_parsing() {
+		assert_eq!(Algorithm::Archive, "archive".parse().unwrap());
+		assert_eq!(Algorithm::EarlyMerge, "light".parse().unwrap());
+		assert_eq!(Algorithm::OverlayRecent, "fast".parse().unwrap());
+		assert_eq!(Algorithm::RefCounted, "basic".parse().unwrap());
+	}
+
+	#[test]
+	fn test_journal_algorithm_printing() {
+		assert_eq!(Algorithm::Archive.to_string(), "archive".to_owned());
+		assert_eq!(Algorithm::EarlyMerge.to_string(), "light".to_owned());
+		assert_eq!(Algorithm::OverlayRecent.to_string(), "fast".to_owned());
+		assert_eq!(Algorithm::RefCounted.to_string(), "basic".to_owned());
+	}
+
+	#[test]
+	fn test_journal_algorithm_is_stable() {
+		assert!(Algorithm::Archive.is_stable());
+		assert!(Algorithm::OverlayRecent.is_stable());
+		assert!(!Algorithm::EarlyMerge.is_stable());
+		assert!(!Algorithm::RefCounted.is_stable());
+	}
+
+	#[test]
+	fn test_journal_algorithm_default() {
+		assert_eq!(Algorithm::default(), Algorithm::OverlayRecent);
+	}
+
+	#[test]
+	fn test_journal_algorithm_all_types() {
+		// compiling should fail if some cases are not covered
+		let mut archive = 0;
+		let mut earlymerge = 0;
+		let mut overlayrecent = 0;
+		let mut refcounted = 0;
+
+		for a in &Algorithm::all_types() {
+			match *a {
+				Algorithm::Archive => archive += 1,
+				Algorithm::EarlyMerge => earlymerge += 1,
+				Algorithm::OverlayRecent => overlayrecent += 1,
+				Algorithm::RefCounted => refcounted += 1,
+			}
+		}
+
+		assert_eq!(archive, 1);
+		assert_eq!(earlymerge, 1);
+		assert_eq!(overlayrecent, 1);
+		assert_eq!(refcounted, 1);
+	}
+}

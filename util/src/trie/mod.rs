@@ -63,7 +63,7 @@ impl fmt::Display for TrieError {
 }
 
 /// Trie types
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TrieSpec {
 	/// Generic trie.
 	Generic,

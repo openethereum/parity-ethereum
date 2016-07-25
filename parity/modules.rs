@@ -23,8 +23,7 @@ use ethsync::{SyncConfig, NetworkConfiguration};
 use self::no_ipc_deps::*;
 #[cfg(feature="ipc")]
 use self::ipc_deps::*;
-
-use ethcore_logger::Settings as LogSettings;
+use ethcore_logger::Config as LogConfig;
 
 #[cfg(not(feature="ipc"))]
 mod no_ipc_deps {
@@ -64,7 +63,7 @@ pub fn hypervisor() -> Option<Hypervisor> {
 }
 
 #[cfg(feature="ipc")]
-fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration, log_settings: &LogSettings) -> BootArgs {
+fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration, log_settings: &LogConfig) -> BootArgs {
 	let service_config = ServiceConfiguration {
 		sync: sync_cfg,
 		net: net_cfg,
@@ -96,7 +95,7 @@ pub fn sync
 		sync_cfg: SyncConfig,
 		net_cfg: NetworkConfiguration,
 		_client: Arc<BlockChainClient>,
-		log_settings: &LogSettings,
+		log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, ethcore::error::Error>
 {
@@ -121,7 +120,7 @@ pub fn sync
 		sync_cfg: SyncConfig,
 		net_cfg: NetworkConfiguration,
 		client: Arc<BlockChainClient>,
-		_log_settings: &LogSettings,
+		_log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, ethcore::error::Error>
 {
