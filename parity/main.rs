@@ -74,6 +74,7 @@ mod signer;
 mod rpc_apis;
 mod url;
 mod modules;
+mod sync;
 
 use std::io::{Write, Read, BufReader, BufRead};
 use std::ops::Deref;
@@ -109,6 +110,11 @@ use io_handler::ClientIoHandler;
 use configuration::{Configuration};
 
 fn main() {
+	if std::env::args().nth(1).map(|arg| arg == "sync").unwrap_or(false) {
+		sync::main();
+		return;
+	}
+
 	let conf = Configuration::parse();
 	execute(conf);
 }
