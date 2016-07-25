@@ -26,6 +26,9 @@ use spec::{Params, Genesis, Engine, State};
 pub struct Spec {
 	/// Spec name.
 	pub name: String,
+	/// Special fork name.
+	#[serde(rename="forkName")]
+	pub fork_name: Option<String>,
 	/// Engine.
 	pub engine: Engine,
 	/// Spec params.

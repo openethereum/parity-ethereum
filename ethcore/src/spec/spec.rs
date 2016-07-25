@@ -58,6 +58,8 @@ pub struct Spec {
 	pub name: String,
 	/// What engine are we using for this?
 	pub engine: Box<Engine>,
+	/// The fork identifier for this chain. Only needed to distinguish two chains sharing the same genesis.
+	pub fork_name: Option<String>,
 
 	/// Known nodes on the network in enode format.
 	pub nodes: Vec<String>,
@@ -105,6 +107,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			name: s.name.into(),
 			params: params.clone(),
 			engine: Spec::engine(s.engine, params, builtins),
+			fork_name: s.fork_name.map(Into::into),
 			nodes: s.nodes.unwrap_or_else(Vec::new),
 			parent_hash: g.parent_hash,
 			transactions_root: g.transactions_root,
@@ -118,7 +121,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			seal_fields: seal.fields,
 			seal_rlp: seal.rlp,
 			state_root_memo: RwLock::new(g.state_root),
-			genesis_state: From::from(s.accounts)
+			genesis_state: From::from(s.accounts),
 		}
 	}
 }

@@ -149,9 +149,9 @@ const HISTORY: u64 = 1200;
 const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 /// Get the path for the databases given the root path and information on the databases.
-pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf {
+pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256, fork_name: Option<&String>) -> PathBuf {
 	let mut dir = path.to_path_buf();
-	dir.push(H64::from(genesis_hash).hex());
+	dir.push(format!("{:?}{}", H64::from(genesis_hash), fork_name.map(|f| format!("-{}", f)).unwrap_or_default()));
 	//TODO: sec/fat: pruned/full versioning
 	// version here is a bit useless now, since it's controlled only be the pruning algo.
 	dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, pruning));
@@ -174,7 +174,7 @@ impl Client {
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
 	) -> Result<Arc<Client>, ClientError> {
-		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
+		let path = get_db_path(path, config.pruning, spec.genesis_header().hash(), spec.fork_name.as_ref());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));

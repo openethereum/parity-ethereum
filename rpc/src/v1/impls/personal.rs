@@ -16,6 +16,7 @@
 
 //! Account management (personal) rpc implementation
 use std::sync::{Arc, Weak};
+use std::collections::{BTreeMap};
 use jsonrpc_core::*;
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160, TransactionRequest};
@@ -103,5 +104,40 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 
 				unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, sender, password)
 			})
+	}
+
+	fn set_account_name(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		let store = take_weak!(self.accounts);
+		from_params::<(RpcH160, _)>(params).and_then(|(addr, name)| {
+			let addr: Address = addr.into();
+			store.set_account_name(addr, name).map_err(|_| Error::invalid_params()).map(|_| Value::Null)
+		})
+	}
+
+	fn set_account_meta(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		let store = take_weak!(self.accounts);
+		from_params::<(RpcH160, _)>(params).and_then(|(addr, meta)| {
+			let addr: Address = addr.into();
+			store.set_account_meta(addr, meta).map_err(|_| Error::invalid_params()).map(|_| Value::Null)
+		})
+	}
+
+	fn accounts_info(&self, _: Params) -> Result<Value, Error> {
+		try!(self.active());
+		let store = take_weak!(self.accounts);
+		Ok(Value::Object(try!(store.accounts_info().map_err(|_| Error::invalid_params())).into_iter().map(|(a, v)| {
+			let m = map![
+				"name".to_owned() => to_value(&v.name).unwrap(),
+				"meta".to_owned() => to_value(&v.meta).unwrap(),
+				"uuid".to_owned() => if let &Some(ref uuid) = &v.uuid {
+					to_value(uuid).unwrap()
+				} else {
+					Value::Null
+				}
+			];
+			(format!("0x{}", a.hex()), Value::Object(m))
+		}).collect::<BTreeMap<_, _>>()))
 	}
 }
