@@ -19,7 +19,7 @@
 use common::*;
 use rlp::*;
 use hashdb::*;
-use memorydb::*;
+use overlaydb::{DeletionMode, OverlayDB};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
 use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction, DatabaseConfig};
@@ -41,7 +41,7 @@ const DB_VERSION : u32 = 0x103;
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
 pub struct ArchiveDB {
-	overlay: MemoryDB,
+	overlay: OverlayDB,
 	backing: Arc<Database>,
 	latest_era: Option<u64>,
 }
@@ -61,10 +61,11 @@ impl ArchiveDB {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
+		let backing = Arc::new(backing);
 		let latest_era = backing.get(&LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 		ArchiveDB {
-			overlay: MemoryDB::new(),
-			backing: Arc::new(backing),
+			overlay: OverlayDB::new_with_arc(backing.clone(), DeletionMode::Ignore),
+			backing: backing,
 			latest_era: latest_era,
 		}
 	}
@@ -76,44 +77,19 @@ impl ArchiveDB {
 		dir.push(H32::random().hex());
 		Self::new(dir.to_str().unwrap(), DatabaseConfig::default())
 	}
-
-	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
-	}
 }
 
 impl HashDB for ArchiveDB {
 	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter() {
-			let h = H256::from_slice(key.deref());
-			ret.insert(h, 1);
-		}
-
-		for (key, refs) in self.overlay.keys().into_iter() {
-			let refs = *ret.get(&key).unwrap_or(&0) + refs;
-			ret.insert(key, refs);
-		}
-		ret
+		self.overlay.keys()
 	}
 
 	fn get(&self, key: &H256) -> Option<&[u8]> {
-		let k = self.overlay.raw(key);
-		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
-			_ => {
-				if let Some(x) = self.payload(key) {
-					Some(&self.overlay.denote(key, x).0)
-				}
-				else {
-					None
-				}
-			}
-		}
+		self.overlay.get(key)
 	}
 
 	fn contains(&self, key: &H256) -> bool {
-		self.get(key).is_some()
+		self.overlay.contains(key)
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
@@ -169,21 +145,7 @@ impl JournalDB for ArchiveDB {
 
 	fn commit(&mut self, now: u64, _: &H256, _: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let batch = DBTransaction::new();
-		let mut inserts = 0usize;
-		let mut deletes = 0usize;
-
-		for i in self.overlay.drain().into_iter() {
-			let (key, (value, rc)) = i;
-			if rc > 0 {
-				assert!(rc == 1);
-				batch.put(&key, &value).expect("Low-level database error. Some issue with your hard disk?");
-				inserts += 1;
-			}
-			if rc < 0 {
-				assert!(rc == -1);
-				deletes += 1;
-			}
-		}
+		let ops = try!(self.overlay.commit_to_batch(&batch));
 
 		for (mut key, value) in self.overlay.drain_aux().into_iter() {
 			key.push(AUX_FLAG);
@@ -195,7 +157,7 @@ impl JournalDB for ArchiveDB {
 			self.latest_era = Some(now);
 		}
 		try!(self.backing.write(batch));
-		Ok((inserts + deletes) as u32)
+		Ok(ops)
 	}
 
 	fn latest_era(&self) -> Option<u64> { self.latest_era }

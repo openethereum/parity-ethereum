@@ -28,14 +28,17 @@ use hash::H256;
 pub enum BaseDataError {
 	/// An entry was removed more times than inserted.
 	NegativelyReferencedHash(H256),
+	/// An entry was referenced an invalid amount of times.
+	InvalidReferenceCount(H256, i32),
 }
 
 impl fmt::Display for BaseDataError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			BaseDataError::NegativelyReferencedHash(hash) =>
-				f.write_fmt(format_args!("Entry {} removed from database more times \
-					than it was added.", hash)),
+				write!(f, "Entry {} removed from database more times than it was added.", hash),
+			BaseDataError::InvalidReferenceCount(hash, rc) =>
+				write!(f, "Entry {} has invalid reference count of {}", hash, rc),
 		}
 	}
 }
