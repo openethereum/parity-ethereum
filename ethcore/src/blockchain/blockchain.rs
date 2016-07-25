@@ -823,10 +823,21 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) { return; }
+		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) {
+			// rotate cache
+			let mut cache_man = self.cache_man.write();
+			const AVERAGE_BYTES_PER_CACHE_ENTRY: usize = 400; //estimated
+			if cache_man.cache_usage[0].len() > self.pref_cache_size.load(AtomicOrder::Relaxed) / COLLECTION_QUEUE_SIZE / AVERAGE_BYTES_PER_CACHE_ENTRY {
+				trace!("Cache rotation, cache_size = {}", self.cache_size().total());
+				let cache = cache_man.cache_usage.pop_back().unwrap();
+				cache_man.cache_usage.push_front(cache);
+			}
+			return;
+		}
 
-		for _ in 0..COLLECTION_QUEUE_SIZE {
+		for i in 0..COLLECTION_QUEUE_SIZE {
 			{
+				trace!("Cache cleanup round started {}, cache_size = {}", i, self.cache_size().total());
 				let mut blocks = self.blocks.write();
 				let mut block_details = self.block_details.write();
 				let mut block_hashes = self.block_hashes.write();
@@ -858,6 +869,7 @@ impl BlockChain {
  				blocks_blooms.shrink_to_fit();
  				block_receipts.shrink_to_fit();
 			}
+			trace!("Cache cleanup round complete {}, cache_size = {}", i, self.cache_size().total());
 			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) { break; }
 		}
 
