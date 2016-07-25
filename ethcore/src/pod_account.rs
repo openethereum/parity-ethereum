@@ -64,8 +64,8 @@ impl PodAccount {
 
 	/// Place additional data into given hash DB.
 	pub fn insert_additional(&self, db: &mut AccountDBMut) {
-		match &self.code {
-			&Some(ref c) if !c.is_empty() => { db.insert(c); }
+		match self.code {
+			Some(ref c) if !c.is_empty() => { db.insert(c); }
 			_ => {}
 		}
 		let mut r = H256::new();
