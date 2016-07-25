@@ -104,7 +104,13 @@ impl From<ethjson::spec::Account> for PodAccount {
 
 impl fmt::Display for PodAccount {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "(bal={}; nonce={}; code={} bytes, #{}; storage={} items)", self.balance, self.nonce, self.code.as_ref().map_or(0, |c| c.len()), self.code.as_ref().map_or(H256::new(), |c| c.sha3()), self.storage.len())
+		write!(f, "(bal={}; nonce={}; code={} bytes, #{}; storage={} items)",
+			self.balance,
+			self.nonce,
+			self.code.as_ref().map_or(0, |c| c.len()),
+			self.code.as_ref().map_or_else(H256::new, |c| c.sha3()),
+			self.storage.len()
+		)
 	}
 }
 
