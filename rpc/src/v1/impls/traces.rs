@@ -149,10 +149,9 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		trace!(target: "jsonrpc", "call: {:?}", params);
-		from_params::<(Bytes, _)>(params)
+		from_params::<(Bytes, Vec<String>)>(params)
 			.and_then(|(raw_transaction, flags)| {
 				let raw_transaction = raw_transaction.to_vec();
-				let flags: Vec<String> = flags;
 				let analytics = CallAnalytics {
 					transaction_tracing: flags.contains(&("trace".to_owned())),
 					vm_tracing: flags.contains(&("vmTrace".to_owned())),
