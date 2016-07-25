@@ -20,9 +20,9 @@ use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
-pub use types::executed::ExecutionError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use types::block_import_error::BlockImportError;
+pub use types::executed::ExecutionError;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.
@@ -59,8 +59,6 @@ pub enum TransactionError {
 	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
-	/// Transaction is invalid for some other reason.
-	DAORescue,
 }
 
 impl fmt::Display for TransactionError {
@@ -79,7 +77,6 @@ impl fmt::Display for TransactionError {
 			GasLimitExceeded { limit, got } =>
 				format!("Gas limit exceeded. Limit={}, Given={}", limit, got),
 			InvalidGasLimit(ref err) => format!("Invalid gas limit. {}", err),
-			DAORescue => "Transaction is invalid due to the DAO rescue.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
@@ -230,6 +227,10 @@ pub enum Error {
 	PowInvalid,
 	/// Error concerning TrieDBs
 	Trie(TrieError),
+	/// Io error.
+	Io(::std::io::Error),
+	/// Snappy error.
+	Snappy(::util::snappy::InvalidInput),
 }
 
 impl fmt::Display for Error {
@@ -246,6 +247,8 @@ impl fmt::Display for Error {
 			Error::PowHashInvalid => f.write_str("Invalid or out of date PoW hash."),
 			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
 			Error::Trie(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::Io(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::Snappy(ref err) => f.write_fmt(format_args!("{}", err)),
 		}
 	}
 }
@@ -313,6 +316,18 @@ impl From<TrieError> for Error {
 	}
 }
 
+impl From<::std::io::Error> for Error {
+	fn from(err: ::std::io::Error) -> Error {
+		Error::Io(err)
+	}
+}
+
+impl From<::util::snappy::InvalidInput> for Error {
+	fn from(err: ::util::snappy::InvalidInput) -> Error {
+		Error::Snappy(err)
+	}
+}
+
 impl From<BlockImportError> for Error {
 	fn from(err: BlockImportError) -> Error {
 		match err {
@@ -326,7 +341,6 @@ impl From<BlockImportError> for Error {
 binary_fixed_size!(BlockError);
 binary_fixed_size!(ImportError);
 binary_fixed_size!(TransactionError);
-
 
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
 /*#![feature(concat_idents)]

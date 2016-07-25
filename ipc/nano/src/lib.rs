@@ -23,6 +23,7 @@ extern crate jsonrpc_core;
 use jsonrpc_core::IoHandler;
 
 pub use ipc::{WithSocket, IpcInterface, IpcConfig};
+pub use nanomsg::Socket as NanoSocket;
 
 use std::sync::*;
 use std::sync::atomic::*;
@@ -33,7 +34,7 @@ const POLL_TIMEOUT: isize = 100;
 const CLIENT_CONNECTION_TIMEOUT: isize = 2500;
 
 /// Generic worker to handle service (binded) sockets
-pub struct Worker<S> where S: IpcInterface<S> {
+pub struct Worker<S: ?Sized> where S: IpcInterface {
 	service: Arc<S>,
 	sockets: Vec<(Socket, Endpoint)>,
 	polls: Vec<PollFd>,
@@ -54,9 +55,9 @@ impl<S> GuardedSocket<S> where S: WithSocket<Socket> {
 }
 
 impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
-    type Target = S;
+    type Target = Arc<S>;
 
-    fn deref(&self) -> &S {
+    fn deref(&self) -> &Arc<S> {
         &self.client
     }
 }
@@ -107,7 +108,7 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 	})
 }
 
-/// Error occured while establising socket or endpoint
+/// Error occurred while establising socket or endpoint
 #[derive(Debug)]
 pub enum SocketError {
 	/// Error establising duplex (paired) socket and/or endpoint
@@ -116,7 +117,7 @@ pub enum SocketError {
 	RequestLink,
 }
 
-impl<S> Worker<S> where S: IpcInterface<S> {
+impl<S: ?Sized> Worker<S> where S: IpcInterface {
 	/// New worker over specified `service`
 	pub fn new(service: &Arc<S>) -> Worker<S> {
 		Worker::<S> {

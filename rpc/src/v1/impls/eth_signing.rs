@@ -20,12 +20,13 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use util::{U256, Address, H256};
+use util::{U256, Address, H256, Mutex};
+use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
-use v1::helpers::{SigningQueue, ConfirmationsQueue, TransactionRequest as TRequest};
+use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, TransactionRequest as TRequest};
 use v1::traits::EthSigning;
-use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520};
-use v1::impls::{default_gas_price, sign_and_dispatch};
+use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
+use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error};
 
 fn fill_optional_fields<C, M>(request: &mut TRequest, client: &C, miner: &M)
 	where C: MiningBlockChainClient, M: MinerService {
@@ -49,7 +50,11 @@ pub struct EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
+
+	pending: Mutex<TransientHashMap<U256, ConfirmationPromise>>,
 }
+
+const MAX_PENDING_DURATION: u64 = 60 * 60;
 
 impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates a new signing queue client given shared signing queue.
@@ -59,6 +64,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 			accounts: Arc::downgrade(accounts),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
+			pending: Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION)),
 		}
 	}
 
@@ -66,6 +72,25 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 		// TODO: only call every 30s at most.
 		take_weak!(self.client).keep_alive();
 		Ok(())
+	}
+
+	fn dispatch<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, )>(params)
+			.and_then(|(request, )| {
+				let mut request: TRequest = request.into();
+				let accounts = take_weak!(self.accounts);
+				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+
+				if accounts.is_unlocked(request.from) {
+					let sender = request.from;
+					return sign_and_dispatch(&*client, &*miner, request, &*accounts, sender);
+				}
+
+				let queue = take_weak!(self.queue);
+				fill_optional_fields(&mut request, &*client, &*miner);
+				let promise = queue.add_request(request);
+				f(promise)
+			})
 	}
 }
 
@@ -82,25 +107,35 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(request, )| {
-				let mut request: TRequest = request.into();
-				let accounts = take_weak!(self.accounts);
-				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+		self.dispatch(params, |promise| {
+			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH256::default()))
+		})
+	}
 
-				if accounts.is_unlocked(request.from) {
-					let sender = request.from;
-					return match sign_and_dispatch(&*client, &*miner, request, &*accounts, sender) {
-						Ok(hash) => to_value(&hash),
-						_ => to_value(&RpcH256::default()),
-					}
-				}
+	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		self.dispatch(params, |promise| {
+			let id = promise.id();
+			self.pending.lock().insert(id, promise);
+			to_value(&RpcU256::from(id))
+		})
+	}
 
-				let queue = take_weak!(self.queue);
-				fill_optional_fields(&mut request, &*client, &*miner);
-				let id = queue.add_request(request);
-				let result = id.wait_with_timeout();
-				result.unwrap_or_else(|| to_value(&RpcH256::default()))
+	fn check_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		let mut pending = self.pending.lock();
+		from_params::<(RpcU256, )>(params).and_then(|(id, )| {
+			let id: U256 = id.into();
+			let res = match pending.get(&id) {
+				Some(ref promise) => match promise.result() {
+					ConfirmationResult::Waiting => { return Ok(Value::Null); }
+					ConfirmationResult::Rejected => Err(transaction_rejected_error()),
+					ConfirmationResult::Confirmed(rpc_response) => rpc_response,
+				},
+				_ => { return Err(Error::invalid_params()); }
+			};
+			pending.remove(&id);
+			res
 		})
 	}
 }
@@ -154,10 +189,17 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 			.and_then(|(request, )| {
 				let request: TRequest = request.into();
 				let sender = request.from;
-				match sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender) {
-					Ok(hash) => to_value(&hash),
-					_ => to_value(&RpcH256::default()),
-				}
-		})
+				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender)
+			})
+	}
+
+	fn post_transaction(&self, _: Params) -> Result<Value, Error> {
+		// We don't support this in non-signer mode.
+		Err(Error::invalid_params())
+	}
+
+	fn check_transaction(&self, _: Params) -> Result<Value, Error> {
+		// We don't support this in non-signer mode.
+		Err(Error::invalid_params())
 	}
 }

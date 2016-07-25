@@ -116,6 +116,7 @@ extern crate libc;
 extern crate target_info;
 extern crate bigint;
 extern crate chrono;
+extern crate parking_lot;
 pub extern crate using_queue;
 pub extern crate table;
 extern crate ansi_term;
@@ -153,6 +154,7 @@ pub mod log;
 pub mod panics;
 pub mod network_settings;
 pub mod path;
+pub mod snappy;
 mod timer;
 
 pub use common::*;

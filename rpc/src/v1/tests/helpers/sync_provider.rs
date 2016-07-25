@@ -16,9 +16,8 @@
 
 //! Test implementation of SyncProvider.
 
-use util::U256;
+use util::{RwLock, U256};
 use ethsync::{SyncProvider, SyncStatus, SyncState};
-use std::sync::RwLock;
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -57,13 +56,7 @@ impl TestSyncProvider {
 
 impl SyncProvider for TestSyncProvider {
 	fn status(&self) -> SyncStatus {
-		self.status.read().unwrap().clone()
-	}
-
-	fn start_network(&self) {
-	}
-
-	fn stop_network(&self) {
+		self.status.read().clone()
 	}
 }
 

@@ -25,7 +25,7 @@ use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
-use ethcore::miner::{MinerOptions, MinerService, ExternalMiner, Miner, PendingSet};
+use ethcore::miner::{MinerOptions, GasPricer, MinerService, ExternalMiner, Miner, PendingSet};
 use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
@@ -64,6 +64,7 @@ fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			work_queue_size: 50,
 			enable_resubmission: true,
 		},
+		GasPricer::new_fixed(20_000_000_000u64.into()),
 		spec,
 		Some(accounts)
 	)
@@ -94,7 +95,7 @@ impl EthTester {
 			if Block::is_good(&b) {
 				let _ = tester.client.import_block(b.clone());
 				tester.client.flush_queue();
-				tester.client.import_verified_blocks(&IoChannel::disconnected());
+				tester.client.import_verified_blocks();
 			}
 		}
 
@@ -200,7 +201,10 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0xffffffffffffffff"
+				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
+				"daoHardforkTransition": "0xffffffffffffffff",
+				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
+				"daoHardforkAccounts": []
 			}
 		}
 	},

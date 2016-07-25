@@ -46,6 +46,7 @@ const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 
 const PING_TIMEOUT_MS: u64 = 300;
+const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
 
 #[derive(Clone, Debug)]
 pub struct NodeEntry {
@@ -93,6 +94,7 @@ pub struct Discovery {
 	node_buckets: Vec<NodeBucket>,
 	send_queue: VecDeque<Datagramm>,
 	check_timestamps: bool,
+	adding_nodes: Vec<NodeEntry>,
 }
 
 pub struct TableUpdates {
@@ -115,6 +117,7 @@ impl Discovery {
 			udp_socket: socket,
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
+			adding_nodes: Vec::new(),
 		}
 	}
 
@@ -123,6 +126,12 @@ impl Discovery {
 		let endpoint = e.endpoint.clone();
 		self.update_node(e);
 		self.ping(&endpoint);
+	}
+
+	/// Add a list of nodes. Pings a few nodes each round
+	pub fn add_node_list(&mut self, nodes: Vec<NodeEntry>) {
+		self.adding_nodes = nodes;
+		self.update_new_nodes();
 	}
 
 	/// Add a list of known nodes to the table.
@@ -171,7 +180,17 @@ impl Discovery {
 		self.discovery_nodes.clear();
 	}
 
+	fn update_new_nodes(&mut self) {
+		let mut count = 0usize;
+		while !self.adding_nodes.is_empty() && count < MAX_NODES_PING {
+			let node = self.adding_nodes.pop().expect("pop is always Some if not empty; qed");
+			self.add_node(node);
+			count += 1;
+		}
+	}
+
 	fn discover(&mut self) {
+		self.update_new_nodes();
 		if self.discovery_round == DISCOVERY_MAX_STEPS {
 			return;
 		}

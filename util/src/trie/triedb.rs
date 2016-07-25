@@ -84,17 +84,16 @@ impl<'db> TrieDB<'db> {
 		ret
 	}
 
-	/// Convert a vector of hashes to a hashmap of hash to occurances.
+	/// Convert a vector of hashes to a hashmap of hash to occurrences.
 	pub fn to_map(hashes: Vec<H256>) -> HashMap<H256, u32> {
 		let mut r: HashMap<H256, u32> = HashMap::new();
 		for h in hashes.into_iter() {
-			let c = *r.get(&h).unwrap_or(&0);
-			r.insert(h, c + 1);
+			*r.entry(h).or_insert(0) += 1;
 		}
 		r
 	}
 
-	/// Determine occurances of items in the backing database which are not related to this
+	/// Determine occurrences of items in the backing database which are not related to this
 	/// trie.
 	pub fn db_items_remaining(&self) -> HashMap<H256, i32> {
 		let mut ret = self.db.keys();
@@ -184,7 +183,7 @@ impl<'db> TrieDB<'db> {
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
 	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
+		let root_rlp = self.root_data();
 		self.get_from_node(&root_rlp, key)
 	}
 

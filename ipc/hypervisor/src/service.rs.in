@@ -24,7 +24,10 @@ use std::collections::VecDeque;
 pub type IpcModuleId = u64;
 
 /// Blockhain database module id
-pub const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
+pub const CLIENT_MODULE_ID: IpcModuleId = 2000;
+
+/// Sync module id
+pub const SYNC_MODULE_ID: IpcModuleId = 2100;
 
 /// IPC service that handles module management
 pub struct HypervisorService {
@@ -55,6 +58,11 @@ impl HypervisorService {
 		Arc::new(HypervisorService {
 			check_list: RwLock::new(check_list),
 		})
+	}
+
+	/// Add the module to the check-list
+	pub fn add_module(&self, module_id: IpcModuleId) {
+		self.check_list.write().unwrap().insert(module_id, false);
 	}
 
 	/// Number of modules still being waited for check-in

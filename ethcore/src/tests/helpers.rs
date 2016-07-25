@@ -30,26 +30,7 @@ use miner::Miner;
 pub enum ChainEra {
 	Frontier,
 	Homestead,
-}
-
-#[cfg(test)]
-pub struct GuardedTempResult<T> {
-	result: Option<T>,
-	_temp: RandomTempPath
-}
-
-impl<T> GuardedTempResult<T> {
-    pub fn reference(&self) -> &T {
-        self.result.as_ref().unwrap()
-    }
-
-    pub fn reference_mut(&mut self) -> &mut T {
-    	self.result.as_mut().unwrap()
-    }
-
-	pub fn take(&mut self) -> T {
-		self.result.take().unwrap()
-	}
+	DaoHardfork,
 }
 
 pub struct TestEngine {
@@ -211,7 +192,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 		db = b.drain();
 	}
 	client.flush_queue();
-	client.import_verified_blocks(&IoChannel::disconnected());
+	client.import_verified_blocks();
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
@@ -257,7 +238,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 		}
 	}
 	client.flush_queue();
-	client.import_verified_blocks(&IoChannel::disconnected());
+	client.import_verified_blocks();
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,

@@ -36,7 +36,7 @@ Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
                            active - Parity continuously syncs the chain.
                            passive - Parity syncs initially, then sleeps and
-                           wakes regularly to resync. 
+                           wakes regularly to resync.
                            dark - Parity syncs only when an external interface
                            is active. [default: active].
   --mode-timeout SECS      Specify the number of seconds before inactivity
@@ -47,18 +47,13 @@ Operating Options:
                            [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, or testnet
-                           [default: homestead].
+                           homestead, mainnet, morden, homestead-dogmatic, or
+                           testnet [default: homestead].
   -d --db-path PATH        Specify the database & configuration directory path
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
-  --fork POLICY            Specifies the client's fork policy. POLICY must be
-                           one of:
-                           dogmatic - sticks rigidly to the standard chain.
-                           none - goes with whatever fork is decided but
-                           votes for none. [default: none].
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
@@ -112,6 +107,11 @@ API and Console Options:
                            name. Possible name are web3, eth, net, personal,
                            ethcore, ethcore_set, traces.
                            [default: web3,eth,net,ethcore,personal,traces].
+  --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
+                           validate the Host header sent by the browser, it
+                           is additional security against some attack
+                           vectors. Special options: "all", "none",
+                           [default: none].
 
   --no-ipc                 Disable JSON-RPC over IPC service.
   --ipc-path PATH          Specify custom path for JSON-RPC over IPC service
@@ -123,8 +123,8 @@ API and Console Options:
   --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
-                           server, IP should be an interface's IP address, or
-                           all (all interfaces) or local [default: local].
+                           server, IP should be an interface's IP address,
+                           or local [default: local].
   --dapps-user USERNAME    Specify username for Dapps server. It will be
                            used in HTTP Basic Authentication Scheme.
                            If --dapps-pass is not specified you will be
@@ -145,12 +145,12 @@ Sealing/Mining Options:
                            none - never reseal on new transactions;
                            own - reseal only on a new local transaction;
                            ext - reseal only on a new external transaction;
-                           all - reseal on all new transactions [default: all].
-  --reseal-min-period MS   Specify the minimum time between reseals from 
+                           all - reseal on all new transactions [default: own].
+  --reseal-min-period MS   Specify the minimum time between reseals from
                            incoming transactions. MS is time measured in
                            milliseconds [default: 2000].
   --work-queue-size ITEMS  Specify the number of historical work packages
-                           which are kept cached lest a solution is found for 
+                           which are kept cached lest a solution is found for
                            them later. High values take more memory but result
                            in fewer unusable solutions [default: 20].
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
@@ -170,6 +170,10 @@ Sealing/Mining Options:
                            amount in USD, a web service or 'auto' to use each
                            web service in turn and fallback on the last known
                            good value [default: auto].
+  --price-update-period T  T will be allowed to pass between each gas price
+                           update. T may be daily, hourly, a number of seconds,
+                           or a time string of the form "2 days", "30 minutes"
+                           etc. [default: hourly].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
                            block [default: 4700000].
   --gas-cap GAS            A cap on how large we will raise the gas limit per
@@ -197,7 +201,7 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
-  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
+  --cache-pref-size BYTES  Specify the preferred size of the blockchain cache in
                            bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
                            bytes [default: 262144].
@@ -260,6 +264,8 @@ Legacy Options:
 Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
                            format as RUST_LOG.
+  --log-file FILENAME      Specify a filename into which logging should be
+                           directed.
   --no-color               Don't use terminal color codes in output.
   -v --version             Show information about version.
   -h --help                Show this screen.
@@ -286,7 +292,6 @@ pub struct Args {
 	pub flag_chain: String,
 	pub flag_db_path: String,
 	pub flag_identity: String,
-	pub flag_fork: String,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
 	pub flag_cache: Option<usize>,
@@ -311,6 +316,7 @@ pub struct Args {
 	pub flag_jsonrpc_interface: String,
 	pub flag_jsonrpc_port: u16,
 	pub flag_jsonrpc_cors: Option<String>,
+	pub flag_jsonrpc_hosts: String,
 	pub flag_jsonrpc_apis: String,
 	pub flag_no_ipc: bool,
 	pub flag_ipc_path: String,
@@ -335,6 +341,7 @@ pub struct Args {
 	pub flag_author: Option<String>,
 	pub flag_usd_per_tx: String,
 	pub flag_usd_per_eth: String,
+	pub flag_price_update_period: String,
 	pub flag_gas_floor_target: String,
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
@@ -346,6 +353,7 @@ pub struct Args {
 	pub flag_to: String,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
+	pub flag_log_file: Option<String>,
 	pub flag_no_color: bool,
 	pub flag_no_network: bool,
 	// legacy...

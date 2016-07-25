@@ -17,24 +17,12 @@
 //! Common log helper functions
 
 use std::env;
-use rlog::{LogLevelFilter};
+use rlog::LogLevelFilter;
 use env_logger::LogBuilder;
-use std::sync::{RwLock, RwLockReadGuard};
-use std::sync::atomic::{Ordering, AtomicBool};
 use arrayvec::ArrayVec;
 pub use ansi_term::{Colour, Style};
 
-lazy_static! {
-	static ref USE_COLOR: AtomicBool = AtomicBool::new(false);
-}
-
-/// Paint, using colour if desired.
-pub fn paint(c: Style, t: String) -> String {
-	match USE_COLOR.load(Ordering::Relaxed) {
-		true => format!("{}", c.paint(t)),
-		false => t,
-	}
-}
+use parking_lot::{RwLock, RwLockReadGuard};
 
 lazy_static! {
 	static ref LOG_DUMMY: bool = {
@@ -45,7 +33,7 @@ lazy_static! {
 			builder.parse(&log);
 		}
 
-		if let Ok(_) = builder.init() {
+		if builder.init().is_ok() {
 			println!("logger initialized");
 		}
 		true
@@ -71,8 +59,7 @@ impl RotatingLogger {
 
 	/// Creates new `RotatingLogger` with given levels.
 	/// It does not enforce levels - it's just read only.
-	pub fn new(levels: String, enable_color: bool) -> Self {
-		USE_COLOR.store(enable_color, Ordering::Relaxed);
+	pub fn new(levels: String) -> Self {
 		RotatingLogger {
 			levels: levels,
 			logs: RwLock::new(ArrayVec::<[_; LOG_SIZE]>::new()),
@@ -81,7 +68,7 @@ impl RotatingLogger {
 
 	/// Append new log entry
 	pub fn append(&self, log: String) {
-		self.logs.write().unwrap().insert(0, log);
+		self.logs.write().insert(0, log);
 	}
 
 	/// Return levels
@@ -91,7 +78,7 @@ impl RotatingLogger {
 
 	/// Return logs
 	pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
-		self.logs.read().unwrap()
+		self.logs.read()
 	}
 
 }
@@ -101,7 +88,7 @@ mod test {
 	use super::RotatingLogger;
 
 	fn logger() -> RotatingLogger {
-		RotatingLogger::new("test".to_owned(), false)
+		RotatingLogger::new("test".to_owned())
 	}
 
 	#[test]

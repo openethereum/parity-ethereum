@@ -116,7 +116,7 @@ impl Server {
 						io
 					)),
 					Err(any_error) => die(format!(
-						"Signer: Unknown error occured when starting Signer. Details: {:?}",
+						"Signer: Unknown error occurred when starting Signer. Details: {:?}",
 						any_error
 					)),
 					Ok(server) => server,

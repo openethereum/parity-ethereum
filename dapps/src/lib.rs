@@ -45,14 +45,16 @@
 
 #[macro_use]
 extern crate log;
-extern crate url;
+extern crate url as url_lib;
 extern crate hyper;
+extern crate unicase;
 extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate parity_dapps;
 extern crate ethcore_rpc;
+extern crate ethcore_util;
 extern crate mime_guess;
 
 mod endpoint;
@@ -63,10 +65,12 @@ mod handlers;
 mod rpc;
 mod api;
 mod proxypac;
+mod url;
 
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
+
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use ethcore_rpc::Extendable;
@@ -121,10 +125,11 @@ impl Server {
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
-			special.insert(router::SpecialEndpoint::Api, api::RestApi::new(endpoints.clone()));
+			special.insert(router::SpecialEndpoint::Api, api::RestApi::new(format!("{}", addr), endpoints.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special
 		});
+		let bind_address = format!("{}", addr);
 
 		try!(hyper::Server::http(addr))
 			.handle(move |_| router::Router::new(
@@ -132,6 +137,7 @@ impl Server {
 				endpoints.clone(),
 				special.clone(),
 				authorization.clone(),
+				bind_address.clone(),
 			))
 			.map(|(l, srv)| {
 

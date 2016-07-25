@@ -524,9 +524,8 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 	fn bit(&self, index: usize) -> bool;
 	/// Return single byte
 	fn byte(&self, index: usize) -> u8;
-	/// Get this Uint as slice of bytes
-	fn to_raw_bytes(&self, bytes: &mut[u8]);
-
+	/// Convert U256 to the sequence of bytes with a big endian
+	fn to_big_endian(&self, bytes: &mut[u8]);
 	/// Create `Uint(10**n)`
 	fn exp10(n: usize) -> Self;
 	/// Return eponentation `self**other`. Panic on overflow.
@@ -551,6 +550,9 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 
 	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
+
+	/// Returns
+	fn is_zero(&self) -> bool;
 }
 
 macro_rules! construct_uint {
@@ -616,6 +618,13 @@ macro_rules! construct_uint {
 				arr[0]
 			}
 
+			#[inline]
+			fn is_zero(&self) -> bool {
+				let &$name(ref arr) = self;
+				for i in 0..$n_words { if arr[i] != 0 { return false; } }
+				return true;
+			}
+
 			/// Return the least number of bits needed to represent the number
 			#[inline]
 			fn bits(&self) -> usize {
@@ -638,7 +647,7 @@ macro_rules! construct_uint {
 				(arr[index / 8] >> (((index % 8)) * 8)) as u8
 			}
 
-			fn to_raw_bytes(&self, bytes: &mut[u8]) {
+			fn to_big_endian(&self, bytes: &mut[u8]) {
 				assert!($n_words * 8 == bytes.len());
 				let &$name(ref arr) = self;
 				for i in 0..bytes.len() {
@@ -678,24 +687,25 @@ macro_rules! construct_uint {
 			/// Fast exponentation by squaring
 			/// https://en.wikipedia.org/wiki/Exponentiation_by_squaring
 			fn pow(self, expon: Self) -> Self {
-				if expon == Self::zero() {
+				if expon.is_zero() {
 					return Self::one()
 				}
 				let is_even = |x : &Self| x.low_u64() & 1 == 0;
 
 				let u_one = Self::one();
-				let u_two = Self::from(2);
 				let mut y = u_one;
 				let mut n = expon;
 				let mut x = self;
 				while n > u_one {
 					if is_even(&n) {
 						x = x * x;
-						n = n / u_two;
+						n = n >> 1;
 					} else {
 						y = x * y;
 						x = x * x;
-						n = (n - u_one) / u_two;
+						// to reduce odd number by 1 we should just clear the last bit
+						n.0[$n_words-1] = n.0[$n_words-1] & ((!0u64)>>1);
+						n = n >> 1;
 					}
 				}
 				x * y
@@ -704,13 +714,11 @@ macro_rules! construct_uint {
 			/// Fast exponentation by squaring
 			/// https://en.wikipedia.org/wiki/Exponentiation_by_squaring
 			fn overflowing_pow(self, expon: Self) -> (Self, bool) {
-				if expon == Self::zero() {
-					return (Self::one(), false)
-				}
+				if expon.is_zero() { return (Self::one(), false) }
+
 				let is_even = |x : &Self| x.low_u64() & 1 == 0;
 
 				let u_one = Self::one();
-				let u_two = Self::from(2);
 				let mut y = u_one;
 				let mut n = expon;
 				let mut x = self;
@@ -719,11 +727,11 @@ macro_rules! construct_uint {
 				while n > u_one {
 					if is_even(&n) {
 						x = overflowing!(x.overflowing_mul(x), overflow);
-						n = n / u_two;
+						n = n >> 1;
 					} else {
 						y = overflowing!(x.overflowing_mul(y), overflow);
 						x = overflowing!(x.overflowing_mul(x), overflow);
-						n = (n - u_one) / u_two;
+						n = (n - u_one) >> 1;
 					}
 				}
 				let res = overflowing!(x.overflowing_mul(y), overflow);
@@ -1059,7 +1067,7 @@ macro_rules! construct_uint {
 
 		impl fmt::Display for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				if *self == $name::zero() {
+				if self.is_zero() {
 					return write!(f, "0");
 				}
 
@@ -1067,7 +1075,7 @@ macro_rules! construct_uint {
 				let mut current = *self;
 				let ten = $name::from(10);
 
-				while current != $name::zero() {
+				while !current.is_zero() {
 					s = format!("{}{}", (current % ten).low_u32(), s);
 					current = current / ten;
 				}
@@ -1454,7 +1462,7 @@ mod tests {
 		let hex = "8090a0b0c0d0e0f00910203040506077583a2cf8264910e1436bda32571012f0";
 		let uint = U256::from_str(hex).unwrap();
 		let mut bytes = [0u8; 32];
-		uint.to_raw_bytes(&mut bytes);
+		uint.to_big_endian(&mut bytes);
 		let uint2 = U256::from(&bytes[..]);
 		assert_eq!(uint, uint2);
 	}
@@ -2021,6 +2029,44 @@ mod tests {
 		assert!(overflow);
     }
 
+	#[test]
+	fn big_endian() {
+		let source = U256([1, 0, 0, 0]);
+		let mut target = vec![0u8; 32];
+
+		assert_eq!(source, U256::from(1));
+
+		source.to_big_endian(&mut target);
+		assert_eq!(
+			vec![0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+				0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 1u8],
+			target);
+
+		let source = U256([512, 0, 0, 0]);
+		let mut target = vec![0u8; 32];
+
+		source.to_big_endian(&mut target);
+		assert_eq!(
+			vec![0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+				0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 2u8, 0u8],
+			target);
+
+		let source = U256([0, 512, 0, 0]);
+		let mut target = vec![0u8; 32];
+
+		source.to_big_endian(&mut target);
+		assert_eq!(
+			vec![0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+				0u8, 0u8, 0u8, 0u8, 0u8, 2u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8],
+			target);
+
+		let source = U256::from_str("0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20").unwrap();
+		source.to_big_endian(&mut target);
+		assert_eq!(
+			vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11,
+				0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20],
+			target);
+	}
 
 	#[test]
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]

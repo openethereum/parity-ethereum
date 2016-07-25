@@ -17,73 +17,66 @@
 //! Creates and registers client and network services.
 
 use util::*;
-use util::Colour::{Yellow, White};
 use util::panics::*;
 use spec::Spec;
 use error::*;
-use client::{Client, ClientConfig};
+use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
+use std::sync::atomic::AtomicBool;
+
+#[cfg(feature="ipc")]
+use nanoipc;
+#[cfg(feature="ipc")]
+use client::BlockChainClient;
 
 /// Message type for external and internal events
 #[derive(Clone)]
-pub enum SyncMessage {
-	/// New block has been imported into the blockchain
-	NewChainBlocks {
-		/// Hashes of blocks imported to blockchain
-		imported: Vec<H256>,
-		/// Hashes of blocks not imported to blockchain (because were invalid)
-		invalid: Vec<H256>,
-		/// Hashes of blocks that were removed from canonical chain
-		retracted: Vec<H256>,
-		/// Hashes of blocks that are now included in cannonical chain
-		enacted: Vec<H256>,
-		/// Hashes of blocks that are sealed by this node
-		sealed: Vec<H256>,
-	},
+pub enum ClientIoMessage {
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
 	NewTransactions(Vec<Bytes>),
-	/// Start network command.
-	StartNetwork,
-	/// Stop network command.
-	StopNetwork,
 }
-
-/// IO Message type used for Network service
-pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
-	net_service: Arc<NetworkService<SyncMessage>>,
+	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
-	panic_handler: Arc<PanicHandler>
+	panic_handler: Arc<PanicHandler>,
+	_stop_guard: ::devtools::StopGuard,
 }
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path, miner: Arc<Miner>, enable_network: bool) -> Result<ClientService, Error> {
+	pub fn start(
+		config: ClientConfig,
+		spec: Spec,
+		db_path: &Path,
+		miner: Arc<Miner>,
+		) -> Result<ClientService, Error>
+	{
 		let panic_handler = PanicHandler::new_in_arc();
-		let net_service = try!(NetworkService::new(net_config));
-		panic_handler.forward_from(&net_service);
-		if enable_network {
-			try!(net_service.start());
-		}
+		let io_service = try!(IoService::<ClientIoMessage>::start());
+		panic_handler.forward_from(&io_service);
 
-		info!("Configured for {} using {} engine", paint(White.bold(), spec.name.clone()), paint(Yellow.bold(), spec.engine.name().to_owned()));
-		let client = try!(Client::new(config, spec, db_path, miner, net_service.io().channel()));
+		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
+		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
 		});
-		try!(net_service.io().register_handler(client_io));
+		try!(io_service.register_handler(client_io));
+
+		let stop_guard = ::devtools::StopGuard::new();
+		run_ipc(client.clone(), stop_guard.share());
 
 		Ok(ClientService {
-			net_service: Arc::new(net_service),
+			io_service: Arc::new(io_service),
 			client: client,
 			panic_handler: panic_handler,
+			_stop_guard: stop_guard,
 		})
 	}
 
@@ -93,8 +86,8 @@ impl ClientService {
 	}
 
 	/// Get general IO interface
-	pub fn register_io_handler(&self, handler: Arc<IoHandler<NetSyncMessage> + Send>) -> Result<(), IoError> {
-		self.net_service.io().register_handler(handler)
+	pub fn register_io_handler(&self, handler: Arc<IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
+		self.io_service.register_handler(handler)
 	}
 
 	/// Get client interface
@@ -103,8 +96,13 @@ impl ClientService {
 	}
 
 	/// Get network service component
-	pub fn network(&mut self) -> Arc<NetworkService<SyncMessage>> {
-		self.net_service.clone()
+	pub fn io(&self) -> Arc<IoService<ClientIoMessage>> {
+		self.io_service.clone()
+	}
+
+	/// Set the actor to be notified on certain chain events
+	pub fn add_notify(&self, notify: Arc<ChainNotify>) {
+		self.client.add_notify(notify);
 	}
 }
 
@@ -122,38 +120,47 @@ struct ClientIoHandler {
 const CLIENT_TICK_TIMER: TimerToken = 0;
 const CLIENT_TICK_MS: u64 = 5000;
 
-impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
+impl IoHandler<ClientIoMessage> for ClientIoHandler {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		if timer == CLIENT_TICK_TIMER {
 			self.client.tick();
 		}
 	}
 
 	#[cfg_attr(feature="dev", allow(single_match))]
-	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
-		if let UserMessage(ref message) = *net_message {
-			match *message {
-				SyncMessage::BlockVerified => {
-					self.client.import_verified_blocks(&io.channel());
-				},
-				SyncMessage::NewTransactions(ref transactions) => {
-					self.client.import_queued_transactions(&transactions);
-				},
-				_ => {}, // ignore other messages
-			}
+	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+		match *net_message {
+			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
+			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
+			_ => {} // ignore other messages
 		}
 	}
+}
+
+#[cfg(feature="ipc")]
+fn run_ipc(client: Arc<Client>, stop: Arc<AtomicBool>) {
+	::std::thread::spawn(move || {
+		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
+		worker.add_reqrep("ipc:///tmp/parity-chain.ipc").expect("Ipc expected to initialize with no issues");
+
+		while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
+			worker.poll();
+		}
+	});
+}
+
+#[cfg(not(feature="ipc"))]
+fn run_ipc(_client: Arc<Client>, _stop: Arc<AtomicBool>) {
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use tests::helpers::*;
-	use util::network::*;
 	use devtools::*;
 	use client::ClientConfig;
 	use std::sync::Arc;
@@ -165,10 +172,8 @@ mod tests {
 		let service = ClientService::start(
 			ClientConfig::default(),
 			get_test_spec(),
-			NetworkConfiguration::new_local(),
 			&temp_path.as_path(),
 			Arc::new(Miner::with_spec(get_test_spec())),
-			false
 		);
 		assert!(service.is_ok());
 	}

@@ -49,8 +49,7 @@ pub struct ArchiveDB {
 impl ArchiveDB {
 	/// Create a new instance from file
 	pub fn new(path: &str, config: DatabaseConfig) -> ArchiveDB {
-		let opts = config.prefix(DB_PREFIX_LEN);
-		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
+		let backing = Database::open(&config, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
@@ -202,7 +201,7 @@ impl JournalDB for ArchiveDB {
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
-		self.backing.get_by_prefix(&id[0..12]).and_then(|b| Some(b.to_vec()))
+		self.backing.get_by_prefix(&id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
 	}
 
 	fn is_pruned(&self) -> bool { false }

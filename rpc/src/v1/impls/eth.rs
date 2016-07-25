@@ -18,9 +18,11 @@
 
 extern crate ethash;
 
+use std::io::{Write};
+use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Instant, Duration};
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Weak};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
 use ethcore::miner::{MinerService, ExternalMinerService};
@@ -28,8 +30,10 @@ use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
+use util::{FromHex, Mutex};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
+use ethcore::header::Header as BlockHeader;
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -42,10 +46,9 @@ use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncIn
 use v1::helpers::CallRequest as CRequest;
 use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
-use ethcore::header::Header as BlockHeader;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, M, EM> where
+pub struct EthClient<C, S: ?Sized, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
 	M: MinerService,
@@ -60,7 +63,7 @@ pub struct EthClient<C, S, M, EM> where
 	allow_pending_receipt_query: bool,
 }
 
-impl<C, S, M, EM> EthClient<C, S, M, EM> where
+impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient,
 	S: SyncProvider,
 	M: MinerService,
@@ -88,6 +91,7 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 				let view = block_view.header_view();
 				let block = Block {
 					hash: Some(view.sha3().into()),
+					size: Some(bytes.len()),
 					parent_hash: view.parent_hash().into(),
 					uncles_hash: view.uncles_hash().into(),
 					author: view.author().into(),
@@ -104,12 +108,9 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 					total_difficulty: total_difficulty.into(),
 					seal_fields: view.seal().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
 					uncles: block_view.uncle_hashes().into_iter().map(Into::into).collect(),
-					transactions: {
-						if include_txs {
-							BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect())
-						} else {
-							BlockTransactions::Hashes(block_view.transaction_hashes().into_iter().map(Into::into).collect())
-						}
+					transactions: match include_txs {
+						true => BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect()),
+						false => BlockTransactions::Hashes(block_view.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
 					extra_data: Bytes::new(view.extra_data())
 				};
@@ -139,6 +140,7 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 
 		let block = Block {
 			hash: Some(uncle.hash().into()),
+			size: None,
 			parent_hash: uncle.parent_hash.into(),
 			uncles_hash: uncle.uncles_hash.into(),
 			author: uncle.author.into(),
@@ -241,7 +243,7 @@ fn no_author_err() -> Error {
 	}
 }
 
-impl<C, S, M, EM> EthClient<C, S, M, EM> where
+impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
@@ -254,7 +256,13 @@ impl<C, S, M, EM> EthClient<C, S, M, EM> where
 	}
 }
 
-impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
+#[cfg(windows)]
+static SOLC: &'static str = "solc.exe";
+
+#[cfg(not(windows))]
+static SOLC: &'static str = "solc";
+
+impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
@@ -293,7 +301,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 				};
 				to_value(&res)
 			}
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -507,7 +515,13 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		match params {
-			Params::None => to_value(&vec![] as &Vec<String>),
+			Params::None => {
+				let mut compilers = vec![];
+				if Command::new(SOLC).output().is_ok() {
+					compilers.push("solidity".to_owned())
+				}
+				to_value(&compilers)
+			}
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -561,7 +575,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 				miner.map_sealing_work(client.deref(), |b| {
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-					let seed_hash = self.seed_compute.lock().unwrap().get_seedhash(b.block().header().number());
+					let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
 					let block_number = RpcU256::from(b.block().header().number());
 					to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target), block_number))
 				}).unwrap_or(Err(Error::internal_error()))	// no work found.
@@ -646,8 +660,28 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 		rpc_unimplemented!()
 	}
 
-	fn compile_solidity(&self, _: Params) -> Result<Value, Error> {
+	fn compile_solidity(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		rpc_unimplemented!()
+		from_params::<(String, )>(params)
+			.and_then(|(code, )| {
+				let maybe_child = Command::new(SOLC)
+					.arg("--bin")
+					.arg("--optimize")
+					.stdin(Stdio::piped())
+					.stdout(Stdio::piped())
+					.stderr(Stdio::null())
+					.spawn();
+				if let Ok(mut child) = maybe_child {
+					if let Ok(_) = child.stdin.as_mut().expect("we called child.stdin(Stdio::piped()) before spawn; qed").write_all(code.as_bytes()) {
+						if let Ok(output) = child.wait_with_output() {
+							let s = String::from_utf8_lossy(&output.stdout);
+							if let Some(hex) = s.lines().skip_while(|ref l| !l.contains("Binary")).skip(1).next() {
+								return to_value(&Bytes::new(hex.from_hex().unwrap_or(vec![])));
+							}
+						}
+					}
+				}
+				Err(Error::invalid_params())
+			})
 	}
 }

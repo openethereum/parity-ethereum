@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
 ///
 /// `BlockChain` synchronization strategy.
 /// Syncs to peers and keeps up to date.
@@ -178,6 +176,13 @@ pub struct SyncStatus {
 	pub num_active_peers: usize,
 	/// Heap memory used in bytes
 	pub mem_used: usize,
+}
+
+impl SyncStatus {
+	/// Indicates if initial sync is still in progress.
+	pub fn is_major_syncing(&self) -> bool {
+		self.state != SyncState::Idle && self.state != SyncState::NewBlocks
+	}
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -691,7 +696,7 @@ impl ChainSync {
 		self.state = SyncState::Waiting;
 	}
 
-	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
+	/// Find something to do for a peer. Called for a new peer or when a peer is done with its task.
 	fn sync_peer(&mut self, io: &mut SyncIo, peer_id: PeerId, force: bool) {
 		if !self.active_peers.contains(&peer_id) {
 			trace!(target: "sync", "Skipping deactivated peer");
@@ -1142,7 +1147,7 @@ impl ChainSync {
 				|e| format!("Error sending nodes: {:?}", e)),
 
 			_ => {
-				sync.write().unwrap().on_packet(io, peer, packet_id, data);
+				sync.write().on_packet(io, peer, packet_id, data);
 				Ok(())
 			}
 		};

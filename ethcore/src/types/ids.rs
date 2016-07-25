@@ -33,7 +33,9 @@ pub enum BlockID {
 	/// Earliest block (genesis).
 	Earliest,
 	/// Latest mined block.
-	Latest
+	Latest,
+	/// Pending block.
+	Pending,
 }
 
 /// Uniquely identifies transaction.
@@ -47,6 +49,7 @@ pub enum TransactionID {
 }
 
 /// Uniquely identifies Trace.
+#[derive(Binary)]
 pub struct TraceId {
 	/// Transaction
 	pub transaction: TransactionID,

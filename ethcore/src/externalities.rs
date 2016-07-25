@@ -262,6 +262,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			trace!("Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
 			self.state.transfer_balance(&address, refund_address, &balance);
 		}
+
+		self.tracer.trace_suicide(address, balance, refund_address.clone(), self.depth + 1);
 		self.substate.suicides.insert(address);
 	}
 
@@ -298,6 +300,7 @@ mod tests {
 	use evm::{Ext};
 	use substate::*;
 	use tests::helpers::*;
+	use devtools::GuardedTempResult;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
 

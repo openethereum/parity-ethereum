@@ -29,12 +29,12 @@ use util::log::Colour::*;
 use ethcore::account_provider::AccountProvider;
 use util::network_settings::NetworkSettings;
 use ethcore::client::{append_path, get_db_path, Mode, ClientConfig, DatabaseCompactionProfile, Switch, VMType};
-use ethcore::miner::{MinerOptions, PendingSet};
+use ethcore::miner::{MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
-use price_info::PriceInfo;
 use rpc::IpcConfiguration;
+use ethcore_logger::Settings as LogSettings;
 
 pub struct Configuration {
 	pub args: Args
@@ -45,12 +45,6 @@ pub struct Directories {
 	pub db: String,
 	pub dapps: String,
 	pub signer: String,
-}
-
-#[derive(Eq, PartialEq, Debug)]
-pub enum Policy {
-	None,
-	Dogmatic,
 }
 
 impl Configuration {
@@ -132,14 +126,6 @@ impl Configuration {
 			}))
 	}
 
-	pub fn policy(&self) -> Policy {
-		match self.args.flag_fork.as_str() {
-			"none" => Policy::None,
-			"dogmatic" => Policy::Dogmatic,
-			x => die!("{}: Invalid value given for --policy option. Use --help for more info.", x)
-		}
-	}
-
 	pub fn gas_floor_target(&self) -> U256 {
 		let d = &self.args.flag_gas_floor_target;
 		U256::from_dec_str(d).unwrap_or_else(|_| {
@@ -154,35 +140,52 @@ impl Configuration {
 		})
 	}
 
-	pub fn gas_price(&self) -> U256 {
+	fn to_duration(s: &str) -> Duration {
+		let bad = |_| {
+			die!("{}: Invalid duration given. See parity --help for more information.", s)
+		};
+		Duration::from_secs(match s {
+			"twice-daily" => 12 * 60 * 60,
+			"half-hourly" => 30 * 60,
+			"1second" | "1 second" | "second" => 1,
+			"1minute" | "1 minute" | "minute" => 60,
+			"hourly" | "1hour" | "1 hour" | "hour" => 60 * 60,
+			"daily" | "1day" | "1 day" | "day" => 24 * 60 * 60,
+			x if x.ends_with("seconds") => FromStr::from_str(&x[0..x.len() - 7]).unwrap_or_else(bad),
+			x if x.ends_with("minutes") => FromStr::from_str(&x[0..x.len() - 7]).unwrap_or_else(bad) * 60,
+			x if x.ends_with("hours") => FromStr::from_str(&x[0..x.len() - 5]).unwrap_or_else(bad) * 60 * 60,
+			x if x.ends_with("days") => FromStr::from_str(&x[0..x.len() - 4]).unwrap_or_else(bad) * 24 * 60 * 60,
+ 			x => FromStr::from_str(x).unwrap_or_else(bad),
+		})
+	}
+
+	pub fn gas_pricer(&self) -> GasPricer {
 		match self.args.flag_gasprice.as_ref() {
 			Some(d) => {
-				U256::from_dec_str(d).unwrap_or_else(|_| {
+				GasPricer::Fixed(U256::from_dec_str(d).unwrap_or_else(|_| {
 					die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
-				})
+				}))
 			}
 			_ => {
 				let usd_per_tx: f32 = FromStr::from_str(&self.args.flag_usd_per_tx).unwrap_or_else(|_| {
 					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
 				});
-				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
-					"auto" => PriceInfo::get().map_or_else(|| {
-						let last_known_good = 9.69696;
-						// TODO: use #1083 to read last known good value.
-						last_known_good
-					}, |x| x.ethusd),
-					"etherscan" => PriceInfo::get().map_or_else(|| {
-						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
-					}, |x| x.ethusd),
-					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
-				};
-				// TODO: use #1083 to write last known good value as use_per_eth.
-
-				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
-				let gas_per_tx: f32 = 21000.0;
-				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!("Using a conversion rate of Ξ1 = {} ({} wei/gas)", paint(White.bold(), format!("US${}", usd_per_eth)), paint(Yellow.bold(), format!("{}", wei_per_gas)));
-				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
+				match self.args.flag_usd_per_eth.as_str() {
+					"auto" => {
+						GasPricer::new_calibrated(GasPriceCalibratorOptions {
+							usd_per_tx: usd_per_tx,
+							recalibration_period: Self::to_duration(self.args.flag_price_update_period.as_str()),
+						})
+					},
+					x => {
+						let usd_per_eth: f32 = FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x));
+						let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
+						let gas_per_tx: f32 = 21000.0;
+						let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
+						info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", White.bold().paint(format!("US${}", usd_per_eth)), Yellow.bold().paint(format!("{}", wei_per_gas)));
+						GasPricer::Fixed(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap())
+					}
+				}
 			}
 		}
 	}
@@ -198,6 +201,7 @@ impl Configuration {
 	pub fn spec(&self) -> Spec {
 		match self.chain().as_str() {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
+			"homestead-dogmatic" => ethereum::new_frontier_dogmatic(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::load(contents(f).unwrap_or_else(|_| {
@@ -222,7 +226,7 @@ impl Configuration {
 				})
 			}).collect(),
 			Some(_) => Vec::new(),
-			None => spec.nodes().clone(),
+			None => spec.nodes().to_owned(),
 		}
 	}
 
@@ -279,7 +283,7 @@ impl Configuration {
 		ret
 	}
 
-	pub fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
+	fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
 		let mut ret = None;
 		let mut latest_era = None;
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
@@ -296,6 +300,17 @@ impl Configuration {
 			}
 		}
 		ret
+	}
+
+	pub fn pruning_algorithm(&self, spec: &Spec) -> journaldb::Algorithm {
+		match self.args.flag_pruning.as_str() {
+			"archive" => journaldb::Algorithm::Archive,
+			"light" => journaldb::Algorithm::EarlyMerge,
+			"fast" => journaldb::Algorithm::OverlayRecent,
+			"basic" => journaldb::Algorithm::RefCounted,
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
+			_ => { die!("Invalid pruning method given."); }
+		}
 	}
 
 	pub fn client_config(&self, spec: &Spec) -> ClientConfig {
@@ -325,20 +340,13 @@ impl Configuration {
 		// forced trace db cache size if provided
 		client_config.tracing.db_cache_size = self.args.flag_db_cache_size.and_then(|cs| Some(cs / 4));
 
-		client_config.pruning = match self.args.flag_pruning.as_str() {
-			"archive" => journaldb::Algorithm::Archive,
-			"light" => journaldb::Algorithm::EarlyMerge,
-			"fast" => journaldb::Algorithm::OverlayRecent,
-			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
-			_ => { die!("Invalid pruning method given."); }
-		};
+		client_config.pruning = self.pruning_algorithm(spec);
 
 		if self.args.flag_fat_db {
 			if let journaldb::Algorithm::Archive = client_config.pruning {
 				client_config.trie_spec = TrieSpec::Fat;
 			} else {
-				die!("Fatdb is not supported. Please rerun with --pruning=archive")
+				die!("Fatdb is not supported. Please re-run with --pruning=archive")
 			}
 		}
 
@@ -353,7 +361,7 @@ impl Configuration {
 		};
 
 		if self.args.flag_jitvm {
-			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity built without jit vm."))
+			client_config.vm_type = VMType::jit().unwrap_or_else(|| die!("Parity is built without the JIT EVM."))
 		}
 
 		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
@@ -417,19 +425,29 @@ impl Configuration {
 		self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone())
 	}
 
-	pub fn rpc_cors(&self) -> Vec<String> {
+	pub fn rpc_cors(&self) -> Option<Vec<String>> {
 		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
-		cors.map_or_else(Vec::new, |c| c.split(',').map(|s| s.to_owned()).collect())
+		cors.map(|c| c.split(',').map(|s| s.to_owned()).collect())
+	}
+
+	pub fn rpc_hosts(&self) -> Option<Vec<String>> {
+		match self.args.flag_jsonrpc_hosts.as_ref() {
+			"none" => return Some(Vec::new()),
+			"all" => return None,
+			_ => {}
+		}
+		let hosts = self.args.flag_jsonrpc_hosts.split(',').map(|h| h.into()).collect();
+		Some(hosts)
 	}
 
 	fn geth_ipc_path(&self) -> String {
 		if cfg!(windows) {
 			r"\\.\pipe\geth.ipc".to_owned()
-		}
-		else {
-			if self.args.flag_testnet { path::ethereum::with_testnet("geth.ipc") }
-			else { path::ethereum::with_default("geth.ipc") }
-				.to_str().unwrap().to_owned()
+		} else {
+			match self.args.flag_testnet {
+				true => path::ethereum::with_testnet("geth.ipc"),
+				false => path::ethereum::with_default("geth.ipc"),
+			}.to_str().unwrap().to_owned()
 		}
 	}
 
@@ -534,19 +552,39 @@ impl Configuration {
 
 	pub fn dapps_interface(&self) -> String {
 		match self.args.flag_dapps_interface.as_str() {
-			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
 	}
 
 	pub fn dapps_enabled(&self) -> bool {
-		!self.args.flag_dapps_off && !self.args.flag_no_dapps
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
 	}
 
 	pub fn signer_enabled(&self) -> bool {
-		(self.args.flag_unlock.is_none() && !self.args.flag_no_signer) ||
-		self.args.flag_force_signer
+		if self.args.flag_force_signer {
+			return true;
+		}
+
+		let signer_disabled = self.args.flag_unlock.is_some() ||
+			self.args.flag_geth ||
+			self.args.flag_no_signer;
+
+		return !signer_disabled;
+	}
+
+	pub fn log_settings(&self) -> LogSettings {
+		let mut settings = LogSettings::new();
+		if self.args.flag_no_color || cfg!(windows) {
+			settings = settings.no_color();
+		}
+		if let Some(ref init) = self.args.flag_logging {
+			settings = settings.init(init.to_owned())
+		}
+		if let Some(ref file) = self.args.flag_log_file {
+			settings = settings.file(file.to_owned())
+		}
+		settings
 	}
 }
 
@@ -590,7 +628,7 @@ mod tests {
 			assert_eq!(net.rpc_enabled, true);
 			assert_eq!(net.rpc_interface, "all".to_owned());
 			assert_eq!(net.rpc_port, 8000);
-			assert_eq!(conf.rpc_cors(), vec!["*".to_owned()]);
+			assert_eq!(conf.rpc_cors(), Some(vec!["*".to_owned()]));
 			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
 		}
 
@@ -611,6 +649,47 @@ mod tests {
 		// then
 		assert(conf1);
 		assert(conf2);
+	}
+
+	#[test]
+	fn should_parse_rpc_hosts() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--jsonrpc-hosts", "none"]);
+		let conf2 = parse(&["parity", "--jsonrpc-hosts", "all"]);
+		let conf3 = parse(&["parity", "--jsonrpc-hosts", "ethcore.io,something.io"]);
+
+		// then
+		assert_eq!(conf0.rpc_hosts(), Some(Vec::new()));
+		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
+		assert_eq!(conf2.rpc_hosts(), None);
+		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_disable_signer_in_geth_compat() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--geth"]);
+		let conf1 = parse(&["parity", "--geth", "--force-signer"]);
+
+		// then
+		assert_eq!(conf0.signer_enabled(), false);
+		assert_eq!(conf1.signer_enabled(), true);
+	}
+
+	#[test]
+	fn should_disable_signer_when_account_is_unlocked() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--unlock", "0x0"]);
+
+		// then
+		assert_eq!(conf0.signer_enabled(), false);
 	}
 }
 

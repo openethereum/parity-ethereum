@@ -19,26 +19,25 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::service::SyncMessage;
-use util::network::{NetworkService, NonReservedPeerMode};
+use ethsync::ManageNetwork;
 use v1::traits::EthcoreSet;
 use v1::types::{Bytes, H160, U256};
 
 /// Ethcore-specific rpc interface for operations altering the settings.
 pub struct EthcoreSetClient<C, M> where
 	C: MiningBlockChainClient,
-	M: MinerService {
-
+	M: MinerService
+{
 	client: Weak<C>,
 	miner: Weak<M>,
-	net: Weak<NetworkService<SyncMessage>>,
+	net: Weak<ManageNetwork>,
 }
 
 impl<C, M> EthcoreSetClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService {
 	/// Creates new `EthcoreSetClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<NetworkService<SyncMessage>>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>) -> Self {
 		EthcoreSetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
@@ -116,7 +115,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 	fn add_reserved_peer(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(String,)>(params).and_then(|(peer,)| {
-			match take_weak!(self.net).add_reserved_peer(&peer) {
+			match take_weak!(self.net).add_reserved_peer(peer) {
 				Ok(()) => to_value(&true),
 				Err(_) => Err(Error::invalid_params()),
 			}
@@ -126,7 +125,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 	fn remove_reserved_peer(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(String,)>(params).and_then(|(peer,)| {
-			match take_weak!(self.net).remove_reserved_peer(&peer) {
+			match take_weak!(self.net).remove_reserved_peer(peer) {
 				Ok(()) => to_value(&true),
 				Err(_) => Err(Error::invalid_params()),
 			}
@@ -135,13 +134,23 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 
 	fn drop_non_reserved_peers(&self, _: Params) -> Result<Value, Error> {
 		try!(self.active());
-		take_weak!(self.net).set_non_reserved_mode(NonReservedPeerMode::Deny);
+		take_weak!(self.net).deny_unreserved_peers();
 		to_value(&true)
 	}
 
 	fn accept_non_reserved_peers(&self, _: Params) -> Result<Value, Error> {
 		try!(self.active());
-		take_weak!(self.net).set_non_reserved_mode(NonReservedPeerMode::Accept);
+		take_weak!(self.net).accept_unreserved_peers();
 		to_value(&true)
+	}
+
+	fn start_network(&self, _: Params) -> Result<Value, Error> {
+		take_weak!(self.net).start_network();
+		Ok(Value::Bool(true))
+	}
+
+	fn stop_network(&self, _: Params) -> Result<Value, Error> {
+		take_weak!(self.net).stop_network();
+		Ok(Value::Bool(true))
 	}
 }

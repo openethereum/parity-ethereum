@@ -222,7 +222,7 @@ impl State {
 	/// Reset the code of account `a` so that it is `code`.
 	pub fn reset_code(&mut self, a: &Address, code: Bytes) {
 		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{}).reset_code(code);
-	}	
+	}
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
@@ -232,36 +232,10 @@ impl State {
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
 
-		let broken_dao = H256::from("6a5d24750f78441e56fec050dc52fe8e911976485b7472faac7464a176a67caa");
-
-		// dao attack soft fork
-		if engine.schedule(&env_info).reject_dao_transactions {
-			let whitelisted = if let Action::Call(to) = t.action {
-				to == Address::from("Da4a4626d3E16e094De3225A751aAb7128e96526") ||
-				to == Address::from("2ba9D006C1D72E67A70b5526Fc6b4b0C0fd6D334")
-			} else { false };
-			if !whitelisted {
-				// collect all the addresses which have changed.
-				let addresses = self.cache.borrow().iter().map(|(addr, _)| addr.clone()).collect::<Vec<_>>();
-
-				for a in &addresses {
-					if self.code(a).map_or(false, |c| c.sha3() == broken_dao) {
-						// Figure out if the balance has been reduced.
-						let maybe_original = self.trie_factory
-							.readonly(self.db.as_hashdb(), &self.root)
-							.expect(SEC_TRIE_DB_UNWRAP_STR)
-							.get(&a).map(Account::from_rlp);
-						if maybe_original.map_or(false, |original| *original.balance() > self.balance(a)) {
-							return Err(Error::Transaction(TransactionError::DAORescue));
-						}
-					}
-				}
-			}
-		}
-
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		self.commit();
+		self.clear();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 //		trace!("Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
@@ -275,12 +249,12 @@ impl State {
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
-				&mut&mut Some(ref mut account) => {
+				&mut&mut Some(ref mut account) if account.is_dirty() => {
 					let mut account_db = AccountDBMut::new(db, address);
 					account.commit_storage(trie_factory, &mut account_db);
 					account.commit_code(&mut account_db);
 				}
-				&mut&mut None => {}
+				_ => {}
 			}
 		}
 
@@ -288,8 +262,9 @@ impl State {
 			let mut trie = trie_factory.from_existing(db, root).unwrap();
 			for (address, ref a) in accounts.iter() {
 				match **a {
-					Some(ref account) => trie.insert(address, &account.rlp()),
+					Some(ref account) if account.is_dirty() => trie.insert(address, &account.rlp()),
 					None => trie.remove(address),
+					_ => (),
 				}
 			}
 		}
@@ -299,6 +274,11 @@ impl State {
 	pub fn commit(&mut self) {
 		assert!(self.snapshots.borrow().is_empty());
 		Self::commit_into(&self.trie_factory, self.db.as_hashdb_mut(), &mut self.root, self.cache.borrow_mut().deref_mut());
+	}
+
+	/// Clear state cache
+	pub fn clear(&mut self) {
+		self.cache.borrow_mut().clear();
 	}
 
 	#[cfg(test)]
@@ -1171,6 +1151,58 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 		}]
 	});
 
+	assert_eq!(result.trace, expected_trace);
+}
+
+#[test]
+fn should_trace_suicide() {
+	init_log();
+
+	let temp = RandomTempPath::new();
+	let mut state = get_temp_state_in(temp.as_path());
+
+	let mut info = EnvInfo::default();
+	info.gas_limit = 1_000_000.into();
+	let engine = TestEngine::new(5);
+
+	let t = Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 100_000.into(),
+		action: Action::Call(0xa.into()),
+		value: 100.into(),
+		data: vec![],
+	}.sign(&"".sha3());
+
+	state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
+	state.add_balance(&0xa.into(), &50.into());
+	state.add_balance(t.sender().as_ref().unwrap(), &100.into());
+	let vm_factory = Default::default();
+	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let expected_trace = Some(Trace {
+		depth: 0,
+		action: trace::Action::Call(trace::Call {
+			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+			to: 0xa.into(),
+			value: 100.into(),
+			gas: 79000.into(),
+			input: vec![],
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: 3.into(),
+			output: vec![]
+		}),
+		subs: vec![Trace {
+			depth: 1,
+			action: trace::Action::Suicide(trace::Suicide {
+				address: 0xa.into(),
+				refund_address: 0xb.into(),
+				balance: 150.into(),
+			}),
+			result: trace::Res::None,
+			subs: vec![]
+		}]
+	});
 	assert_eq!(result.trace, expected_trace);
 }
 

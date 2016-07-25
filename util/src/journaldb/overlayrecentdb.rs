@@ -104,8 +104,7 @@ impl OverlayRecentDB {
 
 	/// Create a new instance from file
 	pub fn from_prefs(path: &str, config: DatabaseConfig) -> OverlayRecentDB {
-		let opts = config.prefix(DB_PREFIX_LEN);
-		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
+		let backing = Database::open(&config, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
@@ -136,7 +135,7 @@ impl OverlayRecentDB {
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&self.backing);
-		let journal_overlay = self.journal_overlay.read().unwrap();
+		let journal_overlay = self.journal_overlay.read();
 		*journal_overlay == reconstructed
 	}
 
@@ -170,7 +169,7 @@ impl OverlayRecentDB {
 					for r in insertions.iter() {
 						let k: H256 = r.val_at(0);
 						let v: Bytes = r.val_at(1);
-						overlay.emplace(k.clone(), v);
+						overlay.emplace(OverlayRecentDB::to_short_key(&k), v);
 						inserted_keys.push(k);
 						count += 1;
 					}
@@ -190,6 +189,13 @@ impl OverlayRecentDB {
 		trace!("Recovered {} overlay entries, {} journal entries", count, journal.len());
 		JournalOverlay { backing_overlay: overlay, journal: journal, latest_era: latest_era }
 	}
+
+	#[inline]
+	fn to_short_key(key: &H256) -> H256 {
+		let mut k = H256::new();
+		&mut k[0..DB_PREFIX_LEN].copy_from_slice(&key[0..DB_PREFIX_LEN]);
+		k
+	}
 }
 
 impl JournalDB for OverlayRecentDB {
@@ -199,7 +205,7 @@ impl JournalDB for OverlayRecentDB {
 
 	fn mem_used(&self) -> usize {
 		let mut mem = self.transaction_overlay.mem_used();
-		let overlay = self.journal_overlay.read().unwrap();
+		let overlay = self.journal_overlay.read();
 		mem += overlay.backing_overlay.mem_used();
 		mem += overlay.journal.heap_size_of_children();
 		mem
@@ -209,12 +215,17 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().unwrap().latest_era }
+	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
+
+	fn state(&self, key: &H256) -> Option<Bytes> {
+		let v = self.journal_overlay.read().backing_overlay.get(&OverlayRecentDB::to_short_key(key)).map(|v| v.to_vec());
+		v.or_else(|| self.backing.get_by_prefix(&key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
+	}
 
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
-		let mut journal_overlay = self.journal_overlay.write().unwrap();
+		let mut journal_overlay = self.journal_overlay.write();
 		let batch = DBTransaction::new();
 		{
 			let mut r = RlpStream::new_list(3);
@@ -229,7 +240,7 @@ impl JournalDB for OverlayRecentDB {
 				r.begin_list(2);
 				r.append(&k);
 				r.append(&v);
-				journal_overlay.backing_overlay.emplace(k, v);
+				journal_overlay.backing_overlay.emplace(OverlayRecentDB::to_short_key(&k), v);
 			}
 			r.append(&removed_keys);
 
@@ -286,15 +297,14 @@ impl JournalDB for OverlayRecentDB {
 				}
 				// update the overlay
 				for k in overlay_deletions {
-					journal_overlay.backing_overlay.remove(&k);
+					journal_overlay.backing_overlay.remove_and_purge(&OverlayRecentDB::to_short_key(&k));
 				}
 				// apply canon deletions
 				for k in canon_deletions {
-					if !journal_overlay.backing_overlay.contains(&k) {
+					if !journal_overlay.backing_overlay.contains(&OverlayRecentDB::to_short_key(&k)) {
 						try!(batch.delete(&k));
 					}
 				}
-				journal_overlay.backing_overlay.purge();
 			}
 			journal_overlay.journal.remove(&end_era);
 		}
@@ -324,7 +334,7 @@ impl HashDB for OverlayRecentDB {
 		match k {
 			Some((d, rc)) if rc > 0 => Some(d),
 			_ => {
-				let v = self.journal_overlay.read().unwrap().backing_overlay.get(key).map(|v| v.to_vec());
+				let v = self.journal_overlay.read().backing_overlay.get(&OverlayRecentDB::to_short_key(key)).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
 						Some(self.transaction_overlay.denote(key, x).0)

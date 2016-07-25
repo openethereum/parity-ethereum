@@ -16,8 +16,6 @@
 
 //! Blockchain block.
 
-#![cfg_attr(feature="dev", allow(ptr_arg))] // Because of &LastHashes -> &Vec<_>
-
 use common::*;
 use engine::*;
 use state::*;
@@ -26,7 +24,7 @@ use trace::Trace;
 use evm::Factory as EvmFactory;
 
 /// A block, encoded as it is on the block chain.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct Block {
 	/// The header of this block.
 	pub header: Header,
@@ -41,7 +39,17 @@ impl Block {
 	pub fn is_good(b: &[u8]) -> bool {
 		UntrustedRlp::new(b).as_val::<Block>().is_ok()
 	}
+
+	/// Get the RLP-encoding of the block without the seal.
+	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
+		let mut block_rlp = RlpStream::new_list(3);
+		self.header.stream_rlp(&mut block_rlp, seal);
+		block_rlp.append(&self.transactions);
+		block_rlp.append(&self.uncles);
+		block_rlp.out()
+	}
 }
+
 
 impl Decodable for Block {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
@@ -76,11 +84,11 @@ pub struct BlockRefMut<'a> {
 	/// Block header.
 	pub header: &'a mut Header,
 	/// Block transactions.
-	pub transactions: &'a Vec<SignedTransaction>,
+	pub transactions: &'a [SignedTransaction],
 	/// Block uncles.
-	pub uncles: &'a Vec<Header>,
+	pub uncles: &'a [Header],
 	/// Transaction receipts.
-	pub receipts: &'a Vec<Receipt>,
+	pub receipts: &'a [Receipt],
 	/// State.
 	pub state: &'a mut State,
 	/// Traces.
@@ -92,11 +100,11 @@ pub struct BlockRef<'a> {
 	/// Block header.
 	pub header: &'a Header,
 	/// Block transactions.
-	pub transactions: &'a Vec<SignedTransaction>,
+	pub transactions: &'a [SignedTransaction],
 	/// Block uncles.
-	pub uncles: &'a Vec<Header>,
+	pub uncles: &'a [Header],
 	/// Transaction receipts.
-	pub receipts: &'a Vec<Receipt>,
+	pub receipts: &'a [Receipt],
 	/// State.
 	pub state: &'a State,
 	/// Traces.
@@ -142,8 +150,11 @@ impl ExecutedBlock {
 
 /// Trait for a object that is a `ExecutedBlock`.
 pub trait IsBlock {
-	/// Get the block associated with this object.
+	/// Get the `ExecutedBlock` associated with this object.
 	fn block(&self) -> &ExecutedBlock;
+
+	/// Get the base `Block` object associated with this.
+	fn base(&self) -> &Block { &self.block().base }
 
 	/// Get the header associated with this object's block.
 	fn header(&self) -> &Header { &self.block().base.header }
@@ -152,16 +163,16 @@ pub trait IsBlock {
 	fn state(&self) -> &State { &self.block().state }
 
 	/// Get all information on transactions in this block.
-	fn transactions(&self) -> &Vec<SignedTransaction> { &self.block().base.transactions }
+	fn transactions(&self) -> &[SignedTransaction] { &self.block().base.transactions }
 
 	/// Get all information on receipts in this block.
-	fn receipts(&self) -> &Vec<Receipt> { &self.block().receipts }
+	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
 
 	/// Get all information concerning transaction tracing in this block.
 	fn traces(&self) -> &Option<Vec<Trace>> { &self.block().traces }
 
 	/// Get all uncles in this block.
-	fn uncles(&self) -> &Vec<Header> { &self.block().base.uncles }
+	fn uncles(&self) -> &[Header] { &self.block().base.uncles }
 }
 
 /// Trait for a object that has a state database.
@@ -264,6 +275,15 @@ impl<'x> OpenBlock<'x> {
 	/// Alter the gas limit for the block.
 	pub fn set_gas_used(&mut self, a: U256) { self.block.base.header.set_gas_used(a); }
 
+	/// Alter the uncles hash the block.
+	pub fn set_uncles_hash(&mut self, h: H256) { self.block.base.header.set_uncles_hash(h); }
+
+	/// Alter transactions root for the block.
+	pub fn set_transactions_root(&mut self, h: H256) { self.block.base.header.set_transactions_root(h); }
+
+	/// Alter the receipts root for the block.
+	pub fn set_receipts_root(&mut self, h: H256) { self.block.base.header.set_receipts_root(h); }
+
 	/// Alter the extra_data for the block.
 	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
 		if extra_data.len() > self.engine.maximum_extra_data_size() {
@@ -354,11 +374,17 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		s.engine.on_close_block(&mut s.block);
-		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
+		if s.block.base.header.transactions_root.is_zero() || s.block.base.header.transactions_root == SHA3_NULL_RLP {
+			s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
+		}
 		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		s.block.base.header.uncles_hash = uncle_bytes.sha3();
+		if s.block.base.header.uncles_hash.is_zero() {
+			s.block.base.header.uncles_hash = uncle_bytes.sha3();
+		}
+		if s.block.base.header.receipts_root.is_zero() || s.block.base.header.receipts_root == SHA3_NULL_RLP {
+			s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
+		}
 		s.block.base.header.state_root = s.block.state.root().clone();
-		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
 		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b}); //TODO: use |= operator
 		s.block.base.header.gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
 		s.block.base.header.note_dirty();
@@ -483,10 +509,15 @@ pub fn enact(
 		}
 	}
 
-	let mut b = try!(OpenBlock::new(engine, vm_factory, trie_factory, tracing, db, parent, last_hashes, header.author().clone(), (3141562.into(), 31415620.into()), header.extra_data().clone()));
+	let mut b = try!(OpenBlock::new(engine, vm_factory, trie_factory, tracing, db, parent, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![]));
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
+	b.set_author(header.author().clone());
+	b.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
+	b.set_uncles_hash(header.uncles_hash().clone());
+	b.set_transactions_root(header.transactions_root().clone());
+	b.set_receipts_root(header.receipts_root().clone());
 	for t in transactions { try!(b.push_transaction(t.clone(), None)); }
 	for u in uncles { try!(b.push_uncle(u.clone())); }
 	Ok(b.close_and_lock())

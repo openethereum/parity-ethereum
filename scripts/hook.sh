@@ -1,5 +1,7 @@
 #!/bin/sh
 FILE=./.git/hooks/pre-push
+. ./scripts/targets.sh
+
 echo "#!/bin/sh\n" > $FILE
 # Exit on any error
 echo "set -e" >> $FILE
@@ -7,6 +9,6 @@ echo "set -e" >> $FILE
 echo "cargo build --features dev" >> $FILE
 # Build tests
 echo "cargo test --no-run --features dev \\" >> $FILE
-echo " -p ethkey -p ethstore -p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethcore-dapps -p ethcore-signer" >> $FILE
+echo $TARGETS >> $FILE
 echo "" >> $FILE
 chmod +x $FILE

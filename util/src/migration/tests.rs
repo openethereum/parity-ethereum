@@ -62,7 +62,7 @@ impl SimpleMigration for Migration0 {
 		1
 	}
 
-	fn simple_migrate(&self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
+	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		let mut key = key;
 		key.push(0x11);
 		let mut value = value;
@@ -78,7 +78,7 @@ impl SimpleMigration for Migration1 {
 		2
 	}
 
-	fn simple_migrate(&self, key: Vec<u8>, _value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
+	fn simple_migrate(&mut self, key: Vec<u8>, _value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		Some((key, vec![]))
 	}
 }

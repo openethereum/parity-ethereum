@@ -21,7 +21,6 @@
 
 use primal::is_prime;
 use std::cell::Cell;
-use std::sync::Mutex;
 use std::mem;
 use std::ptr;
 use sha3;
@@ -29,6 +28,8 @@ use std::slice;
 use std::path::PathBuf;
 use std::io::{self, Read, Write};
 use std::fs::{self, File};
+
+use parking_lot::Mutex;
 
 pub const ETHASH_EPOCH_LENGTH: u64 = 30000;
 pub const ETHASH_CACHE_ROUNDS: usize = 3;
@@ -134,7 +135,7 @@ impl Light {
 	}
 
 	pub fn to_file(&self) -> io::Result<()> {
-		let seed_compute = self.seed_compute.lock().unwrap();
+		let seed_compute = self.seed_compute.lock();
 		let path = Light::file_path(seed_compute.get_seedhash(self.block_number));
 		try!(fs::create_dir_all(path.parent().unwrap()));
 		let mut file = try!(File::create(path));
@@ -270,11 +271,12 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 
 		let page_size = 4 * MIX_WORDS;
 		let num_full_pages = (full_size / page_size) as u32;
+		let cache: &[Node] = &light.cache;  // deref once for better performance
 
 		for i in 0..(ETHASH_ACCESSES as u32) {
 			let index = fnv_hash(f_mix.get_unchecked(0).as_words().get_unchecked(0) ^ i, *mix.get_unchecked(0).as_words().get_unchecked((i as usize) % MIX_WORDS)) % num_full_pages;
 			for n in 0..MIX_NODES {
-				let tmp_node = calculate_dag_item(index * MIX_NODES as u32 + n as u32, light);
+				let tmp_node = calculate_dag_item(index * MIX_NODES as u32 + n as u32, cache);
 				for w in 0..NODE_WORDS {
 					*mix.get_unchecked_mut(n).as_words_mut().get_unchecked_mut(w) = fnv_hash(*mix.get_unchecked(n).as_words().get_unchecked(w), *tmp_node.as_words().get_unchecked(w));
 				}
@@ -305,18 +307,17 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	}
 }
 
-fn calculate_dag_item(node_index: u32, light: &Light) -> Node {
+fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	unsafe {
-		let num_parent_nodes = light.cache.len();
-		let cache_nodes = &light.cache;
-		let init = cache_nodes.get_unchecked(node_index as usize % num_parent_nodes);
+		let num_parent_nodes = cache.len();
+		let init = cache.get_unchecked(node_index as usize % num_parent_nodes);
 		let mut ret = init.clone();
 		*ret.as_words_mut().get_unchecked_mut(0) ^= node_index;
 		sha3::sha3_512(ret.bytes.as_mut_ptr(), ret.bytes.len(), ret.bytes.as_ptr(), ret.bytes.len());
 
 		for i in 0..ETHASH_DATASET_PARENTS {
 			let parent_index = fnv_hash(node_index ^ i, *ret.as_words().get_unchecked(i as usize % NODE_WORDS)) % num_parent_nodes as u32;
-			let parent = cache_nodes.get_unchecked(parent_index as usize);
+			let parent = cache.get_unchecked(parent_index as usize);
 			for w in 0..NODE_WORDS {
 				*ret.as_words_mut().get_unchecked_mut(w) = fnv_hash(*ret.as_words().get_unchecked(w), *parent.as_words().get_unchecked(w));
 			}

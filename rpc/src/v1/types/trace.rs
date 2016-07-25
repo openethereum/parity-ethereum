@@ -162,7 +162,7 @@ pub enum Diff<T> where T: Serialize {
 	Changed(ChangedType<T>),
 }
 
-impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq, U: Serialize + From<T> {
+impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq + ::ethcore_ipc::BinaryConvertable, U: Serialize + From<T> {
 	fn from(c: account_diff::Diff<T>) -> Self {
 		match c {
 			account_diff::Diff::Same => Diff::Same,
@@ -205,7 +205,7 @@ impl Serialize for StateDiff {
 
 impl From<state_diff::StateDiff> for StateDiff {
 	fn from(c: state_diff::StateDiff) -> Self {
-		StateDiff(c.0.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+		StateDiff(c.raw.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
 	}
 }
 
@@ -260,6 +260,28 @@ impl From<trace::Call> for Call {
 	}
 }
 
+/// Suicide
+#[derive(Debug, Serialize)]
+pub struct Suicide {
+	/// Address.
+	pub address: H160,
+	/// Refund address.
+	#[serde(rename="refundAddress")]
+	pub refund_address: H160,
+	/// Balance.
+	pub balance: U256,
+}
+
+impl From<trace::Suicide> for Suicide {
+	fn from(s: trace::Suicide) -> Self {
+		Suicide {
+			address: s.address.into(),
+			refund_address: s.refund_address.into(),
+			balance: s.balance.into(),
+		}
+	}
+}
+
 /// Action
 #[derive(Debug, Serialize)]
 pub enum Action {
@@ -269,13 +291,17 @@ pub enum Action {
 	/// Create
 	#[serde(rename="create")]
 	Create(Create),
+	/// Suicide
+	#[serde(rename="suicide")]
+	Suicide(Suicide),
 }
 
 impl From<trace::Action> for Action {
 	fn from(c: trace::Action) -> Self {
 		match c {
-			trace::Action::Call(call) => Action::Call(Call::from(call)),
-			trace::Action::Create(create) => Action::Create(Create::from(create)),
+			trace::Action::Call(call) => Action::Call(call.into()),
+			trace::Action::Create(create) => Action::Create(create.into()),
+			trace::Action::Suicide(suicide) => Action::Suicide(suicide.into()),
 		}
 	}
 }
@@ -336,6 +362,9 @@ pub enum Res {
 	/// Creation failure
 	#[serde(rename="failedCreate")]
 	FailedCreate,
+	/// None
+	#[serde(rename="none")]
+	None,
 }
 
 impl From<trace::Res> for Res {
@@ -345,6 +374,7 @@ impl From<trace::Res> for Res {
 			trace::Res::Create(create) => Res::Create(CreateResult::from(create)),
 			trace::Res::FailedCall => Res::FailedCall,
 			trace::Res::FailedCreate => Res::FailedCreate,
+			trace::Res::None => Res::None,
 		}
 	}
 }
@@ -357,7 +387,7 @@ pub struct LocalizedTrace {
 	/// Result
 	result: Res,
 	/// Trace address
-	#[serde(rename="traceH160")]
+	#[serde(rename="traceAddress")]
 	trace_address: Vec<U256>,
 	/// Subtraces
 	subtraces: U256,
@@ -443,7 +473,7 @@ mod tests {
 			block_hash: H256::from(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"action":{"call":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","input":"0x1234"}},"result":{"call":{"gasUsed":"0x08","output":"0x5678"}},"traceH160":["0x0a"],"subtraces":"0x01","transactionPosition":"0x0b","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0x0d","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"action":{"call":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","input":"0x1234"}},"result":{"call":{"gasUsed":"0x08","output":"0x5678"}},"traceAddress":["0x0a"],"subtraces":"0x01","transactionPosition":"0x0b","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0x0d","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]

@@ -18,28 +18,27 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
+use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
 	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics,
-	TransactionImportError, BlockImportError};
+	BlockImportError};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
-use evm::Factory as EvmFactory;
+use evm::{Factory as EvmFactory, VMType};
 use miner::{Miner, MinerService};
 use spec::Spec;
 
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
-use error::{ExecutionError};
+use error::ExecutionError;
 use trace::LocalizedTrace;
-
-use miner::{TransactionImportResult, AccountDetails};
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -69,6 +68,10 @@ pub struct TestBlockChainClient {
 	pub queue_size: AtomicUsize,
 	/// Miner
 	pub miner: Arc<Miner>,
+	/// Spec
+	pub spec: Spec,
+	/// VM Factory
+	pub vm_factory: EvmFactory,
 }
 
 #[derive(Clone)]
@@ -108,40 +111,42 @@ impl TestBlockChainClient {
 			receipts: RwLock::new(HashMap::new()),
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(Spec::new_test())),
+			spec: Spec::new_test(),
+			vm_factory: EvmFactory::new(VMType::Interpreter),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
-		client.genesis_hash = client.last_hash.read().unwrap().clone();
+		client.genesis_hash = client.last_hash.read().clone();
 		client
 	}
 
 	/// Set the transaction receipt result
 	pub fn set_transaction_receipt(&self, id: TransactionID, receipt: LocalizedReceipt) {
-		self.receipts.write().unwrap().insert(id, receipt);
+		self.receipts.write().insert(id, receipt);
 	}
 
 	/// Set the execution result.
 	pub fn set_execution_result(&self, result: Executed) {
-		*self.execution_result.write().unwrap() = Some(result);
+		*self.execution_result.write() = Some(result);
 	}
 
 	/// Set the balance of account `address` to `balance`.
 	pub fn set_balance(&self, address: Address, balance: U256) {
-		self.balances.write().unwrap().insert(address, balance);
+		self.balances.write().insert(address, balance);
 	}
 
 	/// Set nonce of account `address` to `nonce`.
 	pub fn set_nonce(&self, address: Address, nonce: U256) {
-		self.nonces.write().unwrap().insert(address, nonce);
+		self.nonces.write().insert(address, nonce);
 	}
 
 	/// Set `code` at `address`.
 	pub fn set_code(&self, address: Address, code: Bytes) {
-		self.code.write().unwrap().insert(address, code);
+		self.code.write().insert(address, code);
 	}
 
 	/// Set storage `position` to `value` for account `address`.
 	pub fn set_storage(&self, address: Address, position: H256, value: H256) {
-		self.storage.write().unwrap().insert((address, position), value);
+		self.storage.write().insert((address, position), value);
 	}
 
 	/// Set block queue size for testing
@@ -151,11 +156,11 @@ impl TestBlockChainClient {
 
 	/// Add blocks to test client.
 	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
-		let len = self.numbers.read().unwrap().len();
+		let len = self.numbers.read().len();
 		for n in len..(len + count) {
 			let mut header = BlockHeader::new();
 			header.difficulty = From::from(n);
-			header.parent_hash = self.last_hash.read().unwrap().clone();
+			header.parent_hash = self.last_hash.read().clone();
 			header.number = n as BlockNumber;
 			header.gas_limit = U256::from(1_000_000);
 			let uncles = match with {
@@ -163,7 +168,7 @@ impl TestBlockChainClient {
 					let mut uncles = RlpStream::new_list(1);
 					let mut uncle_header = BlockHeader::new();
 					uncle_header.difficulty = From::from(n);
-					uncle_header.parent_hash = self.last_hash.read().unwrap().clone();
+					uncle_header.parent_hash = self.last_hash.read().clone();
 					uncle_header.number = n as BlockNumber;
 					uncles.append(&uncle_header);
 					header.uncles_hash = uncles.as_raw().sha3();
@@ -176,7 +181,7 @@ impl TestBlockChainClient {
 					let mut txs = RlpStream::new_list(1);
 					let keypair = KeyPair::create().unwrap();
 					// Update nonces value
-					self.nonces.write().unwrap().insert(keypair.address(), U256::one());
+					self.nonces.write().insert(keypair.address(), U256::one());
 					let tx = Transaction {
 						action: Action::Create,
 						value: U256::from(100),
@@ -209,7 +214,7 @@ impl TestBlockChainClient {
 		rlp.append(&header);
 		rlp.append_raw(&rlp::NULL_RLP, 1);
 		rlp.append_raw(&rlp::NULL_RLP, 1);
-		self.blocks.write().unwrap().insert(hash, rlp.out());
+		self.blocks.write().insert(hash, rlp.out());
 	}
 
 	/// Make a bad block by setting invalid parent hash.
@@ -221,12 +226,12 @@ impl TestBlockChainClient {
 		rlp.append(&header);
 		rlp.append_raw(&rlp::NULL_RLP, 1);
 		rlp.append_raw(&rlp::NULL_RLP, 1);
-		self.blocks.write().unwrap().insert(hash, rlp.out());
+		self.blocks.write().insert(hash, rlp.out());
 	}
 
 	/// TODO:
 	pub fn block_hash_delta_minus(&mut self, delta: usize) -> H256 {
-		let blocks_read = self.numbers.read().unwrap();
+		let blocks_read = self.numbers.read();
 		let index = blocks_read.len() - delta;
 		blocks_read[&index].clone()
 	}
@@ -234,30 +239,57 @@ impl TestBlockChainClient {
 	fn block_hash(&self, id: BlockID) -> Option<H256> {
 		match id {
 			BlockID::Hash(hash) => Some(hash),
-			BlockID::Number(n) => self.numbers.read().unwrap().get(&(n as usize)).cloned(),
-			BlockID::Earliest => self.numbers.read().unwrap().get(&0).cloned(),
-			BlockID::Latest => self.numbers.read().unwrap().get(&(self.numbers.read().unwrap().len() - 1)).cloned()
+			BlockID::Number(n) => self.numbers.read().get(&(n as usize)).cloned(),
+			BlockID::Earliest => self.numbers.read().get(&0).cloned(),
+			BlockID::Latest | BlockID::Pending => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
 		}
+	}
+}
+
+pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
+	let temp = RandomTempPath::new();
+	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge, DatabaseConfig::default());
+	GuardedTempResult {
+		_temp: temp,
+		result: Some(journal_db)
 	}
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, _author: Address, _gas_range_target: (U256, U256), _extra_data: Bytes) -> OpenBlock {
-		unimplemented!();
+		let engine = &self.spec.engine;
+		let genesis_header = self.spec.genesis_header();
+		let mut db_result = get_temp_journal_db();
+		let mut db = db_result.take();
+		self.spec.ensure_db_good(db.as_hashdb_mut());
+
+		let last_hashes = vec![genesis_header.hash()];
+		OpenBlock::new(
+			engine.deref(),
+			self.vm_factory(),
+			Default::default(),
+			false,
+			db,
+			&genesis_header,
+			last_hashes,
+			Address::zero(),
+			(3141562.into(), 31415620.into()),
+			vec![]
+		).expect("Opening block for tests will not fail.")
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {
-		unimplemented!();
+		&self.vm_factory
 	}
 
 	fn import_sealed_block(&self, _block: SealedBlock) -> ImportResult {
-		unimplemented!();
+		Ok(H256::default())
 	}
 }
 
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
-		Ok(self.execution_result.read().unwrap().clone().unwrap())
+		Ok(self.execution_result.read().clone().unwrap())
 	}
 
 	fn block_total_difficulty(&self, _id: BlockID) -> Option<U256> {
@@ -270,26 +302,34 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
 		match id {
-			BlockID::Latest => Some(self.nonces.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero)),
+			BlockID::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or_else(U256::zero)),
 			_ => None,
 		}
 	}
 
+	fn latest_nonce(&self, address: &Address) -> U256 {
+		self.nonce(address, BlockID::Latest).unwrap()
+	}
+
 	fn code(&self, address: &Address) -> Option<Bytes> {
-		self.code.read().unwrap().get(address).cloned()
+		self.code.read().get(address).cloned()
 	}
 
 	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {
 		if let BlockID::Latest = id {
-			Some(self.balances.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero))
+			Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero))
 		} else {
 			None
 		}
 	}
 
+	fn latest_balance(&self, address: &Address) -> U256 {
+		self.balance(address, BlockID::Latest).unwrap()
+	}
+
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
 		if let BlockID::Latest = id {
-			Some(self.storage.read().unwrap().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new))
+			Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new))
 		} else {
 			None
 		}
@@ -304,7 +344,7 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
-		self.receipts.read().unwrap().get(&id).cloned()
+		self.receipts.read().get(&id).cloned()
 	}
 
 	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockID, _to_block: BlockID) -> Option<Vec<BlockNumber>> {
@@ -320,11 +360,11 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
-		self.block_hash(id).and_then(|hash| self.blocks.read().unwrap().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
+		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 	}
 
 	fn block_body(&self, id: BlockID) -> Option<Bytes> {
-		self.block_hash(id).and_then(|hash| self.blocks.read().unwrap().get(&hash).map(|r| {
+		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
 			let mut stream = RlpStream::new_list(2);
 			stream.append_raw(Rlp::new(&r).at(1).as_raw(), 1);
 			stream.append_raw(Rlp::new(&r).at(2).as_raw(), 1);
@@ -333,13 +373,13 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
-		self.block_hash(id).and_then(|hash| self.blocks.read().unwrap().get(&hash).cloned())
+		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).cloned())
 	}
 
 	fn block_status(&self, id: BlockID) -> BlockStatus {
 		match id {
-			BlockID::Number(number) if (number as usize) < self.blocks.read().unwrap().len() => BlockStatus::InChain,
-			BlockID::Hash(ref hash) if self.blocks.read().unwrap().get(hash).is_some() => BlockStatus::InChain,
+			BlockID::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
+			BlockID::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
 			_ => BlockStatus::Unknown
 		}
 	}
@@ -350,7 +390,7 @@ impl BlockChainClient for TestBlockChainClient {
 			ancestor: H256::new(),
 			index: 0,
 			blocks: {
-				let numbers_read = self.numbers.read().unwrap();
+				let numbers_read = self.numbers.read();
 				let mut adding = false;
 
 				let mut blocks = Vec::new();
@@ -407,11 +447,11 @@ impl BlockChainClient for TestBlockChainClient {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
 		let h = header.hash();
 		let number: usize = header.number as usize;
-		if number > self.blocks.read().unwrap().len() {
-			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().unwrap().len(), number);
+		if number > self.blocks.read().len() {
+			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().len(), number);
 		}
 		if number > 0 {
-			match self.blocks.read().unwrap().get(&header.parent_hash) {
+			match self.blocks.read().get(&header.parent_hash) {
 				Some(parent) => {
 					let parent = Rlp::new(parent).val_at::<BlockHeader>(0);
 					if parent.number != (header.number - 1) {
@@ -423,27 +463,27 @@ impl BlockChainClient for TestBlockChainClient {
 				}
 			}
 		}
-		let len = self.numbers.read().unwrap().len();
+		let len = self.numbers.read().len();
 		if number == len {
 			{
-				let mut difficulty = self.difficulty.write().unwrap();
+				let mut difficulty = self.difficulty.write();
 				*difficulty.deref_mut() = *difficulty.deref() + header.difficulty;
 			}
-			mem::replace(self.last_hash.write().unwrap().deref_mut(), h.clone());
-			self.blocks.write().unwrap().insert(h.clone(), b);
-			self.numbers.write().unwrap().insert(number, h.clone());
+			mem::replace(self.last_hash.write().deref_mut(), h.clone());
+			self.blocks.write().insert(h.clone(), b);
+			self.numbers.write().insert(number, h.clone());
 			let mut parent_hash = header.parent_hash;
 			if number > 0 {
 				let mut n = number - 1;
-				while n > 0 && self.numbers.read().unwrap()[&n] != parent_hash {
-					*self.numbers.write().unwrap().get_mut(&n).unwrap() = parent_hash.clone();
+				while n > 0 && self.numbers.read()[&n] != parent_hash {
+					*self.numbers.write().get_mut(&n).unwrap() = parent_hash.clone();
 					n -= 1;
-					parent_hash = Rlp::new(&self.blocks.read().unwrap()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash;
+					parent_hash = Rlp::new(&self.blocks.read()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash;
 				}
 			}
 		}
 		else {
-			self.blocks.write().unwrap().insert(h.clone(), b.to_vec());
+			self.blocks.write().insert(h.clone(), b.to_vec());
 		}
 		Ok(h)
 	}
@@ -464,11 +504,11 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn chain_info(&self) -> BlockChainInfo {
 		BlockChainInfo {
-			total_difficulty: *self.difficulty.read().unwrap(),
-			pending_total_difficulty: *self.difficulty.read().unwrap(),
+			total_difficulty: *self.difficulty.read(),
+			pending_total_difficulty: *self.difficulty.read(),
 			genesis_hash: self.genesis_hash.clone(),
-			best_block_hash: self.last_hash.read().unwrap().clone(),
-			best_block_number: self.blocks.read().unwrap().len() as BlockNumber - 1,
+			best_block_hash: self.last_hash.read().clone(),
+			best_block_number: self.blocks.read().len() as BlockNumber - 1,
 		}
 	}
 
@@ -488,24 +528,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<TransactionImportResult, TransactionImportError>> {
-		let nonces = self.nonces.read().unwrap();
-		let balances = self.balances.read().unwrap();
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: nonces[a],
-			balance: balances[a],
-		};
-
-		self.miner.import_transactions(self, transactions, &fetch_account)
-			.into_iter()
-			.map(|res| res.map_err(|e| e.into()))
-			.collect()
-	}
-
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
 		// import right here
-		let tx = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
-		self.import_transactions(tx);
+		let txs = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		self.miner.import_external_transactions(self, txs);
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {

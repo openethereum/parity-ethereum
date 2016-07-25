@@ -30,4 +30,32 @@ fn main() {
 		codegen::register(&mut registry);
 		registry.expand("", &src, &dst).unwrap();
 	}
+
+	// blockchain client interface
+	{
+		let src = Path::new("src/client/traits.rs");
+		let intermediate = Path::new(&out_dir).join("traits.intermediate.rs.in");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &intermediate).unwrap();
+
+		let dst = Path::new(&out_dir).join("traits.ipc.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &intermediate, &dst).unwrap();
+	}
+
+	// chain notify interface
+	{
+		let src = Path::new("src/client/chain_notify.rs");
+		let intermediate = Path::new(&out_dir).join("chain_notify.intermediate.rs.in");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &intermediate).unwrap();
+
+		let dst = Path::new(&out_dir).join("chain_notify.ipc.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &intermediate, &dst).unwrap();
+	}
 }

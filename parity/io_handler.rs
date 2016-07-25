@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use ethcore::client::Client;
-use ethcore::service::{NetSyncMessage, SyncMessage};
-use ethsync::EthSync;
+use ethcore::service::ClientIoMessage;
+use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
-use util::{TimerToken, IoHandler, IoContext, NetworkService, NetworkIoMessage};
+use util::{TimerToken, IoHandler, IoContext};
 
 use informant::Informant;
 
@@ -27,41 +27,20 @@ const INFO_TIMER: TimerToken = 0;
 
 pub struct ClientIoHandler {
 	pub client: Arc<Client>,
-	pub sync: Arc<EthSync>,
+	pub sync: Arc<SyncProvider>,
+	pub net: Arc<ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
-	pub info: Informant,
-	pub network: Weak<NetworkService<SyncMessage>>,
+	pub info: Arc<Informant>,
 }
 
-impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
+impl IoHandler<ClientIoMessage> for ClientIoHandler {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
 		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
 	}
 
-	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		if let INFO_TIMER = timer {
-			self.info.tick(&self.client, Some(&self.sync));
-		}
-	}
-
-	fn message(&self, _io: &IoContext<NetSyncMessage>, message: &NetSyncMessage) {
-		match *message {
-			NetworkIoMessage::User(SyncMessage::StartNetwork) => {
-				info!("Starting network");
-				if let Some(network) = self.network.upgrade() {
-					network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
-					EthSync::register(&*network, self.sync.clone()).unwrap_or_else(|e| warn!("Error registering eth protocol handler: {}", e));
-				}
-			},
-			NetworkIoMessage::User(SyncMessage::StopNetwork) => {
-				info!("Stopping network");
-				if let Some(network) = self.network.upgrade() {
-					network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
-				}
-			},
-			_ => {/* Ignore other messages */},
+			self.info.tick();
 		}
 	}
 }
-
-

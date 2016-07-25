@@ -17,22 +17,19 @@
 //! Router implementation
 //! Processes request handling authorization and dispatching it to proper application.
 
-mod url;
 pub mod auth;
+mod host_validation;
 
 use DAPPS_DOMAIN;
 use std::sync::Arc;
 use std::collections::HashMap;
-use url::Host;
-use hyper;
-use hyper::{server, uri, header};
-use hyper::{Next, Encoder, Decoder};
+use url::{Url, Host};
+use hyper::{self, server, Next, Encoder, Decoder};
 use hyper::net::HttpStream;
 use apps;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
-use self::url::Url;
+use handlers::{Redirection, extract_url};
 use self::auth::{Authorization, Authorized};
-use handlers::Redirection;
 
 /// Special endpoints are accessible on every domain (every dapp)
 #[derive(Debug, PartialEq, Hash, Eq)]
@@ -48,40 +45,46 @@ pub struct Router<A: Authorization + 'static> {
 	endpoints: Arc<Endpoints>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
+	bind_address: String,
 	handler: Box<server::Handler<HttpStream> + Send>,
 }
 
 impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
+		// Validate Host header
+		if !host_validation::is_valid(&req, &self.bind_address, self.endpoints.keys().cloned().collect()) {
+			self.handler = host_validation::host_invalid_response();
+			return self.handler.on_request(req);
+		}
+
 		// Check authorization
 		let auth = self.authorization.is_authorized(&req);
+		if let Authorized::No(handler) = auth {
+			self.handler = handler;
+			return self.handler.on_request(req);
+		}
 
 		// Choose proper handler depending on path / domain
-		self.handler = match auth {
-			Authorized::No(handler) => handler,
-			Authorized::Yes => {
-				let url = extract_url(&req);
-				let endpoint = extract_endpoint(&url);
+		let url = extract_url(&req);
+		let endpoint = extract_endpoint(&url);
 
-				match endpoint {
-					// First check special endpoints
-					(ref path, ref endpoint) if self.special.contains_key(endpoint) => {
-						self.special.get(endpoint).unwrap().to_handler(path.clone().unwrap_or_default())
-					},
-					// Then delegate to dapp
-					(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
-						self.endpoints.get(&path.app_id).unwrap().to_handler(path.clone())
-					},
-					// Redirection to main page
-					_ if *req.method() == hyper::method::Method::Get => {
-						Redirection::new(self.main_page)
-					},
-					// RPC by default
-					_ => {
-						self.special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default())
-					}
-				}
+		self.handler = match endpoint {
+			// First check special endpoints
+			(ref path, ref endpoint) if self.special.contains_key(endpoint) => {
+				self.special.get(endpoint).unwrap().to_handler(path.clone().unwrap_or_default())
+			},
+			// Then delegate to dapp
+			(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
+				self.endpoints.get(&path.app_id).unwrap().to_handler(path.clone())
+			},
+			// Redirection to main page
+			_ if *req.method() == hyper::method::Method::Get => {
+				Redirection::new(self.main_page)
+			},
+			// RPC by default
+			_ => {
+				self.special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default())
 			}
 		};
 
@@ -110,7 +113,9 @@ impl<A: Authorization> Router<A> {
 		main_page: &'static str,
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
-		authorization: Arc<A>) -> Self {
+		authorization: Arc<A>,
+		bind_address: String,
+		) -> Self {
 
 		let handler = special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default());
 		Router {
@@ -118,34 +123,9 @@ impl<A: Authorization> Router<A> {
 			endpoints: endpoints,
 			special: special,
 			authorization: authorization,
+			bind_address: bind_address,
 			handler: handler,
 		}
-	}
-}
-
-fn extract_url(req: &server::Request<HttpStream>) -> Option<Url> {
-	match *req.uri() {
-		uri::RequestUri::AbsoluteUri(ref url) => {
-			match Url::from_generic_url(url.clone()) {
-				Ok(url) => Some(url),
-				_ => None,
-			}
-		},
-		uri::RequestUri::AbsolutePath(ref path) => {
-			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-			let url_string = match req.headers().get::<header::Host>() {
-				Some(ref host) => {
-					format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
-				},
-				None => return None,
-			};
-
-			match Url::parse(&url_string) {
-				Ok(url) => Some(url),
-				_ => None,
-			}
-		},
-		_ => None,
 	}
 }
 

@@ -37,11 +37,19 @@ pub fn new_frontier() -> Spec {
 	Spec::load(include_bytes!("../../res/ethereum/frontier.json"))
 }
 
+/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+pub fn new_frontier_dogmatic() -> Spec {
+	Spec::load(include_bytes!("../../res/ethereum/frontier-dogmatic.json"))
+}
+
 /// Create a new Frontier chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier_test.json")) }
 
 /// Create a new Homestead chain spec as though it never changed from Frontier.
 pub fn new_homestead_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/homestead_test.json")) }
+
+/// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
+pub fn new_daohardfork_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/daohardfork_test.json")) }
 
 /// Create a new Frontier main net chain spec without genesis accounts.
 pub fn new_mainnet_like() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }

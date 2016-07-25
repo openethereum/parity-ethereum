@@ -16,10 +16,10 @@
 
 use std::thread;
 use std::time::{Instant, Duration};
-use std::sync::{mpsc, Mutex, RwLock, Arc};
+use std::sync::{mpsc, Arc};
 use std::collections::HashMap;
 use jsonrpc_core;
-use util::U256;
+use util::{Mutex, RwLock, U256};
 use v1::helpers::{TransactionRequest, TransactionConfirmation};
 
 /// Result that can be returned from JSON RPC.
@@ -77,8 +77,9 @@ pub trait SigningQueue: Send + Sync {
 	fn is_empty(&self) -> bool;
 }
 
-#[derive(Debug, PartialEq)]
-enum ConfirmationResult {
+#[derive(Debug, Clone, PartialEq)]
+/// Result of a pending transaction.
+pub enum ConfirmationResult {
 	/// The transaction has not yet been confirmed nor rejected.
 	Waiting,
 	/// The transaction has been rejected.
@@ -110,7 +111,7 @@ pub struct ConfirmationPromise {
 impl ConfirmationToken {
 	/// Submit solution to all listeners
 	fn resolve(&self, result: Option<RpcResult>) {
-		let mut res = self.result.lock().unwrap();
+		let mut res = self.result.lock();
 		*res = result.map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
 		// Notify listener
 		self.handle.unpark();
@@ -125,34 +126,43 @@ impl ConfirmationToken {
 }
 
 impl ConfirmationPromise {
+	/// Get the ID for this request.
+	pub fn id(&self) -> U256 { self.id }
+
 	/// Blocks current thread and awaits for
 	/// resolution of the transaction (rejected / confirmed)
 	/// Returns `None` if transaction was rejected or timeout reached.
 	/// Returns `Some(result)` if transaction was confirmed.
 	pub fn wait_with_timeout(&self) -> Option<RpcResult> {
 		let timeout = Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC);
-		let deadline = Instant::now() + timeout;
+		let res = self.wait_until(Instant::now() + timeout);
+		match res {
+			ConfirmationResult::Confirmed(h) => Some(h),
+			ConfirmationResult::Rejected | ConfirmationResult::Waiting => None,
+		}
+	}
 
-		info!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", self.id);
+	/// Just get the result, assuming it exists.
+	pub fn result(&self) -> ConfirmationResult { self.wait_until(Instant::now()) }
+
+	/// Blocks current thread and awaits for
+	/// resolution of the transaction (rejected / confirmed)
+	/// Returns `None` if transaction was rejected or timeout reached.
+	/// Returns `Some(result)` if transaction was confirmed.
+	pub fn wait_until(&self, deadline: Instant) -> ConfirmationResult {
+		trace!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", self.id);
 		loop {
 			let now = Instant::now();
-			if now >= deadline {
-				break;
+			// Check the result...
+			match *self.result.lock() {
+				// Waiting and deadline not yet passed continue looping.  
+				ConfirmationResult::Waiting if now < deadline => {}
+				// Anything else - return.
+				ref a => return a.clone(),
 			}
-			// Park thread (may wake up spuriously)
+			// wait a while longer - maybe the solution will arrive.
 			thread::park_timeout(deadline - now);
-			// Take confirmation result
-			let res = self.result.lock().unwrap();
-			// Check the result
-			match *res {
-				ConfirmationResult::Rejected => return None,
-				ConfirmationResult::Confirmed(ref h) => return Some(h.clone()),
-				ConfirmationResult::Waiting => continue,
-			}
 		}
-		// We reached the timeout. Just return `None`
-		trace!(target: "own_tx", "Signer: Confirmation timeout reached... ({:?}).", self.id);
-		None
 	}
 }
 
@@ -183,7 +193,7 @@ impl ConfirmationsQueue {
 	/// This method can be used only once (only single consumer of events can exist).
 	pub fn start_listening<F>(&self, listener: F) -> Result<(), QueueError>
 		where F: Fn(QueueEvent) -> () {
-		let recv = self.receiver.lock().unwrap().take();
+		let recv = self.receiver.lock().take();
 		if let None = recv {
 			return Err(QueueError::AlreadyUsed);
 		}
@@ -208,13 +218,13 @@ impl ConfirmationsQueue {
 	/// Notifies receiver about the event happening in this queue.
 	fn notify(&self, message: QueueEvent) {
 		// We don't really care about the result
-		let _ = self.sender.lock().unwrap().send(message);
+		let _ = self.sender.lock().send(message);
 	}
 
 	/// Removes transaction from this queue and notifies `ConfirmationPromise` holders about the result.
 	/// Notifies also a receiver about that event.
 	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<TransactionConfirmation> {
-		let token = self.queue.write().unwrap().remove(&id);
+		let token = self.queue.write().remove(&id);
 
 		if let Some(token) = token {
 			// notify receiver about the event
@@ -237,17 +247,17 @@ impl Drop for ConfirmationsQueue {
 	}
 }
 
-impl SigningQueue for  ConfirmationsQueue {
+impl SigningQueue for ConfirmationsQueue {
 	fn add_request(&self, transaction: TransactionRequest) -> ConfirmationPromise {
 		// Increment id
 		let id = {
-			let mut last_id = self.id.lock().unwrap();
+			let mut last_id = self.id.lock();
 			*last_id = *last_id + U256::from(1);
 			*last_id
 		};
 		// Add request to queue
 		let res = {
-			let mut queue = self.queue.write().unwrap();
+			let mut queue = self.queue.write();
 			queue.insert(id, ConfirmationToken {
 				result: Arc::new(Mutex::new(ConfirmationResult::Waiting)),
 				handle: thread::current(),
@@ -266,7 +276,7 @@ impl SigningQueue for  ConfirmationsQueue {
 	}
 
 	fn peek(&self, id: &U256) -> Option<TransactionConfirmation> {
-		self.queue.read().unwrap().get(id).map(|token| token.request.clone())
+		self.queue.read().get(id).map(|token| token.request.clone())
 	}
 
 	fn request_rejected(&self, id: U256) -> Option<TransactionConfirmation> {
@@ -280,17 +290,17 @@ impl SigningQueue for  ConfirmationsQueue {
 	}
 
 	fn requests(&self) -> Vec<TransactionConfirmation> {
-		let queue = self.queue.read().unwrap();
+		let queue = self.queue.read();
 		queue.values().map(|token| token.request.clone()).collect()
 	}
 
 	fn len(&self) -> usize {
-		let queue = self.queue.read().unwrap();
+		let queue = self.queue.read();
 		queue.len()
 	}
 
 	fn is_empty(&self) -> bool {
-		let queue = self.queue.read().unwrap();
+		let queue = self.queue.read();
 		queue.is_empty()
 	}
 }
@@ -300,8 +310,8 @@ impl SigningQueue for  ConfirmationsQueue {
 mod test {
 	use std::time::Duration;
 	use std::thread;
-	use std::sync::{Arc, Mutex};
-	use util::{Address, U256, H256};
+	use std::sync::Arc;
+	use util::{Address, U256, H256, Mutex};
 	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, TransactionRequest};
 	use v1::types::H256 as NH256;
 	use jsonrpc_core::to_value;
@@ -354,7 +364,7 @@ mod test {
 		let r = received.clone();
 		let handle = thread::spawn(move || {
 			q.start_listening(move |notification| {
-				let mut v = r.lock().unwrap();
+				let mut v = r.lock();
 				*v = Some(notification);
 			}).expect("Should be closed nicely.")
 		});
@@ -363,7 +373,7 @@ mod test {
 
 		// then
 		handle.join().expect("Thread should finish nicely");
-		let r = received.lock().unwrap().take();
+		let r = received.lock().take();
 		assert_eq!(r, Some(QueueEvent::NewRequest(U256::from(1))));
 	}
 

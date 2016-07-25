@@ -96,13 +96,13 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
                     }
 				},
 				Ok(_) => return Ok(None),
-				Err(e) => { 
+				Err(e) => {
 					debug!(target:"network", "Read error {} ({})", self.token, e);
 					return Err(e)
 				}
 			}
         }
-	}	
+	}
 
 	/// Add a packet to send queue.
 	pub fn send<Message>(&mut self, io: &IoContext<Message>, data: Bytes) where Message: Send + Clone {
@@ -490,7 +490,7 @@ pub fn test_encryption() {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::sync::*;
+	use std::sync::Arc;
 	use std::sync::atomic::AtomicBool;
 	use super::super::stats::*;
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};

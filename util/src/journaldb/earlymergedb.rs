@@ -74,8 +74,7 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 impl EarlyMergeDB {
 	/// Create a new instance from file
 	pub fn new(path: &str, config: DatabaseConfig) -> EarlyMergeDB {
-		let opts = config.prefix(DB_PREFIX_LEN);
-		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
+		let backing = Database::open(&config, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
@@ -225,7 +224,7 @@ impl EarlyMergeDB {
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
 		let (latest_era, reconstructed) = Self::read_refs(&self.backing);
-		let refs = self.refs.as_ref().unwrap().write().unwrap();
+		let refs = self.refs.as_ref().unwrap().write();
 		if *refs != reconstructed || latest_era != self.latest_era {
 			let clean_refs = refs.iter().filter_map(|(k, v)| if reconstructed.get(k) == Some(v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
 			let clean_recon = reconstructed.into_iter().filter_map(|(k, v)| if refs.get(&k) == Some(&v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
@@ -333,10 +332,14 @@ impl JournalDB for EarlyMergeDB {
 
 	fn mem_used(&self) -> usize {
 		self.overlay.mem_used() + match self.refs {
-			Some(ref c) => c.read().unwrap().heap_size_of_children(),
+			Some(ref c) => c.read().heap_size_of_children(),
 			None => 0
 		}
  	}
+
+	fn state(&self, id: &H256) -> Option<Bytes> {
+		self.backing.get_by_prefix(&id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+	}
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
@@ -385,7 +388,7 @@ impl JournalDB for EarlyMergeDB {
 		//
 
 		// record new commit's details.
-		let mut refs = self.refs.as_ref().unwrap().write().unwrap();
+		let mut refs = self.refs.as_ref().unwrap().write();
 		let batch = DBTransaction::new();
 		let trace = false;
 		{

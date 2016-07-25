@@ -19,7 +19,6 @@ use syntax::ast::{
 	MetaItem,
 	Item,
 	ImplItemKind,
-	ImplItem,
 	MethodSig,
 	Arg,
 	PatKind,
@@ -28,6 +27,7 @@ use syntax::ast::{
 	TraitRef,
 	Ident,
 	Generics,
+	TraitItemKind,
 };
 
 use syntax::ast;
@@ -62,22 +62,8 @@ pub fn expand_ipc_implementation(
 	};
 
 	push_client(cx, &builder, &interface_map, push);
-	push_handshake_struct(cx, push);
 
 	push(Annotatable::Item(interface_map.item));
-}
-
-fn push_handshake_struct(cx: &ExtCtxt, push: &mut FnMut(Annotatable)) {
-	let handshake_item = quote_item!(cx,
-		#[derive(Binary)]
-		pub struct BinHandshake {
-			api_version: String,
-			protocol_version: String,
-			reserved: Vec<u8>,
-		}
-	).unwrap();
-
-	push(Annotatable::Item(handshake_item));
 }
 
 fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
@@ -94,19 +80,23 @@ pub fn replace_slice_u8(builder: &aster::AstBuilder, ty: &P<ast::Ty>) -> P<ast::
 	ty.clone()
 }
 
+struct NamedSignature<'a> {
+	sig: &'a MethodSig,
+	ident: &'a Ident,
+}
+
 fn push_invoke_signature_aster(
 	builder: &aster::AstBuilder,
-	implement: &ImplItem,
-	signature: &MethodSig,
+	named_signature: &NamedSignature,
 	push: &mut FnMut(Annotatable),
 ) -> Dispatch {
-	let inputs = &signature.decl.inputs;
+	let inputs = &named_signature.sig.decl.inputs;
 	let (input_type_name, input_arg_names, input_arg_tys) = if inputs.len() > 0 {
 		let first_field_name = field_name(builder, &inputs[0]).name.as_str();
 		if first_field_name == "self" && inputs.len() == 1 { (None, vec![], vec![]) }
 		else {
 			let skip = if first_field_name == "self" { 2 } else { 1 };
-			let name_str = format!("{}_input", implement.ident.name.as_str());
+			let name_str = format!("{}_input", named_signature.ident.name.as_str());
 
 			let mut arg_names = Vec::new();
 			let mut arg_tys = Vec::new();
@@ -140,9 +130,9 @@ fn push_invoke_signature_aster(
 		(None, vec![], vec![])
 	};
 
-	let return_type_ty = match signature.decl.output {
+	let return_type_ty = match named_signature.sig.decl.output {
 		FunctionRetTy::Ty(ref ty) => {
-			let name_str = format!("{}_output", implement.ident.name.as_str());
+			let name_str = format!("{}_output", named_signature.ident.name.as_str());
 			let tree = builder.item()
 				.attr().word("derive(Binary)")
 				.attr().word("allow(non_camel_case_types)")
@@ -155,7 +145,7 @@ fn push_invoke_signature_aster(
 	};
 
 	Dispatch {
-		function_name: format!("{}", implement.ident.name.as_str()),
+		function_name: format!("{}", named_signature.ident.name.as_str()),
 		input_type_name: input_type_name,
 		input_arg_names: input_arg_names,
 		input_arg_tys: input_arg_tys,
@@ -283,7 +273,12 @@ fn implement_dispatch_arm(
 {
 	let index_ident = builder.id(format!("{}", index + (RESERVED_MESSAGE_IDS as u32)).as_str());
 	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch, buffer);
-	quote_arm!(cx, $index_ident => { $invoke_expr } )
+	let dispatching_trace = "Dispatching: ".to_owned() + &dispatch.function_name;
+	let dispatching_trace_literal = builder.expr().lit().str::<&str>(&dispatching_trace);
+	quote_arm!(cx, $index_ident => {
+		trace!(target: "ipc", $dispatching_trace_literal);
+		$invoke_expr
+	})
 }
 
 fn implement_dispatch_arms(
@@ -430,17 +425,22 @@ fn implement_client_method_body(
 		request_serialization_statements
 	};
 
+	let invocation_trace = "Invoking: ".to_owned() + &dispatch.function_name;
+	let invocation_trace_literal = builder.expr().lit().str::<&str>(&invocation_trace);
+
 	if let Some(ref return_ty) = dispatch.return_type_ty {
 		let return_expr = quote_expr!(cx,
 			::ipc::binary::deserialize_from::<$return_ty, _>(&mut *socket).unwrap()
 		);
 		quote_expr!(cx, {
+			trace!(target: "ipc", $invocation_trace_literal);
 			$request
 			$return_expr
 		})
 	}
 	else {
 		quote_expr!(cx, {
+			trace!(target: "ipc", $invocation_trace_literal);
 			$request
 		})
 	}
@@ -588,8 +588,6 @@ fn push_client_implementation(
 	interface_map: &InterfaceMap,
 	push: &mut FnMut(Annotatable),
 ) {
-	let item_ident = interface_map.ident_map.qualified_ident(builder);
-
 	let mut index = -1i32;
 	let items = interface_map.dispatches.iter()
 		.map(|_| { index = index + 1; P(implement_client_method(cx, builder, index as u16, interface_map)) })
@@ -598,18 +596,18 @@ fn push_client_implementation(
 	let generics = client_generics(builder, interface_map);
 	let client_ident = client_qualified_ident(cx, builder, interface_map);
 	let where_clause = &generics.where_clause;
+	let endpoint = interface_map.endpoint;
 
 	let handshake_item = quote_impl_item!(cx,
 		pub fn handshake(&self) -> Result<(), ::ipc::Error> {
-			let payload = BinHandshake {
-				protocol_version: $item_ident::protocol_version().to_string(),
-				api_version: $item_ident::api_version().to_string(),
-				reserved: vec![0u8; 64],
+			let payload = ::ipc::Handshake {
+				protocol_version: $endpoint::protocol_version(),
+				api_version: $endpoint::api_version(),
 			};
 
 			::ipc::invoke(
 				0,
-				&Some(::ipc::binary::serialize(&payload).unwrap()),
+				&Some(::ipc::binary::serialize(&::ipc::BinHandshake::from(payload)).unwrap()),
 				&mut *self.socket.write().unwrap());
 
 			let mut result = vec![0u8; 1];
@@ -673,18 +671,15 @@ fn implement_handshake_arm(
 ) -> (ast::Arm, ast::Arm)
 {
 	let handshake_deserialize = quote_stmt!(&cx,
-		let handshake_payload = ::ipc::binary::deserialize_from::<BinHandshake, _>(r).unwrap();
+		let handshake_payload = ::ipc::binary::deserialize_from::<::ipc::BinHandshake, _>(r).unwrap();
 	);
 
 	let handshake_deserialize_buf = quote_stmt!(&cx,
-		let handshake_payload = ::ipc::binary::deserialize::<BinHandshake>(buf).unwrap();
+		let handshake_payload = ::ipc::binary::deserialize::<::ipc::BinHandshake>(buf).unwrap();
 	);
 
 	let handshake_serialize = quote_expr!(&cx,
-		::ipc::binary::serialize::<bool>(&Self::handshake(&::ipc::Handshake {
-			api_version: ::semver::Version::parse(&handshake_payload.api_version).unwrap(),
-			protocol_version: ::semver::Version::parse(&handshake_payload.protocol_version).unwrap(),
-		})).unwrap()
+		::ipc::binary::serialize::<bool>(&Self::handshake(&handshake_payload.to_semver())).unwrap()
 	);
 
 	(
@@ -752,6 +747,7 @@ struct InterfaceMap {
 	pub generics: Generics,
 	pub impl_trait: Option<TraitRef>,
 	pub ident_map: IdentMap,
+	pub endpoint: Ident,
 }
 
 struct IdentMap {
@@ -771,10 +767,6 @@ impl IdentMap {
 			builder.id(format!("{}Client", self.original_path.segments[0].identifier))
 		}
 	}
-
-	fn qualified_ident(&self, builder: &aster::AstBuilder) -> Ident {
-		builder.id(format!("{}", ::syntax::print::pprust::path_to_string(&self.original_path).replace("<", "::<")))
-	}
 }
 
 fn ty_ident_map(original_ty: &P<Ty>) -> IdentMap {
@@ -786,15 +778,50 @@ fn ty_ident_map(original_ty: &P<Ty>) -> IdentMap {
 	ident_map
 }
 
-/// implements `IpcInterface<C>` for the given class `C`
+/// implements `IpcInterface` for the given class `C`
 fn implement_interface(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	item: &Item,
 	push: &mut FnMut(Annotatable),
 ) -> Result<InterfaceMap, Error> {
-	let (generics, impl_trait, original_ty, impl_items) = match item.node {
-		ast::ItemKind::Impl(_, _, ref generics, ref impl_trait, ref ty, ref impl_items) => (generics, impl_trait, ty, impl_items),
+	let (generics, impl_trait, original_ty, dispatch_table) = match item.node {
+		ast::ItemKind::Impl(_, _, ref generics, ref impl_trait, ref ty, ref impl_items) => {
+			let mut method_signatures = Vec::new();
+			for impl_item in impl_items {
+				if let ImplItemKind::Method(ref signature, _) = impl_item.node {
+					method_signatures.push(NamedSignature { ident: &impl_item.ident, sig: signature });
+				}
+			}
+
+			let dispatch_table = method_signatures.iter().map(|named_signature|
+				push_invoke_signature_aster(builder, named_signature, push))
+			.collect::<Vec<Dispatch>>();
+
+			(generics, impl_trait.clone(), ty.clone(), dispatch_table)
+		},
+		ast::ItemKind::Trait(_, ref generics, _, ref trait_items) => {
+			let mut method_signatures = Vec::new();
+			for trait_item  in trait_items {
+				if let TraitItemKind::Method(ref signature, _) = trait_item.node {
+					method_signatures.push(NamedSignature { ident: &trait_item.ident, sig: signature });
+				}
+			}
+
+			let dispatch_table = method_signatures.iter().map(|named_signature|
+				push_invoke_signature_aster(builder, named_signature, push))
+			.collect::<Vec<Dispatch>>();
+
+			(
+				generics,
+				Some(ast::TraitRef {
+					path: builder.path().ids(&[item.ident.name]).build(),
+					ref_id: item.id,
+				}),
+				builder.ty().id(item.ident),
+				dispatch_table
+			)
+		},
 		_ => {
 			cx.span_err(
 				item.span,
@@ -805,25 +832,19 @@ fn implement_interface(
 	let impl_generics = builder.from_generics(generics.clone()).build();
 	let where_clause = &impl_generics.where_clause;
 
-	let mut method_signatures = Vec::new();
-	for impl_item in impl_items {
-		if let ImplItemKind::Method(ref signature, _) = impl_item.node {
-			method_signatures.push((impl_item, signature))
-		}
-	}
-
-	let dispatch_table = method_signatures.iter().map(|&(impl_item, signature)|
-			push_invoke_signature_aster(builder, impl_item, signature, push))
-		.collect::<Vec<Dispatch>>();
-
 	let dispatch_arms = implement_dispatch_arms(cx, builder, &dispatch_table, false);
 	let dispatch_arms_buffered = implement_dispatch_arms(cx, builder, &dispatch_table, true);
 
 	let (handshake_arm, handshake_arm_buf) = implement_handshake_arm(cx);
 
 	let ty = ty_ident_map(&original_ty).ident(builder);
+	let (interface_endpoint, host_generics) = match impl_trait {
+		Some(ref trait_) => (builder.id(::syntax::print::pprust::path_to_string(&trait_.path)), None),
+		None => (ty, Some(&impl_generics)),
+	};
+
 	let ipc_item = quote_item!(cx,
-		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
+		impl $host_generics ::ipc::IpcInterface for $interface_endpoint $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
 				where R: ::std::io::Read
 			{
@@ -862,5 +883,6 @@ fn implement_interface(
 		dispatches: dispatch_table,
 		generics: generics.clone(),
 		impl_trait: impl_trait.clone(),
+		endpoint: interface_endpoint,
 	})
 }

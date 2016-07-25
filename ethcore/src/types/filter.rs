@@ -20,8 +20,12 @@ use util::hash::*;
 use util::sha3::*;
 use client::BlockID;
 use log_entry::LogEntry;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// Blockchain Filter.
+#[derive(Binary)]
 pub struct Filter {
 	/// Blockchain will be searched from this block.
 	pub from_block: BlockID,
@@ -29,22 +33,27 @@ pub struct Filter {
 	/// Till this block.
 	pub to_block: BlockID,
 
-	/// Search addresses. 
-	/// 
+	/// Search addresses.
+	///
 	/// If None, match all.
 	/// If specified, log must be produced by one of these addresses.
 	pub address: Option<Vec<Address>>,
 
 	/// Search topics.
-	/// 
+	///
 	/// If None, match all.
 	/// If specified, log must contain one of these topics.
-	pub topics: [Option<Vec<H256>>; 4],
+	pub topics: Vec<Option<Vec<H256>>>,
 }
 
 impl Clone for Filter {
 	fn clone(&self) -> Self {
-		let mut topics = [None, None, None, None];
+		let mut topics = [
+			None,
+			None,
+			None,
+			None,
+		];
 		for i in 0..4 {
 			topics[i] = self.topics[i].clone();
 		}
@@ -53,13 +62,13 @@ impl Clone for Filter {
 			from_block: self.from_block.clone(),
 			to_block: self.to_block.clone(),
 			address: self.address.clone(),
-			topics: topics
+			topics: topics[..].to_vec()
 		}
 	}
 }
 
 impl Filter {
-	/// Returns combinations of each address and topic.	
+	/// Returns combinations of each address and topic.
 	pub fn bloom_possibilities(&self) -> Vec<H2048> {
 		let blooms = match self.address {
 			Some(ref addresses) if !addresses.is_empty() =>
@@ -71,7 +80,7 @@ impl Filter {
 			_ => vec![H2048::new()]
 		};
 
-		self.topics.iter().fold(blooms, | bs, topic | match *topic {
+		self.topics.iter().fold(blooms, |bs, topic| match *topic {
 			None => bs,
 			Some(ref topics) => bs.into_iter().flat_map(|bloom| {
 				topics.into_iter().map(|topic| {
@@ -111,7 +120,7 @@ mod tests {
 			from_block: BlockID::Earliest,
 			to_block: BlockID::Latest,
 			address: None,
-			topics: [None, None, None, None]
+			topics: vec![None, None, None, None],
 		};
 
 		let possibilities = none_filter.bloom_possibilities();
@@ -126,9 +135,11 @@ mod tests {
 			from_block: BlockID::Earliest,
 			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
-			topics: [
+			topics: vec![
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
-				None, None, None
+				None,
+				None,
+				None,
 			]
 		};
 
@@ -142,10 +153,11 @@ mod tests {
 			from_block: BlockID::Earliest,
 			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
-			topics: [
+			topics: vec![
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
-				None, None
+				None,
+				None,
 			]
 		};
 
@@ -162,7 +174,7 @@ mod tests {
 						  Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap(),
 						  Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap(),
 			]),
-			topics: [
+			topics: vec![
 				Some(vec![
 					 H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap(),
 					 H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()
@@ -188,10 +200,11 @@ mod tests {
 			from_block: BlockID::Earliest,
 			to_block: BlockID::Latest,
 			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
-			topics: [
+			topics: vec![
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
 				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23fa").unwrap()]),
-				None, None
+				None,
+				None,
 			]
 		};
 
