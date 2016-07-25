@@ -20,8 +20,6 @@ use std::fmt;
 use hash::H256;
 use hashdb::HashDB;
 
-/// Export the trietraits module.
-pub mod trietraits;
 /// Export the standardmap module.
 pub mod standardmap;
 /// Export the journal module.
@@ -40,7 +38,6 @@ pub mod sectriedbmut;
 mod fatdb;
 mod fatdbmut;
 
-pub use self::trietraits::{Trie, TrieMut};
 pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;
 pub use self::triedb::{TrieDB, TrieDBIterator};
@@ -61,6 +58,51 @@ impl fmt::Display for TrieError {
 		write!(f, "Trie Error: Invalid state root.")
 	}
 }
+
+/// Trie-Item type.
+pub type TrieItem<'a> = (Vec<u8>, &'a [u8]);
+
+/// A key-value datastore implemented as a database-backed modified Merkle tree.
+pub trait Trie {
+	/// Return the root of the trie.
+	fn root(&self) -> &H256;
+
+	/// Is the trie empty?
+	fn is_empty(&self) -> bool { *self.root() == ::rlp::SHA3_NULL_RLP }
+
+	/// Does the trie contain a given key?
+	fn contains(&self, key: &[u8]) -> bool;
+
+	/// What is the value of the given key in this trie?
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
+
+	/// Returns an iterator over elements of trie.
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a>;
+}
+
+/// A key-value datastore implemented as a database-backed modified Merkle tree.
+pub trait TrieMut {
+	/// Return the root of the trie.
+	fn root(&mut self) -> &H256;
+
+	/// Is the trie empty?
+	fn is_empty(&self) -> bool;
+
+	/// Does the trie contain a given key?
+	fn contains(&self, key: &[u8]) -> bool;
+
+	/// What is the value of the given key in this trie?
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
+
+	/// Insert a `key`/`value` pair into the trie. An `empty` value is equivalent to removing
+	/// `key` from the trie.
+	fn insert(&mut self, key: &[u8], value: &[u8]);
+
+	/// Remove a `key` from the trie. Equivalent to making it equal to the empty
+	/// value.
+	fn remove(&mut self, key: &[u8]);
+}
+
 
 /// Trie types
 #[derive(Debug, Clone)]
