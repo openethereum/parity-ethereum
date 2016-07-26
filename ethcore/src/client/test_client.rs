@@ -37,7 +37,7 @@ use spec::Spec;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
-use error::ExecutionError;
+use error::{ExecutionError, ReplayError};
 use trace::LocalizedTrace;
 
 /// Test client.
@@ -289,6 +289,10 @@ impl MiningBlockChainClient for TestBlockChainClient {
 
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
+		Ok(self.execution_result.read().clone().unwrap())
+	}
+
+	fn replay(&self, _id: TransactionID, _analytics: CallAnalytics) -> Result<Executed, ReplayError> {
 		Ok(self.execution_result.read().clone().unwrap())
 	}
 
