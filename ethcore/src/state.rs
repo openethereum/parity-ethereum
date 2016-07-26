@@ -711,10 +711,25 @@ fn should_not_trace_callcode() {
 			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(64),
+			gas_used: 64.into(),
 			output: vec![]
 		}),
-		subs: vec![]
+		subs: vec![Trace {
+			depth: 1,
+			action: trace::Action::Call(trace::Call {
+				from: 0xa.into(),
+				to: 0xa.into(),
+				value: 0.into(),
+				gas: 4096.into(),
+				input: vec![],
+				call_type: CallType::CallCode,
+			}),
+			subs: vec![],
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: 3.into(),
+				output: vec![],
+			}),
+		}],
 	});
 	assert_eq!(result.trace, expected_trace);
 }
@@ -761,7 +776,22 @@ fn should_not_trace_delegatecall() {
 			gas_used: U256::from(61),
 			output: vec![]
 		}),
-		subs: vec![]
+		subs: vec![Trace {
+			depth: 1,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 0.into(),
+				gas: 32768.into(),
+				input: vec![],
+				call_type: CallType::DelegateCall,
+			}),
+			subs: vec![],
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: 3.into(),
+				output: vec![],
+			}),
+		}],
 	});
 	assert_eq!(result.trace, expected_trace);
 }

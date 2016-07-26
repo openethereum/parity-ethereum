@@ -174,7 +174,7 @@ impl<'a> Executive<'a> {
 					value: ActionValue::Transfer(t.value),
 					code: Some(t.data.clone()),
 					data: None,
-					call_type: CallType::Call,
+					call_type: CallType::None,
 				};
 				(self.create(params, &mut substate, &mut tracer, &mut vm_tracer), vec![])
 			},
@@ -189,7 +189,7 @@ impl<'a> Executive<'a> {
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address),
 					data: Some(t.data.clone()),
-					call_type: CallType::None,
+					call_type: CallType::Call,
 				};
 				// TODO: move output upstream
 				let mut out = vec![];
@@ -628,6 +628,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
 		params.value = ActionValue::Transfer(U256::from(100));
+		params.call_type = CallType::Call;
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));

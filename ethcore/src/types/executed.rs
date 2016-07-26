@@ -42,19 +42,20 @@ pub enum CallType {
 
 impl Encodable for CallType {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		match *self {
-			CallType::None => 0u8,
+		let v = match *self {
+			CallType::None => 0u32,
 			CallType::Call => 1,
 			CallType::CallCode => 2,
 			CallType::DelegateCall => 3,
-		}.rlp_append(s)
+		};
+		s.append(&v);
 	}
 }
 
 impl Decodable for CallType {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		decoder.as_rlp().as_val().and_then(|v| Ok(match v {
-			0u8 => CallType::None,
+			0u32 => CallType::None,
 			1 => CallType::Call,
 			2 => CallType::CallCode,
 			3 => CallType::DelegateCall,
@@ -172,3 +173,12 @@ impl fmt::Display for ExecutionError {
 
 /// Transaction execution result.
 pub type ExecutionResult = Result<Executed, ExecutionError>;
+
+#[test]
+fn should_encode_and_decode_call_type() {
+	use util::rlp;
+	let original = CallType::Call;
+	let encoded = rlp::encode(&original);
+	let decoded = rlp::decode(&encoded);
+	assert_eq!(original, decoded);
+}

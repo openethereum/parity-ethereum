@@ -127,7 +127,7 @@ impl From<ActionParams> for Call {
 
 impl Encodable for Call {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(5);
+		s.begin_list(6);
 		s.append(&self.from);
 		s.append(&self.to);
 		s.append(&self.value);
