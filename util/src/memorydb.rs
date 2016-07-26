@@ -73,38 +73,17 @@ use std::default::Default;
 ///   assert!(!m.contains(&k));
 /// }
 /// ```
+#[derive(Default, Clone, PartialEq)]
 pub struct MemoryDB {
-	data: UnsafeCell<HashMap<H256, (Bytes, i32)>>,
+	data: HashMap<H256, (Bytes, i32)>,
 	aux: HashMap<Bytes, Bytes>,
-}
-
-impl Default for MemoryDB {
-	fn default() -> Self {
-		MemoryDB::new()
-	}
-}
-
-impl ::std::cmp::PartialEq for MemoryDB {
-	fn eq(&self, rhs: &Self) -> bool {
-		let (my_data, rhs_data) = unsafe { (&*self.data.get(), &*rhs.data.get())};
-		my_data == rhs_data && self.aux == rhs.aux
-	}
-}
-
-impl Clone for MemoryDB {
-	fn clone(&self) -> Self {
-		MemoryDB {
-			data: UnsafeCell::new(unsafe { (*self.data.get()).clone() }),
-			aux: self.aux.clone()
-		}
-	}
 }
 
 impl MemoryDB {
 	/// Create a new instance of the memory DB.
 	pub fn new() -> MemoryDB {
 		MemoryDB {
-			data: UnsafeCell::new(HashMap::new()),
+			data: HashMap::new(),
 			aux: HashMap::new(),
 		}
 	}
@@ -126,22 +105,21 @@ impl MemoryDB {
 	/// }
 	/// ```
 	pub fn clear(&mut self) {
-		unsafe { (*self.data.get()).clear() }
+		self.data.clear();
 	}
 
 	/// Purge all zero-referenced data from the database.
 	pub fn purge(&mut self) {
-		let data = unsafe { &mut *self.data.get() };
-		let empties: Vec<_> = data.iter()
+		let empties: Vec<_> = self.data.iter()
 			.filter(|&(_, &(_, rc))| rc == 0)
 			.map(|(k, _)| k.clone())
 			.collect();
-		for empty in empties { data.remove(&empty); }
+		for empty in empties { self.data.remove(&empty); }
 	}
 
 	/// Return the internal map of hashes to data, clearing the current state.
 	pub fn drain(&mut self) -> HashMap<H256, (Bytes, i32)> {
-		mem::replace(unsafe { &mut *self.data.get() }, HashMap::new())
+		mem::replace(&mut self.data, HashMap::new())
 	}
 
 	/// Return the internal map of auxiliary data, clearing the current state.
@@ -158,7 +136,7 @@ impl MemoryDB {
 		if key == &SHA3_NULL_RLP {
 			return Some(STATIC_NULL_RLP.clone());
 		}
-		unsafe { (*self.data.get()).get(key).map(|&(ref v, x)| (&v[..], x)) }
+		self.data.get(key).map(|&(ref v, x)| (&v[..], x))
 	}
 
 	/// Denote than an existing value has the given key. Used when a key gets removed without
@@ -166,25 +144,13 @@ impl MemoryDB {
 	///
 	/// May safely be called even if the key's value is known, in which case it will be a no-op.
 	pub fn denote(&self, key: &H256, value: Bytes) -> (&[u8], i32) {
-		if key == &SHA3_NULL_RLP {
-			return STATIC_NULL_RLP.clone();
-		}
-
-		unsafe {
-			let data = self.data.get();
-			if let Some(&(ref v, x)) = (*data).get(key) {
-				return (&v[..], x);
-			}
-
-			(*data).insert(key.clone(), (value, 0));
-			let &(ref v, x) = (*data).get(key).unwrap();
-			(&v[..], x)
-		}
+		unimplemented!()
 	}
 
 	/// Returns the size of allocated heap memory
 	pub fn mem_used(&self) -> usize {
-		unsafe { (*self.data.get()).heap_size_of_children() }
+		self.data.heap_size_of_children()
+		+ self.aux.heap_size_of_children()
 	}
 
 	/// Remove an element and delete it from storage if reference count reaches zero.
@@ -213,34 +179,36 @@ impl HashDB for MemoryDB {
 		if key == &SHA3_NULL_RLP {
 			return Some(&NULL_RLP_STATIC);
 		}
-		match unsafe { (*self.data.get()).get(key) } {
+
+		match self.data.get(key) {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => None
 		}
 	}
 
 	fn keys(&self) -> HashMap<H256, i32> {
-		let data = unsafe { &mut *self.data.get() };
-		data.iter().filter_map(|(k, v)| if v.1 != 0 {Some((k.clone(), v.1))} else {None}).collect()
+		self.data.iter().filter_map(|(k, v)| if v.1 != 0 {Some((k.clone(), v.1))} else {None}).collect()
 	}
 
 	fn contains(&self, key: &H256) -> bool {
 		if key == &SHA3_NULL_RLP {
 			return true;
 		}
-		match unsafe { (*self.data.get()).get(key) } {
+
+		match self.data.get(key) {
 			Some(&(_, x)) if x > 0 => true,
 			_ => false
 		}
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
+		use std::i32;
+
 		if value == &NULL_RLP {
 			return SHA3_NULL_RLP.clone();
 		}
 		let key = value.sha3();
-		let mut data = unsafe { &mut *self.data.get() };
-		if match data.get_mut(&key) {
+		if match self.data.get_mut(&key) {
 			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
 				*old_value = value.into();
 				*rc += 1;
@@ -249,7 +217,7 @@ impl HashDB for MemoryDB {
 			Some(&mut (_, ref mut x)) => { *x += 1; false } ,
 			None => true,
 		}{	// ... None falls through into...
-			data.insert(key.clone(), (value.into(), 1));
+			self.data.insert(key.clone(), (value.into(), 1));
 		}
 		key
 	}
@@ -259,8 +227,7 @@ impl HashDB for MemoryDB {
 			return;
 		}
 
-		let data = unsafe { &mut *self.data.get() };
-		match data.get_mut(&key) {
+		match self.data.get_mut(&key) {
 			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
 				*old_value = value;
 				*rc += 1;
@@ -270,7 +237,7 @@ impl HashDB for MemoryDB {
 			None => {},
 		}
 		// ... None falls through into...
-		data.insert(key, (value, 1));
+		self.data.insert(key, (value, 1));
 	}
 
 	fn remove(&mut self, key: &H256) {
@@ -278,12 +245,11 @@ impl HashDB for MemoryDB {
 			return;
 		}
 
-		let data = unsafe { &mut *self.data.get() };
-		if match data.get_mut(key) {
+		if match self.data.get_mut(key) {
 			Some(&mut (_, ref mut x)) => { *x -= 1; false }
 			None => true
 		}{	// ... None falls through into...
-			data.insert(key.clone(), (Bytes::new(), -1));
+			self.data.insert(key.clone(), (Bytes::new(), -1));
 		}
 	}
 
