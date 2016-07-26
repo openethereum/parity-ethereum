@@ -18,14 +18,13 @@
 
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
-use std::collections::BTreeMap;
-//use util::H256;
+use util::rlp::{UntrustedRlp, View};
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Traces;
 use v1::helpers::CallRequest as CRequest;
-use v1::types::{TraceFilter, LocalizedTrace, Trace, BlockNumber, Index, CallRequest, Bytes, StateDiff, VMTrace, H256};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
 
 /// Traces api implementation.
 pub struct TracesClient<C, M> where C: BlockChainClient, M: MinerService {
@@ -126,22 +125,31 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 					state_diffing: flags.contains(&("stateDiff".to_owned())),
 				};
 				let signed = try!(self.sign_call(request));
-				let r = take_weak!(self.client).call(&signed, analytics);
-				if let Ok(executed) = r {
-					// TODO maybe add other stuff to this?
-					let mut ret = map!["output".to_owned() => to_value(&Bytes(executed.output)).unwrap()];
-					if let Some(trace) = executed.trace {
-						ret.insert("trace".to_owned(), to_value(&Trace::from(trace)).unwrap());
-					}
-					if let Some(vm_trace) = executed.vm_trace {
-						ret.insert("vmTrace".to_owned(), to_value(&VMTrace::from(vm_trace)).unwrap());
-					}
-					if let Some(state_diff) = executed.state_diff {
-						ret.insert("stateDiff".to_owned(), to_value(&StateDiff::from(state_diff)).unwrap());
-					}
-					return Ok(Value::Object(ret))
+				match take_weak!(self.client).call(&signed, analytics) {
+					Ok(e) => to_value(&TraceResults::from(e)),
+					_ => Ok(Value::Null),
 				}
-				Ok(Value::Null)
+			})
+	}
+
+	fn raw_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		trace!(target: "jsonrpc", "call: {:?}", params);
+		from_params::<(Bytes, Vec<String>)>(params)
+			.and_then(|(raw_transaction, flags)| {
+				let raw_transaction = raw_transaction.to_vec();
+				let analytics = CallAnalytics {
+					transaction_tracing: flags.contains(&("trace".to_owned())),
+					vm_tracing: flags.contains(&("vmTrace".to_owned())),
+					state_diffing: flags.contains(&("stateDiff".to_owned())),
+				};
+				match UntrustedRlp::new(&raw_transaction).as_val() {
+					Ok(signed) => match take_weak!(self.client).call(&signed, analytics) {
+						Ok(e) => to_value(&TraceResults::from(e)),
+						_ => Ok(Value::Null),
+					},
+					Err(_) => Err(Error::invalid_params()),
+				}
 			})
 	}
 }

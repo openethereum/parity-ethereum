@@ -128,31 +128,27 @@ impl Handshake {
 	/// Readable IO handler. Drives the state change.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
 		if !self.expired() {
-			match self.state {
-				HandshakeState::New => {}
-				HandshakeState::ReadingAuth => {
-					if let Some(data) = try!(self.connection.readable()) {
+			while let Some(data) = try!(self.connection.readable()) {
+				match self.state {
+					HandshakeState::New => {},
+					HandshakeState::StartSession => {},
+					HandshakeState::ReadingAuth => {
 						try!(self.read_auth(io, host.secret(), &data));
-					};
-				},
-				HandshakeState::ReadingAuthEip8 => {
-					if let Some(data) = try!(self.connection.readable()) {
+					},
+					HandshakeState::ReadingAuthEip8 => {
 						try!(self.read_auth_eip8(io, host.secret(), &data));
-					};
-				},
-				HandshakeState::ReadingAck => {
-					if let Some(data) = try!(self.connection.readable()) {
+					},
+					HandshakeState::ReadingAck => {
 						try!(self.read_ack(host.secret(), &data));
-					};
-				},
-				HandshakeState::ReadingAckEip8 => {
-					if let Some(data) = try!(self.connection.readable()) {
+					},
+					HandshakeState::ReadingAckEip8 => {
 						try!(self.read_ack_eip8(host.secret(), &data));
-					};
-				},
-				HandshakeState::StartSession => {
+					},
+				}
+				if self.state == HandshakeState::StartSession {
 					io.clear_timer(self.connection.token).ok();
-				},
+					break;
+				}
 			}
 		}
 		Ok(())
@@ -178,9 +174,9 @@ impl Handshake {
 
 	/// Parse, validate and confirm auth message
 	fn read_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
-		trace!(target:"network", "Received handshake auth from {:?}", self.connection.remote_addr_str());
+		trace!(target: "network", "Received handshake auth from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_AUTH_PACKET_SIZE {
-			debug!(target:"net", "Wrong auth packet size");
+			debug!(target: "network", "Wrong auth packet size");
 			return Err(From::from(NetworkError::BadProtocol));
 		}
 		self.auth_cipher = data.to_vec();
@@ -197,7 +193,7 @@ impl Handshake {
 				// Try to interpret as EIP-8 packet
 				let total = (((data[0] as u16) << 8 | (data[1] as u16)) as usize) + 2;
 				if total < V4_AUTH_PACKET_SIZE {
-					debug!(target:"net", "Wrong EIP8 auth packet size");
+					debug!(target: "network", "Wrong EIP8 auth packet size");
 					return Err(From::from(NetworkError::BadProtocol));
 				}
 				let rest = total - data.len();
@@ -209,7 +205,7 @@ impl Handshake {
 	}
 
 	fn read_auth_eip8<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
-		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
+		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.auth_cipher.extend_from_slice(data);
 		let auth = try!(ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..]));
 		let rlp = UntrustedRlp::new(&auth);
@@ -224,9 +220,9 @@ impl Handshake {
 
 	/// Parse and validate ack message
 	fn read_ack(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"network", "Received handshake ack from {:?}", self.connection.remote_addr_str());
+		trace!(target: "network", "Received handshake ack from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_ACK_PACKET_SIZE {
-			debug!(target:"net", "Wrong ack packet size");
+			debug!(target: "network", "Wrong ack packet size");
 			return Err(From::from(NetworkError::BadProtocol));
 		}
 		self.ack_cipher = data.to_vec();
@@ -240,7 +236,7 @@ impl Handshake {
 				// Try to interpret as EIP-8 packet
 				let total = (((data[0] as u16) << 8 | (data[1] as u16)) as usize) + 2;
 				if total < V4_ACK_PACKET_SIZE {
-					debug!(target:"net", "Wrong EIP8 ack packet size");
+					debug!(target: "network", "Wrong EIP8 ack packet size");
 					return Err(From::from(NetworkError::BadProtocol));
 				}
 				let rest = total - data.len();
@@ -252,7 +248,7 @@ impl Handshake {
 	}
 
 	fn read_ack_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
+		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.ack_cipher.extend_from_slice(data);
 		let ack = try!(ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..]));
 		let rlp = UntrustedRlp::new(&ack);
@@ -265,7 +261,7 @@ impl Handshake {
 
 	/// Sends auth message
 	fn write_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, public: &Public) -> Result<(), UtilError> where Message: Send + Clone {
-		trace!(target:"network", "Sending handshake auth to {:?}", self.connection.remote_addr_str());
+		trace!(target: "network", "Sending handshake auth to {:?}", self.connection.remote_addr_str());
 		let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
 		let len = data.len();
 		{
@@ -292,7 +288,7 @@ impl Handshake {
 
 	/// Sends ack message
 	fn write_ack<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
-		trace!(target:"network", "Sending handshake ack to {:?}", self.connection.remote_addr_str());
+		trace!(target: "network", "Sending handshake ack to {:?}", self.connection.remote_addr_str());
 		let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
 		let len = data.len();
 		{
@@ -311,7 +307,7 @@ impl Handshake {
 
 	/// Sends EIP8 ack message
 	fn write_ack_eip8<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
-		trace!(target:"network", "Sending EIP8 handshake ack to {:?}", self.connection.remote_addr_str());
+		trace!(target: "network", "Sending EIP8 handshake ack to {:?}", self.connection.remote_addr_str());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(self.ecdhe.public());
 		rlp.append(&self.nonce);
