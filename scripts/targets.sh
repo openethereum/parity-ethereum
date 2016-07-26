@@ -11,4 +11,5 @@ export TARGETS="
 	-p ethkey \
 	-p ethstore \
 	-p ethsync \
+	-p ethcore-ipc \
 	-p parity"
