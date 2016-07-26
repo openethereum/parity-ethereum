@@ -307,6 +307,7 @@ mod tests {
 	use devtools::GuardedTempResult;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
+	use types::executed::CallType;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
@@ -425,7 +426,9 @@ mod tests {
 			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000150000").unwrap()),
 			&[],
 			&Address::new(),
-			&mut output);
+			&mut output,
+			CallType::Call
+		);
 	}
 
 	#[test]

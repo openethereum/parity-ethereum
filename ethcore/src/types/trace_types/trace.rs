@@ -599,6 +599,7 @@ mod tests {
 	use util::rlp::{encode, decode};
 	use util::sha3::Hashable;
 	use trace::trace::{Call, CallResult, Create, Res, Action, Trace, Suicide, CreateResult};
+	use types::executed::CallType;
 
 	#[test]
 	fn traces_rlp() {
@@ -609,7 +610,8 @@ mod tests {
 				to: Address::from(2),
 				value: U256::from(3),
 				gas: U256::from(4),
-				input: vec![0x5]
+				input: vec![0x5],
+				call_type: CallType::Call,
 			}),
 			subs: vec![
 				Trace {
@@ -644,7 +646,8 @@ mod tests {
 				to: Address::from(2),
 				value: U256::from(3),
 				gas: U256::from(4),
-				input: vec![0x5]
+				input: vec![0x5],
+				call_type: CallType::Call,
 			}),
 			subs: vec![
 				Trace {

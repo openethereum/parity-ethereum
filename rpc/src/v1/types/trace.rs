@@ -492,6 +492,7 @@ mod tests {
 				value: U256::from(6),
 				gas: U256::from(7),
 				input: Bytes::new(vec![0x12, 0x34]),
+				call_type: CallType::Call,
 			}),
 			result: Res::Call(CallResult {
 				gas_used: U256::from(8),
@@ -581,6 +582,7 @@ mod tests {
 			value: U256::from(3),
 			gas: U256::from(4),
 			input: vec![0x12, 0x34].into(),
+			call_type: CallType::Call,
 		}), Action::Create(Create {
 			from: H160::from(5),
 			value: U256::from(6),

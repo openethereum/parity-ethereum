@@ -143,6 +143,7 @@ mod tests {
 	use trace::flat::FlatTrace;
 	use trace::{Filter, AddressesFilter};
 	use basic_types::LogBloom;
+	use types::executed::CallType;
 
 	#[test]
 	fn empty_trace_filter_bloom_possibilities() {
@@ -285,6 +286,7 @@ mod tests {
 				value: 3.into(),
 				gas: 4.into(),
 				input: vec![0x5],
+				call_type: CallType::Call,
 			}),
 			result: Res::FailedCall,
 			trace_address: vec![0],
