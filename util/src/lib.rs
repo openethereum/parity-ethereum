@@ -19,7 +19,7 @@
 #![cfg_attr(feature="dev", plugin(clippy))]
 
 // Clippy settings
-// TODO [todr] not really sure
+// Most of the time much more readable
 #![cfg_attr(feature="dev", allow(needless_range_loop))]
 // Shorter than if-else
 #![cfg_attr(feature="dev", allow(match_bool))]
@@ -27,8 +27,6 @@
 #![cfg_attr(feature="dev", allow(match_same_arms))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
-// In most cases it expresses function flow better
-#![cfg_attr(feature="dev", allow(if_not_else))]
 // TODO [todr] a lot of warnings to be fixed
 #![cfg_attr(feature="dev", allow(needless_borrow))]
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
