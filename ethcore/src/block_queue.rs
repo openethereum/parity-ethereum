@@ -284,10 +284,10 @@ impl BlockQueue {
 
 	/// Check if the block is currently in the queue
 	pub fn block_status(&self, hash: &H256) -> BlockStatus {
-		if self.processing.read().contains(&hash) {
+		if self.processing.read().contains(hash) {
 			return BlockStatus::Queued;
 		}
-		if self.verification.bad.lock().contains(&hash) {
+		if self.verification.bad.lock().contains(hash) {
 			return BlockStatus::Bad;
 		}
 		BlockStatus::Unknown
@@ -340,7 +340,7 @@ impl BlockQueue {
 		bad.reserve(block_hashes.len());
 		for hash in block_hashes {
 			bad.insert(hash.clone());
-			processing.remove(&hash);
+			processing.remove(hash);
 		}
 
 		let mut new_verified = VecDeque::new();
@@ -362,7 +362,7 @@ impl BlockQueue {
 		}
 		let mut processing = self.processing.write();
 		for hash in block_hashes {
-			processing.remove(&hash);
+			processing.remove(hash);
 		}
 	}
 

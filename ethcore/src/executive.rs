@@ -370,7 +370,7 @@ impl<'a> Executive<'a> {
 		let gas = params.gas;
 		let created = params.address.clone();
 
-		let mut subvmtracer = vm_tracer.prepare_subtrace(&params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
+		let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
 
 		let res = {
 			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
@@ -1009,7 +1009,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
-		}.sign(&keypair.secret());
+		}.sign(keypair.secret());
 		let sender = t.sender().unwrap();
 		let contract = contract_address(&sender, &U256::zero());
 
@@ -1076,7 +1076,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::one()
-		}.sign(&keypair.secret());
+		}.sign(keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -1109,7 +1109,7 @@ mod tests {
 			gas: U256::from(80_001),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
-		}.sign(&keypair.secret());
+		}.sign(keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -1144,7 +1144,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::one(),
 			nonce: U256::zero()
-		}.sign(&keypair.secret());
+		}.sign(keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();

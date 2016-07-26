@@ -190,7 +190,7 @@ impl TestBlockChainClient {
 						gas_price: U256::one(),
 						nonce: U256::zero()
 					};
-					let signed_tx = tx.sign(&keypair.secret());
+					let signed_tx = tx.sign(keypair.secret());
 					txs.append(&signed_tx);
 					txs.out()
 				},
@@ -366,8 +366,8 @@ impl BlockChainClient for TestBlockChainClient {
 	fn block_body(&self, id: BlockID) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
 			let mut stream = RlpStream::new_list(2);
-			stream.append_raw(Rlp::new(&r).at(1).as_raw(), 1);
-			stream.append_raw(Rlp::new(&r).at(2).as_raw(), 1);
+			stream.append_raw(Rlp::new(r).at(1).as_raw(), 1);
+			stream.append_raw(Rlp::new(r).at(2).as_raw(), 1);
 			stream.out()
 		}))
 	}

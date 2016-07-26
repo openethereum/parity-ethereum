@@ -339,7 +339,7 @@ impl<'x> OpenBlock<'x> {
 				let t = outcome.trace;
 				self.block.traces.as_mut().map(|traces| traces.push(t.expect("self.block.traces.is_some(): so we must be tracing: qed")));
 				self.block.receipts.push(outcome.receipt);
-				Ok(&self.block.receipts.last().unwrap())
+				Ok(self.block.receipts.last().unwrap())
 			}
 			Err(x) => Err(From::from(x))
 		}

@@ -143,8 +143,8 @@ pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 				},
 				storage: storage.into_iter().map(|k|
 					(k.clone(), Diff::new(
-						pre.storage.get(&k).cloned().unwrap_or_else(H256::new),
-						post.storage.get(&k).cloned().unwrap_or_else(H256::new)
+						pre.storage.get(k).cloned().unwrap_or_else(H256::new),
+						post.storage.get(k).cloned().unwrap_or_else(H256::new)
 					))).collect(),
 			};
 			if r.balance.is_same() && r.nonce.is_same() && r.code.is_same() && r.storage.is_empty() {

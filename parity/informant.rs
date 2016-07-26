@@ -108,12 +108,12 @@ impl Informant {
 
 		info!(target: "import", "{}   {}   {}",
 			match importing {
-				true => format!("Syncing {} {}   {}   {}+{} Qed", 
+				true => format!("Syncing {} {}   {}   {}+{} Qed",
 					paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 					paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 					{
 						let last_report = match write_report.deref() { &Some(ref last_report) => last_report.clone(), _ => ClientReport::default() };
-						format!("{} blk/s {} tx/s {} Mgas/s",  
+						format!("{} blk/s {} tx/s {} Mgas/s",
 							paint(Yellow.bold(), format!("{:4}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
 							paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
 							paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
@@ -160,7 +160,7 @@ impl ChainNotify for Informant {
 		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
 			|| self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
 		if Instant::now() > *last_import + Duration::from_secs(1) && !importing {
-			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockID::Hash(h.clone()))) {
+			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockID::Hash(*h))) {
 				let view = BlockView::new(&block);
 				let header = view.header();
 				let tx_count = view.transactions_count();
