@@ -46,21 +46,37 @@ pub use self::sectriedb::SecTrieDB;
 pub use self::fatdb::{FatDB, FatDBIterator};
 pub use self::fatdbmut::FatDBMut;
 
-/// Trie Errors
+/// Trie Errors.
+///
+/// These borrow the data within them to avoid excessive copying on every
+/// trie operation.
 #[derive(Debug)]
 pub enum TrieError {
 	/// Attempted to create a trie with a state root not in the DB.
-	InvalidStateRoot,
+	InvalidStateRoot(H256),
+	/// Trie item not found in the database,
+	IncompleteDatabase(H256),
+	/// Key not in trie.
+	NotInTrie,
 }
 
 impl fmt::Display for TrieError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "Trie Error: Invalid state root.")
+		match *self {
+			TrieError::InvalidStateRoot(ref root) => write!(f, "Invalid state root: {}", root),
+			TrieError::IncompleteDatabase(ref missing) =>
+				write!(f, "Database missing expected key: {}", missing),
+			TrieError::NotInTrie =>
+				write!(f, "Failed query"),
+		}
 	}
 }
 
 /// Trie-Item type.
 pub type TrieItem<'a> = (Vec<u8>, &'a [u8]);
+
+/// Trie result type.
+pub type Result<T> = ::std::result::Result<T, TrieError>;
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait Trie {
@@ -71,10 +87,16 @@ pub trait Trie {
 	fn is_empty(&self) -> bool { *self.root() == ::rlp::SHA3_NULL_RLP }
 
 	/// Does the trie contain a given key?
-	fn contains(&self, key: &[u8]) -> bool;
+	fn contains(&self, key: &[u8]) -> Result<bool> {
+		match self.get(key) {
+			Ok(_) => Ok(true),
+			Err(TrieError::NotInTrie) => Ok(false),
+			Err(e) => Err(e),
+		}
+	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<&'a [u8]> where 'a: 'key;
 
 	/// Returns an iterator over elements of trie.
 	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a>;
@@ -89,18 +111,24 @@ pub trait TrieMut {
 	fn is_empty(&self) -> bool;
 
 	/// Does the trie contain a given key?
-	fn contains(&self, key: &[u8]) -> bool;
+	fn contains(&self, key: &[u8]) -> Result<bool> {
+		match self.get(key) {
+			Ok(_) => Ok(true),
+			Err(TrieError::NotInTrie) => Ok(false),
+			Err(e) => Err(e)
+		}
+	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<&'a [u8]> where 'a: 'key;
 
 	/// Insert a `key`/`value` pair into the trie. An `empty` value is equivalent to removing
 	/// `key` from the trie.
-	fn insert(&mut self, key: &[u8], value: &[u8]);
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<()>;
 
 	/// Remove a `key` from the trie. Equivalent to making it equal to the empty
 	/// value.
-	fn remove(&mut self, key: &[u8]);
+	fn remove(&mut self, key: &[u8]) -> Result<()>;
 }
 
 
@@ -137,7 +165,7 @@ impl TrieFactory {
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn readonly<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<Box<Trie + 'db>, TrieError> {
+	pub fn readonly<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<Box<Trie + 'db>> {
 		match self.spec {
 			TrieSpec::Generic => Ok(Box::new(try!(TrieDB::new(db, root)))),
 			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDB::new(db, root)))),
@@ -155,7 +183,7 @@ impl TrieFactory {
 	}
 
 	/// Create new mutable instance of trie and check for errors.
-	pub fn from_existing<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Result<Box<TrieMut + 'db>, TrieError> {
+	pub fn from_existing<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Result<Box<TrieMut + 'db>> {
 		match self.spec {
 			TrieSpec::Generic => Ok(Box::new(try!(TrieDBMut::from_existing(db, root)))),
 			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDBMut::from_existing(db, root)))),

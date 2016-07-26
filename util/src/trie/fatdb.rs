@@ -17,8 +17,7 @@
 use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
-use super::{TrieDB, Trie, TrieDBIterator, TrieError};
-use trie::trietraits::TrieItem;
+use super::{TrieDB, Trie, TrieDBIterator, TrieError, TrieItem};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
@@ -32,7 +31,7 @@ impl<'db> FatDB<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self, TrieError> {
+	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
 		let fatdb = FatDB {
 			raw: try!(TrieDB::new(db, root))
 		};
@@ -60,11 +59,13 @@ impl<'db> Trie for FatDB<'db> {
 		self.raw.root()
 	}
 
-	fn contains(&self, key: &[u8]) -> bool {
+	fn contains(&self, key: &[u8]) -> super::Result<bool> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<&'a [u8]>
+		where 'a: 'key
+	{
 		self.raw.get(&key.sha3())
 	}
 }
