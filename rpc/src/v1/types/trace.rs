@@ -21,6 +21,7 @@ use ethcore::trace::{Trace as EthTrace, LocalizedTrace as EthLocalizedTrace};
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
+use ethcore::client::Executed;
 use util::Uint;
 use v1::types::{Bytes, H160, H256, U256};
 
@@ -193,6 +194,7 @@ impl From<account_diff::AccountDiff> for AccountDiff {
 	}
 }
 
+#[derive(Debug)]
 /// Serde-friendly `StateDiff` shadow.
 pub struct StateDiff(BTreeMap<H160, AccountDiff>);
 
@@ -444,12 +446,50 @@ impl From<EthTrace> for Trace {
 	}
 }
 
+#[derive(Debug, Serialize)]
+/// A diff of some chunk of memory.
+pub struct TraceResults {
+	/// The output of the call/create
+	pub output: Vec<u8>,
+	/// The transaction trace.
+	pub trace: Option<Trace>,
+	/// The transaction trace.
+	#[serde(rename="vmTrace")]
+	pub vm_trace: Option<VMTrace>,
+	/// The transaction trace.
+	#[serde(rename="stateDiff")]
+	pub state_diff: Option<StateDiff>,
+}
+
+impl From<Executed> for TraceResults {
+	fn from(t: Executed) -> Self {
+		TraceResults {
+			output: t.output.into(),
+			trace: t.trace.map(Into::into),
+			vm_trace: t.vm_trace.map(Into::into),
+			state_diff: t.state_diff.map(Into::into),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;
 	use std::collections::BTreeMap;
 	use v1::types::{Bytes, U256, H256, H160};
 	use super::*;
+
+	#[test]
+	fn should_serialize_trace_results() {
+		let r = TraceResults {
+			output: vec![0x60],
+			trace: None,
+			vm_trace: None,
+			state_diff: None,
+		};
+		let serialized = serde_json::to_string(&r).unwrap();
+		assert_eq!(serialized, r#"{"output":[96],"trace":null,"vmTrace":null,"stateDiff":null}"#);
+	}
 
 	#[test]
 	fn test_trace_serialize() {
