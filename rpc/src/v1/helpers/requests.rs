@@ -35,13 +35,20 @@ pub struct TransactionRequest {
 	pub nonce: Option<U256>,
 }
 
-/// Transaction confirmation waiting in a queue
+/// Confirmation object
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
-pub struct TransactionConfirmation {
+pub struct Confirmation {
 	/// Id of this confirmation
 	pub id: U256,
-	/// TransactionRequest
-	pub transaction: TransactionRequest,
+	/// Payload to confirm
+	pub payload: ConfirmationPayload,
+}
+
+/// Payload to confirm in Trusted Signer
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
+pub enum ConfirmationRequest {
+	/// Transaction
+	Transaction(TransactionRequest),
 }
 
 /// Call request
