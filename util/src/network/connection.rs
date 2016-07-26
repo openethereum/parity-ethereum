@@ -77,7 +77,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	/// Readable IO handler. Called when there is some data to be read.
 	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
 		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
-			warn!(target:"network", "Unexpected connection read");
+			return Ok(None);
 		}
 		let sock_ref = <Socket as Read>::by_ref(&mut self.socket);
 		loop {
