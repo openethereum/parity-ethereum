@@ -522,7 +522,7 @@ impl Configuration {
 			self.args.flag_geth ||
 			self.args.flag_no_signer;
 
-		!signer_disabled;
+		!signer_disabled
 	}
 }
 

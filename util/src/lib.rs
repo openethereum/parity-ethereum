@@ -25,10 +25,9 @@
 #![cfg_attr(feature="dev", allow(match_bool))]
 // We use that to be more explicit about handled cases
 #![cfg_attr(feature="dev", allow(match_same_arms))]
-// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
+// Keeps consistency (all lines with `.clone()`).
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
 // TODO [todr] a lot of warnings to be fixed
-#![cfg_attr(feature="dev", allow(needless_borrow))]
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
 #![cfg_attr(feature="dev", allow(unnecessary_operation))]
 

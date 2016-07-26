@@ -234,7 +234,7 @@ impl Header {
 		s.append(&self.extra_data);
 		if let Seal::With = with_seal {
 			for b in &self.seal {
-				s.append_raw(&b, 1);
+				s.append_raw(b, 1);
 			}
 		}
 	}

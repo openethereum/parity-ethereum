@@ -272,7 +272,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 	}
 
 	fn env_info(&self) -> &EnvInfo {
-		&self.env_info
+		self.env_info
 	}
 
 	fn depth(&self) -> usize {
@@ -455,7 +455,7 @@ mod tests {
 		{
 			let vm_factory = Default::default();
 			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
-			ext.suicide(&refund_account);
+			ext.suicide(refund_account);
 		}
 
 		assert_eq!(setup.sub_state.suicides.len(), 1);
