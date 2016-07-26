@@ -147,6 +147,7 @@ impl Handshake {
 				}
 				if self.state == HandshakeState::StartSession {
 					io.clear_timer(self.connection.token).ok();
+					break;
 				}
 			}
 		}
