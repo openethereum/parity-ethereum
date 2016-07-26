@@ -40,7 +40,7 @@ use super::{Trie, TrieItem, TrieError};
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();
 ///   let mut root = H256::new();
-///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar");
+///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo"));
 ///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
@@ -373,8 +373,8 @@ impl<'db> fmt::Debug for TrieDB<'db> {
 
 #[test]
 fn iterator() {
-	use super::trietraits::TrieMut;
 	use memorydb::*;
+	use super::TrieMut;
 	use super::triedbmut::*;
 
 	let d = vec![ &b"A"[..], &b"AA"[..], &b"AB"[..], &b"B"[..] ];
@@ -384,7 +384,7 @@ fn iterator() {
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for x in &d {
-			t.insert(&x, &x);
+			t.insert(&x, &x).unwrap();
 		}
 	}
 	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).unwrap().iter().map(|x|x.0).collect::<Vec<_>>());

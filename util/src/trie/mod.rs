@@ -50,7 +50,7 @@ pub use self::fatdbmut::FatDBMut;
 ///
 /// These borrow the data within them to avoid excessive copying on every
 /// trie operation.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TrieError {
 	/// Attempted to create a trie with a state root not in the DB.
 	InvalidStateRoot(H256),

@@ -243,7 +243,7 @@ impl State {
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
-		self.commit();
+		try!(self.commit());
 		self.clear();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 //		trace!("Transaction receipt: {:?}", receipt);
@@ -284,9 +284,9 @@ impl State {
 	}
 
 	/// Commits our cached account changes into the trie.
-	pub fn commit(&mut self) {
+	pub fn commit(&mut self) -> Result<(), Error> {
 		assert!(self.snapshots.borrow().is_empty());
-		Self::commit_into(&self.trie_factory, self.db.as_hashdb_mut(), &mut self.root, self.cache.borrow_mut().deref_mut());
+		Self::commit_into(&self.trie_factory, self.db.as_hashdb_mut(), &mut self.root, &mut *self.cache.borrow_mut())
 	}
 
 	/// Clear state cache

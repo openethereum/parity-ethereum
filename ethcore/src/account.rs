@@ -255,9 +255,13 @@ impl Account {
 			if f == &Filth::Dirty {
 				// cast key and value to trait type,
 				// so we can call overloaded `to_bytes` method
-				match v.is_zero() {
-					true => { t.remove(k); },
-					false => { t.insert(k, &encode(&U256::from(v.as_slice()))); },
+				let res = match v.is_zero() {
+					true => t.remove(k),
+					false => t.insert(k, &encode(&U256::from(v.as_slice()))),
+				};
+
+				if let Err(e) = res {
+					warn!("Encountered potential DB corruption: {}", e);
 				}
 				*f = Filth::Clean;
 			}

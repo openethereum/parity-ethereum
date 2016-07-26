@@ -273,10 +273,10 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
 ///   assert_eq!(*t.root(), SHA3_NULL_RLP);
-///   t.insert(b"foo", b"bar");
+///   t.insert(b"foo", b"bar").unwrap();
 ///   assert!(t.contains(b"foo"));
 ///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
-///   t.remove(b"foo");
+///   t.remove(b"foo").unwrap();
 ///   assert!(!t.contains(b"foo"));
 /// }
 /// ```
@@ -943,7 +943,7 @@ mod tests {
 	use super::*;
 	use rlp::*;
 	use bytes::ToPretty;
-	use super::super::trietraits::*;
+	use super::super::{TrieMut, TrieError};
 	use super::super::standardmap::*;
 
 	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db> {
@@ -951,7 +951,7 @@ mod tests {
 		for i in 0..v.len() {
 			let key: &[u8]= &v[i].0;
 			let val: &[u8] = &v[i].1;
-			t.insert(&key, &val);
+			t.insert(&key, &val).unwrap();
 		}
 		t
 	}
@@ -959,7 +959,7 @@ mod tests {
 	fn unpopulate_trie<'db>(t: &mut TrieDBMut<'db>, v: &[(Vec<u8>, Vec<u8>)]) {
 		for i in v {
 			let key: &[u8]= &i.0;
-			t.remove(&key);
+			t.remove(&key).unwrap();
 		}
 	}
 
@@ -1022,7 +1022,7 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
 	}
 
@@ -1033,15 +1033,15 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
-		t1.insert(&[0x01, 0x23], &big_value.to_vec());
-		t1.insert(&[0x01, 0x34], &big_value.to_vec());
+		t1.insert(&[0x01, 0x23], &big_value.to_vec()).unwrap();
+		t1.insert(&[0x01, 0x34], &big_value.to_vec()).unwrap();
 		let mut memdb2 = MemoryDB::new();
 		let mut root2 = H256::new();
 		let mut t2 = TrieDBMut::new(&mut memdb2, &mut root2);
-		t2.insert(&[0x01], &big_value.to_vec());
-		t2.insert(&[0x01, 0x23], &big_value.to_vec());
-		t2.insert(&[0x01, 0x34], &big_value.to_vec());
-		t2.remove(&[0x01]);
+		t2.insert(&[0x01], &big_value.to_vec()).unwrap();
+		t2.insert(&[0x01, 0x23], &big_value.to_vec()).unwrap();
+		t2.insert(&[0x01, 0x34], &big_value.to_vec()).unwrap();
+		t2.remove(&[0x01]).unwrap();
 	}
 
 	#[test]
@@ -1049,8 +1049,8 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
 	}
 
@@ -1059,8 +1059,8 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
@@ -1072,9 +1072,9 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
-		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]).unwrap();
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
@@ -1087,8 +1087,8 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[], &[0x0]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		t.insert(&[], &[0x0]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![], vec![0x0]),
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
@@ -1100,8 +1100,8 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x01u8, 0x34], vec![0x01u8, 0x34]),
@@ -1113,9 +1113,9 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
-		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
-		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
+		t.insert(&[0x01, 0x23, 0x45], &[0x01]).unwrap();
+		t.insert(&[0x01, 0xf3, 0x45], &[0x02]).unwrap();
+		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01, 0x23, 0x45], vec![0x01]),
 			(vec![0x01, 0xf3, 0x45], vec![0x02]),
@@ -1131,8 +1131,8 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], big_value0);
-		t.insert(&[0x11u8, 0x23], big_value1);
+		t.insert(&[0x01u8, 0x23], big_value0).unwrap();
+		t.insert(&[0x11u8, 0x23], big_value1).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], big_value0.to_vec()),
 			(vec![0x11u8, 0x23], big_value1.to_vec())
@@ -1146,8 +1146,8 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], big_value);
-		t.insert(&[0x11u8, 0x23], big_value);
+		t.insert(&[0x01u8, 0x23], big_value).unwrap();
+		t.insert(&[0x11u8, 0x23], big_value).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], big_value.to_vec()),
 			(vec![0x11u8, 0x23], big_value.to_vec())
@@ -1159,7 +1159,7 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let t = TrieDBMut::new(&mut memdb, &mut root);
-		assert_eq!(t.get(&[0x5]), None);
+		assert_eq!(t.get(&[0x5]), Err(TrieError::NotInTrie));
 	}
 
 	#[test]
@@ -1167,7 +1167,7 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
 		t.commit();
 		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
@@ -1178,18 +1178,18 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
-		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]).unwrap();
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]).unwrap();
 		assert_eq!(t.get(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
 		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
 		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
-		assert_eq!(t.get(&[0x82, 0x23]), None);
+		assert_eq!(t.get(&[0x82, 0x23]), Err(TrieError::NotInTrie));
 		t.commit();
 		assert_eq!(t.get(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
 		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
 		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
-		assert_eq!(t.get(&[0x82, 0x23]), None);
+		assert_eq!(t.get(&[0x82, 0x23]), Err(TrieError::NotInTrie));
 	}
 
 	#[test]
@@ -1236,7 +1236,7 @@ mod tests {
 		let mut db = MemoryDB::new();
 		{
 			let mut t = TrieDBMut::new(&mut db, &mut root);
-			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		}
 
 		{
@@ -1259,13 +1259,13 @@ mod tests {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut db, &mut root);
 		for &(ref key, ref value) in &x {
-			t.insert(key, value);
+			t.insert(key, value).unwrap();
 		}
 
 		assert_eq!(*t.root(), trie_root(x.clone()));
 
 		for &(ref key, _) in &x {
-			t.insert(key, &[]);
+			t.insert(key, &[]).unwrap();
 		}
 
 		assert!(t.is_empty());
