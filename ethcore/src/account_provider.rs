@@ -192,7 +192,7 @@ impl AccountProvider {
 	pub fn accounts_info(&self) -> Result<HashMap<H160, AccountMeta>, Error> {
 		let r: HashMap<H160, AccountMeta> = self.sstore.accounts()
 			.into_iter()
-			.map(|a| (H160(a.clone().into()), self.account_meta(a).unwrap_or(Default::default())))
+			.map(|a| (H160(a.clone().into()), self.account_meta(a).unwrap_or_else(|_| Default::default())))
 			.collect();
 		Ok(r)
 	}

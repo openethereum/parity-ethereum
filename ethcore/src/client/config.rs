@@ -46,7 +46,7 @@ impl FromStr for DatabaseCompactionProfile {
 		match s {
 			"ssd" | "default" => Ok(DatabaseCompactionProfile::Default),
 			"hdd" => Ok(DatabaseCompactionProfile::HDD),
-			_ => Err(format!("Invalid compaction profile given. Expected hdd/ssd (default).")),
+			_ => Err("Invalid compaction profile given. Expected hdd/ssd (default).".into()),
 		}
 	}
 }
