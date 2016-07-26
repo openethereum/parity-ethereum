@@ -21,6 +21,7 @@ use ethcore::trace::{Trace as EthTrace, LocalizedTrace as EthLocalizedTrace};
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
+use ethcore::executed;
 use util::Uint;
 use v1::types::{Bytes, H160, H256, U256};
 
@@ -233,6 +234,34 @@ impl From<trace::Create> for Create {
 	}
 }
 
+/// Call type.
+#[derive(Debug, Serialize)]
+pub enum CallType {
+	/// None
+	#[serde(rename="none")]
+	None,
+	/// Call
+	#[serde(rename="call")]
+	Call,
+	/// Call code
+	#[serde(rename="callcode")]
+	CallCode,
+	/// Delegate call
+	#[serde(rename="delegatecall")]
+	DelegateCall,
+}
+
+impl From<executed::CallType> for CallType {
+	fn from(c: executed::CallType) -> Self {
+		match c {
+			executed::CallType::None => CallType::None,
+			executed::CallType::Call => CallType::Call,
+			executed::CallType::CallCode => CallType::CallCode,
+			executed::CallType::DelegateCall => CallType::DelegateCall,
+		}
+	}
+}
+
 /// Call response
 #[derive(Debug, Serialize)]
 pub struct Call {
@@ -246,6 +275,8 @@ pub struct Call {
 	gas: U256,
 	/// Input data
 	input: Bytes,
+	/// The type of the call.
+	call_type: CallType,
 }
 
 impl From<trace::Call> for Call {
@@ -256,6 +287,7 @@ impl From<trace::Call> for Call {
 			value: c.value.into(),
 			gas: c.gas.into(),
 			input: c.input.into(),
+			call_type: c.call_type.into(),
 		}
 	}
 }

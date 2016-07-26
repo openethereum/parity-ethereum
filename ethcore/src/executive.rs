@@ -18,6 +18,7 @@
 use common::*;
 use state::*;
 use engine::*;
+use types::executed::CallType;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use substate::*;
@@ -173,6 +174,7 @@ impl<'a> Executive<'a> {
 					value: ActionValue::Transfer(t.value),
 					code: Some(t.data.clone()),
 					data: None,
+					call_type: CallType::Call,
 				};
 				(self.create(params, &mut substate, &mut tracer, &mut vm_tracer), vec![])
 			},
@@ -187,6 +189,7 @@ impl<'a> Executive<'a> {
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address),
 					data: Some(t.data.clone()),
+					call_type: CallType::None,
 				};
 				// TODO: move output upstream
 				let mut out = vec![];
@@ -248,8 +251,6 @@ impl<'a> Executive<'a> {
 		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
-		let delegate_call = params.code_address != params.address;
-
 		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it
 
@@ -275,8 +276,7 @@ impl<'a> Executive<'a> {
 						cost,
 						trace_output,
 						self.depth,
-						vec![],
-						delegate_call
+						vec![]
 					);
 				}
 
@@ -285,7 +285,7 @@ impl<'a> Executive<'a> {
 				// just drain the whole gas
 				self.state.revert_snapshot();
 
-				tracer.trace_failed_call(trace_info, self.depth, vec![], delegate_call);
+				tracer.trace_failed_call(trace_info, self.depth, vec![]);
 
 				Err(evm::Error::OutOfGas)
 			}
@@ -318,10 +318,9 @@ impl<'a> Executive<'a> {
 						gas - gas_left,
 						trace_output,
 						self.depth,
-						traces,
-						delegate_call
+						traces
 					),
-					_ => tracer.trace_failed_call(trace_info, self.depth, traces, delegate_call),
+					_ => tracer.trace_failed_call(trace_info, self.depth, traces),
 				};
 
 				trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
@@ -333,7 +332,7 @@ impl<'a> Executive<'a> {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.clear_snapshot();
 
-				tracer.trace_call(trace_info, U256::zero(), trace_output, self.depth, vec![], delegate_call);
+				tracer.trace_call(trace_info, U256::zero(), trace_output, self.depth, vec![]);
 				Ok(params.gas)
 			}
 		}
