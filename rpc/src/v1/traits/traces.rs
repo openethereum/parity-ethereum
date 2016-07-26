@@ -36,7 +36,7 @@ pub trait Traces: Sized + Send + Sync + 'static {
 	fn call(&self, _: Params) -> Result<Value, Error>;
 
 	/// Executes the given raw transaction and returns a number of possible traces for it.
-	fn send_raw_transaction(&self, _: Params) -> Result<Value, Error>;
+	fn raw_transaction(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
@@ -46,7 +46,7 @@ pub trait Traces: Sized + Send + Sync + 'static {
 		delegate.add_method("trace_transaction", Traces::transaction_traces);
 		delegate.add_method("trace_block", Traces::block_traces);
 		delegate.add_method("trace_call", Traces::call);
-		delegate.add_method("trace_sendRawTransaction", Traces::send_raw_transaction);
+		delegate.add_method("trace_rawTransaction", Traces::raw_transaction);
 
 		delegate
 	}

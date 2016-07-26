@@ -146,7 +146,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 			})
 	}
 
-	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
+	fn raw_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		trace!(target: "jsonrpc", "call: {:?}", params);
 		from_params::<(Bytes, Vec<String>)>(params)
