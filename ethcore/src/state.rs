@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cell::{RefCell, Ref, RefMut};
+
 use common::*;
 use engine::Engine;
 use executive::{Executive, TransactOptions};
@@ -71,7 +73,7 @@ impl State {
 	/// Creates new state with existing state root
 	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, trie_factory: TrieFactory) -> Result<State, TrieError> {
 		if !db.as_hashdb().contains(&root) {
-			return Err(TrieError::InvalidStateRoot);
+			return Err(TrieError::InvalidStateRoot(root));
 		}
 
 		let state = State {
@@ -162,7 +164,14 @@ impl State {
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
 		let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || db.contains(&a)
+		self.cache.borrow().get(&a).unwrap_or(&None).is_some()
+		|| match db.contains(a) {
+			Ok(x) => x,
+			Err(e) => {
+				warn!("Potential DB corruption encountered: {}", e);
+				false
+			}
+		}
 	}
 
 	/// Get the balance of account `a`.
@@ -244,7 +253,9 @@ impl State {
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	pub fn commit_into(trie_factory: &TrieFactory, db: &mut HashDB, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>) {
+	pub fn commit_into(trie_factory: &TrieFactory, db: &mut HashDB, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>)
+		-> Result<(), Error>
+	{
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
 		for (address, ref mut a) in accounts.iter_mut() {
@@ -262,12 +273,14 @@ impl State {
 			let mut trie = trie_factory.from_existing(db, root).unwrap();
 			for (address, ref a) in accounts.iter() {
 				match **a {
-					Some(ref account) if account.is_dirty() => trie.insert(address, &account.rlp()),
-					None => trie.remove(address),
+					Some(ref account) if account.is_dirty() => try!(trie.insert(address, &account.rlp())),
+					None => try!(trie.remove(address)),
 					_ => (),
 				}
 			}
 		}
+
+		Ok(())
 	}
 
 	/// Commits our cached account changes into the trie.
@@ -325,48 +338,68 @@ impl State {
 
 	/// Pull account `a` in our cache from the trie DB and return it.
 	/// `require_code` requires that the code be cached, too.
-	fn get<'a>(&'a self, a: &Address, require_code: bool) -> &'a Option<Account> {
+	fn get<'a>(&'a self, a: &Address, require_code: bool) -> Option<Ref<'a, Account>> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
+			let maybe_acc = match db.get(&a).map(Account::from_rlp) {
+				Ok(acc) => Some(acc),
+				Err(TrieError::NotInTrie) => None,
+				Err(e) => {
+					warn!("Potential DB corruption encountered: {}", e);
+					None
+				}
+			};
+			self.insert_cache(a, maybe_acc);
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
 				account.cache_code(&AccountDB::new(self.db.as_hashdb(), a));
 			}
 		}
-		unsafe { ::std::mem::transmute(self.cache.borrow().get(a).unwrap()) }
+
+
+		Some(Ref::map(self.cache.borrow(), |c| c.get(a).unwrap().as_ref().unwrap()))
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	fn require<'a>(&'a self, a: &Address, require_code: bool) -> &'a mut Account {
+	fn require<'a>(&'a self, a: &Address, require_code: bool) -> RefMut<'a, Account> {
 		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce), |_|{})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
-	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> &'a mut Account {
-		let have_key = self.cache.borrow().contains_key(a);
-		if !have_key {
+	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&'a self, a: &Address, require_code: bool, default: F, not_default: G)
+		-> RefMut<'a, Account>
+	{
+		if !{ self.cache.borrow().contains_key(a) } {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
+			let maybe_acc = match db.get(&a).map(Account::from_rlp) {
+				Ok(acc) => Some(acc),
+				Err(TrieError::NotInTrie) => None,
+				Err(e) => {
+					warn!("Potential DB corruption encountered: {}", e);
+					None
+				}
+			};
+
+			self.insert_cache(a, maybe_acc);
 		} else {
 			self.note_cache(a);
 		}
-		let preexists = self.cache.borrow().get(a).unwrap().is_none();
-		if preexists {
-			self.cache.borrow_mut().insert(a.clone(), Some(default()));
-		} else {
-			not_default(self.cache.borrow_mut().get_mut(a).unwrap().as_mut().unwrap());
+
+		match self.cache.borrow_mut().get_mut(a).unwrap() {
+			&mut Some(ref mut acc) => not_default(acc),
+			slot @ &mut None => *slot = Some(default()),
 		}
 
-		unsafe { ::std::mem::transmute(self.cache.borrow_mut().get_mut(a).unwrap().as_mut().map(|account| {
+		RefMut::map(self.cache.borrow_mut(), |c| {
+			let account = c.get_mut(a).unwrap().as_mut().unwrap();
 			if require_code {
 				account.cache_code(&AccountDB::new(self.db.as_hashdb(), a));
 			}
 			account
-		}).unwrap()) }
+		})
 	}
 }
 

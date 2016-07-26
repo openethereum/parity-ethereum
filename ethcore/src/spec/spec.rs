@@ -27,6 +27,8 @@ use ethereum;
 use basic_authority::BasicAuthority;
 use ethjson;
 
+use std::cell::RefCell;
+
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone)]
 pub struct CommonParams {
