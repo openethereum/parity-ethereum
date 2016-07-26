@@ -18,7 +18,7 @@ use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
 use super::triedbmut::TrieDBMut;
-use super::{TrieMut, TrieError};
+use super::TrieMut;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///

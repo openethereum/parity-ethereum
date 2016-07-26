@@ -174,7 +174,7 @@ impl<'db> TrieDB<'db> {
 							try!(self.fmt_all(n, f, deepness + 1));
 						}
 						Err(e) => {
-							write!(f, "ERROR: {}", e);
+							try!(write!(f, "ERROR: {}", e));
 						}
 					}
 				}

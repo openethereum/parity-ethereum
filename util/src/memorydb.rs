@@ -24,11 +24,9 @@ use hashdb::*;
 use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
-use std::cell::UnsafeCell;
 
 const STATIC_NULL_RLP: (&'static [u8], i32) = (&[0x80; 1], 1);
 use std::collections::hash_map::Entry;
-use std::default::Default;
 
 /// Reference-counted memory-based `HashDB` implementation.
 ///
@@ -143,7 +141,7 @@ impl MemoryDB {
 	/// a prior insert and thus has a negative reference with no value.
 	///
 	/// May safely be called even if the key's value is known, in which case it will be a no-op.
-	pub fn denote(&self, key: &H256, value: Bytes) -> (&[u8], i32) {
+	pub fn denote(&self, _key: &H256, _value: Bytes) -> (&[u8], i32) {
 		unimplemented!()
 	}
 
@@ -202,8 +200,6 @@ impl HashDB for MemoryDB {
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
-		use std::i32;
-
 		if value == &NULL_RLP {
 			return SHA3_NULL_RLP.clone();
 		}

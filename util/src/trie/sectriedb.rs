@@ -18,7 +18,7 @@ use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
 use super::triedb::TrieDB;
-use super::{Trie, TrieError, TrieItem};
+use super::{Trie, TrieItem};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
