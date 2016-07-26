@@ -31,8 +31,8 @@ use std::sync::Arc;
 pub enum DeletionMode {
 	/// Ignore them.
 	Ignore,
-	/// Delete them.
-	Delete,
+	/// Remove them from the backing database.
+	Remove,
 }
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
@@ -43,6 +43,15 @@ pub enum DeletionMode {
 ///
 /// `lookup()` and `contains()` maintain normal behaviour - all `insert()` and `remove()`
 /// queries have an immediate effect in terms of these functions.
+///
+/// The total amount of insertions and removals of a single value must add up to
+/// either
+///   - A single insertion
+///   - A single deletion
+///   - No operation.
+///
+/// Additionally, it is an error to insert a value which already exists in the backing
+/// database or remove a value which doesn't exist in the backing database.
 #[derive(Clone)]
 pub struct OverlayDB {
 	overlay: MemoryDB,
@@ -74,16 +83,27 @@ impl OverlayDB {
 
 	/// Commit all operations to given batch. Returns the number of insertions
 	/// and deletions.
-	pub fn commit_to_batch(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+	fn commit_to_batch(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
 		let mut ret = 0u32;
 		let mut deletes = 0usize;
 		for (key, (value, rc)) in self.overlay.drain() {
 			match rc {
 				0 => continue,
-				1 => try!(batch.put(&key, &value)),
+				1 => {
+					if try!(self.backing.get(&key)).is_none() {
+						try!(batch.put(&key, &value))
+					} else if self.mode == DeletionMode::Remove {
+						// error to insert something more than once.
+						return Err(BaseDataError::InsertionInvalid(key).into());
+					}
+				}
 				-1 => {
 					deletes += 1;
-					if self.mode == DeletionMode::Delete {
+					if self.mode == DeletionMode::Remove {
+						if try!(self.backing.get(&key)).is_none() {
+							return Err(BaseDataError::DeletionInvalid(key).into());
+						}
+
 						try!(batch.delete(&key));
 					}
 				}
@@ -133,7 +153,9 @@ impl HashDB for OverlayDB {
 
 	fn get(&self, key: &H256) -> Option<&[u8]> {
 		match self.overlay.raw(key) {
-			Some(&(ref d, rc)) if rc > 0 => { Some(d) }
+			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			// if the value is slated for deletion, don't look in the database.
+			Some(&(_, -1)) if self.mode == DeletionMode::Remove => None,
 			_ => if let Some(x) = self.payload(key) {
 				Some(&self.overlay.denote(key, x).0)
 			} else {
@@ -182,7 +204,7 @@ mod tests {
 	// `ArchiveDB`'s tests by proxy.
 
 	#[test]
-	fn ignore_remove() {
+	fn delete_ignore() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
 		let mut db = OverlayDB::new(backing, DeletionMode::Ignore);
@@ -200,7 +222,7 @@ mod tests {
 	fn delete_remove() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing, DeletionMode::Delete);
+		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
 
 		let hash = db.insert(b"dog");
 		db.commit().unwrap();
@@ -209,5 +231,21 @@ mod tests {
 		db.commit().unwrap();
 
 		assert!(db.get(&hash).is_none())
+	}
+
+	#[test]
+	#[should_panic]
+	fn double_remove() {
+		let path = RandomTempPath::create_dir();
+		let backing = Database::open_default(path.as_str()).unwrap();
+		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
+
+		let hash = db.insert(b"cat");
+		db.commit().unwrap();
+
+		db.remove(&hash);
+		db.remove(&hash);
+
+		db.commit().unwrap();
 	}
 }
