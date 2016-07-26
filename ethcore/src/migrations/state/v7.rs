@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use util::Bytes;
 use util::hash::{Address, FixedHash, H256};
 use util::kvdb::Database;
-use util::migration::{Batch, Config, Error, Migration, SimpleMigration};
+use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
 use util::rlp::{decode, Rlp, RlpStream, Stream, View};
 use util::sha3::Hashable;
 
@@ -63,7 +63,7 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 
 /// Version for `ArchiveDB`.
 #[derive(Default)]
-pub struct ArchiveV7(usize);
+pub struct ArchiveV7(Progress);
 
 impl SimpleMigration for ArchiveV7 {
 	fn version(&self) -> u32 {
@@ -71,11 +71,7 @@ impl SimpleMigration for ArchiveV7 {
 	}
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
-		self.0 += 1;
-		if self.0 == 100_000 {
-			self.0 = 0;
-			flush!(".");
-		}
+		self.0.tick();
 
 		if key.len() != 32 {
 			// metadata key, ignore.
