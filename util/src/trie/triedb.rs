@@ -373,7 +373,7 @@ fn iterator() {
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for x in &d {
-			t.insert(&x, &x);
+			t.insert(x, x);
 		}
 	}
 	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).unwrap().iter().map(|x|x.0).collect::<Vec<_>>());

@@ -29,7 +29,6 @@
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
 // TODO [todr] a lot of warnings to be fixed
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
-#![cfg_attr(feature="dev", allow(unnecessary_operation))]
 
 
 //! Ethcore-util library
