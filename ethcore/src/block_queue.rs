@@ -316,7 +316,8 @@ impl BlockQueue {
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
 				self.processing.write().insert(h.clone());
-				self.verification.unverified.lock().push_back(UnverifiedBlock { header: header, bytes: bytes });
+				let mut unverified = self.verification.unverified.lock();
+				unverified.push_back(UnverifiedBlock { header: header, bytes: bytes });
 				self.more_to_verify.notify_all();
 				Ok(h)
 			},
@@ -432,8 +433,11 @@ impl Drop for BlockQueue {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[BlockQueue] Closing...");
 		self.clear();
-		self.deleting.store(true, AtomicOrdering::Release);
-		self.more_to_verify.notify_all();
+		{
+			let _ = self.verification.unverified.lock();
+			self.deleting.store(true, AtomicOrdering::Release);
+			self.more_to_verify.notify_all();
+        }
 		for t in self.verifiers.drain(..) {
 			t.join().unwrap();
 		}

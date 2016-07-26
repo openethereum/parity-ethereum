@@ -170,6 +170,7 @@ pub struct IoManager<Message> where Message: Send + Sync {
 	workers: Vec<Worker>,
 	worker_channel: chase_lev::Worker<Work<Message>>,
 	work_ready: Arc<Condvar>,
+	work_mutex: Arc<Mutex<()>>,
 }
 
 impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
@@ -177,7 +178,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	pub fn start(panic_handler: Arc<PanicHandler>, event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), UtilError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
-		let work_ready_mutex =  Arc::new(Mutex::new(()));
+		let work_ready_mutex = Arc::new(Mutex::new(()));
 		let work_ready = Arc::new(Condvar::new());
 		let workers = (0..num_workers).map(|i|
 			Worker::new(
@@ -196,6 +197,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 			worker_channel: worker,
 			workers: workers,
 			work_ready: work_ready,
+			work_mutex: work_ready_mutex,
 		};
 		try!(event_loop.run(&mut io));
 		Ok(())
@@ -221,6 +223,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 					self.worker_channel.push(Work { work_type: WorkType::Writable, token: token_id, handler: handler.clone(), handler_id: handler_index });
 				}
 			}
+			let _ = self.work_mutex.lock();
 			self.work_ready.notify_all();
 		}
 	}
