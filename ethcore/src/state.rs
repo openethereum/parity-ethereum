@@ -488,8 +488,8 @@ fn should_trace_failed_create_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
 		action: trace::Action::Create(trace::Create {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			value: 100.into(),
@@ -497,10 +497,10 @@ fn should_trace_failed_create_transaction() {
 			init: vec![91, 96, 0, 86],
 		}),
 		result: trace::Res::FailedCreate,
-		subs: vec![]
-	});
+		subtraces: 0
+	}];
 
-	//assert_eq!(result.trace, expected_trace);
+	assert_eq!(result.trace, expected_trace);
 }
 
 #[test]
