@@ -42,9 +42,9 @@ use super::{Trie, TrieItem, TrieError};
 ///   let mut root = H256::new();
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
-///   assert!(t.contains(b"foo"));
+///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
-///   assert!(t.db_items_remaining().is_empty());
+///   assert!(t.db_items_remaining().unwrap().is_empty());
 /// }
 /// ```
 pub struct TrieDB<'db> {

@@ -274,10 +274,10 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///   assert!(t.is_empty());
 ///   assert_eq!(*t.root(), SHA3_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
-///   assert!(t.contains(b"foo"));
+///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
 ///   t.remove(b"foo").unwrap();
-///   assert!(!t.contains(b"foo"));
+///   assert!(!t.contains(b"foo").unwrap());
 /// }
 /// ```
 pub struct TrieDBMut<'a> {
@@ -951,7 +951,7 @@ mod tests {
 		for i in 0..v.len() {
 			let key: &[u8]= &v[i].0;
 			let val: &[u8] = &v[i].1;
-			t.insert(key, val);
+			t.insert(key, val).unwrap();
 		}
 		t
 	}
@@ -959,7 +959,7 @@ mod tests {
 	fn unpopulate_trie<'db>(t: &mut TrieDBMut<'db>, v: &[(Vec<u8>, Vec<u8>)]) {
 		for i in v {
 			let key: &[u8]= &i.0;
-			t.remove(key);
+			t.remove(key).unwrap();
 		}
 	}
 
