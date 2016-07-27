@@ -31,7 +31,7 @@
 //!	use util::crypto::KeyPair;
 //! use util::hash::Address;
 //! use util::numbers::{Uint, U256};
-//!	use ethcore::miner::{TransactionQueue, AccountDetails, TransactionOrigin};
+//!	use ethcore::miner::transaction_queue::{TransactionQueue, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
 //!	use rustc_serialize::hex::FromHex;
 //!
