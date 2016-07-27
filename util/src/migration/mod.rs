@@ -101,6 +101,7 @@ impl From<::std::io::Error> for Error {
 
 /// A generalized migration from the given db to a destination db.
 pub trait Migration: 'static {
+	fn columns(&self) -> Option<u32>;
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
 	/// Migrate a source to a destination.
@@ -109,6 +110,7 @@ pub trait Migration: 'static {
 
 /// A simple migration over key-value pairs.
 pub trait SimpleMigration: 'static {
+	fn columns(&self) -> Option<u32>;
 	/// Version of database after the migration.
 	fn version(&self) -> u32;
 	/// Should migrate existing object to new database.
@@ -117,6 +119,8 @@ pub trait SimpleMigration: 'static {
 }
 
 impl<T: SimpleMigration> Migration for T {
+	fn columns(&self) -> Option<u32> { SimpleMigration::columns(self) }
+
 	fn version(&self) -> u32 { SimpleMigration::version(self) }
 
 	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
@@ -197,12 +201,14 @@ impl Manager {
 	/// and producing a path where the final migration lives.
 	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
 		let config = self.config.clone();
+		let columns = self.no_of_columns_at(version);
 		let migrations = try!(self.migrations_from(version).ok_or(Error::MigrationImpossible));
-		let db_config = DatabaseConfig {
+
+		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
 			cache_size: None,
 			compaction: CompactionProfile::default(),
-			columns: None, //TODO: SINGLEDB
+			columns: columns,
 		};
 
 		let db_root = database_path(old_path);
@@ -213,13 +219,26 @@ impl Manager {
 		let old_path_str = try!(old_path.to_str().ok_or(Error::MigrationImpossible));
 		let mut cur_db = try!(Database::open(&db_config, old_path_str).map_err(Error::Custom));
 		for migration in migrations {
+			// Change number of columns in new db
+			let current_columns = db_config.columns;
+			db_config.columns = migration.columns();
+
 			// open the target temporary database.
 			temp_path = temp_idx.path(&db_root);
 			let temp_path_str = try!(temp_path.to_str().ok_or(Error::MigrationImpossible));
 			let mut new_db = try!(Database::open(&db_config, temp_path_str).map_err(Error::Custom));
 
 			// perform the migration from cur_db to new_db.
-			try!(migration.migrate(&cur_db, &config, &mut new_db, None)); //TODO: SINGLEDB
+			match current_columns {
+				// migrate only default column
+				None => try!(migration.migrate(&cur_db, &config, &mut new_db, None)),
+				Some(v) => {
+					// Migrate all columns in previous DB
+					for col in 0..v {
+						try!(migration.migrate(&cur_db, &config, &mut new_db, Some(col)))
+					}
+				}
+			}
 			// next iteration, we will migrate from this db into the other temp.
 			cur_db = new_db;
 			temp_idx.swap();
@@ -242,6 +261,14 @@ impl Manager {
 		// index of the first required migration
 		let position = self.migrations.iter().position(|m| m.version() == version + 1);
 		position.map(move |p| &mut self.migrations[p..])
+	}
+
+	fn no_of_columns_at(&self, version: u32) -> Option<u32> {
+		let migration = self.migrations.iter().find(|m| m.version() == version);
+		match migration {
+			Some(m) => m.columns(),
+			None => None
+		}
 	}
 }
 

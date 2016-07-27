@@ -23,11 +23,12 @@ use util::journaldb::Algorithm;
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
 use util::kvdb::{CompactionProfile, Database, DatabaseConfig};
 use ethcore::migrations;
+use ethcore::client;
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 7;
+const CURRENT_VERSION: u32 = 8;
 /// First version of the consolidated database.
 const CONSOLIDATION_VERSION: u32 = 8;
 /// Defines how many items are migrated to the new version of database at once.
@@ -116,7 +117,7 @@ fn update_version(path: &Path) -> Result<(), Error> {
 /// Consolidated database path
 fn consolidated_database_path(path: &Path) -> PathBuf {
 	let mut blocks_path = path.to_owned();
-	blocks_path.push("consolidated");
+	blocks_path.push("db");
 	blocks_path
 }
 
@@ -142,33 +143,36 @@ fn consolidated_database_migrations() -> Result<MigrationManager, Error> {
 }
 
 /// Consolidates legacy databases into single one.
-fn consolidate_database(version: u32, old_db_path: PathBuf, new_db_path: PathBuf, column: &str) -> Result<(), Error> {
+fn consolidate_database(version: u32, old_db_path: PathBuf, new_db_path: PathBuf, column: Option<u32>) -> Result<(), Error> {
 	fn db_error(e: String) -> Error {
 		warn!("Cannot open Database for consolidation: {:?}", e);
 		Error::MigrationFailed
 	}
 
-	let mut migration = migrations::ToV8::new(column.to_owned());
+	let mut migration = migrations::ToV8::new(column);
 	// migration might not be needed
 	if version >= migration.version() {
 		return Ok(())
 	}
 
 	let config = default_migration_settings();
-	let db_config = DatabaseConfig {
+	let mut db_config = DatabaseConfig {
 		max_open_files: 64,
 		cache_size: None,
 		compaction: CompactionProfile::default(),
+		columns: None,
 	};
 
 	let old_path_str = try!(old_db_path.to_str().ok_or(Error::MigrationImpossible));
 	let new_path_str = try!(new_db_path.to_str().ok_or(Error::MigrationImpossible));
 
 	let cur_db = try!(Database::open(&db_config, old_path_str).map_err(db_error));
+	// open new DB with proper number of columns
+	db_config.columns = migration.columns();
 	let mut new_db = try!(Database::open(&db_config, new_path_str).map_err(db_error));
 
-	// Migrate to new database
-	try!(migration.migrate(&cur_db, &config, &mut new_db));
+	// Migrate to new database (default column only)
+	try!(migration.migrate(&cur_db, &config, &mut new_db, None));
 
 	Ok(())
 }
@@ -230,18 +234,22 @@ pub fn migrate(path: &Path, pruning: Algorithm) -> Result<(), Error> {
 		try!(migrate_database(version, legacy::blocks_database_path(path), try!(legacy::blocks_database_migrations())));
 		try!(migrate_database(version, legacy::extras_database_path(path), try!(legacy::extras_database_migrations())));
 		try!(migrate_database(version, legacy::state_database_path(path), try!(legacy::state_database_migrations(pruning))));
-		println!("Consolidating database");
 		let db_path = consolidated_database_path(path);
-		// Remove the database dir (it shouldn't exist anyway)
+		// Remove the database dir (it shouldn't exist anyway, but it might when migration was interrupted)
 		let _ = fs::remove_dir_all(db_path.clone());
-		try!(consolidate_database(version, legacy::blocks_database_path(path), db_path.clone(), "blocks"));
-		try!(consolidate_database(version, legacy::extras_database_path(path), db_path.clone(), "extras"));
-		try!(consolidate_database(version, legacy::state_database_path(path), db_path.clone(), "state"));
+		try!(consolidate_database(version, legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_BLOCK));
+		try!(consolidate_database(version, legacy::extras_database_path(path), db_path.clone(), client::DB_COL_EXTRA));
+		try!(consolidate_database(version, legacy::state_database_path(path), db_path.clone(), client::DB_COL_STATE));
+		try!(consolidate_database(version, legacy::trace_database_path(path), db_path.clone(), client::DB_COL_TRACE));
+		let _ = fs::remove_dir_all(legacy::blocks_database_path(path));
+		let _ = fs::remove_dir_all(legacy::extras_database_path(path));
+		let _ = fs::remove_dir_all(legacy::state_database_path(path));
+		let _ = fs::remove_dir_all(legacy::trace_database_path(path));
 		println!("Migration finished");
 	}
 
 	// Further migrations
-	if version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {
+	if version >= CONSOLIDATION_VERSION && version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {
 		println!("Migrating database from version {} to {}", ::std::cmp::max(CONSOLIDATION_VERSION, version), CURRENT_VERSION);
 		try!(migrate_database(version, consolidated_database_path(path), try!(consolidated_database_migrations())));
 		println!("Migration finished");
@@ -278,6 +286,13 @@ mod legacy {
 		let mut state_path = path.to_owned();
 		state_path.push("state");
 		state_path
+	}
+
+	/// Trace database path.
+	pub fn trace_database_path(path: &Path) -> PathBuf {
+		let mut blocks_path = path.to_owned();
+		blocks_path.push("tracedb");
+		blocks_path
 	}
 
 	/// Migrations on the blocks database.

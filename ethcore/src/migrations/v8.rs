@@ -23,31 +23,30 @@ use util::migration::{Batch, Config, Error, Migration, Progress};
 /// Consolidation of extras/block/state databases into single one.
 pub struct ToV8 {
 	progress: Progress,
-	column_family: String,
+	column: Option<u32>,
 }
 
 impl ToV8 {
 	/// Creates new V8 migration and assigns all `(key,value)` pairs from `source` DB to given Column Family
-	pub fn new(column_family: String) -> Self {
+	pub fn new(column: Option<u32>) -> Self {
 		ToV8 {
 			progress: Progress::default(),
-			column_family: column_family,
+			column: column,
 		}
 	}
 }
 
 impl Migration for ToV8 {
 
-	fn version(&self) -> u32 {
-		8
-	}
+	fn columns(&self) -> Option<u32> { Some(5) }
 
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
-		let mut batch = Batch::new(config);
+	fn version(&self) -> u32 { 8 }
 
-		for (key, value) in source.iter() {
+	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+		let mut batch = Batch::new(config, self.column);
+
+		for (key, value) in source.iter(col) {
 			self.progress.tick();
-			// TODO Add column family here!
 			try!(batch.insert(key.to_vec(), value.to_vec(), dest));
 		}
 

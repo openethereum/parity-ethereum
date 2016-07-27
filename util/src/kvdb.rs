@@ -50,6 +50,7 @@ impl DBTransaction {
 }
 
 /// Compaction profile for the database settings
+#[derive(Clone, Copy)]
 pub struct CompactionProfile {
 	/// L0-L1 target file size
 	pub initial_file_size: u64,
@@ -80,6 +81,7 @@ impl CompactionProfile {
 }
 
 /// Database configuration
+#[derive(Clone, Copy)]
 pub struct DatabaseConfig {
 	/// Max number of open files.
 	pub max_open_files: i32,

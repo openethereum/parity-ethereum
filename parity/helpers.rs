@@ -230,7 +230,7 @@ pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, fork_name: Optio
 		_ => {},
 	}
 
-	let client_path = dirs.client_path(genesis_hash, fork_name, pruning);
+	let client_path = dirs.db_version_path(genesis_hash, fork_name, pruning);
 	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
 }
 

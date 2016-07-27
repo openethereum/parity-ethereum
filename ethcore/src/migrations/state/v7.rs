@@ -66,9 +66,10 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 pub struct ArchiveV7(Progress);
 
 impl SimpleMigration for ArchiveV7 {
-	fn version(&self) -> u32 {
-		7
-	}
+
+	fn columns(&self) -> Option<u32> { None }
+
+	fn version(&self) -> u32 { 7 }
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		self.0.tick();
@@ -217,6 +218,9 @@ impl OverlayRecentV7 {
 }
 
 impl Migration for OverlayRecentV7 {
+
+	fn columns(&self) -> Option<u32> { None }
+
 	fn version(&self) -> u32 { 7 }
 
 	// walk all records in the database, attempting to migrate any possible and
