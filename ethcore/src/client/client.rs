@@ -35,7 +35,7 @@ use util::kvdb::*;
 
 // other
 use views::BlockView;
-use error::{ImportError, ExecutionError, BlockError, ImportResult};
+use error::{ImportError, ExecutionError, ReplayError, BlockError, ImportResult};
 use header::BlockNumber;
 use state::State;
 use spec::Spec;
@@ -473,7 +473,7 @@ impl Client {
 		results.len()
 	}
 
-	/// Attempt to get a copy of a specific block's state.
+	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockID::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
@@ -502,6 +502,21 @@ impl Client {
 
 			State::from_existing(db, root, self.engine.account_start_nonce(), self.trie_factory.clone()).ok()
 		})
+	}
+
+	/// Attempt to get a copy of a specific block's beginning state.
+	///
+	/// This will not fail if given BlockID::Latest.
+	/// Otherwise, this can fail (but may not) if the DB prunes state.
+	pub fn state_at_beginning(&self, id: BlockID) -> Option<State> {
+		// fast path for latest state.
+		match id {
+			BlockID::Pending => self.state_at(BlockID::Latest),
+			id => match self.block_number(id) {
+				None | Some(0) => None,
+				Some(n) => self.state_at(BlockID::Number(n - 1)),
+			}
+		}
 	}
 
 	/// Get a copy of the best block's state.
@@ -658,6 +673,46 @@ impl BlockChainClient for Client {
 			}
 		}
 		ret
+	}
+
+	fn replay(&self, id: TransactionID, analytics: CallAnalytics) -> Result<Executed, ReplayError> {
+		let address = try!(self.transaction_address(id).ok_or(ReplayError::TransactionNotFound));
+		let block_data = try!(self.block(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+		let mut state = try!(self.state_at_beginning(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+		let block = BlockView::new(&block_data);
+		let txs = block.transactions();
+
+		if address.index >= txs.len() {
+			return Err(ReplayError::TransactionNotFound);
+		}
+
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let view = block.header_view();
+		let last_hashes = self.build_last_hashes(view.hash());
+		let mut env_info = EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: last_hashes,
+			gas_used: U256::zero(),
+			gas_limit: view.gas_limit(),
+		};
+		for t in txs.iter().take(address.index) {
+			match Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, Default::default()) {
+				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
+				Err(ee) => { return Err(ReplayError::Execution(ee)) }
+			}
+		}
+		let t = &txs[address.index];
+		let orig = state.clone();
+		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+		if analytics.state_diffing {
+			if let Ok(ref mut x) = ret {
+				x.state_diff = Some(state.diff_from(orig));
+			}
+		}
+		ret.map_err(|ee| ReplayError::Execution(ee))
 	}
 
 	fn keep_alive(&self) {

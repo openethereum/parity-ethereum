@@ -38,6 +38,9 @@ pub trait Traces: Sized + Send + Sync + 'static {
 	/// Executes the given raw transaction and returns a number of possible traces for it.
 	fn raw_transaction(&self, _: Params) -> Result<Value, Error>;
 
+	/// Executes the transaction with the given hash and returns a number of possible traces for it.
+	fn replay_transaction(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -47,6 +50,7 @@ pub trait Traces: Sized + Send + Sync + 'static {
 		delegate.add_method("trace_block", Traces::block_traces);
 		delegate.add_method("trace_call", Traces::call);
 		delegate.add_method("trace_rawTransaction", Traces::raw_transaction);
+		delegate.add_method("trace_replayTransaction", Traces::replay_transaction);
 
 		delegate
 	}

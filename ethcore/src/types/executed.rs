@@ -171,6 +171,31 @@ impl fmt::Display for ExecutionError {
 	}
 }
 
+/// Result of executing the transaction.
+#[derive(PartialEq, Debug, Binary)]
+pub enum ReplayError {
+	/// Couldn't find the transaction in the chain.
+	TransactionNotFound,
+	/// Couldn't find the transaction block's state in the chain.
+	StatePruned,
+	/// Error executing.
+	Execution(ExecutionError),
+}
+
+impl fmt::Display for ReplayError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::ReplayError::*;
+
+		let msg = match *self {
+			TransactionNotFound => "Transaction couldn't be found in the chain".into(),
+			StatePruned => "Couldn't find the transaction block's state in the chain".into(),
+			Execution(ref e) => format!("{}", e),
+		};
+
+		f.write_fmt(format_args!("Transaction replay error ({}).", msg))
+	}
+}
+
 /// Transaction execution result.
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 

@@ -40,6 +40,7 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 }
 
 /// Transaction execution options.
+#[derive(Default)]
 pub struct TransactOptions {
 	/// Enable call tracing.
 	pub tracing: bool,
