@@ -195,7 +195,8 @@ impl Manager {
 	/// and producing a path where the final migration lives.
 	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
 		let config = self.config.clone();
-		let migrations = try!(self.migrations_from(version).ok_or(Error::MigrationImpossible));
+		let mut migrations = self.migrations_from(version);
+		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
 		let db_config = DatabaseConfig {
 			max_open_files: 64,
 			cache_size: None,
@@ -209,7 +210,7 @@ impl Manager {
 		// start with the old db.
 		let old_path_str = try!(old_path.to_str().ok_or(Error::MigrationImpossible));
 		let mut cur_db = try!(Database::open(&db_config, old_path_str).map_err(Error::Custom));
-		for migration in migrations {
+		for migration in migrations.iter_mut() {
 			// open the target temporary database.
 			temp_path = temp_idx.path(&db_root);
 			let temp_path_str = try!(temp_path.to_str().ok_or(Error::MigrationImpossible));
@@ -235,10 +236,11 @@ impl Manager {
 		}
 	}
 
-	fn migrations_from(&mut self, version: u32) -> Option<&mut [Box<Migration>]> {
-		// index of the first required migration
-		let position = self.migrations.iter().position(|m| m.version() == version + 1);
-		position.map(move |p| &mut self.migrations[p..])
+	/// Find all needed migrations and arrange them.
+	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<Migration>> {
+		let mut to_apply: Vec<_> = self.migrations.iter_mut().filter(|m| m.version() > version).collect();
+		to_apply.sort_by_key(|m| m.version());
+		to_apply
 	}
 }
 
