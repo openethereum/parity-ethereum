@@ -27,14 +27,44 @@ pub struct ExecutiveTracer {
 	traces: Vec<FlatTrace>,
 }
 
+fn top_level_subtraces(traces: &[FlatTrace]) -> usize {
+	traces.iter().filter(|t| t.trace_address.is_empty()).count()
+}
+
 fn update_trace_address(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
-	traces.into_iter()
-		.enumerate()
-		.map(|(i, mut trace)| {
-			trace.trace_address.push_front(i);
-			trace
-		})
-		.collect()
+	// input traces are expected to be ordered like
+	// []
+	// [0]
+	// [0, 0]
+	// [0, 1]
+	// []
+	// [0]
+	//
+	// so they can be transformed to
+	//
+	// [0]
+	// [0, 0]
+	// [0, 0, 0]
+	// [0, 0, 1]
+	// [1]
+	// [1, 0]
+	let mut top_subtrace_index = 0;
+	let mut subtrace_subtraces_left = 0;
+	traces.into_iter().map(|mut trace| {
+		let is_top_subtrace = trace.trace_address.is_empty();
+		trace.trace_address.push_front(top_subtrace_index);
+
+		if is_top_subtrace {
+			subtrace_subtraces_left = trace.subtraces;
+		} else {
+			subtrace_subtraces_left -= 1;
+		}
+
+		if subtrace_subtraces_left == 0 {
+			top_subtrace_index += 1;
+		}
+		trace
+	}).collect()
 }
 
 impl Tracer for ExecutiveTracer {
@@ -57,7 +87,7 @@ impl Tracer for ExecutiveTracer {
 		}
 
 		let trace = FlatTrace {
-			subtraces: subs.len(),
+			subtraces: top_level_subtraces(&subs),
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::Call(CallResult {
 				gas_used: gas_used,
@@ -71,7 +101,7 @@ impl Tracer for ExecutiveTracer {
 
 	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: Option<Bytes>, address: Address, depth: usize, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
-			subtraces: subs.len(),
+			subtraces: top_level_subtraces(&subs),
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::Create(CreateResult {
 				gas_used: gas_used,
@@ -91,7 +121,7 @@ impl Tracer for ExecutiveTracer {
 		}
 
 		let trace = FlatTrace {
-			subtraces: subs.len(),
+			subtraces: top_level_subtraces(&subs),
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCall,
 			trace_address: Default::default(),
@@ -102,7 +132,7 @@ impl Tracer for ExecutiveTracer {
 
 	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
-			subtraces: subs.len(),
+			subtraces: top_level_subtraces(&subs),
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCreate,
 			trace_address: Default::default(),
