@@ -141,8 +141,14 @@ impl MemoryDB {
 	/// a prior insert and thus has a negative reference with no value.
 	///
 	/// May safely be called even if the key's value is known, in which case it will be a no-op.
-	pub fn denote(&self, _key: &H256, _value: Bytes) -> (&[u8], i32) {
-		unimplemented!()
+	pub fn denote(&self, key: &H256, value: Bytes) -> (&[u8], i32) {
+		if self.raw(key) == None {
+			unsafe {
+				let p = &self.data as *const HashMap<H256, (Bytes, i32)> as *mut HashMap<H256, (Bytes, i32)>;
+				(*p).insert(key.clone(), (value, 0));
+			}
+		}
+		self.raw(key).unwrap()
 	}
 
 	/// Returns the size of allocated heap memory
