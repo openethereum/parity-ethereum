@@ -101,6 +101,7 @@ impl From<::std::io::Error> for Error {
 
 /// A generalized migration from the given db to a destination db.
 pub trait Migration: 'static {
+	/// Number of columns in database after the migration.
 	fn columns(&self) -> Option<u32>;
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
@@ -110,6 +111,7 @@ pub trait Migration: 'static {
 
 /// A simple migration over key-value pairs.
 pub trait SimpleMigration: 'static {
+	/// Number of columns in database after the migration.
 	fn columns(&self) -> Option<u32>;
 	/// Version of database after the migration.
 	fn version(&self) -> u32;

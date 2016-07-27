@@ -20,7 +20,7 @@
 
 use common::*;
 use migration::{Config, SimpleMigration, Manager};
-use kvdb::{Database, DBTransaction};
+use kvdb::Database;
 
 use devtools::RandomTempPath;
 use std::path::PathBuf;
@@ -35,9 +35,9 @@ fn db_path(path: &Path) -> PathBuf {
 fn make_db(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
 	let db = Database::open_default(path.to_str().unwrap()).expect("failed to open temp database");
 	{
-		let transaction = DBTransaction::new();
+		let transaction = db.transaction();
 		for (k, v) in pairs {
-			transaction.put(&k, &v).expect("failed to add pair to transaction");
+			transaction.put(None, &k, &v).expect("failed to add pair to transaction");
 		}
 
 		db.write(transaction).expect("failed to write db transaction");
@@ -49,7 +49,7 @@ fn verify_migration(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
 	let db = Database::open_default(path.to_str().unwrap()).unwrap();
 
 	for (k, v) in pairs {
-		let x = db.get(&k).unwrap().unwrap();
+		let x = db.get(None, &k).unwrap().unwrap();
 
 		assert_eq!(&x[..], &v[..]);
 	}
@@ -58,9 +58,9 @@ fn verify_migration(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
 struct Migration0;
 
 impl SimpleMigration for Migration0 {
-	fn version(&self) -> u32 {
-		1
-	}
+	fn columns(&self) -> Option<u32> { None }
+
+	fn version(&self) -> u32 { 1 }
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		let mut key = key;
@@ -74,9 +74,9 @@ impl SimpleMigration for Migration0 {
 struct Migration1;
 
 impl SimpleMigration for Migration1 {
-	fn version(&self) -> u32 {
-		2
-	}
+	fn columns(&self) -> Option<u32> { None }
+
+	fn version(&self) -> u32 { 2 }
 
 	fn simple_migrate(&mut self, key: Vec<u8>, _value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		Some((key, vec![]))

@@ -322,34 +322,34 @@ impl BlockChain {
 	#[cfg(test)]
 	fn rewind(&self) -> Option<H256> {
 		use db::Key;
-		let batch = DBTransaction::new();
+		let batch = self.db.transaction();
 		// track back to the best block we have in the blocks database
-		if let Some(best_block_hash) = self.extras_db.get(b"best").unwrap() {
+		if let Some(best_block_hash) = self.db.get(DB_COL_EXTRA, b"best").unwrap() {
 			let best_block_hash = H256::from_slice(&best_block_hash);
 			if best_block_hash == self.genesis_hash() {
 				return None;
 			}
-			if let Some(extras) = self.extras_db.read(&best_block_hash) as Option<BlockDetails> {
+			if let Some(extras) = self.db.read(DB_COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
 				type DetailsKey = Key<BlockDetails, Target=H264>;
-				batch.delete(&(DetailsKey::key(&best_block_hash))).unwrap();
+				batch.delete(DB_COL_EXTRA, &(DetailsKey::key(&best_block_hash))).unwrap();
 				let hash = extras.parent;
 				let range = extras.number as bc::Number .. extras.number as bc::Number;
 				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
 				let changes = chain.replace(&range, vec![]);
 				for (k, v) in changes.into_iter() {
-					batch.write(&LogGroupPosition::from(k), &BloomGroup::from(v));
+					batch.write(DB_COL_EXTRA, &LogGroupPosition::from(k), &BloomGroup::from(v));
 				}
-				batch.put(b"best", &hash).unwrap();
+				batch.put(DB_COL_EXTRA, b"best", &hash).unwrap();
 				let mut best_block = self.best_block.write();
 				best_block.number = extras.number - 1;
 				best_block.total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
 				best_block.hash = hash;
 				// update parent extras
-				if let Some(mut details) = self.extras_db.read(&hash) as Option<BlockDetails> {
+				if let Some(mut details) = self.db.read(DB_COL_EXTRA, &hash) as Option<BlockDetails> {
 					details.children.clear();
-					batch.write(&hash, &details);
+					batch.write(DB_COL_EXTRA, &hash, &details);
 				}
-				self.extras_db.write(batch).unwrap();
+				self.db.write(batch).unwrap();
 				self.block_details.write().clear();
 				self.block_hashes.write().clear();
 				self.blocks.write().clear();
@@ -844,14 +844,22 @@ impl BlockChain {
 mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
 	use std::str::FromStr;
+	use std::sync::Arc;
 	use rustc_serialize::hex::FromHex;
+	use util::{Database, DatabaseConfig};
 	use util::hash::*;
 	use util::sha3::Hashable;
+	use receipt::Receipt;
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
 	use tests::helpers::*;
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 	use views::BlockView;
+	use client;
+
+	fn new_db(path: &str) -> Arc<Database> {
+		Arc::new(Database::open(&DatabaseConfig::with_columns(client::DB_NO_OF_COLUMNS), path).unwrap())
+	}
 
 	#[test]
 	fn basic_blockchain_insert() {
@@ -863,7 +871,8 @@ mod tests {
 		let first_hash = BlockView::new(&first).header_view().sha3();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
 		assert_eq!(bc.best_block_number(), 0);
@@ -872,7 +881,9 @@ mod tests {
 		assert_eq!(bc.block_hash(1), None);
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
 
-		bc.insert_block(&first, vec![]);
+		let batch = db.transaction();
+		bc.insert_block(&batch, &first, vec![]);
+		db.write(batch);
 
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.best_block_number(), 1);
@@ -891,14 +902,17 @@ mod tests {
 		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
+		let batch = db.transaction();
 		for _ in 0..10 {
 			let block = canon_chain.generate(&mut finalizer).unwrap();
 			block_hashes.push(BlockView::new(&block).header_view().sha3());
-			bc.insert_block(&block, vec![]);
+			bc.insert_block(&batch, &block, vec![]);
 		}
+		db.write(batch);
 
 		block_hashes.reverse();
 
@@ -923,17 +937,21 @@ mod tests {
 		let b5a = canon_chain.generate(&mut finalizer).unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
-		bc.insert_block(&b1a, vec![]);
-		bc.insert_block(&b1b, vec![]);
-		bc.insert_block(&b2a, vec![]);
-		bc.insert_block(&b2b, vec![]);
-		bc.insert_block(&b3a, vec![]);
-		bc.insert_block(&b3b, vec![]);
-		bc.insert_block(&b4a, vec![]);
-		bc.insert_block(&b4b, vec![]);
-		bc.insert_block(&b5a, vec![]);
-		bc.insert_block(&b5b, vec![]);
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+
+		let batch = db.transaction();
+		bc.insert_block(&batch, &b1a, vec![]);
+		bc.insert_block(&batch, &b1b, vec![]);
+		bc.insert_block(&batch, &b2a, vec![]);
+		bc.insert_block(&batch, &b2b, vec![]);
+		bc.insert_block(&batch, &b3a, vec![]);
+		bc.insert_block(&batch, &b3b, vec![]);
+		bc.insert_block(&batch, &b4a, vec![]);
+		bc.insert_block(&batch, &b4b, vec![]);
+		bc.insert_block(&batch, &b5a, vec![]);
+		bc.insert_block(&batch, &b5b, vec![]);
+		db.write(batch);
 
 		assert_eq!(
 			[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
@@ -964,11 +982,17 @@ mod tests {
 		let best_block_hash = b3a_hash.clone();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
-		let ir1 = bc.insert_block(&b1, vec![]);
-		let ir2 = bc.insert_block(&b2, vec![]);
-		let ir3b = bc.insert_block(&b3b, vec![]);
-		let ir3a = bc.insert_block(&b3a, vec![]);
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+
+		let batch = db.transaction();
+		let ir1 = bc.insert_block(&batch, &b1, vec![]);
+		let ir2 = bc.insert_block(&batch, &b2, vec![]);
+		let ir3b = bc.insert_block(&batch, &b3b, vec![]);
+		db.write(batch);
+		let batch = db.transaction();
+		let ir3a = bc.insert_block(&batch, &b3a, vec![]);
+		db.write(batch);
 
 		assert_eq!(ir1, ImportRoute {
 			enacted: vec![b1_hash],
@@ -1069,14 +1093,19 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		{
-			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+			let db = new_db(temp.as_str());
+			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
-			bc.insert_block(&first, vec![]);
+			let batch = db.transaction();
+			bc.insert_block(&batch, &first, vec![]);
+			db.write(batch);
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
 
 		{
-			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+			let db = new_db(temp.as_str());
+			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
 	}
@@ -1129,14 +1158,24 @@ mod tests {
 		let b1_hash = H256::from_str("f53f268d23a71e85c7d6d83a9504298712b84c1a2ba220441c86eeda0bf0b6e3").unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
-		bc.insert_block(&b1, vec![]);
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let batch = db.transaction();
+		bc.insert_block(&batch, &b1, vec![]);
+		db.write(batch);
 
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
 		for t in transactions {
 			assert_eq!(bc.transaction(&bc.transaction_address(&t.hash()).unwrap()).unwrap(), t);
 		}
+	}
+
+	fn insert_block(db: &Arc<Database>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
+		let batch = db.transaction();
+		let res = bc.insert_block(&batch, bytes, receipts);
+		db.write(batch);
+		res
 	}
 
 	#[test]
@@ -1160,27 +1199,28 @@ mod tests {
 		let b2a = canon_chain.with_bloom(bloom_ba.clone()).generate(&mut finalizer).unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		assert_eq!(blocks_b1, vec![]);
 		assert_eq!(blocks_b2, vec![]);
 
-		bc.insert_block(&b1, vec![]);
+		insert_block(&db, &bc, &b1, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![]);
 
-		bc.insert_block(&b2, vec![]);
+		insert_block(&db, &bc, &b2, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 
 		// hasn't been forked yet
-		bc.insert_block(&b1a, vec![]);
+		insert_block(&db, &bc, &b1a, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
@@ -1189,7 +1229,7 @@ mod tests {
 		assert_eq!(blocks_ba, vec![]);
 
 		// fork has happend
-		bc.insert_block(&b2a, vec![]);
+		insert_block(&db, &bc, &b2a, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
@@ -1198,7 +1238,7 @@ mod tests {
 		assert_eq!(blocks_ba, vec![1, 2]);
 
 		// fork back
-		bc.insert_block(&b3, vec![]);
+		insert_block(&db, &bc, &b3, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
@@ -1216,21 +1256,25 @@ mod tests {
 		let temp = RandomTempPath::new();
 
 		{
-			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+			let db = new_db(temp.as_str());
+			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
 
+			let batch = db.transaction();
 			// create a longer fork
 			for _ in 0..5 {
 				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
-				bc.insert_block(&canon_block, vec![]);
+				bc.insert_block(&batch, &canon_block, vec![]);
 			}
 
 			assert_eq!(bc.best_block_number(), 5);
-			bc.insert_block(&uncle, vec![]);
+			bc.insert_block(&batch, &uncle, vec![]);
+			db.write(batch);
 		}
 
 		// re-loading the blockchain should load the correct best block.
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 		assert_eq!(bc.best_block_number(), 5);
 	}
 
@@ -1246,10 +1290,13 @@ mod tests {
 		let second_hash = BlockView::new(&second).header_view().sha3();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
-		bc.insert_block(&first, vec![]);
-		bc.insert_block(&second, vec![]);
+		let batch = db.transaction();
+		bc.insert_block(&batch, &first, vec![]);
+		bc.insert_block(&batch, &second, vec![]);
+		db.write(batch);
 
 		assert_eq!(bc.rewind(), Some(first_hash.clone()));
 		assert!(!bc.is_known(&second_hash));

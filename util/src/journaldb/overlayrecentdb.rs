@@ -114,8 +114,8 @@ impl OverlayRecentDB {
 	pub fn new_temp() -> OverlayRecentDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		let backing = Arc::new(Database::open(DatabaseConfig::default()));
-		Self::new(backing, Some(0))
+		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
+		Self::new(backing, None)
 	}
 
 	#[cfg(test)]
@@ -362,7 +362,12 @@ mod tests {
 	use hashdb::*;
 	use log::init_log;
 	use journaldb::JournalDB;
-	use kvdb::DatabaseConfig;
+	use kvdb::Database;
+
+	fn new_db(path: &Path) -> OverlayRecentDB {
+		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());
+		OverlayRecentDB::new(backing, None)
+	}
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -370,25 +375,25 @@ mod tests {
 		let mut jdb = OverlayRecentDB::new_temp();
 
 		let x = jdb.insert(b"X");
-		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&x);
-		jdb.commit(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		let x = jdb.insert(b"X");
-		jdb.commit(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		jdb.commit(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		jdb.commit_batch(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+		jdb.commit_batch(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.contains(&x));
@@ -399,20 +404,20 @@ mod tests {
 		// history is 3
 		let mut jdb = OverlayRecentDB::new_temp();
 		let h = jdb.insert(b"foo");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&h));
 		jdb.remove(&h);
-		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&h));
-		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&h));
-		jdb.commit(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&h));
-		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.contains(&h));
 	}
@@ -424,7 +429,7 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
@@ -432,7 +437,7 @@ mod tests {
 		jdb.remove(&foo);
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
-		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
@@ -440,20 +445,20 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
-		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
 		jdb.remove(&foo);
-		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
 		assert!(!jdb.contains(&baz));
 
-		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
@@ -467,25 +472,25 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
-		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&bar);
-		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
-		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&baz));
@@ -498,112 +503,105 @@ mod tests {
 		let mut jdb = OverlayRecentDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 
 		jdb.remove(&foo);
-		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
 		assert!(jdb.contains(&foo));
-		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
-		jdb.commit(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
 	fn fork_same_key_one() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		let mut jdb = OverlayRecentDB::new_temp();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.contains(&foo));
 
-		jdb.commit(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
 	fn fork_same_key_other() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let mut jdb = OverlayRecentDB::new_temp();
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.contains(&foo));
 
-		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 	}
 
 	#[test]
 	fn fork_ins_del_ins() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let mut jdb = OverlayRecentDB::new_temp();
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit(2, &b"2a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2a".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit(2, &b"2b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2b".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(3, &b"3a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"3a".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(3, &b"3b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"3b".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		jdb.commit(4, &b"4a".sha3(), Some((2, b"2a".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4a".sha3(), Some((2, b"2a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		jdb.commit(5, &b"5a".sha3(), Some((3, b"3a".sha3()))).unwrap();
+		jdb.commit_batch(5, &b"5a".sha3(), Some((3, b"3a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
 
@@ -614,27 +612,27 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
-			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			foo
 		};
 
 		{
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			jdb.remove(&foo);
-			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
-			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(!jdb.contains(&foo));
 		}
@@ -643,145 +641,133 @@ mod tests {
 	#[test]
 	fn insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+		let mut jdb = OverlayRecentDB::new_temp();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.remove(&foo);
-		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
-		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.remove(&foo);
-		jdb.commit(3, &b"3".sha3(), None).unwrap();
+		jdb.commit_batch(3, &b"3".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
-		jdb.commit(4, &b"4".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		// expunge foo
-		jdb.commit(5, &b"5".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(5, &b"5".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
 
 	#[test]
 	fn forked_insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+		let mut jdb = OverlayRecentDB::new_temp();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit(1, &b"1a".sha3(), None).unwrap();
+		jdb.commit_batch(1, &b"1a".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit(1, &b"1b".sha3(), None).unwrap();
+		jdb.commit_batch(1, &b"1b".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(2, &b"2a".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2a".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(2, &b"2b".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2b".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit(3, &b"3a".sha3(), None).unwrap();
+		jdb.commit_batch(3, &b"3a".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit(3, &b"3b".sha3(), None).unwrap();
+		jdb.commit_batch(3, &b"3b".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(4, &b"4a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4a".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(4, &b"4b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4b".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		// expunge foo
-		jdb.commit(5, &b"5".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		jdb.commit_batch(5, &b"5".sha3(), Some((1, b"1a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
 
 	#[test]
 	fn broken_assert() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let mut jdb = OverlayRecentDB::new_temp();
 
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
-		// history is 1
 		let foo = jdb.insert(b"foo");
-		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		// foo is ancient history.
 
 		jdb.remove(&foo);
-		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();	// BROKEN
+		jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();	// BROKEN
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 
 		jdb.remove(&foo);
-		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
+		jdb.commit_batch(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.contains(&foo));
 	}
 
 	#[test]
 	fn reopen_test() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-
-		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+		let mut jdb = OverlayRecentDB::new_temp();
 		// history is 4
 		let foo = jdb.insert(b"foo");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(3, &b"3".sha3(), None).unwrap();
+		jdb.commit_batch(3, &b"3".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(4, &b"4".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		// foo is ancient history.
 
 		jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit(5, &b"5".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(5, &b"5".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.remove(&foo);
 		jdb.remove(&bar);
-		jdb.commit(6, &b"6".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(6, &b"6".sha3(), Some((2, b"2".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
 		jdb.insert(b"bar");
-		jdb.commit(7, &b"7".sha3(), Some((3, b"3".sha3()))).unwrap();
+		jdb.commit_batch(7, &b"7".sha3(), Some((3, b"3".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
 
@@ -795,45 +781,48 @@ mod tests {
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			// history is 1
 			jdb.insert(b"foo");
-			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			jdb.commit(1, &b"1".sha3(), None).unwrap();
+			jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 
 			// foo is ancient history.
 
 			jdb.remove(&foo);
-			jdb.commit(2, &b"2".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(2, &b"2".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
 			jdb.insert(b"foo");
-			jdb.commit(3, &b"3".sha3(), Some((1, b"1".sha3()))).unwrap();
+			jdb.commit_batch(3, &b"3".sha3(), Some((1, b"1".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+		}; {
+			let mut jdb = new_db(&dir);
 
 			jdb.remove(&foo);
-			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
+			jdb.commit_batch(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+		}; {
+			let mut jdb = new_db(&dir);
 
-			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit_batch(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+		}; {
+			let mut jdb = new_db(&dir);
 
-			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
+			jdb.commit_batch(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(!jdb.contains(&foo));
 		}
@@ -844,26 +833,26 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
-			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			jdb.remove(&foo);
 			let baz = jdb.insert(b"baz");
-			jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 
 			jdb.remove(&bar);
-			jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			(foo, bar, baz)
 		};
 
 		{
-			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
-			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+			let mut jdb = new_db(&dir);
+			jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 			assert!(!jdb.contains(&baz));
@@ -875,17 +864,17 @@ mod tests {
 	fn insert_older_era() {
 		let mut jdb = OverlayRecentDB::new_temp();
 		let foo = jdb.insert(b"foo");
-		jdb.commit(0, &b"0a".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0a".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		let bar = jdb.insert(b"bar");
-		jdb.commit(1, &b"1".sha3(), Some((0, b"0a".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0a".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&bar);
-		jdb.commit(0, &b"0b".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0b".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));

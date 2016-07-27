@@ -94,6 +94,7 @@ pub struct DatabaseConfig {
 }
 
 impl DatabaseConfig {
+	/// Create new `DatabaseConfig` with default parameters and specified set of columns.
 	pub fn with_columns(columns: Option<u32>) -> Self {
 		let mut config = Self::default();
 		config.columns = columns;
@@ -210,6 +211,11 @@ impl Database {
 		Ok(Database { db: db, write_opts: write_opts, cfs: cfs })
 	}
 
+	/// Creates new transaction for this database.
+	pub fn transaction(&self) -> DBTransaction {
+		DBTransaction::new(self)
+	}
+
 	/// Commit transaction to database.
 	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
 		self.db.write_opt(tr.batch, &self.write_opts)
@@ -258,38 +264,46 @@ mod tests {
 		let key2 = H256::from_str("03c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
 		let key3 = H256::from_str("01c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
 
-		db.put(&key1, b"cat").unwrap();
-		db.put(&key2, b"dog").unwrap();
+		let batch = db.transaction();
+		batch.put(None, &key1, b"cat").unwrap();
+		batch.put(None, &key2, b"dog").unwrap();
+		db.write(batch).unwrap();
 
-		assert_eq!(db.get(&key1).unwrap().unwrap().deref(), b"cat");
+		assert_eq!(db.get(None, &key1).unwrap().unwrap().deref(), b"cat");
 
-		let contents: Vec<_> = db.iter().collect();
+		let contents: Vec<_> = db.iter(None).collect();
 		assert_eq!(contents.len(), 2);
 		assert_eq!(&*contents[0].0, key1.deref());
 		assert_eq!(&*contents[0].1, b"cat");
 		assert_eq!(&*contents[1].0, key2.deref());
 		assert_eq!(&*contents[1].1, b"dog");
 
-		db.delete(&key1).unwrap();
-		assert!(db.get(&key1).unwrap().is_none());
-		db.put(&key1, b"cat").unwrap();
+		let batch = db.transaction();
+		batch.delete(None, &key1).unwrap();
+		db.write(batch).unwrap();
 
-		let transaction = DBTransaction::new();
-		transaction.put(&key3, b"elephant").unwrap();
-		transaction.delete(&key1).unwrap();
+		assert!(db.get(None, &key1).unwrap().is_none());
+
+		let batch = db.transaction();
+		batch.put(None, &key1, b"cat").unwrap();
+		db.write(batch).unwrap();
+
+		let transaction = db.transaction();
+		transaction.put(None, &key3, b"elephant").unwrap();
+		transaction.delete(None, &key1).unwrap();
 		db.write(transaction).unwrap();
-		assert!(db.get(&key1).unwrap().is_none());
-		assert_eq!(db.get(&key3).unwrap().unwrap().deref(), b"elephant");
+		assert!(db.get(None, &key1).unwrap().is_none());
+		assert_eq!(db.get(None, &key3).unwrap().unwrap().deref(), b"elephant");
 
-		assert_eq!(db.get_by_prefix(&key3).unwrap().deref(), b"elephant");
-		assert_eq!(db.get_by_prefix(&key2).unwrap().deref(), b"dog");
+		assert_eq!(db.get_by_prefix(None, &key3).unwrap().deref(), b"elephant");
+		assert_eq!(db.get_by_prefix(None, &key2).unwrap().deref(), b"dog");
 	}
 
 	#[test]
 	fn kvdb() {
 		let path = RandomTempPath::create_dir();
 		let smoke = Database::open_default(path.as_path().to_str().unwrap()).unwrap();
-		assert!(smoke.is_empty());
+		assert!(smoke.is_empty(None));
 		test_db(&DatabaseConfig::default());
 	}
 }

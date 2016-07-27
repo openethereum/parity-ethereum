@@ -47,4 +47,12 @@ pub trait JournalDB : HashDB + Send + Sync {
 
 	/// Get backing database.
 	fn backing(&self) -> &Arc<Database>;
+
+	#[cfg(test)]
+	/// Commit all changes in a single batch
+	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		let batch = self.backing().transaction();
+		let res = try!(self.commit(&batch, now, id, end));
+		self.backing().write(batch).map(|_| res).map_err(Into::into)
+	}
 }

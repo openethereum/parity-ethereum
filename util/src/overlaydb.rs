@@ -24,7 +24,6 @@ use hashdb::*;
 use memorydb::*;
 use std::ops::*;
 use std::sync::*;
-use std::env;
 use std::collections::HashMap;
 use kvdb::{Database, DBTransaction};
 
@@ -50,10 +49,19 @@ impl OverlayDB {
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
+	#[cfg(test)]
 	pub fn new_temp() -> OverlayDB {
-		let mut dir = env::temp_dir();
+		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap()), Some(0))
+		Self::new(Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap()), None)
+	}
+
+	/// Commit all operations in a single batch.
+	#[cfg(test)]
+	pub fn commit(&mut self) -> Result<u32, UtilError> {
+		let batch = self.backing.transaction();
+		let res = try!(self.commit_to_batch(&batch));
+		self.backing.write(batch).map(|_| res).map_err(|e| e.into())
 	}
 
 	/// Commit all operations to given batch.
@@ -88,25 +96,6 @@ impl OverlayDB {
 
 	/// Revert all operations on this object (i.e. `insert()`s and `remove()`s) since the
 	/// last `commit()`.
-	///
-	/// # Example
-	/// ```
-	/// extern crate ethcore_util;
-	/// use ethcore_util::hashdb::*;
-	/// use ethcore_util::overlaydb::*;
-	/// fn main() {
-	///   let mut m = OverlayDB::new_temp();
-	///   let foo = m.insert(b"foo");	// insert foo.
-	///   m.commit().unwrap();			// commit - new operations begin here...
-	///   let bar = m.insert(b"bar");	// insert bar.
-	///   m.remove(&foo);					// remove foo.
-	///   assert!(!m.contains(&foo));		// foo is gone.
-	///   assert!(m.contains(&bar));		// bar is here.
-	///   m.revert();					// revert the last two operations.
-	///   assert!(m.contains(&foo));		// foo is here.
-	///   assert!(!m.contains(&bar));		// bar is gone.
-	/// }
-	/// ```
 	pub fn revert(&mut self) { self.overlay.clear(); }
 
 	/// Get the number of references that would be committed.
@@ -203,6 +192,22 @@ impl HashDB for OverlayDB {
 }
 
 #[test]
+fn overlaydb_revert() {
+	let mut m = OverlayDB::new_temp();
+	let foo = m.insert(b"foo");          // insert foo.
+	let batch = m.backing.transaction();
+	m.commit_to_batch(&batch).unwrap();  // commit - new operations begin here...
+	m.backing.write(batch).unwrap();
+	let bar = m.insert(b"bar");          // insert bar.
+	m.remove(&foo);                      // remove foo.
+	assert!(!m.contains(&foo));          // foo is gone.
+	assert!(m.contains(&bar));           // bar is here.
+	m.revert();                          // revert the last two operations.
+	assert!(m.contains(&foo));           // foo is here.
+	assert!(!m.contains(&bar));          // bar is gone.
+}
+
+#[test]
 fn overlaydb_overlay_insert_and_remove() {
 	let mut trie = OverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
@@ -294,14 +299,18 @@ fn overlaydb_complex() {
 fn playpen() {
 	use std::fs;
 	{
-		let db: Database = Database::open_default("/tmp/test").unwrap();
-		db.put(b"test", b"test2").unwrap();
-		match db.get(b"test") {
+		let db = Database::open_default("/tmp/test").unwrap();
+		let batch = db.transaction();
+		batch.put(None, b"test", b"test2").unwrap();
+		db.write(batch).unwrap();
+		match db.get(None, b"test") {
 			Ok(Some(value)) => println!("Got value {:?}", value.deref()),
 			Ok(None) => println!("No value for that key"),
 			Err(..) => println!("Gah"),
 		}
-		db.delete(b"test").unwrap();
+		let batch = db.transaction();
+		batch.delete(None, b"test").unwrap();
+		db.write(batch).unwrap();
 	}
 	fs::remove_dir_all("/tmp/test").unwrap();
 }

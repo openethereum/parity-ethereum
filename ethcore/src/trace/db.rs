@@ -350,12 +350,13 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 mod tests {
 	use std::collections::HashMap;
 	use std::sync::Arc;
-	use util::{Address, U256, H256};
+	use util::{Address, U256, H256, Database, DatabaseConfig, DBTransaction};
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
-	use trace::{Config, Switch, TraceDB, Database, DatabaseExtras, ImportRequest};
+	use trace::{Config, Switch, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
 	use trace::trace::{Call, Action, Res};
+	use client::DB_NO_OF_COLUMNS;
 
 	struct NoopExtras;
 
@@ -398,24 +399,25 @@ mod tests {
 	fn test_reopening_db_with_tracing_off() {
 		let temp = RandomTempPath::new();
 		let mut config = Config::default();
+		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), temp.as_str()).unwrap());
 
 		// set autotracing
 		config.enabled = Switch::Auto;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
 			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 
 		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
 			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 
 		config.enabled = Switch::Off;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
 			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 	}
@@ -424,31 +426,32 @@ mod tests {
 	fn test_reopening_db_with_tracing_on() {
 		let temp = RandomTempPath::new();
 		let mut config = Config::default();
+		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), temp.as_str()).unwrap());
 
 		// set tracing on
 		config.enabled = Switch::On;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
 		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
 		config.enabled = Switch::Auto;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
 		config.enabled = Switch::Off;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
 			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 	}
@@ -458,17 +461,18 @@ mod tests {
 	fn test_invalid_reopening_db() {
 		let temp = RandomTempPath::new();
 		let mut config = Config::default();
+		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), temp.as_str()).unwrap());
 
 		// set tracing on
 		config.enabled = Switch::Off;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
 		config.enabled = Switch::On;
-		TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap(); // should panic!
+		TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap(); // should panic!
 	}
 
 	fn create_simple_import_request(block_number: BlockNumber, block_hash: H256) -> ImportRequest {
@@ -515,6 +519,7 @@ mod tests {
 	#[test]
 	fn test_import() {
 		let temp = RandomTempPath::new();
+		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), temp.as_str()).unwrap());
 		let mut config = Config::default();
 		config.enabled = Switch::On;
 		let block_0 = H256::from(0xa1);
@@ -528,11 +533,13 @@ mod tests {
 		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
 		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
 
-		let tracedb = TraceDB::new(config, temp.as_path(), Arc::new(extras)).unwrap();
+		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras)).unwrap();
 
 		// import block 0
 		let request = create_simple_import_request(0, block_0.clone());
-		tracedb.import(request);
+		let batch = DBTransaction::new(&db);
+		tracedb.import(&batch, request);
+		db.write(batch).unwrap();
 
 		let filter = Filter {
 			range: (0..0),
@@ -546,7 +553,9 @@ mod tests {
 
 		// import block 1
 		let request = create_simple_import_request(1, block_1.clone());
-		tracedb.import(request);
+		let batch = DBTransaction::new(&db);
+		tracedb.import(&batch, request);
+		db.write(batch).unwrap();
 
 		let filter = Filter {
 			range: (0..1),
