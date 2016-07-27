@@ -302,7 +302,6 @@ mod legacy {
 		Ok(manager)
 	}
 
-
 	/// Migrations on the extras database.
 	pub fn extras_database_migrations() -> Result<MigrationManager, Error> {
 		let mut manager = MigrationManager::new(default_migration_settings());
