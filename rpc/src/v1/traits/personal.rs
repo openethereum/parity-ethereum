@@ -36,6 +36,15 @@ pub trait Personal: Sized + Send + Sync + 'static {
 	/// Returns `true` if Trusted Signer is enabled, `false` otherwise.
 	fn signer_enabled(&self, _: Params) -> Result<Value, Error>;
 
+	/// Set an account's name.
+	fn set_account_name(&self, _: Params) -> Result<Value, Error>;
+
+	/// Set an account's metadata string.
+	fn set_account_meta(&self, _: Params) -> Result<Value, Error>;
+
+	/// Returns accounts information.
+	fn accounts_info(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -44,6 +53,10 @@ pub trait Personal: Sized + Send + Sync + 'static {
 		delegate.add_method("personal_newAccount", Personal::new_account);
 		delegate.add_method("personal_unlockAccount", Personal::unlock_account);
 		delegate.add_method("personal_signAndSendTransaction", Personal::sign_and_send_transaction);
+		delegate.add_method("personal_setAccountName", Personal::set_account_name);
+		delegate.add_method("personal_setAccountMeta", Personal::set_account_meta);
+		delegate.add_method("personal_accountsInfo", Personal::accounts_info);
+
 		delegate
 	}
 }

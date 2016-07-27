@@ -22,16 +22,26 @@ use util::panics::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
 use rpc_apis;
 use ethcore_signer as signer;
-use die::*;
-
+use helpers::replace_home;
 pub use ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
 
+#[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub enabled: bool,
 	pub port: u16,
 	pub signer_path: String,
+}
+
+impl Default for Configuration {
+	fn default() -> Self {
+		Configuration {
+			enabled: true,
+			port: 8180,
+			signer_path: replace_home("$HOME/.parity/signer"),
+		}
+	}
 }
 
 pub struct Dependencies {
@@ -39,11 +49,11 @@ pub struct Dependencies {
 	pub apis: Arc<rpc_apis::Dependencies>,
 }
 
-pub fn start(conf: Configuration, deps: Dependencies) -> Option<SignerServer> {
+pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerServer>, String> {
 	if !conf.enabled {
-		None
+		Ok(None)
 	} else {
-		Some(do_start(conf, deps))
+		Ok(Some(try!(do_start(conf, deps))))
 	}
 }
 
@@ -54,7 +64,13 @@ fn codes_path(path: String) -> PathBuf {
 	p
 }
 
-pub fn new_token(path: String) -> io::Result<String> {
+pub fn new_token(path: String) -> Result<String, String> {
+	generate_new_token(path)
+		.map(|code| format!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(code)))
+		.map_err(|err| format!("Error generating token: {:?}", err))
+}
+
+fn generate_new_token(path: String) -> io::Result<String> {
 	let path = codes_path(path);
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
@@ -63,10 +79,10 @@ pub fn new_token(path: String) -> io::Result<String> {
 	Ok(code)
 }
 
-fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
-	let addr = format!("127.0.0.1:{}", conf.port).parse().unwrap_or_else(|_| {
-		die!("Invalid port specified: {}", conf.port)
-	});
+fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, String> {
+	let addr = try!(format!("127.0.0.1:{}", conf.port)
+		.parse()
+		.map_err(|_| format!("Invalid port specified: {}", conf.port)));
 
 	let start_result = {
 		let server = signer::ServerBuilder::new(
@@ -78,11 +94,11 @@ fn do_start(conf: Configuration, deps: Dependencies) -> SignerServer {
 	};
 
 	match start_result {
-		Err(signer::ServerError::IoError(err)) => die_with_io_error("Trusted Signer", err),
-		Err(e) => die!("Trusted Signer: {:?}", e),
+		Err(signer::ServerError::IoError(err)) => Err(format!("Trusted Signer Error: {}", err)),
+		Err(e) => Err(format!("Trusted Signer Error: {:?}", e)),
 		Ok(server) => {
 			deps.panic_handler.forward_from(&server);
-			server
+			Ok(server)
 		},
 	}
 }

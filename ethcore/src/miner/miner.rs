@@ -36,7 +36,7 @@ use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
 
 /// Different possible definitions for pending transaction set.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PendingSet {
 	/// Always just the transactions in the queue. These have had only cheap checks.
 	AlwaysQueue,
@@ -48,7 +48,7 @@ pub enum PendingSet {
 }
 
 /// Configures the behaviour of the miner.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct MinerOptions {
 	/// URLs to notify when there is new work.
 	pub new_work_notify: Vec<String>,
@@ -77,12 +77,12 @@ impl Default for MinerOptions {
 		MinerOptions {
 			new_work_notify: vec![],
 			force_sealing: false,
-			reseal_on_external_tx: true,
+			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
-			reseal_min_period: Duration::from_secs(0),
+			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
 			enable_resubmission: true,
 		}
@@ -90,6 +90,7 @@ impl Default for MinerOptions {
 }
 
 /// Options for the dynamic gas price recalibrator.
+#[derive(Debug, PartialEq)]
 pub struct GasPriceCalibratorOptions {
 	/// Base transaction price to match against.
 	pub usd_per_tx: f32,
@@ -98,9 +99,9 @@ pub struct GasPriceCalibratorOptions {
 }
 
 /// The gas price validator variant for a `GasPricer`.
+#[derive(Debug, PartialEq)]
 pub struct GasPriceCalibrator {
 	options: GasPriceCalibratorOptions,
-
 	next_calibration: Instant,
 }
 
@@ -128,6 +129,7 @@ impl GasPriceCalibrator {
 }
 
 /// Struct to look after updating the acceptable gas price of a miner.
+#[derive(Debug, PartialEq)]
 pub enum GasPricer {
 	/// A fixed gas price in terms of Wei - always the argument given.
 	Fixed(U256),
