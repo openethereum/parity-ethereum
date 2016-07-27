@@ -22,7 +22,10 @@ use ethcore::trace::{Trace as EthTrace, LocalizedTrace as EthLocalizedTrace};
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
-use v1::types::Bytes;
+use ethcore::executed;
+use ethcore::client::Executed;
+use util::Uint;
+use v1::types::{Bytes, H160, H256, U256};
 
 #[derive(Debug, Serialize)]
 /// A diff of some chunk of memory.
@@ -233,6 +236,34 @@ impl From<trace::Create> for Create {
 	}
 }
 
+/// Call type.
+#[derive(Debug, Serialize)]
+pub enum CallType {
+	/// None
+	#[serde(rename="none")]
+	None,
+	/// Call
+	#[serde(rename="call")]
+	Call,
+	/// Call code
+	#[serde(rename="callcode")]
+	CallCode,
+	/// Delegate call
+	#[serde(rename="delegatecall")]
+	DelegateCall,
+}
+
+impl From<executed::CallType> for CallType {
+	fn from(c: executed::CallType) -> Self {
+		match c {
+			executed::CallType::None => CallType::None,
+			executed::CallType::Call => CallType::Call,
+			executed::CallType::CallCode => CallType::CallCode,
+			executed::CallType::DelegateCall => CallType::DelegateCall,
+		}
+	}
+}
+
 /// Call response
 #[derive(Debug, Serialize)]
 pub struct Call {
@@ -246,6 +277,9 @@ pub struct Call {
 	gas: U256,
 	/// Input data
 	input: Bytes,
+	/// The type of the call.
+	#[serde(rename="callType")]
+	call_type: CallType,
 }
 
 impl From<trace::Call> for Call {
@@ -256,6 +290,7 @@ impl From<trace::Call> for Call {
 			value: c.value,
 			gas: c.gas,
 			input: Bytes::new(c.input),
+			call_type: c.call_type,
 		}
 	}
 }
@@ -461,6 +496,7 @@ mod tests {
 				value: U256::from(6),
 				gas: U256::from(7),
 				input: Bytes::new(vec![0x12, 0x34]),
+				call_type: CallType::Call,
 			}),
 			result: Res::Call(CallResult {
 				gas_used: U256::from(8),
@@ -474,7 +510,7 @@ mod tests {
 			block_hash: H256::from(14),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"action":{"call":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","input":"0x1234"}},"result":{"call":{"gasUsed":"0x08","output":"0x5678"}},"traceAddress":["0x0a"],"subtraces":"0x01","transactionPosition":"0x0b","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0x0d","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"action":{"call":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","input":"0x1234","callType":{"call":[]}}},"result":{"call":{"gasUsed":"0x08","output":"0x5678"}},"traceAddress":["0x0a"],"subtraces":"0x01","transactionPosition":"0x0b","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0x0d","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -550,6 +586,7 @@ mod tests {
 			value: U256::from(3),
 			gas: U256::from(4),
 			input: Bytes::new(vec![0x12, 0x34]),
+			call_type: CallType::Call,
 		}), Action::Create(Create {
 			from: Address::from(5),
 			value: U256::from(6),
@@ -558,7 +595,7 @@ mod tests {
 		})];
 
 		let serialized = serde_json::to_string(&actions).unwrap();
-		assert_eq!(serialized, r#"[{"call":{"from":"0x0000000000000000000000000000000000000001","to":"0x0000000000000000000000000000000000000002","value":"0x03","gas":"0x04","input":"0x1234"}},{"create":{"from":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","init":"0x5678"}}]"#);
+		assert_eq!(serialized, r#"[{"call":{"from":"0x0000000000000000000000000000000000000001","to":"0x0000000000000000000000000000000000000002","value":"0x03","gas":"0x04","input":"0x1234","callType":{"call":[]}}},{"create":{"from":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","init":"0x5678"}}]"#);
 	}
 
 	#[test]
