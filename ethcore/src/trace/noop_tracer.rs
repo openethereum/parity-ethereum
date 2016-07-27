@@ -37,7 +37,7 @@ impl Tracer for NoopTracer {
 		None
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>, _: bool) {
+	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>) {
 		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
 		assert!(output.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
@@ -47,7 +47,7 @@ impl Tracer for NoopTracer {
 		assert!(code.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, _: usize, _: Vec<Trace>, _: bool) {
+	fn trace_failed_call(&mut self, call: Option<Call>, _: usize, _: Vec<Trace>) {
 		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
 	}
 

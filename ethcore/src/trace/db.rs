@@ -367,6 +367,7 @@ mod tests {
 	use trace::{Config, Switch, TraceDB, Database, DatabaseExtras, ImportRequest};
 	use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
 	use trace::trace::{Call, Action, Res};
+	use types::executed::CallType;
 
 	struct NoopExtras;
 
@@ -492,6 +493,7 @@ mod tests {
 					value: U256::from(3),
 					gas: U256::from(4),
 					input: vec![],
+					call_type: CallType::Call,
 				}),
 				result: Res::FailedCall,
 				subs: vec![],
@@ -511,6 +513,7 @@ mod tests {
 				value: U256::from(3),
 				gas: U256::from(4),
 				input: vec![],
+				call_type: CallType::Call,
 			}),
 			result: Res::FailedCall,
 			trace_address: vec![],
