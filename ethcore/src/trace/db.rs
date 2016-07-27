@@ -358,240 +358,240 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	use std::collections::HashMap;
-	use std::sync::Arc;
-	use util::{Address, U256, H256};
-	use devtools::RandomTempPath;
-	use header::BlockNumber;
-	use trace::{Config, Switch, TraceDB, Database, DatabaseExtras, ImportRequest};
-	use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
-	use trace::trace::{Call, Action, Res};
+//#[cfg(test)]
+//mod tests {
+	//use std::collections::HashMap;
+	//use std::sync::Arc;
+	//use util::{Address, U256, H256};
+	//use devtools::RandomTempPath;
+	//use header::BlockNumber;
+	//use trace::{Config, Switch, TraceDB, Database, DatabaseExtras, ImportRequest};
+	//use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
+	//use trace::trace::{Call, Action, Res};
 
-	struct NoopExtras;
+	//struct NoopExtras;
 
-	impl DatabaseExtras for NoopExtras {
-		fn block_hash(&self, _block_number: BlockNumber) -> Option<H256> {
-			unimplemented!();
-		}
+	//impl DatabaseExtras for NoopExtras {
+		//fn block_hash(&self, _block_number: BlockNumber) -> Option<H256> {
+			//unimplemented!();
+		//}
 
-		fn transaction_hash(&self, _block_number: BlockNumber, _tx_position: usize) -> Option<H256> {
-			unimplemented!();
-		}
-	}
+		//fn transaction_hash(&self, _block_number: BlockNumber, _tx_position: usize) -> Option<H256> {
+			//unimplemented!();
+		//}
+	//}
 
-	struct Extras {
-		block_hashes: HashMap<BlockNumber, H256>,
-		transaction_hashes: HashMap<BlockNumber, Vec<H256>>,
-	}
+	//struct Extras {
+		//block_hashes: HashMap<BlockNumber, H256>,
+		//transaction_hashes: HashMap<BlockNumber, Vec<H256>>,
+	//}
 
-	impl Default for Extras {
-		fn default() -> Self {
-			Extras {
-				block_hashes: HashMap::new(),
-				transaction_hashes: HashMap::new(),
-			}
-		}
-	}
+	//impl Default for Extras {
+		//fn default() -> Self {
+			//Extras {
+				//block_hashes: HashMap::new(),
+				//transaction_hashes: HashMap::new(),
+			//}
+		//}
+	//}
 
-	impl DatabaseExtras for Extras {
-		fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
-			self.block_hashes.get(&block_number).cloned()
-		}
+	//impl DatabaseExtras for Extras {
+		//fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
+			//self.block_hashes.get(&block_number).cloned()
+		//}
 
-		fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
-			self.transaction_hashes.get(&block_number)
-				.and_then(|hashes| hashes.iter().cloned().nth(tx_position))
-		}
-	}
+		//fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
+			//self.transaction_hashes.get(&block_number)
+				//.and_then(|hashes| hashes.iter().cloned().nth(tx_position))
+		//}
+	//}
 
-	#[test]
-	fn test_reopening_db_with_tracing_off() {
-		let temp = RandomTempPath::new();
-		let mut config = Config::default();
+	//#[test]
+	//fn test_reopening_db_with_tracing_off() {
+		//let temp = RandomTempPath::new();
+		//let mut config = Config::default();
 
-		// set autotracing
-		config.enabled = Switch::Auto;
+		//// set autotracing
+		//config.enabled = Switch::Auto;
 
-		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), false);
-		}
+		//{
+			//let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			//assert_eq!(tracedb.tracing_enabled(), false);
+		//}
 
-		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), false);
-		}
+		//{
+			//let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			//assert_eq!(tracedb.tracing_enabled(), false);
+		//}
 
-		config.enabled = Switch::Off;
+		//config.enabled = Switch::Off;
 
-		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), false);
-		}
-	}
+		//{
+			//let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			//assert_eq!(tracedb.tracing_enabled(), false);
+		//}
+	//}
 
-	#[test]
-	fn test_reopening_db_with_tracing_on() {
-		let temp = RandomTempPath::new();
-		let mut config = Config::default();
+	//#[test]
+	//fn test_reopening_db_with_tracing_on() {
+		//let temp = RandomTempPath::new();
+		//let mut config = Config::default();
 
-		// set tracing on
-		config.enabled = Switch::On;
+		//// set tracing on
+		//config.enabled = Switch::On;
 
-		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), true);
-		}
+		//{
+			//let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			//assert_eq!(tracedb.tracing_enabled(), true);
+		//}
 
-		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), true);
-		}
+		//{
+			//let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			//assert_eq!(tracedb.tracing_enabled(), true);
+		//}
 
-		config.enabled = Switch::Auto;
+		//config.enabled = Switch::Auto;
 
-		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), true);
-		}
+		//{
+			//let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			//assert_eq!(tracedb.tracing_enabled(), true);
+		//}
 
-		config.enabled = Switch::Off;
+		//config.enabled = Switch::Off;
 
-		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), false);
-		}
-	}
+		//{
+			//let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			//assert_eq!(tracedb.tracing_enabled(), false);
+		//}
+	//}
 
-	#[test]
-	#[should_panic]
-	fn test_invalid_reopening_db() {
-		let temp = RandomTempPath::new();
-		let mut config = Config::default();
+	//#[test]
+	//#[should_panic]
+	//fn test_invalid_reopening_db() {
+		//let temp = RandomTempPath::new();
+		//let mut config = Config::default();
 
-		// set tracing on
-		config.enabled = Switch::Off;
+		//// set tracing on
+		//config.enabled = Switch::Off;
 
-		{
-			let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), true);
-		}
+		//{
+			//let tracedb = TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap();
+			//assert_eq!(tracedb.tracing_enabled(), true);
+		//}
 
-		config.enabled = Switch::On;
-		TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap(); // should panic!
-	}
+		//config.enabled = Switch::On;
+		//TraceDB::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)).unwrap(); // should panic!
+	//}
 
-	fn create_simple_import_request(block_number: BlockNumber, block_hash: H256) -> ImportRequest {
-		ImportRequest {
-			traces: BlockTraces::from(vec![Trace {
-				depth: 0,
-				action: Action::Call(Call {
-					from: Address::from(1),
-					to: Address::from(2),
-					value: U256::from(3),
-					gas: U256::from(4),
-					input: vec![],
-				}),
-				result: Res::FailedCall,
-				subs: vec![],
-			}]),
-			block_hash: block_hash.clone(),
-			block_number: block_number,
-			enacted: vec![block_hash],
-			retracted: 0,
-		}
-	}
+	//fn create_simple_import_request(block_number: BlockNumber, block_hash: H256) -> ImportRequest {
+		//ImportRequest {
+			//traces: BlockTraces::from(vec![Trace {
+				//depth: 0,
+				//action: Action::Call(Call {
+					//from: Address::from(1),
+					//to: Address::from(2),
+					//value: U256::from(3),
+					//gas: U256::from(4),
+					//input: vec![],
+				//}),
+				//result: Res::FailedCall,
+				//subs: vec![],
+			//}]),
+			//block_hash: block_hash.clone(),
+			//block_number: block_number,
+			//enacted: vec![block_hash],
+			//retracted: 0,
+		//}
+	//}
 
-	fn create_simple_localized_trace(block_number: BlockNumber, block_hash: H256, tx_hash: H256) -> LocalizedTrace {
-		LocalizedTrace {
-			action: Action::Call(Call {
-				from: Address::from(1),
-				to: Address::from(2),
-				value: U256::from(3),
-				gas: U256::from(4),
-				input: vec![],
-			}),
-			result: Res::FailedCall,
-			trace_address: vec![],
-			subtraces: 0,
-			transaction_number: 0,
-			transaction_hash: tx_hash,
-			block_number: block_number,
-			block_hash: block_hash,
-		}
-	}
+	//fn create_simple_localized_trace(block_number: BlockNumber, block_hash: H256, tx_hash: H256) -> LocalizedTrace {
+		//LocalizedTrace {
+			//action: Action::Call(Call {
+				//from: Address::from(1),
+				//to: Address::from(2),
+				//value: U256::from(3),
+				//gas: U256::from(4),
+				//input: vec![],
+			//}),
+			//result: Res::FailedCall,
+			//trace_address: vec![],
+			//subtraces: 0,
+			//transaction_number: 0,
+			//transaction_hash: tx_hash,
+			//block_number: block_number,
+			//block_hash: block_hash,
+		//}
+	//}
 
 
-	#[test]
-	fn test_import() {
-		let temp = RandomTempPath::new();
-		let mut config = Config::default();
-		config.enabled = Switch::On;
-		let block_0 = H256::from(0xa1);
-		let block_1 = H256::from(0xa2);
-		let tx_0 = H256::from(0xff);
-		let tx_1 = H256::from(0xaf);
+	//#[test]
+	//fn test_import() {
+		//let temp = RandomTempPath::new();
+		//let mut config = Config::default();
+		//config.enabled = Switch::On;
+		//let block_0 = H256::from(0xa1);
+		//let block_1 = H256::from(0xa2);
+		//let tx_0 = H256::from(0xff);
+		//let tx_1 = H256::from(0xaf);
 
-		let mut extras = Extras::default();
-		extras.block_hashes.insert(0, block_0.clone());
-		extras.block_hashes.insert(1, block_1.clone());
-		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
-		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
+		//let mut extras = Extras::default();
+		//extras.block_hashes.insert(0, block_0.clone());
+		//extras.block_hashes.insert(1, block_1.clone());
+		//extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
+		//extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
 
-		let tracedb = TraceDB::new(config, temp.as_path(), Arc::new(extras)).unwrap();
+		//let tracedb = TraceDB::new(config, temp.as_path(), Arc::new(extras)).unwrap();
 
-		// import block 0
-		let request = create_simple_import_request(0, block_0.clone());
-		tracedb.import(request);
+		//// import block 0
+		//let request = create_simple_import_request(0, block_0.clone());
+		//tracedb.import(request);
 
-		let filter = Filter {
-			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
-			to_address: AddressesFilter::from(vec![]),
-		};
+		//let filter = Filter {
+			//range: (0..0),
+			//from_address: AddressesFilter::from(vec![Address::from(1)]),
+			//to_address: AddressesFilter::from(vec![]),
+		//};
 
-		let traces = tracedb.filter(&filter);
-		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		//let traces = tracedb.filter(&filter);
+		//assert_eq!(traces.len(), 1);
+		//assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
 
-		// import block 1
-		let request = create_simple_import_request(1, block_1.clone());
-		tracedb.import(request);
+		//// import block 1
+		//let request = create_simple_import_request(1, block_1.clone());
+		//tracedb.import(request);
 
-		let filter = Filter {
-			range: (0..1),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
-			to_address: AddressesFilter::from(vec![]),
-		};
+		//let filter = Filter {
+			//range: (0..1),
+			//from_address: AddressesFilter::from(vec![Address::from(1)]),
+			//to_address: AddressesFilter::from(vec![]),
+		//};
 
-		let traces = tracedb.filter(&filter);
-		assert_eq!(traces.len(), 2);
-		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
-		assert_eq!(traces[1], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+		//let traces = tracedb.filter(&filter);
+		//assert_eq!(traces.len(), 2);
+		//assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		//assert_eq!(traces[1], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 
-		let traces = tracedb.block_traces(0).unwrap();
-		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		//let traces = tracedb.block_traces(0).unwrap();
+		//assert_eq!(traces.len(), 1);
+		//assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
 
-		let traces = tracedb.block_traces(1).unwrap();
-		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+		//let traces = tracedb.block_traces(1).unwrap();
+		//assert_eq!(traces.len(), 1);
+		//assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 
-		assert_eq!(None, tracedb.block_traces(2));
+		//assert_eq!(None, tracedb.block_traces(2));
 
-		let traces = tracedb.transaction_traces(0, 0).unwrap();
-		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		//let traces = tracedb.transaction_traces(0, 0).unwrap();
+		//assert_eq!(traces.len(), 1);
+		//assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
 
-		let traces = tracedb.transaction_traces(1, 0).unwrap();
-		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+		//let traces = tracedb.transaction_traces(1, 0).unwrap();
+		//assert_eq!(traces.len(), 1);
+		//assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 
-		assert_eq!(None, tracedb.transaction_traces(1, 1));
+		//assert_eq!(None, tracedb.transaction_traces(1, 1));
 
-		assert_eq!(tracedb.trace(0, 0, vec![]).unwrap(), create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
-		assert_eq!(tracedb.trace(1, 0, vec![]).unwrap(), create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
-	}
-}
+		//assert_eq!(tracedb.trace(0, 0, vec![]).unwrap(), create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		//assert_eq!(tracedb.trace(1, 0, vec![]).unwrap(), create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+	//}
+//}
