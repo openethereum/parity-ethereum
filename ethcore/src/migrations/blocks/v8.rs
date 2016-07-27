@@ -28,6 +28,8 @@ impl SimpleMigration for V8 {
 		8
 	}
 
+	fn columns(&self) -> Option<u32> { None }
+
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		Some((key,UntrustedRlp::new(&value).compress(RlpType::Blocks).to_vec()))
 	}
