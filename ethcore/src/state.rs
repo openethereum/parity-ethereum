@@ -359,7 +359,7 @@ impl State {
 		}
 
 
-		Some(Ref::map(self.cache.borrow(), |c| c.get(a).unwrap().as_ref().unwrap()))
+		Some(Ref::map(self.cache.borrow(), |c| c.get(a).unwrap().as_ref()))
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
