@@ -18,7 +18,7 @@
 
 use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBVector, DBIterator,
-	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache};
+	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -26,28 +26,26 @@ const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
 	batch: WriteBatch,
-}
-
-impl Default for DBTransaction {
-	fn default() -> Self {
-		DBTransaction::new()
-	}
+	cfs: Vec<Column>,
 }
 
 impl DBTransaction {
 	/// Create new transaction.
-	pub fn new() -> DBTransaction {
-		DBTransaction { batch: WriteBatch::new() }
+	pub fn new(db: &Database) -> DBTransaction {
+		DBTransaction {
+			batch: WriteBatch::new(),
+			cfs: db.cfs.clone(),
+		}
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
-	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
-		self.batch.put(key, value)
+	pub fn put(&self, col: Option<u32>, key: &[u8], value: &[u8]) -> Result<(), String> {
+		col.map_or_else(|| self.batch.put(key, value), |c| self.batch.put_cf(self.cfs[c as usize], key, value))
 	}
 
 	/// Delete value by key.
-	pub fn delete(&self, key: &[u8]) -> Result<(), String> {
-		self.batch.delete(key)
+	pub fn delete(&self, col: Option<u32>, key: &[u8]) -> Result<(), String> {
+		col.map_or_else(|| self.batch.delete(key), |c| self.batch.delete_cf(self.cfs[c as usize], key))
 	}
 }
 
@@ -89,18 +87,11 @@ pub struct DatabaseConfig {
 	pub cache_size: Option<usize>,
 	/// Compaction profile
 	pub compaction: CompactionProfile,
+	/// Set number of columns
+	pub columns: Option<u32>,
 }
 
 impl DatabaseConfig {
-	/// Database with default settings and specified cache size
-	pub fn with_cache(cache_size: usize) -> DatabaseConfig {
-		DatabaseConfig {
-			cache_size: Some(cache_size),
-			max_open_files: 256,
-			compaction: CompactionProfile::default(),
-		}
-	}
-
 	/// Modify the compaction profile
 	pub fn compaction(mut self, profile: CompactionProfile) -> Self {
 		self.compaction = profile;
@@ -114,6 +105,7 @@ impl Default for DatabaseConfig {
 			cache_size: None,
 			max_open_files: 256,
 			compaction: CompactionProfile::default(),
+			columns: None,
 		}
 	}
 }
@@ -135,6 +127,7 @@ impl<'a> Iterator for DatabaseIterator {
 pub struct Database {
 	db: DB,
 	write_opts: WriteOptions,
+	cfs: Vec<Column>,
 }
 
 impl Database {
@@ -168,10 +161,35 @@ impl Database {
 			opts.set_block_based_table_factory(&block_opts);
 		}
 
-		let write_opts = WriteOptions::new();
-		//write_opts.disable_wal(true); // TODO: make sure this is safe
+		let mut write_opts = WriteOptions::new();
+		write_opts.disable_wal(true); // TODO: make sure this is safe
 
-		let db = match DB::open(&opts, path) {
+		let mut cfs: Vec<Column> = Vec::new();
+		let db = match config.columns {
+			Some(columns) => {
+				let cfnames: Vec<_> = (0..columns).map(|c| format!("col{}", c)).collect();
+				let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
+				match DB::open_cf(&opts, path, &cfnames) {
+					Ok(db) => {
+						cfs = cfnames.iter().map(|n| db.cf_handle(n).unwrap()).collect();
+						assert!(cfs.len() == columns as usize);
+						Ok(db)
+					}
+					Err(_) => {
+						// retry and create CFs
+						match DB::open_cf(&opts, path, &[]) {
+							Ok(mut db) => {
+								cfs = cfnames.iter().map(|n| db.create_cf(n, &opts).unwrap()).collect();
+								Ok(db)
+							},
+							err @ Err(_) => err,
+						}
+					}
+				}
+			},
+			None => DB::open(&opts, path)
+		};
+		let db = match db {
 			Ok(db) => db,
 			Err(ref s) if s.starts_with("Corruption:") => {
 				info!("{}", s);
@@ -181,17 +199,7 @@ impl Database {
 			},
 			Err(s) => { return Err(s); }
 		};
-		Ok(Database { db: db, write_opts: write_opts, })
-	}
-
-	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
-	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
-		self.db.put_opt(key, value, &self.write_opts)
-	}
-
-	/// Delete value by key.
-	pub fn delete(&self, key: &[u8]) -> Result<(), String> {
-		self.db.delete_opt(key, &self.write_opts)
+		Ok(Database { db: db, write_opts: write_opts, cfs: cfs })
 	}
 
 	/// Commit transaction to database.
@@ -200,13 +208,14 @@ impl Database {
 	}
 
 	/// Get value by key.
-	pub fn get(&self, key: &[u8]) -> Result<Option<DBVector>, String> {
-		self.db.get(key)
+	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBVector>, String> {
+		col.map_or_else(|| self.db.get(key), |c| self.db.get_cf(self.cfs[c as usize], key))
 	}
 
 	/// Get value by partial key. Prefix size should match configured prefix size.
-	pub fn get_by_prefix(&self, prefix: &[u8]) -> Option<Box<[u8]>> {
-		let mut iter = self.db.iterator(IteratorMode::From(prefix, Direction::Forward));
+	pub fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
+		let mut iter = col.map_or_else(|| self.db.iterator(IteratorMode::From(prefix, Direction::Forward)),
+			|c| self.db.iterator_cf(self.cfs[c as usize], IteratorMode::From(prefix, Direction::Forward)).unwrap());
 		match iter.next() {
 			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
 			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
@@ -215,13 +224,14 @@ impl Database {
 	}
 
 	/// Check if there is anything in the database.
-	pub fn is_empty(&self) -> bool {
-		self.db.iterator(IteratorMode::Start).next().is_none()
+	pub fn is_empty(&self, col: Option<u32>) -> bool {
+		self.iter(col).next().is_none()
 	}
 
-	/// Check if there is anything in the database.
-	pub fn iter(&self) -> DatabaseIterator {
-		DatabaseIterator { iter: self.db.iterator(IteratorMode::Start) }
+	/// Get database iterator.
+	pub fn iter(&self, col: Option<u32>) -> DatabaseIterator {
+		col.map_or_else(|| DatabaseIterator { iter: self.db.iterator(IteratorMode::Start) },
+			|c| DatabaseIterator { iter: self.db.iterator_cf(self.cfs[c as usize], IteratorMode::Start).unwrap() })
 	}
 }
 

@@ -31,6 +31,7 @@ use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{Writable, Readable, CacheUpdatePolicy};
+use client::{DB_COL_EXTRA, DB_COL_BLOCK};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -127,7 +128,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
 		self.note_used(CacheID::BlocksBlooms(position.clone()));
-		self.extras_db.read_with_cache(&self.blocks_blooms, &position).map(Into::into)
+		self.db.read_with_cache(DB_COL_EXTRA, &self.blocks_blooms, &position).map(Into::into)
 	}
 }
 
@@ -152,8 +153,7 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	extras_db: Database,
-	blocks_db: Database,
+	db: Arc<Database>,
 
 	cache_man: RwLock<CacheManager>,
 
@@ -164,7 +164,7 @@ impl BlockProvider for BlockChain {
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool {
-		self.extras_db.exists_with_cache(&self.block_details, hash)
+		self.db.exists_with_cache(DB_COL_EXTRA, &self.block_details, hash)
 	}
 
 	/// Get raw block data
@@ -176,7 +176,7 @@ impl BlockProvider for BlockChain {
 			}
 		}
 
-		let opt = self.blocks_db.get(hash)
+		let opt = self.db.get(DB_COL_BLOCK, hash)
 			.expect("Low level database error. Some issue with disk?");
 
 		self.note_used(CacheID::Block(hash.clone()));
@@ -195,25 +195,25 @@ impl BlockProvider for BlockChain {
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 		self.note_used(CacheID::BlockDetails(hash.clone()));
-		self.extras_db.read_with_cache(&self.block_details, hash)
+		self.db.read_with_cache(DB_COL_EXTRA, &self.block_details, hash)
 	}
 
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
 		self.note_used(CacheID::BlockHashes(index));
-		self.extras_db.read_with_cache(&self.block_hashes, &index)
+		self.db.read_with_cache(DB_COL_EXTRA, &self.block_hashes, &index)
 	}
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
 		self.note_used(CacheID::TransactionAddresses(hash.clone()));
-		self.extras_db.read_with_cache(&self.transaction_addresses, hash)
+		self.db.read_with_cache(DB_COL_EXTRA, &self.transaction_addresses, hash)
 	}
 
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		self.note_used(CacheID::BlockReceipts(hash.clone()));
-		self.extras_db.read_with_cache(&self.block_receipts, hash)
+		self.db.read_with_cache(DB_COL_EXTRA, &self.block_receipts, hash)
 	}
 
 	/// Returns numbers of blocks containing given bloom.
@@ -249,27 +249,7 @@ impl<'a> Iterator for AncestryIter<'a> {
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
-	pub fn new(config: Config, genesis: &[u8], path: &Path) -> BlockChain {
-		// open extras db
-		let mut extras_path = path.to_path_buf();
-		extras_path.push("extras");
-		let extras_db = match config.db_cache_size {
-			None => Database::open_default(extras_path.to_str().unwrap()).unwrap(),
-			Some(cache_size) => Database::open(
-				&DatabaseConfig::with_cache(cache_size/2),
-				extras_path.to_str().unwrap()).unwrap(),
-		};
-
-		// open blocks db
-		let mut blocks_path = path.to_path_buf();
-		blocks_path.push("blocks");
-		let blocks_db = match config.db_cache_size {
-			None => Database::open_default(blocks_path.to_str().unwrap()).unwrap(),
-			Some(cache_size) => Database::open(
-				&DatabaseConfig::with_cache(cache_size/2),
-				blocks_path.to_str().unwrap()).unwrap(),
-		};
-
+	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>) -> BlockChain {
 		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
 
@@ -287,33 +267,15 @@ impl BlockChain {
 			transaction_addresses: RwLock::new(HashMap::new()),
 			blocks_blooms: RwLock::new(HashMap::new()),
 			block_receipts: RwLock::new(HashMap::new()),
-			extras_db: extras_db,
-			blocks_db: blocks_db,
+			db: db.clone(),
 			cache_man: RwLock::new(cache_man),
 			insert_lock: Mutex::new(()),
 		};
 
 		// load best block
-		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
+		let best_block_hash = match bc.db.get(DB_COL_EXTRA, b"best").unwrap() {
 			Some(best) => {
-				let new_best = H256::from_slice(&best);
-				if !bc.blocks_db.get(&new_best).unwrap().is_some() {
-					warn!("Best block {} not found", new_best.hex());
-				}
-				/* TODO: enable this once the best block issue is resolved
-				while !bc.blocks_db.get(&new_best).unwrap().is_some() {
-					match bc.rewind() {
-						Some(h) => {
-							new_best = h;
-						}
-						None => {
-							warn!("Can't rewind blockchain");
-							break;
-						}
-					}
-					info!("Restored mismatched best block. Was: {}, new: {}", H256::from_slice(&best).hex(), new_best.hex());
-				}*/
-				new_best
+				H256::from_slice(&best)
 			}
 			None => {
 				// best block does not exist
@@ -329,16 +291,13 @@ impl BlockChain {
 					children: vec![]
 				};
 
-				let block_batch = DBTransaction::new();
-				block_batch.put(&hash, genesis).unwrap();
-				bc.blocks_db.write(block_batch).expect("Low level database error. Some issue with disk?");
+				let batch = DBTransaction::new(&db);
+				batch.put(DB_COL_BLOCK, &hash, genesis).unwrap();
 
-				let batch = DBTransaction::new();
-				batch.write(&hash, &details);
-				batch.write(&header.number(), &hash);
-				batch.put(b"best", &hash).unwrap();
-				bc.extras_db.write(batch).unwrap();
-
+				batch.write(DB_COL_EXTRA, &hash, &details);
+				batch.write(DB_COL_EXTRA, &header.number(), &hash);
+				batch.put(DB_COL_EXTRA, b"best", &hash).unwrap();
+				bc.db.write(batch).expect("Low level database error. Some issue with disk?");
 				hash
 			}
 		};
@@ -356,7 +315,7 @@ impl BlockChain {
 	/// Returns true if the given parent block has given child
 	/// (though not necessarily a part of the canon chain).
 	fn is_known_child(&self, parent: &H256, hash: &H256) -> bool {
-		self.extras_db.read_with_cache(&self.block_details, parent).map_or(false, |d| d.children.contains(hash))
+		self.db.read_with_cache(DB_COL_EXTRA, &self.block_details, parent).map_or(false, |d| d.children.contains(hash))
 	}
 
 	/// Rewind to a previous block
@@ -500,7 +459,7 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
+	pub fn insert_block(&self, batch: &DBTransaction, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -512,7 +471,7 @@ impl BlockChain {
 
 		let _lock = self.insert_lock.lock();
 		// store block in db
-		self.blocks_db.put(&hash, &bytes).unwrap();
+		batch.put(DB_COL_BLOCK, &hash, &bytes).unwrap();
 
 		let info = self.block_info(bytes);
 
@@ -523,7 +482,7 @@ impl BlockChain {
 			info!(target: "reorg", "{}{}", Colour::Green.bold().paint("Enacting"), d.enacted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h)));
 		}
 
-		self.apply_update(ExtrasUpdate {
+		self.apply_update(batch, ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
 			block_details: self.prepare_block_details_update(bytes, &info),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
@@ -578,26 +537,24 @@ impl BlockChain {
 	}
 
 	/// Applies extras update.
-	fn apply_update(&self, update: ExtrasUpdate) {
-		let batch = DBTransaction::new();
-
+	fn apply_update(&self, batch: &DBTransaction, update: ExtrasUpdate) {
 		{
 			for hash in update.block_details.keys().cloned() {
 				self.note_used(CacheID::BlockDetails(hash));
 			}
 
 			let mut write_details = self.block_details.write();
-			batch.extend_with_cache(&mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
 		}
 
 		{
 			let mut write_receipts = self.block_receipts.write();
-			batch.extend_with_cache(&mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
 		{
 			let mut write_blocks_blooms = self.blocks_blooms.write();
-			batch.extend_with_cache(&mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
 		// These cached values must be updated last with all three locks taken to avoid
@@ -608,7 +565,7 @@ impl BlockChain {
 			match update.info.location {
 				BlockLocation::Branch => (),
 				_ => {
-					batch.put(b"best", &update.info.hash).unwrap();
+					batch.put(DB_COL_EXTRA, b"best", &update.info.hash).unwrap();
 					*best_block = BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
@@ -620,11 +577,8 @@ impl BlockChain {
 			let mut write_hashes = self.block_hashes.write();
 			let mut write_txs = self.transaction_addresses.write();
 
-			batch.extend_with_cache(&mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
-			batch.extend_with_cache(&mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
-
-			// update extras database
-			self.extras_db.write(batch).unwrap();
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
 		}
 	}
 

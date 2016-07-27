@@ -123,6 +123,7 @@ pub struct Client {
 	chain: Arc<BlockChain>,
 	tracedb: Arc<TraceDB<BlockChain>>,
 	engine: Arc<Box<Engine>>,
+	db: Arc<Database>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
@@ -141,6 +142,12 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1200;
+// database columns
+pub const DB_COL_META: Option<u32> = Some(0);
+pub const DB_COL_STATE: Option<u32> = Some(1);
+pub const DB_COL_BLOCK: Option<u32> = Some(2);
+pub const DB_COL_EXTRA: Option<u32> = Some(3);
+pub const DB_COL_TRACE: Option<u32> = Some(4);
 
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
@@ -160,26 +167,22 @@ impl Client {
 	) -> Result<Arc<Client>, ClientError> {
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
-		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
-		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
-
-		let mut state_db_config = match config.db_cache_size {
-			None => DatabaseConfig::default(),
-			Some(cache_size) => DatabaseConfig::with_cache(cache_size),
-		};
-
+		let mut db_config = DatabaseConfig::default();
+		db_config.cache_size = config.db_cache_size;
 		if config.db_compaction == DatabaseCompactionProfile::HDD {
-			state_db_config = state_db_config.compaction(CompactionProfile::hdd());
+			db_config = db_config.compaction(CompactionProfile::hdd());
 		}
+		db_config.columns = Some(5);
 
-		let mut state_db = journaldb::new(
-			&append_path(&path, "state"),
-			config.pruning,
-			state_db_config
-		);
+		let db = Arc::new(Database::open(&db_config, &path.to_str().unwrap()).expect("Error opening database"));
+		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
+		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, db.clone(), chain.clone())));
 
+		let mut state_db = journaldb::new(db.clone(), config.pruning, DB_COL_STATE);
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
-			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+			let batch = DBTransaction::new(&db);
+			state_db.commit(&batch, 0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+			db.write(batch);
 		}
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
@@ -206,6 +209,7 @@ impl Client {
 			chain: chain,
 			tracedb: tracedb,
 			engine: engine,
+			db: db,
 			state_db: Mutex::new(state_db),
 			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
@@ -435,21 +439,23 @@ impl Client {
 		let receipts = block.receipts().to_owned();
 		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
+		let batch = DBTransaction::new(&self.db);
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(number, hash, ancient).expect("State DB commit failed.");
+		block.drain().commit(&batch, number, hash, ancient).expect("State DB commit failed.");
 
-		// And update the chain after commit to prevent race conditions
-		// (when something is in chain but you are not able to fetch details)
-		let route = self.chain.insert_block(block_data, receipts);
-		self.tracedb.import(TraceImportRequest {
+		let route = self.chain.insert_block(&batch, block_data, receipts);
+		self.tracedb.import(&batch, TraceImportRequest {
 			traces: traces,
 			block_hash: hash.clone(),
 			block_number: number,
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
+		// Final commit to the DB
+		self.db.write(batch);
+
 		self.update_last_hashes(&parent, hash);
 		route
 	}

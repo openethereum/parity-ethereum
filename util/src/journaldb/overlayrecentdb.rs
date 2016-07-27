@@ -20,8 +20,8 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
+use kvdb::{Database, DBTransaction};
 #[cfg(test)]
 use std::env;
 use super::JournalDB;
@@ -61,6 +61,7 @@ pub struct OverlayRecentDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<Database>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
+	column: Option<u32>,
 }
 
 #[derive(PartialEq)]
@@ -89,38 +90,22 @@ impl Clone for OverlayRecentDB {
 			transaction_overlay: self.transaction_overlay.clone(),
 			backing: self.backing.clone(),
 			journal_overlay: self.journal_overlay.clone(),
+			column: self.column.clone(),
 		}
 	}
 }
 
-const DB_VERSION : u32 = 0x203;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
-	/// Create a new instance from file
-	pub fn new(path: &str, config: DatabaseConfig) -> OverlayRecentDB {
-		Self::from_prefs(path, config)
-	}
-
-	/// Create a new instance from file
-	pub fn from_prefs(path: &str, config: DatabaseConfig) -> OverlayRecentDB {
-		let backing = Database::open(&config, path).unwrap_or_else(|e| {
-			panic!("Error opening state db: {}", e);
-		});
-		if !backing.is_empty() {
-			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
-				Ok(Some(DB_VERSION)) => {}
-				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
-			}
-		} else {
-			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
-		}
-
-		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing)));
+	/// Create a new instance.
+	pub fn new(backing: Arc<Database>, col: Option<u32>) -> OverlayRecentDB {
+		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing, col)));
 		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
-			backing: Arc::new(backing),
+			backing: backing,
 			journal_overlay: journal_overlay,
+			column: col,
 		}
 	}
 
@@ -129,31 +114,32 @@ impl OverlayRecentDB {
 	pub fn new_temp() -> OverlayRecentDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap(), DatabaseConfig::default())
+		let backing = Arc::new(Database::open(DatabaseConfig::default()));
+		Self::new(backing, Some(0))
 	}
 
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
-		let reconstructed = Self::read_overlay(&self.backing);
+		let reconstructed = Self::read_overlay(&self.backing, self.column);
 		let journal_overlay = self.journal_overlay.read();
 		*journal_overlay == reconstructed
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 
-	fn read_overlay(db: &Database) -> JournalOverlay {
+	fn read_overlay(db: &Database, col: Option<u32>) -> JournalOverlay {
 		let mut journal = HashMap::new();
 		let mut overlay = MemoryDB::new();
 		let mut count = 0;
 		let mut latest_era = None;
-		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
+		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
 			let mut era = decode::<u64>(&val);
 			latest_era = Some(era);
 			loop {
 				let mut index = 0usize;
-				while let Some(rlp_data) = db.get({
+				while let Some(rlp_data) = db.get(col, {
 					let mut r = RlpStream::new_list(3);
 					r.append(&era);
 					r.append(&index);
@@ -212,21 +198,24 @@ impl JournalDB for OverlayRecentDB {
 	}
 
 	fn is_empty(&self) -> bool {
-		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
+		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
+	}
+
+	fn backing(&self) -> &Arc<Database> {
+		&self.backing
 	}
 
 	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
 
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let v = self.journal_overlay.read().backing_overlay.get(&OverlayRecentDB::to_short_key(key)).map(|v| v.to_vec());
-		v.or_else(|| self.backing.get_by_prefix(&key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
+		v.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
 	}
 
-	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
 		let mut journal_overlay = self.journal_overlay.write();
-		let batch = DBTransaction::new();
 		{
 			let mut r = RlpStream::new_list(3);
 			let mut tx = self.transaction_overlay.drain();
@@ -249,9 +238,9 @@ impl JournalDB for OverlayRecentDB {
 			k.append(&now);
 			k.append(&index);
 			k.append(&&PADDING[..]);
-			try!(batch.put(&k.drain(), r.as_raw()));
+			try!(batch.put(self.column, &k.drain(), r.as_raw()));
 			if journal_overlay.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+				try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
 				journal_overlay.latest_era = Some(now);
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
@@ -271,7 +260,7 @@ impl JournalDB for OverlayRecentDB {
 					r.append(&end_era);
 					r.append(&index);
 					r.append(&&PADDING[..]);
-					try!(batch.delete(&r.drain()));
+					try!(batch.delete(self.column, &r.drain()));
 					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
 					{
 						if canon_id == journal.id {
@@ -290,7 +279,7 @@ impl JournalDB for OverlayRecentDB {
 				}
 				// apply canon inserts first
 				for (k, v) in canon_insertions {
-					try!(batch.put(&k, &v));
+					try!(batch.put(self.column, &k, &v));
 				}
 				// update the overlay
 				for k in overlay_deletions {
@@ -299,13 +288,12 @@ impl JournalDB for OverlayRecentDB {
 				// apply canon deletions
 				for k in canon_deletions {
 					if !journal_overlay.backing_overlay.contains(&OverlayRecentDB::to_short_key(&k)) {
-						try!(batch.delete(&k));
+						try!(batch.delete(self.column, &k));
 					}
 				}
 			}
 			journal_overlay.journal.remove(&end_era);
 		}
-		try!(self.backing.write(batch));
 		Ok(0)
 	}
 
@@ -314,7 +302,7 @@ impl JournalDB for OverlayRecentDB {
 impl HashDB for OverlayRecentDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter() {
+		for (key, _) in self.backing.iter(self.column) {
 			let h = H256::from_slice(key.deref());
 			ret.insert(h, 1);
 		}

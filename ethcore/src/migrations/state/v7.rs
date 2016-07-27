@@ -109,7 +109,7 @@ impl OverlayRecentV7 {
 	// walk all journal entries in the database backwards.
 	// find migrations for any possible inserted keys.
 	fn walk_journal(&mut self, source: &Database) -> Result<(), Error> {
-		if let Some(val) = try!(source.get(V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
+		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
 			let mut era = decode::<u64>(&val);
 			loop {
 				let mut index: usize = 0;
@@ -120,7 +120,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = try!(source.get(&entry_key).map_err(Error::Custom)) {
+					if let Some(journal_raw) = try!(source.get(None, &entry_key).map_err(Error::Custom)) {
 						let rlp = Rlp::new(&journal_raw);
 
 						// migrate all inserted keys.
@@ -153,7 +153,7 @@ impl OverlayRecentV7 {
 	// replace all possible inserted/deleted keys with their migrated counterparts
 	// and commit the altered entries.
 	fn migrate_journal(&self, source: &Database, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
-		if let Some(val) = try!(source.get(V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
+		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
 			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.to_owned(), dest));
 
 			let mut era = decode::<u64>(&val);
@@ -166,7 +166,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = try!(source.get(&entry_key).map_err(Error::Custom)) {
+					if let Some(journal_raw) = try!(source.get(None, &entry_key).map_err(Error::Custom)) {
 						let rlp = Rlp::new(&journal_raw);
 						let id: H256 = rlp.val_at(0);
 						let mut inserted_keys: Vec<(H256, Bytes)> = Vec::new();
@@ -226,17 +226,17 @@ impl Migration for OverlayRecentV7 {
 	// walk all records in the database, attempting to migrate any possible and
 	// keeping records of those that we do. then migrate the journal using
 	// this information.
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
-		let mut batch = Batch::new(config);
+	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+		let mut batch = Batch::new(config, col);
 
 		// check version metadata.
-		match try!(source.get(V7_VERSION_KEY).map_err(Error::Custom)) {
+		match try!(source.get(None, V7_VERSION_KEY).map_err(Error::Custom)) {
 			Some(ref version) if decode::<u32>(&*version) == DB_VERSION => {}
 			_ => return Err(Error::MigrationImpossible), // missing or wrong version
 		}
 
 		let mut count = 0;
-		for (key, value) in source.iter() {
+		for (key, value) in source.iter(None) {
 			count += 1;
 			if count == 100_000 {
 				count = 0;

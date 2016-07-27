@@ -27,6 +27,7 @@ use trace::{LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, I
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
 use blooms;
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
+use client::DB_COL_TRACE;
 
 
 const TRACE_DB_VER: &'static [u8] = b"1.0";
@@ -94,7 +95,7 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
 	// db
-	tracesdb: Database,
+	tracesdb: Arc<Database>,
 	// config,
 	bloom_config: BloomConfig,
 	// tracing enabled
@@ -106,24 +107,15 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
-		self.tracesdb.read_with_cache(&self.blooms, &position).map(Into::into)
+		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.blooms, &position).map(Into::into)
 	}
 }
 
 impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
-	pub fn new(config: Config, path: &Path, extras: Arc<T>) -> Result<Self, Error> {
-		let mut tracedb_path = path.to_path_buf();
-		tracedb_path.push("tracedb");
-		let tracesdb = match config.db_cache_size {
-			None => Database::open_default(tracedb_path.to_str().unwrap()).unwrap(),
-			Some(db_cache) => Database::open(
-				&DatabaseConfig::with_cache(db_cache),
-				tracedb_path.to_str().unwrap()).unwrap(),
-		};
-
+	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Result<Self, Error> {
 		// check if in previously tracing was enabled
-		let old_tracing = match tracesdb.get(b"enabled").unwrap() {
+		let old_tracing = match tracesdb.get(DB_COL_TRACE, b"enabled").unwrap() {
 			Some(ref value) if value as &[u8] == &[0x1] => Switch::On,
 			Some(ref value) if value as &[u8] == &[0x0] => Switch::Off,
 			Some(_) => { panic!("tracesdb is corrupted") },
@@ -137,8 +129,10 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			false => [0x0]
 		};
 
-		tracesdb.put(b"enabled", &encoded_tracing).unwrap();
-		tracesdb.put(b"version", TRACE_DB_VER).unwrap();
+		let batch = DBTransaction::new(&tracesdb);
+		batch.put(DB_COL_TRACE, b"enabled", &encoded_tracing).unwrap();
+		batch.put(DB_COL_TRACE, b"version", TRACE_DB_VER).unwrap();
+		tracesdb.write(batch).unwrap();
 
 		let db = TraceDB {
 			traces: RwLock::new(HashMap::new()),
@@ -154,7 +148,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
-		self.tracesdb.read_with_cache(&self.traces, block_hash)
+		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.traces, block_hash)
 	}
 
 	/// Returns vector of transaction traces for given block.
@@ -217,20 +211,18 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 	/// Traces of import request's enacted blocks are expected to be already in database
 	/// or to be the currently inserted trace.
-	fn import(&self, request: ImportRequest) {
+	fn import(&self, batch: &DBTransaction, request: ImportRequest) {
 		// fast return if tracing is disabled
 		if !self.tracing_enabled() {
 			return;
 		}
-
-		let batch = DBTransaction::new();
 
 		// at first, let's insert new block traces
 		{
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			batch.write_with_cache(traces.deref_mut(), request.block_hash, request.traces.into(), CacheUpdatePolicy::Overwrite);
+			batch.write_with_cache(DB_COL_TRACE, traces.deref_mut(), request.block_hash, request.traces.into(), CacheUpdatePolicy::Overwrite);
 		}
 
 		// now let's rebuild the blooms
@@ -256,10 +248,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
 
 			let mut blooms = self.blooms.write();
-			batch.extend_with_cache(blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(DB_COL_TRACE, blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
 		}
-
-		self.tracesdb.write(batch).unwrap();
 	}
 
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace> {

@@ -20,18 +20,15 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use kvdb::{Database, DBTransaction};
 #[cfg(test)]
 use std::env;
 
 /// Suffix appended to auxiliary keys to distinguish them from normal keys.
 /// Would be nich to use rocksdb columns for this eventually.
 const AUX_FLAG: u8 = 255;
-
-/// Database version.
-const DB_VERSION : u32 = 0x103;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -44,28 +41,18 @@ pub struct ArchiveDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
 	latest_era: Option<u64>,
+	column: Option<u32>,
 }
 
 impl ArchiveDB {
 	/// Create a new instance from file
-	pub fn new(path: &str, config: DatabaseConfig) -> ArchiveDB {
-		let backing = Database::open(&config, path).unwrap_or_else(|e| {
-			panic!("Error opening state db: {}", e);
-		});
-		if !backing.is_empty() {
-			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
-				Ok(Some(DB_VERSION)) => {},
-				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
-			}
-		} else {
-			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
-		}
-
-		let latest_era = backing.get(&LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
+	pub fn new(backing: Arc<Database>, col: Option<u32>) -> ArchiveDB {
+		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 		ArchiveDB {
 			overlay: MemoryDB::new(),
-			backing: Arc::new(backing),
+			backing: backing,
 			latest_era: latest_era,
+			column: col,
 		}
 	}
 
@@ -74,18 +61,19 @@ impl ArchiveDB {
 	fn new_temp() -> ArchiveDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap(), DatabaseConfig::default())
+		let backing = Arc::new(Database::open(&config, path).unwrap());
+		Self::new(backing, Some(0))
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 }
 
 impl HashDB for ArchiveDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter() {
+		for (key, _) in self.backing.iter(self.column) {
 			let h = H256::from_slice(key.deref());
 			ret.insert(h, 1);
 		}
@@ -140,7 +128,7 @@ impl HashDB for ArchiveDB {
 		let mut db_hash = hash.to_vec();
 		db_hash.push(AUX_FLAG);
 
-		self.backing.get(&db_hash)
+		self.backing.get(self.column, &db_hash)
 			.expect("Low-level database error. Some issue with your hard disk?")
 			.map(|v| v.to_vec())
 	}
@@ -156,6 +144,7 @@ impl JournalDB for ArchiveDB {
 			overlay: self.overlay.clone(),
 			backing: self.backing.clone(),
 			latest_era: self.latest_era,
+			column: self.column.clone(),
 		})
 	}
 
@@ -167,8 +156,7 @@ impl JournalDB for ArchiveDB {
 		self.latest_era.is_none()
 	}
 
-	fn commit(&mut self, now: u64, _: &H256, _: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		let batch = DBTransaction::new();
+	fn commit(&mut self, batch: &DBTransaction, now: u64, _id: &H256, _end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
@@ -176,7 +164,7 @@ impl JournalDB for ArchiveDB {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
 				assert!(rc == 1);
-				batch.put(&key, &value).expect("Low-level database error. Some issue with your hard disk?");
+				batch.put(self.column, &key, &value).expect("Low-level database error. Some issue with your hard disk?");
 				inserts += 1;
 			}
 			if rc < 0 {
@@ -187,24 +175,27 @@ impl JournalDB for ArchiveDB {
 
 		for (mut key, value) in self.overlay.drain_aux().into_iter() {
 			key.push(AUX_FLAG);
-			batch.put(&key, &value).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(self.column, &key, &value).expect("Low-level database error. Some issue with your hard disk?");
 		}
 
 		if self.latest_era.map_or(true, |e| now > e) {
-			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+			try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
 			self.latest_era = Some(now);
 		}
-		try!(self.backing.write(batch));
 		Ok((inserts + deletes) as u32)
 	}
 
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
-		self.backing.get_by_prefix(&id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
 	}
 
 	fn is_pruned(&self) -> bool { false }
+
+	fn backing(&self) -> &Arc<Database> {
+		&self.backing
+	}
 }
 
 #[cfg(test)]

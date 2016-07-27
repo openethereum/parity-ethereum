@@ -20,9 +20,9 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use overlaydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use kvdb::{Database, DBTransaction};
 #[cfg(test)]
 use std::env;
 
@@ -39,35 +39,23 @@ pub struct RefCountedDB {
 	latest_era: Option<u64>,
 	inserts: Vec<H256>,
 	removes: Vec<H256>,
+	column: Option<u32>,
 }
 
-const DB_VERSION : u32 = 0x200;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(path: &str, config: DatabaseConfig) -> RefCountedDB {
-		let backing = Database::open(&config, path).unwrap_or_else(|e| {
-			panic!("Error opening state db: {}", e);
-		});
-		if !backing.is_empty() {
-			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
-				Ok(Some(DB_VERSION)) => {},
-				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
-			}
-		} else {
-			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
-		}
-
-		let backing = Arc::new(backing);
-		let latest_era = backing.get(&LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
+	pub fn new(backing: Arc<Database>, col: Option<u32>) -> RefCountedDB {
+		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 
 		RefCountedDB {
-			forward: OverlayDB::new_with_arc(backing.clone()),
+			forward: OverlayDB::new(backing.clone(), col),
 			backing: backing,
 			inserts: vec![],
 			removes: vec![],
 			latest_era: latest_era,
+			column: col,
 		}
 	}
 
@@ -76,7 +64,8 @@ impl RefCountedDB {
 	fn new_temp() -> RefCountedDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap(), DatabaseConfig::default())
+		let backing = Arc::new(Database::open(&config, path).unwrap());
+		Self::new(backing, Some(0))
 	}
 }
 
@@ -97,6 +86,7 @@ impl JournalDB for RefCountedDB {
 			latest_era: self.latest_era,
 			inserts: self.inserts.clone(),
 			removes: self.removes.clone(),
+			column: self.column.clone(),
 		})
 	}
 
@@ -108,13 +98,17 @@ impl JournalDB for RefCountedDB {
 		self.latest_era.is_none()
 	}
 
+	fn backing(&self) -> &Arc<Database> {
+		&self.backing
+	}
+
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
-		self.backing.get_by_prefix(&id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
 	}
 
-	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -128,12 +122,11 @@ impl JournalDB for RefCountedDB {
 		// of its inserts otherwise.
 
 		// record new commit's details.
-		let batch = DBTransaction::new();
 		{
 			let mut index = 0usize;
 			let mut last;
 
-			while try!(self.backing.get({
+			while try!(self.backing.get(self.column, {
 				let mut r = RlpStream::new_list(3);
 				r.append(&now);
 				r.append(&index);
@@ -148,7 +141,7 @@ impl JournalDB for RefCountedDB {
 			r.append(id);
 			r.append(&self.inserts);
 			r.append(&self.removes);
-			try!(batch.put(&last, r.as_raw()));
+			try!(batch.put(self.column, &last, r.as_raw()));
 
 			trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
 
@@ -156,7 +149,7 @@ impl JournalDB for RefCountedDB {
 			self.removes.clear();
 
 			if self.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+				try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
 				self.latest_era = Some(now);
 			}
 		}
@@ -167,7 +160,7 @@ impl JournalDB for RefCountedDB {
 			let mut last;
 			while let Some(rlp_data) = {
 //				trace!(target: "rcdb", "checking for journal #{}.{}", end_era, index);
-				try!(self.backing.get({
+				try!(self.backing.get(self.column, {
 					let mut r = RlpStream::new_list(3);
 					r.append(&end_era);
 					r.append(&index);
@@ -183,13 +176,12 @@ impl JournalDB for RefCountedDB {
 				for i in &to_remove {
 					self.forward.remove(i);
 				}
-				try!(batch.delete(&last));
+				try!(batch.delete(self.column, &last));
 				index += 1;
 			}
 		}
 
 		let r = try!(self.forward.commit_to_batch(&batch));
-		try!(self.backing.write(batch));
 		Ok(r)
 	}
 }

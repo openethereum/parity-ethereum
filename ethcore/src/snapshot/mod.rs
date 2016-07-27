@@ -27,7 +27,7 @@ use error::Error;
 use ids::BlockID;
 use views::{BlockView, HeaderView};
 
-use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut};
+use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut, DBTransaction};
 use util::hash::{FixedHash, H256};
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 
@@ -358,7 +358,9 @@ impl StateRebuilder {
 					try!(rebuild_account_trie(db.as_hashdb_mut(), account_chunk, out_pairs_chunk));
 
 					// commit the db changes we made in this thread.
-					try!(db.commit(0, &H256::zero(), None));
+					let batch = DBTransaction::new(&db.backing());
+					try!(db.commit(&batch, 0, &H256::zero(), None));
+					db.backing().write(batch);
 
 					Ok(())
 				});
@@ -387,7 +389,9 @@ impl StateRebuilder {
 			}
 		}
 
-		try!(self.db.commit(0, &H256::zero(), None));
+		let batch = DBTransaction::new(&self.db.backing());
+		try!(self.db.commit(&batch, 0, &H256::zero(), None));
+		self.db.backing().write(batch);
 		Ok(())
 	}
 

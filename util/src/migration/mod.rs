@@ -43,14 +43,16 @@ impl Default for Config {
 pub struct Batch {
 	inner: BTreeMap<Vec<u8>, Vec<u8>>,
 	batch_size: usize,
+	column: Option<u32>,
 }
 
 impl Batch {
 	/// Make a new batch with the given config.
-	pub fn new(config: &Config) -> Self {
+	pub fn new(config: &Config, col: Option<u32>) -> Self {
 		Batch {
 			inner: BTreeMap::new(),
 			batch_size: config.batch_size,
+			column: col,
 		}
 	}
 
@@ -67,10 +69,10 @@ impl Batch {
 	pub fn commit(&mut self, dest: &mut Database) -> Result<(), Error> {
 		if self.inner.is_empty() { return Ok(()) }
 
-		let transaction = DBTransaction::new();
+		let transaction = DBTransaction::new(dest);
 
 		for keypair in &self.inner {
-			try!(transaction.put(&keypair.0, &keypair.1).map_err(Error::Custom));
+			try!(transaction.put(self.column, &keypair.0, &keypair.1).map_err(Error::Custom));
 		}
 
 		self.inner.clear();
@@ -102,7 +104,7 @@ pub trait Migration: 'static {
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
 	/// Migrate a source to a destination.
-	fn migrate(&mut self, source: &Database, config: &Config, destination: &mut Database) -> Result<(), Error>;
+	fn migrate(&mut self, source: &Database, config: &Config, destination: &mut Database, col: Option<u32>) -> Result<(), Error>;
 }
 
 /// A simple migration over key-value pairs.
@@ -117,10 +119,10 @@ pub trait SimpleMigration: 'static {
 impl<T: SimpleMigration> Migration for T {
 	fn version(&self) -> u32 { SimpleMigration::version(self) }
 
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
-		let mut batch = Batch::new(config);
+	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+		let mut batch = Batch::new(config, col);
 
-		for (key, value) in source.iter() {
+		for (key, value) in source.iter(col) {
 			if let Some((key, value)) = self.simple_migrate(key.to_vec(), value.to_vec()) {
 				try!(batch.insert(key, value, dest));
 			}
@@ -200,6 +202,7 @@ impl Manager {
 			max_open_files: 64,
 			cache_size: None,
 			compaction: CompactionProfile::default(),
+			columns: None, //TODO: SINGLEDB
 		};
 
 		let db_root = database_path(old_path);
@@ -216,7 +219,7 @@ impl Manager {
 			let mut new_db = try!(Database::open(&db_config, temp_path_str).map_err(Error::Custom));
 
 			// perform the migration from cur_db to new_db.
-			try!(migration.migrate(&cur_db, &config, &mut new_db));
+			try!(migration.migrate(&cur_db, &config, &mut new_db, None)); //TODO: SINGLEDB
 			// next iteration, we will migrate from this db into the other temp.
 			cur_db = new_db;
 			temp_idx.swap();
