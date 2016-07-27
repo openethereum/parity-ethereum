@@ -307,4 +307,3 @@ mod tests {
 		test_db(&DatabaseConfig::default());
 	}
 }
-

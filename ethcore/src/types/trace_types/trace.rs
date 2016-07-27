@@ -21,6 +21,7 @@ use util::rlp::*;
 use util::sha3::Hashable;
 use action_params::ActionParams;
 use basic_types::LogBloom;
+use types::executed::CallType;
 use ipc::binary::BinaryConvertError;
 use std::mem;
 use std::collections::VecDeque;
@@ -107,6 +108,8 @@ pub struct Call {
 	pub gas: U256,
 	/// The input data provided to the call.
 	pub input: Bytes,
+	/// The type of the call.
+	pub call_type: CallType,
 }
 
 impl From<ActionParams> for Call {
@@ -117,18 +120,20 @@ impl From<ActionParams> for Call {
 			value: p.value.value(),
 			gas: p.gas,
 			input: p.data.unwrap_or_else(Vec::new),
+			call_type: p.call_type,
 		}
 	}
 }
 
 impl Encodable for Call {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(5);
+		s.begin_list(6);
 		s.append(&self.from);
 		s.append(&self.to);
 		s.append(&self.value);
 		s.append(&self.gas);
 		s.append(&self.input);
+		s.append(&self.call_type);
 	}
 }
 
@@ -141,6 +146,7 @@ impl Decodable for Call {
 			value: try!(d.val_at(2)),
 			gas: try!(d.val_at(3)),
 			input: try!(d.val_at(4)),
+			call_type: try!(d.val_at(5)),
 		};
 
 		Ok(res)
@@ -593,6 +599,7 @@ mod tests {
 	use util::rlp::{encode, decode};
 	use util::sha3::Hashable;
 	use trace::trace::{Call, CallResult, Create, Res, Action, Trace, Suicide, CreateResult};
+	use types::executed::CallType;
 
 	#[test]
 	fn traces_rlp() {
@@ -603,7 +610,8 @@ mod tests {
 				to: Address::from(2),
 				value: U256::from(3),
 				gas: U256::from(4),
-				input: vec![0x5]
+				input: vec![0x5],
+				call_type: CallType::Call,
 			}),
 			subs: vec![
 				Trace {
@@ -638,7 +646,8 @@ mod tests {
 				to: Address::from(2),
 				value: U256::from(3),
 				gas: U256::from(4),
-				input: vec![0x5]
+				input: vec![0x5],
+				call_type: CallType::Call,
 			}),
 			subs: vec![
 				Trace {

@@ -137,6 +137,7 @@ const RECEIPTS_PACKET: u8 = 0x10;
 
 const HEADERS_TIMEOUT_SEC: f64 = 15f64;
 const BODIES_TIMEOUT_SEC: f64 = 5f64;
+const FORK_HEADER_TIMEOUT_SEC: f64 = 3f64;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
@@ -191,6 +192,7 @@ impl SyncStatus {
 /// Peer data type requested
 enum PeerAsking {
 	Nothing,
+	ForkHeader,
 	BlockHeaders,
 	BlockBodies,
 	Heads,
@@ -221,6 +223,14 @@ struct PeerInfo {
 	ask_time: f64,
 	/// Pending request is expird and result should be ignored
 	expired: bool,
+	/// Peer fork confirmed
+	confirmed: bool,
+}
+
+impl PeerInfo {
+	fn is_available(&self) -> bool {
+		self.confirmed && !self.expired
+	}
 }
 
 /// Blockchain sync handler.
@@ -254,6 +264,8 @@ pub struct ChainSync {
 	round_parents: VecDeque<(H256, H256)>,
 	/// Network ID
 	network_id: U256,
+	/// Optional fork block to check
+	fork_block: Option<(BlockNumber, H256)>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -277,6 +289,7 @@ impl ChainSync {
 			round_parents: VecDeque::new(),
 			_max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
+			fork_block: config.fork_block,
 		};
 		sync.reset();
 		sync
@@ -293,8 +306,8 @@ impl ChainSync {
 			highest_block_number: self.highest_block.map(|n| max(n, self.last_imported_block)),
 			blocks_received: if self.last_imported_block > self.starting_block { self.last_imported_block - self.starting_block } else { 0 },
 			blocks_total: match self.highest_block { Some(x) if x > self.starting_block => x - self.starting_block, _ => 0 },
-			num_peers: self.peers.len(),
-			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
+			num_peers: self.peers.values().filter(|p| p.confirmed).count(),
+			num_active_peers: self.peers.values().filter(|p| p.confirmed && p.asking != PeerAsking::Nothing).count(),
 			mem_used:
 				self.blocks.heap_size()
 				+ self.peers.heap_size_of_children()
@@ -316,7 +329,7 @@ impl ChainSync {
 			p.asking_blocks.clear();
 			p.asking_hash = None;
 			// mark any pending requests as expired
-			if p.asking != PeerAsking::Nothing {
+			if p.asking != PeerAsking::Nothing && p.confirmed {
 				p.expired = true;
 			}
 		}
@@ -370,6 +383,7 @@ impl ChainSync {
 			asking_hash: None,
 			ask_time: 0f64,
 			expired: false,
+			confirmed: self.fork_block.is_none(),
 		};
 
 		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis);
@@ -397,16 +411,41 @@ impl ChainSync {
 		self.peers.insert(peer_id.clone(), peer);
 		self.active_peers.insert(peer_id.clone());
 		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
-		self.sync_peer(io, peer_id, false);
+		if let Some((fork_block, _)) = self.fork_block {
+			self.request_headers_by_number(io, peer_id, fork_block, 1, 0, false, PeerAsking::ForkHeader);
+		} else {
+			self.sync_peer(io, peer_id, false);
+		}
 		Ok(())
 	}
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		let confirmed = match self.peers.get_mut(&peer_id) {
+			Some(ref mut peer) if peer.asking == PeerAsking::ForkHeader => {
+				let item_count = r.item_count();
+				if item_count == 0 || (item_count == 1 && try!(r.at(0)).as_raw().sha3() == self.fork_block.unwrap().1) {
+					trace!(target: "sync", "{}: Confirmed peer", peer_id);
+					peer.asking = PeerAsking::Nothing;
+					peer.confirmed = true;
+					true
+				} else {
+					trace!(target: "sync", "{}: Fork mismatch", peer_id);
+					io.disconnect_peer(peer_id);
+					false
+				}
+			},
+			_ => false,
+		};
+		if confirmed {
+			self.sync_peer(io, peer_id, false);
+			return Ok(());
+		}
+
 		self.clear_peer_download(peer_id);
-		let expected_hash = self.peers.get(&peer_id).and_then(|p| p.asking_hash);
 		let expected_asking = if self.state == SyncState::ChainHead { PeerAsking::Heads } else { PeerAsking::BlockHeaders };
+		let expected_hash = self.peers.get(&peer_id).and_then(|p| p.asking_hash);
 		if !self.reset_peer_asking(peer_id, expected_asking) || expected_hash.is_none() {
 			trace!(target: "sync", "{}: Ignored unexpected headers", peer_id);
 			self.continue_sync(io);
@@ -474,14 +513,14 @@ impl ChainSync {
 
 		// Disable the peer for this syncing round if it gives invalid chain
 		if !valid_response {
-			trace!(target: "sync", "{} Deactivated for invalid headers response", peer_id);
-			self.deactivate_peer(io, peer_id);
+			trace!(target: "sync", "{} Disabled for invalid headers response", peer_id);
+			io.disable_peer(peer_id);
 		}
 
 		if headers.is_empty() {
 			// Peer does not have any new subchain heads, deactivate it nd try with another
-			trace!(target: "sync", "{} Deactivated for no data", peer_id);
-			self.deactivate_peer(io, peer_id);
+			trace!(target: "sync", "{} Disabled for no data", peer_id);
+			io.disable_peer(peer_id);
 		}
 		match self.state {
 			SyncState::ChainHead => {
@@ -692,7 +731,8 @@ impl ChainSync {
 
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
-		let mut peers: Vec<(PeerId, U256)> = self.peers.iter().map(|(k, p)| (*k, p.difficulty.unwrap_or_else(U256::zero))).collect();
+		let mut peers: Vec<(PeerId, U256)> = self.peers.iter().filter_map(|(k, p)|
+			if p.is_available() { Some((*k, p.difficulty.unwrap_or_else(U256::zero))) } else { None }).collect();
 		thread_rng().shuffle(&mut peers); //TODO: sort by rating
 		trace!(target: "sync", "Syncing with {}/{} peers", self.active_peers.len(), peers.len());
 		for (p, _) in peers {
@@ -700,7 +740,7 @@ impl ChainSync {
 				self.sync_peer(io, p, false);
 			}
 		}
-		if self.state != SyncState::Waiting && !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && !p.expired) {
+		if self.state != SyncState::Waiting && !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.is_available()) {
 			self.complete_sync();
 		}
 	}
@@ -726,7 +766,7 @@ impl ChainSync {
 		}
 		let (peer_latest, peer_difficulty) = {
 			let peer = self.peers.get_mut(&peer_id).unwrap();
-			if peer.asking != PeerAsking::Nothing {
+			if peer.asking != PeerAsking::Nothing || !peer.is_available() {
 				return;
 			}
 			if self.state == SyncState::Waiting {
@@ -924,6 +964,17 @@ impl ChainSync {
 			.asking_hash = Some(h.clone());
 	}
 
+	/// Request headers from a peer by block number
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
+	fn request_headers_by_number(&mut self, sync: &mut SyncIo, peer_id: PeerId, n: BlockNumber, count: usize, skip: usize, reverse: bool, asking: PeerAsking) {
+		trace!(target: "sync", "{} <- GetBlockHeaders: {} entries starting from {}", peer_id, count, n);
+		let mut rlp = RlpStream::new_list(4);
+		rlp.append(&n);
+		rlp.append(&count);
+		rlp.append(&skip);
+		rlp.append(&if reverse {1u32} else {0u32});
+		self.send_request(sync, peer_id, asking, GET_BLOCK_HEADERS_PACKET, rlp.out());
+	}
 	/// Request block bodies from a peer
 	fn request_bodies(&mut self, sync: &mut SyncIo, peer_id: PeerId, hashes: Vec<H256>) {
 		let mut rlp = RlpStream::new_list(hashes.len());
@@ -976,6 +1027,9 @@ impl ChainSync {
 		// accepting transactions once only fully synced
 		if !io.is_chain_queue_empty() {
 			return Ok(());
+		}
+		if self.peers.get(&peer_id).map_or(false, |p| p.confirmed) {
+			trace!(target: "sync", "{} Ignoring transactions from unconfirmed/unknown peer", peer_id);
 		}
 
 		let mut item_count = r.item_count();
@@ -1212,6 +1266,7 @@ impl ChainSync {
 				PeerAsking::BlockHeaders | PeerAsking::Heads => (tick - peer.ask_time) > HEADERS_TIMEOUT_SEC,
 				PeerAsking::BlockBodies => (tick - peer.ask_time) > BODIES_TIMEOUT_SEC,
 				PeerAsking::Nothing => false,
+				PeerAsking::ForkHeader => (tick - peer.ask_time) > FORK_HEADER_TIMEOUT_SEC,
 			};
 			if timeout {
 				trace!(target:"sync", "Timeout {}", peer_id);
@@ -1629,6 +1684,7 @@ mod tests {
 				asking_hash: None,
 				ask_time: 0f64,
 				expired: false,
+				confirmed: false,
 			});
 		sync
 	}

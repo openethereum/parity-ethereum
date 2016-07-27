@@ -38,6 +38,8 @@ pub struct CommonParams {
 	pub network_id: U256,
 	/// Minimum gas limit.
 	pub min_gas_limit: U256,
+	/// Fork block to check.
+	pub fork_block: Option<(BlockNumber, H256)>,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -47,6 +49,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
 			min_gas_limit: p.min_gas_limit.into(),
+			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 		}
 	}
 }
@@ -150,6 +153,9 @@ impl Spec {
 
 	/// Get the configured Network ID.
 	pub fn network_id(&self) -> U256 { self.params.network_id }
+
+	/// Get the configured network fork block.
+	pub fn fork_block(&self) -> Option<(BlockNumber, H256)> { self.params.fork_block }
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {

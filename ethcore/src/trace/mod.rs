@@ -60,8 +60,7 @@ pub trait Tracer: Send {
 		gas_used: U256,
 		output: Option<Bytes>,
 		depth: usize,
-		subs: Vec<Trace>,
-		delegate_call: bool
+		subs: Vec<Trace>
 	);
 
 	/// Stores trace create info.
@@ -76,7 +75,7 @@ pub trait Tracer: Send {
 	);
 
 	/// Stores failed call trace.
-	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
+	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>);
 
 	/// Stores failed create trace.
 	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>);

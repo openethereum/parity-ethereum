@@ -130,6 +130,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		Some(id) => id,
 		None => spec.network_id(),
 	};
+	sync_config.fork_block = spec.fork_block().clone();
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));

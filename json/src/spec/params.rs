@@ -17,6 +17,7 @@
 //! Spec params deserialization.
 
 use uint::Uint;
+use hash::H256;
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -33,6 +34,12 @@ pub struct Params {
 	/// Minimum gas limit.
 	#[serde(rename="minGasLimit")]
 	pub min_gas_limit: Uint,
+	/// Option fork block number to check.
+	#[serde(rename="forkBlock")]
+	pub fork_block: Option<Uint>,
+	/// Expected fork block hash.
+	#[serde(rename="forkCanonHash")]
+	pub fork_hash: Option<H256>,
 }
 
 #[cfg(test)]

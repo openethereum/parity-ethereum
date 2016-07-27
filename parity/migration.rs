@@ -28,9 +28,9 @@ use ethcore::client;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 8;
+const CURRENT_VERSION: u32 = 9;
 /// First version of the consolidated database.
-const CONSOLIDATION_VERSION: u32 = 8;
+const CONSOLIDATION_VERSION: u32 = 9;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -114,13 +114,35 @@ fn update_version(path: &Path) -> Result<(), Error> {
 	Ok(())
 }
 
+<<<<<<< HEAD
 /// Consolidated database path
 fn consolidated_database_path(path: &Path) -> PathBuf {
+=======
+/// State database path.
+fn state_database_path(path: &Path) -> PathBuf {
+	let mut state_path = path.to_owned();
+	state_path.push("state");
+	state_path
+}
+
+/// Blocks database path.
+fn blocks_database_path(path: &Path) -> PathBuf {
+>>>>>>> master
 	let mut blocks_path = path.to_owned();
 	blocks_path.push("db");
 	blocks_path
 }
 
+<<<<<<< HEAD
+=======
+/// Extras database path.
+fn extras_database_path(path: &Path) -> PathBuf {
+	let mut extras_path = path.to_owned();
+	extras_path.push("extras");
+	extras_path
+}
+
+>>>>>>> master
 /// Database backup
 fn backup_database_path(path: &Path) -> PathBuf {
 	let mut backup_path = path.to_owned();
@@ -136,9 +158,16 @@ pub fn default_migration_settings() -> MigrationConfig {
 	}
 }
 
+<<<<<<< HEAD
 /// Migrations on the consolidated database.
 fn consolidated_database_migrations() -> Result<MigrationManager, Error> {
 	let manager = MigrationManager::new(default_migration_settings());
+=======
+/// Migrations on the blocks database.
+fn blocks_database_migrations() -> Result<MigrationManager, Error> {
+	let mut manager = MigrationManager::new(default_migration_settings());
+	try!(manager.add_migration(migrations::blocks::V8::default()).map_err(|_| Error::MigrationImpossible));
+>>>>>>> master
 	Ok(manager)
 }
 
@@ -162,6 +191,7 @@ fn consolidate_database(version: u32, old_db_path: PathBuf, new_db_path: PathBuf
 		compaction: CompactionProfile::default(),
 		columns: None,
 	};
+<<<<<<< HEAD
 
 	let old_path_str = try!(old_db_path.to_str().ok_or(Error::MigrationImpossible));
 	let new_path_str = try!(new_db_path.to_str().ok_or(Error::MigrationImpossible));
@@ -175,6 +205,11 @@ fn consolidate_database(version: u32, old_db_path: PathBuf, new_db_path: PathBuf
 	try!(migration.migrate(&cur_db, &config, &mut new_db, None));
 
 	Ok(())
+=======
+	try!(res.map_err(|_| Error::MigrationImpossible));
+
+	Ok(manager)
+>>>>>>> master
 }
 
 

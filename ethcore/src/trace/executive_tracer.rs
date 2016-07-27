@@ -40,12 +40,7 @@ impl Tracer for ExecutiveTracer {
 		Some(vec![])
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
-		// don't trace if it's DELEGATECALL or CALLCODE.
-		if delegate_call {
-			return;
-		}
-
+	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<Trace>) {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
@@ -55,6 +50,7 @@ impl Tracer for ExecutiveTracer {
 				output: output.expect("self.prepare_trace_output().is_some(): so we must be tracing: qed")
 			})
 		};
+		debug!(target: "trace", "Traced call {:?}", trace);
 		self.traces.push(trace);
 	}
 
@@ -69,21 +65,18 @@ impl Tracer for ExecutiveTracer {
 				address: address
 			})
 		};
+		debug!(target: "trace", "Traced create {:?}", trace);
 		self.traces.push(trace);
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
-		// don't trace if it's DELEGATECALL or CALLCODE.
-		if delegate_call {
-			return;
-		}
-
+	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>) {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCall,
 		};
+		debug!(target: "trace", "Traced failed call {:?}", trace);
 		self.traces.push(trace);
 	}
 
@@ -94,6 +87,7 @@ impl Tracer for ExecutiveTracer {
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCreate,
 		};
+		debug!(target: "trace", "Traced failed create {:?}", trace);
 		self.traces.push(trace);
 	}
 
@@ -108,6 +102,7 @@ impl Tracer for ExecutiveTracer {
 			}),
 			result: Res::None,
 		};
+		debug!(target: "trace", "Traced failed suicide {:?}", trace);
 		self.traces.push(trace);
 	}
 
