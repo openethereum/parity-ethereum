@@ -194,7 +194,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 				first_read = 0;
 				let s = try!(PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))).total();
 				bytes.resize(s, 0);
-				try!(instream.read_exact(&mut bytes[READAHEAD_BYTES..]).map_err(|_| "Error reading from the file/stream."));
+				try!(instream.read_exact(&mut bytes[n..]).map_err(|_| "Error reading from the file/stream."));
 				try!(do_import(bytes));
 			}
 		}
