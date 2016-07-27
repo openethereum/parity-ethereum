@@ -335,6 +335,7 @@ impl Configuration {
 		sync_config.network_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref()).map_or(spec.network_id(), |id| {
 			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --network-id/--networkid", id))
 		});
+		sync_config.fork_block = spec.fork_block().clone();
 		sync_config
 	}
 

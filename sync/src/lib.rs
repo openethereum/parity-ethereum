@@ -72,8 +72,9 @@ use std::ops::*;
 use std::sync::*;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
 use util::TimerToken;
-use util::{U256, ONE_U256};
+use util::{U256, ONE_U256, H256};
 use ethcore::client::Client;
+use ethcore::header::BlockNumber;
 use ethcore::service::{SyncMessage, NetSyncMessage};
 use io::NetSyncIo;
 use util::io::IoChannel;
@@ -93,6 +94,8 @@ pub struct SyncConfig {
 	pub max_download_ahead_blocks: usize,
 	/// Network ID
 	pub network_id: U256,
+	/// Optional fork block id
+	pub fork_block: Option<(BlockNumber, H256)>,
 }
 
 impl Default for SyncConfig {
@@ -100,6 +103,7 @@ impl Default for SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
 			network_id: ONE_U256,
+			fork_block: None,
 		}
 	}
 }
