@@ -148,6 +148,7 @@ pub const DB_COL_STATE: Option<u32> = Some(1);
 pub const DB_COL_BLOCK: Option<u32> = Some(2);
 pub const DB_COL_EXTRA: Option<u32> = Some(3);
 pub const DB_COL_TRACE: Option<u32> = Some(4);
+pub const DB_NO_OF_COLUMNS: Option<u32> = Some(5);
 
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
@@ -172,7 +173,7 @@ impl Client {
 		if config.db_compaction == DatabaseCompactionProfile::HDD {
 			db_config = db_config.compaction(CompactionProfile::hdd());
 		}
-		db_config.columns = Some(5);
+		db_config.columns = DB_NO_OF_COLUMNS;
 
 		let db = Arc::new(Database::open(&db_config, &path.to_str().unwrap()).expect("Error opening database"));
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));

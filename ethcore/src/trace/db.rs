@@ -18,10 +18,9 @@
 use std::ops::{Deref, DerefMut};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::path::Path;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use util::{H256, H264, Database, DatabaseConfig, DBTransaction, RwLock};
+use util::{H256, H264, Database, DBTransaction, RwLock};
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras, Error};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
