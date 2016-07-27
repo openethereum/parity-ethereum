@@ -512,7 +512,10 @@ impl Client {
 		// fast path for latest state.
 		match id {
 			BlockID::Pending => self.state_at(BlockID::Latest),
-			id => self.block_number(id).and_then(|n| self.state_at(BlockID::Number(n - 1))),
+			id => match self.block_number(id) {
+				None | Some(0) => None,
+				Some(n) => self.state_at(BlockID::Number(n - 1)),
+			}
 		}
 	}
 
@@ -673,48 +676,43 @@ impl BlockChainClient for Client {
 	}
 
 	fn replay(&self, id: TransactionID, analytics: CallAnalytics) -> Result<Executed, ReplayError> {
-		if let Some(address) = self.transaction_address(id) {
-			if let (Some(block_data), Some(mut state)) = (self.block(BlockID::Hash(address.block_hash)), self.state_at_beginning(BlockID::Hash(address.block_hash))) {
-				let block = BlockView::new(&block_data);
-				let txs = block.transactions();
-				if txs.len() > address.index {
-					let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-					let view = block.header_view();
-					let last_hashes = self.build_last_hashes(view.hash());
-					let mut env_info = EnvInfo {
-						number: view.number(),
-						author: view.author(),
-						timestamp: view.timestamp(),
-						difficulty: view.difficulty(),
-						last_hashes: last_hashes,
-						gas_used: U256::zero(),
-						gas_limit: view.gas_limit(),
-					};
-					for t in txs.iter().take(address.index) {
-						match Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, Default::default()) {
-							Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
-							Err(ee) => { return Err(ReplayError::Execution(ee)) }
-						}
-					}
-					let t = &txs[address.index];
-					let orig = state.clone();
-					let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
-					if analytics.state_diffing {
-						if let Ok(ref mut x) = ret {
-							x.state_diff = Some(state.diff_from(orig));
-						}
-					}
-					ret.map_err(|ee| ReplayError::Execution(ee))
-				} else {
-					// really weird. shouldn't ever actually happen.
-					Err(ReplayError::TransactionNotFound)
-				}
-			} else {
-				Err(ReplayError::StatePruned)
-			}
-		} else {
-			Err(ReplayError::TransactionNotFound)
+		let address = try!(self.transaction_address(id).ok_or(ReplayError::TransactionNotFound));
+		let block_data = try!(self.block(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+		let mut state = try!(self.state_at_beginning(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+		let block = BlockView::new(&block_data);
+		let txs = block.transactions();
+
+		if address.index >= txs.len() {
+			return Err(ReplayError::TransactionNotFound);
 		}
+
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let view = block.header_view();
+		let last_hashes = self.build_last_hashes(view.hash());
+		let mut env_info = EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: last_hashes,
+			gas_used: U256::zero(),
+			gas_limit: view.gas_limit(),
+		};
+		for t in txs.iter().take(address.index) {
+			match Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, Default::default()) {
+				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
+				Err(ee) => { return Err(ReplayError::Execution(ee)) }
+			}
+		}
+		let t = &txs[address.index];
+		let orig = state.clone();
+		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+		if analytics.state_diffing {
+			if let Ok(ref mut x) = ret {
+				x.state_diff = Some(state.diff_from(orig));
+			}
+		}
+		ret.map_err(|ee| ReplayError::Execution(ee))
 	}
 
 	fn keep_alive(&self) {
