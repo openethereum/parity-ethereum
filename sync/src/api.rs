@@ -20,6 +20,7 @@ use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, Peer
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode};
 use util::{TimerToken, U256, H256, UtilError, Secret, Populatable};
 use ethcore::client::{BlockChainClient, ChainNotify};
+use ethcore::header::BlockNumber;
 use io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
 use std::net::{SocketAddr, AddrParseError};
@@ -38,6 +39,8 @@ pub struct SyncConfig {
 	pub max_download_ahead_blocks: usize,
 	/// Network ID
 	pub network_id: U256,
+	/// Fork block to check
+	pub fork_block: Option<(BlockNumber, H256)>,
 }
 
 impl Default for SyncConfig {
@@ -45,6 +48,7 @@ impl Default for SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
 			network_id: U256::from(1),
+			fork_block: None,
 		}
 	}
 }
