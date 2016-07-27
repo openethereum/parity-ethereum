@@ -25,6 +25,7 @@ use ipc::binary::BinaryConvertError;
 use std::fmt;
 use std::mem;
 use std::collections::VecDeque;
+use trace::flat::FlatTrace;
 
 /// Transaction execution receipt.
 #[derive(Debug, PartialEq, Clone, Binary)]
@@ -59,7 +60,7 @@ pub struct Executed {
 	/// Transaction output.
 	pub output: Bytes,
 	/// The trace of this transaction.
-	pub trace: Option<Trace>,
+	pub trace: Vec<FlatTrace>,
 	/// The VM trace of this transaction.
 	pub vm_trace: Option<VMTrace>,
 	/// The state diff, if we traced it.

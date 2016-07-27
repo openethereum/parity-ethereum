@@ -22,6 +22,7 @@ use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use substate::*;
 use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
+use trace::flat::FlatTrace;
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
@@ -195,7 +196,7 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop(), vm_tracer.drain())))
+		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces(), vm_tracer.drain())))
 	}
 
 	fn exec_vm<T, V>(
@@ -401,7 +402,7 @@ impl<'a> Executive<'a> {
 		substate: Substate,
 		result: evm::Result<U256>,
 		output: Bytes,
-		trace: Option<Trace>,
+		trace: Vec<FlatTrace>,
 		vm_trace: Option<VMTrace>
 	) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);

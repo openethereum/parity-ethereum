@@ -22,7 +22,6 @@ mod config;
 mod db;
 mod error;
 mod executive_tracer;
-pub mod flat;
 mod import;
 mod noop_tracer;
 
@@ -32,6 +31,7 @@ pub use self::config::{Config, Switch};
 pub use self::db::TraceDB;
 pub use self::error::Error;
 pub use types::trace_types::trace::{Trace, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
+pub use types::trace_types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
 pub use self::noop_tracer::{NoopTracer, NoopVMTracer};
 pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
 pub use types::trace_types::filter::{Filter, AddressesFilter};
@@ -60,7 +60,7 @@ pub trait Tracer: Send {
 		gas_used: U256,
 		output: Option<Bytes>,
 		depth: usize,
-		subs: Vec<Trace>,
+		subs: Vec<FlatTrace>,
 		delegate_call: bool
 	);
 
@@ -72,14 +72,14 @@ pub trait Tracer: Send {
 		code: Option<Bytes>,
 		address: Address,
 		depth: usize,
-		subs: Vec<Trace>
+		subs: Vec<FlatTrace>
 	);
 
 	/// Stores failed call trace.
-	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
+	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<FlatTrace>, delegate_call: bool);
 
 	/// Stores failed create trace.
-	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>);
+	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<FlatTrace>);
 
 	/// Stores suicide info.
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address, depth: usize);
@@ -88,7 +88,7 @@ pub trait Tracer: Send {
 	fn subtracer(&self) -> Self where Self: Sized;
 
 	/// Consumes self and returns all traces.
-	fn traces(self) -> Vec<Trace>;
+	fn traces(self) -> Vec<FlatTrace>;
 }
 
 /// Used by executive to build VM traces.

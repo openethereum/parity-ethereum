@@ -20,6 +20,7 @@ use util::{Bytes, Address, U256};
 use action_params::ActionParams;
 use trace::{Tracer, VMTracer};
 use trace::trace::{Trace, Call, Create, VMTrace};
+use trace::flat::FlatTrace;
 
 /// Nonoperative tracer. Does not trace anything.
 pub struct NoopTracer;
@@ -37,21 +38,21 @@ impl Tracer for NoopTracer {
 		None
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>, _: bool) {
+	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<FlatTrace>, _: bool) {
 		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
 		assert!(output.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_create(&mut self, create: Option<Create>, _: U256, code: Option<Bytes>, _: Address, _: usize, _: Vec<Trace>) {
+	fn trace_create(&mut self, create: Option<Create>, _: U256, code: Option<Bytes>, _: Address, _: usize, _: Vec<FlatTrace>) {
 		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
 		assert!(code.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, _: usize, _: Vec<Trace>, _: bool) {
+	fn trace_failed_call(&mut self, call: Option<Call>, _: usize, _: Vec<FlatTrace>, _: bool) {
 		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_failed_create(&mut self, create: Option<Create>, _: usize, _: Vec<Trace>) {
+	fn trace_failed_create(&mut self, create: Option<Create>, _: usize, _: Vec<FlatTrace>) {
 		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
 	}
 
@@ -62,7 +63,7 @@ impl Tracer for NoopTracer {
 		NoopTracer
 	}
 
-	fn traces(self) -> Vec<Trace> {
+	fn traces(self) -> Vec<FlatTrace> {
 		vec![]
 	}
 }

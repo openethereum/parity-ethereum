@@ -19,7 +19,7 @@ use engine::Engine;
 use executive::{Executive, TransactOptions};
 use evm::Factory as EvmFactory;
 use account_db::*;
-use trace::Trace;
+use trace::{Trace, FlatTrace};
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
@@ -29,7 +29,7 @@ pub struct ApplyOutcome {
 	/// The receipt for the applied transaction.
 	pub receipt: Receipt,
 	/// The trace for the applied transaction, if None if tracing is disabled.
-	pub trace: Option<Trace>,
+	pub trace: Vec<FlatTrace>,
 }
 
 /// Result type for the execution ("application") of a transaction.

@@ -16,15 +16,18 @@
 
 //! Flat trace module
 
+use std::collections::VecDeque;
+use std::mem;
+use ipc::binary::BinaryConvertError;
 use util::rlp::*;
-use trace::BlockTraces;
 use basic_types::LogBloom;
+use trace::BlockTraces;
 use super::trace::{Trace, Action, Res};
 
 /// Trace localized in vector of traces produced by a single transaction.
 ///
 /// Parent and children indexes refer to positions in this vector.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Binary)]
 pub struct FlatTrace {
 	/// Type of action performed by a transaction.
 	pub action: Action,
@@ -35,7 +38,7 @@ pub struct FlatTrace {
 	/// Exact location of trace.
 	///
 	/// [index in root, index in first CALL, index in second CALL, ...]
-	pub trace_address: Vec<usize>,
+	pub trace_address: VecDeque<usize>,
 }
 
 impl FlatTrace {
@@ -51,18 +54,19 @@ impl Encodable for FlatTrace {
 		s.append(&self.action);
 		s.append(&self.result);
 		s.append(&self.subtraces);
-		s.append(&self.trace_address);
+		s.append(&self.trace_address.clone().into_iter().collect::<Vec<_>>());
 	}
 }
 
 impl Decodable for FlatTrace {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
+		let v: Vec<usize> = try!(d.val_at(3));
 		let res = FlatTrace {
 			action: try!(d.val_at(0)),
 			result: try!(d.val_at(1)),
 			subtraces: try!(d.val_at(2)),
-			trace_address: try!(d.val_at(3)),
+			trace_address: v.into_iter().collect(),
 		};
 
 		Ok(res)
@@ -72,6 +76,12 @@ impl Decodable for FlatTrace {
 /// Represents all traces produced by a single transaction.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FlatTransactionTraces(Vec<FlatTrace>);
+
+impl From<Vec<FlatTrace>> for FlatTransactionTraces {
+	fn from(v: Vec<FlatTrace>) -> Self {
+		FlatTransactionTraces(v)
+	}
+}
 
 impl FlatTransactionTraces {
 	/// Returns bloom of all traces in the collection.
@@ -101,6 +111,12 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 /// Represents all traces produced by transactions in a single block.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
+
+impl From<Vec<FlatTransactionTraces>> for FlatBlockTraces {
+	fn from(v: Vec<FlatTransactionTraces>) -> Self {
+		FlatBlockTraces(v)
+	}
+}
 
 impl FlatBlockTraces {
 	/// Returns bloom of all traces in the block.
@@ -156,7 +172,7 @@ impl FlatBlockTraces {
 			action: trace.action,
 			result: trace.result,
 			subtraces: subtraces,
-			trace_address: address,
+			trace_address: address.into_iter().collect(),
 		};
 
 		let mut result = vec![ordered];
@@ -243,15 +259,15 @@ mod tests {
 		assert_eq!(transaction_traces.len(), 1);
 		let ordered_traces: Vec<FlatTrace> = transaction_traces.into_iter().nth(0).unwrap().into();
 		assert_eq!(ordered_traces.len(), 5);
-		assert_eq!(ordered_traces[0].trace_address, vec![]);
+		assert_eq!(ordered_traces[0].trace_address, vec![].into_iter().collect());
 		assert_eq!(ordered_traces[0].subtraces, 2);
-		assert_eq!(ordered_traces[1].trace_address, vec![0]);
+		assert_eq!(ordered_traces[1].trace_address, vec![0].into_iter().collect());
 		assert_eq!(ordered_traces[1].subtraces, 2);
-		assert_eq!(ordered_traces[2].trace_address, vec![0, 0]);
+		assert_eq!(ordered_traces[2].trace_address, vec![0, 0].into_iter().collect());
 		assert_eq!(ordered_traces[2].subtraces, 0);
-		assert_eq!(ordered_traces[3].trace_address, vec![0, 1]);
+		assert_eq!(ordered_traces[3].trace_address, vec![0, 1].into_iter().collect());
 		assert_eq!(ordered_traces[3].subtraces, 0);
-		assert_eq!(ordered_traces[4].trace_address, vec![1]);
+		assert_eq!(ordered_traces[4].trace_address, vec![1].into_iter().collect());
 		assert_eq!(ordered_traces[4].subtraces, 0);
 	}
 
@@ -271,7 +287,7 @@ mod tests {
 				gas_used: 10.into(),
 				output: vec![0x11, 0x12]
 			}),
-			trace_address: Vec::new(),
+			trace_address: Default::default(),
 			subtraces: 0,
 		};
 

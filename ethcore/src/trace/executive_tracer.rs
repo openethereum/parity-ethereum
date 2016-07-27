@@ -19,12 +19,22 @@
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
 use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide};
-use trace::{Tracer, VMTracer};
+use trace::{Tracer, VMTracer, FlatTrace};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]
 pub struct ExecutiveTracer {
-	traces: Vec<Trace>,
+	traces: Vec<FlatTrace>,
+}
+
+fn update_trace_address(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
+	traces.into_iter()
+		.enumerate()
+		.map(|(i, mut trace)| {
+			trace.trace_address.push_front(i);
+			trace
+		})
+		.collect()
 }
 
 impl Tracer for ExecutiveTracer {
@@ -40,73 +50,77 @@ impl Tracer for ExecutiveTracer {
 		Some(vec![])
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
+	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<FlatTrace>, delegate_call: bool) {
 		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
 			return;
 		}
 
-		let trace = Trace {
-			depth: depth,
-			subs: subs,
+		let trace = FlatTrace {
+			subtraces: subs.len(),
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::Call(CallResult {
 				gas_used: gas_used,
 				output: output.expect("self.prepare_trace_output().is_some(): so we must be tracing: qed")
-			})
+			}),
+			trace_address: Default::default(),
 		};
 		self.traces.push(trace);
+		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: Option<Bytes>, address: Address, depth: usize, subs: Vec<Trace>) {
-		let trace = Trace {
-			depth: depth,
-			subs: subs,
+	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: Option<Bytes>, address: Address, depth: usize, subs: Vec<FlatTrace>) {
+		let trace = FlatTrace {
+			subtraces: subs.len(),
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::Create(CreateResult {
 				gas_used: gas_used,
 				code: code.expect("self.prepare_trace_output.is_some(): so we must be tracing: qed"),
 				address: address
-			})
+			}),
+			trace_address: Default::default(),
 		};
 		self.traces.push(trace);
+		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
+	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<FlatTrace>, delegate_call: bool) {
 		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
 			return;
 		}
 
-		let trace = Trace {
-			depth: depth,
-			subs: subs,
+		let trace = FlatTrace {
+			subtraces: subs.len(),
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCall,
+			trace_address: Default::default(),
 		};
 		self.traces.push(trace);
+		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>) {
-		let trace = Trace {
-			depth: depth,
-			subs: subs,
+	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<FlatTrace>) {
+		let trace = FlatTrace {
+			subtraces: subs.len(),
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCreate,
+			trace_address: Default::default(),
 		};
 		self.traces.push(trace);
+		self.traces.extend(update_trace_address(subs));
 	}
 
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address, depth: usize) {
-		let trace = Trace {
-			depth: depth,
-			subs: vec![],
+		let trace = FlatTrace {
+			subtraces: 0,
 			action: Action::Suicide(Suicide {
 				address: address,
 				refund_address: refund_address,
 				balance: balance,
 			}),
 			result: Res::None,
+			trace_address: Default::default(),
 		};
 		self.traces.push(trace);
 	}
@@ -115,7 +129,7 @@ impl Tracer for ExecutiveTracer {
 		ExecutiveTracer::default()
 	}
 
-	fn traces(self) -> Vec<Trace> {
+	fn traces(self) -> Vec<FlatTrace> {
 		self.traces
 	}
 }

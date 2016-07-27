@@ -287,7 +287,7 @@ mod tests {
 				input: vec![0x5],
 			}),
 			result: Res::FailedCall,
-			trace_address: vec![0],
+			trace_address: vec![0].into_iter().collect(),
 			subtraces: 0,
 		};
 
@@ -311,7 +311,7 @@ mod tests {
 				code: vec![],
 				address: 2.into(),
 			}),
-			trace_address: vec![0],
+			trace_address: vec![0].into_iter().collect(),
 			subtraces: 0,
 		};
 
@@ -330,7 +330,7 @@ mod tests {
 				balance: 3.into(),
 			}),
 			result: Res::None,
-			trace_address: vec![],
+			trace_address: vec![].into_iter().collect(),
 			subtraces: 0
 		};
 
