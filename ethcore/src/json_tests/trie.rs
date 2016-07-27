@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethjson;
-use util::{H256, MemoryDB, TrieMut, TrieSpec, TrieFactory};
+use util::{H256, MemoryDB, TrieSpec, TrieFactory};
 
 fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();

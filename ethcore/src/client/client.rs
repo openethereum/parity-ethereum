@@ -17,7 +17,7 @@
 use std::collections::{HashSet, HashMap, VecDeque};
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
@@ -141,26 +141,10 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1200;
-// DO NOT TOUCH THIS ANY MORE UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
-// Altering it will force a blanket DB update for *all* JournalDB-derived
-//   databases.
-// Instead, add/upgrade the version string of the individual JournalDB-derived database
-// of which you actually want force an upgrade.
-const CLIENT_DB_VER_STR: &'static str = "5.3";
-
-/// Get the path for the databases given the root path and information on the databases.
-pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf {
-	let mut dir = path.to_path_buf();
-	dir.push(H64::from(genesis_hash).hex());
-	//TODO: sec/fat: pruned/full versioning
-	// version here is a bit useless now, since it's controlled only be the pruning algo.
-	dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, pruning));
-	dir
-}
 
 /// Append a path element to the given path and return the string.
-pub fn append_path(path: &Path, item: &str) -> String {
-	let mut p = path.to_path_buf();
+pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
+	let mut p = path.as_ref().to_path_buf();
 	p.push(item);
 	p.to_str().unwrap().to_owned()
 }
@@ -174,7 +158,7 @@ impl Client {
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
 	) -> Result<Arc<Client>, ClientError> {
-		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
+		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
@@ -198,10 +182,15 @@ impl Client {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
+		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
+			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
+		}
+
+		/* TODO: enable this once the best block issue is resolved
 		while !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
 			warn!("State root not found for block #{} ({}), recovering...", chain.best_block_number(), chain.best_block_hash().hex());
 			chain.rewind();
-		}
+		}*/
 
 		let engine = Arc::new(spec.engine);
 
@@ -292,7 +281,7 @@ impl Client {
 		}
 
 		// Verify Block Family
-		let verify_family_result = self.verifier.verify_block_family(&header, &block.bytes, engine, self.chain.deref());
+		let verify_family_result = self.verifier.verify_block_family(header, &block.bytes, engine, self.chain.deref());
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -310,7 +299,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
+		let enact_result = enact_verified(block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -318,7 +307,7 @@ impl Client {
 
 		// Final Verification
 		let locked_block = enact_result.unwrap();
-		if let Err(e) = self.verifier.verify_block_final(&header, locked_block.block().header()) {
+		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
@@ -479,7 +468,7 @@ impl Client {
 	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
 	}
@@ -695,7 +684,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
-		if let &BlockID::Pending = &id {
+		if let BlockID::Pending = id {
 			if let Some(block) = self.miner.pending_block() {
 				return Some(block.rlp_bytes(Seal::Without));
 			}
@@ -714,7 +703,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_total_difficulty(&self, id: BlockID) -> Option<U256> {
-		if let &BlockID::Pending = &id {
+		if let BlockID::Pending = id {
 			if let Some(block) = self.miner.pending_block() {
 				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
 			}

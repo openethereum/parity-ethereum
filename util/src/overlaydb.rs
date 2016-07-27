@@ -168,7 +168,7 @@ impl OverlayDB {
 	pub fn revert(&mut self) { self.overlay.clear(); }
 
 	/// Get the number of references that would be committed.
-	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(&key).map_or(0, |&(_, refs)| refs) }
+	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(key).map_or(0, |&(_, refs)| refs) }
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(Bytes, u32)> {

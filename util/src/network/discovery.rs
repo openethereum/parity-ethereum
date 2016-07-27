@@ -167,7 +167,7 @@ impl Discovery {
 	}
 
 	fn clear_ping(&mut self, id: &NodeId) {
-		let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id, &id) as usize).unwrap();
+		let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id, id) as usize).unwrap();
 		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
 			node.timeout = None;
 		}
@@ -438,7 +438,7 @@ impl Discovery {
 		}
 		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
 		for p in packets.drain(..) {
-			self.send_packet(PACKET_NEIGHBOURS, &from, &p);
+			self.send_packet(PACKET_NEIGHBOURS, from, &p);
 		}
 		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &from);
 		Ok(None)

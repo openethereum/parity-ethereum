@@ -213,7 +213,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		.skip(1)
 		// get minimum number of shared nibbles between first and each successive
 		.fold(key.len(), | acc, &(ref k, _) | {
-			cmp::min(key.shared_prefix_len(&k), acc)
+			cmp::min(key.shared_prefix_len(k), acc)
 		});
 
 	// if shared prefix is higher than current prefix append its

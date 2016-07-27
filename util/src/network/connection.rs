@@ -77,7 +77,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	/// Readable IO handler. Called when there is some data to be read.
 	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
 		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
-			warn!(target:"network", "Unexpected connection read");
+			return Ok(None);
 		}
 		let sock_ref = <Socket as Read>::by_ref(&mut self.socket);
 		loop {
@@ -355,7 +355,7 @@ impl EncryptedConnection {
 		self.encoder.encrypt(&mut RefReadBuffer::new(&header), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
 		EncryptedConnection::update_mac(&mut self.egress_mac, &mut self.mac_encoder,  &packet[0..16]);
 		self.egress_mac.clone().finalize(&mut packet[16..32]);
-		self.encoder.encrypt(&mut RefReadBuffer::new(&payload), &mut RefWriteBuffer::new(&mut packet[32..(32 + len)]), padding == 0).expect("Invalid length or padding");
+		self.encoder.encrypt(&mut RefReadBuffer::new(payload), &mut RefWriteBuffer::new(&mut packet[32..(32 + len)]), padding == 0).expect("Invalid length or padding");
 		if padding != 0 {
 			let pad = [0u8; 16];
 			self.encoder.encrypt(&mut RefReadBuffer::new(&pad[0..padding]), &mut RefWriteBuffer::new(&mut packet[(32 + len)..(32 + len + padding)]), true).expect("Invalid length or padding");

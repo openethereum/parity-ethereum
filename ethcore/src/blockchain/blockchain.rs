@@ -30,7 +30,7 @@ use blockchain::best_block::BestBlock;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
-use db::{Writable, Readable, CacheUpdatePolicy, Key};
+use db::{Writable, Readable, CacheUpdatePolicy};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -296,7 +296,11 @@ impl BlockChain {
 		// load best block
 		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
 			Some(best) => {
-				let mut new_best = H256::from_slice(&best);
+				let new_best = H256::from_slice(&best);
+				if !bc.blocks_db.get(&new_best).unwrap().is_some() {
+					warn!("Best block {} not found", new_best.hex());
+				}
+				/* TODO: enable this once the best block issue is resolved
 				while !bc.blocks_db.get(&new_best).unwrap().is_some() {
 					match bc.rewind() {
 						Some(h) => {
@@ -308,7 +312,7 @@ impl BlockChain {
 						}
 					}
 					info!("Restored mismatched best block. Was: {}, new: {}", H256::from_slice(&best).hex(), new_best.hex());
-				}
+				}*/
 				new_best
 			}
 			None => {
@@ -325,7 +329,9 @@ impl BlockChain {
 					children: vec![]
 				};
 
-				bc.blocks_db.put(&hash, genesis).unwrap();
+				let block_batch = DBTransaction::new();
+				block_batch.put(&hash, genesis).unwrap();
+				bc.blocks_db.write(block_batch).expect("Low level database error. Some issue with disk?");
 
 				let batch = DBTransaction::new();
 				batch.write(&hash, &details);
@@ -354,7 +360,9 @@ impl BlockChain {
 	}
 
 	/// Rewind to a previous block
-	pub fn rewind(&self) -> Option<H256> {
+	#[cfg(test)]
+	fn rewind(&self) -> Option<H256> {
+		use db::Key;
 		let batch = DBTransaction::new();
 		// track back to the best block we have in the blocks database
 		if let Some(best_block_hash) = self.extras_db.get(b"best").unwrap() {
@@ -510,6 +518,13 @@ impl BlockChain {
 
 		let info = self.block_info(bytes);
 
+		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
+			info!(target: "reorg", "{} Using {} (#{})", Colour::Yellow.bold().paint("Switching fork to a new branch."), info.hash, info.number);
+			info!(target: "reorg", "{}{}", Colour::Red.bold().paint("Retracting"), d.retracted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h)));
+			info!(target: "reorg", "{} {} (#{})", Colour::Blue.bold().paint("Leaving"), d.ancestor, self.block_details(&d.ancestor).expect("`ancestor` is in the route; qed").number);
+			info!(target: "reorg", "{}{}", Colour::Green.bold().paint("Enacting"), d.enacted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h)));
+		}
+
 		self.apply_update(ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
 			block_details: self.prepare_block_details_update(bytes, &info),
@@ -520,6 +535,48 @@ impl BlockChain {
 		});
 
 		ImportRoute::from(info)
+	}
+
+	/// Get inserted block info which is critical to prepare extras updates.
+	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
+		let block = BlockView::new(block_bytes);
+		let header = block.header_view();
+		let hash = block.sha3();
+		let number = header.number();
+		let parent_hash = header.parent_hash();
+		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+		let total_difficulty = parent_details.total_difficulty + header.difficulty();
+		let is_new_best = total_difficulty > self.best_block_total_difficulty();
+
+		BlockInfo {
+			hash: hash,
+			number: number,
+			total_difficulty: total_difficulty,
+			location: if is_new_best {
+				// on new best block we need to make sure that all ancestors
+				// are moved to "canon chain"
+				// find the route between old best block and the new one
+				let best_hash = self.best_block_hash();
+				let route = self.tree_route(best_hash, parent_hash);
+
+				assert_eq!(number, parent_details.number + 1);
+
+				match route.blocks.len() {
+					0 => BlockLocation::CanonChain,
+					_ => {
+						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<_>>().into_iter().collect::<Vec<_>>();
+						let enacted = route.blocks.into_iter().skip(route.index).collect::<Vec<_>>();
+						BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
+							ancestor: route.ancestor,
+							enacted: enacted,
+							retracted: retracted,
+						})
+					}
+				}
+			} else {
+				BlockLocation::Branch
+			}
+		}
 	}
 
 	/// Applies extras update.
@@ -578,7 +635,7 @@ impl BlockChain {
 		if self.is_known(&first) {
 			Some(AncestryIter {
 				current: first,
-				chain: &self,
+				chain: self,
 			})
 		} else {
 			None
@@ -607,48 +664,6 @@ impl BlockChain {
 			);
 		}
 		Some(ret)
-	}
-
-	/// Get inserted block info which is critical to prepare extras updates.
-	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
-		let block = BlockView::new(block_bytes);
-		let header = block.header_view();
-		let hash = block.sha3();
-		let number = header.number();
-		let parent_hash = header.parent_hash();
-		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
-		let total_difficulty = parent_details.total_difficulty + header.difficulty();
-		let is_new_best = total_difficulty > self.best_block_total_difficulty();
-
-		BlockInfo {
-			hash: hash,
-			number: number,
-			total_difficulty: total_difficulty,
-			location: if is_new_best {
-				// on new best block we need to make sure that all ancestors
-				// are moved to "canon chain"
-				// find the route between old best block and the new one
-				let best_hash = self.best_block_hash();
-				let route = self.tree_route(best_hash, parent_hash);
-
-				assert_eq!(number, parent_details.number + 1);
-
-				match route.blocks.len() {
-					0 => BlockLocation::CanonChain,
-					_ => {
-						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<H256>>();
-
-						BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
-							ancestor: route.ancestor,
-							enacted: route.blocks.into_iter().skip(route.index).collect(),
-							retracted: retracted.into_iter().rev().collect(),
-						})
-					}
-				}
-			} else {
-				BlockLocation::Branch
-			}
-		}
 	}
 
 	/// This function returns modified block hashes.
@@ -819,10 +834,21 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) { return; }
+		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) {
+			// rotate cache
+			let mut cache_man = self.cache_man.write();
+			const AVERAGE_BYTES_PER_CACHE_ENTRY: usize = 400; //estimated
+			if cache_man.cache_usage[0].len() > self.pref_cache_size.load(AtomicOrder::Relaxed) / COLLECTION_QUEUE_SIZE / AVERAGE_BYTES_PER_CACHE_ENTRY {
+				trace!("Cache rotation, cache_size = {}", self.cache_size().total());
+				let cache = cache_man.cache_usage.pop_back().unwrap();
+				cache_man.cache_usage.push_front(cache);
+			}
+			return;
+		}
 
-		for _ in 0..COLLECTION_QUEUE_SIZE {
+		for i in 0..COLLECTION_QUEUE_SIZE {
 			{
+				trace!("Cache cleanup round started {}, cache_size = {}", i, self.cache_size().total());
 				let mut blocks = self.blocks.write();
 				let mut block_details = self.block_details.write();
 				let mut block_hashes = self.block_hashes.write();
@@ -854,6 +880,7 @@ impl BlockChain {
  				blocks_blooms.shrink_to_fit();
  				block_receipts.shrink_to_fit();
 			}
+			trace!("Cache cleanup round complete {}, cache_size = {}", i, self.cache_size().total());
 			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) { break; }
 		}
 
