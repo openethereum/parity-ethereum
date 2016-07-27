@@ -199,6 +199,7 @@ mod tests {
 	use kvdb::Database;
 	use hashdb::HashDB;
 	use devtools::RandomTempPath;
+	use sha3::Hashable;
 
 	// most of the functionality of `OverlayDB` is tested through
 	// `ArchiveDB`'s tests by proxy.
@@ -241,11 +242,37 @@ mod tests {
 		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
 
 		let hash = db.insert(b"cat");
+		assert!(db.commit().is_ok());
+
+		db.remove(&hash);
+		db.remove(&hash);
+
 		db.commit().unwrap();
+	}
 
-		db.remove(&hash);
-		db.remove(&hash);
+	#[test]
+	#[should_panic]
+	fn deletion_invalid() {
+		let path = RandomTempPath::create_dir();
+		let backing = Database::open_default(path.as_str()).unwrap();
+		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
 
+		let hash = b"hello".sha3();
+		db.remove(&hash);
+		db.commit().unwrap();
+	}
+
+	#[test]
+	#[should_panic]
+	fn insertion_invalid() {
+		let path = RandomTempPath::create_dir();
+		let backing = Database::open_default(path.as_str()).unwrap();
+		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
+
+		db.insert(b"bad juju");
+		assert!(db.commit().is_ok());
+
+		db.insert(b"bad juju");
 		db.commit().unwrap();
 	}
 }
