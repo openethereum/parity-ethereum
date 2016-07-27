@@ -262,7 +262,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 	for block_order in 1..block_number {
 		bc.insert_block(&batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
 	}
-	db.write(batch);
+	db.write(batch).unwrap();
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
@@ -280,7 +280,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 	for block_order in 1..block_number {
 		bc.insert_block(&batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
 	}
-	db.write(batch);
+	db.write(batch).unwrap();
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,

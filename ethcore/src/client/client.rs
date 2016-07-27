@@ -143,11 +143,17 @@ pub struct Client {
 
 const HISTORY: u64 = 1200;
 // database columns
+/// Meta(?)
 pub const DB_COL_META: Option<u32> = Some(0);
+/// Column for State
 pub const DB_COL_STATE: Option<u32> = Some(1);
+/// Column for Blocks
 pub const DB_COL_BLOCK: Option<u32> = Some(2);
+/// Column for Extras
 pub const DB_COL_EXTRA: Option<u32> = Some(3);
+/// Column for Traces
 pub const DB_COL_TRACE: Option<u32> = Some(4);
+/// Number of columns in DB
 pub const DB_NO_OF_COLUMNS: Option<u32> = Some(5);
 
 /// Append a path element to the given path and return the string.
@@ -182,7 +188,7 @@ impl Client {
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
 			let batch = DBTransaction::new(&db);
 			state_db.commit(&batch, 0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
-			db.write(batch);
+			db.write(batch).expect("Error writing genesis state to state DB");
 		}
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
@@ -454,7 +460,7 @@ impl Client {
 			retracted: route.retracted.len()
 		});
 		// Final commit to the DB
-		self.db.write(batch);
+		self.db.write(batch).expect("State DB write failed.");
 
 		self.update_last_hashes(&parent, hash);
 		route

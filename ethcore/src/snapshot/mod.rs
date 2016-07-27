@@ -28,6 +28,7 @@ use ids::BlockID;
 use views::{BlockView, HeaderView};
 
 use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut, DBTransaction};
+use util::error::UtilError;
 use util::hash::{FixedHash, H256};
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 
@@ -360,7 +361,7 @@ impl StateRebuilder {
 					// commit the db changes we made in this thread.
 					let batch = DBTransaction::new(&db.backing());
 					try!(db.commit(&batch, 0, &H256::zero(), None));
-					db.backing().write(batch);
+					try!(db.backing().write(batch).map_err(UtilError::SimpleString));
 
 					Ok(())
 				});
@@ -391,7 +392,7 @@ impl StateRebuilder {
 
 		let batch = DBTransaction::new(&self.db.backing());
 		try!(self.db.commit(&batch, 0, &H256::zero(), None));
-		self.db.backing().write(batch);
+		try!(self.db.backing().write(batch).map_err(|e| Error::Util(e.into())));
 		Ok(())
 	}
 

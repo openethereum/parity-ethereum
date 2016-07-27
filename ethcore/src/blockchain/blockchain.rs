@@ -349,7 +349,7 @@ impl BlockChain {
 					details.children.clear();
 					batch.write(DB_COL_EXTRA, &hash, &details);
 				}
-				self.db.write(batch).unwrap();
+				self.db.write(batch).expect("Writing to db failed");
 				self.block_details.write().clear();
 				self.block_hashes.write().clear();
 				self.blocks.write().clear();
@@ -883,7 +883,7 @@ mod tests {
 
 		let batch = db.transaction();
 		bc.insert_block(&batch, &first, vec![]);
-		db.write(batch);
+		db.write(batch).unwrap();
 
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.best_block_number(), 1);
@@ -912,7 +912,7 @@ mod tests {
 			block_hashes.push(BlockView::new(&block).header_view().sha3());
 			bc.insert_block(&batch, &block, vec![]);
 		}
-		db.write(batch);
+		db.write(batch).unwrap();
 
 		block_hashes.reverse();
 
@@ -951,7 +951,7 @@ mod tests {
 		bc.insert_block(&batch, &b4b, vec![]);
 		bc.insert_block(&batch, &b5a, vec![]);
 		bc.insert_block(&batch, &b5b, vec![]);
-		db.write(batch);
+		db.write(batch).unwrap();
 
 		assert_eq!(
 			[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
@@ -989,10 +989,10 @@ mod tests {
 		let ir1 = bc.insert_block(&batch, &b1, vec![]);
 		let ir2 = bc.insert_block(&batch, &b2, vec![]);
 		let ir3b = bc.insert_block(&batch, &b3b, vec![]);
-		db.write(batch);
+		db.write(batch).unwrap();
 		let batch = db.transaction();
 		let ir3a = bc.insert_block(&batch, &b3a, vec![]);
-		db.write(batch);
+		db.write(batch).unwrap();
 
 		assert_eq!(ir1, ImportRoute {
 			enacted: vec![b1_hash],
@@ -1098,7 +1098,7 @@ mod tests {
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			let batch = db.transaction();
 			bc.insert_block(&batch, &first, vec![]);
-			db.write(batch);
+			db.write(batch).unwrap();
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
 
@@ -1162,7 +1162,7 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 		let batch = db.transaction();
 		bc.insert_block(&batch, &b1, vec![]);
-		db.write(batch);
+		db.write(batch).unwrap();
 
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
@@ -1174,7 +1174,7 @@ mod tests {
 	fn insert_block(db: &Arc<Database>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		let batch = db.transaction();
 		let res = bc.insert_block(&batch, bytes, receipts);
-		db.write(batch);
+		db.write(batch).unwrap();
 		res
 	}
 
@@ -1269,7 +1269,7 @@ mod tests {
 
 			assert_eq!(bc.best_block_number(), 5);
 			bc.insert_block(&batch, &uncle, vec![]);
-			db.write(batch);
+			db.write(batch).unwrap();
 		}
 
 		// re-loading the blockchain should load the correct best block.
@@ -1296,7 +1296,7 @@ mod tests {
 		let batch = db.transaction();
 		bc.insert_block(&batch, &first, vec![]);
 		bc.insert_block(&batch, &second, vec![]);
-		db.write(batch);
+		db.write(batch).unwrap();
 
 		assert_eq!(bc.rewind(), Some(first_hash.clone()));
 		assert!(!bc.is_known(&second_hash));
