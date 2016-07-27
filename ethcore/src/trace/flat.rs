@@ -171,6 +171,7 @@ mod tests {
 	use util::{U256, Address};
 	use trace::trace::{Action, Res, CallResult, Call, Create, Trace};
 	use trace::BlockTraces;
+	use types::executed::CallType;
 
 	#[test]
 	fn test_block_from() {
@@ -181,7 +182,8 @@ mod tests {
 				to: Address::from(2),
 				value: U256::from(3),
 				gas: U256::from(4),
-				input: vec![0x5]
+				input: vec![0x5],
+				call_type: CallType::Call,
 			}),
 			subs: vec![
 				Trace {
@@ -265,7 +267,8 @@ mod tests {
 				to: 2.into(),
 				value: 3.into(),
 				gas: 4.into(),
-				input: vec![0x5]
+				input: vec![0x5],
+				call_type: CallType::Call,
 			}),
 			result: Res::Call(CallResult {
 				gas_used: 10.into(),

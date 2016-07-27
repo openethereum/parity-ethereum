@@ -18,6 +18,7 @@
 
 use util::numbers::*;
 use util::Bytes;
+use util::rlp::*;
 use trace::{Trace, VMTrace};
 use types::log_entry::LogEntry;
 use types::state_diff::StateDiff;
@@ -25,6 +26,43 @@ use ipc::binary::BinaryConvertError;
 use std::fmt;
 use std::mem;
 use std::collections::VecDeque;
+
+/// The type of the call-like instruction.
+#[derive(Debug, PartialEq, Clone, Binary)]
+pub enum CallType {
+	/// Not a CALL.
+	None,
+	/// CALL.
+	Call,
+	/// CALLCODE.
+	CallCode,
+	/// DELEGATECALL.
+	DelegateCall,
+}
+
+impl Encodable for CallType {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		let v = match *self {
+			CallType::None => 0u32,
+			CallType::Call => 1,
+			CallType::CallCode => 2,
+			CallType::DelegateCall => 3,
+		};
+		s.append(&v);
+	}
+}
+
+impl Decodable for CallType {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		decoder.as_rlp().as_val().and_then(|v| Ok(match v {
+			0u32 => CallType::None,
+			1 => CallType::Call,
+			2 => CallType::CallCode,
+			3 => CallType::DelegateCall,
+			_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
+		}))
+	}
+}
 
 /// Transaction execution receipt.
 #[derive(Debug, PartialEq, Clone, Binary)]
@@ -135,3 +173,12 @@ impl fmt::Display for ExecutionError {
 
 /// Transaction execution result.
 pub type ExecutionResult = Result<Executed, ExecutionError>;
+
+#[test]
+fn should_encode_and_decode_call_type() {
+	use util::rlp;
+	let original = CallType::Call;
+	let encoded = rlp::encode(&original);
+	let decoded = rlp::decode(&encoded);
+	assert_eq!(original, decoded);
+}
