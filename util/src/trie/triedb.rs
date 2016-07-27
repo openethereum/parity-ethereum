@@ -133,7 +133,7 @@ impl<'db> TrieDB<'db> {
 
 	/// Get the data of the root node.
 	fn root_data(&self) -> super::Result<&[u8]> {
-		self.db.get(&self.root).ok_or(TrieError::InvalidStateRoot(*self.root))
+		self.db.get(self.root).ok_or(TrieError::InvalidStateRoot(*self.root))
 	}
 
 	/// Get the root node as a `Node`.
@@ -353,7 +353,7 @@ impl<'db> Trie for TrieDB<'db> {
 		Box::new(TrieDB::iter(self))
 	}
 
-	fn root(&self) -> &H256 { &self.root }
+	fn root(&self) -> &H256 { self.root }
 
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<&'a [u8]>
 		where 'a: 'key
@@ -365,7 +365,7 @@ impl<'db> Trie for TrieDB<'db> {
 impl<'db> fmt::Debug for TrieDB<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
-		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
+		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
 	}
@@ -384,7 +384,7 @@ fn iterator() {
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for x in &d {
-			t.insert(&x, &x).unwrap();
+			t.insert(x, x).unwrap();
 		}
 	}
 	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).unwrap().iter().map(|x|x.0).collect::<Vec<_>>());

@@ -14,15 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{fs, ffi, io};
+use std::{fs, io};
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
+use time;
 use ethkey::Address;
-use {libc, json, SafeAccount, Error};
+use {json, SafeAccount, Error};
 use super::KeyDirectory;
 
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
+	use std::ffi;
+	use libc;
 	let cstr = ffi::CString::new(file_path.to_str().unwrap()).unwrap();
 	match unsafe { libc::chmod(cstr.as_ptr(), libc::S_IWUSR | libc::S_IRUSR) } {
 		0 => Ok(()),
@@ -31,7 +34,7 @@ fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
 }
 
 #[cfg(windows)]
-fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32> {
+fn restrict_permissions_to_owner(_file_path: &Path) -> Result<(), i32> {
 	Ok(())
 }
 
@@ -73,7 +76,7 @@ impl DiskDirectory {
 		let accounts = files.into_iter()
 			.map(json::KeyFile::load)
 			.zip(paths.into_iter())
-			.filter_map(|(file, path)| file.ok().map(|file| (path, SafeAccount::from(file))))
+			.filter_map(|(file, path)| file.ok().map(|file| (path.clone(), SafeAccount::from_file(file, path))))
 			.collect();
 
 		Ok(accounts)
@@ -89,24 +92,32 @@ impl KeyDirectory for DiskDirectory {
 		Ok(accounts)
 	}
 
-	fn insert(&self, account: SafeAccount) -> Result<(), Error> {
+	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		// transform account into key file
-		let keyfile: json::KeyFile = account.into();
+		let keyfile: json::KeyFile = account.clone().into();
 
 		// build file path
-		let mut keyfile_path = self.path.clone();
-		keyfile_path.push(format!("{}", keyfile.id));
+		let mut account = account;
+		account.path = account.path.or_else(|| {
+			let mut keyfile_path = self.path.clone();
+			let timestamp = time::strftime("%Y-%m-%d_%H:%M:%S_%Z", &time::now()).unwrap_or("???".to_owned());
+			keyfile_path.push(format!("{}-{}.json", keyfile.id, timestamp));
+			Some(keyfile_path)
+		});
 
-		// save the file
-		let mut file = try!(fs::File::create(&keyfile_path));
-		try!(keyfile.write(&mut file).map_err(|e| Error::Custom(format!("{:?}", e))));
+		{
+			// save the file
+			let path = account.path.as_ref().expect("build-file-path ensures is not None; qed");
+			let mut file = try!(fs::File::create(path));
+			try!(keyfile.write(&mut file).map_err(|e| Error::Custom(format!("{:?}", e))));
 
-		if let Err(_) = restrict_permissions_to_owner(&keyfile_path) {
-			fs::remove_file(&keyfile_path).expect("Expected to remove recently created file");
-			return Err(Error::Io(io::Error::last_os_error()));
+			if let Err(_) = restrict_permissions_to_owner(path) {
+				fs::remove_file(path).expect("Expected to remove recently created file");
+				return Err(Error::Io(io::Error::last_os_error()));
+			}
 		}
 
-		Ok(())
+		Ok(account)
 	}
 
 	fn remove(&self, address: &Address) -> Result<(), Error> {

@@ -133,7 +133,7 @@ pub trait TrieMut {
 
 
 /// Trie types
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TrieSpec {
 	/// Generic trie.
 	Generic,

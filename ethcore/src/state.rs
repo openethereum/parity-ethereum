@@ -124,7 +124,7 @@ impl State {
 
 	fn insert_cache(&self, address: &Address, account: Option<Account>) {
 		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
-			if !snapshot.contains_key(&address) {
+			if !snapshot.contains_key(address) {
 				snapshot.insert(address.clone(), self.cache.borrow_mut().insert(address.clone(), account));
 				return;
 			}
@@ -134,7 +134,7 @@ impl State {
 
 	fn note_cache(&self, address: &Address) {
 		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
-			if !snapshot.contains_key(&address) {
+			if !snapshot.contains_key(address) {
 				snapshot.insert(address.clone(), self.cache.borrow().get(address).cloned());
 			}
 		}
@@ -153,7 +153,7 @@ impl State {
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address, balance: U256) {
-		self.insert_cache(&contract, Some(Account::new_contract(balance, self.account_start_nonce)));
+		self.insert_cache(contract, Some(Account::new_contract(balance, self.account_start_nonce)));
 	}
 
 	/// Remove an existing account.

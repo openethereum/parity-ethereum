@@ -565,7 +565,7 @@ macro_rules! construct_uint {
 		impl Uint for $name {
 
 			fn from_dec_str(value: &str) -> Result<Self, FromDecStrErr> {
-				if value.bytes().any(|b| b < 48 && b > 57) {
+				if !value.bytes().all(|b| b >= 48 && b <= 57) {
 					return Err(FromDecStrErr::InvalidCharacter)
 				}
 
@@ -1788,6 +1788,7 @@ mod tests {
 		assert_eq!(U256::from_dec_str("10").unwrap(), U256::from(10u64));
 		assert_eq!(U256::from_dec_str("1024").unwrap(), U256::from(1024u64));
 		assert_eq!(U256::from_dec_str("115792089237316195423570985008687907853269984665640564039457584007913129639936"), Err(FromDecStrErr::InvalidLength));
+		assert_eq!(U256::from_dec_str("0x11"), Err(FromDecStrErr::InvalidCharacter));
 	}
 
 	#[test]

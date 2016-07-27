@@ -85,7 +85,7 @@ impl KeyDirectory for GethDirectory {
 		self.dir.load()
 	}
 
-	fn insert(&self, account: SafeAccount) -> Result<(), Error> {
+	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		self.dir.insert(account)
 	}
 

@@ -51,7 +51,7 @@ const MAX_HANDSHAKES: usize = 80;
 const MAX_HANDSHAKES_PER_ROUND: usize = 32;
 const MAINTENANCE_TIMEOUT: u64 = 1000;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store network configuration. None means nothing will be saved
@@ -355,11 +355,11 @@ impl Host {
 		let keys = if let Some(ref secret) = config.use_secret {
 			KeyPair::from_secret(secret.clone()).unwrap()
 		} else {
-			config.config_path.clone().and_then(|ref p| load_key(&Path::new(&p)))
+			config.config_path.clone().and_then(|ref p| load_key(Path::new(&p)))
 				.map_or_else(|| {
 				let key = KeyPair::create().unwrap();
 				if let Some(path) = config.config_path.clone() {
-					save_key(&Path::new(&path), &key.secret());
+					save_key(Path::new(&path), key.secret());
 				}
 				key
 			},
@@ -1099,7 +1099,7 @@ fn save_key(path: &Path, key: &Secret) {
 			return;
 		}
 	};
-	if let Err(e) = restrict_permissions_owner(&path) {
+	if let Err(e) = restrict_permissions_owner(path) {
 		warn!(target: "network", "Failed to modify permissions of the file (chmod: {})", e);
 	}
 	if let Err(e) = file.write(&key.hex().into_bytes()) {

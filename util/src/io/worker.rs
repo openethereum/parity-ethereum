@@ -23,7 +23,7 @@ use io::service::{HandlerId, IoChannel, IoContext};
 use io::{IoHandler};
 use panics::*;
 
-use parking_lot::{Condvar, Mutex};
+use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 
 pub enum WorkType<Message> {
 	Readable,
@@ -44,9 +44,9 @@ pub struct Work<Message> {
 /// Sorts them ready for blockchain insertion.
 pub struct Worker {
 	thread: Option<JoinHandle<()>>,
-	wait: Arc<Condvar>,
+	wait: Arc<SCondvar>,
 	deleting: Arc<AtomicBool>,
-	wait_mutex: Arc<Mutex<()>>,
+	wait_mutex: Arc<SMutex<()>>,
 }
 
 impl Worker {
@@ -54,8 +54,8 @@ impl Worker {
 	pub fn new<Message>(index: usize,
 						stealer: chase_lev::Stealer<Work<Message>>,
 						channel: IoChannel<Message>,
-						wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<()>>,
+						wait: Arc<SCondvar>,
+						wait_mutex: Arc<SMutex<()>>,
 						panic_handler: Arc<PanicHandler>
 					   ) -> Worker
 					where Message: Send + Sync + Clone + 'static {
@@ -77,17 +77,17 @@ impl Worker {
 	}
 
 	fn work_loop<Message>(stealer: chase_lev::Stealer<Work<Message>>,
-						channel: IoChannel<Message>, wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<()>>,
+						channel: IoChannel<Message>, wait: Arc<SCondvar>,
+						wait_mutex: Arc<SMutex<()>>,
 						deleting: Arc<AtomicBool>)
 						where Message: Send + Sync + Clone + 'static {
 		loop {
 			{
-				let mut lock = wait_mutex.lock();
+				let lock = wait_mutex.lock().unwrap();
 				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}
-				wait.wait(&mut lock);
+				let _ = wait.wait(lock);
 			}
 
 			if deleting.load(AtomicOrdering::Acquire) {
@@ -123,7 +123,7 @@ impl Worker {
 impl Drop for Worker {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[IoWorker] Closing...");
-		let _ = self.wait_mutex.lock();
+		let _ = self.wait_mutex.lock().unwrap();
 		self.deleting.store(true, AtomicOrdering::Release);
 		self.wait.notify_all();
 		let thread = mem::replace(&mut self.thread, None).unwrap();

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
+use std::path::{PathBuf};
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
 use crypto::Keccak256;
@@ -35,14 +36,17 @@ pub struct SafeAccount {
 	pub version: Version,
 	pub address: Address,
 	pub crypto: Crypto,
+	pub path: Option<PathBuf>,
+	pub name: String,
+	pub meta: String,
 }
 
 impl From<json::Crypto> for Crypto {
 	fn from(json: json::Crypto) -> Self {
 		Crypto {
-			cipher: From::from(json.cipher),
+			cipher: json.cipher.into(),
 			ciphertext: json.ciphertext.into(),
-			kdf: From::from(json.kdf),
+			kdf: json.kdf.into(),
 			mac: json.mac.into(),
 		}
 	}
@@ -52,9 +56,9 @@ impl Into<json::Crypto> for Crypto {
 	fn into(self) -> json::Crypto {
 		json::Crypto {
 			cipher: self.cipher.into(),
-			ciphertext: From::from(self.ciphertext),
+			ciphertext: self.ciphertext.into(),
 			kdf: self.kdf.into(),
-			mac: From::from(self.mac),
+			mac: self.mac.into(),
 		}
 	}
 }
@@ -63,9 +67,12 @@ impl From<json::KeyFile> for SafeAccount {
 	fn from(json: json::KeyFile) -> Self {
 		SafeAccount {
 			id: json.id.into(),
-			version: From::from(json.version),
-			address: From::from(json.address), //json.address.into(),
-			crypto: From::from(json.crypto),
+			version: json.version.into(),
+			address: json.address.into(),
+			crypto: json.crypto.into(),
+			path: None,
+			name: json.name.unwrap_or(String::new()),
+			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
 	}
 }
@@ -77,6 +84,8 @@ impl Into<json::KeyFile> for SafeAccount {
 			version: self.version.into(),
 			address: self.address.into(), //From::from(self.address),
 			crypto: self.crypto.into(),
+			name: Some(self.name.into()),
+			meta: Some(self.meta.into()),
 		}
 	}
 }
@@ -138,12 +147,28 @@ impl Crypto {
 }
 
 impl SafeAccount {
-	pub fn create(keypair: &KeyPair, id: [u8; 16], password: &str, iterations: u32) -> Self {
+	// DEPRECATED. use `create_with_name` instead
+	pub fn create(keypair: &KeyPair, id: [u8; 16], password: &str, iterations: u32, name: String, meta: String) -> Self {
 		SafeAccount {
 			id: id,
 			version: Version::V3,
 			crypto: Crypto::create(keypair.secret(), password, iterations),
 			address: keypair.address(),
+			path: None,
+			name: name,
+			meta: meta,
+		}
+	}
+
+	pub fn from_file(json: json::KeyFile, path: PathBuf) -> Self {
+		SafeAccount {
+			id: json.id.into(),
+			version: json.version.into(),
+			address: json.address.into(),
+			crypto: json.crypto.into(),
+			path: Some(path),
+			name: json.name.unwrap_or(String::new()),
+			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
 	}
 
@@ -159,6 +184,9 @@ impl SafeAccount {
 			version: self.version.clone(),
 			crypto: Crypto::create(&secret, new_password, iterations),
 			address: self.address.clone(),
+			path: self.path.clone(),
+			name: self.name.clone(),
+			meta: self.meta.clone(),
 		};
 		Ok(result)
 	}
@@ -194,7 +222,7 @@ mod tests {
 		let keypair = Random.generate().unwrap();
 		let password = "hello world";
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], password, 10240);
+		let account = SafeAccount::create(&keypair, [0u8; 16], password, 10240, "Test".to_owned(), "{}".to_owned());
 		let signature = account.sign(password, &message).unwrap();
 		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
 	}
@@ -206,7 +234,7 @@ mod tests {
 		let sec_password = "this is sparta";
 		let i = 10240;
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], first_password, i);
+		let account = SafeAccount::create(&keypair, [0u8; 16], first_password, i, "Test".to_owned(), "{}".to_owned());
 		let new_account = account.change_password(first_password, sec_password, i).unwrap();
 		assert!(account.sign(first_password, &message).is_ok());
 		assert!(account.sign(sec_password, &message).is_err());

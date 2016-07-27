@@ -406,7 +406,7 @@ impl<'a> TrieDBMut<'a> {
 		where 'x: 'key
 	{
 		self.db.get(hash).ok_or(TrieError::IncompleteDatabase(*hash))
-			.and_then(|node_rlp| self.get_from_db_node(&node_rlp, key))
+			.and_then(|node_rlp| self.get_from_db_node(node_rlp, key))
 	}
 
 	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
@@ -881,7 +881,7 @@ impl<'a> TrieDBMut<'a> {
 impl<'a> TrieMut for TrieDBMut<'a> {
 	fn root(&mut self) -> &H256 {
 		self.commit();
-		&self.root
+		self.root
 	}
 
 	fn is_empty(&self) -> bool {
@@ -951,7 +951,7 @@ mod tests {
 		for i in 0..v.len() {
 			let key: &[u8]= &v[i].0;
 			let val: &[u8] = &v[i].1;
-			t.insert(&key, &val).unwrap();
+			t.insert(key, val);
 		}
 		t
 	}
@@ -959,7 +959,7 @@ mod tests {
 	fn unpopulate_trie<'db>(t: &mut TrieDBMut<'db>, v: &[(Vec<u8>, Vec<u8>)]) {
 		for i in v {
 			let key: &[u8]= &i.0;
-			t.remove(&key).unwrap();
+			t.remove(key);
 		}
 	}
 

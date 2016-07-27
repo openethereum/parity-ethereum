@@ -33,14 +33,10 @@ use super::spec::*;
 pub fn new_olympic() -> Spec { Spec::load(include_bytes!("../../res/ethereum/olympic.json")) }
 
 /// Create a new Frontier mainnet chain spec.
-pub fn new_frontier() -> Spec {
-	Spec::load(include_bytes!("../../res/ethereum/frontier.json"))
-}
+pub fn new_frontier() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier.json")) }
 
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
-pub fn new_frontier_dogmatic() -> Spec {
-	Spec::load(include_bytes!("../../res/ethereum/frontier-dogmatic.json"))
-}
+pub fn new_classic() -> Spec { Spec::load(include_bytes!("../../res/ethereum/classic.json")) }
 
 /// Create a new Frontier chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier_test.json")) }

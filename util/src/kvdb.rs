@@ -168,8 +168,8 @@ impl Database {
 			opts.set_block_based_table_factory(&block_opts);
 		}
 
-		let mut write_opts = WriteOptions::new();
-		write_opts.disable_wal(true);
+		let write_opts = WriteOptions::new();
+		//write_opts.disable_wal(true); // TODO: make sure this is safe
 
 		let db = match DB::open(&opts, path) {
 			Ok(db) => db,

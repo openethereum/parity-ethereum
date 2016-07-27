@@ -62,6 +62,9 @@ impl ClientService {
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
+		if spec.fork_name.is_some() {
+			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
+		}
 		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
@@ -135,7 +138,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
-			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
+			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
 			_ => {} // ignore other messages
 		}
 	}
@@ -172,7 +175,7 @@ mod tests {
 		let service = ClientService::start(
 			ClientConfig::default(),
 			get_test_spec(),
-			&temp_path.as_path(),
+			temp_path.as_path(),
 			Arc::new(Miner::with_spec(get_test_spec())),
 		);
 		assert!(service.is_ok());
