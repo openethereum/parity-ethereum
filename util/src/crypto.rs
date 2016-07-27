@@ -273,7 +273,7 @@ pub mod ecdh {
 		let publ = try!(key::PublicKey::from_slice(context, &pdata));
 		// no way to create SecretKey from raw byte array.
 		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
-		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
+		let shared = ecdh::SharedSecret::new_raw(context, &publ, sec);
 
 		let mut s = crypto::Secret::new();
 		s.copy_from_slice(&shared[0..32]);

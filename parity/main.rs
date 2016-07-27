@@ -113,7 +113,7 @@ fn start() -> Result<String, String> {
 
 fn main() {
 	// just redirect to the sync::main()
-	if std::env::args().nth(1).map(|arg| arg == "sync").unwrap_or(false) {
+	if std::env::args().nth(1).map_or(false, |arg| arg == "sync") {
 		sync::main();
 		return;
 	}

@@ -96,13 +96,13 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 		self.mem.clear();
 
 		let code = &params.code.as_ref().unwrap();
-		let valid_jump_destinations = self.find_jump_destinations(&code);
+		let valid_jump_destinations = self.find_jump_destinations(code);
 
 		let mut gasometer = Gasometer::<Cost>::new(try!(Cost::from_u256(params.gas)));
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut reader = CodeReader {
 			position: 0,
-			code: &code
+			code: code
 		};
 		let infos = &*instructions::INSTRUCTIONS;
 
@@ -274,7 +274,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					return Ok(InstructionResult::Ok);
 				}
 
-				let create_result = ext.create(&gas.as_u256(), &endowment, &contract_code);
+				let create_result = ext.create(&gas.as_u256(), &endowment, contract_code);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
 						stack.push(address_to_u256(address));

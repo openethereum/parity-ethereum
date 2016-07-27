@@ -138,7 +138,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
-			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
+			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
 			_ => {} // ignore other messages
 		}
 	}
@@ -175,7 +175,7 @@ mod tests {
 		let service = ClientService::start(
 			ClientConfig::default(),
 			get_test_spec(),
-			&temp_path.as_path(),
+			temp_path.as_path(),
 			Arc::new(Miner::with_spec(get_test_spec())),
 		);
 		assert!(service.is_ok());

@@ -121,7 +121,7 @@ impl EarlyMergeDB {
 			// this is the first entry for this node in the journal.
 			if backing.get(col, h).expect("Low-level database error. Some issue with your hard disk?").is_some() {
 				// already in the backing DB. start counting, and remember it was already in.
-				Self::set_already_in(batch, col, &h);
+				Self::set_already_in(batch, col, h);
 				refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: true});
 				if trace {
 					trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);

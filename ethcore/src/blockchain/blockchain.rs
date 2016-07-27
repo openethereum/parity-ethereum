@@ -471,7 +471,7 @@ impl BlockChain {
 
 		let _lock = self.insert_lock.lock();
 		// store block in db
-		batch.put(DB_COL_BLOCK, &hash, &bytes).unwrap();
+		batch.put(DB_COL_BLOCK, &hash, bytes).unwrap();
 
 		let info = self.block_info(bytes);
 
@@ -587,7 +587,7 @@ impl BlockChain {
 		if self.is_known(&first) {
 			Some(AncestryIter {
 				current: first,
-				chain: &self,
+				chain: self,
 			})
 		} else {
 			None
