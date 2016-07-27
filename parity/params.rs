@@ -106,8 +106,7 @@ impl Pruning {
 
 		algo_types.into_iter().max_by_key(|i| {
 			let client_path = dirs.client_path(genesis_hash, fork_name, *i);
-			let mut config = DatabaseConfig::default();
-			config.columns = client::DB_NO_OF_COLUMNS;
+			let config = DatabaseConfig::with_columns(client::DB_NO_OF_COLUMNS);
 			let db = match Database::open(&config, client_path.to_str().unwrap()) {
 				Ok(db) => db,
 				Err(_) => return 0,

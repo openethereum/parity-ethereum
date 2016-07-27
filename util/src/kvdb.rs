@@ -92,6 +92,12 @@ pub struct DatabaseConfig {
 }
 
 impl DatabaseConfig {
+	pub fn with_columns(columns: Option<u32>) -> Self {
+		let mut config = Self::default();
+		config.columns = columns;
+		config
+	}
+
 	/// Modify the compaction profile
 	pub fn compaction(mut self, profile: CompactionProfile) -> Self {
 		self.compaction = profile;

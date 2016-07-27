@@ -168,12 +168,11 @@ impl Client {
 	) -> Result<Arc<Client>, ClientError> {
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
-		let mut db_config = DatabaseConfig::default();
+		let mut db_config = DatabaseConfig::with_columns(DB_NO_OF_COLUMNS);
 		db_config.cache_size = config.db_cache_size;
 		if config.db_compaction == DatabaseCompactionProfile::HDD {
 			db_config = db_config.compaction(CompactionProfile::hdd());
 		}
-		db_config.columns = DB_NO_OF_COLUMNS;
 
 		let db = Arc::new(Database::open(&db_config, &path.to_str().unwrap()).expect("Error opening database"));
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
