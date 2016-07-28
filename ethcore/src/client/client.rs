@@ -17,7 +17,7 @@
 use std::collections::{HashSet, HashMap, VecDeque};
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
@@ -35,7 +35,7 @@ use util::kvdb::*;
 
 // other
 use views::BlockView;
-use error::{ImportError, ExecutionError, BlockError, ImportResult};
+use error::{ImportError, ExecutionError, ReplayError, BlockError, ImportResult};
 use header::BlockNumber;
 use state::State;
 use spec::Spec;
@@ -141,26 +141,10 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1200;
-// DO NOT TOUCH THIS ANY MORE UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
-// Altering it will force a blanket DB update for *all* JournalDB-derived
-//   databases.
-// Instead, add/upgrade the version string of the individual JournalDB-derived database
-// of which you actually want force an upgrade.
-const CLIENT_DB_VER_STR: &'static str = "5.3";
-
-/// Get the path for the databases given the root path and information on the databases.
-pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256, fork_name: Option<&String>) -> PathBuf {
-	let mut dir = path.to_path_buf();
-	dir.push(format!("{:?}{}", H64::from(genesis_hash), fork_name.map(|f| format!("-{}", f)).unwrap_or_default()));
-	//TODO: sec/fat: pruned/full versioning
-	// version here is a bit useless now, since it's controlled only be the pruning algo.
-	dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, pruning));
-	dir
-}
 
 /// Append a path element to the given path and return the string.
-pub fn append_path(path: &Path, item: &str) -> String {
-	let mut p = path.to_path_buf();
+pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
+	let mut p = path.as_ref().to_path_buf();
 	p.push(item);
 	p.to_str().unwrap().to_owned()
 }
@@ -174,7 +158,7 @@ impl Client {
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
 	) -> Result<Arc<Client>, ClientError> {
-		let path = get_db_path(path, config.pruning, spec.genesis_header().hash(), spec.fork_name.as_ref());
+		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
@@ -297,7 +281,7 @@ impl Client {
 		}
 
 		// Verify Block Family
-		let verify_family_result = self.verifier.verify_block_family(&header, &block.bytes, engine, self.chain.deref());
+		let verify_family_result = self.verifier.verify_block_family(header, &block.bytes, engine, self.chain.deref());
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -315,7 +299,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
+		let enact_result = enact_verified(block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -323,7 +307,7 @@ impl Client {
 
 		// Final Verification
 		let locked_block = enact_result.unwrap();
-		if let Err(e) = self.verifier.verify_block_final(&header, locked_block.block().header()) {
+		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
@@ -484,12 +468,12 @@ impl Client {
 	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
 	}
 
-	/// Attempt to get a copy of a specific block's state.
+	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockID::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
@@ -518,6 +502,21 @@ impl Client {
 
 			State::from_existing(db, root, self.engine.account_start_nonce(), self.trie_factory.clone()).ok()
 		})
+	}
+
+	/// Attempt to get a copy of a specific block's beginning state.
+	///
+	/// This will not fail if given BlockID::Latest.
+	/// Otherwise, this can fail (but may not) if the DB prunes state.
+	pub fn state_at_beginning(&self, id: BlockID) -> Option<State> {
+		// fast path for latest state.
+		match id {
+			BlockID::Pending => self.state_at(BlockID::Latest),
+			id => match self.block_number(id) {
+				None | Some(0) => None,
+				Some(n) => self.state_at(BlockID::Number(n - 1)),
+			}
+		}
 	}
 
 	/// Get a copy of the best block's state.
@@ -676,6 +675,46 @@ impl BlockChainClient for Client {
 		ret
 	}
 
+	fn replay(&self, id: TransactionID, analytics: CallAnalytics) -> Result<Executed, ReplayError> {
+		let address = try!(self.transaction_address(id).ok_or(ReplayError::TransactionNotFound));
+		let block_data = try!(self.block(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+		let mut state = try!(self.state_at_beginning(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+		let block = BlockView::new(&block_data);
+		let txs = block.transactions();
+
+		if address.index >= txs.len() {
+			return Err(ReplayError::TransactionNotFound);
+		}
+
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let view = block.header_view();
+		let last_hashes = self.build_last_hashes(view.hash());
+		let mut env_info = EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: last_hashes,
+			gas_used: U256::zero(),
+			gas_limit: view.gas_limit(),
+		};
+		for t in txs.iter().take(address.index) {
+			match Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, Default::default()) {
+				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
+				Err(ee) => { return Err(ReplayError::Execution(ee)) }
+			}
+		}
+		let t = &txs[address.index];
+		let orig = state.clone();
+		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+		if analytics.state_diffing {
+			if let Ok(ref mut x) = ret {
+				x.state_diff = Some(state.diff_from(orig));
+			}
+		}
+		ret.map_err(|ee| ReplayError::Execution(ee))
+	}
+
 	fn keep_alive(&self) {
 		if self.mode != Mode::Active {
 			self.wake_up();
@@ -700,7 +739,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
-		if let &BlockID::Pending = &id {
+		if let BlockID::Pending = id {
 			if let Some(block) = self.miner.pending_block() {
 				return Some(block.rlp_bytes(Seal::Without));
 			}
@@ -719,7 +758,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_total_difficulty(&self, id: BlockID) -> Option<U256> {
-		if let &BlockID::Pending = &id {
+		if let BlockID::Pending = id {
 			if let Some(block) = self.miner.pending_block() {
 				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
 			}

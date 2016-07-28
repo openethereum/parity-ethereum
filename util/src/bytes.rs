@@ -195,7 +195,7 @@ pub trait Populatable {
 	/// If `d` is smaller, will leave some bytes untouched.
 	fn copy_raw(&mut self, d: &[u8]) {
 		use std::io::Write;
-		self.as_slice_mut().write(&d).unwrap();
+		self.as_slice_mut().write(d).unwrap();
 	}
 
 	/// Copies the raw representation of an object `d` to `self`, overwriting as necessary.

@@ -65,10 +65,6 @@ ipc = ["ethcore/ipc"]
 path = "parity/main.rs"
 name = "parity"
 
-[[bin]]
-path = "parity/sync/main.rs"
-name = "sync"
-
 [profile.release]
 debug = true
 lto = false

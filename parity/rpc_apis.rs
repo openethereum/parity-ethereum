@@ -15,20 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
+use std::cmp::PartialEq;
 use std::str::FromStr;
 use std::sync::Arc;
-
-use ethsync::{ManageNetwork, SyncProvider};
+use util::RotatingLogger;
+use util::network_settings::NetworkSettings;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
-use util::RotatingLogger;
 use ethcore::account_provider::AccountProvider;
-use util::network_settings::NetworkSettings;
-
+use ethsync::{ManageNetwork, SyncProvider};
+use ethcore_rpc::Extendable;
 pub use ethcore_rpc::ConfirmationsQueue;
 
-use ethcore_rpc::Extendable;
 
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
 	Web3,
 	Net,
@@ -41,18 +42,8 @@ pub enum Api {
 	Rpc,
 }
 
-pub enum ApiError {
-	UnknownApi(String)
-}
-
-pub enum ApiSet {
-	SafeContext,
-	UnsafeContext,
-	List(Vec<Api>),
-}
-
 impl FromStr for Api {
-	type Err = ApiError;
+	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		use self::Api::*;
@@ -67,8 +58,38 @@ impl FromStr for Api {
 			"ethcore_set" => Ok(EthcoreSet),
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
-			e => Err(ApiError::UnknownApi(e.into())),
+			api => Err(format!("Unknown api: {}", api))
 		}
+	}
+}
+
+#[derive(Debug)]
+pub enum ApiSet {
+	SafeContext,
+	UnsafeContext,
+	List(HashSet<Api>),
+}
+
+impl Default for ApiSet {
+	fn default() -> Self {
+		ApiSet::UnsafeContext
+	}
+}
+
+impl PartialEq for ApiSet {
+	fn eq(&self, other: &Self) -> bool {
+		self.list_apis() == other.list_apis()
+	}
+}
+
+impl FromStr for ApiSet {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		s.split(',')
+			.map(Api::from_str)
+			.collect::<Result<_, _>>()
+			.map(ApiSet::List)
 	}
 }
 
@@ -106,31 +127,27 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 	modules
 }
 
-pub fn from_str(apis: Vec<&str>) -> Vec<Api> {
-	apis.into_iter()
-		.map(Api::from_str)
-		.collect::<Result<Vec<Api>, ApiError>>()
-		.unwrap_or_else(|e| match e {
-			ApiError::UnknownApi(s) => die!("Unknown RPC API specified: {}", s),
-		})
-}
-
-fn list_apis(apis: ApiSet) -> Vec<Api> {
-	match apis {
-		ApiSet::List(apis) => apis,
-		ApiSet::UnsafeContext => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
-		},
-		_ => {
-			vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
-		},
+impl ApiSet {
+	pub fn list_apis(&self) -> HashSet<Api> {
+		match *self {
+			ApiSet::List(ref apis) => apis.clone(),
+			ApiSet::UnsafeContext => {
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+					.into_iter().collect()
+			},
+			_ => {
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+					.into_iter().collect()
+			},
+		}
 	}
 }
 
 pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
 	use ethcore_rpc::v1::*;
 
-	let apis = list_apis(apis);
+	// it's turned into vector, cause ont of the cases requires &[]
+	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
 	for api in &apis {
 		match *api {
 			Api::Web3 => {
@@ -140,8 +157,18 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(NetClient::new(&deps.sync).to_delegate());
 			},
 			Api::Eth => {
-				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner, deps.allow_pending_receipt_query).to_delegate());
-				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
+				let client = EthClient::new(
+					&deps.client,
+					&deps.sync,
+					&deps.secret_store,
+					&deps.miner,
+					&deps.external_miner,
+					deps.allow_pending_receipt_query
+				);
+				server.add_delegate(client.to_delegate());
+
+				let filter_client = EthFilterClient::new(&deps.client, &deps.miner);
+				server.add_delegate(filter_client.to_delegate());
 
 				if deps.signer_port.is_some() {
 					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue, &deps.client, &deps.miner, &deps.secret_store).to_delegate());
@@ -172,4 +199,47 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 		}
 	}
 	server
+}
+
+#[cfg(test)]
+mod test {
+	use super::{Api, ApiSet};
+
+	#[test]
+	fn test_api_parsing() {
+		assert_eq!(Api::Web3, "web3".parse().unwrap());
+		assert_eq!(Api::Net, "net".parse().unwrap());
+		assert_eq!(Api::Eth, "eth".parse().unwrap());
+		assert_eq!(Api::Personal, "personal".parse().unwrap());
+		assert_eq!(Api::Signer, "signer".parse().unwrap());
+		assert_eq!(Api::Ethcore, "ethcore".parse().unwrap());
+		assert_eq!(Api::EthcoreSet, "ethcore_set".parse().unwrap());
+		assert_eq!(Api::Traces, "traces".parse().unwrap());
+		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
+		assert!("rp".parse::<Api>().is_err());
+	}
+
+	#[test]
+	fn test_api_set_default() {
+		assert_eq!(ApiSet::UnsafeContext, ApiSet::default());
+	}
+
+	#[test]
+	fn test_api_set_parsing() {
+		assert_eq!(ApiSet::List(vec![Api::Web3, Api::Eth].into_iter().collect()), "web3,eth".parse().unwrap());
+	}
+
+	#[test]
+	fn test_api_set_unsafe_context() {
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+			.into_iter().collect();
+		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
+	}
+
+	#[test]
+	fn test_api_set_safe_context() {
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+			.into_iter().collect();
+		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
+	}
 }

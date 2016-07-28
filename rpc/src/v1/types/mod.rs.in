@@ -42,6 +42,6 @@ pub use self::transaction::Transaction;
 pub use self::transaction_request::{TransactionRequest, TransactionConfirmation, TransactionModification};
 pub use self::call_request::CallRequest;
 pub use self::receipt::Receipt;
-pub use self::trace::{Trace, LocalizedTrace, StateDiff, VMTrace};
+pub use self::trace::{LocalizedTrace, TraceResults};
 pub use self::trace_filter::TraceFilter;
 pub use self::uint::U256;

@@ -79,6 +79,8 @@ mod tests {
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x2"
+		"forkBlock": "0xffffffffffffffff",
+		"forkCanonHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
 	},
 	"genesis": {
 		"seal": {

@@ -26,7 +26,7 @@ use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use views::{BlockView};
-use error::{ImportResult, ExecutionError};
+use error::{ImportResult, ExecutionError, ReplayError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
@@ -159,6 +159,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Makes a non-persistent transaction call.
 	// TODO: should be able to accept blockchain location for call.
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
+
+	/// Replays a given transaction for inspection.
+	fn replay(&self, t: TransactionID, analytics: CallAnalytics) -> Result<Executed, ReplayError>;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;

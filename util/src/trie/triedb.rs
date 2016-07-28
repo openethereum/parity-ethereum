@@ -132,7 +132,7 @@ impl<'db> TrieDB<'db> {
 
 	/// Get the data of the root node.
 	fn root_data(&self) -> &[u8] {
-		self.db.get(&self.root).expect("Trie root not found!")
+		self.db.get(self.root).expect("Trie root not found!")
 	}
 
 	/// Get the root node as a `Node`.
@@ -184,7 +184,7 @@ impl<'db> TrieDB<'db> {
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
 	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
 		let root_rlp = self.root_data();
-		self.get_from_node(&root_rlp, key)
+		self.get_from_node(root_rlp, key)
 	}
 
 	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
@@ -340,7 +340,7 @@ impl<'db> Trie for TrieDB<'db> {
 		Box::new(TrieDB::iter(self))
 	}
 
-	fn root(&self) -> &H256 { &self.root }
+	fn root(&self) -> &H256 { self.root }
 
 	fn contains(&self, key: &[u8]) -> bool {
 		self.get(key).is_some()
@@ -354,7 +354,7 @@ impl<'db> Trie for TrieDB<'db> {
 impl<'db> fmt::Debug for TrieDB<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
-		let root_rlp = self.db.get(&self.root).expect("Trie root not found!");
+		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
 	}
@@ -373,7 +373,7 @@ fn iterator() {
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for x in &d {
-			t.insert(&x, &x);
+			t.insert(x, x);
 		}
 	}
 	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).unwrap().iter().map(|x|x.0).collect::<Vec<_>>());

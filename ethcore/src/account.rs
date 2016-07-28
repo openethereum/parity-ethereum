@@ -61,8 +61,8 @@ impl Account {
 			nonce: pod.nonce,
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(pod.storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
-			code_hash: Some(pod.code.sha3()),
-			code_cache: pod.code,
+			code_hash: pod.code.as_ref().map(|c| c.sha3()),
+			code_cache: pod.code.as_ref().map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c.clone()),
 			filth: Filth::Dirty,
 		}
 	}
@@ -287,6 +287,16 @@ mod tests {
 	use util::*;
 	use super::*;
 	use account_db::*;
+
+	#[test]
+	fn account_compress() {
+		let raw = Account::new_basic(2.into(), 4.into()).rlp();
+		let rlp = UntrustedRlp::new(&raw);
+		let compact_vec = rlp.compress(RlpType::Snapshot).to_vec();
+		assert!(raw.len() > compact_vec.len());
+		let again_raw = UntrustedRlp::new(&compact_vec).decompress(RlpType::Snapshot);
+		assert_eq!(raw, again_raw.to_vec());
+    }
 
 	#[test]
 	fn storage_at() {

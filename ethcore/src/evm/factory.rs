@@ -21,7 +21,7 @@ use std::fmt;
 use evm::Evm;
 use util::{U256, Uint};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 /// Type of EVM to use.
 pub enum VMType {
 	/// JIT EVM

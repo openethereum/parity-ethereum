@@ -122,7 +122,7 @@ impl State {
 
 	fn insert_cache(&self, address: &Address, account: Option<Account>) {
 		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
-			if !snapshot.contains_key(&address) {
+			if !snapshot.contains_key(address) {
 				snapshot.insert(address.clone(), self.cache.borrow_mut().insert(address.clone(), account));
 				return;
 			}
@@ -132,7 +132,7 @@ impl State {
 
 	fn note_cache(&self, address: &Address) {
 		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
-			if !snapshot.contains_key(&address) {
+			if !snapshot.contains_key(address) {
 				snapshot.insert(address.clone(), self.cache.borrow().get(address).cloned());
 			}
 		}
@@ -151,7 +151,7 @@ impl State {
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address, balance: U256) {
-		self.insert_cache(&contract, Some(Account::new_contract(balance, self.account_start_nonce)));
+		self.insert_cache(contract, Some(Account::new_contract(balance, self.account_start_nonce)));
 	}
 
 	/// Remove an existing account.
@@ -162,7 +162,7 @@ impl State {
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
 		let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || db.contains(&a)
+		self.cache.borrow().get(a).unwrap_or(&None).is_some() || db.contains(a)
 	}
 
 	/// Get the balance of account `a`.
@@ -329,7 +329,7 @@ impl State {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
+			self.insert_cache(a, db.get(a).map(Account::from_rlp))
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
@@ -350,7 +350,7 @@ impl State {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			self.insert_cache(a, db.get(&a).map(Account::from_rlp))
+			self.insert_cache(a, db.get(a).map(Account::from_rlp))
 		} else {
 			self.note_cache(a);
 		}
@@ -403,6 +403,7 @@ use transaction::*;
 use util::log::init_log;
 use trace::trace;
 use trace::trace::{Trace};
+use types::executed::CallType;
 
 #[test]
 fn should_apply_create_transaction() {
@@ -535,6 +536,7 @@ fn should_trace_call_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(3),
@@ -577,6 +579,7 @@ fn should_trace_basic_call_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(0),
@@ -619,6 +622,7 @@ fn should_trace_call_transaction_to_builtin() {
 			value: 0.into(),
 			gas: 79_000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(3000),
@@ -660,6 +664,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 			value: 0.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(28_061),
@@ -703,12 +708,28 @@ fn should_not_trace_callcode() {
 			value: 0.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(64),
+			gas_used: 64.into(),
 			output: vec![]
 		}),
-		subs: vec![]
+		subs: vec![Trace {
+			depth: 1,
+			action: trace::Action::Call(trace::Call {
+				from: 0xa.into(),
+				to: 0xa.into(),
+				value: 0.into(),
+				gas: 4096.into(),
+				input: vec![],
+				call_type: CallType::CallCode,
+			}),
+			subs: vec![],
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: 3.into(),
+				output: vec![],
+			}),
+		}],
 	});
 	assert_eq!(result.trace, expected_trace);
 }
@@ -749,12 +770,28 @@ fn should_not_trace_delegatecall() {
 			value: 0.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(61),
 			output: vec![]
 		}),
-		subs: vec![]
+		subs: vec![Trace {
+			depth: 1,
+			action: trace::Action::Call(trace::Call {
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
+				value: 0.into(),
+				gas: 32768.into(),
+				input: vec![],
+				call_type: CallType::DelegateCall,
+			}),
+			subs: vec![],
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: 3.into(),
+				output: vec![],
+			}),
+		}],
 	});
 	assert_eq!(result.trace, expected_trace);
 }
@@ -791,6 +828,7 @@ fn should_trace_failed_call_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::FailedCall,
 		subs: vec![]
@@ -834,6 +872,7 @@ fn should_trace_call_with_subcall_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(69),
@@ -847,6 +886,7 @@ fn should_trace_call_with_subcall_transaction() {
 				value: 0.into(),
 				gas: 78934.into(),
 				input: vec![],
+				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(3),
@@ -891,6 +931,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(31761),
@@ -904,6 +945,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 				value: 69.into(),
 				gas: 2300.into(),
 				input: vec![],
+				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult::default()),
 			subs: vec![]
@@ -945,6 +987,7 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(31761),
@@ -989,6 +1032,7 @@ fn should_trace_failed_subcall_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(79_000),
@@ -1002,6 +1046,7 @@ fn should_trace_failed_subcall_transaction() {
 				value: 0.into(),
 				gas: 78934.into(),
 				input: vec![],
+				call_type: CallType::Call,
 			}),
 			result: trace::Res::FailedCall,
 			subs: vec![]
@@ -1045,6 +1090,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(135),
@@ -1058,6 +1104,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 				value: 0.into(),
 				gas: 78934.into(),
 				input: vec![],
+				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(69),
@@ -1071,6 +1118,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 					value: 0.into(),
 					gas: 78868.into(),
 					input: vec![],
+					call_type: CallType::Call,
 				}),
 				result: trace::Res::Call(trace::CallResult {
 					gas_used: U256::from(3),
@@ -1118,6 +1166,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(79_000),
@@ -1131,6 +1180,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 				value: 0.into(),
 				gas: 78934.into(),
 				input: vec![],
+				call_type: CallType::Call,
 			}),
 			result: trace::Res::FailedCall,
 			subs: vec![Trace {
@@ -1141,6 +1191,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 				value: 0.into(),
 				gas: 78868.into(),
 				input: vec![],
+				call_type: CallType::Call,
 				}),
 				result: trace::Res::Call(trace::CallResult {
 					gas_used: U256::from(3),
@@ -1187,6 +1238,7 @@ fn should_trace_suicide() {
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: 3.into(),

@@ -38,6 +38,7 @@ use self::memory::Memory;
 
 use std::marker::PhantomData;
 use common::*;
+use types::executed::CallType;
 use super::instructions::{self, Instruction, InstructionInfo};
 use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType};
 
@@ -96,13 +97,13 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 		self.mem.clear();
 
 		let code = &params.code.as_ref().unwrap();
-		let valid_jump_destinations = self.find_jump_destinations(&code);
+		let valid_jump_destinations = self.find_jump_destinations(code);
 
 		let mut gasometer = Gasometer::<Cost>::new(try!(Cost::from_u256(params.gas)));
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut reader = CodeReader {
 			position: 0,
-			code: &code
+			code: code
 		};
 		let infos = &*instructions::INSTRUCTIONS;
 
@@ -274,7 +275,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					return Ok(InstructionResult::Ok);
 				}
 
-				let create_result = ext.create(&gas.as_u256(), &endowment, &contract_code);
+				let create_result = ext.create(&gas.as_u256(), &endowment, contract_code);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
 						stack.push(address_to_u256(address));
@@ -311,16 +312,16 @@ impl<Cost: CostType> Interpreter<Cost> {
 				});
 
 				// Get sender & receive addresses, check if we have balance
-				let (sender_address, receive_address, has_balance) = match instruction {
+				let (sender_address, receive_address, has_balance, call_type) = match instruction {
 					instructions::CALL => {
 						let has_balance = ext.balance(&params.address) >= value.unwrap();
-						(&params.address, &code_address, has_balance)
+						(&params.address, &code_address, has_balance, CallType::Call)
 					},
 					instructions::CALLCODE => {
 						let has_balance = ext.balance(&params.address) >= value.unwrap();
-						(&params.address, &params.address, has_balance)
+						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
-					instructions::DELEGATECALL => (&params.sender, &params.address, true),
+					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
 					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
 
@@ -335,7 +336,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(self.mem.read_slice(in_off, in_size)) };
 					let output = self.mem.writeable_slice(out_off, out_size);
-					ext.call(&call_gas.as_u256(), sender_address, receive_address, value, input, &code_address, output)
+					ext.call(&call_gas.as_u256(), sender_address, receive_address, value, input, &code_address, output, call_type)
 				};
 
 				return match call_result {

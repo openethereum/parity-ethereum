@@ -193,7 +193,7 @@ impl OverlayRecentDB {
 	#[inline]
 	fn to_short_key(key: &H256) -> H256 {
 		let mut k = H256::new();
-		&mut k[0..DB_PREFIX_LEN].copy_from_slice(&key[0..DB_PREFIX_LEN]);
+		k[0..DB_PREFIX_LEN].copy_from_slice(&key[0..DB_PREFIX_LEN]);
 		k
 	}
 }
