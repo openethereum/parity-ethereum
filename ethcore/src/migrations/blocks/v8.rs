@@ -16,19 +16,22 @@
 
 //! This migration compresses the state db.
 
-use util::migration::SimpleMigration;
+use util::migration::{SimpleMigration, Progress};
 use util::rlp::{Compressible, UntrustedRlp, View, RlpType};
 
 /// Compressing migration.
 #[derive(Default)]
-pub struct V8;
+pub struct V8(Progress);
 
 impl SimpleMigration for V8 {
 	fn version(&self) -> u32 {
 		8
 	}
 
+	fn columns(&self) -> Option<u32> { None }
+
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
+		self.0.tick();
 		Some((key,UntrustedRlp::new(&value).compress(RlpType::Blocks).to_vec()))
 	}
 }

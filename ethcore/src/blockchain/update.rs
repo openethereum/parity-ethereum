@@ -6,9 +6,11 @@ use blooms::BloomGroup;
 use super::extras::{BlockDetails, BlockReceipts, TransactionAddress, LogGroupPosition};
 
 /// Block extras update info.
-pub struct ExtrasUpdate {
+pub struct ExtrasUpdate<'a> {
 	/// Block info.
 	pub info: BlockInfo,
+	/// Current block uncompressed rlp bytes
+	pub block: &'a [u8],
 	/// Modified block hashes.
 	pub block_hashes: HashMap<BlockNumber, H256>,
 	/// Modified block details.

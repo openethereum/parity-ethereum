@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use client::{BlockChainClient, Client, ClientConfig};
+use client::{self, BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;
 use block::{OpenBlock, Drain};
@@ -246,12 +246,23 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	}
 }
 
+fn new_db(path: &str) -> Arc<Database> {
+	Arc::new(
+		Database::open(&DatabaseConfig::with_columns(client::DB_NO_OF_COLUMNS), path)
+		.expect("Opening database for tests should always work.")
+	)
+}
+
 pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
+	let db = new_db(temp.as_str());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
+
+	let batch = db.transaction();
 	for block_order in 1..block_number {
-		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
+		bc.insert_block(&batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
 	}
+	db.write(batch).unwrap();
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
@@ -261,10 +272,15 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 
 pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
+	let db = new_db(temp.as_str());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
+
+
+	let batch = db.transaction();
 	for block_order in 1..block_number {
-		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
+		bc.insert_block(&batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
 	}
+	db.write(batch).unwrap();
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
@@ -274,7 +290,8 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 
 pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
+	let db = new_db(temp.as_str());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
@@ -284,7 +301,8 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
-	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge, DatabaseConfig::default());
+	let journal_db = get_temp_journal_db_in(temp.as_path());
+
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(journal_db)
@@ -294,6 +312,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 pub fn get_temp_state() -> GuardedTempResult<State> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_journal_db_in(temp.as_path());
+
 	GuardedTempResult {
 	    _temp: temp,
 		result: Some(State::new(journal_db, U256::from(0), Default::default())),
@@ -301,7 +320,8 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 }
 
 pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
-	journaldb::new(path.to_str().unwrap(), journaldb::Algorithm::EarlyMerge, DatabaseConfig::default())
+	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
+	journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, None)
 }
 
 pub fn get_temp_state_in(path: &Path) -> State {

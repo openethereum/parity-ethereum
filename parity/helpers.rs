@@ -238,7 +238,7 @@ pub fn execute_upgrades(
 		_ => {},
 	}
 
-	let client_path = dirs.client_path(genesis_hash, fork_name, pruning);
+	let client_path = dirs.db_version_path(genesis_hash, fork_name, pruning);
 	migrate(&client_path, pruning, compaction_profile).map_err(|e| format!("{}", e))
 }
 

@@ -35,7 +35,7 @@ pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
 pub use types::trace_types::filter::{Filter, AddressesFilter};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
-use util::{Bytes, Address, U256, H256};
+use util::{Bytes, Address, U256, H256, DBTransaction};
 use self::trace::{Call, Create};
 use action_params::ActionParams;
 use header::BlockNumber;
@@ -121,7 +121,7 @@ pub trait Database {
 	fn tracing_enabled(&self) -> bool;
 
 	/// Imports new block traces.
-	fn import(&self, request: ImportRequest);
+	fn import(&self, batch: &DBTransaction, request: ImportRequest);
 
 	/// Returns localized trace at given position.
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace>;

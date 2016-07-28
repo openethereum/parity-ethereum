@@ -228,7 +228,7 @@ mod tests {
 	fn test_compression() {
 		use kvdb::*;
 		let path = "db to test".to_string();
-		let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
+		let values: Vec<_> = Database::open_default(&path).unwrap().iter(Some(2)).map(|(_, v)| v).collect();
 		let mut decomp_size = 0;
 		let mut comp_size = 0;
 

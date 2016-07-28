@@ -64,7 +64,7 @@ install:
     )
 
 script:
-  - if [ "$RUN_TESTS" = "true" ]; then ./test.sh; fi
+  - if [ "$RUN_TESTS" = "true" ]; then ./test.sh --verbose; fi
   - if [ "$RUN_COVERAGE" = "true" ]; then ./scripts/cov.sh "$KCOV_CMD"; fi
 
 after_success: |

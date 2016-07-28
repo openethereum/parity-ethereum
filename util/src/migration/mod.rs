@@ -46,14 +46,16 @@ impl Default for Config {
 pub struct Batch {
 	inner: BTreeMap<Vec<u8>, Vec<u8>>,
 	batch_size: usize,
+	column: Option<u32>,
 }
 
 impl Batch {
 	/// Make a new batch with the given config.
-	pub fn new(config: &Config) -> Self {
+	pub fn new(config: &Config, col: Option<u32>) -> Self {
 		Batch {
 			inner: BTreeMap::new(),
 			batch_size: config.batch_size,
+			column: col,
 		}
 	}
 
@@ -70,10 +72,10 @@ impl Batch {
 	pub fn commit(&mut self, dest: &mut Database) -> Result<(), Error> {
 		if self.inner.is_empty() { return Ok(()) }
 
-		let transaction = DBTransaction::new();
+		let transaction = DBTransaction::new(dest);
 
 		for keypair in &self.inner {
-			try!(transaction.put(&keypair.0, &keypair.1).map_err(Error::Custom));
+			try!(transaction.put(self.column, &keypair.0, &keypair.1).map_err(Error::Custom));
 		}
 
 		self.inner.clear();
@@ -102,14 +104,18 @@ impl From<::std::io::Error> for Error {
 
 /// A generalized migration from the given db to a destination db.
 pub trait Migration: 'static {
+	/// Number of columns in database after the migration.
+	fn columns(&self) -> Option<u32>;
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
 	/// Migrate a source to a destination.
-	fn migrate(&mut self, source: &Database, config: &Config, destination: &mut Database) -> Result<(), Error>;
+	fn migrate(&mut self, source: &Database, config: &Config, destination: &mut Database, col: Option<u32>) -> Result<(), Error>;
 }
 
 /// A simple migration over key-value pairs.
 pub trait SimpleMigration: 'static {
+	/// Number of columns in database after the migration.
+	fn columns(&self) -> Option<u32>;
 	/// Version of database after the migration.
 	fn version(&self) -> u32;
 	/// Should migrate existing object to new database.
@@ -118,12 +124,14 @@ pub trait SimpleMigration: 'static {
 }
 
 impl<T: SimpleMigration> Migration for T {
+	fn columns(&self) -> Option<u32> { SimpleMigration::columns(self) }
+
 	fn version(&self) -> u32 { SimpleMigration::version(self) }
 
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
-		let mut batch = Batch::new(config);
+	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+		let mut batch = Batch::new(config, col);
 
-		for (key, value) in source.iter() {
+		for (key, value) in source.iter(col) {
 			if let Some((key, value)) = self.simple_migrate(key.to_vec(), value.to_vec()) {
 				try!(batch.insert(key, value, dest));
 			}
@@ -197,12 +205,14 @@ impl Manager {
 	/// and producing a path where the final migration lives.
 	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
 		let config = self.config.clone();
-		let mut migrations = self.migrations_from(version);
+		let columns = self.no_of_columns_at(version);
+		let migrations = self.migrations_from(version);
 		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
-		let db_config = DatabaseConfig {
+		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
 			cache_size: None,
-			compaction: config.compaction_profile.clone(),
+			compaction: config.compaction_profile,
+			columns: columns,
 		};
 
 		let db_root = database_path(old_path);
@@ -212,14 +222,28 @@ impl Manager {
 		// start with the old db.
 		let old_path_str = try!(old_path.to_str().ok_or(Error::MigrationImpossible));
 		let mut cur_db = try!(Database::open(&db_config, old_path_str).map_err(Error::Custom));
+
 		for migration in migrations {
+			// Change number of columns in new db
+			let current_columns = db_config.columns;
+			db_config.columns = migration.columns();
+
 			// open the target temporary database.
 			temp_path = temp_idx.path(&db_root);
 			let temp_path_str = try!(temp_path.to_str().ok_or(Error::MigrationImpossible));
 			let mut new_db = try!(Database::open(&db_config, temp_path_str).map_err(Error::Custom));
 
 			// perform the migration from cur_db to new_db.
-			try!(migration.migrate(&cur_db, &config, &mut new_db));
+			match current_columns {
+				// migrate only default column
+				None => try!(migration.migrate(&cur_db, &config, &mut new_db, None)),
+				Some(v) => {
+					// Migrate all columns in previous DB
+					for col in 0..v {
+						try!(migration.migrate(&cur_db, &config, &mut new_db, Some(col)))
+					}
+				}
+			}
 			// next iteration, we will migrate from this db into the other temp.
 			cur_db = new_db;
 			temp_idx.swap();
@@ -242,5 +266,38 @@ impl Manager {
 	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<Migration>> {
 		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
 	}
+
+	fn no_of_columns_at(&self, version: u32) -> Option<u32> {
+		let migration = self.migrations.iter().find(|m| m.version() == version);
+		match migration {
+			Some(m) => m.columns(),
+			None => None
+		}
+	}
 }
 
+/// Prints a dot every `max` ticks
+pub struct Progress {
+	current: usize,
+	max: usize,
+}
+
+impl Default for Progress {
+	fn default() -> Self {
+		Progress {
+			current: 0,
+			max: 100_000,
+		}
+	}
+}
+
+impl Progress {
+	/// Tick progress meter.
+	pub fn tick(&mut self) {
+		self.current += 1;
+		if self.current == self.max {
+			self.current = 0;
+			flush!(".");
+		}
+	}
+}

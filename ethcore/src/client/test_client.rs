@@ -248,7 +248,8 @@ impl TestBlockChainClient {
 
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
-	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge, DatabaseConfig::default());
+	let db = Database::open_default(temp.as_str()).unwrap();
+	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, None);
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(journal_db)
@@ -361,6 +362,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn last_hashes(&self) -> LastHashes {
 		unimplemented!();
+	}
+
+	fn best_block_header(&self) -> Bytes {
+		self.block_header(BlockID::Hash(self.chain_info().best_block_hash)).expect("Best block always have header.")
 	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
