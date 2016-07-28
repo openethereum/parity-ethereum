@@ -37,7 +37,6 @@ pub use std::error::Error as StdError;
 pub use std::ops::*;
 pub use std::cmp::*;
 pub use std::sync::Arc;
-pub use std::cell::*;
 pub use std::collections::*;
 
 pub use rustc_serialize::json::Json;

@@ -48,7 +48,7 @@ impl<'a> Node<'a> {
 			},
 			// branch - first 16 are nodes, 17th is a value (or empty).
 			Prototype::List(17) => {
-				let mut nodes: [&'a [u8]; 16] = unsafe { ::std::mem::uninitialized() };
+				let mut nodes: [&'a [u8]; 16] = [&[], &[], &[], &[], &[], &[], &[], &[], &[], &[], &[], &[], &[], &[], &[], &[]];
 				for i in 0..16 {
 					nodes[i] = r.at(i).as_raw();
 				}

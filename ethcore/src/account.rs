@@ -20,6 +20,8 @@ use util::*;
 use pod_account::*;
 use account_db::*;
 
+use std::cell::{Ref, RefCell};
+
 /// Single account in the system.
 #[derive(Clone)]
 pub struct Account {
@@ -130,13 +132,23 @@ impl Account {
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
+		use util::trie::TrieError;
+
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
 			let db = SecTrieDB::new(db, &self.storage_root)
 				.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
 
-			(Filth::Clean, H256::from(db.get(key).map_or(U256::zero(), |v| -> U256 {decode(v)})))
+			let item: U256 = match db.get(key).map(decode) {
+				Ok(x) => x,
+				Err(TrieError::NotInTrie) => U256::zero(),
+				Err(e) => {
+					warn!("Potential DB corruption: {}", e);
+					U256::zero()
+				}
+			};
+			(Filth::Clean, item.into())
 		}).1.clone()
 	}
 
@@ -243,9 +255,13 @@ impl Account {
 			if f == &Filth::Dirty {
 				// cast key and value to trait type,
 				// so we can call overloaded `to_bytes` method
-				match v.is_zero() {
-					true => { t.remove(k); },
-					false => { t.insert(k, &encode(&U256::from(v.as_slice()))); },
+				let res = match v.is_zero() {
+					true => t.remove(k),
+					false => t.insert(k, &encode(&U256::from(v.as_slice()))),
+				};
+
+				if let Err(e) = res {
+					warn!("Encountered potential DB corruption: {}", e);
 				}
 				*f = Filth::Clean;
 			}

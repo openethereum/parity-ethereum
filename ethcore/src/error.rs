@@ -258,7 +258,10 @@ pub type ImportResult = Result<H256, Error>;
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {
-		Error::Client(err)
+		match err {
+			ClientError::Trie(err) => Error::Trie(err),
+			_ => Error::Client(err)
+		}
 	}
 }
 

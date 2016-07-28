@@ -176,7 +176,7 @@ impl Client {
 			state_db_config
 		);
 
-		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
+		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
