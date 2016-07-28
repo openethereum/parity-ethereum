@@ -19,7 +19,8 @@ matrix:
     env: RUN_TESTS="true"
   - rust: beta
     env: RUN_COVERAGE="true"
-  - env: RUN_DOCS="true"
+  - rust: stable
+    env: RUN_DOCS="true"
 
 env:
   global:
