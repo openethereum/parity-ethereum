@@ -18,7 +18,7 @@ use ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
 use spec::CommonParams;
-use engine::*;
+use engines::Engine;
 use evm::Schedule;
 use ethjson;
 

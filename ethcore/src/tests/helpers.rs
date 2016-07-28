@@ -21,7 +21,7 @@ use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use state::*;
 use evm::Schedule;
-use engine::*;
+use engines::Engine;
 use ethereum;
 use devtools::*;
 use miner::Miner;

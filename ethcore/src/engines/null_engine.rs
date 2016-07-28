@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use util::hash::Address;
 use builtin::Builtin;
-use engine::Engine;
+use engines::Engine;
 use spec::CommonParams;
 use evm::Schedule;
 use env_info::EnvInfo;

@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use blockchain::BlockProvider;
-use engines::Engine;
-use error::Error;
-use header::Header;
+//! Consensus engine trait and basic implementations.
 
-/// Should be used to verify blocks.
-pub trait Verifier: Send + Sync {
-	fn verify_block_family(&self, header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error>;
-	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error>;
-}
+mod engine;
+mod null_engine;
+mod basic_authority;
+
+pub use self::engine::Engine;
+pub use self::null_engine::NullEngine;
+pub use self::basic_authority::BasicAuthority;

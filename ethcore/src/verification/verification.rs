@@ -22,7 +22,7 @@
 /// 3. Final verification against the blockchain done before enactment.
 
 use common::*;
-use engine::Engine;
+use engines::Engine;
 use blockchain::*;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
@@ -233,7 +233,7 @@ mod tests {
 	use error::BlockError::*;
 	use views::*;
 	use blockchain::*;
-	use engine::*;
+	use engines::Engine;
 	use spec::*;
 	use transaction::*;
 	use tests::helpers::*;

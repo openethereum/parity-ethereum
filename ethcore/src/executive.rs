@@ -17,7 +17,7 @@
 //! Transaction Execution environment.
 use common::*;
 use state::*;
-use engine::*;
+use engines::Engine;
 use types::executed::CallType;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
