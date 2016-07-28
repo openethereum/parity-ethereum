@@ -194,7 +194,7 @@ impl Manager {
 	/// and producing a path where the final migration lives.
 	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
 		let config = self.config.clone();
-		let mut migrations = self.migrations_from(version);
+		let migrations = self.migrations_from(version);
 		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
 		let db_config = DatabaseConfig {
 			max_open_files: 64,

@@ -26,59 +26,54 @@ use Bytes;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// How to treat entries which can be deleted
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeletionMode {
-	/// Ignore them.
-	Ignore,
-	/// Remove them from the backing database.
-	Remove,
-}
-
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
-/// The operations `insert()` and `remove()` take place on the memory overlay; batches of
-/// such operations may be flushed to the disk-backed DB with `commit()` or discarded with
-/// `revert()`.
+/// Alterations to the database may be made through `insert`, `delete` and associated
+/// `emplace` function.
+/// 
+/// Keys may be `insert()`ed and `remove()`d. Persistent checkpoints may be made with
+/// `commit()`. At the point on `commit`, the total historical insertions (when
+/// after reduction by corresponding deletes) must sum to either ONE or ZERO. Anything
+/// else will return an `Error`.
 ///
-/// `lookup()` and `contains()` maintain normal behaviour - all `insert()` and `remove()`
-/// queries have an immediate effect in terms of these functions.
+/// `revert()` (or the cessation of the program) will anull any alterations (using
+/// `insert()` and `delete()`) from the historical record up until the `commit`
+/// immediately prior.
 ///
-/// The total amount of insertions and removals of a single value must add up to
-/// either
-///   - A single insertion
-///   - A single deletion
-///   - No operation.
+/// The inspection functions `get()`, `contains()` and `keys()` maintain normal behaviour
+/// - all `insert()` and `remove()` queries have an immediate effect and `commit` has no
+/// effect on their behaviour. The keys considered in the database at any time are all
+/// of those with a NET POSITIVE number of insertions in the historical record after all
+/// deletions have been accounted for.
 ///
-/// Additionally, it is an error to insert a value which already exists in the backing
-/// database or remove a value which doesn't exist in the backing database.
+/// An auxilliary datum is also available for each key (functions with the `_aux` suffix)
+/// which may be used to store additional non-persistent data. Auxilliary data is entirely
+/// independent from the main database.
 #[derive(Clone)]
 pub struct OverlayDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
-	mode: DeletionMode,
 }
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database and deletion mode.
-	pub fn new(backing: Database, mode: DeletionMode) -> Self {
-		OverlayDB::new_with_arc(Arc::new(backing), mode)
+	pub fn new(backing: Database) -> Self {
+		OverlayDB::new_with_arc(Arc::new(backing))
 	}
 
 	/// Create a new instance of OverlayDB given a shared `backing` database.
-	pub fn new_with_arc(backing: Arc<Database>, mode: DeletionMode) -> Self {
+	pub fn new_with_arc(backing: Arc<Database>) -> Self {
 		OverlayDB {
 			overlay: MemoryDB::new(),
 			backing: backing,
-			mode: mode
 		}
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
-	pub fn new_temp(mode: DeletionMode) -> Self {
+	pub fn new_temp() -> Self {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(Database::open_default(dir.to_str().unwrap()).unwrap(), mode)
+		Self::new(Database::open_default(dir.to_str().unwrap()).unwrap())
 	}
 
 	/// Commit all operations to given batch. Returns the number of insertions
@@ -86,34 +81,33 @@ impl OverlayDB {
 	fn commit_to_batch(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
 		let mut ret = 0u32;
 		let mut deletes = 0usize;
-		for (key, (value, rc)) in self.overlay.drain() {
-			match rc {
+		for (ref key, &(ref value, ref rc)) in self.overlay.peek().iter() {
+			match *rc {
 				0 => continue,
 				1 => {
-					if try!(self.backing.get(&key)).is_none() {
-						try!(batch.put(&key, &value))
-					} else if self.mode == DeletionMode::Remove {
+					if try!(self.backing.get(key)).is_none() {
+						try!(batch.put(key, value))
+					} else {
 						// error to insert something more than once.
-						return Err(BaseDataError::InsertionInvalid(key).into());
+						return Err(BaseDataError::InsertionInvalid(*key.clone()).into());
 					}
 				}
 				-1 => {
 					deletes += 1;
-					if self.mode == DeletionMode::Remove {
-						if try!(self.backing.get(&key)).is_none() {
-							return Err(BaseDataError::DeletionInvalid(key).into());
-						}
-
-						try!(batch.delete(&key));
+					if try!(self.backing.get(key)).is_none() {
+						return Err(BaseDataError::DeletionInvalid(*key.clone()).into());
 					}
+
+					try!(batch.delete(key));
 				}
-				rc => return Err(BaseDataError::InvalidReferenceCount(key, rc).into()),
+				rc => return Err(BaseDataError::InvalidReferenceCount(*key.clone(), rc).into()),
 			}
 
 			ret += 1;
 		}
 
 		trace!(target: "overlaydb", "OverlayDB::commit() deleted {} nodes", deletes);
+		self.overlay.drain();
 		Ok(ret)
 	}
 
@@ -129,7 +123,7 @@ impl OverlayDB {
 	/// Revert all operations on this object since last commit.
 	pub fn revert(&mut self) { self.overlay.clear() }
 
-	/// Get the value of the given key.
+	/// Get the value of the given key in the backing database, or `None` if it's not there.
 	fn payload(&self, key: &H256) -> Option<Bytes> {
 		// TODO [rob] have this and HashDB functions all return Results.
 		self.backing.get(key).expect("Low level database error.").map(|v| v.to_vec())
@@ -140,24 +134,35 @@ impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret = HashMap::new();
 
+		println!("ret: {:?}", ret);
+
 		for (key, _) in self.backing.iter() {
 			ret.insert(H256::from_slice(&*key), 1);
 		}
+
+		println!("overlay: {:?}", self.overlay);
+		println!("ret: {:?}", ret);
 
 		for (key, refs) in self.overlay.keys() {
 			*ret.entry(key).or_insert(0) += refs;
 		}
 
-		ret
+		println!("ret: {:?}", ret);
+		ret.into_iter().filter(|&(_, rc)| rc > 0).collect()
 	}
 
 	fn get(&self, key: &H256) -> Option<&[u8]> {
 		match self.overlay.raw(key) {
+			// +ve + {0,1} = {1..} : must be in!
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
-			// if the value is slated for deletion, don't look in the database.
-			Some(&(_, -1)) if self.mode == DeletionMode::Remove => None,
-			_ => if let Some(x) = self.payload(key) {
-				Some(&self.overlay.denote(key, x).0)
+			// -ve + {0,1} != {..0} : must be out!
+			Some(&(_, rc)) if rc < 0 => None,
+			// no refs - wholly dependent on the backing DB.
+			_ => if let Some(value) = self.payload(key) {
+				// denote() is an optimisation allowing us to:
+				// - memoise the value for later `get`s;
+				// - return the value by reference.
+				Some(&self.overlay.denote(key, value).0)
 			} else {
 				None
 			},
@@ -195,35 +200,65 @@ impl HashDB for OverlayDB {
 
 #[cfg(test)]
 mod tests {
-	use super::{DeletionMode, OverlayDB};
 	use kvdb::Database;
 	use hashdb::HashDB;
+	use super::OverlayDB;
 	use devtools::RandomTempPath;
 	use sha3::Hashable;
 
-	// most of the functionality of `OverlayDB` is tested through
-	// `ArchiveDB`'s tests by proxy.
-
 	#[test]
-	fn delete_ignore() {
+	fn should_give_empty_keys_when_all_deleted() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing, DeletionMode::Ignore);
+		let mut db = OverlayDB::new(backing);
 
 		let hash = db.insert(b"dog");
 		db.commit().unwrap();
 
 		db.remove(&hash);
+		assert!(db.keys().is_empty());
+		
+		db.commit().unwrap();
+		assert!(db.keys().is_empty());
+	}
+
+	#[test]
+	fn should_not_return_negative_reffed_keys() {
+		let path = RandomTempPath::create_dir();
+		let backing = Database::open_default(path.as_str()).unwrap();
+		let mut db = OverlayDB::new(backing);
+
+		let hash = db.insert(b"dog");
 		db.commit().unwrap();
 
-		assert!(db.get(&hash).is_some())
+		db.remove(&hash);
+		assert!(db.keys().is_empty());
+		assert!(!db.contains(&hash));
+		assert!(db.get(&hash).is_none());
+
+		db.remove(&hash);
+		assert!(db.keys().is_empty());
+		assert!(!db.contains(&hash));
+		assert!(db.get(&hash).is_none());
+		
+		assert!(db.commit().is_err());
+
+		db.insert(b"dog");
+		assert!(db.keys().is_empty());
+		assert!(!db.contains(&hash));
+		assert!(db.get(&hash).is_none());
+		
+		db.commit().unwrap();
+		assert!(db.keys().is_empty());
+		assert!(!db.contains(&hash));
+		assert!(db.get(&hash).is_none());
 	}
 
 	#[test]
 	fn delete_remove() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
+		let mut db = OverlayDB::new(backing);
 
 		let hash = db.insert(b"dog");
 		db.commit().unwrap();
@@ -239,7 +274,7 @@ mod tests {
 	fn double_remove() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
+		let mut db = OverlayDB::new(backing);
 
 		let hash = db.insert(b"cat");
 		assert!(db.commit().is_ok());
@@ -255,7 +290,7 @@ mod tests {
 	fn deletion_invalid() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
+		let mut db = OverlayDB::new(backing);
 
 		let hash = b"hello".sha3();
 		db.remove(&hash);
@@ -267,7 +302,7 @@ mod tests {
 	fn insertion_invalid() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing, DeletionMode::Remove);
+		let mut db = OverlayDB::new(backing);
 
 		db.insert(b"bad juju");
 		assert!(db.commit().is_ok());
