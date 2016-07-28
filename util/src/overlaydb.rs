@@ -30,7 +30,7 @@ use std::sync::Arc;
 ///
 /// Alterations to the database may be made through `insert`, `delete` and associated
 /// `emplace` function.
-/// 
+///
 /// Keys may be `insert()`ed and `remove()`d. Persistent checkpoints may be made with
 /// `commit()`. At the point on `commit`, the total historical insertions (when
 /// after reduction by corresponding deletes) must sum to either ONE or ZERO. Anything
@@ -134,20 +134,14 @@ impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret = HashMap::new();
 
-		println!("ret: {:?}", ret);
-
 		for (key, _) in self.backing.iter() {
 			ret.insert(H256::from_slice(&*key), 1);
 		}
-
-		println!("overlay: {:?}", self.overlay);
-		println!("ret: {:?}", ret);
 
 		for (key, refs) in self.overlay.keys() {
 			*ret.entry(key).or_insert(0) += refs;
 		}
 
-		println!("ret: {:?}", ret);
 		ret.into_iter().filter(|&(_, rc)| rc > 0).collect()
 	}
 
@@ -159,9 +153,6 @@ impl HashDB for OverlayDB {
 			Some(&(_, rc)) if rc < 0 => None,
 			// no refs - wholly dependent on the backing DB.
 			_ => if let Some(value) = self.payload(key) {
-				// denote() is an optimisation allowing us to:
-				// - memoise the value for later `get`s;
-				// - return the value by reference.
 				Some(&self.overlay.denote(key, value).0)
 			} else {
 				None
@@ -217,7 +208,7 @@ mod tests {
 
 		db.remove(&hash);
 		assert!(db.keys().is_empty());
-		
+
 		db.commit().unwrap();
 		assert!(db.keys().is_empty());
 	}
@@ -240,14 +231,14 @@ mod tests {
 		assert!(db.keys().is_empty());
 		assert!(!db.contains(&hash));
 		assert!(db.get(&hash).is_none());
-		
+
 		assert!(db.commit().is_err());
 
 		db.insert(b"dog");
 		assert!(db.keys().is_empty());
 		assert!(!db.contains(&hash));
 		assert!(db.get(&hash).is_none());
-		
+
 		db.commit().unwrap();
 		assert!(db.keys().is_empty());
 		assert!(!db.contains(&hash));
