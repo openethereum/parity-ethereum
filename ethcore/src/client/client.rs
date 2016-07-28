@@ -40,7 +40,7 @@ use header::BlockNumber;
 use state::State;
 use spec::Spec;
 use basic_types::Seal;
-use engine::Engine;
+use engines::Engine;
 use views::HeaderView;
 use service::ClientIoMessage;
 use env_info::LastHashes;

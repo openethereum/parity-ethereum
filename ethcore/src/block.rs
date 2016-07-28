@@ -17,7 +17,7 @@
 //! Blockchain block.
 
 use common::*;
-use engine::*;
+use engines::Engine;
 use state::*;
 use verification::PreverifiedBlock;
 use trace::FlatTrace;

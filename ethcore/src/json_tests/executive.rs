@@ -17,7 +17,7 @@
 use super::test_common::*;
 use state::*;
 use executive::*;
-use engine::*;
+use engines::Engine;
 use evm;
 use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
 use externalities::*;

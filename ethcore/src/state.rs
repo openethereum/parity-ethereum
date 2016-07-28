@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use common::*;
-use engine::Engine;
+use engines::Engine;
 use executive::{Executive, TransactOptions};
 use evm::Factory as EvmFactory;
 use account_db::*;
