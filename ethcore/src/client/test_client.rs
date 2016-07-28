@@ -364,6 +364,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
+	fn best_block_header(&self) -> Bytes {
+		self.block_header(BlockID::Hash(self.chain_info().best_block_hash)).expect("Best block always have header.")
+	}
+
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 	}

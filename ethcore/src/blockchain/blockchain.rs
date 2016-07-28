@@ -156,8 +156,6 @@ pub struct BlockChain {
 	db: Arc<Database>,
 
 	cache_man: RwLock<CacheManager>,
-
-	insert_lock: Mutex<()>
 }
 
 impl BlockProvider for BlockChain {
@@ -169,6 +167,7 @@ impl BlockProvider for BlockChain {
 
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes> {
+		// Check cache first
 		{
 			let read = self.blocks.read();
 			if let Some(v) = read.get(hash) {
@@ -176,6 +175,15 @@ impl BlockProvider for BlockChain {
 			}
 		}
 
+		// Check if it's the best block
+		{
+			let best_block = self.best_block.read();
+			if &best_block.hash == hash {
+				return Some(best_block.block.clone());
+			}
+		}
+
+		// Read from DB and populate cache
 		let opt = self.db.get(DB_COL_BLOCK, hash)
 			.expect("Low level database error. Some issue with disk?");
 
@@ -269,7 +277,6 @@ impl BlockChain {
 			block_receipts: RwLock::new(HashMap::new()),
 			db: db.clone(),
 			cache_man: RwLock::new(cache_man),
-			insert_lock: Mutex::new(()),
 		};
 
 		// load best block
@@ -303,10 +310,19 @@ impl BlockChain {
 		};
 
 		{
+			// Fetch best block details
+			let best_block_number = bc.block_number(&best_block_hash).unwrap();
+			let best_block_total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
+			let best_block_rlp = bc.block(&best_block_hash).unwrap();
+
+			// and write them
 			let mut best_block = bc.best_block.write();
-			best_block.number = bc.block_number(&best_block_hash).unwrap();
-			best_block.total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
-			best_block.hash = best_block_hash;
+			*best_block = BestBlock {
+				number: best_block_number,
+				total_difficulty: best_block_total_difficulty,
+				hash: best_block_hash,
+				block: best_block_rlp,
+			};
 		}
 
 		bc
@@ -340,10 +356,17 @@ impl BlockChain {
 					batch.write(DB_COL_EXTRA, &LogGroupPosition::from(k), &BloomGroup::from(v));
 				}
 				batch.put(DB_COL_EXTRA, b"best", &hash).unwrap();
+
+				let best_block_total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
+				let best_block_rlp = self.block(&hash).unwrap();
+
 				let mut best_block = self.best_block.write();
-				best_block.number = extras.number - 1;
-				best_block.total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
-				best_block.hash = hash;
+				*best_block = BestBlock {
+					number: extras.number - 1,
+					total_difficulty: best_block_total_difficulty,
+					hash: hash,
+					block: best_block_rlp,
+				};
 				// update parent extras
 				if let Some(mut details) = self.db.read(DB_COL_EXTRA, &hash) as Option<BlockDetails> {
 					details.children.clear();
@@ -471,7 +494,6 @@ impl BlockChain {
 
 		let compressed = UntrustedRlp::new(bytes).compress(RlpType::Blocks).to_vec();
 
-		let _lock = self.insert_lock.lock();
 		// store block in db
 		batch.put(DB_COL_BLOCK, &hash, &compressed).unwrap();
 
@@ -491,6 +513,7 @@ impl BlockChain {
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			info: info.clone(),
+			block: bytes,
 		});
 
 		ImportRoute::from(info)
@@ -571,7 +594,8 @@ impl BlockChain {
 					*best_block = BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
-						total_difficulty: update.info.total_difficulty
+						total_difficulty: update.info.total_difficulty,
+						block: update.block.to_vec(),
 					};
 				}
 			}
@@ -633,7 +657,7 @@ impl BlockChain {
 				block_hashes.insert(number, info.hash.clone());
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
-				let ancestor_number = self.block_number(&data.ancestor).unwrap();
+				let ancestor_number = self.block_number(&data.ancestor).expect("Block number of ancestor is always in DB");
 				let start_number = ancestor_number + 1;
 
 				for (index, hash) in data.enacted.iter().cloned().enumerate() {
@@ -864,6 +888,29 @@ mod tests {
 	}
 
 	#[test]
+	fn should_cache_best_block() {
+		// given
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let first = canon_chain.generate(&mut finalizer).unwrap();
+
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		assert_eq!(bc.best_block_number(), 0);
+
+		// when
+		let batch = db.transaction();
+		bc.insert_block(&batch, &first, vec![]);
+		// NOTE no db.write here (we want to check if best block is cached)
+
+		// then
+		assert_eq!(bc.best_block_number(), 1);
+		assert!(bc.block(&bc.best_block_hash()).is_some(), "Best block should be queryable even without DB write.");
+	}
+
+	#[test]
 	fn basic_blockchain_insert() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -877,7 +924,6 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
-		assert_eq!(bc.best_block_number(), 0);
 		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.block_hash(1), None);
