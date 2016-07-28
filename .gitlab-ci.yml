@@ -169,6 +169,4 @@ windows:
     paths:
     - target/release/parity.exe
     - target/release/parity.pdb
-    - target/release/parity.lib
-    - target/release/parity.exp
     name: "${CI_BUILD_NAME}_parity"
