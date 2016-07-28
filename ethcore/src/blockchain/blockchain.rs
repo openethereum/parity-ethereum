@@ -519,10 +519,12 @@ impl BlockChain {
 		let info = self.block_info(bytes);
 
 		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
-			info!(target: "reorg", "{} Using {} (#{})", Colour::Yellow.bold().paint("Switching fork to a new branch."), info.hash, info.number);
-			info!(target: "reorg", "{}{}", Colour::Red.bold().paint("Retracting"), d.retracted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h)));
-			info!(target: "reorg", "{} {} (#{})", Colour::Blue.bold().paint("Leaving"), d.ancestor, self.block_details(&d.ancestor).expect("`ancestor` is in the route; qed").number);
-			info!(target: "reorg", "{}{}", Colour::Green.bold().paint("Enacting"), d.enacted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h)));
+			info!(target: "reorg", "Reorg to {} ({} {} {})",
+				Colour::Yellow.bold().paint(format!("#{} {}", info.number, info.hash)),
+				Colour::Red.paint(d.retracted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h))),
+				Colour::White.paint(format!("#{} {}", d.ancestor, self.block_details(&d.ancestor).expect("`ancestor` is in the route; qed").number)),
+				Colour::Green.paint(d.enacted.iter().fold(String::new(), |acc, h| format!("{} {}", acc, h)))
+			);
 		}
 
 		self.apply_update(ExtrasUpdate {
