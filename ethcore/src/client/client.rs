@@ -344,7 +344,7 @@ impl Client {
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
 		let max_blocks_to_import = 64;
-		let (imported_blocks, import_results, invalid_blocks, original_best, imported, duration) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, duration) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
@@ -353,8 +353,6 @@ impl Client {
 			let _timer = PerfTimer::new("import_verified_blocks");
 			let start = precise_time_ns();
 			let blocks = self.block_queue.drain(max_blocks_to_import);
-
-			let original_best = self.chain_info().best_block_hash;
 
 			for block in blocks {
 				let header = &block.header;
@@ -389,7 +387,7 @@ impl Client {
 				}
 			}
 			let duration_ns = precise_time_ns() - start;
-			(imported_blocks, import_results, invalid_blocks, original_best, imported, duration_ns)
+			(imported_blocks, import_results, invalid_blocks, imported, duration_ns)
 		};
 
 		{
@@ -411,10 +409,6 @@ impl Client {
 					);
 				});
 			}
-		}
-
-		if self.chain_info().best_block_hash != original_best {
-			self.miner.update_sealing(self);
 		}
 
 		imported
