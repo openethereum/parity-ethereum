@@ -289,8 +289,6 @@ impl Client {
 		let _timer = PerfTimer::new("import_verified_blocks");
 		let blocks = self.block_queue.drain(max_blocks_to_import);
 
-		let original_best = self.chain_info().best_block_hash;
-
 		for block in blocks {
 			let header = &block.header;
 
@@ -341,10 +339,6 @@ impl Client {
 					sealed: Vec::new(),
 				})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
 			}
-		}
-
-		if self.chain_info().best_block_hash != original_best {
-			self.miner.update_sealing(self);
 		}
 
 		imported
@@ -840,8 +834,6 @@ impl MiningBlockChainClient for Client {
 		let _import_lock = self.import_lock.lock();
 		let _timer = PerfTimer::new("import_sealed_block");
 
-		let original_best = self.chain_info().best_block_hash;
-
 		let h = block.header().hash();
 		let number = block.header().number();
 
@@ -860,10 +852,6 @@ impl MiningBlockChainClient for Client {
 				retracted: retracted,
 				sealed: vec![h.clone()],
 			})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
-		}
-
-		if self.chain_info().best_block_hash != original_best {
-			self.miner.update_sealing(self);
 		}
 
 		Ok(h)
