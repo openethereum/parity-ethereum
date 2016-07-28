@@ -21,6 +21,7 @@ use engine::*;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
 use substate::*;
+use types::executed::CallType;
 use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -148,6 +149,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			value: ActionValue::Transfer(*value),
 			code: Some(code.to_vec()),
 			data: None,
+			call_type: CallType::None,
 		};
 
 		self.state.inc_nonce(&self.origin_info.address);
@@ -170,7 +172,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		output: &mut [u8]
+		output: &mut [u8],
+		call_type: CallType
 	) -> MessageCallResult {
 		trace!(target: "externalities", "call");
 
@@ -184,6 +187,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			gas_price: self.origin_info.gas_price,
 			code: self.state.code(code_address),
 			data: Some(data.to_vec()),
+			call_type: call_type,
 		};
 
 		if let Some(value) = value {
@@ -303,6 +307,7 @@ mod tests {
 	use devtools::GuardedTempResult;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
+	use types::executed::CallType;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
@@ -421,7 +426,9 @@ mod tests {
 			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000150000").unwrap()),
 			&[],
 			&Address::new(),
-			&mut output);
+			&mut output,
+			CallType::Call
+		);
 	}
 
 	#[test]

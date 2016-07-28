@@ -26,6 +26,14 @@ use v1::traits::Traces;
 use v1::helpers::CallRequest as CRequest;
 use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
 
+fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
+	CallAnalytics {
+		transaction_tracing: flags.contains(&("trace".to_owned())),
+		vm_tracing: flags.contains(&("vmTrace".to_owned())),
+		state_diffing: flags.contains(&("stateDiff".to_owned())),
+	}
+}
+
 /// Traces api implementation.
 pub struct TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 	client: Weak<C>,
@@ -114,18 +122,11 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		trace!(target: "jsonrpc", "call: {:?}", params);
 		from_params(params)
 			.and_then(|(request, flags)| {
 				let request = CallRequest::into(request);
-				let flags: Vec<String> = flags;
-				let analytics = CallAnalytics {
-					transaction_tracing: flags.contains(&("trace".to_owned())),
-					vm_tracing: flags.contains(&("vmTrace".to_owned())),
-					state_diffing: flags.contains(&("stateDiff".to_owned())),
-				};
 				let signed = try!(self.sign_call(request));
-				match take_weak!(self.client).call(&signed, analytics) {
+				match take_weak!(self.client).call(&signed, to_call_analytics(flags)) {
 					Ok(e) => to_value(&TraceResults::from(e)),
 					_ => Ok(Value::Null),
 				}
@@ -134,21 +135,26 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn raw_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		trace!(target: "jsonrpc", "call: {:?}", params);
-		from_params::<(Bytes, Vec<String>)>(params)
+		from_params::<(Bytes, _)>(params)
 			.and_then(|(raw_transaction, flags)| {
 				let raw_transaction = raw_transaction.to_vec();
-				let analytics = CallAnalytics {
-					transaction_tracing: flags.contains(&("trace".to_owned())),
-					vm_tracing: flags.contains(&("vmTrace".to_owned())),
-					state_diffing: flags.contains(&("stateDiff".to_owned())),
-				};
 				match UntrustedRlp::new(&raw_transaction).as_val() {
-					Ok(signed) => match take_weak!(self.client).call(&signed, analytics) {
+					Ok(signed) => match take_weak!(self.client).call(&signed, to_call_analytics(flags)) {
 						Ok(e) => to_value(&TraceResults::from(e)),
 						_ => Ok(Value::Null),
 					},
 					Err(_) => Err(Error::invalid_params()),
+				}
+			})
+	}
+
+	fn replay_transaction(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(H256, _)>(params)
+			.and_then(|(transaction_hash, flags)| {
+				match take_weak!(self.client).replay(TransactionID::Hash(transaction_hash.into()), to_call_analytics(flags)) {
+					Ok(e) => to_value(&TraceResults::from(e)),
+					_ => Ok(Value::Null),
 				}
 			})
 	}

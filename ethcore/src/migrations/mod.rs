@@ -1,4 +1,5 @@
 //! Database migrations.
 
-pub mod extras;
 pub mod state;
+pub mod blocks;
+pub mod extras;

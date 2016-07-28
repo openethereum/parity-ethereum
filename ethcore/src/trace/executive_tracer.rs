@@ -80,21 +80,17 @@ impl Tracer for ExecutiveTracer {
 		Some(vec![])
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<FlatTrace>, delegate_call: bool) {
-		// don't trace if it's DELEGATECALL or CALLCODE.
-		if delegate_call {
-			return;
-		}
-
+	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
+			trace_address: Default::default(),
 			subtraces: top_level_subtraces(&subs),
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::Call(CallResult {
 				gas_used: gas_used,
 				output: output.expect("self.prepare_trace_output().is_some(): so we must be tracing: qed")
 			}),
-			trace_address: Default::default(),
 		};
+		debug!(target: "trace", "Traced call {:?}", trace);
 		self.traces.push(trace);
 		self.traces.extend(update_trace_address(subs));
 	}
@@ -110,22 +106,19 @@ impl Tracer for ExecutiveTracer {
 			}),
 			trace_address: Default::default(),
 		};
+		debug!(target: "trace", "Traced create {:?}", trace);
 		self.traces.push(trace);
 		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<FlatTrace>, delegate_call: bool) {
-		// don't trace if it's DELEGATECALL or CALLCODE.
-		if delegate_call {
-			return;
-		}
-
+	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
+			trace_address: Default::default(),
 			subtraces: top_level_subtraces(&subs),
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCall,
-			trace_address: Default::default(),
 		};
+		debug!(target: "trace", "Traced failed call {:?}", trace);
 		self.traces.push(trace);
 		self.traces.extend(update_trace_address(subs));
 	}
@@ -137,6 +130,7 @@ impl Tracer for ExecutiveTracer {
 			result: Res::FailedCreate,
 			trace_address: Default::default(),
 		};
+		debug!(target: "trace", "Traced failed create {:?}", trace);
 		self.traces.push(trace);
 		self.traces.extend(update_trace_address(subs));
 	}
@@ -152,6 +146,7 @@ impl Tracer for ExecutiveTracer {
 			result: Res::None,
 			trace_address: Default::default(),
 		};
+		debug!(target: "trace", "Traced failed suicide {:?}", trace);
 		self.traces.push(trace);
 	}
 
