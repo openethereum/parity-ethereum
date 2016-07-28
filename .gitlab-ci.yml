@@ -12,8 +12,6 @@ linux-beta:
   stage: build
   image: ethcore/rust:beta
   script:
-    - export CCX="clang"
-    - export CC="clang"
     - cargo build --release --verbose
     - strip target/release/parity
   tags:
@@ -27,8 +25,6 @@ linux-stable:
   stage: build
   image: ethcore/rust:stable
   script:
-    - export CCX="clang"
-    - export CC="clang"
     - cargo build --release --verbose
     - strip target/release/parity
   tags:
@@ -42,8 +38,6 @@ linux-nightly:
   stage: build
   image: ethcore/rust:nightly
   script:
-    - export CCX="clang"
-    - export CC="clang"
     - cargo build --release --verbose
     - strip target/release/parity
   tags:
@@ -57,7 +51,7 @@ linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
   script:
-    - export CCX="g++"
+    - export CXX="g++"
     - export CC="gcc"
     - cargo build --release --verbose
     - strip target/release/parity
