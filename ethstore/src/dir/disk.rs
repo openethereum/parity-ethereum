@@ -78,7 +78,7 @@ impl DiskDirectory {
 			.zip(paths.into_iter())
 			.map(|(file, path)| match file {
 				Ok(file) => Ok((path, file.into())),
-				Err(err) => Err(Error::InvalidKeyFile(err.to_string())),
+				Err(err) => Err(Error::InvalidKeyFile(format!("{:?}: {}", path, err))),
 			})
 			.collect()
 	}

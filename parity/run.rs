@@ -295,8 +295,9 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 
 		let from = GethDirectory::open(t);
 		let to = DiskDirectory::create(dirs.keys.clone()).unwrap();
-		// ignore error, cause geth may not exist
-		let _ = import_accounts(&from, &to);
+		if let Err(err) = import_accounts(&from, &to) {
+			warn!("Import geth accounts failed. {}", err);
+		}
 	}
 
 	let dir = Box::new(DiskDirectory::create(dirs.keys.clone()).unwrap());
