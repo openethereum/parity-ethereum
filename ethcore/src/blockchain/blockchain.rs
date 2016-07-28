@@ -31,7 +31,7 @@ use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{Writable, Readable, CacheUpdatePolicy};
-use client::{DB_COL_EXTRA, DB_COL_BLOCK};
+use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_COL_BODIES};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -59,29 +59,37 @@ pub trait BlockProvider {
 
 	/// Get the partial-header of a block.
 	fn block_header(&self, hash: &H256) -> Option<Header> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).header())
+		self.block_header_data(hash).map(|header| decode(&header))
 	}
+
+	/// Get the header RLP of a block.
+	fn block_header_data(&self, hash: &H256) -> Option<Bytes>;
+
+	/// Get the block body (uncles and transactions).
+	fn block_body(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Get a list of uncles for a given block.
 	/// Returns None if block does not exist.
 	fn uncles(&self, hash: &H256) -> Option<Vec<Header>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).uncles())
+		self.block_body(hash).map(|bytes| BodyView::new(&bytes).uncles())
 	}
 
 	/// Get a list of uncle hashes for a given block.
 	/// Returns None if block does not exist.
 	fn uncle_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).uncle_hashes())
+		self.block_body(hash).map(|bytes| BodyView::new(&bytes).uncle_hashes())
 	}
 
 	/// Get the number of given block's hash.
 	fn block_number(&self, hash: &H256) -> Option<BlockNumber> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).header_view().number())
+		self.block_details(hash).map(|details| details.number)
 	}
 
 	/// Get transaction with given transaction hash.
 	fn transaction(&self, address: &TransactionAddress) -> Option<LocalizedTransaction> {
-		self.block(&address.block_hash).and_then(|bytes| BlockView::new(&bytes).localized_transaction_at(address.index))
+		self.block_body(&address.block_hash)
+			.and_then(|bytes| self.block_number(&address.block_hash)
+			.and_then(|n| BodyView::new(&bytes).localized_transaction_at(&address.block_hash, n, address.index)))
 	}
 
 	/// Get transaction receipt.
@@ -92,7 +100,9 @@ pub trait BlockProvider {
 	/// Get a list of transactions for a given block.
 	/// Returns None if block does not exist.
 	fn transactions(&self, hash: &H256) -> Option<Vec<LocalizedTransaction>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).localized_transactions())
+		self.block_body(hash)
+			.and_then(|bytes| self.block_number(hash)
+			.map(|n| BodyView::new(&bytes).localized_transactions(hash, n)))
 	}
 
 	/// Returns reference to genesis hash.
@@ -111,7 +121,8 @@ pub trait BlockProvider {
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 enum CacheID {
-	Block(H256),
+	BlockHeader(H256),
+	BlockBody(H256),
 	BlockDetails(H256),
 	BlockHashes(BlockNumber),
 	TransactionAddresses(H256),
@@ -144,7 +155,8 @@ pub struct BlockChain {
 	best_block: RwLock<BestBlock>,
 
 	// block cache
-	blocks: RwLock<HashMap<H256, Bytes>>,
+	block_headers: RwLock<HashMap<H256, Bytes>>,
+	block_bodies: RwLock<HashMap<H256, Bytes>>,
 
 	// extra caches
 	block_details: RwLock<HashMap<H256, BlockDetails>>,
@@ -167,9 +179,24 @@ impl BlockProvider for BlockChain {
 
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes> {
+		match (self.block_header_data(hash), self.block_body(hash)) {
+			(Some(header), Some(body)) => {
+				let mut block = RlpStream::new_list(3);
+				let body_rlp = Rlp::new(&body);
+				block.append_raw(&header, 1);
+				block.append_raw(body_rlp.at(0).as_raw(), 1);
+				block.append_raw(body_rlp.at(1).as_raw(), 1);
+				Some(block.out())
+			},
+			_ => None,
+		}
+	}
+
+	/// Get block header data
+	fn block_header_data(&self, hash: &H256) -> Option<Bytes> {
 		// Check cache first
 		{
-			let read = self.blocks.read();
+			let read = self.block_headers.read();
 			if let Some(v) = read.get(hash) {
 				return Some(v.clone());
 			}
@@ -179,20 +206,55 @@ impl BlockProvider for BlockChain {
 		{
 			let best_block = self.best_block.read();
 			if &best_block.hash == hash {
-				return Some(best_block.block.clone());
+				return Some(Rlp::new(&best_block.block).at(0).as_raw().to_vec());
 			}
 		}
 
 		// Read from DB and populate cache
-		let opt = self.db.get(DB_COL_BLOCK, hash)
+		let opt = self.db.get(DB_COL_HEADERS, hash)
 			.expect("Low level database error. Some issue with disk?");
 
-		self.note_used(CacheID::Block(hash.clone()));
+		self.note_used(CacheID::BlockHeader(hash.clone()));
 
 		match opt {
 			Some(b) => {
 				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
-				let mut write = self.blocks.write();
+				let mut write = self.block_headers.write();
+				write.insert(hash.clone(), bytes.clone());
+				Some(bytes)
+			},
+			None => None
+		}
+	}
+
+	/// Get block body data
+	fn block_body(&self, hash: &H256) -> Option<Bytes> {
+		// Check cache first
+		{
+			let read = self.block_bodies.read();
+			if let Some(v) = read.get(hash) {
+				return Some(v.clone());
+			}
+		}
+
+		// Check if it's the best block
+		{
+			let best_block = self.best_block.read();
+			if &best_block.hash == hash {
+				return Some(Self::block_to_body(&best_block.block));
+			}
+		}
+
+		// Read from DB and populate cache
+		let opt = self.db.get(DB_COL_BODIES, hash)
+			.expect("Low level database error. Some issue with disk?");
+
+		self.note_used(CacheID::BlockBody(hash.clone()));
+
+		match opt {
+			Some(b) => {
+				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
+				let mut write = self.block_bodies.write();
 				write.insert(hash.clone(), bytes.clone());
 				Some(bytes)
 			},
@@ -269,7 +331,8 @@ impl BlockChain {
 				elements_per_index: LOG_BLOOMS_ELEMENTS_PER_INDEX,
 			},
 			best_block: RwLock::new(BestBlock::default()),
-			blocks: RwLock::new(HashMap::new()),
+			block_headers: RwLock::new(HashMap::new()),
+			block_bodies: RwLock::new(HashMap::new()),
 			block_details: RwLock::new(HashMap::new()),
 			block_hashes: RwLock::new(HashMap::new()),
 			transaction_addresses: RwLock::new(HashMap::new()),
@@ -299,7 +362,8 @@ impl BlockChain {
 				};
 
 				let batch = DBTransaction::new(&db);
-				batch.put(DB_COL_BLOCK, &hash, genesis).unwrap();
+				batch.put(DB_COL_HEADERS, &hash, block.header_rlp().as_raw()).unwrap();
+				batch.put(DB_COL_BODIES, &hash, &Self::block_to_body(&genesis)).unwrap();
 
 				batch.write(DB_COL_EXTRA, &hash, &details);
 				batch.write(DB_COL_EXTRA, &header.number(), &hash);
@@ -375,7 +439,8 @@ impl BlockChain {
 				self.db.write(batch).expect("Writing to db failed");
 				self.block_details.write().clear();
 				self.block_hashes.write().clear();
-				self.blocks.write().clear();
+				self.block_headers.write().clear();
+				self.block_bodies.write().clear();
 				self.block_receipts.write().clear();
 				return Some(hash);
 			}
@@ -492,10 +557,13 @@ impl BlockChain {
 			return ImportRoute::none();
 		}
 
-		let compressed = UntrustedRlp::new(bytes).compress(RlpType::Blocks).to_vec();
+		let block_rlp = UntrustedRlp::new(bytes);
+		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
+		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
 
 		// store block in db
-		batch.put(DB_COL_BLOCK, &hash, &compressed).unwrap();
+		batch.put(DB_COL_HEADERS, &hash, &compressed_header).unwrap();
+		batch.put(DB_COL_BODIES, &hash, &compressed_body).unwrap();
 
 		let info = self.block_info(bytes);
 
@@ -751,8 +819,8 @@ impl BlockChain {
 				let range = start_number as bc::Number..self.best_block_number() as bc::Number;
 
 				let mut blooms: Vec<bc::Bloom> = data.enacted.iter()
-					.map(|hash| self.block(hash).unwrap())
-					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
+					.map(|hash| self.block_header_data(hash).unwrap())
+					.map(|bytes| HeaderView::new(&bytes).log_bloom())
 					.map(Bloom::from)
 					.map(Into::into)
 					.collect();
@@ -793,7 +861,7 @@ impl BlockChain {
 	/// Get current cache size.
 	pub fn cache_size(&self) -> CacheSize {
 		CacheSize {
-			blocks: self.blocks.read().heap_size_of_children(),
+			blocks: self.block_headers.read().heap_size_of_children() + self.block_bodies.read().heap_size_of_children(),
 			block_details: self.block_details.read().heap_size_of_children(),
 			transaction_addresses: self.transaction_addresses.read().heap_size_of_children(),
 			blocks_blooms: self.blocks_blooms.read().heap_size_of_children(),
@@ -833,7 +901,8 @@ impl BlockChain {
 		for i in 0..COLLECTION_QUEUE_SIZE {
 			{
 				trace!("Cache cleanup round started {}, cache_size = {}", i, self.cache_size().total());
-				let mut blocks = self.blocks.write();
+				let mut block_headers = self.block_headers.write();
+				let mut block_bodies = self.block_bodies.write();
 				let mut block_details = self.block_details.write();
 				let mut block_hashes = self.block_hashes.write();
 				let mut transaction_addresses = self.transaction_addresses.write();
@@ -844,7 +913,8 @@ impl BlockChain {
 				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
 					cache_man.in_use.remove(&id);
 					match id {
-						CacheID::Block(h) => { blocks.remove(&h); },
+						CacheID::BlockHeader(h) => { block_headers.remove(&h); },
+						CacheID::BlockBody(h) => { block_bodies.remove(&h); },
 						CacheID::BlockDetails(h) => { block_details.remove(&h); }
 						CacheID::BlockHashes(h) => { block_hashes.remove(&h); }
 						CacheID::TransactionAddresses(h) => { transaction_addresses.remove(&h); }
@@ -857,7 +927,8 @@ impl BlockChain {
 				// TODO: handle block_hashes properly.
 				block_hashes.clear();
 
-				blocks.shrink_to_fit();
+				block_headers.shrink_to_fit();
+				block_bodies.shrink_to_fit();
 				block_details.shrink_to_fit();
  				block_hashes.shrink_to_fit();
  				transaction_addresses.shrink_to_fit();
@@ -869,6 +940,14 @@ impl BlockChain {
 		}
 
 		// TODO: m_lastCollection = chrono::system_clock::now();
+	}
+
+	fn block_to_body(block: &[u8]) -> Bytes {
+		let mut body = RlpStream::new_list(2);
+		let block_rlp = Rlp::new(block);
+		body.append_raw(block_rlp.at(1).as_raw(), 1);
+		body.append_raw(block_rlp.at(2).as_raw(), 1);
+		body.out()
 	}
 }
 

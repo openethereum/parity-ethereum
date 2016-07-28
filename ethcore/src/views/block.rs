@@ -56,6 +56,11 @@ impl<'a> BlockView<'a> {
 		self.rlp.val_at(0)
 	}
 
+	/// Return header rlp.
+	pub fn header_rlp(&self) -> Rlp {
+		self.rlp.at(0)
+	}
+
 	/// Create new header view obto block head rlp.
 	pub fn header_view(&self) -> HeaderView<'a> {
 		HeaderView::new_from_rlp(self.rlp.at(0))

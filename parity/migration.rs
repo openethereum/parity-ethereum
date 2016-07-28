@@ -24,6 +24,7 @@ use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Er
 use util::kvdb::{CompactionProfile, Database, DatabaseConfig};
 use ethcore::migrations;
 use ethcore::client;
+use ethcore::migrations::Extract;
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
@@ -143,13 +144,13 @@ fn consolidated_database_migrations() -> Result<MigrationManager, Error> {
 }
 
 /// Consolidates legacy databases into single one.
-fn consolidate_database(version: u32, old_db_path: PathBuf, new_db_path: PathBuf, column: Option<u32>) -> Result<(), Error> {
+fn consolidate_database(version: u32, old_db_path: PathBuf, new_db_path: PathBuf, column: Option<u32>, extract: Extract) -> Result<(), Error> {
 	fn db_error(e: String) -> Error {
 		warn!("Cannot open Database for consolidation: {:?}", e);
 		Error::MigrationFailed
 	}
 
-	let mut migration = migrations::ToV9::new(column);
+	let mut migration = migrations::ToV9::new(column, extract);
 	// migration might not be needed
 	if version >= migration.version() {
 		return Ok(())
@@ -237,10 +238,11 @@ pub fn migrate(path: &Path, pruning: Algorithm) -> Result<(), Error> {
 		let db_path = consolidated_database_path(path);
 		// Remove the database dir (it shouldn't exist anyway, but it might when migration was interrupted)
 		let _ = fs::remove_dir_all(db_path.clone());
-		try!(consolidate_database(version, legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_BLOCK));
-		try!(consolidate_database(version, legacy::extras_database_path(path), db_path.clone(), client::DB_COL_EXTRA));
-		try!(consolidate_database(version, legacy::state_database_path(path), db_path.clone(), client::DB_COL_STATE));
-		try!(consolidate_database(version, legacy::trace_database_path(path), db_path.clone(), client::DB_COL_TRACE));
+		try!(consolidate_database(version, legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_HEADERS, Extract::Header));
+		try!(consolidate_database(version, legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_BODIES, Extract::Header));
+		try!(consolidate_database(version, legacy::extras_database_path(path), db_path.clone(), client::DB_COL_EXTRA, Extract::All));
+		try!(consolidate_database(version, legacy::state_database_path(path), db_path.clone(), client::DB_COL_STATE, Extract::All));
+		try!(consolidate_database(version, legacy::trace_database_path(path), db_path.clone(), client::DB_COL_TRACE, Extract::All));
 		let _ = fs::remove_dir_all(legacy::blocks_database_path(path));
 		let _ = fs::remove_dir_all(legacy::extras_database_path(path));
 		let _ = fs::remove_dir_all(legacy::state_database_path(path));

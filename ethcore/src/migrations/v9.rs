@@ -17,21 +17,34 @@
 
 //! This migration consolidates all databases into single one using Column Families.
 
+use util::{Rlp, RlpStream, View, Stream};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, Progress};
+
+/// Which part of block to preserve
+pub enum Extract {
+	/// Extract block header RLP.
+	Header,
+	/// Extract block body RLP.
+	Body,
+	/// Don't change the value.
+	All,
+}
 
 /// Consolidation of extras/block/state databases into single one.
 pub struct ToV9 {
 	progress: Progress,
 	column: Option<u32>,
+	extract: Extract,
 }
 
 impl ToV9 {
 	/// Creates new V9 migration and assigns all `(key,value)` pairs from `source` DB to given Column Family
-	pub fn new(column: Option<u32>) -> Self {
+	pub fn new(column: Option<u32>, extract: Extract) -> Self {
 		ToV9 {
 			progress: Progress::default(),
 			column: column,
+			extract: extract,
 		}
 	}
 }
@@ -47,7 +60,21 @@ impl Migration for ToV9 {
 
 		for (key, value) in source.iter(col) {
 			self.progress.tick();
-			try!(batch.insert(key.to_vec(), value.to_vec(), dest));
+			match self.extract {
+				Extract::Header => {
+					try!(batch.insert(key.to_vec(), Rlp::new(&value).at(0).as_raw().to_vec(), dest))
+				},
+				Extract::Body => {
+					let mut body = RlpStream::new_list(2);
+					let block_rlp = Rlp::new(&value);
+					body.append_raw(block_rlp.at(1).as_raw(), 1);
+					body.append_raw(block_rlp.at(2).as_raw(), 1);
+					try!(batch.insert(key.to_vec(), body.out(), dest))
+				},
+				Extract::All => {
+					try!(batch.insert(key.to_vec(), value.to_vec(), dest))
+				}
+			}
 		}
 
 		batch.commit(dest)
