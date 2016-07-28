@@ -17,9 +17,11 @@
 //! Consensus engine specification and basic implementations.
 
 mod null_engine;
+mod sealing_engine;
 mod basic_authority;
 
 pub use self::null_engine::NullEngine;
+pub use self::sealing_engine::SealingEngine;
 pub use self::basic_authority::BasicAuthority;
 
 use common::*;
