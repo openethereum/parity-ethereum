@@ -188,12 +188,11 @@ impl Manager {
 
 	/// Adds new migration rules.
 	pub fn add_migration<T>(&mut self, migration: T) -> Result<(), Error> where T: Migration {
-		let version_match = match self.migrations.last() {
-			Some(last) => last.version() + 1 == migration.version(),
+		let is_new = match self.migrations.last() {
+			Some(last) => migration.version() > last.version(),
 			None => true,
 		};
-
-		match version_match {
+		match is_new {
 			true => Ok(self.migrations.push(Box::new(migration))),
 			false => Err(Error::CannotAddMigration),
 		}
@@ -260,11 +259,9 @@ impl Manager {
 		}
 	}
 
-	/// Find all needed migrations and arrange them.
+	/// Find all needed migrations.
 	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<Migration>> {
-		let mut to_apply: Vec<_> = self.migrations.iter_mut().filter(|m| m.version() > version).collect();
-		to_apply.sort_by_key(|m| m.version());
-		to_apply
+		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
 	}
 
 	fn no_of_columns_at(&self, version: u32) -> Option<u32> {
