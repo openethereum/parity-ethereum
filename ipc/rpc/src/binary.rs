@@ -322,6 +322,74 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 	}
 }
 
+impl<T> BinaryConvertable for VecDeque<T> where T: BinaryConvertable {
+	fn size(&self) -> usize {
+		match T::len_params() {
+			0 => mem::size_of::<T>() * self.len(),
+			_ => self.iter().fold(0usize, |acc, t| acc + t.size()),
+		}
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		let mut offset = 0usize;
+		for item in self.iter() {
+			let next_size = match T::len_params() {
+				0 => mem::size_of::<T>(),
+				_ => { let size = item.size(); length_stack.push_back(size); size },
+			};
+			if next_size > 0 {
+				let item_end = offset + next_size;
+				try!(item.to_bytes(&mut buffer[offset..item_end], length_stack));
+				offset = item_end;
+			}
+		}
+		Ok(())
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		let mut index = 0;
+		let mut result = Self::with_capacity(
+			match T::len_params() {
+				0 => buffer.len() /  mem::size_of::<T>(),
+				_ => 128,
+			});
+
+		if buffer.len() == 0 { return Ok(result); }
+
+		loop {
+			let next_size = match T::len_params() {
+				0 => mem::size_of::<T>(),
+				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError::length())),
+			};
+			let item = if next_size == 0 {
+				try!(T::from_empty_bytes())
+			}
+			else {
+				try!(T::from_bytes(&buffer[index..index+next_size], length_stack))
+			};
+			result.push_back(item);
+
+			index = index + next_size;
+			if index == buffer.len() { break; }
+			if index + next_size > buffer.len() {
+				return Err(BinaryConvertError::boundaries())
+			}
+		}
+
+		Ok(result)
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(Self::new())
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
+//
+
 impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 	fn size(&self) -> usize {
 		match T::len_params() {

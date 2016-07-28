@@ -197,7 +197,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 						action: trace.action,
 						result: trace.result,
 						subtraces: trace.subtraces,
-						trace_address: trace.trace_address,
+						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: tx_number,
 						transaction_hash: tx_hash.clone(),
 						block_number: block_number,
@@ -230,7 +230,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			batch.write_with_cache(traces.deref_mut(), request.block_hash, request.traces.into(), CacheUpdatePolicy::Overwrite);
+			batch.write_with_cache(traces.deref_mut(), request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
 		}
 
 		// now let's rebuild the blooms
@@ -263,12 +263,13 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace> {
+		let trace_position_deq = trace_position.into_iter().collect();
 		self.extras.block_hash(block_number)
 			.and_then(|block_hash| self.transactions_traces(&block_hash)
 				.and_then(|traces| traces.into_iter().nth(tx_position))
 				.map(Into::<Vec<FlatTrace>>::into)
 				// this may and should be optimized
-				.and_then(|traces| traces.into_iter().find(|trace| trace.trace_address == trace_position))
+				.and_then(|traces| traces.into_iter().find(|trace| trace.trace_address == trace_position_deq))
 				.map(|trace| {
 					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
 						.expect("Expected to find transaction hash. Database is probably corrupted");
@@ -277,7 +278,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						action: trace.action,
 						result: trace.result,
 						subtraces: trace.subtraces,
-						trace_address: trace.trace_address,
+						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: tx_position,
 						transaction_hash: tx_hash,
 						block_number: block_number,
@@ -301,7 +302,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						action: trace.action,
 						result: trace.result,
 						subtraces: trace.subtraces,
-						trace_address: trace.trace_address,
+						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: tx_position,
 						transaction_hash: tx_hash.clone(),
 						block_number: block_number,
@@ -328,7 +329,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 									action: trace.action,
 									result: trace.result,
 									subtraces: trace.subtraces,
-									trace_address: trace.trace_address,
+									trace_address: trace.trace_address.into_iter().collect(),
 									transaction_number: tx_position,
 									transaction_hash: tx_hash.clone(),
 									block_number: block_number,
@@ -365,8 +366,9 @@ mod tests {
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
 	use trace::{Config, Switch, TraceDB, Database, DatabaseExtras, ImportRequest};
-	use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
+	use trace::{Filter, LocalizedTrace, AddressesFilter};
 	use trace::trace::{Call, Action, Res};
+	use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 	use types::executed::CallType;
 
 	struct NoopExtras;
@@ -485,19 +487,19 @@ mod tests {
 
 	fn create_simple_import_request(block_number: BlockNumber, block_hash: H256) -> ImportRequest {
 		ImportRequest {
-			traces: BlockTraces::from(vec![Trace {
-				depth: 0,
+			traces: FlatBlockTraces::from(vec![FlatTransactionTraces::from(vec![FlatTrace {
+				trace_address: Default::default(),
+				subtraces: 0,
 				action: Action::Call(Call {
-					from: Address::from(1),
-					to: Address::from(2),
-					value: U256::from(3),
-					gas: U256::from(4),
+					from: 1.into(),
+					to: 2.into(),
+					value: 3.into(),
+					gas: 4.into(),
 					input: vec![],
 					call_type: CallType::Call,
 				}),
 				result: Res::FailedCall,
-				subs: vec![],
-			}]),
+			}])]),
 			block_hash: block_hash.clone(),
 			block_number: block_number,
 			enacted: vec![block_hash],

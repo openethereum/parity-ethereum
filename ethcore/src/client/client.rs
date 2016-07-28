@@ -61,6 +61,7 @@ use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
+use trace::FlatTransactionTraces;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
@@ -430,7 +431,12 @@ impl Client {
 
 		// Commit results
 		let receipts = block.receipts().to_owned();
-		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
+		let traces = block.traces().clone().unwrap_or_else(Vec::new);
+		let traces: Vec<FlatTransactionTraces> = traces.into_iter()
+			.map(Into::into)
+			.collect();
+
+		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
@@ -441,7 +447,7 @@ impl Client {
 		// (when something is in chain but you are not able to fetch details)
 		let route = self.chain.insert_block(block_data, receipts);
 		self.tracedb.import(TraceImportRequest {
-			traces: traces,
+			traces: traces.into(),
 			block_hash: hash.clone(),
 			block_number: number,
 			enacted: route.enacted.clone(),

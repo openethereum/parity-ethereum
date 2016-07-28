@@ -20,7 +20,7 @@ use common::*;
 use engine::*;
 use state::*;
 use verification::PreverifiedBlock;
-use trace::Trace;
+use trace::FlatTrace;
 use evm::Factory as EvmFactory;
 
 /// A block, encoded as it is on the block chain.
@@ -76,7 +76,7 @@ pub struct ExecutedBlock {
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
 	state: State,
-	traces: Option<Vec<Trace>>,
+	traces: Option<Vec<Vec<FlatTrace>>>,
 }
 
 /// A set of references to `ExecutedBlock` fields that are publicly accessible.
@@ -92,7 +92,7 @@ pub struct BlockRefMut<'a> {
 	/// State.
 	pub state: &'a mut State,
 	/// Traces.
-	pub traces: &'a Option<Vec<Trace>>,
+	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
 
 /// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
@@ -108,7 +108,7 @@ pub struct BlockRef<'a> {
 	/// State.
 	pub state: &'a State,
 	/// Traces.
-	pub traces: &'a Option<Vec<Trace>>,
+	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
 
 impl ExecutedBlock {
@@ -169,7 +169,7 @@ pub trait IsBlock {
 	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
 
 	/// Get all information concerning transaction tracing in this block.
-	fn traces(&self) -> &Option<Vec<Trace>> { &self.block().traces }
+	fn traces(&self) -> &Option<Vec<Vec<FlatTrace>>> { &self.block().traces }
 
 	/// Get all uncles in this block.
 	fn uncles(&self) -> &[Header] { &self.block().base.uncles }
@@ -337,7 +337,7 @@ impl<'x> OpenBlock<'x> {
 				self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
 				self.block.base.transactions.push(t);
 				let t = outcome.trace;
-				self.block.traces.as_mut().map(|traces| traces.push(t.expect("self.block.traces.is_some(): so we must be tracing: qed")));
+				self.block.traces.as_mut().map(|traces| traces.push(t));
 				self.block.receipts.push(outcome.receipt);
 				Ok(self.block.receipts.last().unwrap())
 			}

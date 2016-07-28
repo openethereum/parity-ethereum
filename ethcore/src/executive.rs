@@ -22,7 +22,7 @@ use types::executed::CallType;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use substate::*;
-use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
+use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
@@ -199,7 +199,7 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop(), vm_tracer.drain())))
+		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces(), vm_tracer.drain())))
 	}
 
 	fn exec_vm<T, V>(
@@ -276,7 +276,6 @@ impl<'a> Executive<'a> {
 						trace_info,
 						cost,
 						trace_output,
-						self.depth,
 						vec![]
 					);
 				}
@@ -286,7 +285,7 @@ impl<'a> Executive<'a> {
 				// just drain the whole gas
 				self.state.revert_snapshot();
 
-				tracer.trace_failed_call(trace_info, self.depth, vec![]);
+				tracer.trace_failed_call(trace_info, vec![]);
 
 				Err(evm::Error::OutOfGas)
 			}
@@ -318,10 +317,9 @@ impl<'a> Executive<'a> {
 						trace_info,
 						gas - gas_left,
 						trace_output,
-						self.depth,
 						traces
 					),
-					_ => tracer.trace_failed_call(trace_info, self.depth, traces),
+					_ => tracer.trace_failed_call(trace_info, traces),
 				};
 
 				trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
@@ -333,7 +331,7 @@ impl<'a> Executive<'a> {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.clear_snapshot();
 
-				tracer.trace_call(trace_info, U256::zero(), trace_output, self.depth, vec![]);
+				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
 				Ok(params.gas)
 			}
 		}
@@ -384,10 +382,9 @@ impl<'a> Executive<'a> {
 				gas - gas_left,
 				trace_output,
 				created,
-				self.depth,
 				subtracer.traces()
 			),
-			_ => tracer.trace_failed_create(trace_info, self.depth, subtracer.traces())
+			_ => tracer.trace_failed_create(trace_info, subtracer.traces())
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
@@ -401,7 +398,7 @@ impl<'a> Executive<'a> {
 		substate: Substate,
 		result: evm::Result<U256>,
 		output: Bytes,
-		trace: Option<Trace>,
+		trace: Vec<FlatTrace>,
 		vm_trace: Option<VMTrace>
 	) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);
@@ -493,7 +490,7 @@ mod tests {
 	use substate::*;
 	use tests::helpers::*;
 	use trace::trace;
-	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
+	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use types::executed::CallType;
 
@@ -647,8 +644,9 @@ mod tests {
 
 		assert_eq!(gas_left, U256::from(44_752));
 
-		let expected_trace = vec![ Trace {
-			depth: 0,
+		let expected_trace = vec![FlatTrace {
+			trace_address: Default::default(),
+			subtraces: 1,
 			action: trace::Action::Call(trace::Call {
 				from: "cd1722f3947def4cf144679da39c4c32bdc35681".into(),
 				to: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
@@ -661,22 +659,22 @@ mod tests {
 				gas_used: U256::from(55_248),
 				output: vec![],
 			}),
-			subs: vec![Trace {
-				depth: 1,
-				action: trace::Action::Create(trace::Create {
-					from: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
-					value: 23.into(),
-					gas: 67979.into(),
-					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
-				}),
-				result: trace::Res::Create(trace::CreateResult {
-					gas_used: U256::from(3224),
-					address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
-					code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
-				}),
-				subs: vec![]
-			}]
+		}, FlatTrace {
+			trace_address: vec![0].into_iter().collect(),
+			subtraces: 0,
+			action: trace::Action::Create(trace::Create {
+				from: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+				value: 23.into(),
+				gas: 67979.into(),
+				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
+			}),
+			result: trace::Res::Create(trace::CreateResult {
+				gas_used: U256::from(3224),
+				address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
+				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
+			}),
 		}];
+
 		assert_eq!(tracer.traces(), expected_trace);
 
 		let expected_vm_trace = VMTrace {
@@ -754,8 +752,9 @@ mod tests {
 
 		assert_eq!(gas_left, U256::from(96_776));
 
-		let expected_trace = vec![Trace {
-			depth: 0,
+		let expected_trace = vec![FlatTrace {
+			trace_address: Default::default(),
+			subtraces: 0,
 			action: trace::Action::Create(trace::Create {
 				from: params.sender,
 				value: 100.into(),
@@ -767,8 +766,8 @@ mod tests {
 				address: params.address,
 				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
 			}),
-			subs: vec![]
 		}];
+
 		assert_eq!(tracer.traces(), expected_trace);
 
 		let expected_vm_trace = VMTrace {
