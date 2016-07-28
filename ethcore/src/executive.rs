@@ -496,6 +496,7 @@ mod tests {
 	use trace::trace;
 	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
+	use trace::flat::FlatTrace;
 
 	#[test]
 	fn test_contract_address() {
@@ -646,8 +647,9 @@ mod tests {
 
 		assert_eq!(gas_left, U256::from(44_752));
 
-		let expected_trace = vec![ Trace {
-			depth: 0,
+		let expected_trace = vec![FlatTrace {
+			trace_address: Default::default(),
+			subtraces: 1,
 			action: trace::Action::Call(trace::Call {
 				from: "cd1722f3947def4cf144679da39c4c32bdc35681".into(),
 				to: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
@@ -659,23 +661,23 @@ mod tests {
 				gas_used: U256::from(55_248),
 				output: vec![],
 			}),
-			subs: vec![Trace {
-				depth: 1,
-				action: trace::Action::Create(trace::Create {
-					from: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
-					value: 23.into(),
-					gas: 67979.into(),
-					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
-				}),
-				result: trace::Res::Create(trace::CreateResult {
-					gas_used: U256::from(3224),
-					address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
-					code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
-				}),
-				subs: vec![]
-			}]
+		}, FlatTrace {
+			trace_address: vec![0].into_iter().collect(),
+			subtraces: 0,
+			action: trace::Action::Create(trace::Create {
+				from: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+				value: 23.into(),
+				gas: 67979.into(),
+				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
+			}),
+			result: trace::Res::Create(trace::CreateResult {
+				gas_used: U256::from(3224),
+				address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
+				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
+			}),
 		}];
-		//assert_eq!(tracer.traces(), expected_trace);
+
+		assert_eq!(tracer.traces(), expected_trace);
 
 		let expected_vm_trace = VMTrace {
 			parent_step: 0,
@@ -752,8 +754,9 @@ mod tests {
 
 		assert_eq!(gas_left, U256::from(96_776));
 
-		let expected_trace = vec![Trace {
-			depth: 0,
+		let expected_trace = vec![FlatTrace {
+			trace_address: Default::default(),
+			subtraces: 0,
 			action: trace::Action::Create(trace::Create {
 				from: params.sender,
 				value: 100.into(),
@@ -765,9 +768,9 @@ mod tests {
 				address: params.address,
 				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
 			}),
-			subs: vec![]
 		}];
-		//assert_eq!(tracer.traces(), expected_trace);
+
+		assert_eq!(tracer.traces(), expected_trace);
 
 		let expected_vm_trace = VMTrace {
 			parent_step: 0,
