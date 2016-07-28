@@ -107,9 +107,9 @@ pub trait CostType: ops::Mul<Output=Self> + ops::Div<Output=Self> + ops::Add<Out
 	fn overflow_add(self, other: Self) -> (Self, bool);
 	/// Multiple with overflow
 	fn overflow_mul(self, other: Self) -> (Self, bool);
-	/// Single-step full multiplication and division: `self*other/div`
+	/// Single-step full multiplication and shift: `(self*other) >> shr`
 	/// Should not overflow on intermediate steps
-	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool);
+	fn overflow_mul_shr(self, other: Self, shr: usize) -> (Self, bool);
 }
 
 impl CostType for U256 {
@@ -133,14 +133,14 @@ impl CostType for U256 {
 		Uint::overflowing_mul(self, other)
 	}
 
-	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool) {
+	fn overflow_mul_shr(self, other: Self, shr: usize) -> (Self, bool) {
 		let x = self.full_mul(other);
-		let (U512(parts), o) = Uint::overflowing_div(x, U512::from(div));
+		let U512(parts) = x >> shr;
 		let overflow = (parts[4] | parts[5] | parts[6] | parts[7]) > 0;
 
 		(
 			U256([parts[0], parts[1], parts[2], parts[3]]),
-			o | overflow
+			overflow
 		)
 	}
 }
@@ -169,11 +169,11 @@ impl CostType for usize {
 		self.overflowing_mul(other)
 	}
 
-	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool) {
+	fn overflow_mul_shr(self, other: Self, shr: usize) -> (Self, bool) {
 		let (c, o) = U128::from(self).overflowing_mul(U128::from(other));
-		let (U128(parts), o1) = c.overflowing_div(U128::from(div));
+		let U128(parts) = c >> shr;
 		let result = parts[0] as usize;
-		let overflow = o | o1 | (parts[1] > 0) | (parts[0] > result as u64);
+		let overflow = o | (parts[1] > 0) | (parts[0] > result as u64);
 		(result, overflow)
 	}
 }
