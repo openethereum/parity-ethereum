@@ -733,7 +733,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn best_block_header(&self) -> Bytes {
-		self.block_header(BlockID::Hash(self.chain.best_block_hash())).expect("Best block always have header.")
+		self.chain.best_block_header()
 	}
 
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {

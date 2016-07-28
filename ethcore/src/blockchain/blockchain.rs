@@ -784,6 +784,12 @@ impl BlockChain {
 		self.best_block.read().total_difficulty
 	}
 
+	/// Get best block header
+	pub fn best_block_header(&self) -> Bytes {
+		let block = self.best_block.read();
+		BlockView::new(&block.block).header_view().rlp().as_raw().to_vec()
+	}
+
 	/// Get current cache size.
 	pub fn cache_size(&self) -> CacheSize {
 		CacheSize {
