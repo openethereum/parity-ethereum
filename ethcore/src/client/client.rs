@@ -143,18 +143,16 @@ pub struct Client {
 
 const HISTORY: u64 = 1200;
 // database columns
-/// Meta(?)
-pub const DB_COL_META: Option<u32> = Some(0);
 /// Column for State
-pub const DB_COL_STATE: Option<u32> = Some(1);
+pub const DB_COL_STATE: Option<u32> = Some(0);
 /// Column for Blocks
-pub const DB_COL_BLOCK: Option<u32> = Some(2);
+pub const DB_COL_BLOCK: Option<u32> = Some(1);
 /// Column for Extras
-pub const DB_COL_EXTRA: Option<u32> = Some(3);
+pub const DB_COL_EXTRA: Option<u32> = Some(2);
 /// Column for Traces
-pub const DB_COL_TRACE: Option<u32> = Some(4);
+pub const DB_COL_TRACE: Option<u32> = Some(3);
 /// Number of columns in DB
-pub const DB_NO_OF_COLUMNS: Option<u32> = Some(5);
+pub const DB_NO_OF_COLUMNS: Option<u32> = Some(4);
 
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
