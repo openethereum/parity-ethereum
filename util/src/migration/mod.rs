@@ -235,7 +235,7 @@ impl Manager {
 		}
 	}
 
-	/// Find all needed migrations and arrange them.
+	/// Find all needed migrations.
 	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<Migration>> {
 		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
 	}
