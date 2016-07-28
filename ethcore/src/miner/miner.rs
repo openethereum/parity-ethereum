@@ -812,11 +812,6 @@ impl MinerService for Miner {
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		trace!(target: "miner", "chain_new_blocks");
 
-		if enacted.len() == 0 {
-			trace!(target: "miner", "chain_new_blocks: no blocks enacted. bailing.");
-			return;
-		}
-
 		fn fetch_transactions(chain: &MiningBlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockID::Hash(*hash))
@@ -872,11 +867,13 @@ impl MinerService for Miner {
 			});
 		}
 
-		// --------------------------------------------------------------------------
-		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
-		// | Make sure to release the locks before calling that method.             |
-		// --------------------------------------------------------------------------
-		self.update_sealing(chain);
+		if enacted.len() == 0 {
+			// --------------------------------------------------------------------------
+			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | Make sure to release the locks before calling that method.             |
+			// --------------------------------------------------------------------------
+			self.update_sealing(chain);
+		}
 	}
 }
 

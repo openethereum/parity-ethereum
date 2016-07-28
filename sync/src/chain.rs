@@ -1899,6 +1899,8 @@ mod tests {
 
 	#[test]
 	fn should_add_transactions_to_queue() {
+		log::init_log();
+
 		// given
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(98, EachBlockWith::Uncle);
