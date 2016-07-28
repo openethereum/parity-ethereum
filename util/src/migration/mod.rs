@@ -262,6 +262,7 @@ impl Manager {
 	/// Find all needed migrations.
 	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<Migration>> {
 		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
+<<<<<<< HEAD
 	}
 
 	fn no_of_columns_at(&self, version: u32) -> Option<u32> {
@@ -285,6 +286,8 @@ impl Default for Progress {
 			current: 0,
 			max: 100_000,
 		}
+=======
+>>>>>>> master
 	}
 }
 
