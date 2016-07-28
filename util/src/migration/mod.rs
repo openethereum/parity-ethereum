@@ -203,7 +203,7 @@ impl Manager {
 	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
 		let config = self.config.clone();
 		let columns = self.no_of_columns_at(version);
-		let mut migrations = self.migrations_from(version);
+		let migrations = self.migrations_from(version);
 		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
 		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
@@ -220,7 +220,7 @@ impl Manager {
 		let old_path_str = try!(old_path.to_str().ok_or(Error::MigrationImpossible));
 		let mut cur_db = try!(Database::open(&db_config, old_path_str).map_err(Error::Custom));
 
-		for migration in migrations.iter_mut() {
+		for migration in migrations {
 			// Change number of columns in new db
 			let current_columns = db_config.columns;
 			db_config.columns = migration.columns();
