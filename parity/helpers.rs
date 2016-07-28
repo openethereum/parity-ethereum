@@ -226,7 +226,7 @@ pub fn execute_upgrades(
 	fork_name: Option<&String>,
 	pruning: Algorithm,
 	compaction_profile: CompactionProfile
-	) -> Result<(), String> {
+) -> Result<(), String> {
 
 	match upgrade(Some(&dirs.db)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
