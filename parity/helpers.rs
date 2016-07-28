@@ -19,7 +19,7 @@ use std::io::{Write, Read, BufReader, BufRead};
 use std::time::Duration;
 use std::path::Path;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, H256};
+use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, H256, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::PendingSet;
@@ -220,7 +220,14 @@ pub fn to_client_config(
 	client_config
 }
 
-pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, fork_name: Option<&String>, pruning: Algorithm) -> Result<(), String> {
+pub fn execute_upgrades(
+	dirs: &Directories,
+	genesis_hash: H256,
+	fork_name: Option<&String>,
+	pruning: Algorithm,
+	compaction_profile: CompactionProfile
+) -> Result<(), String> {
+
 	match upgrade(Some(&dirs.db)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
@@ -232,7 +239,7 @@ pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, fork_name: Optio
 	}
 
 	let client_path = dirs.client_path(genesis_hash, fork_name, pruning);
-	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
+	migrate(&client_path, pruning, compaction_profile).map_err(|e| format!("{}", e))
 }
 
 /// Prompts user asking for password.

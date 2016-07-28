@@ -53,8 +53,7 @@ use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
-	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode, ChainNotify};
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -168,9 +167,7 @@ impl Client {
 			Some(cache_size) => DatabaseConfig::with_cache(cache_size),
 		};
 
-		if config.db_compaction == DatabaseCompactionProfile::HDD {
-			state_db_config = state_db_config.compaction(CompactionProfile::hdd());
-		}
+		state_db_config = state_db_config.compaction(config.db_compaction.compaction_profile());
 
 		let mut state_db = journaldb::new(
 			&append_path(&path, "state"),

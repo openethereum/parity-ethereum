@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util::journaldb::Algorithm;
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError};
+use util::kvdb::CompactionProfile;
 use ethcore::migrations;
 
 /// Database is assumed to be at default version, when no version file is found.
@@ -140,29 +141,30 @@ fn backup_database_path(path: &Path) -> PathBuf {
 }
 
 /// Default migration settings.
-fn default_migration_settings() -> MigrationConfig {
+fn default_migration_settings(compaction_profile: CompactionProfile) -> MigrationConfig {
 	MigrationConfig {
 		batch_size: BATCH_SIZE,
+		compaction_profile: compaction_profile,
 	}
 }
 
 /// Migrations on the blocks database.
-fn blocks_database_migrations() -> Result<MigrationManager, Error> {
-	let mut manager = MigrationManager::new(default_migration_settings());
+fn blocks_database_migrations(compaction_profile: CompactionProfile) -> Result<MigrationManager, Error> {
+	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
 	try!(manager.add_migration(migrations::blocks::V8::default()).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
 /// Migrations on the extras database.
-fn extras_database_migrations() -> Result<MigrationManager, Error> {
-	let mut manager = MigrationManager::new(default_migration_settings());
+fn extras_database_migrations(compaction_profile: CompactionProfile) -> Result<MigrationManager, Error> {
+	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
 	try!(manager.add_migration(migrations::extras::ToV6).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
 /// Migrations on the state database.
-fn state_database_migrations(pruning: Algorithm) -> Result<MigrationManager, Error> {
-	let mut manager = MigrationManager::new(default_migration_settings());
+fn state_database_migrations(pruning: Algorithm, compaction_profile: CompactionProfile) -> Result<MigrationManager, Error> {
+	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
 	let res = match pruning {
 		Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7::default()),
 		Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
@@ -208,7 +210,7 @@ fn exists(path: &Path) -> bool {
 }
 
 /// Migrates the database.
-pub fn migrate(path: &Path, pruning: Algorithm) -> Result<(), Error> {
+pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionProfile) -> Result<(), Error> {
 	// read version file.
 	let version = try!(current_version(path));
 
@@ -216,9 +218,9 @@ pub fn migrate(path: &Path, pruning: Algorithm) -> Result<(), Error> {
 	// main db directory may already exists, so let's check if we have blocks dir
 	if version < CURRENT_VERSION && exists(&blocks_database_path(path)) {
 		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
-		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations())));
-		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations())));
-		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations(pruning))));
+		try!(migrate_database(version, blocks_database_path(path), try!(blocks_database_migrations(compaction_profile.clone()))));
+		try!(migrate_database(version, extras_database_path(path), try!(extras_database_migrations(compaction_profile.clone()))));
+		try!(migrate_database(version, state_database_path(path), try!(state_database_migrations(pruning, compaction_profile))));
 		println!("Migration finished");
 	} else if version > CURRENT_VERSION {
 		return Err(Error::FutureDBVersion);

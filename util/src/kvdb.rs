@@ -52,6 +52,7 @@ impl DBTransaction {
 }
 
 /// Compaction profile for the database settings
+#[derive(Clone)]
 pub struct CompactionProfile {
 	/// L0-L1 target file size
 	pub initial_file_size: u64,
@@ -61,16 +62,18 @@ pub struct CompactionProfile {
 	pub write_rate_limit: Option<u64>,
 }
 
-impl CompactionProfile {
+impl Default for CompactionProfile {
 	/// Default profile suitable for most storage
-	pub fn default() -> CompactionProfile {
+	fn default() -> CompactionProfile {
 		CompactionProfile {
 			initial_file_size: 32 * 1024 * 1024,
 			file_size_multiplier: 2,
 			write_rate_limit: None,
 		}
 	}
+}
 
+impl CompactionProfile {
 	/// Slow hdd compaction profile
 	pub fn hdd() -> CompactionProfile {
 		CompactionProfile {
