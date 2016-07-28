@@ -942,7 +942,8 @@ impl BlockChain {
 		// TODO: m_lastCollection = chrono::system_clock::now();
 	}
 
-	fn block_to_body(block: &[u8]) -> Bytes {
+	/// Create a block body from a block.
+	pub fn block_to_body(block: &[u8]) -> Bytes {
 		let mut body = RlpStream::new_list(2);
 		let block_rlp = Rlp::new(block);
 		body.append_raw(block_rlp.at(1).as_raw(), 1);

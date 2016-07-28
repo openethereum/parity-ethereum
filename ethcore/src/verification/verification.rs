@@ -287,6 +287,14 @@ mod tests {
 			self.blocks.get(hash).cloned()
 		}
 
+		fn block_header_data(&self, hash: &H256) -> Option<Bytes> {
+			self.block(hash).map(|b| BlockView::new(&b).header_rlp().as_raw().to_vec())
+		}
+
+		fn block_body(&self, hash: &H256) -> Option<Bytes> {
+			self.block(hash).map(|b| BlockChain::block_to_body(&b))
+		}
+
 		/// Get the familial details concerning a block.
 		fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 			self.blocks.get(hash).map(|bytes| {
