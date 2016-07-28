@@ -60,16 +60,18 @@ pub struct CompactionProfile {
 	pub write_rate_limit: Option<u64>,
 }
 
-impl CompactionProfile {
+impl Default for CompactionProfile {
 	/// Default profile suitable for most storage
-	pub fn default() -> CompactionProfile {
+	fn default() -> CompactionProfile {
 		CompactionProfile {
 			initial_file_size: 32 * 1024 * 1024,
 			file_size_multiplier: 2,
 			write_rate_limit: None,
 		}
 	}
+}
 
+impl CompactionProfile {
 	/// Slow hdd compaction profile
 	pub fn hdd() -> CompactionProfile {
 		CompactionProfile {
@@ -99,12 +101,6 @@ impl DatabaseConfig {
 		let mut config = Self::default();
 		config.columns = columns;
 		config
-	}
-
-	/// Modify the compaction profile
-	pub fn compaction(mut self, profile: CompactionProfile) -> Self {
-		self.compaction = profile;
-		self
 	}
 }
 

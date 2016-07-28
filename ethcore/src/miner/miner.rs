@@ -29,7 +29,7 @@ use error::*;
 use transaction::SignedTransaction;
 use receipt::Receipt;
 use spec::Spec;
-use engine::Engine;
+use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionOrigin};
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;

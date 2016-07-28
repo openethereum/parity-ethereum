@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use blockchain::BlockProvider;
-use engine::Engine;
+use engines::Engine;
 use error::Error;
 use header::Header;
 

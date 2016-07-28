@@ -40,7 +40,7 @@ use header::BlockNumber;
 use state::State;
 use spec::Spec;
 use basic_types::Seal;
-use engine::Engine;
+use engines::Engine;
 use service::ClientIoMessage;
 use env_info::LastHashes;
 use verification;
@@ -52,8 +52,7 @@ use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
-	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode, ChainNotify};
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -61,6 +60,7 @@ use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
+use trace::FlatTransactionTraces;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
@@ -175,9 +175,7 @@ impl Client {
 		let gb = spec.genesis_block();
 		let mut db_config = DatabaseConfig::with_columns(DB_NO_OF_COLUMNS);
 		db_config.cache_size = config.db_cache_size;
-		if config.db_compaction == DatabaseCompactionProfile::HDD {
-			db_config = db_config.compaction(CompactionProfile::hdd());
-		}
+		db_config.compaction = config.db_compaction.compaction_profile();
 
 		let db = Arc::new(Database::open(&db_config, &path.to_str().unwrap()).expect("Error opening database"));
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
@@ -436,7 +434,12 @@ impl Client {
 
 		// Commit results
 		let receipts = block.receipts().to_owned();
-		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
+		let traces = block.traces().clone().unwrap_or_else(Vec::new);
+		let traces: Vec<FlatTransactionTraces> = traces.into_iter()
+			.map(Into::into)
+			.collect();
+
+		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		let batch = DBTransaction::new(&self.db);
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
@@ -446,7 +449,7 @@ impl Client {
 
 		let route = self.chain.insert_block(&batch, block_data, receipts);
 		self.tracedb.import(&batch, TraceImportRequest {
-			traces: traces,
+			traces: traces.into(),
 			block_hash: hash.clone(),
 			block_number: number,
 			enacted: route.enacted.clone(),

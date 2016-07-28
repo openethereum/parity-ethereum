@@ -17,14 +17,12 @@
 //! Parameters for a block chain.
 
 use common::*;
-use engine::*;
+use engines::{Engine, NullEngine, BasicAuthority};
 use pod_state::*;
-use null_engine::*;
 use account_db::*;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
-use basic_authority::BasicAuthority;
 use ethjson;
 
 /// Parameters common to all engines.

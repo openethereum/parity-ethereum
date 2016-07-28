@@ -17,7 +17,7 @@
 //! Transaction Execution environment.
 use common::*;
 use state::*;
-use engine::*;
+use engines::Engine;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
 use substate::*;
@@ -267,7 +267,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			self.state.transfer_balance(&address, refund_address, &balance);
 		}
 
-		self.tracer.trace_suicide(address, balance, refund_address.clone(), self.depth + 1);
+		self.tracer.trace_suicide(address, balance, refund_address.clone());
 		self.substate.suicides.insert(address);
 	}
 
@@ -300,7 +300,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 mod tests {
 	use common::*;
 	use state::*;
-	use engine::*;
+	use engines::Engine;
 	use evm::{Ext};
 	use substate::*;
 	use tests::helpers::*;
