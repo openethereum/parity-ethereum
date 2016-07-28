@@ -19,7 +19,7 @@
 use util::numbers::*;
 use util::Bytes;
 use util::rlp::*;
-use trace::{Trace, VMTrace};
+use trace::{VMTrace, FlatTrace};
 use types::log_entry::LogEntry;
 use types::state_diff::StateDiff;
 use ipc::binary::BinaryConvertError;
@@ -97,7 +97,7 @@ pub struct Executed {
 	/// Transaction output.
 	pub output: Bytes,
 	/// The trace of this transaction.
-	pub trace: Option<Trace>,
+	pub trace: Vec<FlatTrace>,
 	/// The VM trace of this transaction.
 	pub vm_trace: Option<VMTrace>,
 	/// The state diff, if we traced it.
