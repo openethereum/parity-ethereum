@@ -112,7 +112,7 @@ impl Default for DatabaseConfig {
 	fn default() -> DatabaseConfig {
 		DatabaseConfig {
 			cache_size: None,
-			max_open_files: 256,
+			max_open_files: 1024,
 			compaction: CompactionProfile::default(),
 			columns: None,
 		}

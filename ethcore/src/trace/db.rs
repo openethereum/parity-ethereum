@@ -395,11 +395,15 @@ mod tests {
 		}
 	}
 
+	fn new_db(path: &str) -> Arc<Database> {
+		Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), path).unwrap())
+	}
+
 	#[test]
 	fn test_reopening_db_with_tracing_off() {
 		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
 		let mut config = Config::default();
-		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), temp.as_str()).unwrap());
 
 		// set autotracing
 		config.enabled = Switch::Auto;
@@ -425,8 +429,8 @@ mod tests {
 	#[test]
 	fn test_reopening_db_with_tracing_on() {
 		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
 		let mut config = Config::default();
-		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), temp.as_str()).unwrap());
 
 		// set tracing on
 		config.enabled = Switch::On;
@@ -460,8 +464,8 @@ mod tests {
 	#[should_panic]
 	fn test_invalid_reopening_db() {
 		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
 		let mut config = Config::default();
-		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), temp.as_str()).unwrap());
 
 		// set tracing on
 		config.enabled = Switch::Off;
