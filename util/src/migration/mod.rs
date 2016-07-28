@@ -180,12 +180,11 @@ impl Manager {
 
 	/// Adds new migration rules.
 	pub fn add_migration<T>(&mut self, migration: T) -> Result<(), Error> where T: Migration {
-		let version_match = match self.migrations.last() {
-			Some(last) => last.version() + 1 == migration.version(),
+		let is_new = match self.migrations.last() {
+			Some(last) => migration.version() > last.version(),
 			None => true,
 		};
-
-		match version_match {
+		match is_new {
 			true => Ok(self.migrations.push(Box::new(migration))),
 			false => Err(Error::CannotAddMigration),
 		}
@@ -195,7 +194,8 @@ impl Manager {
 	/// and producing a path where the final migration lives.
 	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
 		let config = self.config.clone();
-		let migrations = try!(self.migrations_from(version).ok_or(Error::MigrationImpossible));
+		let mut migrations = self.migrations_from(version);
+		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
 		let db_config = DatabaseConfig {
 			max_open_files: 64,
 			cache_size: None,
@@ -235,10 +235,9 @@ impl Manager {
 		}
 	}
 
-	fn migrations_from(&mut self, version: u32) -> Option<&mut [Box<Migration>]> {
-		// index of the first required migration
-		let position = self.migrations.iter().position(|m| m.version() == version + 1);
-		position.map(move |p| &mut self.migrations[p..])
+	/// Find all needed migrations.
+	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<Migration>> {
+		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
 	}
 }
 

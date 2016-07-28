@@ -110,6 +110,18 @@ fn no_migration_needed() {
 }
 
 #[test]
+#[should_panic]
+fn wrong_adding_order() {
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
+	let mut manager = Manager::new(Config::default());
+	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+
+	manager.add_migration(Migration1).unwrap();
+	manager.add_migration(Migration0).unwrap();
+}
+
+#[test]
 fn multiple_migrations() {
 	let dir = RandomTempPath::create_dir();
 	let db_path = db_path(dir.as_path());
@@ -135,6 +147,34 @@ fn second_migration() {
 	manager.add_migration(Migration0).unwrap();
 	manager.add_migration(Migration1).unwrap();
 	let end_path = manager.execute(&db_path, 1).unwrap();
+
+	verify_migration(&end_path, expected);
+}
+
+#[test]
+fn first_and_noop_migration() {
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
+	let mut manager = Manager::new(Config::default());
+	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = map![vec![0x11] => vec![0x22], vec![1, 0x11] => vec![1, 0x22]];
+
+	manager.add_migration(Migration0).unwrap();
+	let end_path = manager.execute(&db_path, 0).unwrap();
+
+	verify_migration(&end_path, expected);
+}
+
+#[test]
+fn noop_and_second_migration() {
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
+	let mut manager = Manager::new(Config::default());
+	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = map![vec![] => vec![], vec![1] => vec![]];
+
+	manager.add_migration(Migration1).unwrap();
+	let end_path = manager.execute(&db_path, 0).unwrap();
 
 	verify_migration(&end_path, expected);
 }
