@@ -867,7 +867,7 @@ impl MinerService for Miner {
 			});
 		}
 
-		if enacted.len() == 0 {
+		if enacted.len() > 0 {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
 			// | Make sure to release the locks before calling that method.             |
