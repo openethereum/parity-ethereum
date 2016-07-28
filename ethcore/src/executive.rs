@@ -22,8 +22,7 @@ use types::executed::CallType;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use substate::*;
-use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
-use trace::flat::FlatTrace;
+use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
@@ -277,7 +276,6 @@ impl<'a> Executive<'a> {
 						trace_info,
 						cost,
 						trace_output,
-						self.depth,
 						vec![]
 					);
 				}
@@ -287,7 +285,7 @@ impl<'a> Executive<'a> {
 				// just drain the whole gas
 				self.state.revert_snapshot();
 
-				tracer.trace_failed_call(trace_info, self.depth, vec![]);
+				tracer.trace_failed_call(trace_info, vec![]);
 
 				Err(evm::Error::OutOfGas)
 			}
@@ -319,10 +317,9 @@ impl<'a> Executive<'a> {
 						trace_info,
 						gas - gas_left,
 						trace_output,
-						self.depth,
 						traces
 					),
-					_ => tracer.trace_failed_call(trace_info, self.depth, traces),
+					_ => tracer.trace_failed_call(trace_info, traces),
 				};
 
 				trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
@@ -334,7 +331,7 @@ impl<'a> Executive<'a> {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.clear_snapshot();
 
-				tracer.trace_call(trace_info, U256::zero(), trace_output, self.depth, vec![]);
+				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
 				Ok(params.gas)
 			}
 		}
@@ -385,10 +382,9 @@ impl<'a> Executive<'a> {
 				gas - gas_left,
 				trace_output,
 				created,
-				self.depth,
 				subtracer.traces()
 			),
-			_ => tracer.trace_failed_create(trace_info, self.depth, subtracer.traces())
+			_ => tracer.trace_failed_create(trace_info, subtracer.traces())
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
@@ -494,9 +490,8 @@ mod tests {
 	use substate::*;
 	use tests::helpers::*;
 	use trace::trace;
-	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
+	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
-	use trace::flat::FlatTrace;
 	use types::executed::CallType;
 
 	#[test]

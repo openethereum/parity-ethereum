@@ -366,7 +366,7 @@ mod tests {
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
 	use trace::{Config, Switch, TraceDB, Database, DatabaseExtras, ImportRequest};
-	use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
+	use trace::{Filter, LocalizedTrace, AddressesFilter};
 	use trace::trace::{Call, Action, Res};
 	use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 	use types::executed::CallType;

@@ -59,7 +59,6 @@ pub trait Tracer: Send {
 		call: Option<Call>,
 		gas_used: U256,
 		output: Option<Bytes>,
-		depth: usize,
 		subs: Vec<FlatTrace>,
 	);
 
@@ -70,18 +69,17 @@ pub trait Tracer: Send {
 		gas_used: U256,
 		code: Option<Bytes>,
 		address: Address,
-		depth: usize,
 		subs: Vec<FlatTrace>
 	);
 
 	/// Stores failed call trace.
-	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<FlatTrace>);
+	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>);
 
 	/// Stores failed create trace.
-	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<FlatTrace>);
+	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>);
 
 	/// Stores suicide info.
-	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address, depth: usize);
+	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address);
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;

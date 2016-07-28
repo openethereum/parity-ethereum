@@ -20,7 +20,7 @@ use common::*;
 use engine::*;
 use state::*;
 use verification::PreverifiedBlock;
-use trace::{Trace, FlatTrace};
+use trace::FlatTrace;
 use evm::Factory as EvmFactory;
 
 /// A block, encoded as it is on the block chain.

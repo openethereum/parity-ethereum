@@ -19,7 +19,7 @@ use engine::Engine;
 use executive::{Executive, TransactOptions};
 use evm::Factory as EvmFactory;
 use account_db::*;
-use trace::{Trace, FlatTrace};
+use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
@@ -402,7 +402,7 @@ use spec::*;
 use transaction::*;
 use util::log::init_log;
 use trace::trace;
-use trace::{Trace, FlatTrace};
+use trace::FlatTrace;
 use types::executed::CallType;
 
 #[test]

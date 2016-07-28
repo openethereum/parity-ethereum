@@ -18,7 +18,7 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::trace::{Trace, Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide};
+use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide};
 use trace::{Tracer, VMTracer, FlatTrace};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
@@ -31,7 +31,7 @@ fn top_level_subtraces(traces: &[FlatTrace]) -> usize {
 	traces.iter().filter(|t| t.trace_address.is_empty()).count()
 }
 
-fn update_trace_address(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
+fn update_trace_address(traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 	// input traces are expected to be ordered like
 	// []
 	// [0]
@@ -80,7 +80,7 @@ impl Tracer for ExecutiveTracer {
 		Some(vec![])
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<FlatTrace>) {
+	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
 			trace_address: Default::default(),
 			subtraces: top_level_subtraces(&subs),
@@ -95,7 +95,7 @@ impl Tracer for ExecutiveTracer {
 		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: Option<Bytes>, address: Address, depth: usize, subs: Vec<FlatTrace>) {
+	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: Option<Bytes>, address: Address, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
 			subtraces: top_level_subtraces(&subs),
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
@@ -111,7 +111,7 @@ impl Tracer for ExecutiveTracer {
 		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<FlatTrace>) {
+	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
 			trace_address: Default::default(),
 			subtraces: top_level_subtraces(&subs),
@@ -123,7 +123,7 @@ impl Tracer for ExecutiveTracer {
 		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<FlatTrace>) {
+	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
 			subtraces: top_level_subtraces(&subs),
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
@@ -135,7 +135,7 @@ impl Tracer for ExecutiveTracer {
 		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address, depth: usize) {
+	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address) {
 		let trace = FlatTrace {
 			subtraces: 0,
 			action: Action::Suicide(Suicide {
