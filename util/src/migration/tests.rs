@@ -110,6 +110,18 @@ fn no_migration_needed() {
 }
 
 #[test]
+#[should_panic]
+fn wrong_adding_order() {
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
+	let mut manager = Manager::new(Config::default());
+	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+
+	manager.add_migration(Migration1).unwrap();
+	manager.add_migration(Migration0).unwrap();
+}
+
+#[test]
 fn multiple_migrations() {
 	let dir = RandomTempPath::create_dir();
 	let db_path = db_path(dir.as_path());
