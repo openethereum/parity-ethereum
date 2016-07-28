@@ -108,7 +108,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm));
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {

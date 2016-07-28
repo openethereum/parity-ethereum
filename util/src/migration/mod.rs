@@ -29,12 +29,15 @@ use ::kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
 pub struct Config {
 	/// Defines how many elements should be migrated at once.
 	pub batch_size: usize,
+	/// Database compaction profile.
+	pub compaction_profile: CompactionProfile,
 }
 
 impl Default for Config {
 	fn default() -> Self {
 		Config {
 			batch_size: 1024,
+			compaction_profile: Default::default(),
 		}
 	}
 }
@@ -199,7 +202,7 @@ impl Manager {
 		let db_config = DatabaseConfig {
 			max_open_files: 64,
 			cache_size: None,
-			compaction: CompactionProfile::default(),
+			compaction: config.compaction_profile.clone(),
 		};
 
 		let db_root = database_path(old_path);
