@@ -314,7 +314,7 @@ pub struct Args {
 	pub flag_cache_size_queue: u32,
 	pub flag_cache_size: Option<u32>,
 	pub flag_cache: Option<u32>,
-  pub flag_fast_and_loose: bool,
+	pub flag_fast_and_loose: bool,
 
 	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
