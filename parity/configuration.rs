@@ -350,11 +350,11 @@ impl Configuration {
 				let mut buffer = String::new();
 				let mut node_file = try!(File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e)));
 				try!(node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file"));
-				if let Some(invalid) = buffer.lines().find(|s| !is_valid_node_url(s)) {
-					Err(format!("Invalid node address format given for a boot node: {}", invalid))
-				} else {
-					Ok(buffer.lines().map(|s| s.to_owned()).collect())
+				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| s.len() > 0).collect::<Vec<_>>();
+				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
+					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
 				}
+				Ok(lines)
 			},
 			None => Ok(Vec::new())
 		}
@@ -538,6 +538,9 @@ mod tests {
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
+	use devtools::{RandomTempPath};
+	use std::io::Write;
+	use std::fs::{File, create_dir};
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -768,6 +771,17 @@ mod tests {
 
 		// then
 		assert_eq!(conf0.signer_enabled(), false);
+	}
+
+	#[test]
+	fn should_not_bail_on_empty_line_in_reserved_peers() {
+		let temp = RandomTempPath::new();
+		create_dir(temp.as_str().to_owned()).unwrap();
+		let filename = temp.as_str().to_owned() + "/peers";
+		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", &filename];
+		let conf = Configuration::parse(args).unwrap();
+		assert!(conf.init_reserved_nodes().is_ok());
 	}
 }
 
