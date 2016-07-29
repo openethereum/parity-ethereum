@@ -16,6 +16,7 @@
 
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
+use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
@@ -283,6 +284,7 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::{import_accounts, EthStore};
 	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
+	use ethcore::ethstore::Error;
 
 	let passwords = try!(passwords_from_files(cfg.password_files));
 
@@ -295,8 +297,10 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 
 		let from = GethDirectory::open(t);
 		let to = DiskDirectory::create(dirs.keys.clone()).unwrap();
-		if let Err(err) = import_accounts(&from, &to) {
-			warn!("Import geth accounts failed. {}", err);
+		match import_accounts(&from, &to) {
+			Ok(_) => {}
+			Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => {}
+			Err(err) => warn!("Import geth accounts failed. {}", err)
 		}
 	}
 
