@@ -93,6 +93,8 @@ pub struct DatabaseConfig {
 	pub compaction: CompactionProfile,
 	/// Set number of columns
 	pub columns: Option<u32>,
+	/// Should we keep WAL enabled?
+	pub wal: bool,
 }
 
 impl DatabaseConfig {
@@ -111,6 +113,7 @@ impl Default for DatabaseConfig {
 			max_open_files: 1024,
 			compaction: CompactionProfile::default(),
 			columns: None,
+			wal: true,
 		}
 	}
 }
@@ -167,7 +170,9 @@ impl Database {
 		}
 
 		let mut write_opts = WriteOptions::new();
-		write_opts.disable_wal(true); // TODO: make sure this is safe
+		if !config.wal {
+			write_opts.disable_wal(true);
+		}
 
 		let mut cfs: Vec<Column> = Vec::new();
 		let db = match config.columns {

@@ -81,6 +81,7 @@ impl Configuration {
 		let spec = try!(self.chain().parse());
 		let tracing = try!(self.args.flag_tracing.parse());
 		let compaction = try!(self.args.flag_db_compaction.parse());
+		let wal = !self.args.flag_fast_and_loose;
 		let enable_network = self.enable_network(&mode);
 		let geth_compatibility = self.args.flag_geth;
 		let signer_port = self.signer_port();
@@ -129,6 +130,7 @@ impl Configuration {
 				format: None,
 				pruning: pruning,
 				compaction: compaction,
+				wal: wal,
 				mode: mode,
 				tracing: tracing,
 				vm_type: vm_type,
@@ -144,6 +146,7 @@ impl Configuration {
 				format: None,
 				pruning: pruning,
 				compaction: compaction,
+				wal: wal,
 				mode: mode,
 				tracing: tracing,
 				from_block: try!(to_block_id(&self.args.flag_from)),
@@ -175,6 +178,7 @@ impl Configuration {
 				mode: mode,
 				tracing: tracing,
 				compaction: compaction,
+				wal: wal,
 				vm_type: vm_type,
 				enable_network: enable_network,
 				geth_compatibility: geth_compatibility,
@@ -613,6 +617,7 @@ mod tests {
 			format: None,
 			pruning: Default::default(),
 			compaction: Default::default(),
+			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
 			vm_type: VMType::Interpreter,
@@ -632,6 +637,7 @@ mod tests {
 			pruning: Default::default(),
 			format: Default::default(),
 			compaction: Default::default(),
+			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
 			from_block: BlockID::Number(1),
@@ -669,6 +675,7 @@ mod tests {
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
+			wal: true,
 			vm_type: Default::default(),
 			enable_network: true,
 			geth_compatibility: false,

@@ -210,8 +210,8 @@ Footprint Options:
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
-
-Database Options:
+  --fast-and-loose         Disables DB WAL, which gives a significant speed up
+                           but means an unclean exit is unrecoverable. 
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs [default: ssd].
@@ -314,6 +314,7 @@ pub struct Args {
 	pub flag_cache_size_queue: u32,
 	pub flag_cache_size: Option<u32>,
 	pub flag_cache: Option<u32>,
+	pub flag_fast_and_loose: bool,
 
 	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
