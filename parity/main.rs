@@ -122,10 +122,10 @@ fn main() {
 
 	match start() {
 		Ok(result) => {
-			print!("{}", result);
+			println!("{}", result);
 		},
 		Err(err) => {
-			print!("{}", err);
+			println!("{}", err);
 			process::exit(1);
 		}
 	}
