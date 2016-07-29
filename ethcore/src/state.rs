@@ -48,27 +48,6 @@ pub struct State {
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
 			 Therefore creating a SecTrieDB with this state's root will not fail.";
 
-// handle to an account which is supposed to be cached.
-struct Handle<'a> {
-	state: &'a State,
-	key: &'a Address
-}
-
-impl<'a> Handle<'a> {
-	// Consume the handle with a closure which produces a value.
-	fn consume<F, U>(self, f: F) -> U
-		where F: FnOnce(&Option<Account>) -> U
-	{
-		// if the cache has been tampered with since the handle was produced,
-		// fall back to None.
-		let cache = self.state.cache.borrow();
-		match cache.get(self.key) {
-			Some(acc) => f(acc),
-			None => f(&None),
-		}
-	}
-}
-
 impl State {
 	/// Creates new state with empty state root
 	#[cfg(test)]
@@ -188,26 +167,26 @@ impl State {
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
-		self.ensure_cached(a, false)
-			.consume(|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
+		self.ensure_cached(a, false,
+			|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
-		self.ensure_cached(a, false)
-			.consume(|a| a.as_ref().map_or(U256::zero(), |account| *account.nonce()))
+		self.ensure_cached(a, false,
+			|a| a.as_ref().map_or(U256::zero(), |account| *account.nonce()))
 	}
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.ensure_cached(address, false)
-		.consume(|a| a.as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key)))
+		self.ensure_cached(address, false,
+			|a| a.as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key)))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
-		self.ensure_cached(a, true)
-			.consume(|a| a.as_ref().map_or(None, |a|a.code().map(|x|x.to_vec())))
+		self.ensure_cached(a, true,
+			|a| a.as_ref().map_or(None, |a|a.code().map(|x|x.to_vec())))
 	}
 
 	/// Add `incr` to the balance of account `a`.
@@ -331,8 +310,7 @@ impl State {
 
 	fn query_pod(&mut self, query: &PodState) {
 		for (ref address, ref pod_account) in query.get() {
-			let handle = self.ensure_cached(address, true);
-			handle.consume(|a| {
+			self.ensure_cached(address, true, |a| {
 				if a.is_some() {
 					for key in pod_account.storage.keys() {
 						self.storage_at(address, key);
@@ -353,7 +331,8 @@ impl State {
 
 	/// Ensure account `a` is in our cache of the trie DB and return a handle for getting it.
 	/// `require_code` requires that the code be cached, too.
-	fn ensure_cached<'a>(&'a self, a: &'a Address, require_code: bool) -> Handle<'a> {
+	fn ensure_cached<'a, F, U>(&'a self, a: &'a Address, require_code: bool, f: F) -> U
+		where F: FnOnce(&Option<Account>) -> U {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
@@ -365,10 +344,7 @@ impl State {
 			}
 		}
 
-		Handle {
-			state: self,
-			key: a,
-		}
+		f(self.cache.borrow().get(a).unwrap())
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
