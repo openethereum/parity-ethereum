@@ -82,8 +82,8 @@ impl Default for Config {
 				levels: 3,
 				elements_per_index: 16,
 			},
-			pref_cache_size: 3 * 1024 * 1024,
-			max_cache_size: 5 * 1024 * 1024,
+			pref_cache_size: 15 * 1024 * 1024,
+			max_cache_size: 20 * 1024 * 1024,
 		}
 	}
 }
