@@ -538,6 +538,9 @@ mod tests {
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
+	use devtools::{RandomTempPath};
+	use std::io::Write;
+	use std::fs::{File, create_dir};
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -768,6 +771,17 @@ mod tests {
 
 		// then
 		assert_eq!(conf0.signer_enabled(), false);
+	}
+
+	#[test]
+	fn should_not_bail_on_empty_line_in_reserved_peers() {
+		let temp = RandomTempPath::new();
+		create_dir(temp.as_str().to_owned()).unwrap();
+		let filename = temp.as_str().to_owned() + "/peers";
+		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", &filename];
+		let conf = Configuration::parse(args).unwrap();
+		assert!(conf.init_reserved_nodes().is_ok());
 	}
 }
 
