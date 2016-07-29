@@ -49,7 +49,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			fail_unless(t.gas_price == tx.gas_price.into());
 			fail_unless(t.nonce == tx.nonce.into());
 			fail_unless(t.value == tx.value.into());
-			let to: Option<_> = tx.to.into();
+			let to: Option<ethjson::hash::Address> = tx.to.into();
 			let to: Option<Address> = to.map(Into::into);
 			match t.action {
 				Action::Call(dest) => fail_unless(Some(dest) == to),

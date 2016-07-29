@@ -145,10 +145,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn chain_info(&self) -> BlockChainInfo;
 
 	/// Get the best block header.
-	fn best_block_header(&self) -> Bytes {
-		// TODO: lock blockchain only once
-		self.block_header(BlockID::Hash(self.chain_info().best_block_hash)).unwrap()
-	}
+	fn best_block_header(&self) -> Bytes;
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>>;
