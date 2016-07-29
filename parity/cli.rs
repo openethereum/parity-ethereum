@@ -79,7 +79,8 @@ Networking Options:
   --no-network             Disable p2p networking.
   --port PORT              Override the port on which the node should listen
                            [default: 30303].
-  --peers NUM              Try to maintain that many peers [default: 25].
+  --min-peers NUM          Try to maintain at least NUM peers [default: 25].
+  --max-peers NUM          Allow up to that many peers [default: 50].
   --nat METHOD             Specify method to use for determining public
                            address. Must be one of: any, none, upnp,
                            extip:<IP> [default: any].
@@ -238,7 +239,7 @@ Legacy Options:
                            Overrides the --keys-path option.
   --datadir PATH           Equivalent to --db-path PATH.
   --networkid INDEX        Equivalent to --network-id INDEX.
-  --maxpeers COUNT         Equivalent to --peers COUNT.
+  --peers NUM              Equivalent to --min-peers NUM.
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   -j --jsonrpc             Does nothing; JSON-RPC is on by default now.
@@ -302,7 +303,8 @@ pub struct Args {
 	pub flag_pruning: String,
 	pub flag_tracing: String,
 	pub flag_port: u16,
-	pub flag_peers: usize,
+	pub flag_min_peers: u16,
+	pub flag_max_peers: u16,
 	pub flag_no_discovery: bool,
 	pub flag_nat: String,
 	pub flag_node_key: Option<String>,
@@ -364,7 +366,7 @@ pub struct Args {
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,
 	pub flag_nodiscover: bool,
-	pub flag_maxpeers: Option<usize>,
+	pub flag_peers: Option<u16>,
 	pub flag_datadir: Option<String>,
 	pub flag_extradata: Option<String>,
 	pub flag_etherbase: Option<String>,
