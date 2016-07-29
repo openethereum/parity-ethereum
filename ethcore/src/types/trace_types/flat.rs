@@ -20,6 +20,7 @@ use std::collections::VecDeque;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use util::rlp::*;
+use util::HeapSizeOf;
 use basic_types::LogBloom;
 use super::trace::{Action, Res};
 
@@ -44,6 +45,12 @@ impl FlatTrace {
 	/// Returns bloom of the trace.
 	pub fn bloom(&self) -> LogBloom {
 		self.action.bloom() | self.result.bloom()
+	}
+}
+
+impl HeapSizeOf for FlatTrace {
+	fn heap_size_of_children(&self) -> usize {
+		self.trace_address.heap_size_of_children()
 	}
 }
 
@@ -82,6 +89,12 @@ impl From<Vec<FlatTrace>> for FlatTransactionTraces {
 	}
 }
 
+impl HeapSizeOf for FlatTransactionTraces {
+	fn heap_size_of_children(&self) -> usize {
+		self.0.heap_size_of_children()
+	}
+}
+
 impl FlatTransactionTraces {
 	/// Returns bloom of all traces in the collection.
 	pub fn bloom(&self) -> LogBloom {
@@ -110,6 +123,12 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 /// Represents all traces produced by transactions in a single block.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
+
+impl HeapSizeOf for FlatBlockTraces {
+	fn heap_size_of_children(&self) -> usize {
+		self.0.heap_size_of_children()
+	}
+}
 
 impl From<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 	fn from(v: Vec<FlatTransactionTraces>) -> Self {

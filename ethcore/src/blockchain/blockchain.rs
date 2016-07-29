@@ -862,16 +862,16 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		let mut block_headers = self.block_headers.write();
-		let mut block_bodies = self.block_bodies.write();
-		let mut block_details = self.block_details.write();
-		let mut block_hashes = self.block_hashes.write();
-		let mut transaction_addresses = self.transaction_addresses.write();
-		let mut blocks_blooms = self.blocks_blooms.write();
-		let mut block_receipts = self.block_receipts.write();
-
 		let mut cache_man = self.cache_man.write();
 		cache_man.collect_carbage(|| self.cache_size().total(), | ids | {
+			let mut block_headers = self.block_headers.write();
+			let mut block_bodies = self.block_bodies.write();
+			let mut block_details = self.block_details.write();
+			let mut block_hashes = self.block_hashes.write();
+			let mut transaction_addresses = self.transaction_addresses.write();
+			let mut blocks_blooms = self.blocks_blooms.write();
+			let mut block_receipts = self.block_receipts.write();
+
 			for id in &ids {
 				match *id {
 					CacheID::BlockHeader(ref h) => { block_headers.remove(h); },

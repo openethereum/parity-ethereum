@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use util::{H256, H264, Database, DBTransaction, RwLock};
+use util::{H256, H264, Database, DBTransaction, RwLock, HeapSizeOf};
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras, Error};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
@@ -59,6 +59,12 @@ struct TraceGroupPosition(blooms::GroupPosition);
 impl From<GroupPosition> for TraceGroupPosition {
 	fn from(position: GroupPosition) -> Self {
 		TraceGroupPosition(From::from(position))
+	}
+}
+
+impl HeapSizeOf for TraceGroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		0
 	}
 }
 
@@ -155,7 +161,9 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn cache_size(&self) -> usize {
-		0
+		let traces = self.traces.read().heap_size_of_children();
+		let blooms = self.blooms.read().heap_size_of_children();
+		traces + blooms
 	}
 
 	/// Let the cache system know that a cacheable item has been used.
@@ -166,10 +174,11 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		let mut traces = self.traces.write();
-		let mut blooms = self.blooms.write();
 		let mut cache_manager = self.cache_manager.write();
 		cache_manager.collect_carbage(|| self.cache_size(), | ids | {
+			let mut traces = self.traces.write();
+			let mut blooms = self.blooms.write();
+
 			for id in &ids {
 				match *id {
 					CacheID::Trace(ref h) => { traces.remove(h); },
