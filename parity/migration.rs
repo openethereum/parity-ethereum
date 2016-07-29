@@ -163,6 +163,7 @@ fn consolidate_database(
 		cache_size: None,
 		compaction: config.compaction_profile.clone(),
 		columns: None,
+		wal: true,
 	};
 
 	let old_path_str = try!(old_db_path.to_str().ok_or(Error::MigrationImpossible));
