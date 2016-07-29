@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::collections::{VecDeque, HashSet};
 use std::hash::Hash;
 
@@ -29,16 +45,14 @@ impl<T> CacheManager<T> where T: Eq + Hash {
 		}
 	}
 
-	pub fn collect_carbage<C, F>(&mut self, current_size: C, notify_unused: F) where C: Fn() -> usize, F: Fn(T) {
+	pub fn collect_carbage<C, F>(&mut self, current_size: C, mut notify_unused: F) where C: Fn() -> usize, F: FnMut(HashSet<T>) {
 		if current_size() < self.pref_cache_size {
 			self.rotate_cache_if_needed();
 			return;
 		}
 
-		for i in 0..COLLECTION_QUEUE_SIZE {
-			for id in self.cache_usage.pop_back().unwrap().into_iter() {
-				notify_unused(id)
-			}
+		for _ in 0..COLLECTION_QUEUE_SIZE {
+			notify_unused(self.cache_usage.pop_back().unwrap());
 			self.cache_usage.push_front(Default::default());
 			if current_size() < self.max_cache_size {
 				break;
