@@ -193,6 +193,7 @@ pub fn to_client_config(
 		tracing: Switch,
 		pruning: Pruning,
 		compaction: DatabaseCompactionProfile,
+		wal: bool,
 		vm_type: VMType,
 		name: String,
 		fork_name: Option<&String>,
@@ -215,6 +216,7 @@ pub fn to_client_config(
 	client_config.tracing.enabled = tracing;
 	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash, fork_name);
 	client_config.db_compaction = compaction;
+	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
 	client_config

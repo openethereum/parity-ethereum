@@ -101,6 +101,8 @@ pub struct ClientConfig {
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
+	/// Should db have WAL enabled?
+	pub db_wal: bool, 
 	/// Operating mode
 	pub mode: Mode,
 	/// Type of block verifier used by client.
