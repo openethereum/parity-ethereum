@@ -1041,8 +1041,6 @@ impl MiningBlockChainClient for Client {
 		let _timer = PerfTimer::new("import_sealed_block");
 		let start = precise_time_ns();
 
-		let original_best = self.chain_info().best_block_hash;
-
 		let h = block.header().hash();
 		let number = block.header().number();
 
@@ -1050,26 +1048,19 @@ impl MiningBlockChainClient for Client {
 		let route = self.commit_block(block, &h, &block_data);
 		trace!(target: "client", "Imported sealed block #{} ({})", number, h);
 
-		{
-			let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
-			self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
+		let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
+		self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
 
-			self.notify(|notify| {
-				notify.new_blocks(
-					vec![h.clone()],
-					vec![],
-					enacted.clone(),
-					retracted.clone(),
-					vec![h.clone()],
-					precise_time_ns() - start,
-				);
-			});
-		}
-
-		if self.chain_info().best_block_hash != original_best {
-			self.miner.update_sealing(self);
-		}
-
+		self.notify(|notify| {
+			notify.new_blocks(
+				vec![h.clone()],
+				vec![],
+				enacted.clone(),
+				retracted.clone(),
+				vec![h.clone()],
+				precise_time_ns() - start,
+			);
+		});
 		Ok(h)
 	}
 }
