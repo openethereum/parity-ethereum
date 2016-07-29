@@ -148,8 +148,8 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 /// **Does not do input data verification.**
 pub struct BlockChain {
 	// All locks must be captured in the order declared here.
-	pref_cache_size: AtomicUsize,
-	max_cache_size: AtomicUsize,
+	pref_cache_size: usize,
+	max_cache_size: usize,
 	blooms_config: bc::Config,
 
 	best_block: RwLock<BestBlock>,
@@ -324,8 +324,8 @@ impl BlockChain {
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
 
 		let bc = BlockChain {
-			pref_cache_size: AtomicUsize::new(config.pref_cache_size),
-			max_cache_size: AtomicUsize::new(config.max_cache_size),
+			pref_cache_size: config.pref_cache_size,
+			max_cache_size: config.max_cache_size,
 			blooms_config: bc::Config {
 				levels: LOG_BLOOMS_LEVELS,
 				elements_per_index: LOG_BLOOMS_ELEMENTS_PER_INDEX,
@@ -447,12 +447,6 @@ impl BlockChain {
 		}
 
 		None
-	}
-
-	/// Set the cache configuration.
-	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
-		self.pref_cache_size.store(pref_cache_size, AtomicOrder::Relaxed);
-		self.max_cache_size.store(max_cache_size, AtomicOrder::Relaxed);
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
@@ -888,11 +882,11 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) {
+		if self.cache_size().total() < self.pref_cache_size {
 			// rotate cache
 			let mut cache_man = self.cache_man.write();
 			const AVERAGE_BYTES_PER_CACHE_ENTRY: usize = 400; //estimated
-			if cache_man.cache_usage[0].len() > self.pref_cache_size.load(AtomicOrder::Relaxed) / COLLECTION_QUEUE_SIZE / AVERAGE_BYTES_PER_CACHE_ENTRY {
+			if cache_man.cache_usage[0].len() > self.pref_cache_size / COLLECTION_QUEUE_SIZE / AVERAGE_BYTES_PER_CACHE_ENTRY {
 				trace!("Cache rotation, cache_size = {}", self.cache_size().total());
 				let cache = cache_man.cache_usage.pop_back().unwrap();
 				cache_man.cache_usage.push_front(cache);
@@ -926,9 +920,6 @@ impl BlockChain {
 				}
 				cache_man.cache_usage.push_front(HashSet::new());
 
-				// TODO: handle block_hashes properly.
-				block_hashes.clear();
-
 				block_headers.shrink_to_fit();
 				block_bodies.shrink_to_fit();
 				block_details.shrink_to_fit();
@@ -938,7 +929,9 @@ impl BlockChain {
  				block_receipts.shrink_to_fit();
 			}
 			trace!("Cache cleanup round complete {}, cache_size = {}", i, self.cache_size().total());
-			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) { break; }
+			if self.cache_size().total() < self.max_cache_size {
+				break;
+			}
 		}
 
 		// TODO: m_lastCollection = chrono::system_clock::now();

@@ -145,6 +145,10 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		Ok(db)
 	}
 
+	/// Ticks our cache system and throws out any old data.
+	pub fn collect_garbage(&self) {
+	}
+
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
 		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.traces, block_hash)

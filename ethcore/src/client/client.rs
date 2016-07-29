@@ -548,6 +548,7 @@ impl Client {
 	pub fn tick(&self) {
 		self.chain.collect_garbage();
 		self.block_queue.collect_garbage();
+		self.tracedb.collect_garbage();
 
 		match self.mode {
 			Mode::Dark(timeout) => {
@@ -579,11 +580,6 @@ impl Client {
 			}
 			_ => {}
 		}
-	}
-
-	/// Set up the cache behaviour.
-	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
-		self.chain.configure_cache(pref_cache_size, max_cache_size);
 	}
 
 	/// Look up the block number for the given block ID.
