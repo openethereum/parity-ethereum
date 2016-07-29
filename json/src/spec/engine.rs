@@ -24,8 +24,8 @@ use spec::BasicAuthority;
 pub enum Engine {
 	/// Null engine.
 	Null,
-	/// Sealing engine.
-	SealingEngine,
+	/// Instantly sealing engine.
+	InstantSeal,
 	/// Ethash engine.
 	Ethash(Ethash),
 	/// BasicAuthority engine.
@@ -47,11 +47,11 @@ mod tests {
 		assert_eq!(Engine::Null, deserialized);
 
 		let s = r#"{
-			"SealingEngine": null
+			"InstantSeal": null
 		}"#;
 
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
-		assert_eq!(Engine::SealingEngine, deserialized);
+		assert_eq!(Engine::InstantSeal, deserialized);
 
 
 		let s = r#"{

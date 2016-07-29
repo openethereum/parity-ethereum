@@ -26,24 +26,24 @@ use common::Bytes;
 use account_provider::AccountProvider;
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
-pub struct SealingEngine {
+pub struct InstantSeal {
 	params: CommonParams,
 	builtins: BTreeMap<Address, Builtin>,
 }
 
-impl SealingEngine {
-	/// Returns new instance of SealingEngine with default VM Factory
+impl InstantSeal {
+	/// Returns new instance of InstantSeal with default VM Factory
 	pub fn new(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Self {
-		SealingEngine{
+		InstantSeal{
 			params: params,
 			builtins: builtins,
 		}
 	}
 }
 
-impl Engine for SealingEngine {
+impl Engine for InstantSeal {
 	fn name(&self) -> &str {
-		"SealingEngine"
+		"InstantSeal"
 	}
 
 	fn params(&self) -> &CommonParams {
@@ -72,14 +72,14 @@ mod tests {
 	use block::*;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
-	fn new_test_sealing() -> Spec { Spec::load(include_bytes!("../../res/sealing_engine.json")) }
+	fn new_test_instant() -> Spec { Spec::load(include_bytes!("../../res/instant_seal.json")) }
 
 	#[test]
-	fn sealing_can_seal() {
+	fn instant_can_seal() {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("".sha3(), "").unwrap();
 
-		let spec = new_test_sealing();
+		let spec = new_test_instant();
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
@@ -95,8 +95,8 @@ mod tests {
 	}
 
 	#[test]
-	fn sealing_cant_verify() {
-		let engine = new_test_sealing().engine;
+	fn instant_cant_verify() {
+		let engine = new_test_instant().engine;
 		let mut header: Header = Header::default();
 
 		assert!(engine.verify_block_basic(&header, None).is_ok());
