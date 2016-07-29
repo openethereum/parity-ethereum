@@ -24,9 +24,9 @@ use std::time::{Instant};
 use time::precise_time_ns;
 
 // util
-use util::{journaldb, rlp, Bytes, Stream, View, PerfTimer, Itertools, Mutex, RwLock};
+use util::{journaldb, rlp, Bytes, View, PerfTimer, Itertools, Mutex, RwLock};
 use util::journaldb::JournalDB;
-use util::rlp::{RlpStream, Rlp, UntrustedRlp};
+use util::rlp::{UntrustedRlp};
 use util::numbers::*;
 use util::panics::*;
 use util::io::*;
@@ -34,14 +34,13 @@ use util::sha3::*;
 use util::kvdb::*;
 
 // other
-use views::BlockView;
+use views::{BlockView, HeaderView, BodyView};
 use error::{ImportError, ExecutionError, ReplayError, BlockError, ImportResult};
 use header::BlockNumber;
 use state::State;
 use spec::Spec;
 use basic_types::Seal;
-use engine::Engine;
-use views::HeaderView;
+use engines::Engine;
 use service::ClientIoMessage;
 use env_info::LastHashes;
 use verification;
@@ -53,8 +52,7 @@ use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig,
-	DatabaseCompactionProfile, BlockChainClient, MiningBlockChainClient,
+use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode, ChainNotify};
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -62,6 +60,7 @@ use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
+use trace::FlatTransactionTraces;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
@@ -123,6 +122,7 @@ pub struct Client {
 	chain: Arc<BlockChain>,
 	tracedb: Arc<TraceDB<BlockChain>>,
 	engine: Arc<Box<Engine>>,
+	db: Arc<Database>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
@@ -141,6 +141,19 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1200;
+// database columns
+/// Column for State
+pub const DB_COL_STATE: Option<u32> = Some(0);
+/// Column for Block headers
+pub const DB_COL_HEADERS: Option<u32> = Some(1);
+/// Column for Block bodies
+pub const DB_COL_BODIES: Option<u32> = Some(2);
+/// Column for Extras
+pub const DB_COL_EXTRA: Option<u32> = Some(3);
+/// Column for Traces
+pub const DB_COL_TRACE: Option<u32> = Some(4);
+/// Number of columns in DB
+pub const DB_NO_OF_COLUMNS: Option<u32> = Some(5);
 
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
@@ -160,37 +173,24 @@ impl Client {
 	) -> Result<Arc<Client>, ClientError> {
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
-		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
-		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, &path, chain.clone())));
+		let mut db_config = DatabaseConfig::with_columns(DB_NO_OF_COLUMNS);
+		db_config.cache_size = config.db_cache_size;
+		db_config.compaction = config.db_compaction.compaction_profile();
 
-		let mut state_db_config = match config.db_cache_size {
-			None => DatabaseConfig::default(),
-			Some(cache_size) => DatabaseConfig::with_cache(cache_size),
-		};
+		let db = Arc::new(Database::open(&db_config, &path.to_str().unwrap()).expect("Error opening database"));
+		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
+		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, db.clone(), chain.clone())));
 
-		if config.db_compaction == DatabaseCompactionProfile::HDD {
-			state_db_config = state_db_config.compaction(CompactionProfile::hdd());
-		}
-
-		let mut state_db = journaldb::new(
-			&append_path(&path, "state"),
-			config.pruning,
-			state_db_config
-		);
-
+		let mut state_db = journaldb::new(db.clone(), config.pruning, DB_COL_STATE);
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
-			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+			let batch = DBTransaction::new(&db);
+			state_db.commit(&batch, 0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+			db.write(batch).expect("Error writing genesis state to state DB");
 		}
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
 			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
 		}
-
-		/* TODO: enable this once the best block issue is resolved
-		while !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
-			warn!("State root not found for block #{} ({}), recovering...", chain.best_block_number(), chain.best_block_hash().hex());
-			chain.rewind();
-		}*/
 
 		let engine = Arc::new(spec.engine);
 
@@ -206,6 +206,7 @@ impl Client {
 			chain: chain,
 			tracedb: tracedb,
 			engine: engine,
+			db: db,
 			state_db: Mutex::new(state_db),
 			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
@@ -344,7 +345,7 @@ impl Client {
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
 		let max_blocks_to_import = 64;
-		let (imported_blocks, import_results, invalid_blocks, original_best, imported, duration) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, duration) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
@@ -353,8 +354,6 @@ impl Client {
 			let _timer = PerfTimer::new("import_verified_blocks");
 			let start = precise_time_ns();
 			let blocks = self.block_queue.drain(max_blocks_to_import);
-
-			let original_best = self.chain_info().best_block_hash;
 
 			for block in blocks {
 				let header = &block.header;
@@ -389,7 +388,7 @@ impl Client {
 				}
 			}
 			let duration_ns = precise_time_ns() - start;
-			(imported_blocks, import_results, invalid_blocks, original_best, imported, duration_ns)
+			(imported_blocks, import_results, invalid_blocks, imported, duration_ns)
 		};
 
 		{
@@ -413,10 +412,6 @@ impl Client {
 			}
 		}
 
-		if self.chain_info().best_block_hash != original_best {
-			self.miner.update_sealing(self);
-		}
-
 		imported
 	}
 
@@ -433,23 +428,30 @@ impl Client {
 
 		// Commit results
 		let receipts = block.receipts().to_owned();
-		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
+		let traces = block.traces().clone().unwrap_or_else(Vec::new);
+		let traces: Vec<FlatTransactionTraces> = traces.into_iter()
+			.map(Into::into)
+			.collect();
 
+		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
+
+		let batch = DBTransaction::new(&self.db);
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(number, hash, ancient).expect("State DB commit failed.");
+		block.drain().commit(&batch, number, hash, ancient).expect("State DB commit failed.");
 
-		// And update the chain after commit to prevent race conditions
-		// (when something is in chain but you are not able to fetch details)
-		let route = self.chain.insert_block(block_data, receipts);
-		self.tracedb.import(TraceImportRequest {
-			traces: traces,
+		let route = self.chain.insert_block(&batch, block_data, receipts);
+		self.tracedb.import(&batch, TraceImportRequest {
+			traces: traces.into(),
 			block_hash: hash.clone(),
 			block_number: number,
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
+		// Final commit to the DB
+		self.db.write(batch).expect("State DB write failed.");
+
 		self.update_last_hashes(&parent, hash);
 		route
 	}
@@ -677,17 +679,17 @@ impl BlockChainClient for Client {
 
 	fn replay(&self, id: TransactionID, analytics: CallAnalytics) -> Result<Executed, ReplayError> {
 		let address = try!(self.transaction_address(id).ok_or(ReplayError::TransactionNotFound));
-		let block_data = try!(self.block(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+		let header_data = try!(self.block_header(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+		let body_data = try!(self.block_body(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
 		let mut state = try!(self.state_at_beginning(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
-		let block = BlockView::new(&block_data);
-		let txs = block.transactions();
+		let txs = BodyView::new(&body_data).transactions();
 
 		if address.index >= txs.len() {
 			return Err(ReplayError::TransactionNotFound);
 		}
 
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let view = block.header_view();
+		let view = HeaderView::new(&header_data);
 		let last_hashes = self.build_last_hashes(view.hash());
 		let mut env_info = EnvInfo {
 			number: view.number(),
@@ -722,20 +724,16 @@ impl BlockChainClient for Client {
 		}
 	}
 
+	fn best_block_header(&self) -> Bytes {
+		self.chain.best_block_header()
+	}
+
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
-		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
+		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_header_data(&hash))
 	}
 
 	fn block_body(&self, id: BlockID) -> Option<Bytes> {
-		Self::block_hash(&self.chain, id).and_then(|hash| {
-			self.chain.block(&hash).map(|bytes| {
-				let rlp = Rlp::new(&bytes);
-				let mut body = RlpStream::new_list(2);
-				body.append_raw(rlp.at(1).as_raw(), 1);
-				body.append_raw(rlp.at(2).as_raw(), 1);
-				body.out()
-			})
-		})
+		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_body(&hash))
 	}
 
 	fn block(&self, id: BlockID) -> Option<Bytes> {
@@ -792,13 +790,13 @@ impl BlockChainClient for Client {
 
 	fn uncle(&self, id: UncleID) -> Option<Bytes> {
 		let index = id.position;
-		self.block(id.block).and_then(|block| BlockView::new(&block).uncle_rlp_at(index))
+		self.block_body(id.block).and_then(|body| BodyView::new(&body).uncle_rlp_at(index))
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
-		self.transaction_address(id).and_then(|address| {
-			let t = self.chain.block(&address.block_hash)
-				.and_then(|block| BlockView::new(&block).localized_transaction_at(address.index));
+		self.transaction_address(id).and_then(|address| self.chain.block_number(&address.block_hash).and_then(|block_number| {
+			let t = self.chain.block_body(&address.block_hash)
+				.and_then(|block| BodyView::new(&block).localized_transaction_at(&address.block_hash, block_number, address.index));
 
 			match (t, self.chain.transaction_receipt(&address)) {
 				(Some(tx), Some(receipt)) => {
@@ -837,7 +835,7 @@ impl BlockChainClient for Client {
 				},
 				_ => None
 			}
-		})
+		}))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
@@ -913,7 +911,7 @@ impl BlockChainClient for Client {
 		blocks.into_iter()
 			.filter_map(|number| self.chain.block_hash(number).map(|hash| (number, hash)))
 			.filter_map(|(number, hash)| self.chain.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
-			.filter_map(|(number, hash, receipts)| self.chain.block(&hash).map(|ref b| (number, hash, receipts, BlockView::new(b).transaction_hashes())))
+			.filter_map(|(number, hash, receipts)| self.chain.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
 			.flat_map(|(number, hash, receipts, hashes)| {
 				let mut log_index = 0;
 				receipts.into_iter()
@@ -1043,8 +1041,6 @@ impl MiningBlockChainClient for Client {
 		let _timer = PerfTimer::new("import_sealed_block");
 		let start = precise_time_ns();
 
-		let original_best = self.chain_info().best_block_hash;
-
 		let h = block.header().hash();
 		let number = block.header().number();
 
@@ -1052,26 +1048,19 @@ impl MiningBlockChainClient for Client {
 		let route = self.commit_block(block, &h, &block_data);
 		trace!(target: "client", "Imported sealed block #{} ({})", number, h);
 
-		{
-			let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
-			self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
+		let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
+		self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
 
-			self.notify(|notify| {
-				notify.new_blocks(
-					vec![h.clone()],
-					vec![],
-					enacted.clone(),
-					retracted.clone(),
-					vec![h.clone()],
-					precise_time_ns() - start,
-				);
-			});
-		}
-
-		if self.chain_info().best_block_hash != original_best {
-			self.miner.update_sealing(self);
-		}
-
+		self.notify(|notify| {
+			notify.new_blocks(
+				vec![h.clone()],
+				vec![],
+				enacted.clone(),
+				retracted.clone(),
+				vec![h.clone()],
+				precise_time_ns() - start,
+			);
+		});
 		Ok(h)
 	}
 }

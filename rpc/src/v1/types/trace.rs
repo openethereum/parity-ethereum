@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use serde::{Serialize, Serializer};
 use ethcore::trace::trace;
-use ethcore::trace::{Trace as EthTrace, LocalizedTrace as EthLocalizedTrace};
+use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace};
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
@@ -458,23 +458,24 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 /// Trace
 #[derive(Debug, Serialize)]
 pub struct Trace {
-	/// Depth within the call trace tree.
-	depth: usize,
+	/// Trace address
+	#[serde(rename="traceAddress")]
+	trace_address: Vec<U256>,
+	/// Subtraces
+	subtraces: U256,
 	/// Action
 	action: Action,
 	/// Result
 	result: Res,
-	/// Subtraces
-	subtraces: Vec<Trace>,
 }
 
-impl From<EthTrace> for Trace {
-	fn from(t: EthTrace) -> Self {
+impl From<FlatTrace> for Trace {
+	fn from(t: FlatTrace) -> Self {
 		Trace {
-			depth: t.depth.into(),
+			trace_address: t.trace_address.into_iter().map(Into::into).collect(),
+			subtraces: t.subtraces.into(),
 			action: t.action.into(),
 			result: t.result.into(),
-			subtraces: t.subs.into_iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -485,7 +486,7 @@ pub struct TraceResults {
 	/// The output of the call/create
 	pub output: Vec<u8>,
 	/// The transaction trace.
-	pub trace: Option<Trace>,
+	pub trace: Vec<Trace>,
 	/// The transaction trace.
 	#[serde(rename="vmTrace")]
 	pub vm_trace: Option<VMTrace>,
@@ -498,7 +499,7 @@ impl From<Executed> for TraceResults {
 	fn from(t: Executed) -> Self {
 		TraceResults {
 			output: t.output.into(),
-			trace: t.trace.map(Into::into),
+			trace: t.trace.into_iter().map(Into::into).collect(),
 			vm_trace: t.vm_trace.map(Into::into),
 			state_diff: t.state_diff.map(Into::into),
 		}
@@ -516,12 +517,12 @@ mod tests {
 	fn should_serialize_trace_results() {
 		let r = TraceResults {
 			output: vec![0x60],
-			trace: None,
+			trace: vec![],
 			vm_trace: None,
 			state_diff: None,
 		};
 		let serialized = serde_json::to_string(&r).unwrap();
-		assert_eq!(serialized, r#"{"output":[96],"trace":null,"vmTrace":null,"stateDiff":null}"#);
+		assert_eq!(serialized, r#"{"output":[96],"trace":[],"vmTrace":null,"stateDiff":null}"#);
 	}
 
 	#[test]

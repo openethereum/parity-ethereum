@@ -57,8 +57,6 @@ ui = ["dapps", "ethcore-signer/ui"]
 use-precompiled-js = ["ethcore-dapps/use-precompiled-js", "ethcore-signer/use-precompiled-js"]
 dapps = ["ethcore-dapps"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
-travis-beta = ["ethcore/json-tests"]
-travis-nightly = ["ethcore/json-tests", "dev"]
 ipc = ["ethcore/ipc"]
 
 [[bin]]

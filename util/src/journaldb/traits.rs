@@ -18,6 +18,7 @@
 
 use common::*;
 use hashdb::*;
+use kvdb::{Database, DBTransaction};
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
@@ -36,11 +37,22 @@ pub trait JournalDB : HashDB + Send + Sync {
 
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
-	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
+	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
 
 	/// State data query
 	fn state(&self, _id: &H256) -> Option<Bytes>;
 
 	/// Whether this database is pruned.
 	fn is_pruned(&self) -> bool { true }
+
+	/// Get backing database.
+	fn backing(&self) -> &Arc<Database>;
+
+	#[cfg(test)]
+	/// Commit all changes in a single batch
+	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		let batch = self.backing().transaction();
+		let res = try!(self.commit(&batch, now, id, end));
+		self.backing().write(batch).map(|_| res).map_err(Into::into)
+	}
 }

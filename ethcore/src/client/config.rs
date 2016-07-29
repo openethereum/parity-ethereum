@@ -21,7 +21,7 @@ pub use blockchain::Config as BlockChainConfig;
 pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
 pub use verification::VerifierType;
-use util::journaldb;
+use util::{journaldb, CompactionProfile};
 use util::trie::TrieSpec;
 
 /// Client state db compaction profile
@@ -36,6 +36,16 @@ pub enum DatabaseCompactionProfile {
 impl Default for DatabaseCompactionProfile {
 	fn default() -> Self {
 		DatabaseCompactionProfile::Default
+	}
+}
+
+impl DatabaseCompactionProfile {
+	/// Returns corresponding compaction profile.
+	pub fn compaction_profile(&self) -> CompactionProfile {
+		match *self {
+			DatabaseCompactionProfile::Default => Default::default(),
+			DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
+		}
 	}
 }
 

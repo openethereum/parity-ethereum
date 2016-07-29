@@ -108,7 +108,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm));
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -295,8 +295,9 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 
 		let from = GethDirectory::open(t);
 		let to = DiskDirectory::create(dirs.keys.clone()).unwrap();
-		// ignore error, cause geth may not exist
-		let _ = import_accounts(&from, &to);
+		if let Err(err) = import_accounts(&from, &to) {
+			warn!("Import geth accounts failed. {}", err);
+		}
 	}
 
 	let dir = Box::new(DiskDirectory::create(dirs.keys.clone()).unwrap());

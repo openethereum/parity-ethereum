@@ -17,7 +17,7 @@
 use super::test_common::*;
 use state::*;
 use executive::*;
-use engine::*;
+use engines::Engine;
 use evm;
 use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
 use externalities::*;
@@ -38,7 +38,7 @@ struct CallCreate {
 
 impl From<ethjson::vm::Call> for CallCreate {
 	fn from(c: ethjson::vm::Call) -> Self {
-		let dst: Option<_> = c.destination.into();
+		let dst: Option<ethjson::hash::Address> = c.destination.into();
 		CallCreate {
 			data: c.data.into(),
 			destination: dst.map(Into::into),

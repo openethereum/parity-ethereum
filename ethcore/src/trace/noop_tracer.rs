@@ -18,8 +18,8 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::{Tracer, VMTracer};
-use trace::trace::{Trace, Call, Create, VMTrace};
+use trace::{Tracer, VMTracer, FlatTrace};
+use trace::trace::{Call, Create, VMTrace};
 
 /// Nonoperative tracer. Does not trace anything.
 pub struct NoopTracer;
@@ -37,32 +37,32 @@ impl Tracer for NoopTracer {
 		None
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>) {
+	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: Vec<FlatTrace>) {
 		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
 		assert!(output.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_create(&mut self, create: Option<Create>, _: U256, code: Option<Bytes>, _: Address, _: usize, _: Vec<Trace>) {
+	fn trace_create(&mut self, create: Option<Create>, _: U256, code: Option<Bytes>, _: Address, _: Vec<FlatTrace>) {
 		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
 		assert!(code.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, _: usize, _: Vec<Trace>) {
+	fn trace_failed_call(&mut self, call: Option<Call>, _: Vec<FlatTrace>) {
 		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_failed_create(&mut self, create: Option<Create>, _: usize, _: Vec<Trace>) {
+	fn trace_failed_create(&mut self, create: Option<Create>, _: Vec<FlatTrace>) {
 		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_suicide(&mut self, _address: Address, _balance: U256, _refund_address: Address, _depth: usize) {
+	fn trace_suicide(&mut self, _address: Address, _balance: U256, _refund_address: Address) {
 	}
 
 	fn subtracer(&self) -> Self {
 		NoopTracer
 	}
 
-	fn traces(self) -> Vec<Trace> {
+	fn traces(self) -> Vec<FlatTrace> {
 		vec![]
 	}
 }
