@@ -166,8 +166,8 @@ impl Database {
 			opts.set_block_based_table_factory(&block_opts);
 		}
 
-		let mut write_opts = WriteOptions::new();
-		write_opts.disable_wal(true); // TODO: make sure this is safe
+		let write_opts = WriteOptions::new();
+		//write_opts.disable_wal(true); // TODO: make sure this is safe
 
 		let mut cfs: Vec<Column> = Vec::new();
 		let db = match config.columns {
