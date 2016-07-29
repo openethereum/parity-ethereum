@@ -62,3 +62,47 @@ impl Engine for SealingEngine {
 		Some(Vec::new())
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use common::*;
+	use tests::helpers::*;
+	use account_provider::AccountProvider;
+	use spec::Spec;
+	use block::*;
+
+	/// Create a new test chain spec with `BasicAuthority` consensus engine.
+	fn new_test_sealing() -> Spec { Spec::load(include_bytes!("../../res/sealing_engine.json")) }
+
+	#[test]
+	fn sealing_can_seal() {
+		let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account("".sha3(), "").unwrap();
+
+		let spec = new_test_sealing();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
+		let mut db_result = get_temp_journal_db();
+		let mut db = db_result.take();
+		spec.ensure_db_good(db.as_hashdb_mut());
+		let last_hashes = vec![genesis_header.hash()];
+		let vm_factory = Default::default();
+		let b = OpenBlock::new(engine.deref(), &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = b.close_and_lock();
+		// Seal with empty AccountProvider.
+		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
+		assert!(b.try_seal(engine.deref(), seal).is_ok());
+	}
+
+	#[test]
+	fn sealing_cant_verify() {
+		let engine = new_test_sealing().engine;
+		let mut header: Header = Header::default();
+
+		assert!(engine.verify_block_basic(&header, None).is_ok());
+
+		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
+
+		assert!(engine.verify_block_unordered(&header, None).is_ok());
+	}
+}
