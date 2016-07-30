@@ -241,7 +241,7 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 		// Remove the database dir (it shouldn't exist anyway, but it might when migration was interrupted)
 		let _ = fs::remove_dir_all(db_path.clone());
 		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_HEADERS, Extract::Header, &compaction_profile));
-		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_BODIES, Extract::Header, &compaction_profile));
+		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_BODIES, Extract::Body, &compaction_profile));
 		try!(consolidate_database(legacy::extras_database_path(path), db_path.clone(), client::DB_COL_EXTRA, Extract::All, &compaction_profile));
 		try!(consolidate_database(legacy::state_database_path(path), db_path.clone(), client::DB_COL_STATE, Extract::All, &compaction_profile));
 		try!(consolidate_database(legacy::trace_database_path(path), db_path.clone(), client::DB_COL_TRACE, Extract::All, &compaction_profile));
