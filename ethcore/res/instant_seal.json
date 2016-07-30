@@ -1,7 +1,7 @@
 {
 	"name": "TestInstantSeal",
 	"engine": {
-		"InstantEngine": null
+		"InstantSeal": null
 	},
 	"params": {
 		"accountStartNonce": "0x0100000",
