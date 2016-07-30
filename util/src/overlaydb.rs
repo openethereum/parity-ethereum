@@ -69,8 +69,10 @@ impl OverlayDB {
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
 	#[cfg(test)]
 	pub fn new_temp() -> OverlayDB {
+		use hash::{H32, FixedHash};
+
 		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		dir.push(::hash::H32::random().hex());
 		Self::new(Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap()), None)
 	}
 
@@ -199,11 +201,13 @@ mod tests {
 	use devtools::RandomTempPath;
 	use sha3::Hashable;
 
+	use std::sync::Arc;
+
 	#[test]
 	fn should_give_empty_keys_when_all_deleted() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing);
+		let mut db = OverlayDB::new(Arc::new(backing), None);
 
 		let hash = db.insert(b"dog");
 		db.commit().unwrap();
@@ -219,7 +223,7 @@ mod tests {
 	fn should_not_return_negative_reffed_keys() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing);
+		let mut db = OverlayDB::new(Arc::new(backing), None);
 
 		let hash = db.insert(b"dog");
 		db.commit().unwrap();
@@ -251,7 +255,7 @@ mod tests {
 	fn delete_remove() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing);
+		let mut db = OverlayDB::new(Arc::new(backing), None);
 
 		let hash = db.insert(b"dog");
 		db.commit().unwrap();
@@ -267,7 +271,7 @@ mod tests {
 	fn double_remove() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing);
+		let mut db = OverlayDB::new(Arc::new(backing), None);
 
 		let hash = db.insert(b"cat");
 		assert!(db.commit().is_ok());
@@ -283,7 +287,7 @@ mod tests {
 	fn deletion_invalid() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing);
+		let mut db = OverlayDB::new(Arc::new(backing), None);
 
 		let hash = b"hello".sha3();
 		db.remove(&hash);
@@ -295,7 +299,7 @@ mod tests {
 	fn insertion_invalid() {
 		let path = RandomTempPath::create_dir();
 		let backing = Database::open_default(path.as_str()).unwrap();
-		let mut db = OverlayDB::new(backing);
+		let mut db = OverlayDB::new(Arc::new(backing), None);
 
 		db.insert(b"bad juju");
 		assert!(db.commit().is_ok());
