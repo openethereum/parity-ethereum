@@ -16,7 +16,6 @@
 
 //! Blockchain database.
 
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use bloomchain as bc;
 use util::*;
 use header::*;
@@ -32,6 +31,7 @@ use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{Writable, Readable, CacheUpdatePolicy};
 use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_COL_BODIES};
+use cache_manager::CacheManager;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -130,11 +130,6 @@ enum CacheID {
 	BlockReceipts(H256),
 }
 
-struct CacheManager {
-	cache_usage: VecDeque<HashSet<CacheID>>,
-	in_use: HashSet<CacheID>,
-}
-
 impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
@@ -148,8 +143,6 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 /// **Does not do input data verification.**
 pub struct BlockChain {
 	// All locks must be captured in the order declared here.
-	pref_cache_size: AtomicUsize,
-	max_cache_size: AtomicUsize,
 	blooms_config: bc::Config,
 
 	best_block: RwLock<BestBlock>,
@@ -167,7 +160,7 @@ pub struct BlockChain {
 
 	db: Arc<Database>,
 
-	cache_man: RwLock<CacheManager>,
+	cache_man: RwLock<CacheManager<CacheID>>,
 }
 
 impl BlockProvider for BlockChain {
@@ -297,8 +290,6 @@ impl BlockProvider for BlockChain {
 	}
 }
 
-const COLLECTION_QUEUE_SIZE: usize = 8;
-
 pub struct AncestryIter<'a> {
 	current: H256,
 	chain: &'a BlockChain,
@@ -320,12 +311,10 @@ impl<'a> Iterator for AncestryIter<'a> {
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
 	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>) -> BlockChain {
-		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
-		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
+		// 400 is the avarage size of the key
+		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
 		let bc = BlockChain {
-			pref_cache_size: AtomicUsize::new(config.pref_cache_size),
-			max_cache_size: AtomicUsize::new(config.max_cache_size),
 			blooms_config: bc::Config {
 				levels: LOG_BLOOMS_LEVELS,
 				elements_per_index: LOG_BLOOMS_ELEMENTS_PER_INDEX,
@@ -447,12 +436,6 @@ impl BlockChain {
 		}
 
 		None
-	}
-
-	/// Set the cache configuration.
-	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
-		self.pref_cache_size.store(pref_cache_size, AtomicOrder::Relaxed);
-		self.max_cache_size.store(max_cache_size, AtomicOrder::Relaxed);
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
@@ -874,74 +857,40 @@ impl BlockChain {
 	/// Let the cache system know that a cacheable item has been used.
 	fn note_used(&self, id: CacheID) {
 		let mut cache_man = self.cache_man.write();
-		if !cache_man.cache_usage[0].contains(&id) {
-			cache_man.cache_usage[0].insert(id.clone());
-			if cache_man.in_use.contains(&id) {
-				if let Some(c) = cache_man.cache_usage.iter_mut().skip(1).find(|e|e.contains(&id)) {
-					c.remove(&id);
-				}
-			} else {
-				cache_man.in_use.insert(id);
-			}
-		}
+		cache_man.note_used(id);
 	}
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) {
-			// rotate cache
-			let mut cache_man = self.cache_man.write();
-			const AVERAGE_BYTES_PER_CACHE_ENTRY: usize = 400; //estimated
-			if cache_man.cache_usage[0].len() > self.pref_cache_size.load(AtomicOrder::Relaxed) / COLLECTION_QUEUE_SIZE / AVERAGE_BYTES_PER_CACHE_ENTRY {
-				trace!("Cache rotation, cache_size = {}", self.cache_size().total());
-				let cache = cache_man.cache_usage.pop_back().unwrap();
-				cache_man.cache_usage.push_front(cache);
-			}
-			return;
-		}
+		let mut cache_man = self.cache_man.write();
+		cache_man.collect_garbage(|| self.cache_size().total(), | ids | {
+			let mut block_headers = self.block_headers.write();
+			let mut block_bodies = self.block_bodies.write();
+			let mut block_details = self.block_details.write();
+			let mut block_hashes = self.block_hashes.write();
+			let mut transaction_addresses = self.transaction_addresses.write();
+			let mut blocks_blooms = self.blocks_blooms.write();
+			let mut block_receipts = self.block_receipts.write();
 
-		for i in 0..COLLECTION_QUEUE_SIZE {
-			{
-				trace!("Cache cleanup round started {}, cache_size = {}", i, self.cache_size().total());
-				let mut block_headers = self.block_headers.write();
-				let mut block_bodies = self.block_bodies.write();
-				let mut block_details = self.block_details.write();
-				let mut block_hashes = self.block_hashes.write();
-				let mut transaction_addresses = self.transaction_addresses.write();
-				let mut blocks_blooms = self.blocks_blooms.write();
-				let mut block_receipts = self.block_receipts.write();
-				let mut cache_man = self.cache_man.write();
-
-				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
-					cache_man.in_use.remove(&id);
-					match id {
-						CacheID::BlockHeader(h) => { block_headers.remove(&h); },
-						CacheID::BlockBody(h) => { block_bodies.remove(&h); },
-						CacheID::BlockDetails(h) => { block_details.remove(&h); }
-						CacheID::BlockHashes(h) => { block_hashes.remove(&h); }
-						CacheID::TransactionAddresses(h) => { transaction_addresses.remove(&h); }
-						CacheID::BlocksBlooms(h) => { blocks_blooms.remove(&h); }
-						CacheID::BlockReceipts(h) => { block_receipts.remove(&h); }
-					}
+			for id in &ids {
+				match *id {
+					CacheID::BlockHeader(ref h) => { block_headers.remove(h); },
+					CacheID::BlockBody(ref h) => { block_bodies.remove(h); },
+					CacheID::BlockDetails(ref h) => { block_details.remove(h); }
+					CacheID::BlockHashes(ref h) => { block_hashes.remove(h); }
+					CacheID::TransactionAddresses(ref h) => { transaction_addresses.remove(h); }
+					CacheID::BlocksBlooms(ref h) => { blocks_blooms.remove(h); }
+					CacheID::BlockReceipts(ref h) => { block_receipts.remove(h); }
 				}
-				cache_man.cache_usage.push_front(HashSet::new());
-
-				// TODO: handle block_hashes properly.
-				block_hashes.clear();
-
-				block_headers.shrink_to_fit();
-				block_bodies.shrink_to_fit();
-				block_details.shrink_to_fit();
- 				block_hashes.shrink_to_fit();
- 				transaction_addresses.shrink_to_fit();
- 				blocks_blooms.shrink_to_fit();
- 				block_receipts.shrink_to_fit();
 			}
-			trace!("Cache cleanup round complete {}, cache_size = {}", i, self.cache_size().total());
-			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) { break; }
-		}
-
-		// TODO: m_lastCollection = chrono::system_clock::now();
+			block_headers.shrink_to_fit();
+			block_bodies.shrink_to_fit();
+			block_details.shrink_to_fit();
+			block_hashes.shrink_to_fit();
+			transaction_addresses.shrink_to_fit();
+			blocks_blooms.shrink_to_fit();
+			block_receipts.shrink_to_fit();
+		});
 	}
 
 	/// Create a block body from a block.

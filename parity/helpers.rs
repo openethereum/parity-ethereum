@@ -212,6 +212,10 @@ pub fn to_client_config(
 	client_config.db_cache_size = Some(cache_config.db_state_cache_size() as usize);
 	// db queue cache size, in bytes
 	client_config.queue.max_mem_use = cache_config.queue() as usize * mb;
+	// in bytes
+	client_config.tracing.max_cache_size = cache_config.traces() as usize * mb;
+	// in bytes
+	client_config.tracing.pref_cache_size = cache_config.traces() as usize * 3 / 4 * mb;
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;

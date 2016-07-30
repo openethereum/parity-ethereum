@@ -118,6 +118,7 @@ pub mod snapshot;
 pub mod action_params;
 #[macro_use] pub mod evm;
 
+mod cache_manager;
 mod blooms;
 mod db;
 mod common;
