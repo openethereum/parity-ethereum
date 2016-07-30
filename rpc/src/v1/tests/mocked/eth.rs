@@ -299,7 +299,7 @@ fn rpc_eth_storage_at() {
 		"params": ["0x0000000000000000000000000000000000000001", "0x4", "latest"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x07","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000007","id":1}"#;
 
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
