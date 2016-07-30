@@ -176,6 +176,7 @@ impl Client {
 		let mut db_config = DatabaseConfig::with_columns(DB_NO_OF_COLUMNS);
 		db_config.cache_size = config.db_cache_size;
 		db_config.compaction = config.db_compaction.compaction_profile();
+		db_config.wal = config.db_wal;
 
 		let db = Arc::new(Database::open(&db_config, &path.to_str().unwrap()).expect("Error opening database"));
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
