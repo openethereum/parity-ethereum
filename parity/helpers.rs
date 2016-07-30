@@ -178,7 +178,8 @@ pub fn default_network_config() -> ::util::NetworkConfiguration {
 		discovery_enabled: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
-		ideal_peers: 25,
+		max_peers: 50,
+		min_peers: 25,
 		reserved_nodes: Vec::new(),
 		non_reserved_mode: NonReservedPeerMode::Accept,
 	}

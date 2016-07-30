@@ -132,7 +132,7 @@ impl Informant {
 					},
 					paint(Cyan.bold(), format!("{:2}", sync_info.num_active_peers)),
 					paint(Cyan.bold(), format!("{:2}", sync_info.num_peers)),
-					paint(Cyan.bold(), format!("{:2}", net_config.ideal_peers))
+					paint(Cyan.bold(), format!("{:2}", if sync_info.num_peers as u32 > net_config.min_peers { net_config.max_peers} else { net_config.min_peers} ))
 				),
 				_ => String::new(),
 			},
