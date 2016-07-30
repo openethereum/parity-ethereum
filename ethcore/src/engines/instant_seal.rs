@@ -34,7 +34,7 @@ pub struct InstantSeal {
 impl InstantSeal {
 	/// Returns new instance of InstantSeal with default VM Factory
 	pub fn new(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Self {
-		InstantSeal{
+		InstantSeal {
 			params: params,
 			builtins: builtins,
 		}
