@@ -107,9 +107,9 @@ pub trait CostType: ops::Mul<Output=Self> + ops::Div<Output=Self> + ops::Add<Out
 	fn overflow_add(self, other: Self) -> (Self, bool);
 	/// Multiple with overflow
 	fn overflow_mul(self, other: Self) -> (Self, bool);
-	/// Single-step full multiplication and division: `self*other/div`
+	/// Single-step full multiplication and shift: `(self*other) >> shr`
 	/// Should not overflow on intermediate steps
-	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool);
+	fn overflow_mul_shr(self, other: Self, shr: usize) -> (Self, bool);
 }
 
 impl CostType for U256 {
@@ -133,14 +133,14 @@ impl CostType for U256 {
 		Uint::overflowing_mul(self, other)
 	}
 
-	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool) {
+	fn overflow_mul_shr(self, other: Self, shr: usize) -> (Self, bool) {
 		let x = self.full_mul(other);
-		let (U512(parts), o) = Uint::overflowing_div(x, U512::from(div));
+		let U512(parts) = x;
 		let overflow = (parts[4] | parts[5] | parts[6] | parts[7]) > 0;
-
+		let U512(parts) = x >> shr;
 		(
 			U256([parts[0], parts[1], parts[2], parts[3]]),
-			o | overflow
+			overflow
 		)
 	}
 }
@@ -169,11 +169,13 @@ impl CostType for usize {
 		self.overflowing_mul(other)
 	}
 
-	fn overflow_mul_div(self, other: Self, div: Self) -> (Self, bool) {
+	fn overflow_mul_shr(self, other: Self, shr: usize) -> (Self, bool) {
 		let (c, o) = U128::from(self).overflowing_mul(U128::from(other));
-		let (U128(parts), o1) = c.overflowing_div(U128::from(div));
+		let U128(parts) = c;
+		let overflow = o | (parts[1] > 0);
+		let U128(parts) = c >> shr;
 		let result = parts[0] as usize;
-		let overflow = o | o1 | (parts[1] > 0) | (parts[0] > result as u64);
+		let overflow = overflow | (parts[0] > result as u64);
 		(result, overflow)
 	}
 }
@@ -189,13 +191,13 @@ pub trait Evm {
 
 
 #[test]
-fn should_calculate_overflow_mul_div_without_overflow() {
+fn should_calculate_overflow_mul_shr_without_overflow() {
 	// given
-	let num = 10_000_000;
+	let num = 1048576;
 
 	// when
-	let (res1, o1) = U256::from(num).overflow_mul_div(U256::from(num), U256::from(num));
-	let (res2, o2) = num.overflow_mul_div(num, num);
+	let (res1, o1) = U256::from(num).overflow_mul_shr(U256::from(num), 20);
+	let (res2, o2) = num.overflow_mul_shr(num, 20);
 
 	// then
 	assert_eq!(res1, U256::from(num));
@@ -205,22 +207,21 @@ fn should_calculate_overflow_mul_div_without_overflow() {
 }
 
 #[test]
-fn should_calculate_overflow_mul_div_with_overflow() {
+fn should_calculate_overflow_mul_shr_with_overflow() {
 	// given
 	let max = ::std::u64::MAX;
 	let num1 = U256([max, max, max, max]);
 	let num2 = ::std::usize::MAX;
 
 	// when
-	let (res1, o1) = num1.overflow_mul_div(num1, num1 - U256::from(2));
-	let (res2, o2) = num2.overflow_mul_div(num2, num2 - 2);
+	let (res1, o1) = num1.overflow_mul_shr(num1, 256);
+	let (res2, o2) = num2.overflow_mul_shr(num2, 64);
 
 	// then
-	// (x+2)^2/x = (x^2 + 4x + 4)/x = x + 4 + 4/x ~ (MAX-2) + 4 + 0 = 1
-	assert_eq!(res2, 1);
+	assert_eq!(res2, num2 - 1);
 	assert!(o2);
 
-	assert_eq!(res1, U256::from(1));
+	assert_eq!(res1, !U256::zero() - U256::one());
 	assert!(o1);
 }
 
