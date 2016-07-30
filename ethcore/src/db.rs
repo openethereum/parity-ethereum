@@ -62,14 +62,14 @@ pub trait Key<T> {
 /// Should be used to write value into database.
 pub trait Writable {
 	/// Writes the value into the database.
-	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]>;
+	fn write<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]>;
 
 	/// Writes the value into the database and updates the cache.
-	fn write_with_cache<K, T, R>(&self, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
+	fn write_with_cache<K, T, R>(&self, col: Option<u32>, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: Encodable,
 	R: Deref<Target = [u8]> {
-		self.write(&key, &value);
+		self.write(col, &key, &value);
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
 				cache.insert(key, value);
@@ -81,20 +81,20 @@ pub trait Writable {
 	}
 
 	/// Writes the values into the database and updates the cache.
-	fn extend_with_cache<K, T, R>(&self, cache: &mut Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
+	fn extend_with_cache<K, T, R>(&self, col: Option<u32>, cache: &mut Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: Encodable,
 	R: Deref<Target = [u8]> {
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
 				for (key, value) in values.into_iter() {
-					self.write(&key, &value);
+					self.write(col, &key, &value);
 					cache.insert(key, value);
 				}
 			},
 			CacheUpdatePolicy::Remove => {
 				for (key, value) in &values {
-					self.write(key, value);
+					self.write(col, key, value);
 					cache.remove(key);
 				}
 			},
@@ -105,12 +105,12 @@ pub trait Writable {
 /// Should be used to read values from database.
 pub trait Readable {
 	/// Returns value for given key.
-	fn read<T, R>(&self, key: &Key<T, Target = R>) -> Option<T> where
+	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where
 	T: Decodable,
 	R: Deref<Target = [u8]>;
 
 	/// Returns value for given key either in cache or in database.
-	fn read_with_cache<K, T, C>(&self, cache: &RwLock<C>, key: &K) -> Option<T> where
+	fn read_with_cache<K, T, C>(&self, col: Option<u32>, cache: &RwLock<C>, key: &K) -> Option<T> where
 		K: Key<T> + Eq + Hash + Clone,
 		T: Clone + Decodable,
 		C: Cache<K, T> {
@@ -121,7 +121,7 @@ pub trait Readable {
 			}
 		}
 
-		self.read(key).map(|value: T|{
+		self.read(col, key).map(|value: T|{
 			let mut write = cache.write();
 			write.insert(key.clone(), value.clone());
 			value
@@ -129,10 +129,10 @@ pub trait Readable {
 	}
 
 	/// Returns true if given value exists.
-	fn exists<T, R>(&self, key: &Key<T, Target = R>) -> bool where R: Deref<Target= [u8]>;
+	fn exists<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> bool where R: Deref<Target= [u8]>;
 
 	/// Returns true if given value exists either in cache or in database.
-	fn exists_with_cache<K, T, R, C>(&self, cache: &RwLock<C>, key: &K) -> bool where
+	fn exists_with_cache<K, T, R, C>(&self, col: Option<u32>, cache: &RwLock<C>, key: &K) -> bool where
 	K: Eq + Hash + Key<T, Target = R>,
 	R: Deref<Target = [u8]>,
 	C: Cache<K, T> {
@@ -143,13 +143,13 @@ pub trait Readable {
 			}
 		}
 
-		self.exists::<T, R>(key)
+		self.exists::<T, R>(col, key)
 	}
 }
 
 impl Writable for DBTransaction {
-	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
-		let result = self.put(&key.key(), &encode(value));
+	fn write<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
+		let result = self.put(col, &key.key(), &encode(value));
 		if let Err(err) = result {
 			panic!("db put failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
 		}
@@ -157,8 +157,8 @@ impl Writable for DBTransaction {
 }
 
 impl Readable for Database {
-	fn read<T, R>(&self, key: &Key<T, Target = R>) -> Option<T> where T: Decodable, R: Deref<Target = [u8]> {
-		let result = self.get(&key.key());
+	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where T: Decodable, R: Deref<Target = [u8]> {
+		let result = self.get(col, &key.key());
 
 		match result {
 			Ok(option) => option.map(|v| decode(&v)),
@@ -168,8 +168,8 @@ impl Readable for Database {
 		}
 	}
 
-	fn exists<T, R>(&self, key: &Key<T, Target = R>) -> bool where R: Deref<Target = [u8]> {
-		let result = self.get(&key.key());
+	fn exists<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> bool where R: Deref<Target = [u8]> {
+		let result = self.get(col, &key.key());
 
 		match result {
 			Ok(v) => v.is_some(),

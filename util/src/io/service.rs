@@ -25,7 +25,8 @@ use io::{IoError, IoHandler};
 use io::worker::{Worker, Work, WorkType};
 use panics::*;
 
-use parking_lot::{Condvar, RwLock, Mutex};
+use parking_lot::{RwLock};
+use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 
 /// Timer ID
 pub type TimerToken = usize;
@@ -169,7 +170,7 @@ pub struct IoManager<Message> where Message: Send + Sync {
 	handlers: Slab<Arc<IoHandler<Message>>, HandlerId>,
 	workers: Vec<Worker>,
 	worker_channel: chase_lev::Worker<Work<Message>>,
-	work_ready: Arc<Condvar>,
+	work_ready: Arc<SCondvar>,
 }
 
 impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
@@ -177,8 +178,8 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	pub fn start(panic_handler: Arc<PanicHandler>, event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), UtilError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
-		let work_ready_mutex =  Arc::new(Mutex::new(()));
-		let work_ready = Arc::new(Condvar::new());
+		let work_ready_mutex =  Arc::new(SMutex::new(()));
+		let work_ready = Arc::new(SCondvar::new());
 		let workers = (0..num_workers).map(|i|
 			Worker::new(
 				i,

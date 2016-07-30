@@ -108,12 +108,12 @@ impl Informant {
 
 		info!(target: "import", "{}   {}   {}",
 			match importing {
-				true => format!("Syncing {} {}   {}   {}+{} Qed", 
+				true => format!("Syncing {} {}   {}   {}+{} Qed",
 					paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 					paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 					{
 						let last_report = match write_report.deref() { &Some(ref last_report) => last_report.clone(), _ => ClientReport::default() };
-						format!("{} blk/s {} tx/s {} Mgas/s",  
+						format!("{} blk/s {} tx/s {} Mgas/s",
 							paint(Yellow.bold(), format!("{:4}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
 							paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
 							paint(Yellow.bold(), format!("{:3}", ((report.gas_processed - last_report.gas_processed) / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
@@ -132,7 +132,7 @@ impl Informant {
 					},
 					paint(Cyan.bold(), format!("{:2}", sync_info.num_active_peers)),
 					paint(Cyan.bold(), format!("{:2}", sync_info.num_peers)),
-					paint(Cyan.bold(), format!("{:2}", net_config.ideal_peers))
+					paint(Cyan.bold(), format!("{:2}", if sync_info.num_peers as u32 > net_config.min_peers { net_config.max_peers} else { net_config.min_peers} ))
 				),
 				_ => String::new(),
 			},
@@ -154,13 +154,13 @@ impl Informant {
 }
 
 impl ChainNotify for Informant {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, duration: u64) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, duration: u64) {
 		let mut last_import = self.last_import.lock();
 		let queue_info = self.client.queue_info();
 		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
 			|| self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
 		if Instant::now() > *last_import + Duration::from_secs(1) && !importing {
-			if let Some(block) = enacted.last().and_then(|h| self.client.block(BlockID::Hash(h.clone()))) {
+			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockID::Hash(*h))) {
 				let view = BlockView::new(&block);
 				let header = view.header();
 				let tx_count = view.transactions_count();
@@ -179,7 +179,7 @@ impl ChainNotify for Informant {
 			}
 			self.skipped.store(0, AtomicOrdering::Relaxed);
 		} else {
-			self.skipped.fetch_add(enacted.len(), AtomicOrdering::Relaxed);
+			self.skipped.fetch_add(imported.len(), AtomicOrdering::Relaxed);
 		}
 	}
 }

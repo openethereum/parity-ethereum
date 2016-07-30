@@ -15,23 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
+#![cfg_attr(feature="benches", feature(test))]
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
-// Clippy config
-// TODO [todr] not really sure
+// Clippy settings
+// Most of the time much more readable
 #![cfg_attr(feature="dev", allow(needless_range_loop))]
 // Shorter than if-else
 #![cfg_attr(feature="dev", allow(match_bool))]
-// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
+// Keeps consistency (all lines with `.clone()`).
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
-// In most cases it expresses function flow better
-#![cfg_attr(feature="dev", allow(if_not_else))]
 // TODO [todr] a lot of warnings to be fixed
-#![cfg_attr(feature="dev", allow(needless_borrow))]
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
 
-#![cfg_attr(feature="benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -102,7 +99,7 @@ extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod account_provider;
-pub mod basic_authority;
+pub mod engines;
 pub mod block;
 pub mod block_queue;
 pub mod client;
@@ -114,7 +111,6 @@ pub mod trace;
 pub mod spec;
 pub mod views;
 pub mod pod_state;
-pub mod engine;
 pub mod migrations;
 pub mod miner;
 pub mod snapshot;
@@ -130,7 +126,6 @@ mod pod_account;
 mod state;
 mod account;
 mod account_db;
-mod null_engine;
 mod builtin;
 mod substate;
 mod executive;

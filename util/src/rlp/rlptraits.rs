@@ -26,8 +26,8 @@ use sha3::*;
 /// Type is able to decode RLP.
 pub trait Decoder: Sized {
 	/// Read a value from the RLP into a given type.
-	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
-		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
+	fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
+		where F: Fn(&[u8]) -> Result<T, DecoderError>;
 
 	/// Get underlying `UntrustedRLP` object.
 	fn as_rlp(&self) -> &UntrustedRlp;
@@ -63,7 +63,7 @@ pub trait View<'a, 'view>: Sized {
 	/// Creates a new instance of `Rlp` reader
 	fn new(bytes: &'a [u8]) -> Self;
 
-	/// The raw data of the RLP.
+	/// The raw data of the RLP as slice.
 	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
@@ -364,4 +364,15 @@ pub trait Stream: Sized {
 	///
 	/// panic! if stream is not finished.
 	fn out(self) -> Vec<u8>;
+}
+
+/// Trait for compressing and decompressing RLP by replacement of common terms.
+pub trait Compressible: Sized {
+	/// Indicates the origin of RLP to be compressed.
+	type DataType;
+
+	/// Compress given RLP type using appropriate methods.
+	fn compress(&self, t: Self::DataType) -> ElasticArray1024<u8>;
+	/// Decompress given RLP type using appropriate methods.
+	fn decompress(&self, t: Self::DataType) -> ElasticArray1024<u8>;
 }

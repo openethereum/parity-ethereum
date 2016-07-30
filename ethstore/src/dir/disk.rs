@@ -14,16 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{fs, ffi, io};
+use std::{fs, io};
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use time;
 use ethkey::Address;
-use {libc, json, SafeAccount, Error};
+use {json, SafeAccount, Error};
 use super::KeyDirectory;
 
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
+	use std::ffi;
+	use libc;
 	let cstr = ffi::CString::new(file_path.to_str().unwrap()).unwrap();
 	match unsafe { libc::chmod(cstr.as_ptr(), libc::S_IWUSR | libc::S_IRUSR) } {
 		0 => Ok(()),
@@ -32,7 +34,7 @@ fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
 }
 
 #[cfg(windows)]
-fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32> {
+fn restrict_permissions_to_owner(_file_path: &Path) -> Result<(), i32> {
 	Ok(())
 }
 
@@ -71,13 +73,14 @@ impl DiskDirectory {
 
 		let files = try!(files);
 
-		let accounts = files.into_iter()
+		files.into_iter()
 			.map(json::KeyFile::load)
 			.zip(paths.into_iter())
-			.filter_map(|(file, path)| file.ok().map(|file| (path.clone(), SafeAccount::from_file(file, path))))
-			.collect();
-
-		Ok(accounts)
+			.map(|(file, path)| match file {
+				Ok(file) => Ok((path, file.into())),
+				Err(err) => Err(Error::InvalidKeyFile(format!("{:?}: {}", path, err))),
+			})
+			.collect()
 	}
 }
 

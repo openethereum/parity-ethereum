@@ -16,13 +16,15 @@
 //! Structure to hold network settings configured from CLI
 
 /// Networking & RPC settings
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct NetworkSettings {
 	/// Node name
 	pub name: String,
 	/// Name of the chain we are connected to
 	pub chain: String,
-	/// Ideal number of peers
+	/// Min number of peers
+	pub min_peers: u32,
+	/// Max number of peers
 	pub max_peers: u32,
 	/// Networking port
 	pub network_port: u16,
@@ -34,3 +36,17 @@ pub struct NetworkSettings {
 	pub rpc_port: u16,
 }
 
+impl Default for NetworkSettings {
+	fn default() -> Self {
+		NetworkSettings {
+			name: "".into(),
+			chain: "homestead".into(),
+			min_peers: 25,
+			max_peers: 50,
+			network_port: 30303,
+			rpc_enabled: true,
+			rpc_interface: "local".into(),
+			rpc_port: 8545
+		}
+	}
+}

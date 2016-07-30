@@ -19,8 +19,8 @@
 use common::*;
 use account_provider::AccountProvider;
 use block::*;
-use spec::{CommonParams, Spec};
-use engine::*;
+use spec::CommonParams;
+use engines::Engine;
 use evm::Schedule;
 use ethjson;
 
@@ -176,16 +176,16 @@ impl Header {
 	}
 }
 
-/// Create a new test chain spec with `BasicAuthority` consensus engine.
-pub fn new_test_authority() -> Spec { Spec::load(include_bytes!("../res/test_authority.json")) }
-
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use common::*;
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
+	use spec::Spec;
+
+	/// Create a new test chain spec with `BasicAuthority` consensus engine.
+	fn new_test_authority() -> Spec { Spec::load(include_bytes!("../../res/test_authority.json")) }
 
 	#[test]
 	fn has_valid_metadata() {

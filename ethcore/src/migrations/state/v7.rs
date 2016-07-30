@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use util::Bytes;
 use util::hash::{Address, FixedHash, H256};
 use util::kvdb::Database;
-use util::migration::{Batch, Config, Error, Migration, SimpleMigration};
+use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
 use util::rlp::{decode, Rlp, RlpStream, Stream, View};
 use util::sha3::Hashable;
 
@@ -63,19 +63,16 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 
 /// Version for `ArchiveDB`.
 #[derive(Default)]
-pub struct ArchiveV7(usize);
+pub struct ArchiveV7(Progress);
 
 impl SimpleMigration for ArchiveV7 {
-	fn version(&self) -> u32 {
-		7
-	}
+
+	fn columns(&self) -> Option<u32> { None }
+
+	fn version(&self) -> u32 { 7 }
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
-		self.0 += 1;
-		if self.0 == 100_000 {
-			self.0 = 0;
-			flush!(".");
-		}
+		self.0.tick();
 
 		if key.len() != 32 {
 			// metadata key, ignore.
@@ -109,7 +106,7 @@ impl OverlayRecentV7 {
 	// walk all journal entries in the database backwards.
 	// find migrations for any possible inserted keys.
 	fn walk_journal(&mut self, source: &Database) -> Result<(), Error> {
-		if let Some(val) = try!(source.get(V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
+		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
 			let mut era = decode::<u64>(&val);
 			loop {
 				let mut index: usize = 0;
@@ -120,7 +117,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = try!(source.get(&entry_key).map_err(Error::Custom)) {
+					if let Some(journal_raw) = try!(source.get(None, &entry_key).map_err(Error::Custom)) {
 						let rlp = Rlp::new(&journal_raw);
 
 						// migrate all inserted keys.
@@ -153,7 +150,7 @@ impl OverlayRecentV7 {
 	// replace all possible inserted/deleted keys with their migrated counterparts
 	// and commit the altered entries.
 	fn migrate_journal(&self, source: &Database, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
-		if let Some(val) = try!(source.get(V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
+		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
 			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.to_owned(), dest));
 
 			let mut era = decode::<u64>(&val);
@@ -166,7 +163,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = try!(source.get(&entry_key).map_err(Error::Custom)) {
+					if let Some(journal_raw) = try!(source.get(None, &entry_key).map_err(Error::Custom)) {
 						let rlp = Rlp::new(&journal_raw);
 						let id: H256 = rlp.val_at(0);
 						let mut inserted_keys: Vec<(H256, Bytes)> = Vec::new();
@@ -221,22 +218,25 @@ impl OverlayRecentV7 {
 }
 
 impl Migration for OverlayRecentV7 {
+
+	fn columns(&self) -> Option<u32> { None }
+
 	fn version(&self) -> u32 { 7 }
 
 	// walk all records in the database, attempting to migrate any possible and
 	// keeping records of those that we do. then migrate the journal using
 	// this information.
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database) -> Result<(), Error> {
-		let mut batch = Batch::new(config);
+	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+		let mut batch = Batch::new(config, col);
 
 		// check version metadata.
-		match try!(source.get(V7_VERSION_KEY).map_err(Error::Custom)) {
+		match try!(source.get(None, V7_VERSION_KEY).map_err(Error::Custom)) {
 			Some(ref version) if decode::<u32>(&*version) == DB_VERSION => {}
 			_ => return Err(Error::MigrationImpossible), // missing or wrong version
 		}
 
 		let mut count = 0;
-		for (key, value) in source.iter() {
+		for (key, value) in source.iter(None) {
 			count += 1;
 			if count == 100_000 {
 				count = 0;

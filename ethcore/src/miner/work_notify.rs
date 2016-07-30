@@ -35,7 +35,7 @@ pub struct WorkPoster {
 impl WorkPoster {
 	pub fn new(urls: &[String]) -> Self {
 		let urls = urls.into_iter().filter_map(|u| {
-			match Url::parse(&u) {
+			match Url::parse(u) {
 				Ok(url) => Some(url),
 				Err(e) => {
 					warn!("Error parsing URL {} : {}", u, e);

@@ -36,39 +36,25 @@ use regex::Regex;
 use util::RotatingLogger;
 use util::log::Colour;
 
-pub struct Settings {
+#[derive(Debug, PartialEq)]
+pub struct Config {
+	pub mode: Option<String>,
 	pub color: bool,
-	pub init: Option<String>,
 	pub file: Option<String>,
 }
 
-impl Settings {
-	pub fn new() -> Settings {
-		Settings {
-			color: true,
-			init: None,
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			mode: None,
+			color: !cfg!(windows),
 			file: None,
 		}
-	}
-
-	pub fn init(mut self, init: String) -> Settings {
-		self.init = Some(init);
-		self
-	}
-
-	pub fn file(mut self, file: String) -> Settings {
-		self.file = Some(file);
-		self
-	}
-
-	pub fn no_color(mut self) -> Settings {
-		self.color = false;
-		self
 	}
 }
 
 /// Sets up the logger
-pub fn setup_log(settings: &Settings) -> Arc<RotatingLogger> {
+pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	use rlog::*;
 
 	let mut levels = String::new();
@@ -84,16 +70,21 @@ pub fn setup_log(settings: &Settings) -> Arc<RotatingLogger> {
 		builder.parse(lvl);
 	}
 
-	if let Some(ref s) = settings.init {
+	if let Some(ref s) = config.mode {
 		levels.push_str(s);
 		builder.parse(s);
 	}
 
 	let isatty = stderr_isatty();
-	let enable_color = settings.color && isatty;
+	let enable_color = config.color && isatty;
 	let logs = Arc::new(RotatingLogger::new(levels));
 	let logger = logs.clone();
-	let maybe_file = settings.file.as_ref().map(|f| File::create(f).unwrap_or_else(|_| panic!("Cannot write to log file given: {}", f)));
+
+	let maybe_file = match config.file.as_ref() {
+		Some(f) => Some(try!(File::create(f).map_err(|_| format!("Cannot write to log file given: {}", f)))),
+		None => None,
+	};
+
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
@@ -123,9 +114,11 @@ pub fn setup_log(settings: &Settings) -> Arc<RotatingLogger> {
 
 		ret
     };
+
 	builder.format(format);
 	builder.init().unwrap();
-	logs
+
+	Ok(logs)
 }
 
 fn kill_color(s: &str) -> String {

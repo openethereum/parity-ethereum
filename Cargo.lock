@@ -620,7 +620,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "json-ipc-server"
 version = "0.2.4"
-source = "git+https://github.com/ethcore/json-ipc-server.git#902b031b8f50a59ecb4f389cbec1d264a98556bc"
+source = "git+https://github.com/ethcore/json-ipc-server.git#93c2756f669c6a1872dec1ef755a0870f40c03c3"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -899,7 +899,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-dapps"
 version = "0.6.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fb88ca259fa8eda6e54d9a04b325abd9eec2818b"
+source = "git+https://github.com/ethcore/parity-ui.git#7120546d08d4d9eb648e255c04935002223d362f"
 dependencies = [
  "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -913,7 +913,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-home"
 version = "0.6.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fb88ca259fa8eda6e54d9a04b325abd9eec2818b"
+source = "git+https://github.com/ethcore/parity-ui.git#7120546d08d4d9eb648e255c04935002223d362f"
 dependencies = [
  "parity-dapps 0.6.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
@@ -921,7 +921,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-signer"
 version = "0.6.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fb88ca259fa8eda6e54d9a04b325abd9eec2818b"
+source = "git+https://github.com/ethcore/parity-ui.git#7120546d08d4d9eb648e255c04935002223d362f"
 dependencies = [
  "parity-dapps 0.6.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
@@ -929,7 +929,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-status"
 version = "0.6.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fb88ca259fa8eda6e54d9a04b325abd9eec2818b"
+source = "git+https://github.com/ethcore/parity-ui.git#7120546d08d4d9eb648e255c04935002223d362f"
 dependencies = [
  "parity-dapps 0.6.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
@@ -937,7 +937,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-wallet"
 version = "0.6.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fb88ca259fa8eda6e54d9a04b325abd9eec2818b"
+source = "git+https://github.com/ethcore/parity-ui.git#7120546d08d4d9eb648e255c04935002223d362f"
 dependencies = [
  "parity-dapps 0.6.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
@@ -1094,7 +1094,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rocksdb"
 version = "0.4.5"
-source = "git+https://github.com/ethcore/rust-rocksdb#dd597245bfcb621c6ffc45478e1fda0b05d2f409"
+source = "git+https://github.com/ethcore/rust-rocksdb#eadce7f74cfe92b99ce63a77af425b47857239b8"
 dependencies = [
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb-sys 0.3.0 (git+https://github.com/ethcore/rust-rocksdb)",
@@ -1103,7 +1103,7 @@ dependencies = [
 [[package]]
 name = "rocksdb-sys"
 version = "0.3.0"
-source = "git+https://github.com/ethcore/rust-rocksdb#dd597245bfcb621c6ffc45478e1fda0b05d2f409"
+source = "git+https://github.com/ethcore/rust-rocksdb#eadce7f74cfe92b99ce63a77af425b47857239b8"
 dependencies = [
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",

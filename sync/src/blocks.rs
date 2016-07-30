@@ -120,13 +120,22 @@ impl BlockCollection {
 			if let Some(head) = head {
 				match self.blocks.get(&head) {
 					Some(block) if block.body.is_none() && !self.downloading_bodies.contains(&head) => {
+						self.downloading_bodies.insert(head.clone());
 						needed_bodies.push(head.clone());
 					}
 					_ => (),
 				}
 			}
 		}
-		self.downloading_bodies.extend(needed_bodies.iter());
+		for h in self.header_ids.values() {
+			if needed_bodies.len() >= count {
+				break;
+			}
+			if !self.downloading_bodies.contains(h) {
+				needed_bodies.push(h.clone());
+				self.downloading_bodies.insert(h.clone());
+			}
+		}
 		needed_bodies
 	}
 
@@ -286,6 +295,7 @@ impl BlockCollection {
 
 		self.parents.insert(info.parent_hash.clone(), hash.clone());
 		self.blocks.insert(hash.clone(), block);
+		trace!(target: "sync", "New header: {}", hash.hex());
 		Ok(hash)
 	}
 

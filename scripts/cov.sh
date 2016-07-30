@@ -37,7 +37,9 @@ src/tests,\
 util/json-tests,\
 util/src/network/tests,\
 ethcore/src/evm/tests,\
-ethstore/tests\
+ethstore/tests,\
+target/debug/build,\
+target/release/build\
 "
 
 rm -rf $KCOV_TARGET

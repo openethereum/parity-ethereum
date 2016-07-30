@@ -16,28 +16,26 @@
 
 //! Tracing
 
-mod block;
 mod bloom;
 mod config;
 mod db;
 mod error;
 mod executive_tracer;
-pub mod flat;
 mod import;
 mod noop_tracer;
 
 pub use types::trace_types::*;
-pub use self::block::BlockTraces;
 pub use self::config::{Config, Switch};
 pub use self::db::TraceDB;
 pub use self::error::Error;
-pub use types::trace_types::trace::{Trace, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
+pub use types::trace_types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
+pub use types::trace_types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
 pub use self::noop_tracer::{NoopTracer, NoopVMTracer};
 pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
 pub use types::trace_types::filter::{Filter, AddressesFilter};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
-use util::{Bytes, Address, U256, H256};
+use util::{Bytes, Address, U256, H256, DBTransaction};
 use self::trace::{Call, Create};
 use action_params::ActionParams;
 use header::BlockNumber;
@@ -59,9 +57,7 @@ pub trait Tracer: Send {
 		call: Option<Call>,
 		gas_used: U256,
 		output: Option<Bytes>,
-		depth: usize,
-		subs: Vec<Trace>,
-		delegate_call: bool
+		subs: Vec<FlatTrace>,
 	);
 
 	/// Stores trace create info.
@@ -71,24 +67,23 @@ pub trait Tracer: Send {
 		gas_used: U256,
 		code: Option<Bytes>,
 		address: Address,
-		depth: usize,
-		subs: Vec<Trace>
+		subs: Vec<FlatTrace>
 	);
 
 	/// Stores failed call trace.
-	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
+	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>);
 
 	/// Stores failed create trace.
-	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>);
+	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>);
 
 	/// Stores suicide info.
-	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address, depth: usize);
+	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address);
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;
 
 	/// Consumes self and returns all traces.
-	fn traces(self) -> Vec<Trace>;
+	fn traces(self) -> Vec<FlatTrace>;
 }
 
 /// Used by executive to build VM traces.
@@ -126,7 +121,7 @@ pub trait Database {
 	fn tracing_enabled(&self) -> bool;
 
 	/// Imports new block traces.
-	fn import(&self, request: ImportRequest);
+	fn import(&self, batch: &DBTransaction, request: ImportRequest);
 
 	/// Returns localized trace at given position.
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace>;

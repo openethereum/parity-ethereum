@@ -62,7 +62,7 @@ pub trait FixedHash: Sized + FromStr + Default + DerefMut<Target = [u8]> {
 
 /// Return `s` without the `0x` at the beginning of it, if any.
 pub fn clean_0x(s: &str) -> &str {
-	if s.len() >= 2 && &s[0..2] == "0x" {
+	if s.starts_with("0x") {
 		&s[2..]
 	} else {
 		s
@@ -436,13 +436,13 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl<'a> From<&'a str> for $from {
-			fn from(s: &'a str) -> $from {
-				use std::str::FromStr;
+		impl From<&'static str> for $from {
+			fn from(s: &'static str) -> $from {
+				let s = clean_0x(s);
 				if s.len() % 2 == 1 {
-					$from::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap_or_else(|_| $from::new())
+					$from::from_str(&("0".to_owned() + s)).unwrap()
 				} else {
-					$from::from_str(clean_0x(s)).unwrap_or_else(|_| $from::new())
+					$from::from_str(s).unwrap()
 				}
 			}
 		}
@@ -620,8 +620,6 @@ mod tests {
 		assert_eq!(H64::from(0x1234567890abcdef), H64::from("0x1234567890abcdef"));
 		assert_eq!(H64::from(0x1234567890abcdef), H64::from("1234567890abcdef"));
 		assert_eq!(H64::from(0x234567890abcdef), H64::from("0x234567890abcdef"));
-		// too short.
-		assert_eq!(H64::from(0), H64::from("0x34567890abcdef"));
 	}
 
 	#[test]

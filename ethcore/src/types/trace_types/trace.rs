@@ -21,6 +21,7 @@ use util::rlp::*;
 use util::sha3::Hashable;
 use action_params::ActionParams;
 use basic_types::LogBloom;
+use types::executed::CallType;
 use ipc::binary::BinaryConvertError;
 use std::mem;
 use std::collections::VecDeque;
@@ -107,6 +108,8 @@ pub struct Call {
 	pub gas: U256,
 	/// The input data provided to the call.
 	pub input: Bytes,
+	/// The type of the call.
+	pub call_type: CallType,
 }
 
 impl From<ActionParams> for Call {
@@ -117,18 +120,20 @@ impl From<ActionParams> for Call {
 			value: p.value.value(),
 			gas: p.gas,
 			input: p.data.unwrap_or_else(Vec::new),
+			call_type: p.call_type,
 		}
 	}
 }
 
 impl Encodable for Call {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(5);
+		s.begin_list(6);
 		s.append(&self.from);
 		s.append(&self.to);
 		s.append(&self.value);
 		s.append(&self.gas);
 		s.append(&self.input);
+		s.append(&self.call_type);
 	}
 }
 
@@ -141,6 +146,7 @@ impl Decodable for Call {
 			value: try!(d.val_at(2)),
 			gas: try!(d.val_at(3)),
 			input: try!(d.val_at(4)),
+			call_type: try!(d.val_at(5)),
 		};
 
 		Ok(res)
@@ -379,51 +385,6 @@ impl Res {
 }
 
 #[derive(Debug, Clone, PartialEq, Binary)]
-/// A trace; includes a description of the action being traced and sub traces of each interior action.
-pub struct Trace {
-	/// The number of EVM execution environments active when this action happened; 0 if it's
-	/// the outer action of the transaction.
-	pub depth: usize,
-	/// The action being performed.
-	pub action: Action,
-	/// The sub traces for each interior action performed as part of this call.
-	pub subs: Vec<Trace>,
-	/// The result of the performed action.
-	pub result: Res,
-}
-
-impl Encodable for Trace {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.depth);
-		s.append(&self.action);
-		s.append(&self.subs);
-		s.append(&self.result);
-	}
-}
-
-impl Decodable for Trace {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
-		let res = Trace {
-			depth: try!(d.val_at(0)),
-			action: try!(d.val_at(1)),
-			subs: try!(d.val_at(2)),
-			result: try!(d.val_at(3)),
-		};
-
-		Ok(res)
-	}
-}
-
-impl Trace {
-	/// Returns trace bloom.
-	pub fn bloom(&self) -> LogBloom {
-		self.subs.iter().fold(self.action.bloom() | self.result.bloom(), |b, s| b | s.bloom())
-	}
-}
-
-#[derive(Debug, Clone, PartialEq, Binary)]
 /// A diff of some chunk of memory.
 pub struct MemoryDiff {
 	/// Offset into memory the change begins.
@@ -587,102 +548,3 @@ impl Decodable for VMTrace {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	use util::{Address, U256, FixedHash};
-	use util::rlp::{encode, decode};
-	use util::sha3::Hashable;
-	use trace::trace::{Call, CallResult, Create, Res, Action, Trace, Suicide, CreateResult};
-
-	#[test]
-	fn traces_rlp() {
-		let trace = Trace {
-			depth: 2,
-			action: Action::Call(Call {
-				from: Address::from(1),
-				to: Address::from(2),
-				value: U256::from(3),
-				gas: U256::from(4),
-				input: vec![0x5]
-			}),
-			subs: vec![
-				Trace {
-					depth: 3,
-					action: Action::Create(Create {
-						from: Address::from(6),
-						value: U256::from(7),
-						gas: U256::from(8),
-						init: vec![0x9]
-					}),
-					subs: vec![],
-					result: Res::FailedCreate
-				}
-			],
-			result: Res::Call(CallResult {
-				gas_used: U256::from(10),
-				output: vec![0x11, 0x12]
-			})
-		};
-
-		let encoded = encode(&trace);
-		let decoded: Trace = decode(&encoded);
-		assert_eq!(trace, decoded);
-	}
-
-	#[test]
-	fn traces_bloom() {
-		let trace = Trace {
-			depth: 2,
-			action: Action::Call(Call {
-				from: Address::from(1),
-				to: Address::from(2),
-				value: U256::from(3),
-				gas: U256::from(4),
-				input: vec![0x5]
-			}),
-			subs: vec![
-				Trace {
-					depth: 3,
-					action: Action::Create(Create {
-						from: Address::from(6),
-						value: U256::from(7),
-						gas: U256::from(8),
-						init: vec![0x9]
-					}),
-					subs: vec![],
-					result: Res::Create(CreateResult {
-						gas_used: 10.into(),
-						code: vec![],
-						address: 15.into(),
-					}),
-				},
-				Trace {
-					depth: 3,
-					action: Action::Suicide(Suicide {
-						address: 101.into(),
-						refund_address: 102.into(),
-						balance: 0.into(),
-					}),
-					subs: vec![],
-					result: Res::None,
-				}
-			],
-			result: Res::Call(CallResult {
-				gas_used: U256::from(10),
-				output: vec![0x11, 0x12]
-			})
-		};
-
-		let bloom = trace.bloom();
-
-		// right now only addresses are bloomed
-		assert!(bloom.contains_bloomed(&Address::from(1).sha3()));
-		assert!(bloom.contains_bloomed(&Address::from(2).sha3()));
-		assert!(!bloom.contains_bloomed(&Address::from(20).sha3()));
-		assert!(bloom.contains_bloomed(&Address::from(6).sha3()));
-		assert!(bloom.contains_bloomed(&Address::from(15).sha3()));
-		assert!(bloom.contains_bloomed(&Address::from(101).sha3()));
-		assert!(bloom.contains_bloomed(&Address::from(102).sha3()));
-		assert!(!bloom.contains_bloomed(&Address::from(103).sha3()));
-	}
-}
