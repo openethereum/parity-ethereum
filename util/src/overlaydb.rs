@@ -75,6 +75,10 @@ impl OverlayDB {
 	}
 
 	/// Commit all operations in a single batch.
+	///
+	/// As mentioned in the struct documentation, the total historical insertions and removals of
+	/// any given key in the database must amount to either ZERO or ONE at the time that `commit` is called.
+	/// Anything else will lead to an error.
 	pub fn commit(&mut self) -> Result<u32, UtilError> {
 		let batch = self.backing.transaction();
 		let res = try!(self.commit_to_batch(&batch));
