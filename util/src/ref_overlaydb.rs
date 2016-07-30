@@ -192,7 +192,7 @@ impl HashDB for RefOverlayDB {
 }
 
 #[test]
-fn RefOverlayDB_revert() {
+fn ref_overlaydb_revert() {
 	let mut m = RefOverlayDB::new_temp();
 	let foo = m.insert(b"foo");          // insert foo.
 	let batch = m.backing.transaction();
@@ -208,7 +208,7 @@ fn RefOverlayDB_revert() {
 }
 
 #[test]
-fn RefOverlayDB_overlay_insert_and_remove() {
+fn ref_overlaydb_overlay_insert_and_remove() {
 	let mut trie = RefOverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
 	assert_eq!(trie.get(&h).unwrap(), b"hello world");
@@ -217,7 +217,7 @@ fn RefOverlayDB_overlay_insert_and_remove() {
 }
 
 #[test]
-fn RefOverlayDB_backing_insert_revert() {
+fn ref_overlaydb_backing_insert_revert() {
 	let mut trie = RefOverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
 	assert_eq!(trie.get(&h).unwrap(), b"hello world");
@@ -228,7 +228,7 @@ fn RefOverlayDB_backing_insert_revert() {
 }
 
 #[test]
-fn RefOverlayDB_backing_remove() {
+fn ref_overlaydb_backing_remove() {
 	let mut trie = RefOverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
 	trie.commit().unwrap();
@@ -241,7 +241,7 @@ fn RefOverlayDB_backing_remove() {
 }
 
 #[test]
-fn RefOverlayDB_backing_remove_revert() {
+fn ref_overlaydb_backing_remove_revert() {
 	let mut trie = RefOverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
 	trie.commit().unwrap();
@@ -252,7 +252,7 @@ fn RefOverlayDB_backing_remove_revert() {
 }
 
 #[test]
-fn RefOverlayDB_negative() {
+fn ref_overlaydb_negative() {
 	let mut trie = RefOverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
 	trie.commit().unwrap();
@@ -263,7 +263,7 @@ fn RefOverlayDB_negative() {
 }
 
 #[test]
-fn RefOverlayDB_complex() {
+fn ref_overlaydb_complex() {
 	let mut trie = RefOverlayDB::new_temp();
 	let hfoo = trie.insert(b"foo");
 	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
