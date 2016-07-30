@@ -56,8 +56,6 @@ pub enum TrieError {
 	InvalidStateRoot(H256),
 	/// Trie item not found in the database,
 	IncompleteDatabase(H256),
-	/// Key not in trie.
-	NotInTrie,
 }
 
 impl fmt::Display for TrieError {
@@ -66,8 +64,6 @@ impl fmt::Display for TrieError {
 			TrieError::InvalidStateRoot(ref root) => write!(f, "Invalid state root: {}", root),
 			TrieError::IncompleteDatabase(ref missing) =>
 				write!(f, "Database missing expected key: {}", missing),
-			TrieError::NotInTrie =>
-				write!(f, "Failed query"),
 		}
 	}
 }
@@ -75,8 +71,8 @@ impl fmt::Display for TrieError {
 /// Trie-Item type.
 pub type TrieItem<'a> = (Vec<u8>, &'a [u8]);
 
-/// Trie result type.
-pub type Result<T> = ::std::result::Result<T, TrieError>;
+/// Trie result type. Boxed to avoid copying around extra space for `H256`s on successful queries.
+pub type Result<T> = ::std::result::Result<T, Box<TrieError>>;
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait Trie {
@@ -88,15 +84,11 @@ pub trait Trie {
 
 	/// Does the trie contain a given key?
 	fn contains(&self, key: &[u8]) -> Result<bool> {
-		match self.get(key) {
-			Ok(_) => Ok(true),
-			Err(TrieError::NotInTrie) => Ok(false),
-			Err(e) => Err(e),
-		}
+		self.get(key).map(|x| x.is_some())
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<&'a [u8]> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<&'a [u8]>> where 'a: 'key;
 
 	/// Returns an iterator over elements of trie.
 	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a>;
@@ -112,15 +104,11 @@ pub trait TrieMut {
 
 	/// Does the trie contain a given key?
 	fn contains(&self, key: &[u8]) -> Result<bool> {
-		match self.get(key) {
-			Ok(_) => Ok(true),
-			Err(TrieError::NotInTrie) => Ok(false),
-			Err(e) => Err(e)
-		}
+		self.get(key).map(|x| x.is_some())
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<&'a [u8]> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<&'a [u8]>> where 'a: 'key;
 
 	/// Insert a `key`/`value` pair into the trie. An `empty` value is equivalent to removing
 	/// `key` from the trie.

@@ -43,7 +43,7 @@ use super::{Trie, TrieItem, TrieError};
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
-///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
+///   assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar");
 ///   assert!(t.db_items_remaining().unwrap().is_empty());
 /// }
 /// ```
@@ -60,7 +60,7 @@ impl<'db> TrieDB<'db> {
 	/// Returns an error if `root` does not exist
 	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
 		if !db.contains(root) {
-			Err(TrieError::InvalidStateRoot(*root))
+			Err(Box::new(TrieError::InvalidStateRoot(*root)))
 		} else {
 			Ok(TrieDB {
 				db: db,
@@ -133,7 +133,7 @@ impl<'db> TrieDB<'db> {
 
 	/// Get the data of the root node.
 	fn root_data(&self) -> super::Result<&[u8]> {
-		self.db.get(self.root).ok_or(TrieError::InvalidStateRoot(*self.root))
+		self.db.get(self.root).ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
 	}
 
 	/// Get the root node as a `Node`.
@@ -188,7 +188,7 @@ impl<'db> TrieDB<'db> {
 	}
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn do_lookup<'key>(&'db self, key: &NibbleSlice<'key>) -> super::Result<&'db [u8]>
+	fn do_lookup<'key>(&'db self, key: &NibbleSlice<'key>) -> super::Result<Option<&'db [u8]>>
 		where 'db: 'key
 	{
 		let root_rlp = try!(self.root_data());
@@ -199,20 +199,20 @@ impl<'db> TrieDB<'db> {
 	/// value exists for the key.
 	///
 	/// Note: Not a public API; use Trie trait functions.
-	fn get_from_node<'key>(&'db self, node: &'db [u8], key: &NibbleSlice<'key>) -> super::Result<&'db [u8]>
+	fn get_from_node<'key>(&'db self, node: &'db [u8], key: &NibbleSlice<'key>) -> super::Result<Option<&'db [u8]>>
 		where 'db: 'key
 	{
 		match Node::decoded(node) {
-			Node::Leaf(ref slice, ref value) if key == slice => Ok(value),
+			Node::Leaf(ref slice, ref value) if key == slice => Ok(Some(value)),
 			Node::Extension(ref slice, ref item) if key.starts_with(slice) => {
 				let data = try!(self.get_raw_or_lookup(item));
 				self.get_from_node(data, &key.mid(slice.len()))
 			},
 			Node::Branch(ref nodes, value) => match key.is_empty() {
-				true => value.ok_or(TrieError::NotInTrie),
+				true => Ok(value),
 				false => self.get_from_node(try!(self.get_raw_or_lookup(nodes[key.at(0) as usize])), &key.mid(1))
 			},
-			_ => Err(TrieError::NotInTrie)
+			_ => Ok(None)
 		}
 	}
 
@@ -225,7 +225,7 @@ impl<'db> TrieDB<'db> {
 		match r.is_data() && r.size() == 32 {
 			true => {
 				let key = r.as_val::<H256>();
-				self.db.get(&key).ok_or(TrieError::IncompleteDatabase(key))
+				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
 			false => Ok(node)
 		}
@@ -355,7 +355,7 @@ impl<'db> Trie for TrieDB<'db> {
 
 	fn root(&self) -> &H256 { self.root }
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<&'a [u8]>
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<&'a [u8]>>
 		where 'a: 'key
 	{
 		self.do_lookup(&NibbleSlice::new(key))

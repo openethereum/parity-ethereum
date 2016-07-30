@@ -344,7 +344,6 @@ impl State {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 			let maybe_acc = match db.get(&a).map(Account::from_rlp) {
 				Ok(acc) => Some(acc),
-				Err(TrieError::NotInTrie) => None,
 				Err(e) => {
 					warn!("Potential DB corruption encountered: {}", e);
 					None
@@ -376,7 +375,6 @@ impl State {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 			let maybe_acc = match db.get(&a).map(Account::from_rlp) {
 				Ok(acc) => Some(acc),
-				Err(TrieError::NotInTrie) => None,
 				Err(e) => {
 					warn!("Potential DB corruption encountered: {}", e);
 					None

@@ -275,7 +275,7 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///   assert_eq!(*t.root(), SHA3_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
-///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
+///   assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar");
 ///   t.remove(b"foo").unwrap();
 ///   assert!(!t.contains(b"foo").unwrap());
 /// }
@@ -311,7 +311,7 @@ impl<'a> TrieDBMut<'a> {
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'a mut HashDB, root: &'a mut H256) -> super::Result<Self> {
 		if !db.contains(root) {
-			return Err(TrieError::InvalidStateRoot(*root));
+			return Err(Box::new(TrieError::InvalidStateRoot(*root)));
 		}
 
 		let root_handle = NodeHandle::Hash(*root);
@@ -336,7 +336,7 @@ impl<'a> TrieDBMut<'a> {
 
 	// cache a node by hash
 	fn cache(&mut self, hash: H256) -> super::Result<StorageHandle> {
-		let node_rlp = try!(self.db.get(&hash).ok_or(TrieError::IncompleteDatabase(hash)));
+		let node_rlp = try!(self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash))));
 		let node = Node::from_rlp(node_rlp, &*self.db, &mut self.storage);
 		Ok(self.storage.alloc(Stored::Cached(node, hash)))
 	}
@@ -366,18 +366,18 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	// walk the trie, attempting to find the key's node.
-	fn lookup<'x, 'key>(&'x self, partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<&'x [u8]>
+	fn lookup<'x, 'key>(&'x self, partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<Option<&'x [u8]>>
 		where 'x: 'key
 	{
 		match *handle {
 			NodeHandle::Hash(ref hash) => self.do_db_lookup(hash, partial),
 			NodeHandle::InMemory(ref handle) => match self.storage[handle] {
-				Node::Empty => Err(TrieError::NotInTrie),
+				Node::Empty => Ok(None),
 				Node::Leaf(ref key, ref value) => {
 					if NibbleSlice::from_encoded(key).0 == partial {
-						Ok(value)
+						Ok(Some(value))
 					} else {
-						Err(TrieError::NotInTrie)
+						Ok(None)
 					}
 				}
 				Node::Extension(ref slice, ref child) => {
@@ -385,16 +385,18 @@ impl<'a> TrieDBMut<'a> {
 					if partial.starts_with(&slice) {
 						self.lookup(partial.mid(slice.len()), child)
 					} else {
-						Err(TrieError::NotInTrie)
+						Ok(None)
 					}
 				}
 				Node::Branch(ref children, ref value) => {
 					if partial.is_empty() {
-						value.as_ref().map(|v| &v[..]).ok_or(TrieError::NotInTrie)
+						Ok(value.as_ref().map(|v| &v[..]))
 					} else {
 						let idx = partial.at(0);
-						(&children[idx as usize]).as_ref().ok_or(TrieError::NotInTrie)
-							.and_then(|child| self.lookup(partial.mid(1), child))
+						match children[idx as usize].as_ref() {
+							Some(child) => self.lookup(partial.mid(1), child),
+							None => Ok(None),
+						}
 					}
 				}
 			}
@@ -402,10 +404,10 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn do_db_lookup<'x, 'key>(&'x self, hash: &H256, key: NibbleSlice<'key>) -> super::Result<&'x [u8]>
+	fn do_db_lookup<'x, 'key>(&'x self, hash: &H256, key: NibbleSlice<'key>) -> super::Result<Option<&'x [u8]>>
 		where 'x: 'key
 	{
-		self.db.get(hash).ok_or(TrieError::IncompleteDatabase(*hash))
+		self.db.get(hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(*hash)))
 			.and_then(|node_rlp| self.get_from_db_node(node_rlp, key))
 	}
 
@@ -413,19 +415,19 @@ impl<'a> TrieDBMut<'a> {
 	/// value exists for the key.
 	///
 	/// Note: Not a public API; use Trie trait functions.
-	fn get_from_db_node<'x, 'key>(&'x self, node: &'x [u8], key: NibbleSlice<'key>) -> super::Result<&'x [u8]>
+	fn get_from_db_node<'x, 'key>(&'x self, node: &'x [u8], key: NibbleSlice<'key>) -> super::Result<Option<&'x [u8]>>
 		where 'x: 'key
 	{
 		match RlpNode::decoded(node) {
-			RlpNode::Leaf(ref slice, ref value) if &key == slice => Ok(value),
+			RlpNode::Leaf(ref slice, ref value) if &key == slice => Ok(Some(value)),
 			RlpNode::Extension(ref slice, ref item) if key.starts_with(slice) => {
 				self.get_from_db_node(try!(self.get_raw_or_lookup(item)), key.mid(slice.len()))
 			},
 			RlpNode::Branch(ref nodes, value) => match key.is_empty() {
-				true => value.ok_or(TrieError::NotInTrie),
+				true => Ok(value),
 				false => self.get_from_db_node(try!(self.get_raw_or_lookup(nodes[key.at(0) as usize])), key.mid(1))
 			},
-			_ => Err(TrieError::NotInTrie),
+			_ => Ok(None),
 		}
 	}
 
@@ -438,7 +440,7 @@ impl<'a> TrieDBMut<'a> {
 		match r.is_data() && r.size() == 32 {
 			true => {
 				let key = r.as_val::<H256>();
-				self.db.get(&key).ok_or(TrieError::IncompleteDatabase(key))
+				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
 			false => Ok(node)
 		}
@@ -894,7 +896,7 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 		}
 	}
 
-	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<&'x [u8]> where 'x: 'key {
+	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<Option<&'x [u8]>> where 'x: 'key {
 		self.lookup(NibbleSlice::new(key), &self.root_handle)
 	}
 
@@ -943,7 +945,7 @@ mod tests {
 	use super::*;
 	use rlp::*;
 	use bytes::ToPretty;
-	use super::super::{TrieMut, TrieError};
+	use super::super::TrieMut;
 	use super::super::standardmap::*;
 
 	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db> {
@@ -1159,7 +1161,7 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let t = TrieDBMut::new(&mut memdb, &mut root);
-		assert_eq!(t.get(&[0x5]), Err(TrieError::NotInTrie));
+		assert_eq!(t.get(&[0x5]), Ok(None));
 	}
 
 	#[test]
@@ -1168,9 +1170,9 @@ mod tests {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
-		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
+		assert_eq!(t.get(&[0x1, 0x23]).unwrap().unwrap(), &[0x1u8, 0x23]);
 		t.commit();
-		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
+		assert_eq!(t.get(&[0x1, 0x23]).unwrap().unwrap(), &[0x1u8, 0x23]);
 	}
 
 	#[test]
@@ -1181,15 +1183,15 @@ mod tests {
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]).unwrap();
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]).unwrap();
-		assert_eq!(t.get(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
-		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
-		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
-		assert_eq!(t.get(&[0x82, 0x23]), Err(TrieError::NotInTrie));
+		assert_eq!(t.get(&[0x01, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
+		assert_eq!(t.get(&[0xf1, 0x23]).unwrap().unwrap(), &[0xf1u8, 0x23]);
+		assert_eq!(t.get(&[0x81, 0x23]).unwrap().unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x82, 0x23]), Ok(None));
 		t.commit();
-		assert_eq!(t.get(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
-		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
-		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
-		assert_eq!(t.get(&[0x82, 0x23]), Err(TrieError::NotInTrie));
+		assert_eq!(t.get(&[0x01, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
+		assert_eq!(t.get(&[0xf1, 0x23]).unwrap().unwrap(), &[0xf1u8, 0x23]);
+		assert_eq!(t.get(&[0x81, 0x23]).unwrap().unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x82, 0x23]), Ok(None));
 	}
 
 	#[test]
