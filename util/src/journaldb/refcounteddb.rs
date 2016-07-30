@@ -50,7 +50,7 @@ impl RefCountedDB {
 		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 
 		RefCountedDB {
-			forward: RefOverlayDB::new_with_arc(backing.clone()),
+			forward: RefOverlayDB::new(backing.clone(), col),
 			backing: backing,
 			inserts: vec![],
 			removes: vec![],

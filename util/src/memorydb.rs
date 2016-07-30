@@ -140,6 +140,9 @@ impl MemoryDB {
 		mem::replace(&mut self.data, HashMap::new())
 	}
 
+	/// Return the internal map of hashes to data.
+	pub fn peek(&self) -> &HashMap<H256, (Bytes, i32)> { &self.data }
+
 	/// Return the internal map of auxiliary data, clearing the current state.
 	pub fn drain_aux(&mut self) -> HashMap<Bytes, Bytes> {
 		mem::replace(&mut self.aux, HashMap::new())
