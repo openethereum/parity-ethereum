@@ -59,7 +59,7 @@ mod tests {
 		use kvdb::*;
 
 		let path =  "db path".to_string();
-		let values: Vec<_> = Database::open_default(&path).unwrap().iter().map(|(_, v)| v).collect();
+		let values: Vec<_> = Database::open_default(&path).unwrap().iter(Some(2)).map(|(_, v)| v).collect();
 		let mut rlp_counts: HashMap<_, u32> = HashMap::new();
 		let mut rlp_sizes: HashMap<_, u32> = HashMap::new();
 

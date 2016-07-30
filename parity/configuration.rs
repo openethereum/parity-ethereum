@@ -18,6 +18,7 @@ use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::cmp::max;
 use cli::{USAGE, Args};
 use docopt::{Docopt, Error as DocoptError};
 use util::{Hashable, NetworkConfiguration, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, Address};
@@ -81,6 +82,7 @@ impl Configuration {
 		let spec = try!(self.chain().parse());
 		let tracing = try!(self.args.flag_tracing.parse());
 		let compaction = try!(self.args.flag_db_compaction.parse());
+		let wal = !self.args.flag_fast_and_loose;
 		let enable_network = self.enable_network(&mode);
 		let geth_compatibility = self.args.flag_geth;
 		let signer_port = self.signer_port();
@@ -129,6 +131,7 @@ impl Configuration {
 				format: None,
 				pruning: pruning,
 				compaction: compaction,
+				wal: wal,
 				mode: mode,
 				tracing: tracing,
 				vm_type: vm_type,
@@ -144,6 +147,7 @@ impl Configuration {
 				format: None,
 				pruning: pruning,
 				compaction: compaction,
+				wal: wal,
 				mode: mode,
 				tracing: tracing,
 				from_block: try!(to_block_id(&self.args.flag_from)),
@@ -175,6 +179,7 @@ impl Configuration {
 				mode: mode,
 				tracing: tracing,
 				compaction: compaction,
+				wal: wal,
 				vm_type: vm_type,
 				enable_network: enable_network,
 				geth_compatibility: geth_compatibility,
@@ -247,7 +252,12 @@ impl Configuration {
 	}
 
 	fn max_peers(&self) -> u32 {
-		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
+		let peers = self.args.flag_max_peers as u32;
+		max(self.min_peers(), peers)
+	}
+
+	fn min_peers(&self) -> u32 {
+		self.args.flag_peers.unwrap_or(self.args.flag_min_peers) as u32
 	}
 
 	fn work_notify(&self) -> Vec<String> {
@@ -350,11 +360,11 @@ impl Configuration {
 				let mut buffer = String::new();
 				let mut node_file = try!(File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e)));
 				try!(node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file"));
-				if let Some(invalid) = buffer.lines().find(|s| !is_valid_node_url(s)) {
-					Err(format!("Invalid node address format given for a boot node: {}", invalid))
-				} else {
-					Ok(buffer.lines().map(|s| s.to_owned()).collect())
+				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| s.len() > 0).collect::<Vec<_>>();
+				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
+					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
 				}
+				Ok(lines)
 			},
 			None => Ok(Vec::new())
 		}
@@ -382,7 +392,8 @@ impl Configuration {
 		ret.public_address = public;
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
-		ret.ideal_peers = self.max_peers();
+		ret.max_peers = self.max_peers();
+		ret.min_peers = self.min_peers();
 		let mut net_path = PathBuf::from(self.directories().db);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
@@ -449,6 +460,7 @@ impl Configuration {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
 			max_peers: self.max_peers(),
+			min_peers: self.min_peers(),
 			network_port: self.args.flag_port,
 			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
@@ -538,6 +550,9 @@ mod tests {
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
+	use devtools::{RandomTempPath};
+	use std::io::Write;
+	use std::fs::{File, create_dir};
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -610,6 +625,7 @@ mod tests {
 			format: None,
 			pruning: Default::default(),
 			compaction: Default::default(),
+			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
 			vm_type: VMType::Interpreter,
@@ -629,6 +645,7 @@ mod tests {
 			pruning: Default::default(),
 			format: Default::default(),
 			compaction: Default::default(),
+			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
 			from_block: BlockID::Number(1),
@@ -666,6 +683,7 @@ mod tests {
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
+			wal: true,
 			vm_type: Default::default(),
 			enable_network: true,
 			geth_compatibility: false,
@@ -690,7 +708,8 @@ mod tests {
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
 			chain: "morden".to_owned(),
-			max_peers: 25,
+			max_peers: 50,
+			min_peers: 25,
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),
@@ -768,6 +787,17 @@ mod tests {
 
 		// then
 		assert_eq!(conf0.signer_enabled(), false);
+	}
+
+	#[test]
+	fn should_not_bail_on_empty_line_in_reserved_peers() {
+		let temp = RandomTempPath::new();
+		create_dir(temp.as_str().to_owned()).unwrap();
+		let filename = temp.as_str().to_owned() + "/peers";
+		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", &filename];
+		let conf = Configuration::parse(args).unwrap();
+		assert!(conf.init_reserved_nodes().is_ok());
 	}
 }
 

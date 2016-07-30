@@ -34,9 +34,10 @@ impl ToV6 {
 }
 
 impl SimpleMigration for ToV6 {
-	fn version(&self) -> u32 {
-		6
-	}
+
+	fn columns(&self) -> Option<u32> { None }
+
+	fn version(&self) -> u32 { 6 }
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 

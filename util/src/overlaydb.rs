@@ -19,7 +19,7 @@
 use error::{BaseDataError, UtilError};
 use kvdb::{Database, DBTransaction};
 use memorydb::MemoryDB;
-use hash::{FixedHash, H32, H256};
+use hash::{FixedHash, H256};
 use hashdb::HashDB;
 use Bytes;
 
@@ -53,27 +53,32 @@ use std::sync::Arc;
 pub struct OverlayDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
+	column: Option<u32>,
 }
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database and deletion mode.
-	pub fn new(backing: Database) -> Self {
-		OverlayDB::new_with_arc(Arc::new(backing))
-	}
-
-	/// Create a new instance of OverlayDB given a shared `backing` database.
-	pub fn new_with_arc(backing: Arc<Database>) -> Self {
+	pub fn new(backing: Arc<Database>, col: Option<u32>) -> Self {
 		OverlayDB {
 			overlay: MemoryDB::new(),
 			backing: backing,
+			column: col,
 		}
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
-	pub fn new_temp() -> Self {
+	#[cfg(test)]
+	pub fn new_temp() -> OverlayDB {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(Database::open_default(dir.to_str().unwrap()).unwrap())
+		Self::new(Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap()), None)
+	}
+
+	/// Commit all operations in a single batch.
+	pub fn commit(&mut self) -> Result<u32, UtilError> {
+		let batch = self.backing.transaction();
+		let res = try!(self.commit_to_batch(&batch));
+		self.backing.write(batch).map(|_| res).map_err(|e| e.into())
 	}
 
 	/// Commit all operations to given batch. Returns the number of insertions
@@ -85,8 +90,8 @@ impl OverlayDB {
 			match *rc {
 				0 => continue,
 				1 => {
-					if try!(self.backing.get(key)).is_none() {
-						try!(batch.put(key, value))
+					if try!(self.backing.get(self.column, key)).is_none() {
+						try!(batch.put(self.column, key, value))
 					} else {
 						// error to insert something more than once.
 						return Err(BaseDataError::InsertionInvalid(*key.clone()).into());
@@ -94,11 +99,11 @@ impl OverlayDB {
 				}
 				-1 => {
 					deletes += 1;
-					if try!(self.backing.get(key)).is_none() {
+					if try!(self.backing.get(self.column, key)).is_none() {
 						return Err(BaseDataError::DeletionInvalid(*key.clone()).into());
 					}
 
-					try!(batch.delete(key));
+					try!(batch.delete(self.column, key));
 				}
 				rc => return Err(BaseDataError::InvalidReferenceCount(*key.clone(), rc).into()),
 			}
@@ -111,30 +116,23 @@ impl OverlayDB {
 		Ok(ret)
 	}
 
-	/// Commit all operations to the backing database. Returns the number of insertions and deletions.
-	pub fn commit(&mut self) -> Result<u32, UtilError> {
-		let batch = DBTransaction::new();
-		let ops = try!(self.commit_to_batch(&batch));
-		try!(self.backing.write(batch));
-
-		Ok(ops)
-	}
-
-	/// Revert all operations on this object since last commit.
-	pub fn revert(&mut self) { self.overlay.clear() }
-
 	/// Get the value of the given key in the backing database, or `None` if it's not there.
 	fn payload(&self, key: &H256) -> Option<Bytes> {
 		// TODO [rob] have this and HashDB functions all return Results.
-		self.backing.get(key).expect("Low level database error.").map(|v| v.to_vec())
+		self.backing.get(self.column, key).expect("Low level database error.").map(|v| v.to_vec())
 	}
+
+	/// Revert all operations on this object (i.e. `insert()`s and `remove()`s) since the
+	/// last `commit()`.
+	pub fn revert(&mut self) { self.overlay.clear(); }
+
 }
 
 impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret = HashMap::new();
 
-		for (key, _) in self.backing.iter() {
+		for (key, _) in self.backing.iter(self.column) {
 			ret.insert(H256::from_slice(&*key), 1);
 		}
 

@@ -19,7 +19,7 @@ use std::io::{Write, Read, BufReader, BufRead};
 use std::time::Duration;
 use std::path::Path;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, H256};
+use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, H256, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::PendingSet;
@@ -178,7 +178,8 @@ pub fn default_network_config() -> ::util::NetworkConfiguration {
 		discovery_enabled: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,
-		ideal_peers: 25,
+		max_peers: 50,
+		min_peers: 25,
 		reserved_nodes: Vec::new(),
 		non_reserved_mode: NonReservedPeerMode::Accept,
 	}
@@ -193,6 +194,7 @@ pub fn to_client_config(
 		tracing: Switch,
 		pruning: Pruning,
 		compaction: DatabaseCompactionProfile,
+		wal: bool,
 		vm_type: VMType,
 		name: String,
 		fork_name: Option<&String>,
@@ -215,12 +217,20 @@ pub fn to_client_config(
 	client_config.tracing.enabled = tracing;
 	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash, fork_name);
 	client_config.db_compaction = compaction;
+	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
 	client_config
 }
 
-pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, fork_name: Option<&String>, pruning: Algorithm) -> Result<(), String> {
+pub fn execute_upgrades(
+	dirs: &Directories,
+	genesis_hash: H256,
+	fork_name: Option<&String>,
+	pruning: Algorithm,
+	compaction_profile: CompactionProfile
+) -> Result<(), String> {
+
 	match upgrade(Some(&dirs.db)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
@@ -231,8 +241,8 @@ pub fn execute_upgrades(dirs: &Directories, genesis_hash: H256, fork_name: Optio
 		_ => {},
 	}
 
-	let client_path = dirs.client_path(genesis_hash, fork_name, pruning);
-	migrate(&client_path, pruning).map_err(|e| format!("{}", e))
+	let client_path = dirs.db_version_path(genesis_hash, fork_name, pruning);
+	migrate(&client_path, pruning, compaction_profile).map_err(|e| format!("{}", e))
 }
 
 /// Prompts user asking for password.
