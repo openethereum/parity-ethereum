@@ -132,21 +132,15 @@ impl Account {
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
-		use util::trie::TrieError;
-
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
 			let db = SecTrieDB::new(db, &self.storage_root)
 				.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
 
-			let item: U256 = match db.get(key).map(decode) {
-				Ok(x) => x,
-				Err(TrieError::NotInTrie) => U256::zero(),
-				Err(e) => {
-					warn!("Potential DB corruption: {}", e);
-					U256::zero()
-				}
+			let item: U256 = match db.get(key){
+				Ok(x) => x.map_or_else(|| U256::zero(), decode),
+				Err(e) => panic!("Encountered potential DB corruption: {}", e),
 			};
 			(Filth::Clean, item.into())
 		}).1.clone()

@@ -227,7 +227,7 @@ impl Spec {
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, db: &mut HashDB) -> Result<bool, TrieError> {
+	pub fn ensure_db_good(&self, db: &mut HashDB) -> Result<bool, Box<TrieError>> {
 		if !db.contains(&self.state_root()) {
 			let mut root = H256::new();
 			{

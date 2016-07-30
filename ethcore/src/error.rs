@@ -341,6 +341,12 @@ impl From<BlockImportError> for Error {
 	}
 }
 
+impl<E> From<Box<E>> for Error where Error: From<E> {
+	fn from(err: Box<E>) -> Error {
+		Error::from(*err)
+	}
+}
+
 binary_fixed_size!(BlockError);
 binary_fixed_size!(ImportError);
 binary_fixed_size!(TransactionError);

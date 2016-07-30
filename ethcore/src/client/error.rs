@@ -24,6 +24,12 @@ impl From<TrieError> for Error {
 	}
 }
 
+impl<E> From<Box<E>> for Error where Error: From<E> {
+	fn from(err: Box<E>) -> Self {
+		Error::from(*err)
+	}
+}
+
 impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		match *self {
