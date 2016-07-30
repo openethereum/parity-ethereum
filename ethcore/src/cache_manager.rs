@@ -45,7 +45,7 @@ impl<T> CacheManager<T> where T: Eq + Hash {
 		}
 	}
 
-	pub fn collect_carbage<C, F>(&mut self, current_size: C, mut notify_unused: F) where C: Fn() -> usize, F: FnMut(HashSet<T>) {
+	pub fn collect_garbage<C, F>(&mut self, current_size: C, mut notify_unused: F) where C: Fn() -> usize, F: FnMut(HashSet<T>) {
 		if current_size() < self.pref_cache_size {
 			self.rotate_cache_if_needed();
 			return;

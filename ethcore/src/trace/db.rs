@@ -175,7 +175,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
 		let mut cache_manager = self.cache_manager.write();
-		cache_manager.collect_carbage(|| self.cache_size(), | ids | {
+		cache_manager.collect_garbage(|| self.cache_size(), | ids | {
 			let mut traces = self.traces.write();
 			let mut blooms = self.blooms.write();
 

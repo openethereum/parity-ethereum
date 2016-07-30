@@ -863,7 +863,7 @@ impl BlockChain {
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
 		let mut cache_man = self.cache_man.write();
-		cache_man.collect_carbage(|| self.cache_size().total(), | ids | {
+		cache_man.collect_garbage(|| self.cache_size().total(), | ids | {
 			let mut block_headers = self.block_headers.write();
 			let mut block_bodies = self.block_bodies.write();
 			let mut block_details = self.block_details.write();
