@@ -160,7 +160,7 @@ mod tests {
 		{
 			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
 			for (k, v) in map.make() {
-				trie.insert(&k, &v);
+				trie.insert(&k, &v).unwrap();
 			}
 		}
 		root

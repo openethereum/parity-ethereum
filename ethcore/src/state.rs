@@ -490,12 +490,12 @@ fn should_work_when_cloned() {
 		let mut state = get_temp_state_in(temp.as_path());
 		assert_eq!(state.exists(&a), false);
 		state.inc_nonce(&a);
-		state.commit();
+		state.commit().unwrap();
 		state.clone()
 	};
 
 	state.inc_nonce(&a);
-	state.commit();
+	state.commit().unwrap();
 }
 
 #[test]
@@ -1305,7 +1305,7 @@ fn code_from_database() {
 		state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{});
 		state.init_code(&a, vec![1, 2, 3]);
 		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
-		state.commit();
+		state.commit().unwrap();
 		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
 		state.drop()
 	};
@@ -1321,7 +1321,7 @@ fn storage_at_from_database() {
 	let (root, db) = {
 		let mut state = get_temp_state_in(temp.as_path());
 		state.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
-		state.commit();
+		state.commit().unwrap();
 		state.drop()
 	};
 
@@ -1337,7 +1337,7 @@ fn get_from_database() {
 		let mut state = get_temp_state_in(temp.as_path());
 		state.inc_nonce(&a);
 		state.add_balance(&a, &U256::from(69u64));
-		state.commit();
+		state.commit().unwrap();
 		assert_eq!(state.balance(&a), U256::from(69u64));
 		state.drop()
 	};
@@ -1368,7 +1368,7 @@ fn remove_from_database() {
 	let (root, db) = {
 		let mut state = get_temp_state_in(temp.as_path());
 		state.inc_nonce(&a);
-		state.commit();
+		state.commit().unwrap();
 		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 		state.drop()
@@ -1379,7 +1379,7 @@ fn remove_from_database() {
 		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 		state.kill_account(&a);
-		state.commit();
+		state.commit().unwrap();
 		assert_eq!(state.exists(&a), false);
 		assert_eq!(state.nonce(&a), U256::from(0u64));
 		state.drop()
@@ -1398,16 +1398,16 @@ fn alter_balance() {
 	let b = address_from_u64(1u64);
 	state.add_balance(&a, &U256::from(69u64));
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.commit();
+	state.commit().unwrap();
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	state.sub_balance(&a, &U256::from(42u64));
 	assert_eq!(state.balance(&a), U256::from(27u64));
-	state.commit();
+	state.commit().unwrap();
 	assert_eq!(state.balance(&a), U256::from(27u64));
 	state.transfer_balance(&a, &b, &U256::from(18u64));
 	assert_eq!(state.balance(&a), U256::from(9u64));
 	assert_eq!(state.balance(&b), U256::from(18u64));
-	state.commit();
+	state.commit().unwrap();
 	assert_eq!(state.balance(&a), U256::from(9u64));
 	assert_eq!(state.balance(&b), U256::from(18u64));
 }
@@ -1421,11 +1421,11 @@ fn alter_nonce() {
 	assert_eq!(state.nonce(&a), U256::from(1u64));
 	state.inc_nonce(&a);
 	assert_eq!(state.nonce(&a), U256::from(2u64));
-	state.commit();
+	state.commit().unwrap();
 	assert_eq!(state.nonce(&a), U256::from(2u64));
 	state.inc_nonce(&a);
 	assert_eq!(state.nonce(&a), U256::from(3u64));
-	state.commit();
+	state.commit().unwrap();
 	assert_eq!(state.nonce(&a), U256::from(3u64));
 }
 
@@ -1436,7 +1436,7 @@ fn balance_nonce() {
 	let a = Address::zero();
 	assert_eq!(state.balance(&a), U256::from(0u64));
 	assert_eq!(state.nonce(&a), U256::from(0u64));
-	state.commit();
+	state.commit().unwrap();
 	assert_eq!(state.balance(&a), U256::from(0u64));
 	assert_eq!(state.nonce(&a), U256::from(0u64));
 }
@@ -1447,7 +1447,7 @@ fn ensure_cached() {
 	let mut state = state_result.reference_mut();
 	let a = Address::zero();
 	state.require(&a, false);
-	state.commit();
+	state.commit().unwrap();
 	assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
 }
 
@@ -1487,7 +1487,7 @@ fn snapshot_nested() {
 fn create_empty() {
 	let mut state_result = get_temp_state();
 	let mut state = state_result.reference_mut();
-	state.commit();
+	state.commit().unwrap();
 	assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
 }
 
