@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use util::{U256, H256, Address, Bytes, FixedHash};
 use ethcore::client::EnvInfo;
-use ethcore::evm::{self, Ext, ContractCreateResult, MessageCallResult, Schedule};
+use ethcore::evm::{self, Ext, ContractCreateResult, MessageCallResult, Schedule, CallType};
 
 pub struct FakeExt {
 	schedule: Schedule,
@@ -67,7 +67,8 @@ impl Ext for FakeExt {
 			_value: Option<U256>,
 			_data: &[u8],
 			_code_address: &Address,
-			_output: &mut [u8]) -> MessageCallResult {
+			_output: &mut [u8],
+			_call_type: CallType) -> MessageCallResult {
 		unimplemented!();
 	}
 

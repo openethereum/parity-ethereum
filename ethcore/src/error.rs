@@ -24,7 +24,7 @@ use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use types::block_import_error::BlockImportError;
 use snapshot::Error as SnapshotError;
 
-pub use types::executed::ExecutionError;
+pub use types::executed::{ExecutionError, ReplayError};
 
 #[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.

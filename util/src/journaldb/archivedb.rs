@@ -19,10 +19,15 @@
 use common::*;
 use rlp::*;
 use hashdb::*;
+<<<<<<< HEAD
 use overlaydb::{DeletionMode, OverlayDB};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, VERSION_KEY};
+=======
+use memorydb::*;
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
+>>>>>>> master
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use kvdb::{Database, DBTransaction};
 #[cfg(test)]
 use std::env;
 
@@ -30,9 +35,12 @@ use std::env;
 /// Would be nich to use rocksdb columns for this eventually.
 const AUX_FLAG: u8 = 255;
 
+<<<<<<< HEAD
 /// Database version.
 pub const DB_VERSION : u32 = 0x103;
 
+=======
+>>>>>>> master
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
 ///
@@ -44,6 +52,7 @@ pub struct ArchiveDB {
 	overlay: OverlayDB,
 	backing: Arc<Database>,
 	latest_era: Option<u64>,
+	column: Option<u32>,
 }
 
 impl ArchiveDB {
@@ -67,6 +76,7 @@ impl ArchiveDB {
 			overlay: OverlayDB::new_with_arc(backing.clone(), DeletionMode::Ignore),
 			backing: backing,
 			latest_era: latest_era,
+			column: col,
 		}
 	}
 
@@ -75,7 +85,8 @@ impl ArchiveDB {
 	fn new_temp() -> ArchiveDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(dir.to_str().unwrap(), DatabaseConfig::default())
+		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
+		Self::new(backing, None)
 	}
 }
 
@@ -116,7 +127,7 @@ impl HashDB for ArchiveDB {
 		let mut db_hash = hash.to_vec();
 		db_hash.push(AUX_FLAG);
 
-		self.backing.get(&db_hash)
+		self.backing.get(self.column, &db_hash)
 			.expect("Low-level database error. Some issue with your hard disk?")
 			.map(|v| v.to_vec())
 	}
@@ -132,6 +143,7 @@ impl JournalDB for ArchiveDB {
 			overlay: self.overlay.clone(),
 			backing: self.backing.clone(),
 			latest_era: self.latest_era,
+			column: self.column.clone(),
 		})
 	}
 
@@ -149,11 +161,11 @@ impl JournalDB for ArchiveDB {
 
 		for (mut key, value) in self.overlay.drain_aux().into_iter() {
 			key.push(AUX_FLAG);
-			batch.put(&key, &value).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(self.column, &key, &value).expect("Low-level database error. Some issue with your hard disk?");
 		}
 
 		if self.latest_era.map_or(true, |e| now > e) {
-			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+			try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
 			self.latest_era = Some(now);
 		}
 		try!(self.backing.write(batch));
@@ -163,10 +175,14 @@ impl JournalDB for ArchiveDB {
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
-		self.backing.get_by_prefix(&id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
 	}
 
 	fn is_pruned(&self) -> bool { false }
+
+	fn backing(&self) -> &Arc<Database> {
+		&self.backing
+	}
 }
 
 #[cfg(test)]
@@ -178,7 +194,7 @@ mod tests {
 	use super::*;
 	use hashdb::*;
 	use journaldb::traits::JournalDB;
-	use kvdb::DatabaseConfig;
+	use kvdb::Database;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -186,18 +202,18 @@ mod tests {
 		let mut jdb = ArchiveDB::new_temp();
 
 		let x = jdb.insert(b"X");
-		jdb.commit(1, &b"1".sha3(), None).unwrap();
-		jdb.commit(2, &b"2".sha3(), None).unwrap();
-		jdb.commit(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
-		jdb.commit(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
 
 		jdb.remove(&x);
-		jdb.commit(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
 		let x = jdb.insert(b"X");
-		jdb.commit(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
 
-		jdb.commit(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
-		jdb.commit(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+		jdb.commit_batch(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		jdb.commit_batch(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
 
 		assert!(jdb.contains(&x));
 	}
@@ -207,16 +223,16 @@ mod tests {
 		// history is 3
 		let mut jdb = ArchiveDB::new_temp();
 		let h = jdb.insert(b"foo");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.contains(&h));
 		jdb.remove(&h);
-		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
 		assert!(jdb.contains(&h));
-		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
 		assert!(jdb.contains(&h));
-		jdb.commit(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.contains(&h));
-		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
 	}
 
 	#[test]
@@ -226,29 +242,29 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
-		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
-		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&baz));
 
 		jdb.remove(&foo);
-		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 		assert!(jdb.contains(&foo));
 
-		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
 	}
 
 	#[test]
@@ -258,22 +274,22 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
-		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
 
 		jdb.remove(&bar);
-		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
-		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 		assert!(jdb.contains(&foo));
 	}
 
@@ -283,16 +299,16 @@ mod tests {
 		let mut jdb = ArchiveDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.contains(&foo));
 
 		jdb.remove(&foo);
-		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		jdb.insert(b"foo");
 		assert!(jdb.contains(&foo));
-		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.contains(&foo));
-		jdb.commit(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
+		jdb.commit_batch(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
 		assert!(jdb.contains(&foo));
 	}
 
@@ -300,17 +316,22 @@ mod tests {
 	fn fork_same_key() {
 		// history is 1
 		let mut jdb = ArchiveDB::new_temp();
-		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
 
 		jdb.insert(b"foo");
-		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.contains(&foo));
 
-		jdb.commit(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		jdb.commit_batch(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
 		assert!(jdb.contains(&foo));
+	}
+
+	fn new_db(dir: &Path) -> ArchiveDB {
+		let db = Database::open_default(dir.to_str().unwrap()).unwrap();
+		ArchiveDB::new(Arc::new(db), None)
 	}
 
 	#[test]
@@ -320,25 +341,25 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
-			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			foo
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			jdb.remove(&foo);
-			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		}
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
-			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		}
 	}
 
@@ -348,27 +369,27 @@ mod tests {
 		dir.push(H32::random().hex());
 
 		let foo = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
-			jdb.commit(0, &b"0".sha3(), None).unwrap();
-			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 
 			// foo is ancient history.
 
 			jdb.insert(b"foo");
-			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			foo
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			jdb.remove(&foo);
-			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.contains(&foo));
 			jdb.remove(&foo);
-			jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
-			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
+			jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit_batch(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 		}
 	}
 
@@ -377,23 +398,23 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, _, _) = {
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
+			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
-			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			jdb.remove(&foo);
 			let baz = jdb.insert(b"baz");
-			jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
 
 			jdb.remove(&bar);
-			jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 			(foo, bar, baz)
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(dir.to_str().unwrap(), DatabaseConfig::default());
-			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+			let mut jdb = new_db(&dir);
+			jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.contains(&foo));
 		}
 	}
@@ -403,14 +424,14 @@ mod tests {
 		let temp = ::devtools::RandomTempPath::new();
 
 		let key = {
-			let mut jdb = ArchiveDB::new(temp.as_str(), DatabaseConfig::default());
+			let mut jdb = new_db(temp.as_path().as_path());
 			let key = jdb.insert(b"foo");
-			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			key
 		};
 
 		{
-			let jdb = ArchiveDB::new(temp.as_str(), DatabaseConfig::default());
+			let jdb = new_db(temp.as_path().as_path());
 			let state = jdb.state(&key);
 			assert!(state.is_some());
 		}

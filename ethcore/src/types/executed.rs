@@ -18,13 +18,51 @@
 
 use util::numbers::*;
 use util::Bytes;
-use trace::{Trace, VMTrace};
+use util::rlp::*;
+use trace::{VMTrace, FlatTrace};
 use types::log_entry::LogEntry;
 use types::state_diff::StateDiff;
 use ipc::binary::BinaryConvertError;
 use std::fmt;
 use std::mem;
 use std::collections::VecDeque;
+
+/// The type of the call-like instruction.
+#[derive(Debug, PartialEq, Clone, Binary)]
+pub enum CallType {
+	/// Not a CALL.
+	None,
+	/// CALL.
+	Call,
+	/// CALLCODE.
+	CallCode,
+	/// DELEGATECALL.
+	DelegateCall,
+}
+
+impl Encodable for CallType {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		let v = match *self {
+			CallType::None => 0u32,
+			CallType::Call => 1,
+			CallType::CallCode => 2,
+			CallType::DelegateCall => 3,
+		};
+		s.append(&v);
+	}
+}
+
+impl Decodable for CallType {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		decoder.as_rlp().as_val().and_then(|v| Ok(match v {
+			0u32 => CallType::None,
+			1 => CallType::Call,
+			2 => CallType::CallCode,
+			3 => CallType::DelegateCall,
+			_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
+		}))
+	}
+}
 
 /// Transaction execution receipt.
 #[derive(Debug, PartialEq, Clone, Binary)]
@@ -59,7 +97,7 @@ pub struct Executed {
 	/// Transaction output.
 	pub output: Bytes,
 	/// The trace of this transaction.
-	pub trace: Option<Trace>,
+	pub trace: Vec<FlatTrace>,
 	/// The VM trace of this transaction.
 	pub vm_trace: Option<VMTrace>,
 	/// The state diff, if we traced it.
@@ -133,5 +171,39 @@ impl fmt::Display for ExecutionError {
 	}
 }
 
+/// Result of executing the transaction.
+#[derive(PartialEq, Debug, Binary)]
+pub enum ReplayError {
+	/// Couldn't find the transaction in the chain.
+	TransactionNotFound,
+	/// Couldn't find the transaction block's state in the chain.
+	StatePruned,
+	/// Error executing.
+	Execution(ExecutionError),
+}
+
+impl fmt::Display for ReplayError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::ReplayError::*;
+
+		let msg = match *self {
+			TransactionNotFound => "Transaction couldn't be found in the chain".into(),
+			StatePruned => "Couldn't find the transaction block's state in the chain".into(),
+			Execution(ref e) => format!("{}", e),
+		};
+
+		f.write_fmt(format_args!("Transaction replay error ({}).", msg))
+	}
+}
+
 /// Transaction execution result.
 pub type ExecutionResult = Result<Executed, ExecutionError>;
+
+#[test]
+fn should_encode_and_decode_call_type() {
+	use util::rlp;
+	let original = CallType::Call;
+	let encoded = rlp::encode(&original);
+	let decoded = rlp::decode(&encoded);
+	assert_eq!(original, decoded);
+}

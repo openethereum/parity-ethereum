@@ -71,8 +71,12 @@ impl ClientService {
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
+		if spec.fork_name.is_some() {
+			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
+		}
+
 		let pruning = config.pruning;
-		let client = try!(Client::new(config, &spec, &db_path, miner, io_service.channel()));
+		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel()));
 		let snapshot = try!(SnapshotService::new(spec, pruning, db_path, io_service.channel()));
 
 		let snapshot = Arc::new(snapshot);
@@ -157,7 +161,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
-			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(&transactions); }
+			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
 			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
 			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
 			_ => {} // ignore other messages
@@ -196,7 +200,7 @@ mod tests {
 		let service = ClientService::start(
 			ClientConfig::default(),
 			get_test_spec(),
-			&temp_path.as_path(),
+			temp_path.as_path(),
 			Arc::new(Miner::with_spec(get_test_spec())),
 		);
 		assert!(service.is_ok());

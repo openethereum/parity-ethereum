@@ -28,7 +28,7 @@ use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::kvdb::Database;
 use util::overlaydb::{DeletionMode, OverlayDB};
-use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
+use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
 use util::rlp::SHA3_NULL_RLP;
 
 use self::account::Account;
@@ -295,7 +295,8 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
 		let fat_rlp = try!(account.to_fat_rlp(&account_db));
-		try!(chunker.push(account_key, fat_rlp));
+		let compressed_rlp = UntrustedRlp::new(&fat_rlp).compress(RlpType::Snapshot).to_vec();
+		try!(chunker.push(account_key, compressed_rlp));
 	}
 
 	if chunker.cur_size != 0 {
@@ -435,7 +436,8 @@ fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mu
 		let account_rlp = UntrustedRlp::new(account_pair);
 
 		let hash: H256 = try!(account_rlp.val_at(0));
-		let fat_rlp = try!(account_rlp.at(1));
+		let decompressed = try!(account_rlp.at(1)).decompress(RlpType::Snapshot);
+		let fat_rlp = UntrustedRlp::new(&decompressed[..]);
 
 		let thin_rlp = {
 			let mut acct_db = AccountDBMut::from_hash(db, hash);

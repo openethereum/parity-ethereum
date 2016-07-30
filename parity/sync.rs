@@ -16,18 +16,9 @@
 
 //! Parity sync service
 
-extern crate ethcore_ipc_nano as nanoipc;
-extern crate ethcore_ipc_hypervisor as hypervisor;
-extern crate ethcore_ipc as ipc;
-extern crate ctrlc;
-#[macro_use] extern crate log;
-extern crate ethsync;
-extern crate rustc_serialize;
-extern crate docopt;
-extern crate ethcore;
-extern crate ethcore_util as util;
-extern crate ethcore_logger;
-
+use nanoipc;
+use ipc;
+use std;
 use std::sync::Arc;
 use hypervisor::{HypervisorServiceClient, SYNC_MODULE_ID, HYPERVISOR_IPC_URL};
 use ctrlc::CtrlC;
@@ -37,14 +28,13 @@ use ethcore::client::{RemoteClient, ChainNotify};
 use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
 use std::thread;
 use nanoipc::IpcInterface;
-
-use ethcore_logger::Settings as LogSettings;
-use ethcore_logger::setup_log;
+use modules::service_urls;
+use ethcore_logger::{Config as LogConfig, setup_log};
 
 const USAGE: &'static str = "
 Ethcore sync service
 Usage:
-  sync <client-url> [options]
+  parity sync [options]
 
  Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
@@ -56,25 +46,18 @@ Usage:
 
 #[derive(Debug, RustcDecodable)]
 struct Args {
-	arg_client_url: String,
 	flag_logging: Option<String>,
 	flag_log_file: Option<String>,
 	flag_no_color: bool,
 }
 
 impl Args {
-	pub fn log_settings(&self) -> LogSettings {
-		let mut settings = LogSettings::new();
-		if self.flag_no_color || cfg!(windows) {
-			settings = settings.no_color();
+	pub fn log_settings(&self) -> LogConfig {
+		LogConfig {
+			color: self.flag_no_color || cfg!(windows),
+			mode: self.flag_logging.clone(),
+			file: self.flag_log_file.clone(),
 		}
-		if let Some(ref init) = self.flag_logging {
-			settings = settings.init(init.to_owned())
-		}
-		if let Some(ref file) = self.flag_log_file {
-			settings = settings.file(file.to_owned())
-		}
-		settings
 	}
 }
 
@@ -90,29 +73,29 @@ fn run_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<At
 	});
 }
 
-fn main() {
+pub fn main() {
 	use std::io::{self, Read};
 
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.decode())
 		.unwrap_or_else(|e| e.exit());
 
-	setup_log(&args.log_settings());
+	setup_log(&args.log_settings()).expect("Log initialization failure");
 
 	let mut buffer = Vec::new();
 	io::stdin().read_to_end(&mut buffer).expect("Failed to read initialisation payload");
 	let service_config = ipc::binary::deserialize::<ServiceConfiguration>(&buffer).expect("Failed deserializing initialisation payload");
 
-	let remote_client = nanoipc::init_client::<RemoteClient<_>>(&args.arg_client_url).unwrap();
+	let remote_client = nanoipc::init_client::<RemoteClient<_>>(service_urls::CLIENT).unwrap();
 
 	remote_client.handshake().unwrap();
 
 	let stop = Arc::new(AtomicBool::new(false));
 	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), service_config.net).unwrap();
 
-	run_service("ipc:///tmp/parity-sync.ipc", stop.clone(), sync.clone() as Arc<SyncProvider>);
-	run_service("ipc:///tmp/parity-manage-net.ipc", stop.clone(), sync.clone() as Arc<ManageNetwork>);
-	run_service("ipc:///tmp/parity-sync-notify.ipc", stop.clone(), sync.clone() as Arc<ChainNotify>);
+	run_service(service_urls::SYNC, stop.clone(), sync.clone() as Arc<SyncProvider>);
+	run_service(service_urls::NETWORK_MANAGER, stop.clone(), sync.clone() as Arc<ManageNetwork>);
+	run_service(service_urls::SYNC_NOTIFY, stop.clone(), sync.clone() as Arc<ChainNotify>);
 
 	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(HYPERVISOR_IPC_URL).unwrap();
 	hypervisor_client.handshake().unwrap();

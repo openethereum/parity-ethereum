@@ -24,6 +24,7 @@ pub enum Error {
 	InvalidPassword,
 	InvalidSecret,
 	InvalidAccount,
+	InvalidKeyFile(String),
 	CreationFailed,
 	EthKey(EthKeyError),
 	Custom(String),
@@ -32,12 +33,13 @@ pub enum Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		let s = match *self {
-			Error::Io(ref err) => format!("{}", err),
+			Error::Io(ref err) => err.to_string(),
 			Error::InvalidPassword => "Invalid password".into(),
 			Error::InvalidSecret => "Invalid secret".into(),
 			Error::InvalidAccount => "Invalid account".into(),
+			Error::InvalidKeyFile(ref reason) => format!("Invalid key file: {}", reason),
 			Error::CreationFailed => "Account creation failed".into(),
-			Error::EthKey(ref err) => format!("{}", err),
+			Error::EthKey(ref err) => err.to_string(),
 			Error::Custom(ref s) => s.clone(),
 		};
 

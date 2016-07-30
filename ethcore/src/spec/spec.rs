@@ -17,14 +17,12 @@
 //! Parameters for a block chain.
 
 use common::*;
-use engine::*;
+use engines::{Engine, NullEngine, BasicAuthority};
 use pod_state::*;
-use null_engine::*;
 use account_db::*;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
-use basic_authority::BasicAuthority;
 use ethjson;
 
 /// Parameters common to all engines.
@@ -39,6 +37,8 @@ pub struct CommonParams {
 	pub network_id: U256,
 	/// Minimum gas limit.
 	pub min_gas_limit: U256,
+	/// Fork block to check.
+	pub fork_block: Option<(BlockNumber, H256)>,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -48,6 +48,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
 			min_gas_limit: p.min_gas_limit.into(),
+			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 		}
 	}
 }
@@ -59,6 +60,8 @@ pub struct Spec {
 	pub name: String,
 	/// What engine are we using for this?
 	pub engine: Arc<Engine>,
+	/// The fork identifier for this chain. Only needed to distinguish two chains sharing the same genesis.
+	pub fork_name: Option<String>,
 
 	/// Known nodes on the network in enode format.
 	pub nodes: Vec<String>,
@@ -106,6 +109,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			name: s.name.into(),
 			params: params.clone(),
 			engine: Spec::engine(s.engine, params, builtins),
+			fork_name: s.fork_name.map(Into::into),
 			nodes: s.nodes.unwrap_or_else(Vec::new),
 			parent_hash: g.parent_hash,
 			transactions_root: g.transactions_root,
@@ -119,7 +123,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			seal_fields: seal.fields,
 			seal_rlp: seal.rlp,
 			state_root_memo: RwLock::new(g.state_root),
-			genesis_state: From::from(s.accounts)
+			genesis_state: From::from(s.accounts),
 		}
 	}
 }
@@ -148,6 +152,9 @@ impl Spec {
 
 	/// Get the configured Network ID.
 	pub fn network_id(&self) -> U256 { self.params.network_id }
+
+	/// Get the configured network fork block.
+	pub fn fork_block(&self) -> Option<(BlockNumber, H256)> { self.params.fork_block }
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
