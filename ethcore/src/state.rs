@@ -374,7 +374,8 @@ impl State {
 	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&'a self, a: &Address, require_code: bool, default: F, not_default: G)
 		-> RefMut<'a, Account>
 	{
-		if !{ self.cache.borrow().contains_key(a) } {
+		let contains_key = self.cache.borrow().contains_key(a);
+		if !contains_key {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 			let maybe_acc = match db.get(&a) {
 				Ok(acc) => acc.map(Account::from_rlp),
