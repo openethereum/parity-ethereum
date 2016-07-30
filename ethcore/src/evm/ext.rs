@@ -18,6 +18,7 @@
 
 use util::common::*;
 use evm::{self, Schedule};
+use types::executed::CallType;
 use env_info::*;
 
 /// Result of externalities create function.
@@ -69,13 +70,15 @@ pub trait Ext {
 	/// and true if subcall was successfull.
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn call(&mut self,
-			gas: &U256,
-			sender_address: &Address,
-			receive_address: &Address,
-			value: Option<U256>,
-			data: &[u8],
-			code_address: &Address,
-			output: &mut [u8]) -> MessageCallResult;
+		gas: &U256,
+		sender_address: &Address,
+		receive_address: &Address,
+		value: Option<U256>,
+		data: &[u8],
+		code_address: &Address,
+		output: &mut [u8],
+		call_type: CallType
+	) -> MessageCallResult;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Bytes;

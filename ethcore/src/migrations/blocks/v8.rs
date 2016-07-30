@@ -14,12 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database migrations.
+//! This migration compresses the state db.
 
-pub mod state;
-pub mod blocks;
-pub mod extras;
+use util::migration::{SimpleMigration, Progress};
+use util::rlp::{Compressible, UntrustedRlp, View, RlpType};
 
-mod v9;
-pub use self::v9::ToV9;
-pub use self::v9::Extract;
+/// Compressing migration.
+#[derive(Default)]
+pub struct V8(Progress);
+
+impl SimpleMigration for V8 {
+	fn version(&self) -> u32 {
+		8
+	}
+
+	fn columns(&self) -> Option<u32> { None }
+
+	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
+		self.0.tick();
+		Some((key,UntrustedRlp::new(&value).compress(RlpType::Blocks).to_vec()))
+	}
+}

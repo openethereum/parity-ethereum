@@ -17,11 +17,11 @@
 use std::cell::{RefCell, Ref, RefMut};
 
 use common::*;
-use engine::Engine;
+use engines::Engine;
 use executive::{Executive, TransactOptions};
 use evm::Factory as EvmFactory;
 use account_db::*;
-use trace::Trace;
+use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
@@ -31,7 +31,7 @@ pub struct ApplyOutcome {
 	/// The receipt for the applied transaction.
 	pub receipt: Receipt,
 	/// The trace for the applied transaction, if None if tracing is disabled.
-	pub trace: Option<Trace>,
+	pub trace: Vec<FlatTrace>,
 }
 
 /// Result type for the execution ("application") of a transaction.
@@ -435,7 +435,8 @@ use spec::*;
 use transaction::*;
 use util::log::init_log;
 use trace::trace;
-use trace::trace::{Trace};
+use trace::FlatTrace;
+use types::executed::CallType;
 
 #[test]
 fn should_apply_create_transaction() {
@@ -460,8 +461,9 @@ fn should_apply_create_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 0,
 		action: trace::Action::Create(trace::Create {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			value: 100.into(),
@@ -473,8 +475,7 @@ fn should_apply_create_transaction() {
 			address: Address::from_str("8988167e088c87cd314df6d3c2b83da5acb93ace").unwrap(),
 			code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
 		}),
-		subs: vec![]
-	});
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -521,8 +522,8 @@ fn should_trace_failed_create_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
 		action: trace::Action::Create(trace::Create {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			value: 100.into(),
@@ -530,8 +531,8 @@ fn should_trace_failed_create_transaction() {
 			init: vec![91, 96, 0, 86],
 		}),
 		result: trace::Res::FailedCreate,
-		subs: vec![]
-	});
+		subtraces: 0
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -560,21 +561,22 @@ fn should_trace_call_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(3),
 			output: vec![]
 		}),
-		subs: vec![]
-	});
+		subtraces: 0,
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -602,21 +604,22 @@ fn should_trace_basic_call_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(0),
 			output: vec![]
 		}),
-		subs: vec![]
-	});
+		subtraces: 0,
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -644,21 +647,24 @@ fn should_trace_call_transaction_to_builtin() {
 	let vm_factory = Default::default();
 	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
-	assert_eq!(result.trace, Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: "0000000000000000000000000000000000000001".into(),
 			value: 0.into(),
 			gas: 79_000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(3000),
 			output: vec![]
 		}),
-		subs: vec![]
-	}));
+		subtraces: 0,
+	}];
+
+	assert_eq!(result.trace, expected_trace);
 }
 
 #[test]
@@ -685,21 +691,23 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 	let vm_factory = Default::default();
 	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 0.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(28_061),
 			output: vec![]
 		}),
-		subs: vec![]
-	});
+		subtraces: 0,
+	}];
+
 	assert_eq!(result.trace, expected_trace);
 }
 
@@ -728,21 +736,38 @@ fn should_not_trace_callcode() {
 	let vm_factory = Default::default();
 	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 1,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 0.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
-			gas_used: U256::from(64),
+			gas_used: 64.into(),
 			output: vec![]
 		}),
-		subs: vec![]
-	});
+	}, FlatTrace {
+		trace_address: vec![0].into_iter().collect(),
+		subtraces: 0,
+		action: trace::Action::Call(trace::Call {
+			from: 0xa.into(),
+			to: 0xa.into(),
+			value: 0.into(),
+			gas: 4096.into(),
+			input: vec![],
+			call_type: CallType::CallCode,
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: 3.into(),
+			output: vec![],
+		}),
+	}];
+
 	assert_eq!(result.trace, expected_trace);
 }
 
@@ -774,21 +799,38 @@ fn should_not_trace_delegatecall() {
 	let vm_factory = Default::default();
 	let result = state.apply(&info, engine.deref(), &vm_factory, &t, true).unwrap();
 
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 1,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 0.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(61),
 			output: vec![]
 		}),
-		subs: vec![]
-	});
+	}, FlatTrace {
+		trace_address: vec![0].into_iter().collect(),
+		subtraces: 0,
+		action: trace::Action::Call(trace::Call {
+			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+			to: 0xa.into(),
+			value: 0.into(),
+			gas: 32768.into(),
+			input: vec![],
+			call_type: CallType::DelegateCall,
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: 3.into(),
+			output: vec![],
+		}),
+	}];
+
 	assert_eq!(result.trace, expected_trace);
 }
 
@@ -816,20 +858,19 @@ fn should_trace_failed_call_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::FailedCall,
-		subs: vec![]
-	});
-
-	println!("trace: {:?}", result.trace);
+		subtraces: 0,
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -859,35 +900,38 @@ fn should_trace_call_with_subcall_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 1,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(69),
 			output: vec![]
 		}),
-		subs: vec![Trace {
-			depth: 1,
-			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 0.into(),
-				gas: 78934.into(),
-				input: vec![],
-			}),
-			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(3),
-				output: vec![]
-			}),
-			subs: vec![]
-		}]
-	});
+	}, FlatTrace {
+		trace_address: vec![0].into_iter().collect(),
+		subtraces: 0,
+		action: trace::Action::Call(trace::Call {
+			from: 0xa.into(),
+			to: 0xb.into(),
+			value: 0.into(),
+			gas: 78934.into(),
+			input: vec![],
+			call_type: CallType::Call,
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: U256::from(3),
+			output: vec![]
+		}),
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -916,32 +960,34 @@ fn should_trace_call_with_basic_subcall_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 1,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(31761),
 			output: vec![]
 		}),
-		subs: vec![Trace {
-			depth: 1,
-			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 69.into(),
-				gas: 2300.into(),
-				input: vec![],
-			}),
-			result: trace::Res::Call(trace::CallResult::default()),
-			subs: vec![]
-		}]
-	});
+	}, FlatTrace {
+		trace_address: vec![0].into_iter().collect(),
+		subtraces: 0,
+		action: trace::Action::Call(trace::Call {
+			from: 0xa.into(),
+			to: 0xb.into(),
+			value: 69.into(),
+			gas: 2300.into(),
+			input: vec![],
+			call_type: CallType::Call,
+		}),
+		result: trace::Res::Call(trace::CallResult::default()),
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -970,21 +1016,22 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 0,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(31761),
 			output: vec![]
 		}),
-		subs: vec![]
-	});
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -1014,32 +1061,34 @@ fn should_trace_failed_subcall_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 1,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(79_000),
 			output: vec![]
 		}),
-		subs: vec![Trace {
-			depth: 1,
-			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 0.into(),
-				gas: 78934.into(),
-				input: vec![],
-			}),
-			result: trace::Res::FailedCall,
-			subs: vec![]
-		}]
-	});
+	}, FlatTrace {
+		trace_address: vec![0].into_iter().collect(),
+		subtraces: 0,
+		action: trace::Action::Call(trace::Call {
+			from: 0xa.into(),
+			to: 0xb.into(),
+			value: 0.into(),
+			gas: 78934.into(),
+			input: vec![],
+			call_type: CallType::Call,
+		}),
+		result: trace::Res::FailedCall,
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -1070,49 +1119,52 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 1,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(135),
 			output: vec![]
 		}),
-		subs: vec![Trace {
-			depth: 1,
-			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 0.into(),
-				gas: 78934.into(),
-				input: vec![],
-			}),
-			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(69),
-				output: vec![]
-			}),
-			subs: vec![Trace {
-				depth: 2,
-				action: trace::Action::Call(trace::Call {
-					from: 0xb.into(),
-					to: 0xc.into(),
-					value: 0.into(),
-					gas: 78868.into(),
-					input: vec![],
-				}),
-				result: trace::Res::Call(trace::CallResult {
-					gas_used: U256::from(3),
-					output: vec![]
-				}),
-				subs: vec![]
-			}]
-		}]
-	});
+	}, FlatTrace {
+		trace_address: vec![0].into_iter().collect(),
+		subtraces: 1,
+		action: trace::Action::Call(trace::Call {
+			from: 0xa.into(),
+			to: 0xb.into(),
+			value: 0.into(),
+			gas: 78934.into(),
+			input: vec![],
+			call_type: CallType::Call,
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: U256::from(69),
+			output: vec![]
+		}),
+	}, FlatTrace {
+		trace_address: vec![0, 0].into_iter().collect(),
+		subtraces: 0,
+		action: trace::Action::Call(trace::Call {
+			from: 0xb.into(),
+			to: 0xc.into(),
+			value: 0.into(),
+			gas: 78868.into(),
+			input: vec![],
+			call_type: CallType::Call,
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: U256::from(3),
+			output: vec![]
+		}),
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -1143,46 +1195,50 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 1,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(79_000),
 			output: vec![]
-		}),
-		subs: vec![Trace {
-			depth: 1,
+		})
+	}, FlatTrace {
+		trace_address: vec![0].into_iter().collect(),
+		subtraces: 1,
 			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
-				value: 0.into(),
-				gas: 78934.into(),
-				input: vec![],
-			}),
-			result: trace::Res::FailedCall,
-			subs: vec![Trace {
-				depth: 2,
-				action: trace::Action::Call(trace::Call {
-				from: 0xb.into(),
-				to: 0xc.into(),
-				value: 0.into(),
-				gas: 78868.into(),
-				input: vec![],
-				}),
-				result: trace::Res::Call(trace::CallResult {
-					gas_used: U256::from(3),
-					output: vec![]
-				}),
-				subs: vec![]
-			}]
-		}]
-	});
+			from: 0xa.into(),
+			to: 0xb.into(),
+			value: 0.into(),
+			gas: 78934.into(),
+			input: vec![],
+			call_type: CallType::Call,
+		}),
+		result: trace::Res::FailedCall,
+	}, FlatTrace {
+		trace_address: vec![0, 0].into_iter().collect(),
+		subtraces: 0,
+		action: trace::Action::Call(trace::Call {
+			from: 0xb.into(),
+			to: 0xc.into(),
+			value: 0.into(),
+			gas: 78868.into(),
+			call_type: CallType::Call,
+			input: vec![],
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: U256::from(3),
+			output: vec![]
+		}),
+	}];
 
 	assert_eq!(result.trace, expected_trace);
 }
@@ -1212,30 +1268,32 @@ fn should_trace_suicide() {
 	state.add_balance(t.sender().as_ref().unwrap(), &100.into());
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
-	let expected_trace = Some(Trace {
-		depth: 0,
+	let expected_trace = vec![FlatTrace {
+		trace_address: Default::default(),
+		subtraces: 1,
 		action: trace::Action::Call(trace::Call {
 			from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 			to: 0xa.into(),
 			value: 100.into(),
 			gas: 79000.into(),
 			input: vec![],
+			call_type: CallType::Call,
 		}),
 		result: trace::Res::Call(trace::CallResult {
 			gas_used: 3.into(),
 			output: vec![]
 		}),
-		subs: vec![Trace {
-			depth: 1,
-			action: trace::Action::Suicide(trace::Suicide {
-				address: 0xa.into(),
-				refund_address: 0xb.into(),
-				balance: 150.into(),
-			}),
-			result: trace::Res::None,
-			subs: vec![]
-		}]
-	});
+	}, FlatTrace {
+		trace_address: vec![0].into_iter().collect(),
+		subtraces: 0,
+		action: trace::Action::Suicide(trace::Suicide {
+			address: 0xa.into(),
+			refund_address: 0xb.into(),
+			balance: 150.into(),
+		}),
+		result: trace::Res::None,
+	}];
+
 	assert_eq!(result.trace, expected_trace);
 }
 

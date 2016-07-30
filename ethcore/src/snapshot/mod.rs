@@ -27,9 +27,10 @@ use error::Error;
 use ids::BlockID;
 use views::{BlockView, HeaderView};
 
-use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut};
+use util::{Bytes, Hashable, HashDB, JournalDB, snappy, TrieDB, TrieDBMut, TrieMut, DBTransaction};
+use util::error::UtilError;
 use util::hash::{FixedHash, H256};
-use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
+use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
 
 use self::account::Account;
 use self::block::AbridgedBlock;
@@ -261,7 +262,8 @@ pub fn chunk_state(db: &HashDB, root: &H256, path: &Path) -> Result<Vec<H256>, E
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
 		let fat_rlp = try!(account.to_fat_rlp(&account_db));
-		try!(chunker.push(account_key, fat_rlp));
+		let compressed_rlp = UntrustedRlp::new(&fat_rlp).compress(RlpType::Snapshot).to_vec();
+		try!(chunker.push(account_key, compressed_rlp));
 	}
 
 	if chunker.cur_size != 0 {
@@ -358,7 +360,9 @@ impl StateRebuilder {
 					try!(rebuild_account_trie(db.as_hashdb_mut(), account_chunk, out_pairs_chunk));
 
 					// commit the db changes we made in this thread.
-					try!(db.commit(0, &H256::zero(), None));
+					let batch = DBTransaction::new(&db.backing());
+					try!(db.commit(&batch, 0, &H256::zero(), None));
+					try!(db.backing().write(batch).map_err(UtilError::SimpleString));
 
 					Ok(())
 				});
@@ -387,7 +391,9 @@ impl StateRebuilder {
 			}
 		}
 
-		try!(self.db.commit(0, &H256::zero(), None));
+		let batch = DBTransaction::new(&self.db.backing());
+		try!(self.db.commit(&batch, 0, &H256::zero(), None));
+		try!(self.db.backing().write(batch).map_err(|e| Error::Util(e.into())));
 		Ok(())
 	}
 
@@ -400,7 +406,8 @@ fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mu
 		let account_rlp = UntrustedRlp::new(account_pair);
 
 		let hash: H256 = try!(account_rlp.val_at(0));
-		let fat_rlp = try!(account_rlp.at(1));
+		let decompressed = try!(account_rlp.at(1)).decompress(RlpType::Snapshot);
+		let fat_rlp = UntrustedRlp::new(&decompressed[..]);
 
 		let thin_rlp = {
 			let mut acct_db = AccountDBMut::from_hash(db.as_hashdb_mut(), hash);

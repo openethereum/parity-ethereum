@@ -17,11 +17,12 @@
 use super::test_common::*;
 use state::*;
 use executive::*;
-use engine::*;
+use engines::Engine;
 use evm;
 use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
 use externalities::*;
 use substate::*;
+use types::executed::CallType;
 use tests::helpers::*;
 use ethjson;
 use trace::{Tracer, NoopTracer};
@@ -37,7 +38,7 @@ struct CallCreate {
 
 impl From<ethjson::vm::Call> for CallCreate {
 	fn from(c: ethjson::vm::Call) -> Self {
-		let dst: Option<_> = c.destination.into();
+		let dst: Option<ethjson::hash::Address> = c.destination.into();
 		CallCreate {
 			data: c.data.into(),
 			destination: dst.map(Into::into),
@@ -109,13 +110,15 @@ impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
 	}
 
 	fn call(&mut self,
-			gas: &U256,
-			_sender_address: &Address,
-			receive_address: &Address,
-			value: Option<U256>,
-			data: &[u8],
-			_code_address: &Address,
-			_output: &mut [u8]) -> MessageCallResult {
+		gas: &U256,
+		_sender_address: &Address,
+		receive_address: &Address,
+		value: Option<U256>,
+		data: &[u8],
+		_code_address: &Address,
+		_output: &mut [u8],
+		_call_type: CallType
+	) -> MessageCallResult {
 		self.callcreates.push(CallCreate {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),

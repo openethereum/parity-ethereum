@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{BlockChainClient, BlockID, EachBlockWith};
+use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockID, EachBlockWith};
 use chain::{SyncState};
 use super::helpers::*;
 
@@ -93,6 +93,25 @@ fn forked() {
 	assert_eq!(net.peer(0).chain.numbers.read().deref(), &peer1_chain);
 	assert_eq!(net.peer(1).chain.numbers.read().deref(), &peer1_chain);
 	assert_eq!(net.peer(2).chain.numbers.read().deref(), &peer1_chain);
+}
+
+#[test]
+fn net_hard_fork() {
+	::env_logger::init().ok();
+	let ref_client = TestBlockChainClient::new();
+	ref_client.add_blocks(50, EachBlockWith::Uncle);
+	{
+		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockID::Number(50)).unwrap())));
+		net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Uncle);
+		net.sync();
+		assert_eq!(net.peer(1).chain.chain_info().best_block_number, 100);
+	}
+	{
+		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockID::Number(50)).unwrap())));
+		net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Nothing);
+		net.sync();
+		assert_eq!(net.peer(1).chain.chain_info().best_block_number, 0);
+	}
 }
 
 #[test]

@@ -14,12 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database migrations.
+//! Blocks database migrations.
 
-pub mod state;
-pub mod blocks;
-pub mod extras;
+mod v8;
 
-mod v9;
-pub use self::v9::ToV9;
-pub use self::v9::Extract;
+pub use self::v8::V8;

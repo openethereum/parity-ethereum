@@ -70,8 +70,10 @@ pub struct NetworkConfiguration {
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
 	pub use_secret: Option<Secret>,
-	/// Number of connected peers to maintain
-	pub ideal_peers: u32,
+	/// Minimum number of connected peers to maintain
+	pub min_peers: u32,
+	/// Maximum allowd number of peers
+	pub max_peers: u32,
 	/// List of reserved node addresses.
 	pub reserved_nodes: Vec<String>,
 	/// The non-reserved peer mode.
@@ -96,7 +98,8 @@ impl NetworkConfiguration {
 			discovery_enabled: true,
 			boot_nodes: Vec::new(),
 			use_secret: None,
-			ideal_peers: 25,
+			min_peers: 25,
+			max_peers: 50,
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
 		}
@@ -597,19 +600,19 @@ impl Host {
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage>) {
-		let (ideal_peers, mut pin) = {
+		let (min_peers, mut pin) = {
 			let info = self.info.read();
 			if info.capabilities.is_empty() {
 				return;
 			}
 			let config = &info.config;
 
-			(config.ideal_peers, config.non_reserved_mode == NonReservedPeerMode::Deny)
+			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny)
 		};
 
 		let session_count = self.session_count();
 		let reserved_nodes = self.reserved_nodes.read();
-		if session_count >= ideal_peers as usize + reserved_nodes.len() {
+		if session_count >= min_peers as usize + reserved_nodes.len() {
 			// check if all pinned nodes are connected.
 			if reserved_nodes.iter().all(|n| self.have_session(n) && self.connecting_to(n)) {
 				return;
@@ -767,12 +770,12 @@ impl Host {
 						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 						if !s.info.originated {
 							let session_count = self.session_count();
-							let (ideal_peers, reserved_only) = {
+							let (max_peers, reserved_only) = {
 								let info = self.info.read();
-								(info.config.ideal_peers, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
+								(info.config.max_peers, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
 							};
 
-							if session_count >= ideal_peers as usize || reserved_only {
+							if session_count >= max_peers as usize || reserved_only {
 								// only proceed if the connecting peer is reserved.
 								if !self.reserved_nodes.read().contains(s.id().unwrap()) {
 									s.disconnect(io, DisconnectReason::TooManyPeers);

@@ -16,6 +16,7 @@
 
 use std::sync::{Arc, Mutex, Condvar};
 use std::path::Path;
+use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
@@ -66,6 +67,7 @@ pub struct RunCmd {
 	pub mode: Mode,
 	pub tracing: Switch,
 	pub compaction: DatabaseCompactionProfile,
+	pub wal: bool,
 	pub vm_type: VMType,
 	pub enable_network: bool,
 	pub geth_compatibility: bool,
@@ -108,7 +110,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm));
+	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -130,6 +132,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		Some(id) => id,
 		None => spec.network_id(),
 	};
+	sync_config.fork_block = spec.fork_block().clone();
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
@@ -151,6 +154,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		cmd.tracing,
 		cmd.pruning,
 		cmd.compaction,
+		cmd.wal,
 		cmd.vm_type,
 		cmd.name,
 		fork_name.as_ref(),
@@ -282,6 +286,7 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::{import_accounts, EthStore};
 	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
+	use ethcore::ethstore::Error;
 
 	let passwords = try!(passwords_from_files(cfg.password_files));
 
@@ -294,8 +299,11 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 
 		let from = GethDirectory::open(t);
 		let to = DiskDirectory::create(dirs.keys.clone()).unwrap();
-		// ignore error, cause geth may not exist
-		let _ = import_accounts(&from, &to);
+		match import_accounts(&from, &to) {
+			Ok(_) => {}
+			Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => {}
+			Err(err) => warn!("Import geth accounts failed. {}", err)
+		}
 	}
 
 	let dir = Box::new(DiskDirectory::create(dirs.keys.clone()).unwrap());

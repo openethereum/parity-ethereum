@@ -25,6 +25,8 @@
 extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
+extern crate ethcore_devtools as devtools;
+#[macro_use]
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
@@ -120,10 +122,10 @@ fn main() {
 
 	match start() {
 		Ok(result) => {
-			print!("{}", result);
+			println!("{}", result);
 		},
 		Err(err) => {
-			print!("{}", err);
+			println!("{}", err);
 			process::exit(1);
 		}
 	}
