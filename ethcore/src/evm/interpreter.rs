@@ -20,6 +20,7 @@ use common::*;
 use super::instructions as instructions;
 use super::instructions::{Instruction, get_info};
 use std::marker::Copy;
+use types::executed::CallType;
 use evm::{self, MessageCallResult, ContractCreateResult, GasLeft};
 
 #[cfg(not(feature = "evm-debug"))]
@@ -648,16 +649,16 @@ impl Interpreter {
 				});
 
 				// Get sender & receive addresses, check if we have balance
-				let (sender_address, receive_address, has_balance) = match instruction {
+				let (sender_address, receive_address, has_balance, call_type) = match instruction {
 					instructions::CALL => {
 						let has_balance = ext.balance(&params.address) >= value.unwrap();
-						(&params.address, &code_address, has_balance)
+						(&params.address, &code_address, has_balance, CallType::Call)
 					},
 					instructions::CALLCODE => {
 						let has_balance = ext.balance(&params.address) >= value.unwrap();
-						(&params.address, &params.address, has_balance)
+						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
-					instructions::DELEGATECALL => (&params.sender, &params.address, true),
+					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
 					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
 
@@ -672,7 +673,7 @@ impl Interpreter {
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(self.mem.read_slice(in_off, in_size)) };
 					let output = self.mem.writeable_slice(out_off, out_size);
-					ext.call(&call_gas, sender_address, receive_address, value, input, &code_address, output)
+					ext.call(&call_gas, sender_address, receive_address, value, input, &code_address, output, call_type)
 				};
 
 				return match call_result {

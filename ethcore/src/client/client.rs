@@ -48,6 +48,9 @@ use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
+use trace::FlatTransactionTraces;
+
+// re-export
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 use evm::Factory as EvmFactory;
@@ -289,8 +292,6 @@ impl Client {
 		let _timer = PerfTimer::new("import_verified_blocks");
 		let blocks = self.block_queue.drain(max_blocks_to_import);
 
-		let original_best = self.chain_info().best_block_hash;
-
 		for block in blocks {
 			let header = &block.header;
 
@@ -343,10 +344,6 @@ impl Client {
 			}
 		}
 
-		if self.chain_info().best_block_hash != original_best {
-			self.miner.update_sealing(self);
-		}
-
 		imported
 	}
 
@@ -361,8 +358,13 @@ impl Client {
 		};
 
 		// Commit results
-		let receipts = block.receipts().clone();
-		let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
+		let receipts = block.receipts().to_owned();
+		let traces = block.traces().clone().unwrap_or_else(Vec::new);
+		let traces: Vec<FlatTransactionTraces> = traces.into_iter()
+			.map(Into::into)
+			.collect();
+
+		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
@@ -373,7 +375,7 @@ impl Client {
 		// (when something is in chain but you are not able to fetch details)
 		let route = self.chain.insert_block(block_data, receipts);
 		self.tracedb.import(TraceImportRequest {
-			traces: traces,
+			traces: traces.into(),
 			block_hash: hash.clone(),
 			block_number: number,
 			enacted: route.enacted.clone(),
@@ -840,8 +842,6 @@ impl MiningBlockChainClient for Client {
 		let _import_lock = self.import_lock.lock();
 		let _timer = PerfTimer::new("import_sealed_block");
 
-		let original_best = self.chain_info().best_block_hash;
-
 		let h = block.header().hash();
 		let number = block.header().number();
 
@@ -860,10 +860,6 @@ impl MiningBlockChainClient for Client {
 				retracted: retracted,
 				sealed: vec![h.clone()],
 			})).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
-		}
-
-		if self.chain_info().best_block_hash != original_best {
-			self.miner.update_sealing(self);
 		}
 
 		Ok(h)

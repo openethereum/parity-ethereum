@@ -17,12 +17,12 @@
 //! Traces import request.
 use util::H256;
 use header::BlockNumber;
-use trace::BlockTraces;
+use trace::FlatBlockTraces;
 
 /// Traces import request.
 pub struct ImportRequest {
 	/// Traces to import.
-	pub traces: BlockTraces,
+	pub traces: FlatBlockTraces,
 	/// Hash of traces block.
 	pub block_hash: H256,
 	/// Number of traces block.

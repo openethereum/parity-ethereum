@@ -17,5 +17,6 @@
 //! Types used in the public api
 
 pub mod filter;
+pub mod flat;
 pub mod trace;
 pub mod localized;

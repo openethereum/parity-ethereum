@@ -23,7 +23,7 @@ use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use util::{H256, H264, Database, DatabaseConfig, DBTransaction};
 use header::BlockNumber;
-use trace::{BlockTraces, LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest,
+use trace::{LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest,
 DatabaseExtras, Error};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
 use blooms;
@@ -40,7 +40,7 @@ enum TraceDBIndex {
 	BloomGroups = 1,
 }
 
-impl Key<BlockTraces> for H256 {
+impl Key<FlatBlockTraces> for H256 {
 	type Target = H264;
 
 	fn key(&self) -> H264 {
@@ -91,7 +91,7 @@ impl Key<blooms::BloomGroup> for TraceGroupPosition {
 /// Trace database.
 pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
-	traces: RwLock<HashMap<H256, BlockTraces>>,
+	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
 	// db
 	tracesdb: Database,
@@ -153,15 +153,13 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	}
 
 	/// Returns traces for block with hash.
-	fn traces(&self, block_hash: &H256) -> Option<BlockTraces> {
+	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
 		self.tracesdb.read_with_cache(&self.traces, block_hash)
 	}
 
 	/// Returns vector of transaction traces for given block.
 	fn transactions_traces(&self, block_hash: &H256) -> Option<Vec<FlatTransactionTraces>> {
-		self.traces(block_hash)
-			.map(FlatBlockTraces::from)
-			.map(Into::into)
+		self.traces(block_hash).map(Into::into)
 	}
 
 	fn matching_block_traces(
@@ -199,7 +197,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 						action: trace.action,
 						result: trace.result,
 						subtraces: trace.subtraces,
-						trace_address: trace.trace_address,
+						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: tx_number,
 						transaction_hash: tx_hash.clone(),
 						block_number: block_number,
@@ -265,12 +263,13 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace> {
+		let trace_position_deq = trace_position.into_iter().collect();
 		self.extras.block_hash(block_number)
 			.and_then(|block_hash| self.transactions_traces(&block_hash)
 				.and_then(|traces| traces.into_iter().nth(tx_position))
 				.map(Into::<Vec<FlatTrace>>::into)
 				// this may and should be optimized
-				.and_then(|traces| traces.into_iter().find(|trace| trace.trace_address == trace_position))
+				.and_then(|traces| traces.into_iter().find(|trace| trace.trace_address == trace_position_deq))
 				.map(|trace| {
 					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
 						.expect("Expected to find transaction hash. Database is probably corrupted");
@@ -279,7 +278,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						action: trace.action,
 						result: trace.result,
 						subtraces: trace.subtraces,
-						trace_address: trace.trace_address,
+						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: tx_position,
 						transaction_hash: tx_hash,
 						block_number: block_number,
@@ -303,7 +302,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						action: trace.action,
 						result: trace.result,
 						subtraces: trace.subtraces,
-						trace_address: trace.trace_address,
+						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: tx_position,
 						transaction_hash: tx_hash.clone(),
 						block_number: block_number,
@@ -330,7 +329,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 									action: trace.action,
 									result: trace.result,
 									subtraces: trace.subtraces,
-									trace_address: trace.trace_address,
+									trace_address: trace.trace_address.into_iter().collect(),
 									transaction_number: tx_position,
 									transaction_hash: tx_hash.clone(),
 									block_number: block_number,
@@ -353,8 +352,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 					.expect("Expected to find block hash. Extras db is probably corrupted");
 				let traces = self.traces(&hash)
 					.expect("Expected to find a trace. Db is probably corrupted.");
-				let flat_block = FlatBlockTraces::from(traces);
-				self.matching_block_traces(filter, flat_block, hash, number)
+				self.matching_block_traces(filter, traces, hash, number)
 			})
 			.collect()
 	}
@@ -368,8 +366,10 @@ mod tests {
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
 	use trace::{Config, Switch, TraceDB, Database, DatabaseExtras, ImportRequest};
-	use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
+	use trace::{Filter, LocalizedTrace, AddressesFilter};
 	use trace::trace::{Call, Action, Res};
+	use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
+	use types::executed::CallType;
 
 	struct NoopExtras;
 
@@ -487,18 +487,19 @@ mod tests {
 
 	fn create_simple_import_request(block_number: BlockNumber, block_hash: H256) -> ImportRequest {
 		ImportRequest {
-			traces: BlockTraces::from(vec![Trace {
-				depth: 0,
+			traces: FlatBlockTraces::from(vec![FlatTransactionTraces::from(vec![FlatTrace {
+				trace_address: Default::default(),
+				subtraces: 0,
 				action: Action::Call(Call {
-					from: Address::from(1),
-					to: Address::from(2),
-					value: U256::from(3),
-					gas: U256::from(4),
+					from: 1.into(),
+					to: 2.into(),
+					value: 3.into(),
+					gas: 4.into(),
 					input: vec![],
+					call_type: CallType::Call,
 				}),
 				result: Res::FailedCall,
-				subs: vec![],
-			}]),
+			}])]),
 			block_hash: block_hash.clone(),
 			block_number: block_number,
 			enacted: vec![block_hash],
@@ -514,6 +515,7 @@ mod tests {
 				value: U256::from(3),
 				gas: U256::from(4),
 				input: vec![],
+				call_type: CallType::Call,
 			}),
 			result: Res::FailedCall,
 			trace_address: vec![],
