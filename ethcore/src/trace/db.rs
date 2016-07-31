@@ -264,10 +264,11 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 		// at first, let's insert new block traces
 		{
+			// note_used must be called before locking traces to avoid cache/traces deadlock on garbage collection
+			self.note_used(CacheID::Trace(request.block_hash.clone()));
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			self.note_used(CacheID::Trace(request.block_hash.clone()));
 			batch.write_with_cache(DB_COL_TRACE, traces.deref_mut(), request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
 		}
 
