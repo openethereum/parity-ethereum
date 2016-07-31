@@ -423,6 +423,7 @@ mod tests {
 		}
 	}
 
+	#[derive(Clone)]
 	struct Extras {
 		block_hashes: HashMap<BlockNumber, H256>,
 		transaction_hashes: HashMap<BlockNumber, Vec<H256>>,
@@ -649,5 +650,37 @@ mod tests {
 
 		assert_eq!(tracedb.trace(0, 0, vec![]).unwrap(), create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
 		assert_eq!(tracedb.trace(1, 0, vec![]).unwrap(), create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+	}
+
+	#[test]
+	fn query_trace_after_reopen() {
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let mut config = Config::default();
+		let mut extras = Extras::default();
+		let block_0 = H256::from(0xa1);
+		let tx_0 = H256::from(0xff);
+
+		extras.block_hashes.insert(0, block_0.clone());
+		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
+
+		// set tracing on
+		config.enabled = Switch::On;
+
+		{
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone())).unwrap();
+
+			// import block 0
+			let request = create_simple_import_request(0, block_0.clone());
+			let batch = DBTransaction::new(&db);
+			tracedb.import(&batch, request);
+			db.write(batch).unwrap();
+		}
+
+		{
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras)).unwrap();
+			let traces = tracedb.transaction_traces(0, 0);
+			assert_eq!(traces.unwrap(), vec![create_simple_localized_trace(0, block_0, tx_0)]);
+		}
 	}
 }
