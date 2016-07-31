@@ -340,10 +340,16 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		}
 	}
 
-	fn accounts(&self, _: Params) -> Result<Value, Error> {
+	fn accounts(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		let store = take_weak!(self.accounts);
-		to_value(&store.accounts().into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+		match params {
+			Params::None => {
+				let store = take_weak!(self.accounts);
+				let accounts = try!(store.accounts().map_err(|_| Error::internal_error()));
+				to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+			},
+			_ => Err(Error::invalid_params())
+		}
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
