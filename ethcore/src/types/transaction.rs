@@ -91,7 +91,7 @@ impl Transaction {
 
 impl From<ethjson::state::Transaction> for SignedTransaction {
 	fn from(t: ethjson::state::Transaction) -> Self {
-		let to: Option<_> = t.to.into();
+		let to: Option<ethjson::hash::Address> = t.to.into();
 		Transaction {
 			nonce: t.nonce.into(),
 			gas_price: t.gas_price.into(),
@@ -108,7 +108,7 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 
 impl From<ethjson::transaction::Transaction> for SignedTransaction {
 	fn from(t: ethjson::transaction::Transaction) -> Self {
-		let to: Option<_> = t.to.into();
+		let to: Option<ethjson::hash::Address> = t.to.into();
 		SignedTransaction {
 			unsigned: Transaction {
 				nonce: t.nonce.into(),
