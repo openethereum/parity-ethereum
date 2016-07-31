@@ -40,6 +40,7 @@ use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts};
+use snapshot::{self, SnapshotCmd};
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -49,6 +50,7 @@ pub enum Cmd {
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
 	SignerToken(String),
+	Snapshot(SnapshotCmd),
 }
 
 #[derive(Debug, PartialEq)]
