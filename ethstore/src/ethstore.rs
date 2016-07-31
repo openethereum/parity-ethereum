@@ -16,6 +16,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::RwLock;
+use std::mem;
 use ethkey::KeyPair;
 use crypto::KEY_ITERATIONS;
 use random::Random;
@@ -56,6 +57,26 @@ impl EthStore {
 		cache.insert(account.address.clone(), account);
 		Ok(())
 	}
+
+	fn reload_accounts(&self) -> Result<(), Error> {
+		let mut cache = self.cache.write().unwrap();
+		let accounts = try!(self.dir.load());
+		let new_accounts: BTreeMap<_, _> = accounts.into_iter().map(|account| (account.address.clone(), account)).collect();
+		mem::replace(&mut *cache, new_accounts);
+		Ok(())
+	}
+
+	fn get(&self, address: &Address) -> Result<SafeAccount, Error> {
+		{
+			let cache = self.cache.read().unwrap();
+			if let Some(account) = cache.get(address) {
+				return Ok(account.clone())
+			}
+		}
+		try!(self.reload_accounts());
+		let cache = self.cache.read().unwrap();
+		cache.get(address).cloned().ok_or(Error::InvalidAccount)
+	}
 }
 
 impl SecretStore for EthStore {
@@ -68,17 +89,15 @@ impl SecretStore for EthStore {
 		Ok(address)
 	}
 
-	fn accounts(&self) -> Vec<Address> {
-		self.cache.read().unwrap().keys().cloned().collect()
+	fn accounts(&self) -> Result<Vec<Address>, Error> {
+		try!(self.reload_accounts());
+		Ok(self.cache.read().unwrap().keys().cloned().collect())
 	}
 
 	fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
 		// change password
-		let account = {
-			let cache = self.cache.read().unwrap();
-			let account = try!(cache.get(address).ok_or(Error::InvalidAccount));
-			try!(account.change_password(old_password, new_password, self.iterations))
-		};
+		let account = try!(self.get(address));
+		let account = try!(account.change_password(old_password, new_password, self.iterations));
 
 		// save to file
 		self.save(account)
@@ -86,8 +105,7 @@ impl SecretStore for EthStore {
 
 	fn remove_account(&self, address: &Address, password: &str) -> Result<(), Error> {
 		let can_remove = {
-			let cache = self.cache.read().unwrap();
-			let account = try!(cache.get(address).ok_or(Error::InvalidAccount));
+			let account = try!(self.get(address));
 			account.check_password(password)
 		};
 
@@ -101,50 +119,38 @@ impl SecretStore for EthStore {
 		}
 	}
 
-	fn sign(&self, account: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
-		let cache = self.cache.read().unwrap();
-		let account = try!(cache.get(account).ok_or(Error::InvalidAccount));
+	fn sign(&self, address: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
+		let account = try!(self.get(address));
 		account.sign(password, message)
 	}
 
-	fn uuid(&self, addr: &Address) -> Result<UUID, Error> {
-		let cache = self.cache.read().unwrap();
-		let account = try!(cache.get(addr).ok_or(Error::InvalidAccount));
+	fn uuid(&self, address: &Address) -> Result<UUID, Error> {
+		let account = try!(self.get(address));
 		Ok(account.id.into())
 	}
 
-	fn name(&self, addr: &Address) -> Result<String, Error> {
-		let cache = self.cache.read().unwrap();
-		let account = try!(cache.get(addr).ok_or(Error::InvalidAccount));
+	fn name(&self, address: &Address) -> Result<String, Error> {
+		let account = try!(self.get(address));
 		Ok(account.name.clone())
 	}
 
-	fn meta(&self, addr: &Address) -> Result<String, Error> {
-		let cache = self.cache.read().unwrap();
-		let account = try!(cache.get(addr).ok_or(Error::InvalidAccount));
+	fn meta(&self, address: &Address) -> Result<String, Error> {
+		let account = try!(self.get(address));
 		Ok(account.meta.clone())
 	}
 
-	fn set_name(&self, addr: &Address, name: String) -> Result<(), Error> {
-		let account = {
-			let cache = self.cache.read().unwrap();
-			let mut account = try!(cache.get(addr).ok_or(Error::InvalidAccount)).clone();
-			account.name = name;
-			account
-		};
-		
+	fn set_name(&self, address: &Address, name: String) -> Result<(), Error> {
+		let mut account = try!(self.get(address));
+		account.name = name;
+
 		// save to file
 		self.save(account)
 	}
 
-	fn set_meta(&self, addr: &Address, meta: String) -> Result<(), Error> {
-		let account = {
-			let cache = self.cache.read().unwrap();
-			let mut account = try!(cache.get(addr).ok_or(Error::InvalidAccount)).clone();
-			account.meta = meta;
-			account
-		};
-		
+	fn set_meta(&self, address: &Address, meta: String) -> Result<(), Error> {
+		let mut account = try!(self.get(address));
+		account.meta = meta;
+
 		// save to file
 		self.save(account)
 	}
