@@ -383,6 +383,7 @@ mod tests {
 		}
 	}
 
+	#[derive(Clone)]
 	struct Extras {
 		block_hashes: HashMap<BlockNumber, H256>,
 		transaction_hashes: HashMap<BlockNumber, Vec<H256>>,

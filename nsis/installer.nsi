@@ -4,7 +4,7 @@
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 2
-!define VERSIONBUILD 2
+!define VERSIONBUILD 3
 
 !addplugindir .\
 

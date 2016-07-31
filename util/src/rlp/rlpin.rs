@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
+use rustc_serialize::hex::ToHex;
 use rlp::{View, DecoderError, UntrustedRlp, PayloadInfo, Prototype, RlpDecodable};
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
@@ -114,9 +115,9 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 }
 
 impl <'a, 'view> Rlp<'a> where 'a: 'view {
-	fn view_as_val<T, R>(r: &R) -> T where R: View<'a, 'view>, T: RlpDecodable {
+	fn view_as_val<T, R>(r: &'view R) -> T where R: View<'a, 'view>, T: RlpDecodable {
 		let res: Result<T, DecoderError> = r.as_val();
-		res.unwrap_or_else(|e| panic!("DecodeError: {}", e))
+		res.unwrap_or_else(|e| panic!("DecodeError: {}, {}", e, r.as_raw().to_hex()))
 	}
 
 	/// Decode into an object
