@@ -377,7 +377,7 @@ mod service_tests {
 		}
 	}
 
-	impl IpcInterface<DummyService> for DummyService {
+	impl IpcInterface for DummyService {
 		fn dispatch<R>(&self, _r: &mut R) -> Vec<u8> where R: Read {
 			vec![]
 		}
