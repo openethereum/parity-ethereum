@@ -44,7 +44,8 @@ pub trait JournalDB : HashDB + Send + Sync {
 	///
 	/// Any keys or values inserted or deleted must be completely independent of those affected
 	/// by any previous `commit` operations. Essentially, this means that `inject` can be used
-	/// either to restore a state to a fresh database, or to sneak in data which may not be journalled.
+	/// either to restore a state to a fresh database, or to insert data which may only be journalled
+	/// from this point onwards.
 	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError>;
 
 	/// State data query
