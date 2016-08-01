@@ -74,7 +74,7 @@ Account Options:
                            [default: 8180].
   --signer-path PATH       Specify directory where Signer UIs tokens should
                            be stored. [default: $HOME/.parity/signer]
-  --signer-allow-all       Disable Origin and Host headers validation for
+  --signer-no-validation   Disable Origin and Host headers validation for
                            Trusted Signer. Highly not recommended, used
                            only for development.
 
@@ -340,7 +340,7 @@ pub struct Args {
 	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
-	pub flag_signer_allow_all: bool,
+	pub flag_signer_no_validation: bool,
 	pub flag_force_sealing: bool,
 	pub flag_reseal_on_txs: String,
 	pub flag_reseal_min_period: u64,
