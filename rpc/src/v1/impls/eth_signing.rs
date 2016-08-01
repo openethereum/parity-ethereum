@@ -95,11 +95,21 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
 {
 
-	fn sign(&self, _params: Params) -> Result<Value, Error> {
+	fn sign(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		warn!("Invoking eth_sign is not yet supported with signer enabled.");
-		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
-		rpc_unimplemented!()
+		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
+			let address: Address = address.into();
+			let msg: H256 = msg.into();
+
+			let accounts = take_weak!(self.accounts);
+			if accounts.is_unlocked(address) {
+				return to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into));
+			}
+
+			let queue = take_weak!(self.queue);
+			let promise = queue.add_request(ConfirmationPayload::Sign(address, msg));
+			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH520::default()))
+		})
 	}
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {

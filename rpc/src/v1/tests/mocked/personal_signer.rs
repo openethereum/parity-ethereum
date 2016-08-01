@@ -80,10 +80,16 @@ fn should_return_list_of_items_to_confirm() {
 		data: vec![],
 		nonce: None,
 	}));
+	tester.queue.add_request(ConfirmationPayload::Sign(1.into(), 5.into()));
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"personal_confirmationsQueue","params":[],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[{"id":"0x01","payload":{"transaction":{"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x01"}}}],"id":1}"#;
+	let response = concat!(
+		r#"{"jsonrpc":"2.0","result":["#,
+		r#"{"id":"0x01","payload":{"transaction":{"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x01"}}},"#,
+		r#"{"id":"0x02","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#,
+		r#"],"id":1}"#
+	);
 
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
@@ -128,6 +134,22 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 		data: vec![],
 		nonce: None,
 	}));
+	assert_eq!(tester.queue.requests().len(), 1);
+
+	// when
+	let request = r#"{"jsonrpc":"2.0","method":"personal_queueConfirm","params":["0x01",{},"xxx"],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidAccount)"},"id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.queue.requests().len(), 1);
+}
+
+#[test]
+fn should_not_remove_sign_if_password_is_invalid() {
+	// given
+	let tester = signer_tester();
+	tester.queue.add_request(ConfirmationPayload::Sign(0.into(), 5.into()));
 	assert_eq!(tester.queue.requests().len(), 1);
 
 	// when

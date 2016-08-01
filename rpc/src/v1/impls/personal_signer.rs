@@ -23,7 +23,7 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use v1::traits::PersonalSigner;
 use v1::types::{TransactionModification, ConfirmationRequest, U256};
-use v1::impls::unlock_sign_and_dispatch;
+use v1::impls::{unlock_sign_and_dispatch, signature_with_password};
 use v1::helpers::{SigningQueue, ConfirmationsQueue, ConfirmationPayload};
 
 /// Transactions confirmation (personal) rpc implementation.
@@ -83,6 +83,9 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 
 							unlock_sign_and_dispatch(&*client, &*miner, request.into(), &*accounts, pass)
 						},
+						ConfirmationPayload::Sign(address, hash) => {
+							signature_with_password(&*accounts, address, hash, pass)
+						}
 					};
 					if let Ok(ref response) = result {
 						queue.request_confirmed(id, Ok(response.clone()));

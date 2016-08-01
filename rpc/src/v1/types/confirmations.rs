@@ -16,7 +16,7 @@
 
 //! Types used in Confirmations queue (Trusted Signer)
 
-use v1::types::{U256, TransactionRequest};
+use v1::types::{U256, TransactionRequest, H160, H256};
 use v1::helpers;
 
 
@@ -37,18 +37,35 @@ impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 		}
 	}
 }
+
+/// Sign request
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+pub struct SignRequest {
+	/// Address
+	pub address: H160,
+	/// Hash to sign
+	pub hash: H256,
+}
+
 /// Confirmation payload, i.e. the thing to be confirmed
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub enum ConfirmationPayload {
 	/// Transaction
 	#[serde(rename="transaction")]
 	Transaction(TransactionRequest),
+	/// Signature
+	#[serde(rename="sign")]
+	Sign(SignRequest),
 }
 
 impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 	fn from(c: helpers::ConfirmationPayload) -> Self {
 		match c {
 			helpers::ConfirmationPayload::Transaction(t) => ConfirmationPayload::Transaction(t.into()),
+			helpers::ConfirmationPayload::Sign(address, hash) => ConfirmationPayload::Sign(SignRequest {
+				address: address.into(),
+				hash: hash.into(),
+			}),
 		}
 	}
 }
@@ -70,7 +87,23 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn should_serialize_confirmation() {
+	fn should_serialize_sign_confirmation() {
+		// given
+		let request = helpers::ConfirmationRequest {
+			id: 15.into(),
+			payload: helpers::ConfirmationPayload::Sign(1.into(), 5.into()),
+		};
+
+		// when
+		let res = serde_json::to_string(&ConfirmationRequest::from(request));
+		let expected = r#"{"id":"0x0f","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#;
+
+		// then
+		assert_eq!(res.unwrap(), expected.to_owned());
+	}
+
+	#[test]
+	fn should_serialize_transaction_confirmation() {
 		// given
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
@@ -82,7 +115,7 @@ mod tests {
 				value: 100_000.into(),
 				data: vec![1, 2, 3],
 				nonce: Some(1.into()),
-			})
+			}),
 		};
 
 		// when
