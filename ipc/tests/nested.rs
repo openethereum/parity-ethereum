@@ -15,4 +15,4 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
-include!(concat!(env!("OUT_DIR"), "/nested_cg.rs"));
+include!(concat!(env!("OUT_DIR"), "/nested.rs.in"));

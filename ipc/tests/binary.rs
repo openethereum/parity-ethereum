@@ -16,4 +16,4 @@
 
 #![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
 
-include!(concat!(env!("OUT_DIR"), "/binary.rs"));
+include!(concat!(env!("OUT_DIR"), "/binary.rs.in"));
