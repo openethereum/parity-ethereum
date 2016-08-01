@@ -513,6 +513,22 @@ impl JournalDB for EarlyMergeDB {
 
 		Ok(0)
 	}
+
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+		let mut ops = 0;
+		for (key, (value, rc)) in self.overlay.drain() {
+			if rc != 0 { ops += 1 }
+
+			match rc {
+				0 => {}
+				1 => try!(batch.put(self.column, &key, &value)),
+				-1 => try!(batch.delete(self.column, &key)),
+				_ => panic!("Attempted to inject invalid state."),
+			}
+		}
+
+		Ok(ops)
+	}
 }
 
 #[cfg(test)]

@@ -157,6 +157,16 @@ impl JournalDB for ArchiveDB {
 	}
 
 	fn commit(&mut self, batch: &DBTransaction, now: u64, _id: &H256, _end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		let ops = try!(self.inject(batch));
+
+		if self.latest_era.map_or(true, |e| now > e) {
+			try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
+			self.latest_era = Some(now);
+		}
+		Ok(ops)
+	}
+
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
@@ -178,10 +188,6 @@ impl JournalDB for ArchiveDB {
 			batch.put(self.column, &key, &value).expect("Low-level database error. Some issue with your hard disk?");
 		}
 
-		if self.latest_era.map_or(true, |e| now > e) {
-			try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
-			self.latest_era = Some(now);
-		}
 		Ok((inserts + deletes) as u32)
 	}
 

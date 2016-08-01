@@ -184,6 +184,10 @@ impl JournalDB for RefCountedDB {
 		let r = try!(self.forward.commit_to_batch(&batch));
 		Ok(r)
 	}
+
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+		self.forward.commit_to_batch(&batch)
+	}
 }
 
 #[cfg(test)]

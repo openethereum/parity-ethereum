@@ -39,6 +39,14 @@ pub trait JournalDB : HashDB + Send + Sync {
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
 
+	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
+	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
+	///
+	/// Any keys or values inserted or deleted must be completely independent of those affected
+	/// by any previous `commit` operations. Essentially, this means that `inject` can be used
+	/// either to restore a state to a fresh database, or to sneak in data which may not be journalled.
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError>;
+
 	/// State data query
 	fn state(&self, _id: &H256) -> Option<Bytes>;
 
