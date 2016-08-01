@@ -17,7 +17,7 @@
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{mpsc, Arc};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use jsonrpc_core;
 use util::{Mutex, RwLock, U256};
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
@@ -101,11 +101,13 @@ pub struct ConfirmationToken {
 	result: Arc<Mutex<ConfirmationResult>>,
 	handle: thread::Thread,
 	request: ConfirmationRequest,
+	timeout: Duration,
 }
 
 pub struct ConfirmationPromise {
 	id: U256,
 	result: Arc<Mutex<ConfirmationResult>>,
+	timeout: Duration,
 }
 
 impl ConfirmationToken {
@@ -121,6 +123,7 @@ impl ConfirmationToken {
 		ConfirmationPromise {
 			id: self.request.id,
 			result: self.result.clone(),
+			timeout: self.timeout,
 		}
 	}
 }
@@ -134,8 +137,7 @@ impl ConfirmationPromise {
 	/// Returns `None` if transaction was rejected or timeout reached.
 	/// Returns `Some(result)` if transaction was confirmed.
 	pub fn wait_with_timeout(&self) -> Option<RpcResult> {
-		let timeout = Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC);
-		let res = self.wait_until(Instant::now() + timeout);
+		let res = self.wait_until(Instant::now() + self.timeout);
 		match res {
 			ConfirmationResult::Confirmed(h) => Some(h),
 			ConfirmationResult::Rejected | ConfirmationResult::Waiting => None,
@@ -169,9 +171,10 @@ impl ConfirmationPromise {
 /// Queue for all unconfirmed requests.
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
-	queue: RwLock<HashMap<U256, ConfirmationToken>>,
+	queue: RwLock<BTreeMap<U256, ConfirmationToken>>,
 	sender: Mutex<mpsc::Sender<QueueEvent>>,
 	receiver: Mutex<Option<mpsc::Receiver<QueueEvent>>>,
+	timeout: Duration,
 }
 
 impl Default for ConfirmationsQueue {
@@ -180,14 +183,23 @@ impl Default for ConfirmationsQueue {
 
 		ConfirmationsQueue {
 			id: Mutex::new(U256::from(0)),
-			queue: RwLock::new(HashMap::new()),
+			queue: RwLock::new(BTreeMap::new()),
 			sender: Mutex::new(send),
 			receiver: Mutex::new(Some(recv)),
+			timeout: Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC),
 		}
 	}
 }
 
 impl ConfirmationsQueue {
+	#[cfg(test)]
+	/// Creates new confirmations queue with specified timeout
+	pub fn with_timeout(timeout: Duration) -> Self {
+		let mut queue = Self::default();
+		queue.timeout = timeout;
+		queue
+	}
+
 	/// Blocks the thread and starts listening for notifications regarding all actions in the queue.
 	/// For each event, `listener` callback will be invoked.
 	/// This method can be used only once (only single consumer of events can exist).
@@ -268,6 +280,7 @@ impl SigningQueue for ConfirmationsQueue {
 					id: id,
 					payload: request,
 				},
+				timeout: self.timeout,
 			});
 			queue.get(&id).map(|token| token.as_promise()).expect("Token was just inserted.")
 		};

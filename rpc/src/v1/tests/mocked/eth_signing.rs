@@ -16,6 +16,7 @@
 
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use jsonrpc_core::IoHandler;
 use v1::impls::EthSigningQueueClient;
 use v1::traits::EthSigning;
@@ -37,7 +38,7 @@ struct EthSigningTester {
 
 impl Default for EthSigningTester {
 	fn default() -> Self {
-		let queue = Arc::new(ConfirmationsQueue::default());
+		let queue = Arc::new(ConfirmationsQueue::with_timeout(Duration::from_millis(1)));
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
@@ -75,7 +76,7 @@ fn should_add_sign_to_queue() {
 		],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
@@ -127,7 +128,7 @@ fn should_add_transaction_to_queue() {
 		}],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
