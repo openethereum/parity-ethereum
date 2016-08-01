@@ -58,7 +58,6 @@ use-precompiled-js = ["ethcore-dapps/use-precompiled-js", "ethcore-signer/use-pr
 dapps = ["ethcore-dapps"]
 ipc = ["ethcore/ipc"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
-signer-dev = ["ethcore-signer/signer-dev"] # Development mode for signer. Does not validate origins.
 
 [[bin]]
 path = "parity/main.rs"
