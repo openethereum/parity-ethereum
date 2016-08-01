@@ -27,7 +27,7 @@ pub struct DB<L: Sized> {
 }
 
 pub trait DBWriter {
-	fn write(&self, data: Vec<u8>)  -> Result<(), DBError>;
+	fn write(&self, data: Vec<u8>) -> Result<(), DBError>;
 	fn write_slice(&self, data: &[u8]) -> Result<(), DBError>;
 }
 
