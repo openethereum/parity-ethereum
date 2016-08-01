@@ -1061,4 +1061,19 @@ mod tests {
 			assert!(!jdb.contains(&bar));
 		}
 	}
+
+	#[test]
+	fn inject() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		let mut jdb = new_db(temp.as_path().as_path());
+		let key = jdb.insert(b"dog");
+		jdb.inject_batch().unwrap();
+
+		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		jdb.remove(&key);
+		jdb.inject_batch().unwrap();
+
+		assert!(jdb.get(&key).is_none());
+	}
 }

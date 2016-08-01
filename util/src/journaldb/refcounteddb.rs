@@ -186,6 +186,10 @@ impl JournalDB for RefCountedDB {
 	}
 
 	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+		self.inserts.clear();
+		for remove in self.removes.drain(..) {
+			self.forward.remove(&remove);
+		}
 		self.forward.commit_to_batch(&batch)
 	}
 }
@@ -301,5 +305,18 @@ mod tests {
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&baz));
 		assert!(!jdb.contains(&bar));
+	}
+
+	#[test]
+	fn inject() {
+		let mut jdb = RefCountedDB::new_temp();
+		let key = jdb.insert(b"dog");
+		jdb.inject_batch().unwrap();
+
+		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		jdb.remove(&key);
+		jdb.inject_batch().unwrap();
+
+		assert!(jdb.get(&key).is_none());
 	}
 }
