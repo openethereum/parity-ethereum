@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::version;
+use docopt::Docopt;
 
 pub const USAGE: &'static str = r#"
 Parity. Ethereum Client.
@@ -22,6 +23,8 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
+  parity [options]
+  parity ui [options]
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
@@ -29,8 +32,6 @@ Usage:
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
-  parity [options]
-  parity ui [options]
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
@@ -47,8 +48,8 @@ Operating Options:
                            [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, homestead-dogmatic, or
-                           testnet [default: homestead].
+                           homestead, mainnet, morden, classic or testnet
+                           [default: homestead].
   -d --db-path PATH        Specify the database & configuration directory path
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
@@ -78,7 +79,8 @@ Networking Options:
   --no-network             Disable p2p networking.
   --port PORT              Override the port on which the node should listen
                            [default: 30303].
-  --peers NUM              Try to maintain that many peers [default: 25].
+  --min-peers NUM          Try to maintain at least NUM peers [default: 25].
+  --max-peers NUM          Allow up to that many peers [default: 50].
   --nat METHOD             Specify method to use for determining public
                            address. Must be one of: any, none, upnp,
                            extip:<IP> [default: any].
@@ -105,8 +107,8 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
-                           ethcore, ethcore_set, traces.
-                           [default: web3,eth,net,ethcore,personal,traces].
+                           ethcore, ethcore_set, traces, rpc.
+                           [default: web3,eth,net,ethcore,personal,traces,rpc].
   --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
                            validate the Host header sent by the browser, it
                            is additional security against some attack
@@ -201,18 +203,16 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
-  --cache-pref-size BYTES  Specify the preferred size of the blockchain cache in
-                           bytes [default: 16384].
-  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
-                           bytes [default: 262144].
-  --queue-max-size BYTES   Specify the maximum size of memory to use for block
-                           queue [default: 52428800].
-  --cache MEGABYTES        Set total amount of discretionary memory to use for
+  --cache-size-db MB       Override database cache size [default: 64].
+  --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
+                           megabytes [default: 8].
+  --cache-size-queue MB    Specify the maximum size of memory to use for block
+                           queue [default: 50].
+  --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
-
-Database Options:
-  --db-cache-size MB       Override RocksDB database cache size.
+  --fast-and-loose         Disables DB WAL, which gives a significant speed up
+                           but means an unclean exit is unrecoverable. 
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs [default: ssd].
@@ -239,7 +239,7 @@ Legacy Options:
                            Overrides the --keys-path option.
   --datadir PATH           Equivalent to --db-path PATH.
   --networkid INDEX        Equivalent to --network-id INDEX.
-  --maxpeers COUNT         Equivalent to --peers COUNT.
+  --peers NUM              Equivalent to --min-peers NUM.
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   -j --jsonrpc             Does nothing; JSON-RPC is on by default now.
@@ -260,6 +260,7 @@ Legacy Options:
                            --basic-tx-usd.
   --etherbase ADDRESS      Equivalent to --author ADDRESS.
   --extradata STRING       Equivalent to --extra-data STRING.
+  --cache MB               Equivalent to --cache-size MB.
 
 Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
@@ -271,7 +272,7 @@ Miscellaneous Options:
   -h --help                Show this screen.
 "#;
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, PartialEq, RustcDecodable)]
 pub struct Args {
 	pub cmd_daemon: bool,
 	pub cmd_account: bool,
@@ -294,7 +295,6 @@ pub struct Args {
 	pub flag_identity: String,
 	pub flag_unlock: Option<String>,
 	pub flag_password: Vec<String>,
-	pub flag_cache: Option<usize>,
 	pub flag_keys_path: String,
 	pub flag_keys_iterations: u32,
 	pub flag_no_import_keys: bool,
@@ -303,15 +303,21 @@ pub struct Args {
 	pub flag_pruning: String,
 	pub flag_tracing: String,
 	pub flag_port: u16,
-	pub flag_peers: usize,
+	pub flag_min_peers: u16,
+	pub flag_max_peers: u16,
 	pub flag_no_discovery: bool,
 	pub flag_nat: String,
 	pub flag_node_key: Option<String>,
 	pub flag_reserved_peers: Option<String>,
 	pub flag_reserved_only: bool,
-	pub flag_cache_pref_size: usize,
-	pub flag_cache_max_size: usize,
-	pub flag_queue_max_size: usize,
+
+	pub flag_cache_size_db: u32,
+	pub flag_cache_size_blocks: u32,
+	pub flag_cache_size_queue: u32,
+	pub flag_cache_size: Option<u32>,
+	pub flag_cache: Option<u32>,
+	pub flag_fast_and_loose: bool,
+
 	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
 	pub flag_jsonrpc_port: u16,
@@ -360,7 +366,7 @@ pub struct Args {
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,
 	pub flag_nodiscover: bool,
-	pub flag_maxpeers: Option<usize>,
+	pub flag_peers: Option<u16>,
 	pub flag_datadir: Option<String>,
 	pub flag_extradata: Option<String>,
 	pub flag_etherbase: Option<String>,
@@ -380,13 +386,18 @@ pub struct Args {
 	pub flag_dapps_off: bool,
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
-	pub flag_db_cache_size: Option<usize>,
 	pub flag_db_compaction: String,
 	pub flag_fat_db: bool,
 }
 
-pub fn print_version() {
-	println!("\
+impl Default for Args {
+	fn default() -> Self {
+		Docopt::new(USAGE).unwrap().argv(&[] as &[&str]).decode().unwrap()
+	}
+}
+
+pub fn print_version() -> String {
+	format!("\
 Parity
   version {}
 Copyright 2015, 2016 Ethcore (UK) Limited
@@ -395,6 +406,6 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
-", version());
+", version())
 }
 

@@ -16,6 +16,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::RwLock;
+use std::mem;
 use ethkey::KeyPair;
 use crypto::KEY_ITERATIONS;
 use random::Random;
@@ -23,6 +24,7 @@ use ethkey::{Signature, Address, Message, Secret};
 use dir::KeyDirectory;
 use account::SafeAccount;
 use {Error, SecretStore};
+use json::UUID;
 
 pub struct EthStore {
 	dir: Box<KeyDirectory>,
@@ -48,12 +50,32 @@ impl EthStore {
 
 	fn save(&self, account: SafeAccount) -> Result<(), Error> {
 		// save to file
-		try!(self.dir.insert(account.clone()));
+		let account = try!(self.dir.insert(account.clone()));
 
 		// update cache
 		let mut cache = self.cache.write().unwrap();
 		cache.insert(account.address.clone(), account);
 		Ok(())
+	}
+
+	fn reload_accounts(&self) -> Result<(), Error> {
+		let mut cache = self.cache.write().unwrap();
+		let accounts = try!(self.dir.load());
+		let new_accounts: BTreeMap<_, _> = accounts.into_iter().map(|account| (account.address.clone(), account)).collect();
+		mem::replace(&mut *cache, new_accounts);
+		Ok(())
+	}
+
+	fn get(&self, address: &Address) -> Result<SafeAccount, Error> {
+		{
+			let cache = self.cache.read().unwrap();
+			if let Some(account) = cache.get(address) {
+				return Ok(account.clone())
+			}
+		}
+		try!(self.reload_accounts());
+		let cache = self.cache.read().unwrap();
+		cache.get(address).cloned().ok_or(Error::InvalidAccount)
 	}
 }
 
@@ -61,23 +83,21 @@ impl SecretStore for EthStore {
 	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
 		let keypair = try!(KeyPair::from_secret(secret).map_err(|_| Error::CreationFailed));
 		let id: [u8; 16] = Random::random();
-		let account = SafeAccount::create(&keypair, id, password, self.iterations);
+		let account = SafeAccount::create(&keypair, id, password, self.iterations, UUID::from(id).into(), "{}".to_owned());
 		let address = account.address.clone();
 		try!(self.save(account));
 		Ok(address)
 	}
 
-	fn accounts(&self) -> Vec<Address> {
-		self.cache.read().unwrap().keys().cloned().collect()
+	fn accounts(&self) -> Result<Vec<Address>, Error> {
+		try!(self.reload_accounts());
+		Ok(self.cache.read().unwrap().keys().cloned().collect())
 	}
 
 	fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
 		// change password
-		let account = {
-			let cache = self.cache.read().unwrap();
-			let account = try!(cache.get(address).ok_or(Error::InvalidAccount));
-			try!(account.change_password(old_password, new_password, self.iterations))
-		};
+		let account = try!(self.get(address));
+		let account = try!(account.change_password(old_password, new_password, self.iterations));
 
 		// save to file
 		self.save(account)
@@ -85,8 +105,7 @@ impl SecretStore for EthStore {
 
 	fn remove_account(&self, address: &Address, password: &str) -> Result<(), Error> {
 		let can_remove = {
-			let cache = self.cache.read().unwrap();
-			let account = try!(cache.get(address).ok_or(Error::InvalidAccount));
+			let account = try!(self.get(address));
 			account.check_password(password)
 		};
 
@@ -100,9 +119,39 @@ impl SecretStore for EthStore {
 		}
 	}
 
-	fn sign(&self, account: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
-		let cache = self.cache.read().unwrap();
-		let account = try!(cache.get(account).ok_or(Error::InvalidAccount));
+	fn sign(&self, address: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
+		let account = try!(self.get(address));
 		account.sign(password, message)
+	}
+
+	fn uuid(&self, address: &Address) -> Result<UUID, Error> {
+		let account = try!(self.get(address));
+		Ok(account.id.into())
+	}
+
+	fn name(&self, address: &Address) -> Result<String, Error> {
+		let account = try!(self.get(address));
+		Ok(account.name.clone())
+	}
+
+	fn meta(&self, address: &Address) -> Result<String, Error> {
+		let account = try!(self.get(address));
+		Ok(account.meta.clone())
+	}
+
+	fn set_name(&self, address: &Address, name: String) -> Result<(), Error> {
+		let mut account = try!(self.get(address));
+		account.name = name;
+
+		// save to file
+		self.save(account)
+	}
+
+	fn set_meta(&self, address: &Address, meta: String) -> Result<(), Error> {
+		let mut account = try!(self.get(address));
+		account.meta = meta;
+
+		// save to file
+		self.save(account)
 	}
 }

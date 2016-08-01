@@ -17,6 +17,7 @@
 //! Evm input params.
 use common::*;
 use ethjson;
+use types::executed::CallType;
 
 /// Transaction value
 #[derive(Clone, Debug)]
@@ -58,7 +59,10 @@ pub struct ActionParams {
 	/// Code being executed.
 	pub code: Option<Bytes>,
 	/// Input data.
-	pub data: Option<Bytes>
+	pub data: Option<Bytes>,
+	/// Type of call
+	pub call_type: CallType,
+
 }
 
 impl Default for ActionParams {
@@ -73,16 +77,18 @@ impl Default for ActionParams {
 			gas_price: U256::zero(),
 			value: ActionValue::Transfer(U256::zero()),
 			code: None,
-			data: None
+			data: None,
+			call_type: CallType::None,
 		}
 	}
 }
 
 impl From<ethjson::vm::Transaction> for ActionParams {
 	fn from(t: ethjson::vm::Transaction) -> Self {
+		let address: Address = t.address.into();
 		ActionParams {
 			code_address: Address::new(),
-			address: t.address.into(),
+			address: address,
 			sender: t.sender.into(),
 			origin: t.origin.into(),
 			code: Some(t.code.into()),
@@ -90,6 +96,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),
 			value: ActionValue::Transfer(t.value.into()),
+			call_type: match address.is_zero() { true => CallType::None, false => CallType::Call },	// TODO @debris is this correct?
 		}
 	}
 }

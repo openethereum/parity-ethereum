@@ -22,7 +22,7 @@ use basic_types::LogBloom;
 use client::Error as ClientError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use types::block_import_error::BlockImportError;
-pub use types::executed::ExecutionError;
+pub use types::executed::{ExecutionError, ReplayError};
 
 #[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.

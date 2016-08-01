@@ -16,6 +16,7 @@
 
 use util::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient};
+use ethcore::header::BlockNumber;
 use io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
@@ -89,13 +90,19 @@ pub struct TestNet {
 
 impl TestNet {
 	pub fn new(n: usize) -> TestNet {
+		Self::new_with_fork(n, None)
+	}
+
+	pub fn new_with_fork(n: usize, fork: Option<(BlockNumber, H256)>) -> TestNet {
 		let mut net = TestNet {
 			peers: Vec::new(),
 			started: false,
 		};
 		for _ in 0..n {
 			let chain = TestBlockChainClient::new();
-			let sync = ChainSync::new(SyncConfig::default(), &chain);
+			let mut config = SyncConfig::default();
+			config.fork_block = fork;
+			let sync = ChainSync::new(config, &chain);
 			net.peers.push(TestPeer {
 				sync: RwLock::new(sync),
 				chain: chain,

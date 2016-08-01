@@ -38,8 +38,10 @@ use self::memory::Memory;
 
 use std::marker::PhantomData;
 use common::*;
+use types::executed::CallType;
 use super::instructions::{self, Instruction, InstructionInfo};
 use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType};
+use bit_set::BitSet;
 
 #[cfg(feature = "evm-debug")]
 fn color(instruction: Instruction, name: &'static str) -> String {
@@ -96,13 +98,13 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 		self.mem.clear();
 
 		let code = &params.code.as_ref().unwrap();
-		let valid_jump_destinations = self.find_jump_destinations(&code);
+		let valid_jump_destinations = self.find_jump_destinations(code);
 
 		let mut gasometer = Gasometer::<Cost>::new(try!(Cost::from_u256(params.gas)));
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut reader = CodeReader {
 			position: 0,
-			code: &code
+			code: code
 		};
 		let infos = &*instructions::INSTRUCTIONS;
 
@@ -114,12 +116,13 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			try!(self.verify_instruction(ext, instruction, &info, &stack));
 
 			// Calculate gas cost
-			let (gas_cost, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, &info, &stack, self.mem.size()));
+			let (gas_cost, mem_gas, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, &info, &stack, self.mem.size()));
 			// TODO: make compile-time removable if too much of a performance hit.
 			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &gas_cost.as_u256());
 
 			try!(gasometer.verify_gas(&gas_cost));
 			self.mem.expand(mem_size);
+			gasometer.current_mem_gas = mem_gas;
 			gasometer.current_gas = gasometer.current_gas - gas_cost;
 
 			evm_debug!({
@@ -274,7 +277,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					return Ok(InstructionResult::Ok);
 				}
 
-				let create_result = ext.create(&gas.as_u256(), &endowment, &contract_code);
+				let create_result = ext.create(&gas.as_u256(), &endowment, contract_code);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
 						stack.push(address_to_u256(address));
@@ -311,16 +314,16 @@ impl<Cost: CostType> Interpreter<Cost> {
 				});
 
 				// Get sender & receive addresses, check if we have balance
-				let (sender_address, receive_address, has_balance) = match instruction {
+				let (sender_address, receive_address, has_balance, call_type) = match instruction {
 					instructions::CALL => {
 						let has_balance = ext.balance(&params.address) >= value.unwrap();
-						(&params.address, &code_address, has_balance)
+						(&params.address, &code_address, has_balance, CallType::Call)
 					},
 					instructions::CALLCODE => {
 						let has_balance = ext.balance(&params.address) >= value.unwrap();
-						(&params.address, &params.address, has_balance)
+						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
-					instructions::DELEGATECALL => (&params.sender, &params.address, true),
+					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
 					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
 
@@ -335,7 +338,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(self.mem.read_slice(in_off, in_size)) };
 					let output = self.mem.writeable_slice(out_off, out_size);
-					ext.call(&call_gas.as_u256(), sender_address, receive_address, value, input, &code_address, output)
+					ext.call(&call_gas.as_u256(), sender_address, receive_address, value, input, &code_address, output, call_type)
 				};
 
 				return match call_result {
@@ -539,10 +542,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 		}
 	}
 
-	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &HashSet<usize>) -> evm::Result<usize> {
+	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &BitSet) -> evm::Result<usize> {
 		let jump = jump_u.low_u64() as usize;
 
-		if valid_jump_destinations.contains(&jump) && jump_u < U256::from(!0 as usize) {
+		if valid_jump_destinations.contains(jump) && U256::from(jump) == jump_u {
 			Ok(jump)
 		} else {
 			Err(evm::Error::BadJumpDestination {
@@ -764,8 +767,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 		Ok(())
 	}
 
-	fn find_jump_destinations(&self, code: &[u8]) -> HashSet<CodePosition> {
-		let mut jump_dests = HashSet::new();
+	fn find_jump_destinations(&self, code: &[u8]) -> BitSet {
+		let mut jump_dests = BitSet::with_capacity(code.len());
 		let mut position = 0;
 
 		while position < code.len() {
@@ -817,5 +820,5 @@ fn test_find_jump_destinations() {
 	let valid_jump_destinations = interpreter.find_jump_destinations(&code);
 
 	// then
-	assert!(valid_jump_destinations.contains(&66));
+	assert!(valid_jump_destinations.contains(66));
 }

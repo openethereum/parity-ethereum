@@ -26,6 +26,9 @@ use spec::{Params, Genesis, Engine, State};
 pub struct Spec {
 	/// Spec name.
 	pub name: String,
+	/// Special fork name.
+	#[serde(rename="forkName")]
+	pub fork_name: Option<String>,
 	/// Engine.
 	pub engine: Engine,
 	/// Spec params.
@@ -75,7 +78,9 @@ mod tests {
 		"frontierCompatibilityModeLimit": "0x789b0",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0x2"
+		"networkID" : "0x2",
+		"forkBlock": "0xffffffffffffffff",
+		"forkCanonHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
 	},
 	"genesis": {
 		"seal": {

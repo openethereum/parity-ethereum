@@ -37,7 +37,7 @@ use spec::Spec;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
-use error::ExecutionError;
+use error::{ExecutionError, ReplayError};
 use trace::LocalizedTrace;
 
 /// Test client.
@@ -190,7 +190,7 @@ impl TestBlockChainClient {
 						gas_price: U256::one(),
 						nonce: U256::zero()
 					};
-					let signed_tx = tx.sign(&keypair.secret());
+					let signed_tx = tx.sign(keypair.secret());
 					txs.append(&signed_tx);
 					txs.out()
 				},
@@ -248,7 +248,8 @@ impl TestBlockChainClient {
 
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
-	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge, DatabaseConfig::default());
+	let db = Database::open_default(temp.as_str()).unwrap();
+	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, None);
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(journal_db)
@@ -289,6 +290,10 @@ impl MiningBlockChainClient for TestBlockChainClient {
 
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
+		Ok(self.execution_result.read().clone().unwrap())
+	}
+
+	fn replay(&self, _id: TransactionID, _analytics: CallAnalytics) -> Result<Executed, ReplayError> {
 		Ok(self.execution_result.read().clone().unwrap())
 	}
 
@@ -359,6 +364,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
+	fn best_block_header(&self) -> Bytes {
+		self.block_header(BlockID::Hash(self.chain_info().best_block_hash)).expect("Best block always have header.")
+	}
+
 	fn block_header(&self, id: BlockID) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 	}
@@ -366,8 +375,8 @@ impl BlockChainClient for TestBlockChainClient {
 	fn block_body(&self, id: BlockID) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
 			let mut stream = RlpStream::new_list(2);
-			stream.append_raw(Rlp::new(&r).at(1).as_raw(), 1);
-			stream.append_raw(Rlp::new(&r).at(2).as_raw(), 1);
+			stream.append_raw(Rlp::new(r).at(1).as_raw(), 1);
+			stream.append_raw(Rlp::new(r).at(2).as_raw(), 1);
 			stream.out()
 		}))
 	}

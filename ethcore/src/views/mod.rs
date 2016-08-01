@@ -19,7 +19,9 @@
 mod block;
 mod header;
 mod transaction;
+mod body;
 
 pub use self::block::BlockView;
 pub use self::header::HeaderView;
+pub use self::body::BodyView;
 pub use self::transaction::TransactionView;

@@ -125,7 +125,18 @@ impl Schedule {
 			tx_create_gas: tcg,
 			tx_data_zero_gas: 4,
 			tx_data_non_zero_gas: 68,
-			copy_gas: 3,	
+			copy_gas: 3,
 		}
 	}
+}
+
+#[test]
+#[cfg(test)]
+fn schedule_evm_assumptions() {
+	let s1 = Schedule::new_frontier();
+	let s2 = Schedule::new_homestead();
+
+	// To optimize division we assume 2**9 for quad_coeff_div
+	assert_eq!(s1.quad_coeff_div, 512);
+	assert_eq!(s2.quad_coeff_div, 512);
 }

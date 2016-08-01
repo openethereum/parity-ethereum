@@ -20,6 +20,7 @@ use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, Peer
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode};
 use util::{TimerToken, U256, H256, UtilError, Secret, Populatable};
 use ethcore::client::{BlockChainClient, ChainNotify};
+use ethcore::header::BlockNumber;
 use io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
 use std::net::{SocketAddr, AddrParseError};
@@ -38,6 +39,8 @@ pub struct SyncConfig {
 	pub max_download_ahead_blocks: usize,
 	/// Network ID
 	pub network_id: U256,
+	/// Fork block to check
+	pub fork_block: Option<(BlockNumber, H256)>,
 }
 
 impl Default for SyncConfig {
@@ -45,6 +48,7 @@ impl Default for SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
 			network_id: U256::from(1),
+			fork_block: None,
 		}
 	}
 }
@@ -228,8 +232,10 @@ pub struct NetworkConfiguration {
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
 	pub use_secret: Option<Secret>,
-	/// Number of connected peers to maintain
-	pub ideal_peers: u32,
+	/// Max number of connected peers to maintain
+	pub max_peers: u32,
+	/// Min number of connected peers to maintain
+	pub min_peers: u32,
 	/// List of reserved node addresses.
 	pub reserved_nodes: Vec<String>,
 	/// The non-reserved peer mode.
@@ -249,7 +255,8 @@ impl NetworkConfiguration {
 			discovery_enabled: self.discovery_enabled,
 			boot_nodes: self.boot_nodes,
 			use_secret: self.use_secret,
-			ideal_peers: self.ideal_peers,
+			max_peers: self.max_peers,
+			min_peers: self.min_peers,
 			reserved_nodes: self.reserved_nodes,
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
 		})
@@ -267,7 +274,8 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			discovery_enabled: other.discovery_enabled,
 			boot_nodes: other.boot_nodes,
 			use_secret: other.use_secret,
-			ideal_peers: other.ideal_peers,
+			max_peers: other.max_peers,
+			min_peers: other.min_peers,
 			reserved_nodes: other.reserved_nodes,
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
 		}

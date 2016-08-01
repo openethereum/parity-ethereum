@@ -24,7 +24,74 @@ use std::ops::Range;
 use super::Handshake;
 
 #[derive(Debug)]
-pub struct BinaryConvertError;
+pub enum BinaryConvertErrorKind {
+	SizeMismatch {
+		expected: usize,
+		found: usize,
+	},
+	TargetPayloadEmpty,
+	UnexpectedVariant(u8),
+	MissingLengthValue,
+	InconsistentBoundaries,
+	NotSupported,
+}
+
+#[derive(Debug)]
+pub struct BinaryConvertError {
+	member_tree: Vec<&'static str>,
+	kind: BinaryConvertErrorKind,
+}
+
+impl BinaryConvertError {
+	pub fn size(expected: usize, found: usize) -> BinaryConvertError {
+		BinaryConvertError {
+			member_tree: Vec::new(),
+			kind: BinaryConvertErrorKind::SizeMismatch {
+				expected: expected,
+				found: found,
+			}
+		}
+	}
+
+	pub fn empty() -> BinaryConvertError {
+		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::TargetPayloadEmpty }
+	}
+
+	pub fn variant(val: u8) -> BinaryConvertError {
+		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::UnexpectedVariant(val) }
+	}
+
+	pub fn length() -> BinaryConvertError {
+		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::MissingLengthValue }
+	}
+
+	pub fn boundaries() -> BinaryConvertError {
+		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::InconsistentBoundaries }
+	}
+
+	pub fn not_supported() -> BinaryConvertError {
+		BinaryConvertError { member_tree: Vec::new(), kind: BinaryConvertErrorKind::NotSupported }
+	}
+
+	pub fn named(mut self, name: &'static str) -> BinaryConvertError {
+		self.member_tree.push(name);
+		self
+	}
+}
+
+#[derive(Debug)]
+pub enum BinaryError {
+	Serialization(BinaryConvertError),
+	Io(::std::io::Error),
+}
+
+impl From<::std::io::Error> for BinaryError {
+	fn from(err: ::std::io::Error) -> Self { BinaryError::Io(err) }
+}
+
+impl From<BinaryConvertError> for BinaryError {
+	fn from(err: BinaryConvertError) -> Self { BinaryError::Serialization(err) }
+}
 
 pub trait BinaryConvertable : Sized {
 	fn size(&self) -> usize {
@@ -36,7 +103,7 @@ pub trait BinaryConvertable : Sized {
 	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError>;
 
 	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
-		Err(BinaryConvertError)
+		Err(BinaryConvertError::size(mem::size_of::<Self>(), 0))
 	}
 
 	fn len_params() -> usize {
@@ -50,7 +117,7 @@ impl<T> BinaryConvertable for Option<T> where T: BinaryConvertable {
 	}
 
 	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
-		match *self { None => Err(BinaryConvertError), Some(ref val) => val.to_bytes(buffer, length_stack) }
+		match *self { None => Err(BinaryConvertError::empty()), Some(ref val) => val.to_bytes(buffer, length_stack) }
 	}
 
 	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
@@ -77,7 +144,7 @@ impl<E: BinaryConvertable> BinaryConvertable for Result<(), E> {
 
 	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
 		match *self {
-			Ok(_) => Err(BinaryConvertError),
+			Ok(_) => Err(BinaryConvertError::empty()),
 			Err(ref e) => Ok(try!(e.to_bytes(buffer, length_stack))),
 		}
 	}
@@ -107,7 +174,7 @@ impl<R: BinaryConvertable> BinaryConvertable for Result<R, ()> {
 	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
 		match *self {
 			Ok(ref r) => Ok(try!(r.to_bytes(buffer, length_stack))),
-			Err(_) => Err(BinaryConvertError),
+			Err(_) => Err(BinaryConvertError::empty()),
 		}
 	}
 
@@ -160,7 +227,7 @@ impl<R: BinaryConvertable, E: BinaryConvertable> BinaryConvertable for Result<R,
 				}
 			}
 			1 => Ok(Err(try!(E::from_bytes(&buffer[1..], length_stack)))),
-			_ => Err(BinaryConvertError)
+			_ => Err(BinaryConvertError::variant(buffer[0]))
 		}
 	}
 
@@ -216,7 +283,7 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 		loop {
 			let key_size = match K::len_params() {
 				0 => mem::size_of::<K>(),
-				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError)),
+				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError::length())),
 			};
 			let key = if key_size == 0 {
 				try!(K::from_empty_bytes())
@@ -227,7 +294,7 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 
 			let val_size = match V::len_params() {
 				0 => mem::size_of::<V>(),
-				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError)),
+				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError::length())),
 			};
 			let val = if val_size == 0 {
 				try!(V::from_empty_bytes())
@@ -239,7 +306,7 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 
 			if index == buffer.len() { break; }
 			if index > buffer.len() {
-				return Err(BinaryConvertError)
+				return Err(BinaryConvertError::boundaries())
 			}
 		}
 
@@ -254,6 +321,74 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 		1
 	}
 }
+
+impl<T> BinaryConvertable for VecDeque<T> where T: BinaryConvertable {
+	fn size(&self) -> usize {
+		match T::len_params() {
+			0 => mem::size_of::<T>() * self.len(),
+			_ => self.iter().fold(0usize, |acc, t| acc + t.size()),
+		}
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		let mut offset = 0usize;
+		for item in self.iter() {
+			let next_size = match T::len_params() {
+				0 => mem::size_of::<T>(),
+				_ => { let size = item.size(); length_stack.push_back(size); size },
+			};
+			if next_size > 0 {
+				let item_end = offset + next_size;
+				try!(item.to_bytes(&mut buffer[offset..item_end], length_stack));
+				offset = item_end;
+			}
+		}
+		Ok(())
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		let mut index = 0;
+		let mut result = Self::with_capacity(
+			match T::len_params() {
+				0 => buffer.len() /  mem::size_of::<T>(),
+				_ => 128,
+			});
+
+		if buffer.len() == 0 { return Ok(result); }
+
+		loop {
+			let next_size = match T::len_params() {
+				0 => mem::size_of::<T>(),
+				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError::length())),
+			};
+			let item = if next_size == 0 {
+				try!(T::from_empty_bytes())
+			}
+			else {
+				try!(T::from_bytes(&buffer[index..index+next_size], length_stack))
+			};
+			result.push_back(item);
+
+			index = index + next_size;
+			if index == buffer.len() { break; }
+			if index + next_size > buffer.len() {
+				return Err(BinaryConvertError::boundaries())
+			}
+		}
+
+		Ok(result)
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(Self::new())
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
+//
 
 impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 	fn size(&self) -> usize {
@@ -292,7 +427,7 @@ impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 		loop {
 			let next_size = match T::len_params() {
 				0 => mem::size_of::<T>(),
-				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError)),
+				_ => try!(length_stack.pop_front().ok_or(BinaryConvertError::length())),
 			};
 			let item = if next_size == 0 {
 				try!(T::from_empty_bytes())
@@ -304,10 +439,9 @@ impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 
 			index = index + next_size;
 			if index == buffer.len() { break; }
-			if index > buffer.len() {
-				return Err(BinaryConvertError)
+			if index + next_size > buffer.len() {
+				return Err(BinaryConvertError::boundaries())
 			}
-
 		}
 
 		Ok(result)
@@ -351,7 +485,7 @@ impl<T> BinaryConvertable for Range<T> where T: BinaryConvertable {
 	}
 
 	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
-		Err(BinaryConvertError)
+		Err(BinaryConvertError::empty())
 	}
 
 	fn to_bytes(&self, buffer: &mut[u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
@@ -442,7 +576,7 @@ impl BinaryConvertable for Vec<u8> {
 	}
 }
 
-pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
+pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryError>
 	where R: ::std::io::Read,
 		T: BinaryConvertable
 {
@@ -453,12 +587,15 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
 			let fixed_size = mem::size_of::<T>();
 			let mut payload_buffer = Vec::with_capacity(fixed_size);
 			unsafe { payload_buffer.set_len(fixed_size); }
-			try!(r.read(&mut payload_buffer).map_err(|_| BinaryConvertError));
-			T::from_bytes(&payload_buffer[..], &mut fake_stack)
+			let bytes_read = try!(r.read(&mut payload_buffer));
+			if bytes_read != mem::size_of::<T>() {
+				return Err(BinaryError::Serialization(BinaryConvertError::size(fixed_size, bytes_read)))
+			}
+			Ok(try!(T::from_bytes(&payload_buffer[..], &mut fake_stack)))
 		},
 		_ => {
 			let mut payload = Vec::new();
-			try!(r.read_to_end(&mut payload).map_err(|_| BinaryConvertError));
+			try!(r.read_to_end(&mut payload));
 
 			let stack_len = try!(u64::from_bytes(&payload[0..8], &mut fake_stack)) as usize;
 			let mut length_stack = VecDeque::<usize>::with_capacity(stack_len);
@@ -474,23 +611,23 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
 			let size = try!(u64::from_bytes(&payload[8+stack_len*8..16+stack_len*8], &mut fake_stack)) as usize;
 			match size {
 				0 => {
-					T::from_empty_bytes()
+					Ok(try!(T::from_empty_bytes()))
 				},
 				_ => {
-					T::from_bytes(&payload[16+stack_len*8..], &mut length_stack)
+					Ok(try!(T::from_bytes(&payload[16+stack_len*8..], &mut length_stack)))
 				}
 			}
 		},
 	}
 }
 
-pub fn deserialize<T: BinaryConvertable>(buffer: &[u8]) -> Result<T, BinaryConvertError> {
+pub fn deserialize<T: BinaryConvertable>(buffer: &[u8]) -> Result<T, BinaryError> {
 	use std::io::Cursor;
 	let mut buff = Cursor::new(buffer);
 	deserialize_from::<T, _>(&mut buff)
 }
 
-pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
+pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryError>
 	where W: ::std::io::Write,
 		T: BinaryConvertable
 {
@@ -502,7 +639,7 @@ pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
 			let mut buffer = Vec::with_capacity(fixed_size);
 			unsafe { buffer.set_len(fixed_size); }
 			try!(t.to_bytes(&mut buffer[..], &mut fake_stack));
-			try!(w.write(&buffer[..]).map_err(|_| BinaryConvertError));
+			try!(w.write(&buffer[..]));
 			Ok(())
 		},
 		_ => {
@@ -511,8 +648,8 @@ pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
 
 			let size = t.size();
 			if size == 0 {
-				try!(w.write(&size_buffer).map_err(|_| BinaryConvertError));
-				try!(w.write(&size_buffer).map_err(|_| BinaryConvertError));
+				try!(w.write(&size_buffer));
+				try!(w.write(&size_buffer));
 				return Ok(());
 			}
 
@@ -522,7 +659,7 @@ pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
 
 			let stack_len = length_stack.len();
 			try!((stack_len as u64).to_bytes(&mut size_buffer[..], &mut fake_stack));
-			try!(w.write(&size_buffer[..]).map_err(|_| BinaryConvertError));
+			try!(w.write(&size_buffer[..]));
 			if stack_len > 0 {
 				let mut header_buffer = Vec::with_capacity(stack_len * 8);
 				unsafe {  header_buffer.set_len(stack_len * 8); };
@@ -535,20 +672,20 @@ pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
 					}
 					idx = idx + 1;
 				}
-				try!(w.write(&header_buffer[..]).map_err(|_| BinaryConvertError));
+				try!(w.write(&header_buffer[..]));
 			}
 
 			try!((size as u64).to_bytes(&mut size_buffer[..], &mut fake_stack));
-			try!(w.write(&size_buffer[..]).map_err(|_| BinaryConvertError));
+			try!(w.write(&size_buffer[..]));
 
-			try!(w.write(&buffer[..]).map_err(|_| BinaryConvertError));
+			try!(w.write(&buffer[..]));
 
 			Ok(())
 		},
 	}
 }
 
-pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryConvertError> {
+pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryError> {
 	use std::io::Cursor;
 	let mut buff = Cursor::new(Vec::new());
 	try!(serialize_into(t, &mut buff));
@@ -562,9 +699,8 @@ macro_rules! binary_fixed_size {
 		impl BinaryConvertable for $target_ty {
 			fn from_bytes(bytes: &[u8], _length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
 				match bytes.len().cmp(&::std::mem::size_of::<$target_ty>()) {
-					::std::cmp::Ordering::Less => return Err(BinaryConvertError),
-					::std::cmp::Ordering::Greater => return Err(BinaryConvertError),
-					::std::cmp::Ordering::Equal => ()
+					::std::cmp::Ordering::Equal => (),
+					_ => return Err(BinaryConvertError::size(::std::mem::size_of::<$target_ty>(), bytes.len())),
 				};
 				let mut res: Self = unsafe { ::std::mem::uninitialized() };
 				res.copy_raw(bytes);
@@ -899,6 +1035,29 @@ fn serialize_btree() {
 }
 
 #[test]
+fn serialize_refcell() {
+	use std::cell::RefCell;
+
+	let source = RefCell::new(vec![5u32, 12u32, 19u32]);
+	let serialized = serialize(&source).unwrap();
+	let deserialized = deserialize::<RefCell<Vec<u32>>>(&serialized).unwrap();
+
+	assert_eq!(source, deserialized);
+}
+
+#[test]
+fn serialize_cell() {
+	use std::cell::Cell;
+	use std::str::FromStr;
+
+	let source = Cell::new(U256::from_str("01231231231239999").unwrap());
+	let serialized = serialize(&source).unwrap();
+	let deserialized = deserialize::<Cell<U256>>(&serialized).unwrap();
+
+	assert_eq!(source, deserialized);
+}
+
+#[test]
 fn serialize_handshake() {
 	use std::io::{Cursor, SeekFrom, Seek};
 
@@ -915,5 +1074,80 @@ fn serialize_handshake() {
 	let res = deserialize_from::<BinHandshake, _>(&mut buff).unwrap().to_semver();
 
 	assert_eq!(res, handshake);
+}
 
+#[test]
+fn serialize_invalid_size() {
+	// value
+	let deserialized = deserialize::<u64>(&[]);
+	match deserialized {
+		Err(BinaryError::Serialization(
+			BinaryConvertError {
+				kind: BinaryConvertErrorKind::SizeMismatch { expected: 8, found: 0 },
+				member_tree: _
+			})) => {},
+		other => panic!("Not a size mismatched error but:  {:?}", other),
+	}
+}
+
+#[test]
+fn serialize_boundaries() {
+	// value
+	let deserialized = deserialize::<Vec<u32>>(
+		&[
+			// payload header
+			0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+			2u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+			//
+			0u8, 0u8, 0u8, 5u8,
+			0u8, 0u8, 0u8, 4u8,
+			1u8, 1u8, /* not 4 bytes */
+		]
+	);
+	match deserialized {
+		Err(BinaryError::Serialization(
+			BinaryConvertError {
+				kind: BinaryConvertErrorKind::InconsistentBoundaries,
+				member_tree: _
+			})) => {},
+		other => panic!("Not an inconsistent boundaries error but: {:?}", other),
+	}
+}
+
+#[test]
+fn serialize_empty_try() {
+	// value
+	let mut stack = VecDeque::new();
+	let mut data = vec![0u8; 16];
+	let sample: Option<Vec<u8>> = None;
+	let serialized = sample.to_bytes(&mut data, &mut stack);
+	match serialized {
+		Err(BinaryConvertError {
+				kind: BinaryConvertErrorKind::TargetPayloadEmpty,
+				member_tree: _
+			}) => {},
+		other => panic!("Not an error about empty payload to be produced but: {:?}", other),
+	}
+}
+
+#[test]
+fn serialize_not_enough_lengths() {
+	// value
+	let deserialized = deserialize::<Vec<Option<u32>>>(
+		&[
+			// payload header
+			0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+			2u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+			// does not matter because no length param for the first option
+			0u8,
+		]
+	);
+	match deserialized {
+		Err(BinaryError::Serialization(
+			BinaryConvertError {
+				kind: BinaryConvertErrorKind::MissingLengthValue,
+				member_tree: _
+			})) => {},
+		other => panic!("Not an missing length param error but: {:?}", other),
+	}
 }

@@ -21,6 +21,7 @@ use util::rlp::*;
 use util::sha3::Hashable;
 use action_params::ActionParams;
 use basic_types::LogBloom;
+use types::executed::CallType;
 use ipc::binary::BinaryConvertError;
 use std::mem;
 use std::collections::VecDeque;
@@ -87,6 +88,13 @@ impl Decodable for CreateResult {
 	}
 }
 
+impl CreateResult {
+	/// Returns bloom.
+	pub fn bloom(&self) -> LogBloom {
+		LogBloom::from_bloomed(&self.address.sha3())
+	}
+}
+
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
 #[derive(Debug, Clone, PartialEq, Binary)]
 pub struct Call {
@@ -100,6 +108,8 @@ pub struct Call {
 	pub gas: U256,
 	/// The input data provided to the call.
 	pub input: Bytes,
+	/// The type of the call.
+	pub call_type: CallType,
 }
 
 impl From<ActionParams> for Call {
@@ -110,18 +120,20 @@ impl From<ActionParams> for Call {
 			value: p.value.value(),
 			gas: p.gas,
 			input: p.data.unwrap_or_else(Vec::new),
+			call_type: p.call_type,
 		}
 	}
 }
 
 impl Encodable for Call {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(5);
+		s.begin_list(6);
 		s.append(&self.from);
 		s.append(&self.to);
 		s.append(&self.value);
 		s.append(&self.gas);
 		s.append(&self.input);
+		s.append(&self.call_type);
 	}
 }
 
@@ -134,6 +146,7 @@ impl Decodable for Call {
 			value: try!(d.val_at(2)),
 			gas: try!(d.val_at(3)),
 			input: try!(d.val_at(4)),
+			call_type: try!(d.val_at(5)),
 		};
 
 		Ok(res)
@@ -205,6 +218,48 @@ impl Create {
 	}
 }
 
+/// Suicide action.
+#[derive(Debug, Clone, PartialEq, Binary)]
+pub struct Suicide {
+	/// Suicided address.
+	pub address: Address,
+	/// Suicided contract heir.
+	pub refund_address: Address,
+	/// Balance of the contract just before suicide.
+	pub balance: U256,
+}
+
+impl Suicide {
+	/// Return suicide action bloom.
+	pub fn bloom(&self) -> LogBloom {
+		LogBloom::from_bloomed(&self.address.sha3())
+			.with_bloomed(&self.refund_address.sha3())
+	}
+}
+
+impl Encodable for Suicide {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(3);
+		s.append(&self.address);
+		s.append(&self.refund_address);
+		s.append(&self.balance);
+	}
+}
+
+impl Decodable for Suicide {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = Suicide {
+			address: try!(d.val_at(0)),
+			refund_address: try!(d.val_at(1)),
+			balance: try!(d.val_at(2)),
+		};
+
+		Ok(res)
+	}
+}
+
+
 /// Description of an action that we trace; will be either a call or a create.
 #[derive(Debug, Clone, PartialEq, Binary)]
 pub enum Action {
@@ -212,6 +267,8 @@ pub enum Action {
 	Call(Call),
 	/// It's a create action.
 	Create(Create),
+	/// Suicide.
+	Suicide(Suicide),
 }
 
 impl Encodable for Action {
@@ -225,6 +282,10 @@ impl Encodable for Action {
 			Action::Create(ref create) => {
 				s.append(&1u8);
 				s.append(create);
+			},
+			Action::Suicide(ref suicide) => {
+				s.append(&2u8);
+				s.append(suicide);
 			}
 		}
 	}
@@ -237,6 +298,7 @@ impl Decodable for Action {
 		match action_type {
 			0 => d.val_at(1).map(Action::Call),
 			1 => d.val_at(1).map(Action::Create),
+			2 => d.val_at(1).map(Action::Suicide),
 			_ => Err(DecoderError::Custom("Invalid action type.")),
 		}
 	}
@@ -248,6 +310,7 @@ impl Action {
 		match *self {
 			Action::Call(ref call) => call.bloom(),
 			Action::Create(ref create) => create.bloom(),
+			Action::Suicide(ref suicide) => suicide.bloom(),
 		}
 	}
 }
@@ -263,6 +326,8 @@ pub enum Res {
 	FailedCall,
 	/// Failed create.
 	FailedCreate,
+	/// None
+	None,
 }
 
 impl Encodable for Res {
@@ -285,6 +350,10 @@ impl Encodable for Res {
 			Res::FailedCreate => {
 				s.begin_list(1);
 				s.append(&3u8);
+			},
+			Res::None => {
+				s.begin_list(1);
+				s.append(&4u8);
 			}
 		}
 	}
@@ -299,53 +368,19 @@ impl Decodable for Res {
 			1 => d.val_at(1).map(Res::Create),
 			2 => Ok(Res::FailedCall),
 			3 => Ok(Res::FailedCreate),
+			4 => Ok(Res::None),
 			_ => Err(DecoderError::Custom("Invalid result type.")),
 		}
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
-/// A trace; includes a description of the action being traced and sub traces of each interior action.
-pub struct Trace {
-	/// The number of EVM execution environments active when this action happened; 0 if it's
-	/// the outer action of the transaction.
-	pub depth: usize,
-	/// The action being performed.
-	pub action: Action,
-	/// The sub traces for each interior action performed as part of this call.
-	pub subs: Vec<Trace>,
-	/// The result of the performed action.
-	pub result: Res,
-}
-
-impl Encodable for Trace {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.depth);
-		s.append(&self.action);
-		s.append(&self.subs);
-		s.append(&self.result);
-	}
-}
-
-impl Decodable for Trace {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
-		let res = Trace {
-			depth: try!(d.val_at(0)),
-			action: try!(d.val_at(1)),
-			subs: try!(d.val_at(2)),
-			result: try!(d.val_at(3)),
-		};
-
-		Ok(res)
-	}
-}
-
-impl Trace {
-	/// Returns trace bloom.
+impl Res {
+	/// Returns result bloom.
 	pub fn bloom(&self) -> LogBloom {
-		self.subs.iter().fold(self.action.bloom(), |b, s| b | s.bloom())
+		match *self {
+			Res::Create(ref create) => create.bloom(),
+			Res::Call(_) | Res::FailedCall | Res::FailedCreate | Res::None => Default::default(),
+		}
 	}
 }
 
@@ -513,84 +548,3 @@ impl Decodable for VMTrace {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	use util::{Address, U256, FixedHash};
-	use util::rlp::{encode, decode};
-	use util::sha3::Hashable;
-	use trace::trace::{Call, CallResult, Create, Res, Action, Trace};
-
-	#[test]
-	fn traces_rlp() {
-		let trace = Trace {
-			depth: 2,
-			action: Action::Call(Call {
-				from: Address::from(1),
-				to: Address::from(2),
-				value: U256::from(3),
-				gas: U256::from(4),
-				input: vec![0x5]
-			}),
-			subs: vec![
-				Trace {
-					depth: 3,
-					action: Action::Create(Create {
-						from: Address::from(6),
-						value: U256::from(7),
-						gas: U256::from(8),
-						init: vec![0x9]
-					}),
-					subs: vec![],
-					result: Res::FailedCreate
-				}
-			],
-			result: Res::Call(CallResult {
-				gas_used: U256::from(10),
-				output: vec![0x11, 0x12]
-			})
-		};
-
-		let encoded = encode(&trace);
-		let decoded: Trace = decode(&encoded);
-		assert_eq!(trace, decoded);
-	}
-
-	#[test]
-	fn traces_bloom() {
-		let trace = Trace {
-			depth: 2,
-			action: Action::Call(Call {
-				from: Address::from(1),
-				to: Address::from(2),
-				value: U256::from(3),
-				gas: U256::from(4),
-				input: vec![0x5]
-			}),
-			subs: vec![
-				Trace {
-					depth: 3,
-					action: Action::Create(Create {
-						from: Address::from(6),
-						value: U256::from(7),
-						gas: U256::from(8),
-						init: vec![0x9]
-					}),
-					subs: vec![],
-					result: Res::FailedCreate
-				}
-			],
-			result: Res::Call(CallResult {
-				gas_used: U256::from(10),
-				output: vec![0x11, 0x12]
-			})
-		};
-
-		let bloom = trace.bloom();
-
-		// right now only addresses are bloomed
-		assert!(bloom.contains_bloomed(&Address::from(1).sha3()));
-		assert!(bloom.contains_bloomed(&Address::from(2).sha3()));
-		assert!(!bloom.contains_bloomed(&Address::from(20).sha3()));
-		assert!(bloom.contains_bloomed(&Address::from(6).sha3()));
-	}
-}

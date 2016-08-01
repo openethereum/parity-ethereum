@@ -39,6 +39,7 @@ fn settings() -> Arc<NetworkSettings> {
 	Arc::new(NetworkSettings {
 		name: "mynode".to_owned(),
 		chain: "testchain".to_owned(),
+		min_peers: 25,
 		max_peers: 25,
 		network_port: 30303,
 		rpc_enabled: true,

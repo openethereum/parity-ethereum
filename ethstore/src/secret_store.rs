@@ -16,16 +16,27 @@
 
 use ethkey::{Address, Message, Signature, Secret};
 use Error;
+use json::UUID;
 
 pub trait SecretStore: Send + Sync {
 	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error>;
 
-	fn accounts(&self) -> Vec<Address>;
+	fn accounts(&self) -> Result<Vec<Address>, Error>;
 
 	fn change_password(&self, account: &Address, old_password: &str, new_password: &str) -> Result<(), Error>;
 
 	fn remove_account(&self, account: &Address, password: &str) -> Result<(), Error>;
 
 	fn sign(&self, account: &Address, password: &str, message: &Message) -> Result<Signature, Error>;
+
+	fn uuid(&self, account: &Address) -> Result<UUID, Error>;
+
+	fn name(&self, account: &Address) -> Result<String, Error>;
+
+	fn meta(&self, account: &Address) -> Result<String, Error>;
+
+	fn set_name(&self, address: &Address, name: String) -> Result<(), Error>;
+
+	fn set_meta(&self, address: &Address, meta: String) -> Result<(), Error>;
 }
 

@@ -18,10 +18,11 @@
 //! Sorts them ready for blockchain insertion.
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 use util::*;
 use verification::*;
 use error::*;
-use engine::Engine;
+use engines::Engine;
 use views::*;
 use header::*;
 use service::*;
@@ -36,7 +37,7 @@ const MIN_MEM_LIMIT: usize = 16384;
 const MIN_QUEUE_LIMIT: usize = 512;
 
 /// Block queue configuration
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct BlockQueueConfig {
 	/// Maximum number of blocks to keep in unverified queue.
 	/// When the limit is reached, is_full returns true.
@@ -80,12 +81,12 @@ impl BlockQueueInfo {
 pub struct BlockQueue {
 	panic_handler: Arc<PanicHandler>,
 	engine: Arc<Box<Engine>>,
-	more_to_verify: Arc<Condvar>,
+	more_to_verify: Arc<SCondvar>,
 	verification: Arc<Verification>,
 	verifiers: Vec<JoinHandle<()>>,
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
-	empty: Arc<Condvar>,
+	empty: Arc<SCondvar>,
 	processing: RwLock<HashSet<H256>>,
 	max_queue_size: usize,
 	max_mem_use: usize,
@@ -133,6 +134,8 @@ struct Verification {
 	verified: Mutex<VecDeque<PreverifiedBlock>>,
 	verifying: Mutex<VecDeque<VerifyingBlock>>,
 	bad: Mutex<HashSet<H256>>,
+	more_to_verify: SMutex<()>,
+	empty: SMutex<()>,
 }
 
 impl BlockQueue {
@@ -143,15 +146,18 @@ impl BlockQueue {
 			verified: Mutex::new(VecDeque::new()),
 			verifying: Mutex::new(VecDeque::new()),
 			bad: Mutex::new(HashSet::new()),
+			more_to_verify: SMutex::new(()),
+			empty: SMutex::new(()),
+
 		});
-		let more_to_verify = Arc::new(Condvar::new());
+		let more_to_verify = Arc::new(SCondvar::new());
 		let deleting = Arc::new(AtomicBool::new(false));
 		let ready_signal = Arc::new(QueueSignal {
 			deleting: deleting.clone(),
 			signalled: AtomicBool::new(false),
 			message_channel: message_channel
 		});
-		let empty = Arc::new(Condvar::new());
+		let empty = Arc::new(SCondvar::new());
 		let panic_handler = PanicHandler::new_in_arc();
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
@@ -190,17 +196,17 @@ impl BlockQueue {
 		}
 	}
 
-	fn verify(verification: Arc<Verification>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
+	fn verify(verification: Arc<Verification>, engine: Arc<Box<Engine>>, wait: Arc<SCondvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<SCondvar>) {
 		while !deleting.load(AtomicOrdering::Acquire) {
 			{
-				let mut unverified = verification.unverified.lock();
+				let mut more_to_verify = verification.more_to_verify.lock().unwrap();
 
-				if unverified.is_empty() && verification.verifying.lock().is_empty() {
+				if verification.unverified.lock().is_empty() && verification.verifying.lock().is_empty() {
 					empty.notify_all();
 				}
 
-				while unverified.is_empty() && !deleting.load(AtomicOrdering::Acquire) {
-					wait.wait(&mut unverified);
+				while verification.unverified.lock().is_empty() && !deleting.load(AtomicOrdering::Acquire) {
+					more_to_verify = wait.wait(more_to_verify).unwrap();
 				}
 
 				if deleting.load(AtomicOrdering::Acquire) {
@@ -276,18 +282,18 @@ impl BlockQueue {
 
 	/// Wait for unverified queue to be empty
 	pub fn flush(&self) {
-		let mut unverified = self.verification.unverified.lock();
-		while !unverified.is_empty() || !self.verification.verifying.lock().is_empty() {
-			self.empty.wait(&mut unverified);
+		let mut lock = self.verification.empty.lock().unwrap();
+		while !self.verification.unverified.lock().is_empty() || !self.verification.verifying.lock().is_empty() {
+			lock = self.empty.wait(lock).unwrap();
 		}
 	}
 
 	/// Check if the block is currently in the queue
 	pub fn block_status(&self, hash: &H256) -> BlockStatus {
-		if self.processing.read().contains(&hash) {
+		if self.processing.read().contains(hash) {
 			return BlockStatus::Queued;
 		}
-		if self.verification.bad.lock().contains(&hash) {
+		if self.verification.bad.lock().contains(hash) {
 			return BlockStatus::Bad;
 		}
 		BlockStatus::Unknown
@@ -340,7 +346,7 @@ impl BlockQueue {
 		bad.reserve(block_hashes.len());
 		for hash in block_hashes {
 			bad.insert(hash.clone());
-			processing.remove(&hash);
+			processing.remove(hash);
 		}
 
 		let mut new_verified = VecDeque::new();
@@ -362,7 +368,7 @@ impl BlockQueue {
 		}
 		let mut processing = self.processing.write();
 		for hash in block_hashes {
-			processing.remove(&hash);
+			processing.remove(hash);
 		}
 	}
 

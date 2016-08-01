@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Traces config.
+use std::str::FromStr;
 use bloomchain::Config as BloomConfig;
 use trace::Error;
 
@@ -29,6 +30,25 @@ pub enum Switch {
 	Auto,
 }
 
+impl Default for Switch {
+	fn default() -> Self {
+		Switch::Auto
+	}
+}
+
+impl FromStr for Switch {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"on" => Ok(Switch::On),
+			"off" => Ok(Switch::Off),
+			"auto" => Ok(Switch::Auto),
+			other => Err(format!("Invalid switch value: {}", other))
+		}
+	}
+}
+
 impl Switch {
 	/// Tries to turn old switch to new value.
 	pub fn turn_to(&self, to: Switch) -> Result<bool, Error> {
@@ -41,26 +61,46 @@ impl Switch {
 }
 
 /// Traces config.
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Config {
 	/// Indicates if tracing should be enabled or not.
 	/// If it's None, it will be automatically configured.
 	pub enabled: Switch,
 	/// Traces blooms configuration.
 	pub blooms: BloomConfig,
-	/// Database cache-size if not default
-	pub db_cache_size: Option<usize>,
+	/// Preferef cache-size.
+	pub pref_cache_size: usize,
+	/// Max cache-size.
+	pub max_cache_size: usize,
 }
 
 impl Default for Config {
 	fn default() -> Self {
 		Config {
-			enabled: Switch::Auto,
+			enabled: Switch::default(),
 			blooms: BloomConfig {
 				levels: 3,
 				elements_per_index: 16,
 			},
-			db_cache_size: None,
+			pref_cache_size: 15 * 1024 * 1024,
+			max_cache_size: 20 * 1024 * 1024,
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::Switch;
+
+	#[test]
+	fn test_switch_parsing() {
+		assert_eq!(Switch::On, "on".parse().unwrap());
+		assert_eq!(Switch::Off, "off".parse().unwrap());
+		assert_eq!(Switch::Auto, "auto".parse().unwrap());
+	}
+
+	#[test]
+	fn test_switch_default() {
+		assert_eq!(Switch::default(), Switch::Auto);
 	}
 }
