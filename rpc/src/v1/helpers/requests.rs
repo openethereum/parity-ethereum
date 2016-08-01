@@ -35,22 +35,6 @@ pub struct TransactionRequest {
 	pub nonce: Option<U256>,
 }
 
-/// Confirmation object
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct ConfirmationRequest {
-	/// Id of this confirmation
-	pub id: U256,
-	/// Payload to confirm
-	pub payload: ConfirmationPayload,
-}
-
-/// Payload to confirm in Trusted Signer
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum ConfirmationPayload {
-	/// Transaction
-	Transaction(TransactionRequest),
-}
-
 /// Call request
 #[derive(Debug, Default, PartialEq)]
 pub struct CallRequest {
@@ -68,4 +52,20 @@ pub struct CallRequest {
 	pub data: Option<Vec<u8>>,
 	/// Nonce
 	pub nonce: Option<U256>,
+}
+
+/// Confirmation object
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct ConfirmationRequest {
+	/// Id of this confirmation
+	pub id: U256,
+	/// Payload to confirm
+	pub payload: ConfirmationPayload,
+}
+
+/// Payload to confirm in Trusted Signer
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum ConfirmationPayload {
+	/// Transaction
+	Transaction(TransactionRequest),
 }

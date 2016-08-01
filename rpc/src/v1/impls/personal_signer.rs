@@ -55,14 +55,16 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 
 impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
-	fn transactions_to_confirm(&self, _params: Params) -> Result<Value, Error> {
+	fn list_confirmations_queue(&self, _params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let queue = take_weak!(self.queue);
 		to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>())
 	}
 
-	fn confirm_transaction(&self, params: Params) -> Result<Value, Error> {
+	fn queue_confirm(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		// TODO [ToDr] TransactionModification is redundant for some calls
+		// might be better to replace it in future
 		from_params::<(U256, TransactionModification, String)>(params).and_then(
 			|(id, modification, pass)| {
 				let id = id.into();
@@ -70,18 +72,20 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 				let queue = take_weak!(self.queue);
 				let client = take_weak!(self.client);
 				let miner = take_weak!(self.miner);
-				queue.peek(&id).and_then(|confirmation| {
-					let ConfirmationPayload::Transaction(request) = confirmation.payload;
-					Some(request)
-				}).map(|mut request| {
-					// apply modification
-					if let Some(gas_price) = modification.gas_price {
-						request.gas_price = Some(gas_price.into());
-					}
 
-					let result = unlock_sign_and_dispatch(&*client, &*miner, request, &*accounts, pass);
-					if let Ok(ref hash) = result {
-						queue.request_confirmed(id, Ok(hash.clone()));
+				queue.peek(&id).map(|confirmation| {
+					let result = match confirmation.payload {
+						ConfirmationPayload::Transaction(mut request) => {
+							// apply modification
+							if let Some(gas_price) = modification.gas_price {
+								request.gas_price = Some(gas_price.into());
+							}
+
+							unlock_sign_and_dispatch(&*client, &*miner, request, &*accounts, pass)
+						},
+					};
+					if let Ok(ref response) = result {
+						queue.request_confirmed(id, Ok(response.clone()));
 					}
 					result
 				}).unwrap_or_else(|| Err(Error::invalid_params()))
@@ -89,7 +93,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 		)
 	}
 
-	fn reject_transaction(&self, params: Params) -> Result<Value, Error> {
+	fn queue_reject(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(U256, )>(params).and_then(
 			|(id, )| {

@@ -20,7 +20,7 @@ use std::sync::{mpsc, Arc};
 use std::collections::HashMap;
 use jsonrpc_core;
 use util::{Mutex, RwLock, U256};
-use v1::helpers::{TransactionRequest, ConfirmationRequest, ConfirmationPayload};
+use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
@@ -314,12 +314,12 @@ mod test {
 	use std::thread;
 	use std::sync::Arc;
 	use util::{Address, U256, H256, Mutex};
-	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, TransactionRequest};
+	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, TransactionRequest, ConfirmationPayload};
 	use v1::types::H256 as NH256;
 	use jsonrpc_core::to_value;
 
-	fn request() -> TransactionRequest {
-		TransactionRequest {
+	fn request() -> ConfirmationPayload {
+		ConfirmationPayload::Transaction(TransactionRequest {
 			from: Address::from(1),
 			to: Some(Address::from(2)),
 			gas_price: None,
@@ -327,7 +327,7 @@ mod test {
 			value: Some(U256::from(10_000_000)),
 			data: None,
 			nonce: None,
-		}
+		})
 	}
 
 	#[test]
@@ -393,6 +393,6 @@ mod test {
 		assert_eq!(all.len(), 1);
 		let el = all.get(0).unwrap();
 		assert_eq!(el.id, U256::from(1));
-		assert_eq!(el.transaction, request);
+		assert_eq!(el.payload, request);
 	}
 }

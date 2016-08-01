@@ -67,46 +67,6 @@ impl Into<helpers::TransactionRequest> for TransactionRequest {
 	}
 }
 
-/// Confirmation waiting in a queue
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
-pub struct ConfirmationRequest {
-	/// Id of this confirmation
-	pub id: U256,
-	/// TransactionRequest
-	pub payload: ConfirmationPayload,
-}
-
-impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
-	fn from(c: helpers::ConfirmationRequest) -> Self {
-		ConfirmationRequest {
-			id: c.id.into(),
-			payload: c.payload.into(),
-		}
-	}
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
-pub enum ConfirmationPayload {
-	/// Transaction
-	Transaction(TransactionRequest),
-}
-
-impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
-	fn from(c: helpers::ConfirmationPayload) -> Self {
-		match c {
-			helpers::ConfirmationPayload::Transaction(t) => ConfirmationPayload::Transaction(t.into()),
-		}
-	}
-}
-
-/// Possible modifications to the confirmed transaction sent by `Trusted Signer`
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct TransactionModification {
-	/// Modified gas price
-	#[serde(rename="gasPrice")]
-	pub gas_price: Option<U256>,
-}
-
 
 #[cfg(test)]
 mod tests {
@@ -203,13 +163,6 @@ mod tests {
 	}
 
 	#[test]
-	fn should_serialize_confirmation() {
-		// TODO [todr]
-		assert_eq!(true, false)
-	}
-
-
-	#[test]
 	fn transaction_request_deserialize_error() {
 		let s = r#"{
 			"from":"0xb5f7502a2807cb23615c7456055e1d65b2508625",
@@ -222,27 +175,6 @@ mod tests {
 		let deserialized = serde_json::from_str::<TransactionRequest>(s);
 
 		assert!(deserialized.is_err(), "Should be error because to is empty");
-	}
-
-	#[test]
-	fn should_deserialize_modification() {
-		// given
-		let s1 = r#"{
-			"gasPrice":"0x0ba43b7400"
-		}"#;
-		let s2 = r#"{}"#;
-
-		// when
-		let res1: TransactionModification = serde_json::from_str(s1).unwrap();
-		let res2: TransactionModification = serde_json::from_str(s2).unwrap();
-
-		// then
-		assert_eq!(res1, TransactionModification {
-			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
-		});
-		assert_eq!(res2, TransactionModification {
-			gas_price: None,
-		});
 	}
 }
 
