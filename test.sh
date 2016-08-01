@@ -1,7 +1,7 @@
 #!/bin/sh
 # Running Parity Full Test Sute
 
-FEATURES="--features ethcore/json-tests"
+FEATURES="--features json-tests"
 
 case $1 in
     --no-json)

@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::RwLock;
-use std::ops::*;
 use ipc::IpcConfig;
 use std::mem;
 use ipc::binary::BinaryConvertError;
@@ -31,4 +29,4 @@ impl BadlyNamedService {
 	}
 }
 
-impl ::ipc::IpcConfig<BadlyNamedService> for ::std::sync::Arc<BadlyNamedService> {}
+impl IpcConfig for BadlyNamedService {}
