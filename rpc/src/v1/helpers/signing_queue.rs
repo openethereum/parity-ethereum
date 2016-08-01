@@ -20,7 +20,7 @@ use std::sync::{mpsc, Arc};
 use std::collections::HashMap;
 use jsonrpc_core;
 use util::{Mutex, RwLock, U256};
-use v1::helpers::{TransactionRequest, TransactionConfirmation};
+use v1::helpers::{TransactionRequest, ConfirmationRequest, ConfirmationPayload};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
@@ -54,21 +54,21 @@ pub type QueueEventReceiver = mpsc::Receiver<QueueEvent>;
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
 	/// Returns a `ConfirmationPromise` that can be used to await for resolution of given request.
-	fn add_request(&self, request: ConfirmationRequest) -> ConfirmationPromise;
+	fn add_request(&self, request: ConfirmationPayload) -> ConfirmationPromise;
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
-	fn request_rejected(&self, id: U256) -> Option<Confirmation>;
+	fn request_rejected(&self, id: U256) -> Option<ConfirmationRequest>;
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was confirmed and given hash was assigned.
-	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<Confirmation>;
+	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<ConfirmationRequest>;
 
 	/// Returns a request if it is contained in the queue.
-	fn peek(&self, id: &U256) -> Option<Confirmation>;
+	fn peek(&self, id: &U256) -> Option<ConfirmationRequest>;
 
 	/// Return copy of all the requests in the queue.
-	fn requests(&self) -> Vec<Confirmation>;
+	fn requests(&self) -> Vec<ConfirmationRequest>;
 
 	/// Returns number of requests awaiting confirmation.
 	fn len(&self) -> usize;
@@ -100,7 +100,7 @@ const QUEUE_TIMEOUT_DURATION_SEC : u64 = 20;
 pub struct ConfirmationToken {
 	result: Arc<Mutex<ConfirmationResult>>,
 	handle: thread::Thread,
-	request: Confirmation,
+	request: ConfirmationRequest,
 }
 
 pub struct ConfirmationPromise {
@@ -223,7 +223,7 @@ impl ConfirmationsQueue {
 
 	/// Removes requests from this queue and notifies `ConfirmationPromise` holders about the result.
 	/// Notifies also a receiver about that event.
-	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<TransactionConfirmation> {
+	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<ConfirmationRequest> {
 		let token = self.queue.write().remove(&id);
 
 		if let Some(token) = token {
@@ -248,7 +248,7 @@ impl Drop for ConfirmationsQueue {
 }
 
 impl SigningQueue for ConfirmationsQueue {
-	fn add_request(&self, request: TransactionRequest) -> ConfirmationPromise {
+	fn add_request(&self, request: ConfirmationPayload) -> ConfirmationPromise {
 		// Increment id
 		let id = {
 			let mut last_id = self.id.lock();
@@ -264,7 +264,7 @@ impl SigningQueue for ConfirmationsQueue {
 			queue.insert(id, ConfirmationToken {
 				result: Arc::new(Mutex::new(ConfirmationResult::Waiting)),
 				handle: thread::current(),
-				request: Confirmation {
+				request: ConfirmationRequest {
 					id: id,
 					payload: request,
 				},
@@ -277,21 +277,21 @@ impl SigningQueue for ConfirmationsQueue {
 
 	}
 
-	fn peek(&self, id: &U256) -> Option<Confirmation> {
+	fn peek(&self, id: &U256) -> Option<ConfirmationRequest> {
 		self.queue.read().get(id).map(|token| token.request.clone())
 	}
 
-	fn request_rejected(&self, id: U256) -> Option<Confirmation> {
+	fn request_rejected(&self, id: U256) -> Option<ConfirmationRequest> {
 		debug!(target: "own_tx", "Signer: Request rejected ({:?}).", id);
 		self.remove(id, None)
 	}
 
-	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<Confirmation> {
+	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<ConfirmationRequest> {
 		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", id);
 		self.remove(id, Some(result))
 	}
 
-	fn requests(&self) -> Vec<TransactionConfirmation> {
+	fn requests(&self) -> Vec<ConfirmationRequest> {
 		let queue = self.queue.read();
 		queue.values().map(|token| token.request.clone()).collect()
 	}

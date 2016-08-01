@@ -17,7 +17,7 @@
 //! `TransactionRequest` type
 
 use v1::types::{Bytes, H160, U256};
-use v1::helpers::{TransactionRequest as Request, TransactionConfirmation as Confirmation};
+use v1::helpers;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -39,8 +39,8 @@ pub struct TransactionRequest {
 	pub nonce: Option<U256>,
 }
 
-impl From<Request> for TransactionRequest {
-	fn from(r: Request) -> Self {
+impl From<helpers::TransactionRequest> for TransactionRequest {
+	fn from(r: helpers::TransactionRequest) -> Self {
 		TransactionRequest {
 			from: r.from.into(),
 			to: r.to.map(Into::into),
@@ -53,9 +53,9 @@ impl From<Request> for TransactionRequest {
 	}
 }
 
-impl Into<Request> for TransactionRequest {
-	fn into(self) -> Request {
-		Request {
+impl Into<helpers::TransactionRequest> for TransactionRequest {
+	fn into(self) -> helpers::TransactionRequest {
+		helpers::TransactionRequest {
 			from: self.from.into(),
 			to: self.to.map(Into::into),
 			gas_price: self.gas_price.map(Into::into),
@@ -67,25 +67,39 @@ impl Into<Request> for TransactionRequest {
 	}
 }
 
-/// Transaction confirmation waiting in a queue
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize)]
-pub struct TransactionConfirmation {
+/// Confirmation waiting in a queue
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+pub struct ConfirmationRequest {
 	/// Id of this confirmation
 	pub id: U256,
 	/// TransactionRequest
-	pub transaction: TransactionRequest,
+	pub payload: ConfirmationPayload,
 }
 
-impl From<Confirmation> for TransactionConfirmation {
-	fn from(c: Confirmation) -> Self {
-		TransactionConfirmation {
+impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
+	fn from(c: helpers::ConfirmationRequest) -> Self {
+		ConfirmationRequest {
 			id: c.id.into(),
-			transaction: c.transaction.into(),
+			payload: c.payload.into(),
 		}
 	}
 }
 
-/// Possible modifications to the confirmed transaction sent by `SignerUI`
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+pub enum ConfirmationPayload {
+	/// Transaction
+	Transaction(TransactionRequest),
+}
+
+impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
+	fn from(c: helpers::ConfirmationPayload) -> Self {
+		match c {
+			helpers::ConfirmationPayload::Transaction(t) => ConfirmationPayload::Transaction(t.into()),
+		}
+	}
+}
+
+/// Possible modifications to the confirmed transaction sent by `Trusted Signer`
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct TransactionModification {
 	/// Modified gas price
@@ -186,6 +200,12 @@ mod tests {
 			data: Some(vec![0x85, 0x95, 0xba, 0xb1].into()),
 			nonce: None,
 		});
+	}
+
+	#[test]
+	fn should_serialize_confirmation() {
+		// TODO [todr]
+		assert_eq!(true, false)
 	}
 
 

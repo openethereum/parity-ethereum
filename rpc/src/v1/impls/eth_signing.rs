@@ -23,7 +23,7 @@ use ethcore::client::MiningBlockChainClient;
 use util::{U256, Address, H256, Mutex};
 use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
-use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, TransactionRequest as TRequest};
+use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, ConfirmationPayload, TransactionRequest as TRequest};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
 use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error};
@@ -88,7 +88,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 
 				let queue = take_weak!(self.queue);
 				fill_optional_fields(&mut request, &*client, &*miner);
-				let promise = queue.add_request(request);
+				let promise = queue.add_request(ConfirmationPayload::Transaction(request));
 				f(promise)
 			})
 	}

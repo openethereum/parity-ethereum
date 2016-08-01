@@ -105,9 +105,10 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 	}
 }
 
-fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, address: Address, password: String) -> Result<Value, Error>
+fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, password: String) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
+	let address = request.from;
 	let signed_transaction = {
 		let t = prepare_transaction(client, miner, request);
 		let hash = t.hash();

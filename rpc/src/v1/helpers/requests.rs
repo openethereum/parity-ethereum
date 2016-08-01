@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, U256};
+use util::{Address, U256, Bytes};
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -30,14 +30,14 @@ pub struct TransactionRequest {
 	/// Value of transaction in wei
 	pub value: Option<U256>,
 	/// Additional data sent with transaction
-	pub data: Option<Vec<u8>>,
+	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
 }
 
 /// Confirmation object
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
-pub struct Confirmation {
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct ConfirmationRequest {
 	/// Id of this confirmation
 	pub id: U256,
 	/// Payload to confirm
@@ -45,8 +45,8 @@ pub struct Confirmation {
 }
 
 /// Payload to confirm in Trusted Signer
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
-pub enum ConfirmationRequest {
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum ConfirmationPayload {
 	/// Transaction
 	Transaction(TransactionRequest),
 }
