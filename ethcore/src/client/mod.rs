@@ -40,13 +40,13 @@ pub use self::traits::{BlockChainClient, MiningBlockChainClient, RemoteClient};
 
 mod traits {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/traits.ipc.rs"));
+	include!(concat!(env!("OUT_DIR"), "/traits.rs"));
 }
 
 pub mod chain_notify {
 	//! Chain notify interface
 
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/chain_notify.ipc.rs"));
+	include!(concat!(env!("OUT_DIR"), "/chain_notify.rs"));
 }
 
