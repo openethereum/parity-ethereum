@@ -96,7 +96,7 @@ impl From<ethjson::spec::Account> for PodAccount {
 		PodAccount {
 			balance: a.balance.map_or_else(U256::zero, Into::into),
 			nonce: a.nonce.map_or_else(U256::zero, Into::into),
-			code: Some(vec![]),
+			code: a.code.map(|c| c.into()).or(Some(Vec::new())),
 			storage: BTreeMap::new()
 		}
 	}
