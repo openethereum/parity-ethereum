@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethcore_ipc_codegen as codegen;
+extern crate ethcore_ipc_codegen;
 
 fn main() {
-	codegen::derive_binary("src/types/mod.rs.in");
-	codegen::derive_ipc("src/client/traits.rs");
-	codegen::derive_ipc("src/client/chain_notify.rs");
+	ethcore_ipc_codegen::derive_binary("src/types/mod.rs.in").unwrap();
+	ethcore_ipc_codegen::derive_ipc("src/client/traits.rs").unwrap();
+	ethcore_ipc_codegen::derive_ipc("src/client/chain_notify.rs").unwrap();
 }
