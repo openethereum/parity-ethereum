@@ -53,6 +53,20 @@ impl From<helpers::TransactionRequest> for TransactionRequest {
 	}
 }
 
+impl From<helpers::FilledTransactionRequest> for TransactionRequest {
+	fn from(r: helpers::FilledTransactionRequest) -> Self {
+		TransactionRequest {
+			from: r.from.into(),
+			to: r.to.map(Into::into),
+			gas_price: Some(r.gas_price.into()),
+			gas: Some(r.gas.into()),
+			value: Some(r.value.into()),
+			data: Some(r.data.into()),
+			nonce: r.nonce.map(Into::into),
+		}
+	}
+}
+
 impl Into<helpers::TransactionRequest> for TransactionRequest {
 	fn into(self) -> helpers::TransactionRequest {
 		helpers::TransactionRequest {

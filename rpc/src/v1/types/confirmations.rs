@@ -74,13 +74,13 @@ mod tests {
 		// given
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
-			payload: helpers::ConfirmationPayload::Transaction(helpers::TransactionRequest {
+			payload: helpers::ConfirmationPayload::Transaction(helpers::FilledTransactionRequest {
 				from: 0.into(),
 				to: None,
-				gas: Some(15_000.into()),
-				gas_price: Some(10_000.into()),
-				value: Some(100_000.into()),
-				data: Some(vec![1, 2, 3]),
+				gas: 15_000.into(),
+				gas_price: 10_000.into(),
+				value: 100_000.into(),
+				data: vec![1, 2, 3],
 				nonce: Some(1.into()),
 			})
 		};

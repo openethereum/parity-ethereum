@@ -23,7 +23,7 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use v1::{SignerClient, PersonalSigner};
 use v1::tests::helpers::TestMinerService;
-use v1::helpers::{SigningQueue, ConfirmationsQueue, TransactionRequest, ConfirmationPayload};
+use v1::helpers::{SigningQueue, ConfirmationsQueue, FilledTransactionRequest, ConfirmationPayload};
 
 struct PersonalSignerTester {
 	queue: Arc<ConfirmationsQueue>,
@@ -71,19 +71,19 @@ fn signer_tester() -> PersonalSignerTester {
 fn should_return_list_of_items_to_confirm() {
 	// given
 	let tester = signer_tester();
-	tester.queue.add_request(ConfirmationPayload::Transaction(TransactionRequest {
+	tester.queue.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
 		from: Address::from(1),
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-		gas_price: Some(U256::from(10_000)),
-		gas: Some(U256::from(10_000_000)),
-		value: Some(U256::from(1)),
-		data: None,
+		gas_price: U256::from(10_000),
+		gas: U256::from(10_000_000),
+		value: U256::from(1),
+		data: vec![],
 		nonce: None,
 	}));
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"personal_confirmationsQueue","params":[],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[{"id":"0x01","payload":{"transaction":{"data":null,"from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x01"}}}],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[{"id":"0x01","payload":{"transaction":{"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x01"}}}],"id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
@@ -94,13 +94,13 @@ fn should_return_list_of_items_to_confirm() {
 fn should_reject_transaction_from_queue_without_dispatching() {
 	// given
 	let tester = signer_tester();
-	tester.queue.add_request(ConfirmationPayload::Transaction(TransactionRequest {
+	tester.queue.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
 		from: Address::from(1),
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-		gas_price: Some(U256::from(10_000)),
-		gas: Some(U256::from(10_000_000)),
-		value: Some(U256::from(1)),
-		data: None,
+		gas_price: U256::from(10_000),
+		gas: U256::from(10_000_000),
+		value: U256::from(1),
+		data: vec![],
 		nonce: None,
 	}));
 	assert_eq!(tester.queue.requests().len(), 1);
@@ -119,13 +119,13 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 fn should_not_remove_transaction_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.queue.add_request(ConfirmationPayload::Transaction(TransactionRequest {
+	tester.queue.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
 		from: Address::from(1),
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
-		gas_price: Some(U256::from(10_000)),
-		gas: Some(U256::from(10_000_000)),
-		value: Some(U256::from(1)),
-		data: None,
+		gas_price: U256::from(10_000),
+		gas: U256::from(10_000_000),
+		value: U256::from(1),
+		data: vec![],
 		nonce: None,
 	}));
 	assert_eq!(tester.queue.requests().len(), 1);
@@ -145,13 +145,13 @@ fn should_confirm_transaction_and_dispatch() {
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.queue.add_request(ConfirmationPayload::Transaction(TransactionRequest {
+	tester.queue.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
 		from: address,
 		to: Some(recipient),
-		gas_price: Some(U256::from(10_000)),
-		gas: Some(U256::from(10_000_000)),
-		value: Some(U256::from(1)),
-		data: None,
+		gas_price: U256::from(10_000),
+		gas: U256::from(10_000_000),
+		value: U256::from(1),
+		data: vec![],
 		nonce: None,
 	}));
 

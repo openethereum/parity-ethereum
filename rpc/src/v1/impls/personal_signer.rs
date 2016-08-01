@@ -78,10 +78,10 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 						ConfirmationPayload::Transaction(mut request) => {
 							// apply modification
 							if let Some(gas_price) = modification.gas_price {
-								request.gas_price = Some(gas_price.into());
+								request.gas_price = gas_price.into();
 							}
 
-							unlock_sign_and_dispatch(&*client, &*miner, request, &*accounts, pass)
+							unlock_sign_and_dispatch(&*client, &*miner, request.into(), &*accounts, pass)
 						},
 					};
 					if let Ok(ref response) = result {

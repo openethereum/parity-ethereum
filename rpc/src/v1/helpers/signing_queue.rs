@@ -314,18 +314,18 @@ mod test {
 	use std::thread;
 	use std::sync::Arc;
 	use util::{Address, U256, H256, Mutex};
-	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, TransactionRequest, ConfirmationPayload};
+	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload};
 	use v1::types::H256 as NH256;
 	use jsonrpc_core::to_value;
 
 	fn request() -> ConfirmationPayload {
-		ConfirmationPayload::Transaction(TransactionRequest {
+		ConfirmationPayload::Transaction(FilledTransactionRequest {
 			from: Address::from(1),
 			to: Some(Address::from(2)),
-			gas_price: None,
-			gas: None,
-			value: Some(U256::from(10_000_000)),
-			data: None,
+			gas_price: 0.into(),
+			gas: 10_000.into(),
+			value: 10_000_000.into(),
+			data: vec![],
 			nonce: None,
 		})
 	}

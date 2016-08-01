@@ -23,24 +23,21 @@ use ethcore::client::MiningBlockChainClient;
 use util::{U256, Address, H256, Mutex};
 use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
-use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, ConfirmationPayload, TransactionRequest as TRequest};
+use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
 use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error};
 
-fn fill_optional_fields<C, M>(request: &mut TRequest, client: &C, miner: &M)
+fn fill_optional_fields<C, M>(request: TRequest, client: &C, miner: &M) -> FilledRequest
 	where C: MiningBlockChainClient, M: MinerService {
-	if request.value.is_none() {
-		request.value = Some(U256::from(0));
-	}
-	if request.gas.is_none() {
-		request.gas = Some(miner.sensible_gas_limit());
-	}
-	if request.gas_price.is_none() {
-		request.gas_price = Some(default_gas_price(client, miner));
-	}
-	if request.data.is_none() {
-		request.data = Some(Vec::new());
+	FilledRequest {
+		from: request.from,
+		to: request.to,
+		nonce: request.nonce,
+		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
+		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
+		value: request.value.unwrap_or_else(|| 0.into()),
+		data: request.data.unwrap_or_else(Vec::new),
 	}
 }
 
@@ -77,7 +74,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 	fn dispatch<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
-				let mut request: TRequest = request.into();
+				let request: TRequest = request.into();
 				let accounts = take_weak!(self.accounts);
 				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 
@@ -87,7 +84,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 				}
 
 				let queue = take_weak!(self.queue);
-				fill_optional_fields(&mut request, &*client, &*miner);
+				let request = fill_optional_fields(request, &*client, &*miner);
 				let promise = queue.add_request(ConfirmationPayload::Transaction(request));
 				f(promise)
 			})

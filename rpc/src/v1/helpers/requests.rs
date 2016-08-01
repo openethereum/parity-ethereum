@@ -35,6 +35,39 @@ pub struct TransactionRequest {
 	pub nonce: Option<U256>,
 }
 
+/// Transaction request coming from RPC with default values filled in.
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
+pub struct FilledTransactionRequest {
+	/// Sender
+	pub from: Address,
+	/// Recipient
+	pub to: Option<Address>,
+	/// Gas Price
+	pub gas_price: U256,
+	/// Gas
+	pub gas: U256,
+	/// Value of transaction in wei
+	pub value: U256,
+	/// Additional data sent with transaction
+	pub data: Bytes,
+	/// Transaction's nonce
+	pub nonce: Option<U256>,
+}
+
+impl From<FilledTransactionRequest> for TransactionRequest {
+	fn from(r: FilledTransactionRequest) -> Self {
+		TransactionRequest {
+			from: r.from,
+			to: r.to,
+			gas_price: Some(r.gas_price),
+			gas: Some(r.gas),
+			value: Some(r.value),
+			data: Some(r.data),
+			nonce: r.nonce,
+		}
+	}
+}
+
 /// Call request
 #[derive(Debug, Default, PartialEq)]
 pub struct CallRequest {
@@ -67,5 +100,5 @@ pub struct ConfirmationRequest {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum ConfirmationPayload {
 	/// Transaction
-	Transaction(TransactionRequest),
+	Transaction(FilledTransactionRequest),
 }
