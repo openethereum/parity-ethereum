@@ -43,8 +43,10 @@ impl Default for ExternalMiner {
 
 impl ExternalMiner {
 	/// Creates new external miner with prefilled hashrates.
-	pub fn new() -> Self {
-		Default::default()
+	pub fn new(hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>) -> Self {
+		ExternalMiner {
+			hashrates: hashrates,
+		}
 	}
 }
 
@@ -57,7 +59,7 @@ impl ExternalMinerService for ExternalMiner {
 
 	fn hashrate(&self) -> U256 {
 		let mut hashrates = self.hashrates.lock();
-		let h = hashrates.drain().filter(|&(_, (t, _))| t < Instant::now()).collect();
+		let h = hashrates.drain().filter(|&(_, (t, _))| t > Instant::now()).collect();
 		*hashrates = h;
 		hashrates.iter().fold(U256::from(0), |sum, (_, &(_, v))| sum + v)
 	}
@@ -67,7 +69,7 @@ impl ExternalMinerService for ExternalMiner {
 mod tests {
 	use super::*;
 	use std::thread::sleep;
-	use std::time::{Instant, Duration};
+	use std::time::Duration;
 	use util::{H256, U256};
 
 	fn miner() -> ExternalMiner {
@@ -83,7 +85,7 @@ mod tests {
 		assert_eq!(m.hashrate(), U256::from(10));
 
 		// when
-		sleep(Duration::from_secs(1));
+		sleep(Duration::from_secs(3));
 
 		// then
 		assert_eq!(m.hashrate(), U256::from(0));
