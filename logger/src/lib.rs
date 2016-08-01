@@ -91,7 +91,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 		let with_color = if max_log_level() <= LogLevelFilter::Info {
 			format!("{}{}", Colour::Black.bold().paint(timestamp), record.args())
 		} else {
-			let name = thread::current().name().map(|x| format!("{}", Colour::Blue.bold().paint(x))).unwrap_or_else(Default::default);
+			let name = thread::current().name().map_or_else(Default::default, |x| format!("{}", Colour::Blue.bold().paint(x)));
 			format!("{}{} {} {}  {}", Colour::Black.bold().paint(timestamp), name, record.level(), record.target(), record.args())
 		};
 
