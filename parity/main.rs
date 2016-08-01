@@ -25,6 +25,8 @@
 extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
+extern crate ethcore_devtools as devtools;
+#[macro_use]
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
@@ -113,17 +115,17 @@ fn start() -> Result<String, String> {
 
 fn main() {
 	// just redirect to the sync::main()
-	if std::env::args().nth(1).map(|arg| arg == "sync").unwrap_or(false) {
+	if std::env::args().nth(1).map_or(false, |arg| arg == "sync") {
 		sync::main();
 		return;
 	}
 
 	match start() {
 		Ok(result) => {
-			print!("{}", result);
+			println!("{}", result);
 		},
 		Err(err) => {
-			print!("{}", err);
+			println!("{}", err);
 			process::exit(1);
 		}
 	}

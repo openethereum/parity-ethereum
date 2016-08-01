@@ -340,10 +340,16 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		}
 	}
 
-	fn accounts(&self, _: Params) -> Result<Value, Error> {
+	fn accounts(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		let store = take_weak!(self.accounts);
-		to_value(&store.accounts().into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+		match params {
+			Params::None => {
+				let store = take_weak!(self.accounts);
+				let accounts = try!(store.accounts().map_err(|_| Error::internal_error()));
+				to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+			},
+			_ => Err(Error::invalid_params())
+		}
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
@@ -375,7 +381,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				match block_number {
 					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)))),
 					id => match take_weak!(self.client).storage_at(&address, &H256::from(position), id.into()) {
-						Some(s) => to_value(&RpcU256::from(s)),
+						Some(s) => to_value(&RpcH256::from(s)),
 						None => Err(make_unsupported_err()), // None is only returned on unsupported requests.
 					}
 				}

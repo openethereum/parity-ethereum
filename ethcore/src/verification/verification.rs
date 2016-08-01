@@ -22,7 +22,7 @@
 /// 3. Final verification against the blockchain done before enactment.
 
 use common::*;
-use engine::Engine;
+use engines::Engine;
 use blockchain::*;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
@@ -233,7 +233,7 @@ mod tests {
 	use error::BlockError::*;
 	use views::*;
 	use blockchain::*;
-	use engine::*;
+	use engines::Engine;
 	use spec::*;
 	use transaction::*;
 	use tests::helpers::*;
@@ -285,6 +285,14 @@ mod tests {
 		/// Get raw block data
 		fn block(&self, hash: &H256) -> Option<Bytes> {
 			self.blocks.get(hash).cloned()
+		}
+
+		fn block_header_data(&self, hash: &H256) -> Option<Bytes> {
+			self.block(hash).map(|b| BlockView::new(&b).header_rlp().as_raw().to_vec())
+		}
+
+		fn block_body(&self, hash: &H256) -> Option<Bytes> {
+			self.block(hash).map(|b| BlockChain::block_to_body(&b))
 		}
 
 		/// Get the familial details concerning a block.
@@ -350,7 +358,7 @@ mod tests {
 			gas: U256::from(30_000),
 			gas_price: U256::from(40_000),
 			nonce: U256::one()
-		}.sign(&keypair.secret());
+		}.sign(keypair.secret());
 
 		let tr2 = Transaction {
 			action: Action::Create,
@@ -359,7 +367,7 @@ mod tests {
 			gas: U256::from(30_000),
 			gas_price: U256::from(40_000),
 			nonce: U256::from(2)
-		}.sign(&keypair.secret());
+		}.sign(keypair.secret());
 
 		let good_transactions = [ tr1.clone(), tr2.clone() ];
 

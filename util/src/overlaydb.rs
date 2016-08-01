@@ -24,7 +24,6 @@ use hashdb::*;
 use memorydb::*;
 use std::ops::*;
 use std::sync::*;
-use std::env;
 use std::collections::HashMap;
 use kvdb::{Database, DBTransaction};
 
@@ -40,22 +39,29 @@ use kvdb::{Database, DBTransaction};
 pub struct OverlayDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
+	column: Option<u32>,
 }
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: Database) -> OverlayDB { Self::new_with_arc(Arc::new(backing)) }
-
-	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new_with_arc(backing: Arc<Database>) -> OverlayDB {
-		OverlayDB{ overlay: MemoryDB::new(), backing: backing }
+	pub fn new(backing: Arc<Database>, col: Option<u32>) -> OverlayDB {
+		OverlayDB{ overlay: MemoryDB::new(), backing: backing, column: col }
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
+	#[cfg(test)]
 	pub fn new_temp() -> OverlayDB {
-		let mut dir = env::temp_dir();
+		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(Database::open_default(dir.to_str().unwrap()).unwrap())
+		Self::new(Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap()), None)
+	}
+
+	/// Commit all operations in a single batch.
+	#[cfg(test)]
+	pub fn commit(&mut self) -> Result<u32, UtilError> {
+		let batch = self.backing.transaction();
+		let res = try!(self.commit_to_batch(&batch));
+		self.backing.write(batch).map(|_| res).map_err(|e| e.into())
 	}
 
 	/// Commit all operations to given batch.
@@ -88,91 +94,16 @@ impl OverlayDB {
 		Ok(ret)
 	}
 
-	/// Commit all memory operations to the backing database.
-	///
-	/// Returns either an error or the number of items changed in the backing database.
-	///
-	/// Will return an error if the number of `remove()`s ever exceeds the number of
-	/// `insert()`s for any key. This will leave the database in an undeterminate
-	/// state. Don't ever let it happen.
-	///
-	/// # Example
-	/// ```
-	/// extern crate ethcore_util;
-	/// use ethcore_util::hashdb::*;
-	/// use ethcore_util::overlaydb::*;
-	/// fn main() {
-	///   let mut m = OverlayDB::new_temp();
-	///   let key = m.insert(b"foo");			// insert item.
-	///   assert!(m.contains(&key));			// key exists (in memory).
-	///   assert_eq!(m.commit().unwrap(), 1);	// 1 item changed.
-	///   assert!(m.contains(&key));			// key still exists (in backing).
-	///   m.remove(&key);							// delete item.
-	///   assert!(!m.contains(&key));			// key "doesn't exist" (though still does in backing).
-	///   m.remove(&key);							// oh dear... more removes than inserts for the key...
-	///   //m.commit().unwrap();				// this commit/unwrap would cause a panic.
-	///   m.revert();							// revert both removes.
-	///   assert!(m.contains(&key));			// key now still exists.
-	/// }
-	/// ```
-	pub fn commit(&mut self) -> Result<u32, UtilError> {
-		let mut ret = 0u32;
-		let mut deletes = 0usize;
-		for i in self.overlay.drain().into_iter() {
-			let (key, (value, rc)) = i;
-			if rc != 0 {
-				match self.payload(&key) {
-					Some(x) => {
-						let (back_value, back_rc) = x;
-						let total_rc: i32 = back_rc as i32 + rc;
-						if total_rc < 0 {
-							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
-						}
-						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) {1} else {0};
-					}
-					None => {
-						if rc < 0 {
-							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
-						}
-						self.put_payload(&key, (value, rc as u32));
-					}
-				};
-				ret += 1;
-			}
-		}
-		trace!("OverlayDB::commit() deleted {} nodes", deletes);
-		Ok(ret)
-	}
-
 	/// Revert all operations on this object (i.e. `insert()`s and `remove()`s) since the
 	/// last `commit()`.
-	///
-	/// # Example
-	/// ```
-	/// extern crate ethcore_util;
-	/// use ethcore_util::hashdb::*;
-	/// use ethcore_util::overlaydb::*;
-	/// fn main() {
-	///   let mut m = OverlayDB::new_temp();
-	///   let foo = m.insert(b"foo");	// insert foo.
-	///   m.commit().unwrap();			// commit - new operations begin here...
-	///   let bar = m.insert(b"bar");	// insert bar.
-	///   m.remove(&foo);					// remove foo.
-	///   assert!(!m.contains(&foo));		// foo is gone.
-	///   assert!(m.contains(&bar));		// bar is here.
-	///   m.revert();					// revert the last two operations.
-	///   assert!(m.contains(&foo));		// foo is here.
-	///   assert!(!m.contains(&bar));		// bar is gone.
-	/// }
-	/// ```
 	pub fn revert(&mut self) { self.overlay.clear(); }
 
 	/// Get the number of references that would be committed.
-	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(&key).map_or(0, |&(_, refs)| refs) }
+	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(key).map_or(0, |&(_, refs)| refs) }
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(Bytes, u32)> {
-		self.backing.get(key)
+		self.backing.get(self.column, key)
 			.expect("Low-level database error. Some issue with your hard disk?")
 			.map(|d| {
 				let r = Rlp::new(&d);
@@ -186,24 +117,10 @@ impl OverlayDB {
 			let mut s = RlpStream::new_list(2);
 			s.append(&payload.1);
 			s.append(&payload.0);
-			batch.put(key, s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(self.column, key, s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
 			false
 		} else {
-			batch.delete(key).expect("Low-level database error. Some issue with your hard disk?");
-			true
-		}
-	}
-
-	/// Put the refs and value of the given key, possibly deleting it from the db.
-	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) -> bool {
-		if payload.1 > 0 {
-			let mut s = RlpStream::new_list(2);
-			s.append(&payload.1);
-			s.append(&payload.0);
-			self.backing.put(key, s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
-			false
-		} else {
-			self.backing.delete(key).expect("Low-level database error. Some issue with your hard disk?");
+			batch.delete(self.column, key).expect("Low-level database error. Some issue with your hard disk?");
 			true
 		}
 	}
@@ -212,7 +129,7 @@ impl OverlayDB {
 impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter() {
+		for (key, _) in self.backing.iter(self.column) {
 			let h = H256::from_slice(key.deref());
 			let r = self.payload(&h).unwrap().1;
 			ret.insert(h, r as i32);
@@ -272,6 +189,22 @@ impl HashDB for OverlayDB {
 	fn insert(&mut self, value: &[u8]) -> H256 { self.overlay.insert(value) }
 	fn emplace(&mut self, key: H256, value: Bytes) { self.overlay.emplace(key, value); }
 	fn remove(&mut self, key: &H256) { self.overlay.remove(key); }
+}
+
+#[test]
+fn overlaydb_revert() {
+	let mut m = OverlayDB::new_temp();
+	let foo = m.insert(b"foo");          // insert foo.
+	let batch = m.backing.transaction();
+	m.commit_to_batch(&batch).unwrap();  // commit - new operations begin here...
+	m.backing.write(batch).unwrap();
+	let bar = m.insert(b"bar");          // insert bar.
+	m.remove(&foo);                      // remove foo.
+	assert!(!m.contains(&foo));          // foo is gone.
+	assert!(m.contains(&bar));           // bar is here.
+	m.revert();                          // revert the last two operations.
+	assert!(m.contains(&foo));           // foo is here.
+	assert!(!m.contains(&bar));          // bar is gone.
 }
 
 #[test]
@@ -366,14 +299,18 @@ fn overlaydb_complex() {
 fn playpen() {
 	use std::fs;
 	{
-		let db: Database = Database::open_default("/tmp/test").unwrap();
-		db.put(b"test", b"test2").unwrap();
-		match db.get(b"test") {
+		let db = Database::open_default("/tmp/test").unwrap();
+		let batch = db.transaction();
+		batch.put(None, b"test", b"test2").unwrap();
+		db.write(batch).unwrap();
+		match db.get(None, b"test") {
 			Ok(Some(value)) => println!("Got value {:?}", value.deref()),
 			Ok(None) => println!("No value for that key"),
 			Err(..) => println!("Gah"),
 		}
-		db.delete(b"test").unwrap();
+		let batch = db.transaction();
+		batch.delete(None, b"test").unwrap();
+		db.write(batch).unwrap();
 	}
 	fs::remove_dir_all("/tmp/test").unwrap();
 }

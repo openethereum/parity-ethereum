@@ -21,7 +21,7 @@ pub use blockchain::Config as BlockChainConfig;
 pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
 pub use verification::VerifierType;
-use util::journaldb;
+use util::{journaldb, CompactionProfile};
 use util::trie::TrieSpec;
 
 /// Client state db compaction profile
@@ -39,6 +39,16 @@ impl Default for DatabaseCompactionProfile {
 	}
 }
 
+impl DatabaseCompactionProfile {
+	/// Returns corresponding compaction profile.
+	pub fn compaction_profile(&self) -> CompactionProfile {
+		match *self {
+			DatabaseCompactionProfile::Default => Default::default(),
+			DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
+		}
+	}
+}
+
 impl FromStr for DatabaseCompactionProfile {
 	type Err = String;
 
@@ -46,7 +56,7 @@ impl FromStr for DatabaseCompactionProfile {
 		match s {
 			"ssd" | "default" => Ok(DatabaseCompactionProfile::Default),
 			"hdd" => Ok(DatabaseCompactionProfile::HDD),
-			_ => Err(format!("Invalid compaction profile given. Expected hdd/ssd (default).")),
+			_ => Err("Invalid compaction profile given. Expected hdd/ssd (default).".into()),
 		}
 	}
 }
@@ -91,6 +101,8 @@ pub struct ClientConfig {
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
+	/// Should db have WAL enabled?
+	pub db_wal: bool, 
 	/// Operating mode
 	pub mode: Mode,
 	/// Type of block verifier used by client.

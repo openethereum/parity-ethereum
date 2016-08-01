@@ -55,6 +55,18 @@ pub struct PayloadInfo {
 	pub value_len: usize,
 }
 
+fn calculate_payload_info(header_bytes: &[u8], len_of_len: usize) -> Result<PayloadInfo, DecoderError> {
+	let header_len = 1 + len_of_len;
+	match header_bytes.get(1) {
+		Some(&0) => return Err(DecoderError::RlpDataLenWithZeroPrefix),
+		None => return Err(DecoderError::RlpIsTooShort),
+		_ => (),
+	}
+	if header_bytes.len() < header_len { return Err(DecoderError::RlpIsTooShort); }
+	let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
+	Ok(PayloadInfo::new(header_len, value_len))
+}
+
 impl PayloadInfo {
 	fn new(header_len: usize, value_len: usize) -> PayloadInfo {
 		PayloadInfo {
@@ -68,28 +80,22 @@ impl PayloadInfo {
 
 	/// Create a new object from the given bytes RLP. The bytes
 	pub fn from(header_bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
-		Ok(match header_bytes.first().cloned() {
-			None => return Err(DecoderError::RlpIsTooShort),
-			Some(0...0x7f) => PayloadInfo::new(0, 1),
-			Some(l @ 0x80...0xb7) => PayloadInfo::new(1, l as usize - 0x80),
+		match header_bytes.first().cloned() {
+			None => Err(DecoderError::RlpIsTooShort),
+			Some(0...0x7f) => Ok(PayloadInfo::new(0, 1)),
+			Some(l @ 0x80...0xb7) => Ok(PayloadInfo::new(1, l as usize - 0x80)),
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
-				let header_len = 1 + len_of_len;
-				if header_bytes[1] == 0 { return Err(DecoderError::RlpDataLenWithZeroPrefix); }
-				let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
-				PayloadInfo::new(header_len, value_len)
+				calculate_payload_info(header_bytes, len_of_len)
 			}
-			Some(l @ 0xc0...0xf7) => PayloadInfo::new(1, l as usize - 0xc0),
+			Some(l @ 0xc0...0xf7) => Ok(PayloadInfo::new(1, l as usize - 0xc0)),
 			Some(l @ 0xf8...0xff) => {
 				let len_of_len = l as usize - 0xf7;
-				let header_len = 1 + len_of_len;
-				let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
-				if header_bytes[1] == 0 { return Err(DecoderError::RlpListLenWithZeroPrefix); }
-				PayloadInfo::new(header_len, value_len)
+				calculate_payload_info(header_bytes, len_of_len)
 			},
 			// we cant reach this place, but rust requires _ to be implemented
 			_ => { unreachable!(); }
-		})
+		}
 	}
 }
 
@@ -190,8 +196,8 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 
 	fn size(&self) -> usize {
 		match self.is_data() {
-			// we can safely unwrap (?) cause its data
-			true => BasicDecoder::payload_info(self.bytes).unwrap().value_len,
+			// TODO: No panic on malformed data, but ideally would Err on no PayloadInfo.
+			true => BasicDecoder::payload_info(self.bytes).map(|b| b.value_len).unwrap_or(0),
 			false => 0
 		}
 	}
@@ -342,15 +348,15 @@ impl<'a> BasicDecoder<'a> {
 }
 
 impl<'a> Decoder for BasicDecoder<'a> {
-	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
-		where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
+	fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
+		where F: Fn(&[u8]) -> Result<T, DecoderError> {
 
 		let bytes = self.rlp.as_raw();
 
 		match bytes.first().cloned() {
-			// rlp is too short
+			// RLP is too short.
 			None => Err(DecoderError::RlpIsTooShort),
-			// single byt value
+			// Single byte value.
 			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
 			Some(l @ 0x80...0xb7) => {
@@ -362,10 +368,9 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				if l == 0x81 && d[0] < 0x80 {
 					return Err(DecoderError::RlpInvalidIndirection);
 				}
-
 				Ok(try!(f(d)))
 			},
-			// longer than 55 bytes
+			// Longer than 55 bytes.
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
 				let begin_of_value = 1 as usize + len_of_len;
@@ -380,7 +385,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				}
 				Ok(try!(f(&bytes[begin_of_value..last_index_of_value])))
 			}
-			// we are reading value, not a list!
+			// We are reading value, not a list!
 			_ => Err(DecoderError::RlpExpectedToBeData)
 		}
 	}
@@ -396,9 +401,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 
 impl<T> Decodable for T where T: FromBytes {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_value(| bytes | {
-			Ok(try!(T::from_bytes(bytes)))
-		})
+		decoder.read_value(&|bytes: &[u8]| Ok(try!(T::from_bytes(bytes))))
 	}
 }
 
@@ -416,11 +419,7 @@ impl<T> Decodable for Option<T> where T: Decodable {
 
 impl Decodable for Vec<u8> {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_value(| bytes | {
-			let mut res = vec![];
-			res.extend_from_slice(bytes);
-			Ok(res)
-		})
+		decoder.read_value(&|bytes: &[u8]| Ok(bytes.to_vec()))
 	}
 }
 
@@ -489,11 +488,14 @@ impl RlpDecodable for u8 {
 	}
 }
 
-#[test]
-fn test_rlp_display() {
-	use rustc_serialize::hex::FromHex;
-	let data = "f84d0589010efbef67941f79b2a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470".from_hex().unwrap();
-	let rlp = UntrustedRlp::new(&data);
-	assert_eq!(format!("{}", rlp), "[\"0x05\", \"0x010efbef67941f79b2\", \"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421\", \"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470\"]");
+#[cfg(test)]
+mod tests {
+	use rlp::{UntrustedRlp, View};
+	#[test]
+	fn test_rlp_display() {
+		use rustc_serialize::hex::FromHex;
+		let data = "f84d0589010efbef67941f79b2a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470".from_hex().unwrap();
+		let rlp = UntrustedRlp::new(&data);
+		assert_eq!(format!("{}", rlp), "[\"0x05\", \"0x010efbef67941f79b2\", \"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421\", \"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470\"]");
+	}
 }
-

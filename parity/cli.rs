@@ -48,8 +48,8 @@ Operating Options:
                            [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, homestead-dogmatic, or
-                           testnet [default: homestead].
+                           homestead, mainnet, morden, classic or testnet
+                           [default: homestead].
   -d --db-path PATH        Specify the database & configuration directory path
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
@@ -79,7 +79,8 @@ Networking Options:
   --no-network             Disable p2p networking.
   --port PORT              Override the port on which the node should listen
                            [default: 30303].
-  --peers NUM              Try to maintain that many peers [default: 25].
+  --min-peers NUM          Try to maintain at least NUM peers [default: 25].
+  --max-peers NUM          Allow up to that many peers [default: 50].
   --nat METHOD             Specify method to use for determining public
                            address. Must be one of: any, none, upnp,
                            extip:<IP> [default: any].
@@ -210,8 +211,8 @@ Footprint Options:
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.
-
-Database Options:
+  --fast-and-loose         Disables DB WAL, which gives a significant speed up
+                           but means an unclean exit is unrecoverable. 
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs [default: ssd].
@@ -238,7 +239,7 @@ Legacy Options:
                            Overrides the --keys-path option.
   --datadir PATH           Equivalent to --db-path PATH.
   --networkid INDEX        Equivalent to --network-id INDEX.
-  --maxpeers COUNT         Equivalent to --peers COUNT.
+  --peers NUM              Equivalent to --min-peers NUM.
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   -j --jsonrpc             Does nothing; JSON-RPC is on by default now.
@@ -302,7 +303,8 @@ pub struct Args {
 	pub flag_pruning: String,
 	pub flag_tracing: String,
 	pub flag_port: u16,
-	pub flag_peers: usize,
+	pub flag_min_peers: u16,
+	pub flag_max_peers: u16,
 	pub flag_no_discovery: bool,
 	pub flag_nat: String,
 	pub flag_node_key: Option<String>,
@@ -314,6 +316,7 @@ pub struct Args {
 	pub flag_cache_size_queue: u32,
 	pub flag_cache_size: Option<u32>,
 	pub flag_cache: Option<u32>,
+	pub flag_fast_and_loose: bool,
 
 	pub flag_no_jsonrpc: bool,
 	pub flag_jsonrpc_interface: String,
@@ -363,7 +366,7 @@ pub struct Args {
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,
 	pub flag_nodiscover: bool,
-	pub flag_maxpeers: Option<usize>,
+	pub flag_peers: Option<u16>,
 	pub flag_datadir: Option<String>,
 	pub flag_extradata: Option<String>,
 	pub flag_etherbase: Option<String>,

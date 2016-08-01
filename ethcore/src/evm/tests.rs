@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use common::*;
+use types::executed::CallType;
 use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult};
 use std::fmt::Debug;
 
@@ -36,7 +37,7 @@ pub struct FakeCall {
 	receive_address: Option<Address>,
 	value: Option<U256>,
 	data: Bytes,
-	code_address: Option<Address>
+	code_address: Option<Address>,
 }
 
 /// Fake externalities test structure.
@@ -119,7 +120,9 @@ impl Ext for FakeExt {
 			value: Option<U256>,
 			data: &[u8],
 			code_address: &Address,
-			_output: &mut [u8]) -> MessageCallResult {
+			_output: &mut [u8],
+			_call_type: CallType
+		) -> MessageCallResult {
 
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::Call,

@@ -15,9 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
-use util::{contents, DatabaseConfig, journaldb, H256, Address, U256, version_data};
+use util::{contents, Database, DatabaseConfig, journaldb, H256, Address, U256, version_data};
 use util::journaldb::Algorithm;
+use ethcore::client;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
 use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
@@ -103,11 +105,15 @@ impl Pruning {
 		algo_types.push(Algorithm::default());
 
 		algo_types.into_iter().max_by_key(|i| {
-			let mut client_path = dirs.client_path(genesis_hash, fork_name, *i);
-			client_path.push("state");
-			let db = journaldb::new(client_path.to_str().unwrap(), *i, DatabaseConfig::default());
+			let client_path = dirs.client_path(genesis_hash, fork_name, *i);
+			let config = DatabaseConfig::with_columns(client::DB_NO_OF_COLUMNS);
+			let db = match Database::open(&config, client_path.to_str().unwrap()) {
+				Ok(db) => db,
+				Err(_) => return 0,
+			};
+			let db = journaldb::new(Arc::new(db), *i, client::DB_COL_STATE);
 			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
-			db.latest_era()
+			db.latest_era().unwrap_or(0)
 		}).unwrap()
 	}
 }

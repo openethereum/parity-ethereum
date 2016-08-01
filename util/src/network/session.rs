@@ -128,7 +128,7 @@ impl Session {
 		nonce: &H256, stats: Arc<NetworkStats>, host: &HostInfo) -> Result<Session, UtilError>
 		where Message: Send + Clone {
 		let originated = id.is_some();
-		let mut handshake = Handshake::new(token, id, socket, &nonce, stats).expect("Can't create handshake");
+		let mut handshake = Handshake::new(token, id, socket, nonce, stats).expect("Can't create handshake");
 		try!(handshake.start(io, host, originated));
 		Ok(Session {
 			state: State::Handshake(handshake),
@@ -313,7 +313,7 @@ impl Session {
 		self.connection().token()
 	}
 
-	fn read_packet<Message>(&mut self, io: &IoContext<Message>, packet: Packet, host: &HostInfo) -> Result<SessionData, UtilError> 
+	fn read_packet<Message>(&mut self, io: &IoContext<Message>, packet: Packet, host: &HostInfo) -> Result<SessionData, UtilError>
 	where Message: Send + Sync + Clone {
 		if packet.data.len() < 2 {
 			return Err(From::from(NetworkError::BadProtocol));
@@ -381,7 +381,7 @@ impl Session {
 		self.send(io, rlp)
 	}
 
-	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), UtilError> 
+	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), UtilError>
 	where Message: Send + Sync + Clone {
 		let protocol = try!(rlp.val_at::<u32>(0));
 		let client_version = try!(rlp.val_at::<String>(1));

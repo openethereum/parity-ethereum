@@ -26,7 +26,7 @@ use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use views::{BlockView};
-use error::{ImportResult, ExecutionError};
+use error::{ImportResult, ExecutionError, ReplayError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::Factory as EvmFactory;
@@ -145,10 +145,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn chain_info(&self) -> BlockChainInfo;
 
 	/// Get the best block header.
-	fn best_block_header(&self) -> Bytes {
-		// TODO: lock blockchain only once
-		self.block_header(BlockID::Hash(self.chain_info().best_block_hash)).unwrap()
-	}
+	fn best_block_header(&self) -> Bytes;
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>>;
@@ -159,6 +156,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Makes a non-persistent transaction call.
 	// TODO: should be able to accept blockchain location for call.
 	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
+
+	/// Replays a given transaction for inspection.
+	fn replay(&self, t: TransactionID, analytics: CallAnalytics) -> Result<Executed, ReplayError>;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
