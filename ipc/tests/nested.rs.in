@@ -15,9 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::RwLock;
-use std::ops::*;
 use ipc::IpcConfig;
-use ipc::BinaryConvertable;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
