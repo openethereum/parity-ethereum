@@ -251,9 +251,13 @@ impl State {
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	pub fn commit_into(trie_factory: &TrieFactory, db: &mut HashDB, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>)
-		-> Result<(), Error>
-	{
+	pub fn commit_into(
+		trie_factory: &TrieFactory,
+		db: &mut HashDB,
+		root: &mut H256,
+		accounts: &mut HashMap<Address,
+		Option<Account>>
+	) -> Result<(), Error> {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
 		for (address, ref mut a) in accounts.iter_mut() {
