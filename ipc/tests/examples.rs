@@ -110,9 +110,9 @@ mod tests {
 
 	#[test]
 	fn query_default_version() {
-		let ver = Arc::<Service>::protocol_version();
+		let ver = Service::protocol_version();
 		assert_eq!(ver, Version::parse("1.0.0").unwrap());
-		let ver = Arc::<Service>::api_version();
+		let ver = Service::api_version();
 		assert_eq!(ver, Version::parse("1.0.0").unwrap());
 	}
 

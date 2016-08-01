@@ -33,7 +33,7 @@ pub trait DBWriter {
 	fn write_slice(&self, data: &[u8]) -> Result<(), DBError>;
 }
 
-impl IpcConfig<DBWriter> for ::std::sync::Arc<DBWriter> {}
+impl IpcConfig for DBWriter {}
 
 #[derive(Binary)]
 pub enum DBError { Write, Read }
@@ -58,4 +58,4 @@ trait DBNotify {
 	fn notify(&self, a: u64, b: u64) -> bool;
 }
 
-impl IpcConfig<DBNotify> for ::std::sync::Arc<DBNotify> { }
+impl IpcConfig for DBNotify { }

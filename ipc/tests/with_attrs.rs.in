@@ -31,4 +31,4 @@ impl BadlyNamedService {
 	}
 }
 
-impl ::ipc::IpcConfig<BadlyNamedService> for ::std::sync::Arc<BadlyNamedService> {}
+impl IpcConfig for BadlyNamedService {}
