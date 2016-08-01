@@ -65,20 +65,20 @@ pub trait Personal: Sized + Send + Sync + 'static {
 pub trait PersonalSigner: Sized + Send + Sync + 'static {
 
 	/// Returns a list of items to confirm.
-	fn list_confirmations_queue(&self, _: Params) -> Result<Value, Error>;
+	fn requests_to_confirm(&self, _: Params) -> Result<Value, Error>;
 
 	/// Confirm specific request.
-	fn queue_confirm(&self, _: Params) -> Result<Value, Error>;
+	fn confirm_request(&self, _: Params) -> Result<Value, Error>;
 
 	/// Reject the confirmation request.
-	fn queue_reject(&self, _: Params) -> Result<Value, Error>;
+	fn reject_request(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_method("personal_confirmationsQueue", PersonalSigner::list_confirmations_queue);
-		delegate.add_method("personal_queueConfirm", PersonalSigner::queue_confirm);
-		delegate.add_method("personal_queueReject", PersonalSigner::queue_reject);
+		delegate.add_method("personal_requestsToConfirm", PersonalSigner::requests_to_confirm);
+		delegate.add_method("personal_confirmRequest", PersonalSigner::confirm_request);
+		delegate.add_method("personal_rejectRequest", PersonalSigner::reject_request);
 		delegate
 	}
 }

@@ -55,13 +55,13 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 
 impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
-	fn list_confirmations_queue(&self, _params: Params) -> Result<Value, Error> {
+	fn requests_to_confirm(&self, _params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let queue = take_weak!(self.queue);
 		to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>())
 	}
 
-	fn queue_confirm(&self, params: Params) -> Result<Value, Error> {
+	fn confirm_request(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		// TODO [ToDr] TransactionModification is redundant for some calls
 		// might be better to replace it in future
@@ -96,7 +96,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 		)
 	}
 
-	fn queue_reject(&self, params: Params) -> Result<Value, Error> {
+	fn reject_request(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(U256, )>(params).and_then(
 			|(id, )| {
