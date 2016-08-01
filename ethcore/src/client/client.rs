@@ -452,6 +452,7 @@ impl Client {
 		});
 		// Final commit to the DB
 		self.db.write(batch).expect("State DB write failed.");
+		self.chain.commit();
 
 		self.update_last_hashes(&parent, hash);
 		route

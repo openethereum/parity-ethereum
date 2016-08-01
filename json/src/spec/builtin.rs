@@ -45,7 +45,7 @@ pub struct Builtin {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use spec::builtin::Builtin;
+	use spec::builtin::{Builtin, Pricing, Linear};
 
 	#[test]
 	fn builtin_deserialization() {
@@ -53,7 +53,8 @@ mod tests {
 			"name": "ecrecover",
 			"pricing": { "linear": { "base": 3000, "word": 0 } }
 		}"#;
-		let _deserialized: Builtin = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
+		let deserialized: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.name, "ecrecover");
+		assert_eq!(deserialized.pricing, Pricing::Linear(Linear { base: 3000, word: 0 }));
 	}
 }

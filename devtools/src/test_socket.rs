@@ -62,6 +62,7 @@ impl TestSocket {
 impl Read for TestSocket {
 	fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
 		let end_position = cmp::min(self.read_buffer.len(), self.cursor+buf.len());
+		if self.cursor > end_position { return Ok(0) }
 		let len = cmp::max(end_position - self.cursor, 0);
 		match len {
 			0 => Ok(0),
@@ -69,7 +70,7 @@ impl Read for TestSocket {
 				for i in self.cursor..end_position {
 					buf[i-self.cursor] = self.read_buffer[i];
 				}
-				self.cursor = self.cursor + buf.len();
+				self.cursor = end_position;
 				Ok(len)
 			}
 		}

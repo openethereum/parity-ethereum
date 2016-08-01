@@ -42,38 +42,6 @@ mod tests {
 		assert_eq!(10, *service.commits.read().unwrap());
 	}
 
-
-	#[test]
-	fn call_service_handshake() {
-		let mut socket = TestSocket::new_ready(vec![0, 0,
-			// part count = 3
-			3, 0, 0, 0, 0, 0, 0, 0,
-			// part sizes
-			5, 0, 0, 0, 0, 0, 0, 0,
-			5, 0, 0, 0, 0, 0, 0, 0,
-			64, 0, 0, 0, 0, 0, 0, 0,
-			// total payload length
-			70, 0, 0, 0, 0, 0, 0, 0,
-			// protocol version
-			b'1', b'.', b'0', b'.', b'0',
-			// api version
-			b'1', b'.', b'0', b'.', b'0',
-			// reserved
-
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			]);
-
-		let service = Arc::new(Service::new());
-		let result = service.dispatch(&mut socket);
-
-		// single `true`
-		assert_eq!(vec![1], result);
-	}
-
-
 	#[test]
 	fn call_service_client() {
 		let mut socket = TestSocket::new();
@@ -110,9 +78,9 @@ mod tests {
 
 	#[test]
 	fn query_default_version() {
-		let ver = Arc::<Service>::protocol_version();
+		let ver = Service::protocol_version();
 		assert_eq!(ver, Version::parse("1.0.0").unwrap());
-		let ver = Arc::<Service>::api_version();
+		let ver = Service::api_version();
 		assert_eq!(ver, Version::parse("1.0.0").unwrap());
 	}
 
@@ -153,16 +121,11 @@ mod tests {
 	#[test]
 	fn can_invoke_generic_service() {
 		let mut socket = TestSocket::new();
-		socket.read_buffer = vec![
-			1, 0, 0, 0, 0, 0, 0, 0,
-			1, 0, 0, 0, 0, 0, 0, 0,
-			1, 0, 0, 0, 0, 0, 0, 0,
-			0,
-		];
+		socket.read_buffer = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 		let db_client = DBClient::<u64, _>::init(socket);
-
-		let result = db_client.write(vec![0u8; 100]);
-
+		let result = db_client.write(vec![1u8; 1]);
+		assert_eq!(vec![0, 16, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+			db_client.socket().write().unwrap().write_buffer.clone());
 		assert!(result.is_ok());
 	}
 

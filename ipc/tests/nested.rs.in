@@ -15,9 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::RwLock;
-use std::ops::*;
 use ipc::IpcConfig;
-use ipc::BinaryConvertable;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::VecDeque;
@@ -29,11 +27,11 @@ pub struct DB<L: Sized> {
 }
 
 pub trait DBWriter {
-	fn write(&self, data: Vec<u8>)  -> Result<(), DBError>;
+	fn write(&self, data: Vec<u8>) -> Result<(), DBError>;
 	fn write_slice(&self, data: &[u8]) -> Result<(), DBError>;
 }
 
-impl IpcConfig<DBWriter> for ::std::sync::Arc<DBWriter> {}
+impl IpcConfig for DBWriter {}
 
 #[derive(Binary)]
 pub enum DBError { Write, Read }
@@ -58,4 +56,4 @@ trait DBNotify {
 	fn notify(&self, a: u64, b: u64) -> bool;
 }
 
-impl IpcConfig<DBNotify> for ::std::sync::Arc<DBNotify> { }
+impl IpcConfig for DBNotify { }
