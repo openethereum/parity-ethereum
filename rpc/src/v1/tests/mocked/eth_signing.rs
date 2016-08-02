@@ -84,6 +84,30 @@ fn should_add_sign_to_queue() {
 }
 
 #[test]
+fn should_post_sign_to_queue() {
+	// given
+	let tester = eth_signing();
+	let address = Address::random();
+	assert_eq!(tester.queue.requests().len(), 0);
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_postSign",
+		"params": [
+			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"0x0000000000000000000000000000000000000000000000000000000000000005"
+		],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.queue.requests().len(), 1);
+}
+
+#[test]
 fn should_sign_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();

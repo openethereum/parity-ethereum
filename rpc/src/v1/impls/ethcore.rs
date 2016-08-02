@@ -27,7 +27,7 @@ use ethcore::miner::MinerService;
 use v1::traits::Ethcore;
 use v1::types::{Bytes, U256};
 use v1::helpers::{SigningQueue, ConfirmationsQueue};
-use v1::impls::error_codes;
+use v1::impls::signer_disabled_error;
 
 /// Ethcore implementation.
 pub struct EthcoreClient<C, M> where
@@ -152,11 +152,7 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 	fn unsigned_transactions_count(&self, _params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		match self.confirmations_queue {
-			None => Err(Error {
-				code: ErrorCode::ServerError(error_codes::SIGNER_DISABLED),
-				message: "Trusted Signer is disabled. This API is not available.".into(),
-				data: None
-			}),
+			None => Err(signer_disabled_error()),
 			Some(ref queue) => to_value(&queue.len()),
 		}
 	}

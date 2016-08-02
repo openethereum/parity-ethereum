@@ -26,7 +26,7 @@ use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
-use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error};
+use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error, signer_disabled_error};
 
 fn fill_optional_fields<C, M>(request: TRequest, client: &C, miner: &M) -> FilledRequest
 	where C: MiningBlockChainClient, M: MinerService {
@@ -71,7 +71,23 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 		Ok(())
 	}
 
-	fn dispatch<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
+	fn dispatch_sign<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
+		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
+			let address: Address = address.into();
+			let msg: H256 = msg.into();
+
+			let accounts = take_weak!(self.accounts);
+			if accounts.is_unlocked(address) {
+				return to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into));
+			}
+
+			let queue = take_weak!(self.queue);
+			let promise = queue.add_request(ConfirmationPayload::Sign(address, msg));
+			f(promise)
+		})
+	}
+
+	fn dispatch_transaction<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
 				let request: TRequest = request.into();
@@ -97,31 +113,30 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 
 	fn sign(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
-			let address: Address = address.into();
-			let msg: H256 = msg.into();
-
-			let accounts = take_weak!(self.accounts);
-			if accounts.is_unlocked(address) {
-				return to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into));
-			}
-
-			let queue = take_weak!(self.queue);
-			let promise = queue.add_request(ConfirmationPayload::Sign(address, msg));
+		self.dispatch_sign(params, |promise| {
 			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH520::default()))
+		})
+	}
+
+	fn post_sign(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		self.dispatch_sign(params, |promise| {
+			let id = promise.id();
+			self.pending.lock().insert(id, promise);
+			to_value(&RpcU256::from(id))
 		})
 	}
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch(params, |promise| {
+		self.dispatch_transaction(params, |promise| {
 			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH256::default()))
 		})
 	}
 
 	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch(params, |promise| {
+		self.dispatch_transaction(params, |promise| {
 			let id = promise.id();
 			self.pending.lock().insert(id, promise);
 			to_value(&RpcU256::from(id))
@@ -200,13 +215,18 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 			})
 	}
 
+	fn post_sign(&self, _: Params) -> Result<Value, Error> {
+		// We don't support this in non-signer mode.
+		Err(signer_disabled_error())
+	}
+
 	fn post_transaction(&self, _: Params) -> Result<Value, Error> {
 		// We don't support this in non-signer mode.
-		Err(Error::invalid_params())
+		Err(signer_disabled_error())
 	}
 
 	fn check_transaction(&self, _: Params) -> Result<Value, Error> {
 		// We don't support this in non-signer mode.
-		Err(Error::invalid_params())
+		Err(signer_disabled_error())
 	}
 }
