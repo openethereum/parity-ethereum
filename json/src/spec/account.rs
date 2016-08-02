@@ -17,6 +17,7 @@
 //! Spec account deserialization.
 
 use uint::Uint;
+use bytes::Bytes;
 use spec::builtin::Builtin;
 
 /// Spec account.
@@ -28,6 +29,8 @@ pub struct Account {
 	pub balance: Option<Uint>,
 	/// Nonce.
 	pub nonce: Option<Uint>,
+	/// Code.
+	pub code: Option<Bytes>
 }
 
 impl Account {
@@ -41,14 +44,22 @@ impl Account {
 mod tests {
 	use serde_json;
 	use spec::account::Account;
+	use util::numbers::U256;
+	use uint::Uint;
+	use bytes::Bytes;
 
 	#[test]
 	fn account_deserialization() {
 		let s = r#"{
 			"balance": "1",
-			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } }
+			"nonce": "0",
+			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } },
+			"code": "1234"
 		}"#;
-		let _deserialized: Account = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
+		let deserialized: Account = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.balance.unwrap(), Uint(U256::from(1)));
+		assert_eq!(deserialized.nonce.unwrap(), Uint(U256::from(0)));
+		assert_eq!(deserialized.code.unwrap(), Bytes::new(vec![0x12, 0x34]));
+		assert!(deserialized.builtin.is_some()); // Further tested in builtin.rs
 	}
 }

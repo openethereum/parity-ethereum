@@ -26,7 +26,7 @@ extern crate time;
 #[macro_use]
 extern crate lazy_static;
 
-use std::env;
+use std::{env, thread};
 use std::sync::Arc;
 use std::fs::File;
 use std::io::Write;
@@ -91,7 +91,8 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 		let with_color = if max_log_level() <= LogLevelFilter::Info {
 			format!("{}{}", Colour::Black.bold().paint(timestamp), record.args())
 		} else {
-			format!("{}{}:{}: {}", Colour::Black.bold().paint(timestamp), record.level(), record.target(), record.args())
+			let name = thread::current().name().map_or_else(Default::default, |x| format!("{}", Colour::Blue.bold().paint(x)));
+			format!("{}{} {} {}  {}", Colour::Black.bold().paint(timestamp), name, record.level(), record.target(), record.args())
 		};
 
 		let removed_color = kill_color(with_color.as_ref());

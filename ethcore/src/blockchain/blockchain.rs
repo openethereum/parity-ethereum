@@ -161,6 +161,10 @@ pub struct BlockChain {
 	db: Arc<Database>,
 
 	cache_man: RwLock<CacheManager<CacheID>>,
+
+	pending_best_block: RwLock<Option<BestBlock>>,
+	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
+	pending_transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 }
 
 impl BlockProvider for BlockChain {
@@ -329,6 +333,9 @@ impl BlockChain {
 			block_receipts: RwLock::new(HashMap::new()),
 			db: db.clone(),
 			cache_man: RwLock::new(cache_man),
+			pending_best_block: RwLock::new(None),
+			pending_block_hashes: RwLock::new(HashMap::new()),
+			pending_transaction_addresses: RwLock::new(HashMap::new()),
 		};
 
 		// load best block
@@ -540,6 +547,8 @@ impl BlockChain {
 			return ImportRoute::none();
 		}
 
+		assert!(self.pending_best_block.read().is_none());
+
 		let block_rlp = UntrustedRlp::new(bytes);
 		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
 		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
@@ -559,7 +568,7 @@ impl BlockChain {
 			);
 		}
 
-		self.apply_update(batch, ExtrasUpdate {
+		self.prepare_update(batch, ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
 			block_details: self.prepare_block_details_update(bytes, &info),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
@@ -614,8 +623,8 @@ impl BlockChain {
 		}
 	}
 
-	/// Applies extras update.
-	fn apply_update(&self, batch: &DBTransaction, update: ExtrasUpdate) {
+	/// Prepares extras update.
+	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate) {
 		{
 			for hash in update.block_details.keys().cloned() {
 				self.note_used(CacheID::BlockDetails(hash));
@@ -638,27 +647,44 @@ impl BlockChain {
 		// These cached values must be updated last with all three locks taken to avoid
 		// cache decoherence
 		{
-			let mut best_block = self.best_block.write();
+			let mut best_block = self.pending_best_block.write();
 			// update best block
 			match update.info.location {
 				BlockLocation::Branch => (),
 				_ => {
 					batch.put(DB_COL_EXTRA, b"best", &update.info.hash).unwrap();
-					*best_block = BestBlock {
+					*best_block = Some(BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
 						total_difficulty: update.info.total_difficulty,
 						block: update.block.to_vec(),
-					};
+					});
 				}
 			}
 
-			let mut write_hashes = self.block_hashes.write();
-			let mut write_txs = self.transaction_addresses.write();
+			let mut write_hashes = self.pending_block_hashes.write();
+			let mut write_txs = self.pending_transaction_addresses.write();
 
 			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
 			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
 		}
+	}
+
+	/// Applt pending insertion updates
+	pub fn commit(&self) {
+		let mut best_block = self.best_block.write();
+		let mut write_hashes = self.block_hashes.write();
+		let mut write_txs = self.transaction_addresses.write();
+		let mut pending_best_block = self.pending_best_block.write();
+		let mut pending_write_hashes = self.pending_block_hashes.write();
+		let mut pending_write_txs = self.pending_transaction_addresses.write();
+		// update best block
+		if let Some(block) = pending_best_block.take() {
+			*best_block = block;
+		}
+
+		write_hashes.extend(mem::replace(&mut *pending_write_hashes, HashMap::new()));
+		write_txs.extend(mem::replace(&mut *pending_write_txs, HashMap::new()));
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
@@ -940,6 +966,8 @@ mod tests {
 		// when
 		let batch = db.transaction();
 		bc.insert_block(&batch, &first, vec![]);
+		assert_eq!(bc.best_block_number(), 0);
+		bc.commit();
 		// NOTE no db.write here (we want to check if best block is cached)
 
 		// then
@@ -969,6 +997,7 @@ mod tests {
 		let batch = db.transaction();
 		bc.insert_block(&batch, &first, vec![]);
 		db.write(batch).unwrap();
+		bc.commit();
 
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.best_block_number(), 1);
@@ -996,6 +1025,7 @@ mod tests {
 			let block = canon_chain.generate(&mut finalizer).unwrap();
 			block_hashes.push(BlockView::new(&block).header_view().sha3());
 			bc.insert_block(&batch, &block, vec![]);
+			bc.commit();
 		}
 		db.write(batch).unwrap();
 
@@ -1026,7 +1056,10 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let batch = db.transaction();
-		bc.insert_block(&batch, &b1a, vec![]);
+		for b in [&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b].iter() {
+			bc.insert_block(&batch, b, vec![]);
+			bc.commit();
+		}
 		bc.insert_block(&batch, &b1b, vec![]);
 		bc.insert_block(&batch, &b2a, vec![]);
 		bc.insert_block(&batch, &b2b, vec![]);
@@ -1072,11 +1105,15 @@ mod tests {
 
 		let batch = db.transaction();
 		let ir1 = bc.insert_block(&batch, &b1, vec![]);
+		bc.commit();
 		let ir2 = bc.insert_block(&batch, &b2, vec![]);
+		bc.commit();
 		let ir3b = bc.insert_block(&batch, &b3b, vec![]);
+		bc.commit();
 		db.write(batch).unwrap();
 		let batch = db.transaction();
 		let ir3a = bc.insert_block(&batch, &b3a, vec![]);
+		bc.commit();
 		db.write(batch).unwrap();
 
 		assert_eq!(ir1, ImportRoute {
@@ -1184,6 +1221,7 @@ mod tests {
 			let batch = db.transaction();
 			bc.insert_block(&batch, &first, vec![]);
 			db.write(batch).unwrap();
+			bc.commit();
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
 
@@ -1248,6 +1286,7 @@ mod tests {
 		let batch = db.transaction();
 		bc.insert_block(&batch, &b1, vec![]);
 		db.write(batch).unwrap();
+		bc.commit();
 
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
@@ -1260,6 +1299,7 @@ mod tests {
 		let batch = db.transaction();
 		let res = bc.insert_block(&batch, bytes, receipts);
 		db.write(batch).unwrap();
+		bc.commit();
 		res
 	}
 
@@ -1350,11 +1390,13 @@ mod tests {
 			for _ in 0..5 {
 				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
 				bc.insert_block(&batch, &canon_block, vec![]);
+				bc.commit();
 			}
 
 			assert_eq!(bc.best_block_number(), 5);
 			bc.insert_block(&batch, &uncle, vec![]);
 			db.write(batch).unwrap();
+			bc.commit();
 		}
 
 		// re-loading the blockchain should load the correct best block.
@@ -1380,7 +1422,9 @@ mod tests {
 
 		let batch = db.transaction();
 		bc.insert_block(&batch, &first, vec![]);
+		bc.commit();
 		bc.insert_block(&batch, &second, vec![]);
+		bc.commit();
 		db.write(batch).unwrap();
 
 		assert_eq!(bc.rewind(), Some(first_hash.clone()));
