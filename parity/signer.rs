@@ -91,6 +91,10 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 			deps.apis.signer_queue.clone(),
 			codes_path(conf.signer_path),
 		);
+		if conf.skip_origin_validation {
+			warn!("{}", Colour::Red.bold().paint("*** INSECURE *** Running Trusted Signer with no origin validation."));
+			info!("If you do not intend this, exit now.");
+		}
 		let server = server.skip_origin_validation(conf.skip_origin_validation);
 		let server = rpc_apis::setup_rpc(server, deps.apis, rpc_apis::ApiSet::SafeContext);
 		server.start(addr)
