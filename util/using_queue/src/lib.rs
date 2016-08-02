@@ -71,6 +71,9 @@ impl<T> UsingQueue<T> where T: Clone {
 		self.pending = Some(b);
 	}
 
+	/// Is there anything in the queue currently?
+	pub fn is_in_use(&self) -> bool { self.in_use.len() > 0 }
+
 	/// Clears everything; the queue is entirely reset.
 	pub fn reset(&mut self) {
 		self.pending = None;
