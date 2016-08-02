@@ -107,7 +107,7 @@ pub fn derive_ipc(src_path: &str) -> Result<(), Error> {
 	let file_name = try!(PathBuf::from(src_path).file_name().ok_or(Error::InvalidFileName).map(|val| val.to_str().unwrap().to_owned()));
 
 	let mut intermediate_file_name = file_name.clone();
-	intermediate_file_name.push_str("rpc.in");
+	intermediate_file_name.push_str(".rpc.in");
 
 	let intermediate_path = Path::new(&out_dir).join(&intermediate_file_name);
 	let final_path = Path::new(&out_dir).join(&file_name);
