@@ -31,14 +31,20 @@ pub struct KeyValue {
 	pub value: Vec<u8>,
 }
 
-	#[derive(Debug, Binary)]
-	pub enum Error {
+#[derive(Debug, Binary)]
+pub enum Error {
 	AlreadyOpen,
 	IsClosed,
 	RocksDb(String),
 	TransactionUnknown,
 	IteratorUnknown,
 	UncommitedTransactions,
+}
+
+impl From<String> for Error {
+	fn from(s: String) -> Error {
+		Error::RocksDb(s)
+	}
 }
 
 /// Database configuration
@@ -68,7 +74,7 @@ impl DatabaseConfig {
 	}
 }
 
-	pub trait DatabaseService : Sized {
+pub trait DatabaseService : Sized {
 	/// Opens database in the specified path
 	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error>;
 

@@ -283,7 +283,7 @@ impl<C, S, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&self.external_miner.is_mining()),
+			Params::None => to_value(&(take_weak!(self.miner).is_sealing())),
 			_ => Err(Error::invalid_params())
 		}
 	}
