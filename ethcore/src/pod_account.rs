@@ -71,7 +71,9 @@ impl PodAccount {
 		let mut r = H256::new();
 		let mut t = SecTrieDBMut::new(db, &mut r);
 		for (k, v) in &self.storage {
-			t.insert(k, &encode(&U256::from(v.as_slice())));
+			if let Err(e) = t.insert(k, &encode(&U256::from(v.as_slice()))) {
+				warn!("Encountered potential DB corruption: {}", e);
+			}
 		}
 	}
 }

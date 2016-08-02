@@ -22,7 +22,7 @@ use kvdb::{Database, DBTransaction};
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
-pub trait JournalDB : HashDB + Send + Sync {
+pub trait JournalDB: HashDB {
 	/// Return a copy of ourself, in a box.
 	fn boxed_clone(&self) -> Box<JournalDB>;
 

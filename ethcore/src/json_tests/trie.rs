@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethjson;
-use util::{H256, MemoryDB, TrieSpec, TrieFactory};
+use util::trie::{TrieFactory, TrieSpec};
+use util::hash::H256;
+use util::memorydb::MemoryDB;
 
 fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();
@@ -30,7 +32,8 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 		for (key, value) in test.input.data.into_iter() {
 			let key: Vec<u8> = key.into();
 			let value: Vec<u8> = value.map_or_else(Vec::new, Into::into);
-			t.insert(&key, &value);
+			t.insert(&key, &value)
+				.expect(&format!("Trie test '{:?}' failed due to internal error", name))
 		}
 
 		if *t.root() != test.root.into() {
@@ -46,7 +49,7 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 }
 
 mod generic {
-	use util::TrieSpec;
+	use util::trie::TrieSpec;
 
 	fn do_json_test(json: &[u8]) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Generic)
@@ -57,7 +60,7 @@ mod generic {
 }
 
 mod secure {
-	use util::TrieSpec;
+	use util::trie::TrieSpec;
 
 	fn do_json_test(json: &[u8]) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Secure)
