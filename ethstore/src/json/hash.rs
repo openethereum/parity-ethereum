@@ -109,4 +109,3 @@ macro_rules! impl_hash {
 impl_hash!(H128, 16);
 impl_hash!(H160, 20);
 impl_hash!(H256, 32);
-impl_hash!(H768, 96);
