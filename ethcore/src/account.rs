@@ -139,7 +139,7 @@ impl Account {
 				using it will not fail.");
 
 			let item: U256 = match db.get(key){
-				Ok(x) => x.map_or_else(|| U256::zero(), decode),
+				Ok(x) => x.map_or_else(U256::zero, decode),
 				Err(e) => panic!("Encountered potential DB corruption: {}", e),
 			};
 			(Filth::Clean, item.into())
