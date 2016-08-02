@@ -298,7 +298,7 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 		};
 
 		let from = GethDirectory::open(t);
-		let to = DiskDirectory::create(dirs.keys.clone()).unwrap();
+		let to = try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e)));
 		match import_accounts(&from, &to) {
 			Ok(_) => {}
 			Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => {}
@@ -306,8 +306,10 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 		}
 	}
 
-	let dir = Box::new(DiskDirectory::create(dirs.keys.clone()).unwrap());
-	let account_service = AccountProvider::new(Box::new(EthStore::open_with_iterations(dir, cfg.iterations).unwrap()));
+	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
+	let account_service = AccountProvider::new(Box::new(
+		try!(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e)))
+	));
 
 	for a in cfg.unlocked_accounts {
 		if passwords.iter().find(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()).is_none() {
