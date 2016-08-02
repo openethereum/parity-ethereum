@@ -126,7 +126,7 @@ impl OverlayRecentDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_overlay(db: &Database, col: Option<u32>) -> JournalOverlay {

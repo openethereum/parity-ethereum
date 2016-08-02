@@ -413,6 +413,7 @@ impl Client {
 			}
 		}
 
+		self.db.flush().expect("DB flush failed.");
 		imported
 	}
 
@@ -440,7 +441,7 @@ impl Client {
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(&batch, number, hash, ancient).expect("State DB commit failed.");
+		block.drain().commit(&batch, number, hash, ancient).expect("DB commit failed.");
 
 		let route = self.chain.insert_block(&batch, block_data, receipts);
 		self.tracedb.import(&batch, TraceImportRequest {
@@ -451,7 +452,7 @@ impl Client {
 			retracted: route.retracted.len()
 		});
 		// Final commit to the DB
-		self.db.write(batch).expect("State DB write failed.");
+		self.db.write_buffered(batch).expect("DB write failed.");
 		self.chain.commit();
 
 		self.update_last_hashes(&parent, hash);
@@ -1059,6 +1060,7 @@ impl MiningBlockChainClient for Client {
 				precise_time_ns() - start,
 			);
 		});
+		self.db.flush().expect("DB flush failed.");
 		Ok(h)
 	}
 }

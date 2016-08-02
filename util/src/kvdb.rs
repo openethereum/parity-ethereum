@@ -16,8 +16,9 @@
 
 //! Key-Value store abstraction with `RocksDB` backend.
 
+use common::*;
 use std::default::Default;
-use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBVector, DBIterator,
+use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
@@ -25,28 +26,52 @@ const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
-	batch: WriteBatch,
-	cfs: Vec<Column>,
+	ops: RwLock<Vec<DBOp>>,
+}
+
+enum DBOp {
+	Insert {
+		col: Option<u32>,
+		key: Bytes,
+		value: Bytes,
+	},
+	Delete {
+		col: Option<u32>,
+		key: Bytes,
+	}
 }
 
 impl DBTransaction {
 	/// Create new transaction.
-	pub fn new(db: &Database) -> DBTransaction {
+	pub fn new(_db: &Database) -> DBTransaction {
 		DBTransaction {
-			batch: WriteBatch::new(),
-			cfs: db.cfs.clone(),
+			ops: RwLock::new(Vec::with_capacity(256)),
 		}
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	pub fn put(&self, col: Option<u32>, key: &[u8], value: &[u8]) -> Result<(), String> {
-		col.map_or_else(|| self.batch.put(key, value), |c| self.batch.put_cf(self.cfs[c as usize], key, value))
+		self.ops.write().push(DBOp::Insert {
+			col: col,
+			key: key.to_vec(),
+			value: value.to_vec(),
+		});
+		Ok(())
 	}
 
 	/// Delete value by key.
 	pub fn delete(&self, col: Option<u32>, key: &[u8]) -> Result<(), String> {
-		col.map_or_else(|| self.batch.delete(key), |c| self.batch.delete_cf(self.cfs[c as usize], key))
+		self.ops.write().push(DBOp::Delete {
+			col: col,
+			key: key.to_vec(),
+		});
+		Ok(())
 	}
+}
+
+struct DBColumnOverlay {
+	insertions: HashMap<Bytes, Bytes>,
+	deletions: HashSet<Bytes>,
 }
 
 /// Compaction profile for the database settings
@@ -118,7 +143,7 @@ impl Default for DatabaseConfig {
 	}
 }
 
-/// Database iterator
+/// Database iterator for flushed data only
 pub struct DatabaseIterator {
 	iter: DBIterator,
 }
@@ -136,6 +161,7 @@ pub struct Database {
 	db: DB,
 	write_opts: WriteOptions,
 	cfs: Vec<Column>,
+	overlay: RwLock<Vec<DBColumnOverlay>>,
 }
 
 impl Database {
@@ -209,7 +235,15 @@ impl Database {
 			},
 			Err(s) => { return Err(s); }
 		};
-		Ok(Database { db: db, write_opts: write_opts, cfs: cfs })
+		Ok(Database {
+			db: db,
+			write_opts: write_opts,
+			overlay: RwLock::new((0..(cfs.len() + 1)).map(|_| DBColumnOverlay {
+				insertions: HashMap::new(),
+				deletions: HashSet::new(),
+			}).collect()),
+			cfs: cfs,
+		})
 	}
 
 	/// Creates new transaction for this database.
@@ -217,14 +251,86 @@ impl Database {
 		DBTransaction::new(self)
 	}
 
+
+	fn to_overly_column(col: Option<u32>) -> usize {
+		col.map_or(0, |c| (c + 1) as usize)
+	}
+
+	/// Commit transaction to database.
+	pub fn write_buffered(&self, tr: DBTransaction) -> Result<(), String> {
+		let mut overlay = self.overlay.write();
+		let ops = mem::replace(&mut *tr.ops.write(), Vec::new());
+		for op in ops {
+			match op {
+				DBOp::Insert { col, key, value } => {
+					let c = Self::to_overly_column(col);
+					overlay[c].deletions.remove(&key);
+					overlay[c].insertions.insert(key, value);
+				},
+				DBOp::Delete { col, key } => {
+					let c = Self::to_overly_column(col);
+					overlay[c].insertions.remove(&key);
+					overlay[c].deletions.insert(key);
+				},
+			}
+		};
+		Ok(())
+	}
+
+	/// Commit buffered changes to database.
+	pub fn flush(&self) -> Result<(), String> {
+		let batch = WriteBatch::new();
+		let mut overlay = self.overlay.write();
+
+		let mut c = 0;
+		for column in overlay.iter_mut() {
+			let insertions = mem::replace(&mut column.insertions, HashMap::new());
+			let deletions = mem::replace(&mut column.deletions, HashSet::new());
+			for d in deletions.into_iter() {
+				if c > 0 {
+					try!(batch.delete_cf(self.cfs[c - 1], &d));
+				} else {
+					try!(batch.delete(&d));
+				}
+			}
+			for (key, value) in insertions.into_iter() {
+				if c > 0 {
+					try!(batch.put_cf(self.cfs[c - 1], &key, &value));
+				} else {
+					try!(batch.put(&key, &value));
+				}
+			}
+			c += 1;
+		}
+		self.db.write_opt(batch, &self.write_opts)
+	}
+
+
 	/// Commit transaction to database.
 	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
-		self.db.write_opt(tr.batch, &self.write_opts)
+		let batch = WriteBatch::new();
+		let ops = mem::replace(&mut *tr.ops.write(), Vec::new());
+		for op in ops {
+			match op {
+				DBOp::Insert { col, key, value } => {
+					try!(col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(self.cfs[c as usize], &key, &value)))
+				},
+				DBOp::Delete { col, key } => {
+					try!(col.map_or_else(|| batch.delete(&key), |c| batch.delete_cf(self.cfs[c as usize], &key)))
+				},
+			}
+		}
+		self.db.write_opt(batch, &self.write_opts)
 	}
 
 	/// Get value by key.
-	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBVector>, String> {
-		col.map_or_else(|| self.db.get(key), |c| self.db.get_cf(self.cfs[c as usize], key))
+	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<Bytes>, String> {
+		let overlay = &self.overlay.read()[Self::to_overly_column(col)];
+		overlay.insertions.get(key).map_or_else(||
+			col.map_or_else(
+				|| self.db.get(key).map(|r| r.map(|v| v.to_vec())),
+				|c| self.db.get_cf(self.cfs[c as usize], key).map(|r| r.map(|v| v.to_vec()))),
+			|value| Ok(Some(value.clone())))
 	}
 
 	/// Get value by partial key. Prefix size should match configured prefix size.
