@@ -17,4 +17,4 @@
 //! Parity interprocess hypervisor IPC service
 #![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
 
-include!(concat!(env!("OUT_DIR"), "/hypervisor_service_cg.rs"));
+include!(concat!(env!("OUT_DIR"), "/service.rs.in"));

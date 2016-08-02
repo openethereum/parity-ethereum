@@ -14,26 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate syntex;
-extern crate ethcore_ipc_codegen as codegen;
-
-use std::env;
-use std::path::Path;
+extern crate ethcore_ipc_codegen;
 
 fn main() {
-	let out_dir = env::var_os("OUT_DIR").unwrap();
-
-	// sync interface
-	{
-		let src = Path::new("src/api.rs");
-		let intermediate = Path::new(&out_dir).join("api.intermediate.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &intermediate).unwrap();
-
-		let dst = Path::new(&out_dir).join("api.ipc.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &intermediate, &dst).unwrap();
-	}
+	ethcore_ipc_codegen::derive_ipc("src/api.rs").unwrap();
 }
