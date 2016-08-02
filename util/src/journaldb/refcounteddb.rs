@@ -19,7 +19,7 @@
 use common::*;
 use rlp::*;
 use hashdb::*;
-use ref_overlaydb::RefOverlayDB;
+use overlaydb::OverlayDB;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction};
@@ -34,7 +34,7 @@ use std::env;
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
 pub struct RefCountedDB {
-	forward: RefOverlayDB,
+	forward: OverlayDB,
 	backing: Arc<Database>,
 	latest_era: Option<u64>,
 	inserts: Vec<H256>,
@@ -50,7 +50,7 @@ impl RefCountedDB {
 		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 
 		RefCountedDB {
-			forward: RefOverlayDB::new(backing.clone(), col),
+			forward: OverlayDB::new(backing.clone(), col),
 			backing: backing,
 			inserts: vec![],
 			removes: vec![],
