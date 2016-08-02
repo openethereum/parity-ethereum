@@ -75,8 +75,8 @@ Account Options:
   --signer-path PATH       Specify directory where Signer UIs tokens should
                            be stored. [default: $HOME/.parity/signer]
   --signer-no-validation   Disable Origin and Host headers validation for
-                           Trusted Signer. Highly not recommended, used
-                           only for development.
+                           Trusted Signer. WARNING: INSECURE. Used only for
+                           development.
 
 Networking Options:
   --no-network             Disable p2p networking.
