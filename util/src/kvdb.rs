@@ -17,7 +17,9 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
 use common::*;
+use elastic_array::*;
 use std::default::Default;
+use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column};
 
@@ -32,12 +34,17 @@ pub struct DBTransaction {
 enum DBOp {
 	Insert {
 		col: Option<u32>,
-		key: Bytes,
+		key: ElasticArray32<u8>,
+		value: Bytes,
+	},
+	InsertCompressed {
+		col: Option<u32>,
+		key: ElasticArray32<u8>,
 		value: Bytes,
 	},
 	Delete {
 		col: Option<u32>,
-		key: Bytes,
+		key: ElasticArray32<u8>,
 	}
 }
 
@@ -51,27 +58,57 @@ impl DBTransaction {
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	pub fn put(&self, col: Option<u32>, key: &[u8], value: &[u8]) -> Result<(), String> {
+		let mut ekey = ElasticArray32::new();
+		ekey.append_slice(key);
 		self.ops.write().push(DBOp::Insert {
 			col: col,
-			key: key.to_vec(),
+			key: ekey,
 			value: value.to_vec(),
+		});
+		Ok(())
+	}
+
+	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
+	pub fn put_vec(&self, col: Option<u32>, key: &[u8], value: Bytes) -> Result<(), String> {
+		let mut ekey = ElasticArray32::new();
+		ekey.append_slice(key);
+		self.ops.write().push(DBOp::Insert {
+			col: col,
+			key: ekey,
+			value: value,
+		});
+		Ok(())
+	}
+
+	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
+	/// Value will be RLP-compressed on  flush
+	pub fn put_compressed(&self, col: Option<u32>, key: &[u8], value: Bytes) -> Result<(), String> {
+		let mut ekey = ElasticArray32::new();
+		ekey.append_slice(key);
+		self.ops.write().push(DBOp::InsertCompressed {
+			col: col,
+			key: ekey,
+			value: value,
 		});
 		Ok(())
 	}
 
 	/// Delete value by key.
 	pub fn delete(&self, col: Option<u32>, key: &[u8]) -> Result<(), String> {
+		let mut ekey = ElasticArray32::new();
+		ekey.append_slice(key);
 		self.ops.write().push(DBOp::Delete {
 			col: col,
-			key: key.to_vec(),
+			key: ekey,
 		});
 		Ok(())
 	}
 }
 
 struct DBColumnOverlay {
-	insertions: HashMap<Bytes, Bytes>,
-	deletions: HashSet<Bytes>,
+	insertions: HashMap<ElasticArray32<u8>, Bytes>,
+	compressed_insertions: HashMap<ElasticArray32<u8>, Bytes>,
+	deletions: HashSet<ElasticArray32<u8>>,
 }
 
 /// Compaction profile for the database settings
@@ -240,6 +277,7 @@ impl Database {
 			write_opts: write_opts,
 			overlay: RwLock::new((0..(cfs.len() + 1)).map(|_| DBColumnOverlay {
 				insertions: HashMap::new(),
+				compressed_insertions: HashMap::new(),
 				deletions: HashSet::new(),
 			}).collect()),
 			cfs: cfs,
@@ -265,11 +303,19 @@ impl Database {
 				DBOp::Insert { col, key, value } => {
 					let c = Self::to_overly_column(col);
 					overlay[c].deletions.remove(&key);
+					overlay[c].compressed_insertions.remove(&key);
 					overlay[c].insertions.insert(key, value);
+				},
+				DBOp::InsertCompressed { col, key, value } => {
+					let c = Self::to_overly_column(col);
+					overlay[c].deletions.remove(&key);
+					overlay[c].insertions.remove(&key);
+					overlay[c].compressed_insertions.insert(key, value);
 				},
 				DBOp::Delete { col, key } => {
 					let c = Self::to_overly_column(col);
 					overlay[c].insertions.remove(&key);
+					overlay[c].compressed_insertions.remove(&key);
 					overlay[c].deletions.insert(key);
 				},
 			}
@@ -285,6 +331,7 @@ impl Database {
 		let mut c = 0;
 		for column in overlay.iter_mut() {
 			let insertions = mem::replace(&mut column.insertions, HashMap::new());
+			let compressed_insertions = mem::replace(&mut column.compressed_insertions, HashMap::new());
 			let deletions = mem::replace(&mut column.deletions, HashSet::new());
 			for d in deletions.into_iter() {
 				if c > 0 {
@@ -298,6 +345,14 @@ impl Database {
 					try!(batch.put_cf(self.cfs[c - 1], &key, &value));
 				} else {
 					try!(batch.put(&key, &value));
+				}
+			}
+			for (key, value) in compressed_insertions.into_iter() {
+				let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
+				if c > 0 {
+					try!(batch.put_cf(self.cfs[c - 1], &key, &compressed));
+				} else {
+					try!(batch.put(&key, &compressed));
 				}
 			}
 			c += 1;
@@ -315,6 +370,10 @@ impl Database {
 				DBOp::Insert { col, key, value } => {
 					try!(col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(self.cfs[c as usize], &key, &value)))
 				},
+				DBOp::InsertCompressed { col, key, value } => {
+					let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
+					try!(col.map_or_else(|| batch.put(&key, &compressed), |c| batch.put_cf(self.cfs[c as usize], &key, &compressed)))
+				},
 				DBOp::Delete { col, key } => {
 					try!(col.map_or_else(|| batch.delete(&key), |c| batch.delete_cf(self.cfs[c as usize], &key)))
 				},
@@ -326,7 +385,7 @@ impl Database {
 	/// Get value by key.
 	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<Bytes>, String> {
 		let overlay = &self.overlay.read()[Self::to_overly_column(col)];
-		overlay.insertions.get(key).map_or_else(||
+		overlay.insertions.get(key).or_else(|| overlay.compressed_insertions.get(key)).map_or_else(||
 			col.map_or_else(
 				|| self.db.get(key).map(|r| r.map(|v| v.to_vec())),
 				|c| self.db.get_cf(self.cfs[c as usize], key).map(|r| r.map(|v| v.to_vec()))),

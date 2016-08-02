@@ -549,13 +549,9 @@ impl BlockChain {
 
 		assert!(self.pending_best_block.read().is_none());
 
-		let block_rlp = UntrustedRlp::new(bytes);
-		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
-		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
-
 		// store block in db
-		batch.put(DB_COL_HEADERS, &hash, &compressed_header).unwrap();
-		batch.put(DB_COL_BODIES, &hash, &compressed_body).unwrap();
+		batch.put_compressed(DB_COL_HEADERS, &hash, block.header_rlp().as_raw().to_vec()).unwrap();
+		batch.put_compressed(DB_COL_BODIES, &hash, Self::block_to_body(bytes)).unwrap();
 
 		let info = self.block_info(&header);
 
