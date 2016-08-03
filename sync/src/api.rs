@@ -16,17 +16,19 @@
 
 use std::ops::*;
 use std::sync::Arc;
-use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode};
-use util::{TimerToken, U256, H256, UtilError, Secret, Populatable};
+use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
+use util::{U256, H256, Secret, Populatable};
+use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::header::BlockNumber;
-use io::NetSyncIo;
+use sync_io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
 use std::net::{SocketAddr, AddrParseError};
 use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::mem;
 use std::collections::VecDeque;
+use std::str::FromStr;
 use parking_lot::RwLock;
 
 /// Ethereum sync protocol
@@ -72,7 +74,7 @@ pub struct EthSync {
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, UtilError> {
+	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
 		let chain_sync = ChainSync::new(config, chain.deref());
 		let service = try!(NetworkService::new(try!(network_config.into_basic())));
 		let sync = Arc::new(EthSync{
@@ -213,7 +215,7 @@ impl ManageNetwork for EthSync {
 	}
 }
 
-#[derive(Binary, Debug, Clone)]
+#[derive(Binary, Debug, Clone, PartialEq, Eq)]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store network configuration. None means nothing will be saved
@@ -243,8 +245,21 @@ pub struct NetworkConfiguration {
 }
 
 impl NetworkConfiguration {
+	pub fn new() -> Self {
+		From::from(BasicNetworkConfiguration::new())
+	}
+
+	fn validate(&self) -> Result<(), AddrParseError> {
+		if let Some(ref addr) = self.listen_address {
+			try!(SocketAddr::from_str(&addr));
+		}
+		if let Some(ref addr) = self.public_address {
+			try!(SocketAddr::from_str(&addr));
+		}
+		Ok(())
+	}
+
 	pub fn into_basic(self) -> Result<BasicNetworkConfiguration, AddrParseError> {
-		use std::str::FromStr;
 
 		Ok(BasicNetworkConfiguration {
 			config_path: self.config_path,

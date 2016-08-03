@@ -19,8 +19,9 @@
 //! Example usage for creating a network service and adding an IO handler:
 //!
 //! ```rust
-//! extern crate ethcore_util;
-//! use ethcore_util::*;
+//! extern crate ethcore_io;
+//! use ethcore_io::*;
+//! use std::sync::Arc;
 //!
 //! struct MyHandler;
 //!
@@ -52,6 +53,14 @@
 //! 	// Drop the service
 //! }
 //! ```
+
+extern crate mio;
+#[macro_use]
+extern crate log as rlog;
+extern crate slab;
+extern crate crossbeam;
+extern crate parking_lot;
+
 mod service;
 mod worker;
 
@@ -63,6 +72,8 @@ use std::fmt;
 pub enum IoError {
 	/// Low level error from mio crate
 	Mio(::std::io::Error),
+	/// Error concerning the Rust standard library's IO subsystem.
+	StdIo(::std::io::Error),
 }
 
 impl fmt::Display for IoError {
@@ -70,8 +81,15 @@ impl fmt::Display for IoError {
 		// just defer to the std implementation for now.
 		// we can refine the formatting when more variants are added.
 		match *self {
-			IoError::Mio(ref std_err) => std_err.fmt(f)
+			IoError::Mio(ref std_err) => std_err.fmt(f),
+			IoError::StdIo(ref std_err) => std_err.fmt(f),
 		}
+	}
+}
+
+impl From<::std::io::Error> for IoError {
+	fn from(err: ::std::io::Error) -> IoError {
+		IoError::StdIo(err)
 	}
 }
 
@@ -105,19 +123,19 @@ pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + Clone + '
 	fn deregister_stream(&self, _stream: StreamToken, _event_loop: &mut EventLoop<IoManager<Message>>) {}
 }
 
-pub use io::service::TimerToken;
-pub use io::service::StreamToken;
-pub use io::service::IoContext;
-pub use io::service::IoService;
-pub use io::service::IoChannel;
-pub use io::service::IoManager;
-pub use io::service::TOKENS_PER_HANDLER;
+pub use service::TimerToken;
+pub use service::StreamToken;
+pub use service::IoContext;
+pub use service::IoService;
+pub use service::IoChannel;
+pub use service::IoManager;
+pub use service::TOKENS_PER_HANDLER;
 
 #[cfg(test)]
 mod tests {
 
 	use std::sync::Arc;
-	use io::*;
+	use super::*;
 
 	struct MyHandler;
 

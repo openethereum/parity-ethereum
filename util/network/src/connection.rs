@@ -20,17 +20,16 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
-use hash::*;
-use sha3::*;
-use bytes::*;
-use rlp::*;
+use util::hash::*;
+use util::sha3::*;
+use util::bytes::*;
+use util::rlp::*;
 use std::io::{self, Cursor, Read, Write};
 use error::*;
 use io::{IoContext, StreamToken};
-use network::error::NetworkError;
-use network::handshake::Handshake;
-use network::stats::NetworkStats;
-use crypto;
+use handshake::Handshake;
+use stats::NetworkStats;
+use util::crypto;
 use rcrypto::blockmodes::*;
 use rcrypto::aessafe::*;
 use rcrypto::symmetriccipher::*;
@@ -121,7 +120,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	}
 
 	/// Writable IO handler. Called when the socket is ready to send.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, UtilError> where Message: Send + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, NetworkError> where Message: Send + Clone {
 		if self.send_queue.is_empty() {
 			return Ok(WriteStatus::Complete)
 		}
@@ -288,7 +287,7 @@ pub struct EncryptedConnection {
 
 impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake.
-	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, UtilError> {
+	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, NetworkError> {
 		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral));
 		let mut nonce_material = H512::new();
 		if handshake.originated {
@@ -341,7 +340,7 @@ impl EncryptedConnection {
 	}
 
 	/// Send a packet
-	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone {
 		let mut header = RlpStream::new();
 		let len = payload.len() as usize;
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
@@ -368,7 +367,7 @@ impl EncryptedConnection {
 	}
 
 	/// Decrypt and authenticate an incoming packet header. Prepare for receiving payload.
-	fn read_header(&mut self, header: &[u8]) -> Result<(), UtilError> {
+	fn read_header(&mut self, header: &[u8]) -> Result<(), NetworkError> {
 		if header.len() != ENCRYPTED_HEADER_LEN {
 			return Err(From::from(NetworkError::Auth));
 		}
@@ -398,7 +397,7 @@ impl EncryptedConnection {
 	}
 
 	/// Decrypt and authenticate packet payload.
-	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, UtilError> {
+	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, NetworkError> {
 		let padding = (16 - (self.payload_len  % 16)) % 16;
 		let full_length = self.payload_len + padding + 16;
 		if payload.len() != full_length {
@@ -436,7 +435,7 @@ impl EncryptedConnection {
 	}
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, UtilError> where Message: Send + Clone{
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, NetworkError> where Message: Send + Clone{
 		try!(io.clear_timer(self.connection.token));
 		if let EncryptedConnectionState::Header = self.read_state {
 			if let Some(data) = try!(self.connection.readable()) {
@@ -459,7 +458,7 @@ impl EncryptedConnection {
 	}
 
 	/// Writable IO handler. Processes send queeue.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone {
 		try!(self.connection.writable(io));
 		Ok(())
 	}
@@ -467,7 +466,7 @@ impl EncryptedConnection {
 
 #[test]
 pub fn test_encryption() {
-	use hash::*;
+	use util::hash::*;
 	use std::str::FromStr;
 	let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
 	let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();
@@ -496,7 +495,7 @@ mod tests {
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
 	use mio::{EventSet};
 	use std::collections::VecDeque;
-	use bytes::*;
+	use util::bytes::*;
 	use devtools::*;
 	use io::*;
 

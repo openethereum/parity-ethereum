@@ -13,6 +13,8 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 ethcore-util = { path = "../util" }
+ethcore-network = { path = "../util/network" }
+ethcore-io = { path = "../util/io" }
 ethcore = { path = "../ethcore" }
 clippy = { version = "0.0.80", optional = true}
 log = "0.3"

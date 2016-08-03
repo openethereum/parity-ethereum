@@ -16,7 +16,6 @@
 
 //! Ethcore-specific rpc implementation.
 use util::{RotatingLogger};
-use util::network_settings::NetworkSettings;
 use util::misc::version_data;
 use std::sync::{Arc, Weak};
 use std::ops::Deref;
@@ -26,7 +25,7 @@ use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use v1::traits::Ethcore;
 use v1::types::{Bytes, U256};
-use v1::helpers::{SigningQueue, ConfirmationsQueue};
+use v1::helpers::{SigningQueue, ConfirmationsQueue, NetworkSettings};
 use v1::impls::signer_disabled_error;
 
 /// Ethcore implementation.

@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use error::*;
-use panics::*;
-use network::{NetworkProtocolHandler, NetworkConfiguration};
-use network::error::NetworkError;
-use network::host::{Host, NetworkContext, NetworkIoMessage, ProtocolId};
-use network::stats::NetworkStats;
+use util::panics::*;
+use {NetworkProtocolHandler, NetworkConfiguration, NonReservedPeerMode};
+use error::NetworkError;
+use host::{Host, NetworkContext, NetworkIoMessage, ProtocolId};
+use stats::NetworkStats;
 use io::*;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -55,11 +54,10 @@ pub struct NetworkService {
 
 impl NetworkService {
 	/// Starts IO event loop
-	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, UtilError> {
+	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, NetworkError> {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
 		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = try!(IoService::<NetworkIoMessage>::start());
-		panic_handler.forward_from(&io_service);
 
 		let stats = Arc::new(NetworkStats::new());
 		let host_info = Host::client_version();
@@ -117,7 +115,7 @@ impl NetworkService {
 	}
 
 	/// Start network IO
-	pub fn start(&self) -> Result<(), UtilError> {
+	pub fn start(&self) -> Result<(), NetworkError> {
 		let mut host = self.host.write();
 		if host.is_none() {
 			let h = Arc::new(try!(Host::new(self.config.clone(), self.stats.clone())));
@@ -133,7 +131,7 @@ impl NetworkService {
 	}
 
 	/// Stop network IO
-	pub fn stop(&self) -> Result<(), UtilError> {
+	pub fn stop(&self) -> Result<(), NetworkError> {
 		let mut host = self.host.write();
 		if let Some(ref host) = *host {
 			let io = IoContext::new(self.io_service.channel(), 0); //TODO: take token id from host
@@ -144,7 +142,7 @@ impl NetworkService {
 	}
 
 	/// Try to add a reserved peer.
-	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), UtilError> {
+	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), NetworkError> {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			host.add_reserved_node(peer)
@@ -154,7 +152,7 @@ impl NetworkService {
 	}
 
 	/// Try to remove a reserved peer.
-	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), UtilError> {
+	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), NetworkError> {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			host.remove_reserved_node(peer)
@@ -164,7 +162,7 @@ impl NetworkService {
 	}
 
 	/// Set the non-reserved peer mode.
-	pub fn set_non_reserved_mode(&self, mode: ::network::NonReservedPeerMode) {
+	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode) {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			let io_ctxt = IoContext::new(self.io_service.channel(), 0);

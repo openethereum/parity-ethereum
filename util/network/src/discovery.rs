@@ -14,23 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use bytes::Bytes;
+use util::bytes::Bytes;
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::mem;
 use std::default::Default;
 use mio::*;
 use mio::udp::*;
-use sha3::*;
+use util::sha3::*;
 use time;
-use hash::*;
-use crypto::*;
-use rlp::*;
-use network::node_table::*;
-use network::error::NetworkError;
+use util::hash::*;
+use util::crypto::*;
+use util::rlp::*;
+use node_table::*;
+use error::NetworkError;
 use io::{StreamToken, IoContext};
 
-use network::PROTOCOL_VERSION;
+use PROTOCOL_VERSION;
 
 const ADDRESS_BYTES_SIZE: u32 = 32;							// Size of address type in bytes.
 const ADDRESS_BITS: u32 = 8 * ADDRESS_BYTES_SIZE;			// Denoted by n in [Kademlia].
@@ -533,10 +533,10 @@ impl Discovery {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use hash::*;
+	use util::hash::*;
 	use std::net::*;
-	use network::node_table::*;
-	use crypto::KeyPair;
+	use node_table::*;
+	use util::crypto::KeyPair;
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 

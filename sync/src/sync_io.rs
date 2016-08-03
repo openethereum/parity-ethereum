@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{NetworkContext, PeerId, PacketId,};
-use util::error::UtilError;
+use network::{NetworkContext, PeerId, PacketId, NetworkError};
 use ethcore::client::BlockChainClient;
 
 /// IO interface for the syning handler.
@@ -27,9 +26,9 @@ pub trait SyncIo {
 	/// Disconnect peer
 	fn disconnect_peer(&mut self, peer_id: PeerId);
 	/// Respond to current request with a packet. Can be called from an IO handler for incoming packet.
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
+	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
 	/// Send a packet to a peer.
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
+	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
 	/// Get the blockchain
 	fn chain(&self) -> &BlockChainClient;
 	/// Returns peer client identifier string
@@ -69,11 +68,11 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.network.disconnect_peer(peer_id);
 	}
 
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>{
+	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>{
 		self.network.respond(packet_id, data)
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>{
+	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>{
 		self.network.send(peer_id, packet_id, data)
 	}
 

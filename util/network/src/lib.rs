@@ -19,8 +19,9 @@
 //! Example usage for craeting a network service and adding an IO handler:
 //!
 //! ```rust
-//! extern crate ethcore_util as util;
-//! use util::*;
+//! extern crate ethcore_network as net;
+//! use net::*;
+//! use std::sync::Arc;
 //!
 //! struct MyHandler;
 //!
@@ -40,10 +41,6 @@
 //!		fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
 //!			println!("Disconnected {}", peer);
 //!		}
-//!
-//!		fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
-//!			println!("Timeout {}", timer);
-//!		}
 //! }
 //!
 //! fn main () {
@@ -56,6 +53,26 @@
 //! 	// Drop the service
 //! }
 //! ```
+
+
+#[macro_use]
+extern crate log;
+extern crate ethcore_io as io;
+extern crate ethcore_util as util;
+extern crate parking_lot;
+extern crate mio;
+extern crate tiny_keccak;
+extern crate crypto as rcrypto;
+extern crate rand;
+extern crate time;
+extern crate ansi_term; //TODO: remove this
+extern crate rustc_serialize;
+extern crate igd;
+extern crate libc;
+extern crate slab;
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;
+
 mod host;
 mod connection;
 mod handshake;
@@ -70,17 +87,17 @@ mod ip_utils;
 #[cfg(test)]
 mod tests;
 
-pub use network::host::PeerId;
-pub use network::host::PacketId;
-pub use network::host::NetworkContext;
-pub use network::service::NetworkService;
-pub use network::host::NetworkIoMessage;
-pub use network::error::NetworkError;
-pub use network::host::NetworkConfiguration;
-pub use network::stats::NetworkStats;
+pub use host::PeerId;
+pub use host::PacketId;
+pub use host::NetworkContext;
+pub use service::NetworkService;
+pub use host::NetworkIoMessage;
+pub use error::NetworkError;
+pub use host::NetworkConfiguration;
+pub use stats::NetworkStats;
 
 use io::TimerToken;
-pub use network::node_table::is_valid_node_url;
+pub use node_table::is_valid_node_url;
 
 const PROTOCOL_VERSION: u32 = 4;
 

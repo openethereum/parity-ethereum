@@ -1,0 +1,15 @@
+[package]
+description = "Ethcore IO library"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "ethcore-io"
+version = "1.3.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
+crossbeam = "0.2"
+parking_lot = "0.2.6"
+log = "0.3"
+slab = "0.2"
+

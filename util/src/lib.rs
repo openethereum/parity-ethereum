@@ -85,12 +85,9 @@
 //!   cargo build --release
 //!   ```
 
-extern crate slab;
 extern crate rustc_serialize;
-extern crate mio;
 extern crate rand;
 extern crate rocksdb;
-extern crate tiny_keccak;
 #[macro_use]
 extern crate heapsize;
 #[macro_use]
@@ -98,20 +95,17 @@ extern crate lazy_static;
 #[macro_use]
 extern crate itertools;
 extern crate env_logger;
-extern crate time;
 extern crate crypto as rcrypto;
 extern crate secp256k1;
 extern crate arrayvec;
 extern crate elastic_array;
-extern crate crossbeam;
 #[macro_use]
 extern crate log as rlog;
-extern crate igd;
+extern crate time;
 extern crate ethcore_devtools as devtools;
 extern crate libc;
 extern crate target_info;
 extern crate bigint;
-extern crate chrono;
 extern crate parking_lot;
 pub extern crate using_queue;
 pub extern crate table;
@@ -144,11 +138,8 @@ pub mod nibbleslice;
 pub mod nibblevec;
 mod heapsizeof;
 pub mod semantic_version;
-pub mod io;
-pub mod network;
 pub mod log;
 pub mod panics;
-pub mod network_settings;
 pub mod path;
 pub mod snappy;
 mod timer;
@@ -166,8 +157,6 @@ pub use triehash::*;
 pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
 pub use nibbleslice::*;
 pub use semantic_version::*;
-pub use network::*;
-pub use io::*;
 pub use log::*;
 pub use kvdb::*;
 pub use timer::*;

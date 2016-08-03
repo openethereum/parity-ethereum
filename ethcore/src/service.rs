@@ -17,6 +17,7 @@
 //! Creates and registers client and network services.
 
 use util::*;
+use io::*;
 use util::panics::*;
 use spec::Spec;
 use error::*;
@@ -59,7 +60,6 @@ impl ClientService {
 	{
 		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = try!(IoService::<ClientIoMessage>::start());
-		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 		if spec.fork_name.is_some() {

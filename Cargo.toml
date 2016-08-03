@@ -31,6 +31,7 @@ fdlimit = { path = "util/fdlimit" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
+ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc" }
 ethcore-signer = { path = "signer" }

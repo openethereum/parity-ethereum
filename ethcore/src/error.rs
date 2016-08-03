@@ -17,6 +17,7 @@
 //! General error types for use in ethcore.
 
 use util::*;
+use io::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
@@ -227,8 +228,10 @@ pub enum Error {
 	PowInvalid,
 	/// Error concerning TrieDBs
 	Trie(TrieError),
-	/// Io error.
-	Io(::std::io::Error),
+	/// Io crate error.
+	Io(IoError),
+	/// Standard io error.
+	StdIo(::std::io::Error),
 	/// Snappy error.
 	Snappy(::util::snappy::InvalidInput),
 }
@@ -238,6 +241,7 @@ impl fmt::Display for Error {
 		match *self {
 			Error::Client(ref err) => f.write_fmt(format_args!("{}", err)),
 			Error::Util(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::Io(ref err) => f.write_fmt(format_args!("{}", err)),
 			Error::Block(ref err) => f.write_fmt(format_args!("{}", err)),
 			Error::Execution(ref err) => f.write_fmt(format_args!("{}", err)),
 			Error::Transaction(ref err) => f.write_fmt(format_args!("{}", err)),
@@ -247,7 +251,7 @@ impl fmt::Display for Error {
 			Error::PowHashInvalid => f.write_str("Invalid or out of date PoW hash."),
 			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
 			Error::Trie(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::Io(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::StdIo(ref err) => f.write_fmt(format_args!("{}", err)),
 			Error::Snappy(ref err) => f.write_fmt(format_args!("{}", err)),
 		}
 	}
@@ -309,7 +313,7 @@ impl From<UtilError> for Error {
 
 impl From<IoError> for Error {
 	fn from(err: IoError) -> Error {
-		Error::Util(From::from(err))
+		Error::Io(err)
 	}
 }
 
@@ -321,7 +325,7 @@ impl From<TrieError> for Error {
 
 impl From<::std::io::Error> for Error {
 	fn from(err: ::std::io::Error) -> Error {
-		Error::Io(err)
+		Error::StdIo(err)
 	}
 }
 

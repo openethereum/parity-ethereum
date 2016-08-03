@@ -17,18 +17,17 @@
 use std::sync::Arc;
 use rand::random;
 use mio::tcp::*;
-use hash::*;
-use rlp::*;
-use sha3::Hashable;
-use bytes::Bytes;
-use crypto::*;
-use crypto;
-use network::connection::{Connection};
-use network::host::{HostInfo};
-use network::node_table::NodeId;
+use util::hash::*;
+use util::rlp::*;
+use util::sha3::Hashable;
+use util::bytes::Bytes;
+use util::crypto::*;
+use util::crypto;
+use connection::{Connection};
+use host::{HostInfo};
+use node_table::NodeId;
 use error::*;
-use network::error::NetworkError;
-use network::stats::NetworkStats;
+use stats::NetworkStats;
 use io::{IoContext, StreamToken};
 
 #[derive(PartialEq, Eq, Debug)]
@@ -84,7 +83,7 @@ const ECIES_OVERHEAD: usize = 113;
 
 impl Handshake {
 	/// Create a new handshake object
-	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256, stats: Arc<NetworkStats>) -> Result<Handshake, UtilError> {
+	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256, stats: Arc<NetworkStats>) -> Result<Handshake, NetworkError> {
 		Ok(Handshake {
 			id: if let Some(id) = id { id.clone()} else { NodeId::new() },
 			connection: Connection::new(token, socket, stats),
@@ -107,7 +106,7 @@ impl Handshake {
 	}
 
 	/// Start a handhsake
-	pub fn start<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo, originated: bool) -> Result<(), UtilError> where Message: Send + Clone{
+	pub fn start<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo, originated: bool) -> Result<(), NetworkError> where Message: Send + Clone{
 		self.originated = originated;
 		io.register_timer(self.connection.token, HANDSHAKE_TIMEOUT).ok();
 		if originated {
@@ -126,7 +125,7 @@ impl Handshake {
 	}
 
 	/// Readable IO handler. Drives the state change.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), NetworkError> where Message: Send + Clone {
 		if !self.expired() {
 			while let Some(data) = try!(self.connection.readable()) {
 				match self.state {
@@ -155,14 +154,14 @@ impl Handshake {
 	}
 
 	/// Writabe IO handler.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone {
 		if !self.expired() {
 			try!(self.connection.writable(io));
 		}
 		Ok(())
 	}
 
-	fn set_auth(&mut self, host_secret: &Secret, sig: &[u8], remote_public: &[u8], remote_nonce: &[u8], remote_version: u64) -> Result<(), UtilError> {
+	fn set_auth(&mut self, host_secret: &Secret, sig: &[u8], remote_public: &[u8], remote_nonce: &[u8], remote_version: u64) -> Result<(), NetworkError> {
 		self.id.clone_from_slice(remote_public);
 		self.remote_nonce.clone_from_slice(remote_nonce);
 		self.remote_version = remote_version;
@@ -173,7 +172,7 @@ impl Handshake {
 	}
 
 	/// Parse, validate and confirm auth message
-	fn read_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
+	fn read_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone {
 		trace!(target: "network", "Received handshake auth from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_AUTH_PACKET_SIZE {
 			debug!(target: "network", "Wrong auth packet size");
@@ -204,7 +203,7 @@ impl Handshake {
 		Ok(())
 	}
 
-	fn read_auth_eip8<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), UtilError> where Message: Send + Clone {
+	fn read_auth_eip8<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.auth_cipher.extend_from_slice(data);
 		let auth = try!(ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..]));
@@ -219,7 +218,7 @@ impl Handshake {
 	}
 
 	/// Parse and validate ack message
-	fn read_ack(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
+	fn read_ack(&mut self, secret: &Secret, data: &[u8]) -> Result<(), NetworkError> {
 		trace!(target: "network", "Received handshake ack from {:?}", self.connection.remote_addr_str());
 		if data.len() != V4_ACK_PACKET_SIZE {
 			debug!(target: "network", "Wrong ack packet size");
@@ -247,7 +246,7 @@ impl Handshake {
 		Ok(())
 	}
 
-	fn read_ack_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
+	fn read_ack_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), NetworkError> {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.ack_cipher.extend_from_slice(data);
 		let ack = try!(ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..]));
@@ -260,7 +259,7 @@ impl Handshake {
 	}
 
 	/// Sends auth message
-	fn write_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, public: &Public) -> Result<(), UtilError> where Message: Send + Clone {
+	fn write_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, public: &Public) -> Result<(), NetworkError> where Message: Send + Clone {
 		trace!(target: "network", "Sending handshake auth to {:?}", self.connection.remote_addr_str());
 		let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
 		let len = data.len();
@@ -287,7 +286,7 @@ impl Handshake {
 	}
 
 	/// Sends ack message
-	fn write_ack<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
+	fn write_ack<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone {
 		trace!(target: "network", "Sending handshake ack to {:?}", self.connection.remote_addr_str());
 		let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
 		let len = data.len();
@@ -306,7 +305,7 @@ impl Handshake {
 	}
 
 	/// Sends EIP8 ack message
-	fn write_ack_eip8<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
+	fn write_ack_eip8<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone {
 		trace!(target: "network", "Sending EIP8 handshake ack to {:?}", self.connection.remote_addr_str());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(self.ecdhe.public());
@@ -335,12 +334,12 @@ mod test {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use super::*;
-	use crypto::*;
-	use hash::*;
+	use util::crypto::*;
+	use util::hash::*;
 	use io::*;
 	use std::net::SocketAddr;
 	use mio::tcp::TcpStream;
-	use network::stats::NetworkStats;
+	use stats::NetworkStats;
 
 	fn check_auth(h: &Handshake, version: u64) {
 		assert_eq!(h.id, Public::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap());

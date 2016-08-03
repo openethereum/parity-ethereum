@@ -46,7 +46,7 @@ use self::jsonrpc_core::{IoHandler, IoDelegate};
 
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
 pub mod v1;
-pub use v1::{SigningQueue, ConfirmationsQueue};
+pub use v1::{SigningQueue, ConfirmationsQueue, NetworkSettings};
 
 /// An object that can be extended with `IoDelegates`
 pub trait Extendable {

@@ -20,10 +20,8 @@ use std::collections::HashMap;
 use mio::*;
 use crossbeam::sync::chase_lev;
 use slab::Slab;
-use error::*;
-use io::{IoError, IoHandler};
-use io::worker::{Worker, Work, WorkType};
-use panics::*;
+use {IoError, IoHandler};
+use worker::{Worker, Work, WorkType};
 
 use parking_lot::{RwLock};
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
@@ -92,7 +90,7 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
-	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), UtilError> {
+	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), IoError> {
 		try!(self.channel.send_io(IoMessage::AddTimer {
 			token: token,
 			delay: ms,
@@ -102,7 +100,7 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	}
 
 	/// Delete a timer.
-	pub fn clear_timer(&self, token: TimerToken) -> Result<(), UtilError> {
+	pub fn clear_timer(&self, token: TimerToken) -> Result<(), IoError> {
 		try!(self.channel.send_io(IoMessage::RemoveTimer {
 			token: token,
 			handler_id: self.handler,
@@ -111,7 +109,7 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	}
 
 	/// Register a new IO stream.
-	pub fn register_stream(&self, token: StreamToken) -> Result<(), UtilError> {
+	pub fn register_stream(&self, token: StreamToken) -> Result<(), IoError> {
 		try!(self.channel.send_io(IoMessage::RegisterStream {
 			token: token,
 			handler_id: self.handler,
@@ -120,7 +118,7 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	}
 
 	/// Deregister an IO stream.
-	pub fn deregister_stream(&self, token: StreamToken) -> Result<(), UtilError> {
+	pub fn deregister_stream(&self, token: StreamToken) -> Result<(), IoError> {
 		try!(self.channel.send_io(IoMessage::DeregisterStream {
 			token: token,
 			handler_id: self.handler,
@@ -129,7 +127,7 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	}
 
 	/// Reregister an IO stream.
-	pub fn update_registration(&self, token: StreamToken) -> Result<(), UtilError> {
+	pub fn update_registration(&self, token: StreamToken) -> Result<(), IoError> {
 		try!(self.channel.send_io(IoMessage::UpdateStreamRegistration {
 			token: token,
 			handler_id: self.handler,
@@ -138,7 +136,7 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	}
 
 	/// Broadcast a message to other IO clients
-	pub fn message(&self, message: Message) -> Result<(), UtilError> {
+	pub fn message(&self, message: Message) -> Result<(), IoError> {
 		try!(self.channel.send(message));
 		Ok(())
 	}
@@ -175,7 +173,7 @@ pub struct IoManager<Message> where Message: Send + Sync {
 
 impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	/// Creates a new instance and registers it with the event loop.
-	pub fn start(panic_handler: Arc<PanicHandler>, event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), UtilError> {
+	pub fn start(event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), IoError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
 		let work_ready_mutex =  Arc::new(SMutex::new(()));
@@ -187,7 +185,6 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 				IoChannel::new(event_loop.channel()),
 				work_ready.clone(),
 				work_ready_mutex.clone(),
-				panic_handler.clone()
 			)
 		).collect();
 
@@ -347,34 +344,21 @@ impl<Message> IoChannel<Message> where Message: Send + Clone {
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
 pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
-	panic_handler: Arc<PanicHandler>,
 	thread: Option<JoinHandle<()>>,
 	host_channel: Sender<IoMessage<Message>>,
 }
 
-impl<Message> MayPanic for IoService<Message> where Message: Send + Sync + Clone + 'static {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
-	}
-}
-
 impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
-	pub fn start() -> Result<IoService<Message>, UtilError> {
-		let panic_handler = PanicHandler::new_in_arc();
+	pub fn start() -> Result<IoService<Message>, IoError> {
 		let mut config = EventLoopConfig::new();
 		config.messages_per_tick(1024);
     	let mut event_loop = EventLoop::configured(config).expect("Error creating event loop");
         let channel = event_loop.channel();
-		let panic = panic_handler.clone();
 		let thread = thread::spawn(move || {
-			let p = panic.clone();
-			panic.catch_panic(move || {
-				IoManager::<Message>::start(p, &mut event_loop).unwrap();
-			}).unwrap()
+				IoManager::<Message>::start(&mut event_loop).unwrap();
 		});
 		Ok(IoService {
-			panic_handler: panic_handler,
 			thread: Some(thread),
 			host_channel: channel
 		})

@@ -19,9 +19,8 @@ use std::mem;
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use crossbeam::sync::chase_lev;
-use io::service::{HandlerId, IoChannel, IoContext};
-use io::{IoHandler};
-use panics::*;
+use service::{HandlerId, IoChannel, IoContext};
+use IoHandler;
 
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 
@@ -56,7 +55,6 @@ impl Worker {
 						channel: IoChannel<Message>,
 						wait: Arc<SCondvar>,
 						wait_mutex: Arc<SMutex<()>>,
-						panic_handler: Arc<PanicHandler>
 					   ) -> Worker
 					where Message: Send + Sync + Clone + 'static {
 		let deleting = Arc::new(AtomicBool::new(false));
@@ -68,11 +66,8 @@ impl Worker {
 		};
 		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
 			move || {
-				panic_handler.catch_panic(move || {
-					Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
-				}).unwrap()
-			})
-			.expect("Error creating worker thread"));
+				Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
+			}).expect("Error creating worker thread"));
 		worker
 	}
 
