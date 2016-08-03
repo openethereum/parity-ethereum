@@ -712,7 +712,7 @@ impl BlockChainClient for Client {
 				x.state_diff = Some(state.diff_from(orig));
 			}
 		}
-		ret.map_err(|ee| ReplayError::Execution(ee))
+		ret.map_err(ReplayError::Execution)
 	}
 
 	fn keep_alive(&self) {

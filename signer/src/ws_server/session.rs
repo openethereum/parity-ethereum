@@ -103,6 +103,7 @@ pub struct Session {
 }
 
 impl ws::Handler for Session {
+	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		let origin = req.header("origin").or_else(|| req.header("Origin")).map(|x| &x[..]);
 		let host = req.header("host").or_else(|| req.header("Host")).map(|x| &x[..]);
