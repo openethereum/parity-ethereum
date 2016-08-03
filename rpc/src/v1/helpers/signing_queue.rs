@@ -17,10 +17,10 @@
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{mpsc, Arc};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use jsonrpc_core;
 use util::{Mutex, RwLock, U256};
-use v1::helpers::{TransactionRequest, TransactionConfirmation};
+use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
@@ -54,41 +54,41 @@ pub type QueueEventReceiver = mpsc::Receiver<QueueEvent>;
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
 	/// Returns a `ConfirmationPromise` that can be used to await for resolution of given request.
-	fn add_request(&self, transaction: TransactionRequest) -> ConfirmationPromise;
+	fn add_request(&self, request: ConfirmationPayload) -> ConfirmationPromise;
 
 	/// Removes a request from the queue.
-	/// Notifies possible token holders that transaction was rejected.
-	fn request_rejected(&self, id: U256) -> Option<TransactionConfirmation>;
+	/// Notifies possible token holders that request was rejected.
+	fn request_rejected(&self, id: U256) -> Option<ConfirmationRequest>;
 
 	/// Removes a request from the queue.
-	/// Notifies possible token holders that transaction was confirmed and given hash was assigned.
-	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<TransactionConfirmation>;
+	/// Notifies possible token holders that request was confirmed and given hash was assigned.
+	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<ConfirmationRequest>;
 
 	/// Returns a request if it is contained in the queue.
-	fn peek(&self, id: &U256) -> Option<TransactionConfirmation>;
+	fn peek(&self, id: &U256) -> Option<ConfirmationRequest>;
 
 	/// Return copy of all the requests in the queue.
-	fn requests(&self) -> Vec<TransactionConfirmation>;
+	fn requests(&self) -> Vec<ConfirmationRequest>;
 
-	/// Returns number of transactions awaiting confirmation.
+	/// Returns number of requests awaiting confirmation.
 	fn len(&self) -> usize;
 
-	/// Returns true if there are no transactions awaiting confirmation.
+	/// Returns true if there are no requests awaiting confirmation.
 	fn is_empty(&self) -> bool;
 }
 
 #[derive(Debug, Clone, PartialEq)]
-/// Result of a pending transaction.
+/// Result of a pending confirmation request.
 pub enum ConfirmationResult {
-	/// The transaction has not yet been confirmed nor rejected.
+	/// The request has not yet been confirmed nor rejected.
 	Waiting,
-	/// The transaction has been rejected.
+	/// The request has been rejected.
 	Rejected,
-	/// The transaction has been confirmed.
+	/// The request has been confirmed.
 	Confirmed(RpcResult),
 }
 
-/// Time you need to confirm the transaction in UI.
+/// Time you need to confirm the request in UI.
 /// This is the amount of time token holder will wait before
 /// returning `None`.
 /// Unless we have a multi-threaded RPC this will lock
@@ -100,12 +100,14 @@ const QUEUE_TIMEOUT_DURATION_SEC : u64 = 20;
 pub struct ConfirmationToken {
 	result: Arc<Mutex<ConfirmationResult>>,
 	handle: thread::Thread,
-	request: TransactionConfirmation,
+	request: ConfirmationRequest,
+	timeout: Duration,
 }
 
 pub struct ConfirmationPromise {
 	id: U256,
 	result: Arc<Mutex<ConfirmationResult>>,
+	timeout: Duration,
 }
 
 impl ConfirmationToken {
@@ -121,6 +123,7 @@ impl ConfirmationToken {
 		ConfirmationPromise {
 			id: self.request.id,
 			result: self.result.clone(),
+			timeout: self.timeout,
 		}
 	}
 }
@@ -134,8 +137,7 @@ impl ConfirmationPromise {
 	/// Returns `None` if transaction was rejected or timeout reached.
 	/// Returns `Some(result)` if transaction was confirmed.
 	pub fn wait_with_timeout(&self) -> Option<RpcResult> {
-		let timeout = Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC);
-		let res = self.wait_until(Instant::now() + timeout);
+		let res = self.wait_until(Instant::now() + self.timeout);
 		match res {
 			ConfirmationResult::Confirmed(h) => Some(h),
 			ConfirmationResult::Rejected | ConfirmationResult::Waiting => None,
@@ -146,16 +148,16 @@ impl ConfirmationPromise {
 	pub fn result(&self) -> ConfirmationResult { self.wait_until(Instant::now()) }
 
 	/// Blocks current thread and awaits for
-	/// resolution of the transaction (rejected / confirmed)
-	/// Returns `None` if transaction was rejected or timeout reached.
-	/// Returns `Some(result)` if transaction was confirmed.
+	/// resolution of the request (rejected / confirmed)
+	/// Returns `None` if request was rejected or timeout reached.
+	/// Returns `Some(result)` if request was confirmed.
 	pub fn wait_until(&self, deadline: Instant) -> ConfirmationResult {
-		trace!(target: "own_tx", "Signer: Awaiting transaction confirmation... ({:?}).", self.id);
+		trace!(target: "own_tx", "Signer: Awaiting confirmation... ({:?}).", self.id);
 		loop {
 			let now = Instant::now();
 			// Check the result...
 			match *self.result.lock() {
-				// Waiting and deadline not yet passed continue looping.  
+				// Waiting and deadline not yet passed continue looping.
 				ConfirmationResult::Waiting if now < deadline => {}
 				// Anything else - return.
 				ref a => return a.clone(),
@@ -166,12 +168,13 @@ impl ConfirmationPromise {
 	}
 }
 
-/// Queue for all unconfirmed transactions.
+/// Queue for all unconfirmed requests.
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
-	queue: RwLock<HashMap<U256, ConfirmationToken>>,
+	queue: RwLock<BTreeMap<U256, ConfirmationToken>>,
 	sender: Mutex<mpsc::Sender<QueueEvent>>,
 	receiver: Mutex<Option<mpsc::Receiver<QueueEvent>>>,
+	timeout: Duration,
 }
 
 impl Default for ConfirmationsQueue {
@@ -180,14 +183,23 @@ impl Default for ConfirmationsQueue {
 
 		ConfirmationsQueue {
 			id: Mutex::new(U256::from(0)),
-			queue: RwLock::new(HashMap::new()),
+			queue: RwLock::new(BTreeMap::new()),
 			sender: Mutex::new(send),
 			receiver: Mutex::new(Some(recv)),
+			timeout: Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC),
 		}
 	}
 }
 
 impl ConfirmationsQueue {
+	#[cfg(test)]
+	/// Creates new confirmations queue with specified timeout
+	pub fn with_timeout(timeout: Duration) -> Self {
+		let mut queue = Self::default();
+		queue.timeout = timeout;
+		queue
+	}
+
 	/// Blocks the thread and starts listening for notifications regarding all actions in the queue.
 	/// For each event, `listener` callback will be invoked.
 	/// This method can be used only once (only single consumer of events can exist).
@@ -221,9 +233,9 @@ impl ConfirmationsQueue {
 		let _ = self.sender.lock().send(message);
 	}
 
-	/// Removes transaction from this queue and notifies `ConfirmationPromise` holders about the result.
+	/// Removes requests from this queue and notifies `ConfirmationPromise` holders about the result.
 	/// Notifies also a receiver about that event.
-	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<TransactionConfirmation> {
+	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<ConfirmationRequest> {
 		let token = self.queue.write().remove(&id);
 
 		if let Some(token) = token {
@@ -248,7 +260,7 @@ impl Drop for ConfirmationsQueue {
 }
 
 impl SigningQueue for ConfirmationsQueue {
-	fn add_request(&self, transaction: TransactionRequest) -> ConfirmationPromise {
+	fn add_request(&self, request: ConfirmationPayload) -> ConfirmationPromise {
 		// Increment id
 		let id = {
 			let mut last_id = self.id.lock();
@@ -257,16 +269,19 @@ impl SigningQueue for ConfirmationsQueue {
 		};
 		// Add request to queue
 		let res = {
+			debug!(target: "own_tx", "Signer: New entry ({:?}) in confirmation queue.", id);
+			trace!(target: "own_tx", "Signer: ({:?}) : {:?}", id, request);
+
 			let mut queue = self.queue.write();
 			queue.insert(id, ConfirmationToken {
 				result: Arc::new(Mutex::new(ConfirmationResult::Waiting)),
 				handle: thread::current(),
-				request: TransactionConfirmation {
+				request: ConfirmationRequest {
 					id: id,
-					transaction: transaction,
+					payload: request,
 				},
+				timeout: self.timeout,
 			});
-			debug!(target: "own_tx", "Signer: New transaction ({:?}) in confirmation queue.", id);
 			queue.get(&id).map(|token| token.as_promise()).expect("Token was just inserted.")
 		};
 		// Notify listeners
@@ -275,21 +290,21 @@ impl SigningQueue for ConfirmationsQueue {
 
 	}
 
-	fn peek(&self, id: &U256) -> Option<TransactionConfirmation> {
+	fn peek(&self, id: &U256) -> Option<ConfirmationRequest> {
 		self.queue.read().get(id).map(|token| token.request.clone())
 	}
 
-	fn request_rejected(&self, id: U256) -> Option<TransactionConfirmation> {
-		debug!(target: "own_tx", "Signer: Transaction rejected ({:?}).", id);
+	fn request_rejected(&self, id: U256) -> Option<ConfirmationRequest> {
+		debug!(target: "own_tx", "Signer: Request rejected ({:?}).", id);
 		self.remove(id, None)
 	}
 
-	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<TransactionConfirmation> {
+	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<ConfirmationRequest> {
 		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", id);
 		self.remove(id, Some(result))
 	}
 
-	fn requests(&self) -> Vec<TransactionConfirmation> {
+	fn requests(&self) -> Vec<ConfirmationRequest> {
 		let queue = self.queue.read();
 		queue.values().map(|token| token.request.clone()).collect()
 	}
@@ -312,20 +327,20 @@ mod test {
 	use std::thread;
 	use std::sync::Arc;
 	use util::{Address, U256, H256, Mutex};
-	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, TransactionRequest};
+	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload};
 	use v1::types::H256 as NH256;
 	use jsonrpc_core::to_value;
 
-	fn request() -> TransactionRequest {
-		TransactionRequest {
+	fn request() -> ConfirmationPayload {
+		ConfirmationPayload::Transaction(FilledTransactionRequest {
 			from: Address::from(1),
 			to: Some(Address::from(2)),
-			gas_price: None,
-			gas: None,
-			value: Some(U256::from(10_000_000)),
-			data: None,
+			gas_price: 0.into(),
+			gas: 10_000.into(),
+			value: 10_000_000.into(),
+			data: vec![],
 			nonce: None,
-		}
+		})
 	}
 
 	#[test]
@@ -391,6 +406,6 @@ mod test {
 		assert_eq!(all.len(), 1);
 		let el = all.get(0).unwrap();
 		assert_eq!(el.id, U256::from(1));
-		assert_eq!(el.transaction, request);
+		assert_eq!(el.payload, request);
 	}
 }

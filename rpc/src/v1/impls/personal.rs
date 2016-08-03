@@ -105,10 +105,9 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		from_params::<(TransactionRequest, String)>(params)
 			.and_then(|(request, password)| {
 				let request: TRequest = request.into();
-				let sender = request.from;
 				let accounts = take_weak!(self.accounts);
 
-				unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, sender, password)
+				unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, password)
 			})
 	}
 

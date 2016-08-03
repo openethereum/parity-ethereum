@@ -84,7 +84,7 @@ mod tests;
 
 mod api {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/api.ipc.rs"));
+	include!(concat!(env!("OUT_DIR"), "/api.rs"));
 }
 
 pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNetwork, SyncConfig,

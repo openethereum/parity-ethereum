@@ -53,6 +53,7 @@ pub struct ServerBuilder {
 	queue: Arc<ConfirmationsQueue>,
 	handler: Arc<IoHandler>,
 	authcodes_path: PathBuf,
+	skip_origin_validation: bool,
 }
 
 impl Extendable for ServerBuilder {
@@ -68,13 +69,21 @@ impl ServerBuilder {
 			queue: queue,
 			handler: Arc::new(IoHandler::new()),
 			authcodes_path: authcodes_path,
+			skip_origin_validation: false,
 		}
+	}
+
+	/// If set to `true` server will not verify Origin of incoming requests.
+	/// Not recommended. Use only for development.
+	pub fn skip_origin_validation(mut self, skip: bool) -> Self {
+		self.skip_origin_validation = skip;
+		self
 	}
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
 	pub fn start(self, addr: SocketAddr) -> Result<Server, ServerError> {
-		Server::start(addr, self.handler, self.queue, self.authcodes_path)
+		Server::start(addr, self.handler, self.queue, self.authcodes_path, self.skip_origin_validation)
 	}
 }
 
@@ -89,10 +98,10 @@ pub struct Server {
 impl Server {
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf) -> Result<Server, ServerError> {
+	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf, skip_origin_validation: bool) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
-			// It's also used for handling min-sysui requests (browser can make many of them in paralel)
+			// accept only handshakes beginning with GET
 			config.method_strict = true;
 			// Was shutting down server when suspending on linux:
 			config.shutdown_on_interrupt = false;
@@ -101,7 +110,9 @@ impl Server {
 
 		// Create WebSocket
 		let origin = format!("{}", addr);
-		let ws = try!(ws::Builder::new().with_settings(config).build(session::Factory::new(handler, origin, authcodes_path)));
+		let ws = try!(ws::Builder::new().with_settings(config).build(
+			session::Factory::new(handler, origin, authcodes_path, skip_origin_validation)
+		));
 
 		let panic_handler = PanicHandler::new_in_arc();
 		let ph = panic_handler.clone();

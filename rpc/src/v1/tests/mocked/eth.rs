@@ -17,10 +17,11 @@
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Instant, Duration};
 use jsonrpc_core::IoHandler;
 use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
-use util::RwLock;
+use util::Mutex;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
@@ -57,7 +58,7 @@ struct EthTester {
 	pub sync: Arc<TestSyncProvider>,
 	pub accounts_provider: Arc<AccountProvider>,
 	pub miner: Arc<TestMinerService>,
-	hashrates: Arc<RwLock<HashMap<H256, U256>>>,
+	hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>,
 	pub io: IoHandler,
 }
 
@@ -67,7 +68,7 @@ impl Default for EthTester {
 		let sync = sync_provider();
 		let ap = accounts_provider();
 		let miner = miner_service();
-		let hashrates = Arc::new(RwLock::new(HashMap::new()));
+		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner, true).to_delegate();
 		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
@@ -133,9 +134,9 @@ fn rpc_eth_syncing() {
 #[test]
 fn rpc_eth_hashrate() {
 	let tester = EthTester::default();
-	tester.hashrates.write().insert(H256::from(0), U256::from(0xfffa));
-	tester.hashrates.write().insert(H256::from(0), U256::from(0xfffb));
-	tester.hashrates.write().insert(H256::from(1), U256::from(0x1));
+	tester.hashrates.lock().insert(H256::from(0), (Instant::now() + Duration::from_secs(2), U256::from(0xfffa)));
+	tester.hashrates.lock().insert(H256::from(0), (Instant::now() + Duration::from_secs(2), U256::from(0xfffb)));
+	tester.hashrates.lock().insert(H256::from(1), (Instant::now() + Duration::from_secs(2), U256::from(0x1)));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_hashrate", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0xfffc","id":1}"#;
@@ -158,8 +159,8 @@ fn rpc_eth_submit_hashrate() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
-	assert_eq!(tester.hashrates.read().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned(),
-		Some(U256::from(0x500_000)));
+	assert_eq!(tester.hashrates.lock().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned().unwrap().1,
+		U256::from(0x500_000));
 }
 
 #[test]
@@ -210,15 +211,10 @@ fn rpc_eth_author() {
 #[test]
 fn rpc_eth_mining() {
 	let tester = EthTester::default();
+	tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_mining", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
-
-	tester.hashrates.write().insert(H256::from(1), U256::from(0x1));
-
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_mining", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 

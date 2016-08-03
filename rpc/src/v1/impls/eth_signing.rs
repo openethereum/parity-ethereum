@@ -23,24 +23,21 @@ use ethcore::client::MiningBlockChainClient;
 use util::{U256, Address, H256, Mutex};
 use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
-use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, TransactionRequest as TRequest};
+use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
-use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error};
+use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error, signer_disabled_error};
 
-fn fill_optional_fields<C, M>(request: &mut TRequest, client: &C, miner: &M)
+fn fill_optional_fields<C, M>(request: TRequest, client: &C, miner: &M) -> FilledRequest
 	where C: MiningBlockChainClient, M: MinerService {
-	if request.value.is_none() {
-		request.value = Some(U256::from(0));
-	}
-	if request.gas.is_none() {
-		request.gas = Some(miner.sensible_gas_limit());
-	}
-	if request.gas_price.is_none() {
-		request.gas_price = Some(default_gas_price(client, miner));
-	}
-	if request.data.is_none() {
-		request.data = Some(Vec::new());
+	FilledRequest {
+		from: request.from,
+		to: request.to,
+		nonce: request.nonce,
+		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
+		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
+		value: request.value.unwrap_or_else(|| 0.into()),
+		data: request.data.unwrap_or_else(Vec::new),
 	}
 }
 
@@ -74,10 +71,26 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 		Ok(())
 	}
 
-	fn dispatch<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
+	fn dispatch_sign<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
+		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
+			let address: Address = address.into();
+			let msg: H256 = msg.into();
+
+			let accounts = take_weak!(self.accounts);
+			if accounts.is_unlocked(address) {
+				return to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into));
+			}
+
+			let queue = take_weak!(self.queue);
+			let promise = queue.add_request(ConfirmationPayload::Sign(address, msg));
+			f(promise)
+		})
+	}
+
+	fn dispatch_transaction<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
-				let mut request: TRequest = request.into();
+				let request: TRequest = request.into();
 				let accounts = take_weak!(self.accounts);
 				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 
@@ -87,8 +100,8 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 				}
 
 				let queue = take_weak!(self.queue);
-				fill_optional_fields(&mut request, &*client, &*miner);
-				let promise = queue.add_request(request);
+				let request = fill_optional_fields(request, &*client, &*miner);
+				let promise = queue.add_request(ConfirmationPayload::Transaction(request));
 				f(promise)
 			})
 	}
@@ -98,23 +111,32 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
 {
 
-	fn sign(&self, _params: Params) -> Result<Value, Error> {
+	fn sign(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		warn!("Invoking eth_sign is not yet supported with signer enabled.");
-		// TODO [ToDr] Implement sign when rest of the signing queue is ready.
-		rpc_unimplemented!()
+		self.dispatch_sign(params, |promise| {
+			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH520::default()))
+		})
+	}
+
+	fn post_sign(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		self.dispatch_sign(params, |promise| {
+			let id = promise.id();
+			self.pending.lock().insert(id, promise);
+			to_value(&RpcU256::from(id))
+		})
 	}
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch(params, |promise| {
+		self.dispatch_transaction(params, |promise| {
 			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH256::default()))
 		})
 	}
 
 	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch(params, |promise| {
+		self.dispatch_transaction(params, |promise| {
 			let id = promise.id();
 			self.pending.lock().insert(id, promise);
 			to_value(&RpcU256::from(id))
@@ -193,13 +215,18 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 			})
 	}
 
+	fn post_sign(&self, _: Params) -> Result<Value, Error> {
+		// We don't support this in non-signer mode.
+		Err(signer_disabled_error())
+	}
+
 	fn post_transaction(&self, _: Params) -> Result<Value, Error> {
 		// We don't support this in non-signer mode.
-		Err(Error::invalid_params())
+		Err(signer_disabled_error())
 	}
 
 	fn check_transaction(&self, _: Params) -> Result<Value, Error> {
 		// We don't support this in non-signer mode.
-		Err(Error::invalid_params())
+		Err(signer_disabled_error())
 	}
 }
