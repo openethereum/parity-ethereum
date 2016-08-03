@@ -305,8 +305,18 @@ impl JournalDB for OverlayRecentDB {
 
 			match rc {
 				0 => {}
-				1 => try!(batch.put(self.column, &key, &value)),
-				-1 => try!(batch.delete(self.column, &key)),
+				1 => {
+					if try!(self.backing.get(self.column, &key)).is_some() {
+						return Err(BaseDataError::AlreadyExists(key).into());
+					}
+					try!(batch.put(self.column, &key, &value))
+				}
+				-1 => {
+					if try!(self.backing.get(self.column, &key)).is_none() {
+						return Err(BaseDataError::NegativelyReferencedHash(key).into());
+					}
+					try!(batch.delete(self.column, &key))
+				}
 				_ => panic!("Attempted to inject invalid state."),
 			}
 		}
