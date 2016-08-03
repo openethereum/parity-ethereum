@@ -20,6 +20,7 @@ const MIN_BC_CACHE_MB: u32 = 4;
 const MIN_DB_CACHE_MB: u32 = 2;
 const MIN_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 16;
 const DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 50;
+const DEFAULT_TRACE_CACHE_SIZE: u32 = 20;
 
 /// Configuration for application cache sizes.
 /// All	values are represented in MB.
@@ -34,6 +35,8 @@ pub struct CacheConfig {
 	blockchain: u32,
 	/// Size of transaction queue cache.
 	queue: u32,
+	/// Size of traces cache.
+	traces: u32,
 }
 
 impl Default for CacheConfig {
@@ -49,6 +52,7 @@ impl CacheConfig {
 			db: total * 7 / 8,
 			blockchain: total / 8,
 			queue: DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB,
+			traces: DEFAULT_TRACE_CACHE_SIZE,
 		}
 	}
 
@@ -58,6 +62,7 @@ impl CacheConfig {
 			db: db,
 			blockchain: blockchain,
 			queue: queue,
+			traces: DEFAULT_TRACE_CACHE_SIZE,
 		}
 	}
 
@@ -79,6 +84,11 @@ impl CacheConfig {
 	/// Size of the blockchain cache.
 	pub fn blockchain(&self) -> u32 {
 		max(self.blockchain, MIN_BC_CACHE_MB)
+	}
+
+	/// Size of the traces cache.
+	pub fn traces(&self) -> u32 {
+		self.traces
 	}
 }
 

@@ -110,7 +110,7 @@ fn new_account() {
 
 	let res = tester.io.handle_request(request);
 
-	let accounts = tester.accounts.accounts();
+	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"","id":1}"#;
@@ -122,7 +122,7 @@ fn new_account() {
 fn should_be_able_to_get_account_info() {
 	let tester = setup(None);
 	tester.accounts.new_account("").unwrap();
-	let accounts = tester.accounts.accounts();
+	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 
@@ -140,7 +140,7 @@ fn should_be_able_to_get_account_info() {
 fn should_be_able_to_set_name() {
 	let tester = setup(None);
 	tester.accounts.new_account("").unwrap();
-	let accounts = tester.accounts.accounts();
+	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 
@@ -161,7 +161,7 @@ fn should_be_able_to_set_name() {
 fn should_be_able_to_set_meta() {
 	let tester = setup(None);
 	tester.accounts.new_account("").unwrap();
-	let accounts = tester.accounts.accounts();
+	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 

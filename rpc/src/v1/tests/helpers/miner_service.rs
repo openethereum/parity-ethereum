@@ -181,8 +181,9 @@ impl MinerService for TestMinerService {
 		unimplemented!();
 	}
 
-	fn map_sealing_work<F, T>(&self, _chain: &MiningBlockChainClient, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
-		None
+	fn map_sealing_work<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+		let open_block = chain.prepare_open_block(self.author(), *self.gas_range_target.write(), self.extra_data());
+		Some(f(&open_block.close()))
 	}
 
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
@@ -203,6 +204,10 @@ impl MinerService for TestMinerService {
 
 	fn last_nonce(&self, address: &Address) -> Option<U256> {
 		self.last_nonces.read().get(address).cloned()
+	}
+
+	fn is_sealing(&self) -> bool {
+		false
 	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.

@@ -15,5 +15,4 @@ semver = "0.2"
 log = "0.3"
 
 [build-dependencies]
-syntex = "*"
 ethcore-ipc-codegen = { path = "../codegen" }

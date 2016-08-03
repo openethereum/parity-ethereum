@@ -20,6 +20,7 @@ use std::collections::VecDeque;
 use std::mem;
 use ipc::binary::BinaryConvertError;
 use util::rlp::*;
+use util::HeapSizeOf;
 use basic_types::LogBloom;
 use super::trace::{Action, Res};
 
@@ -44,6 +45,12 @@ impl FlatTrace {
 	/// Returns bloom of the trace.
 	pub fn bloom(&self) -> LogBloom {
 		self.action.bloom() | self.result.bloom()
+	}
+}
+
+impl HeapSizeOf for FlatTrace {
+	fn heap_size_of_children(&self) -> usize {
+		self.trace_address.heap_size_of_children()
 	}
 }
 
@@ -82,6 +89,12 @@ impl From<Vec<FlatTrace>> for FlatTransactionTraces {
 	}
 }
 
+impl HeapSizeOf for FlatTransactionTraces {
+	fn heap_size_of_children(&self) -> usize {
+		self.0.heap_size_of_children()
+	}
+}
+
 impl FlatTransactionTraces {
 	/// Returns bloom of all traces in the collection.
 	pub fn bloom(&self) -> LogBloom {
@@ -110,6 +123,12 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 /// Represents all traces produced by transactions in a single block.
 #[derive(Debug, PartialEq, Clone)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
+
+impl HeapSizeOf for FlatBlockTraces {
+	fn heap_size_of_children(&self) -> usize {
+		self.0.heap_size_of_children()
+	}
+}
 
 impl From<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 	fn from(v: Vec<FlatTransactionTraces>) -> Self {
@@ -145,31 +164,63 @@ impl Into<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 #[cfg(test)]
 mod tests {
 	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
-	use trace::trace::{Action, Res, CallResult, Call};
+	use trace::trace::{Action, Res, CallResult, Call, Suicide};
 	use types::executed::CallType;
 
 	#[test]
 	fn test_trace_serialization() {
 		use util::rlp;
+		// block #51921
 
 		let flat_trace = FlatTrace {
 			action: Action::Call(Call {
-				from: 1.into(),
-				to: 2.into(),
-				value: 3.into(),
-				gas: 4.into(),
-				input: vec![0x5],
+				from: "8dda5e016e674683241bf671cced51e7239ea2bc".parse().unwrap(),
+				to: "37a5e19cc2d49f244805d5c268c0e6f321965ab9".parse().unwrap(),
+				value: "3627e8f712373c0000".parse().unwrap(),
+				gas: 0x03e8.into(),
+				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: Res::Call(CallResult {
-				gas_used: 10.into(),
-				output: vec![0x11, 0x12]
+				gas_used: 0.into(),
+				output: vec![],
 			}),
 			trace_address: Default::default(),
 			subtraces: 0,
 		};
 
-		let block_traces = FlatBlockTraces(vec![FlatTransactionTraces(vec![flat_trace])]);
+		let flat_trace1 = FlatTrace {
+			action: Action::Call(Call {
+				from: "3d0768da09ce77d25e2d998e6a7b6ed4b9116c2d".parse().unwrap(),
+				to: "412fda7643b37d436cb40628f6dbbb80a07267ed".parse().unwrap(),
+				value: 0.into(),
+				gas: 0x010c78.into(),
+				input: vec![0x41, 0xc0, 0xe1, 0xb5],
+				call_type: CallType::Call,
+			}),
+			result: Res::Call(CallResult {
+				gas_used: 0x0127.into(),
+				output: vec![],
+			}),
+			trace_address: Default::default(),
+			subtraces: 1,
+		};
+
+		let flat_trace2 = FlatTrace {
+			action: Action::Suicide(Suicide {
+				address: "412fda7643b37d436cb40628f6dbbb80a07267ed".parse().unwrap(),
+				balance: 0.into(),
+				refund_address: "3d0768da09ce77d25e2d998e6a7b6ed4b9116c2d".parse().unwrap(),
+			}),
+			result: Res::None,
+			trace_address: vec![0].into_iter().collect(),
+			subtraces: 0,
+		};
+
+		let block_traces = FlatBlockTraces(vec![
+			FlatTransactionTraces(vec![flat_trace]),
+			FlatTransactionTraces(vec![flat_trace1, flat_trace2])
+		]);
 
 		let encoded = rlp::encode(&block_traces);
 		let decoded = rlp::decode(&encoded);

@@ -211,8 +211,8 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: Arc::new(cmd.net_settings.clone()),
-		allow_pending_receipt_query: !cmd.geth_compatibility,
-		net_service: manage_network.clone()
+		net_service: manage_network.clone(),
+		geth_compatibility: cmd.geth_compatibility,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -311,7 +311,7 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 
 	for a in cfg.unlocked_accounts {
 		if passwords.iter().find(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()).is_none() {
-			return Err(format!("No password given to unlock account {}. Pass the password using `--password`.", a));
+			return Err(format!("No password found to unlock account {}. Make sure valid password is present in files passed using `--password`.", a));
 		}
 	}
 

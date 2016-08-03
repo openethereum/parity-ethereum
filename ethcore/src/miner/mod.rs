@@ -150,6 +150,9 @@ pub trait MinerService : Send + Sync {
 	/// Returns highest transaction nonce for given address.
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
+	/// Is it currently sealing?
+	fn is_sealing(&self) -> bool;
+
 	/// Suggested gas price.
 	fn sensible_gas_price(&self) -> U256 { 20000000000u64.into() }
 

@@ -104,8 +104,8 @@ pub struct Dependencies {
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
-	pub allow_pending_receipt_query: bool,
 	pub net_service: Arc<ManageNetwork>,
+	pub geth_compatibility: bool,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -163,7 +163,10 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					&deps.secret_store,
 					&deps.miner,
 					&deps.external_miner,
-					deps.allow_pending_receipt_query
+					EthClientOptions {
+						allow_pending_receipt_query: !deps.geth_compatibility,
+						send_block_number_in_get_work: !deps.geth_compatibility,
+					}
 				);
 				server.add_delegate(client.to_delegate());
 

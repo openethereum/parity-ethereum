@@ -22,9 +22,9 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use v1::traits::PersonalSigner;
-use v1::types::{TransactionModification, TransactionConfirmation, U256};
-use v1::impls::unlock_sign_and_dispatch;
-use v1::helpers::{SigningQueue, ConfirmationsQueue};
+use v1::types::{TransactionModification, ConfirmationRequest, U256};
+use v1::impls::{unlock_sign_and_dispatch, signature_with_password};
+use v1::helpers::{SigningQueue, ConfirmationsQueue, ConfirmationPayload};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -55,14 +55,16 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 
 impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
-	fn transactions_to_confirm(&self, _params: Params) -> Result<Value, Error> {
+	fn requests_to_confirm(&self, _params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let queue = take_weak!(self.queue);
-		to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<TransactionConfirmation>>())
+		to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>())
 	}
 
-	fn confirm_transaction(&self, params: Params) -> Result<Value, Error> {
+	fn confirm_request(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		// TODO [ToDr] TransactionModification is redundant for some calls
+		// might be better to replace it in future
 		from_params::<(U256, TransactionModification, String)>(params).and_then(
 			|(id, modification, pass)| {
 				let id = id.into();
@@ -70,17 +72,23 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 				let queue = take_weak!(self.queue);
 				let client = take_weak!(self.client);
 				let miner = take_weak!(self.miner);
-				queue.peek(&id).map(|confirmation| {
-					let mut request = confirmation.transaction;
-					// apply modification
-					if let Some(gas_price) = modification.gas_price {
-						request.gas_price = Some(gas_price.into());
-					}
 
-					let sender = request.from;
-					let result = unlock_sign_and_dispatch(&*client, &*miner, request, &*accounts, sender, pass);
-					if let Ok(ref hash) = result {
-						queue.request_confirmed(id, Ok(hash.clone()));
+				queue.peek(&id).map(|confirmation| {
+					let result = match confirmation.payload {
+						ConfirmationPayload::Transaction(mut request) => {
+							// apply modification
+							if let Some(gas_price) = modification.gas_price {
+								request.gas_price = gas_price.into();
+							}
+
+							unlock_sign_and_dispatch(&*client, &*miner, request.into(), &*accounts, pass)
+						},
+						ConfirmationPayload::Sign(address, hash) => {
+							signature_with_password(&*accounts, address, hash, pass)
+						}
+					};
+					if let Ok(ref response) = result {
+						queue.request_confirmed(id, Ok(response.clone()));
 					}
 					result
 				}).unwrap_or_else(|| Err(Error::invalid_params()))
@@ -88,7 +96,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 		)
 	}
 
-	fn reject_transaction(&self, params: Params) -> Result<Value, Error> {
+	fn reject_request(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(U256, )>(params).and_then(
 			|(id, )| {

@@ -10,6 +10,7 @@ build = "build.rs"
 rustc_version = "0.1"
 syntex = "*"
 ethcore-ipc-codegen = { path = "ipc/codegen" }
+ethcore-ipc-tests = { path = "ipc/tests" }
 
 [dependencies]
 log = "0.3"
@@ -56,8 +57,9 @@ default = ["ui", "use-precompiled-js"]
 ui = ["dapps", "ethcore-signer/ui"]
 use-precompiled-js = ["ethcore-dapps/use-precompiled-js", "ethcore-signer/use-precompiled-js"]
 dapps = ["ethcore-dapps"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 ipc = ["ethcore/ipc"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
+json-tests = ["ethcore/json-tests"]
 
 [[bin]]
 path = "parity/main.rs"

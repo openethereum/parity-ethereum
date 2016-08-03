@@ -8,7 +8,6 @@ authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
 [build-dependencies]
-syntex = "*"
 "ethcore-ipc-codegen" = { path = "../ipc/codegen" }
 
 [dependencies]
@@ -35,7 +34,6 @@ ethcore-ipc = { path = "../ipc/rpc" }
 ethstore = { path = "../ethstore" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rand = "0.3"
-
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"

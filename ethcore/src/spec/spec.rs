@@ -17,7 +17,7 @@
 //! Parameters for a block chain.
 
 use common::*;
-use engines::{Engine, NullEngine, BasicAuthority};
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority};
 use pod_state::*;
 use account_db::*;
 use super::genesis::Genesis;
@@ -134,6 +134,7 @@ impl Spec {
 	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
+			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 		}

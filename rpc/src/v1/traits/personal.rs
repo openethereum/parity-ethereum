@@ -61,24 +61,24 @@ pub trait Personal: Sized + Send + Sync + 'static {
 	}
 }
 
-/// Personal extension for transactions confirmations rpc interface.
+/// Personal extension for confirmations rpc interface.
 pub trait PersonalSigner: Sized + Send + Sync + 'static {
 
-	/// Returns a list of transactions to confirm.
-	fn transactions_to_confirm(&self, _: Params) -> Result<Value, Error>;
+	/// Returns a list of items to confirm.
+	fn requests_to_confirm(&self, _: Params) -> Result<Value, Error>;
 
-	/// Confirm and send a specific transaction.
-	fn confirm_transaction(&self, _: Params) -> Result<Value, Error>;
+	/// Confirm specific request.
+	fn confirm_request(&self, _: Params) -> Result<Value, Error>;
 
-	/// Reject the transaction request.
-	fn reject_transaction(&self, _: Params) -> Result<Value, Error>;
+	/// Reject the confirmation request.
+	fn reject_request(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_method("personal_transactionsToConfirm", PersonalSigner::transactions_to_confirm);
-		delegate.add_method("personal_confirmTransaction", PersonalSigner::confirm_transaction);
-		delegate.add_method("personal_rejectTransaction", PersonalSigner::reject_transaction);
+		delegate.add_method("personal_requestsToConfirm", PersonalSigner::requests_to_confirm);
+		delegate.add_method("personal_confirmRequest", PersonalSigner::confirm_request);
+		delegate.add_method("personal_rejectRequest", PersonalSigner::reject_request);
 		delegate
 	}
 }

@@ -56,3 +56,11 @@ fn opt_two_vec() {
 	let serialized = ::ipc::binary::serialize(&example).unwrap();
 	assert_eq!(serialized, vec![0u8; 16]);
 }
+
+#[test]
+fn enum_with_struct() {
+	let example = EnumWithStruct::Right { how_much: 15 };
+	let serialized = ::ipc::binary::serialize(&example).unwrap();
+	let deserialized = ::ipc::binary::deserialize::<EnumWithStruct>(&serialized).unwrap();
+	assert_eq!(example, deserialized);
+}

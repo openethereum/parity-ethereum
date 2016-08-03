@@ -28,14 +28,8 @@ use hash::H256;
 pub enum BaseDataError {
 	/// An entry was removed more times than inserted.
 	NegativelyReferencedHash(H256),
-	/// An entry was referenced an invalid amount of times.
-	InvalidReferenceCount(H256, i32),
-	/// Returned when an attempt is made to delete an entry which
-	/// doesn't exist.
-	DeletionInvalid(H256),
-	/// Returned when an attempt is made to insert an entry which already
-	/// exists in the database.
-	InsertionInvalid(H256),
+	/// A committed value was inserted more than once.
+	AlreadyExists(H256),
 }
 
 impl fmt::Display for BaseDataError {
@@ -43,12 +37,8 @@ impl fmt::Display for BaseDataError {
 		match *self {
 			BaseDataError::NegativelyReferencedHash(hash) =>
 				write!(f, "Entry {} removed from database more times than it was added.", hash),
-			BaseDataError::InvalidReferenceCount(hash, rc) =>
-				write!(f, "Entry {} has invalid reference count of {}", hash, rc),
-			BaseDataError::DeletionInvalid(hash) =>
-				write!(f, "Cannot delete non-existent entry with key {}", hash),
-			BaseDataError::InsertionInvalid(hash) =>
-				write!(f, "Cannot overwrite existing entry with key {}", hash),
+			BaseDataError::AlreadyExists(hash) =>
+				write!(f, "Committed key already exists in database: {}", hash),
 		}
 	}
 }
