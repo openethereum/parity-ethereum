@@ -102,7 +102,7 @@ pub fn to_address(s: Option<String>) -> Result<Address, String> {
 
 pub fn to_addresses(s: &Option<String>) -> Result<Vec<Address>, String> {
 	match *s {
-		Some(ref adds) if adds.is_empty() => adds.split(',')
+		Some(ref adds) if !adds.is_empty() => adds.split(',')
 			.map(|a| clean_0x(a).parse().map_err(|_| format!("Invalid address: {:?}", a)))
 			.collect(),
 		_ => Ok(Vec::new()),
@@ -299,7 +299,7 @@ mod tests {
 	use util::{U256};
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
-	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_price, geth_ipc_path, to_bootnodes};
+	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes};
 
 	#[test]
 	fn test_to_duration() {
@@ -368,6 +368,18 @@ mod tests {
 			"D9A111feda3f362f55Ef1744347CDC8Dd9964a41".parse().unwrap()
 		);
 		assert_eq!(to_address(None).unwrap(), Default::default());
+	}
+
+	#[test]
+	fn test_to_addresses() {
+		let addresses = to_addresses(&Some("0xD9A111feda3f362f55Ef1744347CDC8Dd9964a41,D9A111feda3f362f55Ef1744347CDC8Dd9964a42".into())).unwrap();
+		assert_eq!(
+			addresses,
+			vec![
+				"D9A111feda3f362f55Ef1744347CDC8Dd9964a41".parse().unwrap(),
+				"D9A111feda3f362f55Ef1744347CDC8Dd9964a42".parse().unwrap(),
+			]
+		);
 	}
 
 	#[test]

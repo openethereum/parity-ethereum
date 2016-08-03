@@ -21,5 +21,5 @@ mod signing_queue;
 
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::PollFilter;
-pub use self::requests::{TransactionRequest, TransactionConfirmation, CallRequest};
+pub use self::requests::{TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest};
 pub use self::signing_queue::{ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent};

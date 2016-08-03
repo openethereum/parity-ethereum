@@ -780,6 +780,10 @@ impl MinerService for Miner {
 		}
 	}
 
+	fn is_sealing(&self) -> bool {
+		self.sealing_work.lock().queue.is_in_use()
+	}
+
 	fn map_sealing_work<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
 		trace!(target: "miner", "map_sealing_work: entering");
 		self.enable_and_prepare_sealing(chain);

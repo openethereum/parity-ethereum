@@ -36,7 +36,7 @@ use std::fmt;
 use std::slice;
 use std::ops::{Deref, DerefMut};
 
-/// Slie pretty print helper
+/// Slice pretty print helper
 pub struct PrettySlice<'a> (&'a [u8]);
 
 impl<'a> fmt::Debug for PrettySlice<'a> {

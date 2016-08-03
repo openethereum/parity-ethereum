@@ -303,6 +303,7 @@ impl Configuration {
 			enabled: self.signer_enabled(),
 			port: self.args.flag_signer_port,
 			signer_path: self.directories().signer,
+			skip_origin_validation: self.args.flag_signer_no_validation,
 		}
 	}
 
@@ -787,6 +788,19 @@ mod tests {
 
 		// then
 		assert_eq!(conf0.signer_enabled(), false);
+	}
+
+	#[test]
+	fn should_parse_signer_allow_all_flag() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--signer-no-validation"]);
+		let conf1 = parse(&["parity"]);
+
+		// then
+		assert_eq!(conf0.args.flag_signer_no_validation, true);
+		assert_eq!(conf1.args.flag_signer_no_validation, false);
 	}
 
 	#[test]
