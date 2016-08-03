@@ -29,7 +29,7 @@ use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
-use v1::{Eth, EthClient, EthSigning, EthSigningUnsafeClient};
+use v1::{Eth, EthClient, EthClientOptions, EthSigning, EthSigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use rustc_serialize::hex::ToHex;
 
@@ -64,13 +64,19 @@ struct EthTester {
 
 impl Default for EthTester {
 	fn default() -> Self {
+		Self::new_with_options(Default::default())
+	}
+}
+
+impl EthTester {
+	pub fn new_with_options(options: EthClientOptions) -> Self {
 		let client = blockchain_client();
 		let sync = sync_provider();
 		let ap = accounts_provider();
 		let miner = miner_service();
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
-		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner, true).to_delegate();
+		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner, options).to_delegate();
 		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
@@ -790,15 +796,26 @@ fn returns_no_work_if_cant_mine() {
 }
 
 #[test]
-fn returns_error_if_can_mine_and_no_closed_block() {
-	use ethsync::{SyncState};
-
+fn returns_correct_work_package() {
 	let eth_tester = EthTester::default();
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
-	eth_tester.sync.status.write().state = SyncState::Idle;
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}"#;
+
+	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn should_not_return_block_number() {
+	let eth_tester = EthTester::new_with_options(EthClientOptions {
+		allow_pending_receipt_query: true,
+		send_block_number_in_get_work: false,
+	});
+	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000"],"id":1}"#;
 
 	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
 }
