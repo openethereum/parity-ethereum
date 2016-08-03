@@ -183,7 +183,7 @@ impl Client {
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, db.clone(), chain.clone())));
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, DB_COL_STATE);
-		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
+		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
 			let batch = DBTransaction::new(&db);
 			try!(state_db.commit(&batch, 0, &spec.genesis_header().hash(), None));
 			try!(db.write(batch).map_err(ClientError::Database));

@@ -99,7 +99,7 @@ impl OverlayDB {
 	pub fn revert(&mut self) { self.overlay.clear(); }
 
 	/// Get the number of references that would be committed.
-	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(key).map_or(0, |&(_, refs)| refs) }
+	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(key).map_or(0, |(_, refs)| refs) }
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(Bytes, u32)> {
@@ -146,14 +146,14 @@ impl HashDB for OverlayDB {
 		// it positive again.
 		let k = self.overlay.raw(key);
 		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some((d, rc)) if rc > 0 => Some(d),
 			_ => {
-				let memrc = k.map_or(0, |&(_, rc)| rc);
+				let memrc = k.map_or(0, |(_, rc)| rc);
 				match self.payload(key) {
 					Some(x) => {
 						let (d, rc) = x;
 						if rc as i32 + memrc > 0 {
-							Some(&self.overlay.denote(key, d).0)
+							Some(self.overlay.denote(key, d).0)
 						}
 						else {
 							None
@@ -171,9 +171,9 @@ impl HashDB for OverlayDB {
 		// it positive again.
 		let k = self.overlay.raw(key);
 		match k {
-			Some(&(_, rc)) if rc > 0 => true,
+			Some((_, rc)) if rc > 0 => true,
 			_ => {
-				let memrc = k.map_or(0, |&(_, rc)| rc);
+				let memrc = k.map_or(0, |(_, rc)| rc);
 				match self.payload(key) {
 					Some(x) => {
 						let (_, rc) = x;

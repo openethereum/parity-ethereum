@@ -62,7 +62,8 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				let mut state_result = get_temp_state();
 				let mut state = state_result.reference_mut();
 				state.populate_from(pre);
-				state.commit();
+				state.commit()
+					.expect(&format!("State test {} failed due to internal error.", name));
 				let vm_factory = Default::default();
 				let res = state.apply(&env, engine.deref(), &vm_factory, &transaction, false);
 

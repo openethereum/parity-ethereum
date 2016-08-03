@@ -387,7 +387,7 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
-				account_trie.insert(&hash, &thin_rlp);
+				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 

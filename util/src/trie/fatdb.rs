@@ -17,8 +17,7 @@
 use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
-use super::{TrieDB, Trie, TrieDBIterator, TrieError};
-use trie::trietraits::TrieItem;
+use super::{TrieDB, Trie, TrieDBIterator, TrieItem};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
@@ -32,7 +31,7 @@ impl<'db> FatDB<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self, TrieError> {
+	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
 		let fatdb = FatDB {
 			raw: try!(TrieDB::new(db, root))
 		};
@@ -60,11 +59,13 @@ impl<'db> Trie for FatDB<'db> {
 		self.raw.root()
 	}
 
-	fn contains(&self, key: &[u8]) -> bool {
+	fn contains(&self, key: &[u8]) -> super::Result<bool> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<&'a [u8]>>
+		where 'a: 'key
+	{
 		self.raw.get(&key.sha3())
 	}
 }
@@ -105,9 +106,9 @@ fn fatdb_to_trie() {
 	let mut root = H256::default();
 	{
 		let mut t = FatDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
 	let t = FatDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap(), &[0x01u8, 0x23]);
+	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
 	assert_eq!(t.iter().collect::<Vec<_>>(), vec![(vec![0x01u8, 0x23], &[0x01u8, 0x23] as &[u8])]);
 }

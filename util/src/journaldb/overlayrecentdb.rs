@@ -266,9 +266,9 @@ impl JournalDB for OverlayRecentDB {
 					{
 						if canon_id == journal.id {
 							for h in &journal.insertions {
-								if let Some(&(ref d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
+								if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
 									if rc > 0 {
-										canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
+										canon_insertions.push((h.clone(), d.to_owned())); //TODO: optimize this to avoid data copy
 									}
 								}
 							}
@@ -343,7 +343,7 @@ impl HashDB for OverlayRecentDB {
 	fn get(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.transaction_overlay.raw(key);
 		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some((d, rc)) if rc > 0 => Some(d),
 			_ => {
 				let v = self.journal_overlay.read().backing_overlay.get(&to_short_key(key)).map(|v| v.to_vec());
 				match v {

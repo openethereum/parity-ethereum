@@ -18,8 +18,7 @@ use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
 use super::triedbmut::TrieDBMut;
-use super::trietraits::TrieMut;
-use super::TrieError;
+use super::TrieMut;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
@@ -39,7 +38,7 @@ impl<'db> SecTrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Result<Self, TrieError> {
+	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> super::Result<Self> {
 		Ok(SecTrieDBMut { raw: try!(TrieDBMut::from_existing(db, root)) })
 	}
 
@@ -59,20 +58,22 @@ impl<'db> TrieMut for SecTrieDBMut<'db> {
 		self.raw.is_empty()
 	}
 
-	fn contains(&self, key: &[u8]) -> bool {
+	fn contains(&self, key: &[u8]) -> super::Result<bool> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<&'a [u8]>>
+		where 'a: 'key
+	{
 		self.raw.get(&key.sha3())
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) {
-		self.raw.insert(&key.sha3(), value);
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<()> {
+		self.raw.insert(&key.sha3(), value)
 	}
 
-	fn remove(&mut self, key: &[u8]) {
-		self.raw.remove(&key.sha3());
+	fn remove(&mut self, key: &[u8]) -> super::Result<()> {
+		self.raw.remove(&key.sha3())
 	}
 }
 
@@ -86,8 +87,8 @@ fn sectrie_to_trie() {
 	let mut root = H256::default();
 	{
 		let mut t = SecTrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
 	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&(&[0x01u8, 0x23]).sha3()).unwrap(), &[0x01u8, 0x23]);
+	assert_eq!(t.get(&(&[0x01u8, 0x23]).sha3()).unwrap().unwrap(), &[0x01u8, 0x23]);
 }
