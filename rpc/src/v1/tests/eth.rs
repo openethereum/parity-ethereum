@@ -406,11 +406,6 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 		"gasLimit": "0x50000"
 	},
 	"accounts": {
-		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
-		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
-		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
-		"faa34835af5c2ea724333018a515fbb7d5bc0b33": { "balance": "10000000000000", "nonce": "0" }
 	}
 }
 "#;
@@ -434,7 +429,7 @@ fn starting_nonce_test() {
 		"#)
 	).unwrap();
 
-	assert_eq!(r#"{"jsonrpc":"2.0","result":"0x100","id":15}"#, &sample);
+	assert_eq!(r#"{"jsonrpc":"2.0","result":"0x0100","id":15}"#, &sample);
 }
 
 register_test!(eth_transaction_count_1, verify_transaction_counts, "BlockchainTests/bcWalletTest");
