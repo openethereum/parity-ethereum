@@ -17,7 +17,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, to_value};
 use v1::impls::EthSigningQueueClient;
 use v1::traits::EthSigning;
 use v1::helpers::{ConfirmationsQueue, SigningQueue};
@@ -105,6 +105,65 @@ fn should_post_sign_to_queue() {
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 1);
+}
+
+#[test]
+fn should_check_status_of_request() {
+	// given
+	let tester = eth_signing();
+	let address = Address::random();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_postSign",
+		"params": [
+			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"0x0000000000000000000000000000000000000000000000000000000000000005"
+		],
+		"id": 1
+	}"#;
+	tester.io.handle_request(&request).expect("Sent");
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_checkRequest",
+		"params": ["0x1"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+}
+
+#[test]
+fn should_check_status_of_request_when_its_resolved() {
+	// given
+	let tester = eth_signing();
+	let address = Address::random();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_postSign",
+		"params": [
+			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"0x0000000000000000000000000000000000000000000000000000000000000005"
+		],
+		"id": 1
+	}"#;
+	tester.io.handle_request(&request).expect("Sent");
+	tester.queue.request_confirmed(U256::from(1), to_value(&"Hello World!"));
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_checkRequest",
+		"params": ["0x1"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"Hello World!","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
 }
 
 #[test]

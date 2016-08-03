@@ -72,10 +72,11 @@ mod error_codes {
 	pub const NO_AUTHOR_CODE: i64 = -32002;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
-	pub const TRANSACTION_REJECTED: i64 = -32011;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const SIGNER_DISABLED: i64 = -32030;
+	pub const REQUEST_REJECTED: i64 = -32040;
+	pub const REQUEST_NOT_FOUND: i64 = -32041;
 }
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
@@ -171,11 +172,20 @@ fn password_error(error: AccountError) -> Error {
 	}
 }
 
-/// Error returned when transaction is rejected (in Trusted Signer).
-pub fn transaction_rejected_error() -> Error {
+/// Error returned when request is rejected (in Trusted Signer).
+pub fn request_rejected_error() -> Error {
 	Error {
-		code: ErrorCode::ServerError(error_codes::TRANSACTION_REJECTED),
-		message: "Transaction has been rejected.".into(),
+		code: ErrorCode::ServerError(error_codes::REQUEST_REJECTED),
+		message: "Request has been rejected.".into(),
+		data: None,
+	}
+}
+
+/// Error returned when request is not found in queue.
+pub fn request_not_found_error() -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::REQUEST_NOT_FOUND),
+		message: "Request not found.".into(),
 		data: None,
 	}
 }
