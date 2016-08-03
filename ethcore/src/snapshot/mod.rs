@@ -24,10 +24,11 @@ use engine::Engine;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
+use util::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
+use util::journaldb::JournalDB;
 use util::kvdb::Database;
-use util::overlaydb::{DeletionMode, OverlayDB};
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
 use util::rlp::SHA3_NULL_RLP;
 
@@ -356,15 +357,15 @@ impl ManifestData {
 
 /// Used to rebuild the state trie piece by piece.
 pub struct StateRebuilder {
-	db: OverlayDB,
+	db: Box<JournalDB>,
 	state_root: H256,
 }
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: Database) -> Self {
+	pub fn new(db: Box<JournalDB>) -> Self {
 		StateRebuilder {
-			db: OverlayDB::new(db, DeletionMode::Delete),
+			db: db,
 			state_root: SHA3_NULL_RLP,
 		}
 	}
@@ -385,15 +386,12 @@ impl StateRebuilder {
 		try!(scope(|scope| {
 			let mut handles = Vec::new();
 			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let mut db = self.db.clone();
-				let handle: ScopedJoinHandle<Result<(), ::error::Error>> = scope.spawn(move || {
+				let handle: ScopedJoinHandle<Result<MemoryDB, ::error::Error>> = scope.spawn(move || {
+					let mut db = MemoryDB::new();
 					try!(rebuild_account_trie(&mut db, account_chunk, out_pairs_chunk));
 
-					// commit the db changes we made in this thread.
-					try!(db.commit());
-
-					trace!(target: "snapshot", "thread committed {} entries to db.", account_chunk.len());
-					Ok(())
+					trace!(target: "snapshot", "thread rebuilt {} account tries", account_chunk.len());
+					Ok(db)
 				});
 
 				handles.push(handle);
@@ -401,7 +399,18 @@ impl StateRebuilder {
 
 			// see if we got any errors.
 			for handle in handles {
-				try!(handle.join());
+				let mut overlay = try!(handle.join());
+				for (key, (val, rc)) in overlay.drain() {
+					if rc == 0 { continue }
+
+					for _ in rc..0 {
+						self.db.remove(&key);
+					}
+
+					for _ in 0..rc {
+						self.db.emplace(key, val);
+					}
+				}
 			}
 
 			Ok::<_, ::error::Error>(())

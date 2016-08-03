@@ -710,14 +710,14 @@ impl BlockChainClient for Client {
 			gas_limit: view.gas_limit(),
 		};
 		for t in txs.iter().take(address.index) {
-			match Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, Default::default()) {
+			match Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(ReplayError::Execution(ee)) }
 			}
 		}
 		let t = &txs[address.index];
 		let orig = state.clone();
-		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, options);
 		if analytics.state_diffing {
 			if let Ok(ref mut x) = ret {
 				x.state_diff = Some(state.diff_from(orig));

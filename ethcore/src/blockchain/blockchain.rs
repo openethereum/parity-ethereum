@@ -559,8 +559,15 @@ impl BlockChain {
 			return false;
 		}
 
-		let _lock = self.insert_lock.lock();
-		self.blocks_db.put(&hash, &bytes).unwrap();
+		let batch = self.db.transaction();
+
+		let block_rlp = UntrustedRlp::new(bytes);
+		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
+		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
+
+		// store block in db
+		batch.put(DB_COL_HEADERS, &hash, &compressed_header).unwrap();
+		batch.put(DB_COL_BODIES, &hash, &compressed_body).unwrap();
 
 		let maybe_parent = self.block_details(&header.parent_hash());
 
@@ -573,14 +580,16 @@ impl BlockChain {
 				location: BlockLocation::CanonChain,
 			};
 
-			self.apply_update(ExtrasUpdate {
+			self.apply_update(&batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: self.prepare_block_details_update(bytes, &info),
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				info: info,
+				block: bytes
 			});
+			self.db.write(batch).unwrap();
 
 			false
 		} else {
@@ -605,14 +614,16 @@ impl BlockChain {
 			let mut update = HashMap::new();
 			update.insert(hash, block_details);
 
-			self.apply_update(ExtrasUpdate {
+			self.apply_update(&batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: update,
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				info: info,
+				block: bytes,
 			});
+			self.db.write(batch).unwrap();
 
 			true
 		}
@@ -623,22 +634,21 @@ impl BlockChain {
 	///
 	/// Used in snapshots to glue the chunks together at the end.
 	pub fn add_child(&self, block_hash: H256, child_hash: H256) {
-		// todo [rob]: do i need to hold import lock here?
-
 		let mut parent_details = self.block_details(&block_hash)
 			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
 
-		let batch = DBTransaction::new();
+		let batch = self.db.transaction();
 		parent_details.children.push(child_hash);
 
 		let mut update = HashMap::new();
 		update.insert(block_hash, parent_details);
 
 		self.note_used(CacheID::BlockDetails(block_hash));
-		let mut write_details = self.block_details.write();
-		batch.extend_with_cache(&mut *write_details, update, CacheUpdatePolicy::Overwrite);
 
-		self.extras_db.write(batch).unwrap();
+		let mut write_details = self.block_details.write();
+		batch.extend_with_cache(DB_COL_EXTRA, &mut *write_details, update, CacheUpdatePolicy::Overwrite);
+
+		self.db.write(batch).unwrap();
 	}
 
 	#[cfg_attr(feature="dev", allow(similar_names))]
@@ -663,7 +673,7 @@ impl BlockChain {
 		batch.put(DB_COL_HEADERS, &hash, &compressed_header).unwrap();
 		batch.put(DB_COL_BODIES, &hash, &compressed_body).unwrap();
 
-		let info = self.block_info(bytes, hash);
+		let info = self.block_info(bytes);
 
 		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
 			info!(target: "reorg", "Reorg to {} ({} {} {})",

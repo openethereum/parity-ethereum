@@ -98,28 +98,17 @@ struct Restoration {
 impl Restoration {
 	// make a new restoration, building databases in the given path.
 	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Result<Self, Error> {
-		// try something that outputs a string as error. used here for DB stuff
-		macro_rules! try_string {
-			($($t: tt)*) => {
-				try!(($($t)*).map_err(UtilError::SimpleString))
-			}
-		}
-
 		let mut state_db_path = path.to_owned();
-		state_db_path.push("state");
 
-		let raw_db =
-			try_string!(Database::open_default(&*state_db_path.to_string_lossy()));
+		let raw_db = Arc::new(try!(Database::open_default(&*db_path.to_string_lossy())
+			.map_err(|s| UtilError::SimpleString(s))));
 
-		let version = ::util::rlp::encode(&journaldb::version(pruning));
-		try_string!(raw_db.put(&journaldb::VERSION_KEY[..], &version[..]));
-
-		let blocks = try!(BlockRebuilder::new(BlockChain::new(Default::default(), &spec.genesis_block(), path)));
+		let blocks = try!(BlockRebuilder::new(BlockChain::new(Default::default(), &spec.genesis_block(), raw_db.clone())));
 
 		Ok(Restoration {
 			state_chunks_left: manifest.state_hashes.iter().cloned().collect(),
 			block_chunks_left: manifest.block_hashes.iter().cloned().collect(),
-			state: StateRebuilder::new(raw_db),
+			state: StateRebuilder::new(journaldb::new(raw_db, pruning, ::client::DB_COL_STATE)),
 			blocks: blocks,
 			snappy_buffer: Vec::new(),
 			final_state_root: manifest.state_root,
@@ -177,7 +166,8 @@ pub type Channel = IoChannel<ClientIoMessage>;
 /// is fed.
 pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
-	db_path: PathBuf,
+	client_db: PathBuf, // "<chain hash>/<pruning>/db"
+	db_path: PathBuf,  // "<chain hash>/"
 	io_channel: Channel,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
@@ -189,7 +179,10 @@ pub struct Service {
 
 impl Service {
 	/// Create a new snapshot service.
-	pub fn new(spec: Spec, pruning: Algorithm, db_path: PathBuf, io_channel: Channel) -> Result<Self, Error> {
+	pub fn new(spec: Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel) -> Result<Self, Error> {
+		let mut db_path = try!(client_db.parent().and_then(Path::parent)
+			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.")));
+
 		let reader = {
 			let mut snapshot_path = db_path.clone();
 			snapshot_path.push("snapshot");
@@ -199,6 +192,7 @@ impl Service {
 
 		let service = Service {
 			restoration: Mutex::new(None),
+			client_db: client_db,
 			db_path: db_path,
 			io_channel: io_channel,
 			pruning: pruning,
@@ -232,16 +226,35 @@ impl Service {
 		Ok(service)
 	}
 
+	// get the snapshot path.
+	fn snapshot_dir(&self) -> PathBuf {
+		let mut dir = self.db_path.clone();
+		dir.push("snapshot");
+		dir
+	}
+
+	// get the restoration directory.
+	fn restoration_dir(&self) -> PathBuf {
+		let mut dir = self.snapshot_dir();
+		dir.push("restoration");
+		dir
+	}
+
+	// restoration db path.
+	fn restoration_db(&self) -> PathBuf {
+		let mut dir = self.restoration_dir();
+		dir.push("db");
+		dir
+	}
+
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
-		let mut client_db = self.client_db_root();
+		let mut our_db = self.restoration_db();
 
-		let mut our_db = self.restoration_dir();
+		trace!(target: "snapshot", "replacing {:?} with {:?}", self.client_db, our_db);
 
-		trace!(target: "snapshot", "replacing {:?} with {:?}", client_db, our_db);
-
-		let mut backup_db = self.db_path.clone();
-		backup_db.push(format!("backup_{}", name));
+		let mut backup_db = self.restoration_dir();
+		backup_db.push("backup_db");
 
 		let _ = fs::remove_dir_all(&backup_db);
 
@@ -284,9 +297,7 @@ impl Service {
 		// destroy the restoration before replacing databases.
 		*rest = None;
 
-		try!(self.replace_client_db("state"));
-		try!(self.replace_client_db("blocks"));
-		try!(self.replace_client_db("extras"));
+		try!(self.replace_client_db());
 
 		*self.status.lock() = RestorationStatus::Inactive;
 
