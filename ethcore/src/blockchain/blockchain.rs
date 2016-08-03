@@ -665,8 +665,8 @@ impl BlockChain {
 			let mut write_hashes = self.pending_block_hashes.write();
 			let mut write_txs = self.pending_transaction_addresses.write();
 
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Overwrite);
 		}
 	}
 
@@ -1111,6 +1111,7 @@ mod tests {
 		let ir3b = bc.insert_block(&batch, &b3b, vec![]);
 		bc.commit();
 		db.write(batch).unwrap();
+		assert_eq!(bc.block_hash(3).unwrap(), b3b_hash);
 		let batch = db.transaction();
 		let ir3a = bc.insert_block(&batch, &b3a, vec![]);
 		bc.commit();
