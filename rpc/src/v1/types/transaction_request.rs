@@ -17,7 +17,7 @@
 //! `TransactionRequest` type
 
 use v1::types::{Bytes, H160, U256};
-use v1::helpers::{TransactionRequest as Request, TransactionConfirmation as Confirmation};
+use v1::helpers;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -39,8 +39,8 @@ pub struct TransactionRequest {
 	pub nonce: Option<U256>,
 }
 
-impl From<Request> for TransactionRequest {
-	fn from(r: Request) -> Self {
+impl From<helpers::TransactionRequest> for TransactionRequest {
+	fn from(r: helpers::TransactionRequest) -> Self {
 		TransactionRequest {
 			from: r.from.into(),
 			to: r.to.map(Into::into),
@@ -53,9 +53,23 @@ impl From<Request> for TransactionRequest {
 	}
 }
 
-impl Into<Request> for TransactionRequest {
-	fn into(self) -> Request {
-		Request {
+impl From<helpers::FilledTransactionRequest> for TransactionRequest {
+	fn from(r: helpers::FilledTransactionRequest) -> Self {
+		TransactionRequest {
+			from: r.from.into(),
+			to: r.to.map(Into::into),
+			gas_price: Some(r.gas_price.into()),
+			gas: Some(r.gas.into()),
+			value: Some(r.value.into()),
+			data: Some(r.data.into()),
+			nonce: r.nonce.map(Into::into),
+		}
+	}
+}
+
+impl Into<helpers::TransactionRequest> for TransactionRequest {
+	fn into(self) -> helpers::TransactionRequest {
+		helpers::TransactionRequest {
 			from: self.from.into(),
 			to: self.to.map(Into::into),
 			gas_price: self.gas_price.map(Into::into),
@@ -65,32 +79,6 @@ impl Into<Request> for TransactionRequest {
 			nonce: self.nonce.map(Into::into),
 		}
 	}
-}
-
-/// Transaction confirmation waiting in a queue
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize)]
-pub struct TransactionConfirmation {
-	/// Id of this confirmation
-	pub id: U256,
-	/// TransactionRequest
-	pub transaction: TransactionRequest,
-}
-
-impl From<Confirmation> for TransactionConfirmation {
-	fn from(c: Confirmation) -> Self {
-		TransactionConfirmation {
-			id: c.id.into(),
-			transaction: c.transaction.into(),
-		}
-	}
-}
-
-/// Possible modifications to the confirmed transaction sent by `SignerUI`
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct TransactionModification {
-	/// Modified gas price
-	#[serde(rename="gasPrice")]
-	pub gas_price: Option<U256>,
 }
 
 
@@ -188,7 +176,6 @@ mod tests {
 		});
 	}
 
-
 	#[test]
 	fn transaction_request_deserialize_error() {
 		let s = r#"{
@@ -202,27 +189,6 @@ mod tests {
 		let deserialized = serde_json::from_str::<TransactionRequest>(s);
 
 		assert!(deserialized.is_err(), "Should be error because to is empty");
-	}
-
-	#[test]
-	fn should_deserialize_modification() {
-		// given
-		let s1 = r#"{
-			"gasPrice":"0x0ba43b7400"
-		}"#;
-		let s2 = r#"{}"#;
-
-		// when
-		let res1: TransactionModification = serde_json::from_str(s1).unwrap();
-		let res2: TransactionModification = serde_json::from_str(s2).unwrap();
-
-		// then
-		assert_eq!(res1, TransactionModification {
-			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
-		});
-		assert_eq!(res2, TransactionModification {
-			gas_price: None,
-		});
 	}
 }
 

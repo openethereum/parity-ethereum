@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, U256};
+use util::{Address, U256, Bytes, H256};
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -30,18 +30,42 @@ pub struct TransactionRequest {
 	/// Value of transaction in wei
 	pub value: Option<U256>,
 	/// Additional data sent with transaction
-	pub data: Option<Vec<u8>>,
+	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
 }
 
-/// Transaction confirmation waiting in a queue
+/// Transaction request coming from RPC with default values filled in.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
-pub struct TransactionConfirmation {
-	/// Id of this confirmation
-	pub id: U256,
-	/// TransactionRequest
-	pub transaction: TransactionRequest,
+pub struct FilledTransactionRequest {
+	/// Sender
+	pub from: Address,
+	/// Recipient
+	pub to: Option<Address>,
+	/// Gas Price
+	pub gas_price: U256,
+	/// Gas
+	pub gas: U256,
+	/// Value of transaction in wei
+	pub value: U256,
+	/// Additional data sent with transaction
+	pub data: Bytes,
+	/// Transaction's nonce
+	pub nonce: Option<U256>,
+}
+
+impl From<FilledTransactionRequest> for TransactionRequest {
+	fn from(r: FilledTransactionRequest) -> Self {
+		TransactionRequest {
+			from: r.from,
+			to: r.to,
+			gas_price: Some(r.gas_price),
+			gas: Some(r.gas),
+			value: Some(r.value),
+			data: Some(r.data),
+			nonce: r.nonce,
+		}
+	}
 }
 
 /// Call request
@@ -61,4 +85,22 @@ pub struct CallRequest {
 	pub data: Option<Vec<u8>>,
 	/// Nonce
 	pub nonce: Option<U256>,
+}
+
+/// Confirmation object
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct ConfirmationRequest {
+	/// Id of this confirmation
+	pub id: U256,
+	/// Payload to confirm
+	pub payload: ConfirmationPayload,
+}
+
+/// Payload to confirm in Trusted Signer
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum ConfirmationPayload {
+	/// Transaction
+	Transaction(FilledTransactionRequest),
+	/// Sign request
+	Sign(Address, H256),
 }

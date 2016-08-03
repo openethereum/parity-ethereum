@@ -54,7 +54,7 @@ pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
 use v1::helpers::TransactionRequest;
-use v1::types::H256 as NH256;
+use v1::types::{H256 as RpcH256, H520 as RpcH520};
 use ethcore::error::Error as EthcoreError;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
@@ -80,13 +80,19 @@ mod error_codes {
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
-	let hash = NH256::from(signed_transaction.hash());
+	let hash = RpcH256::from(signed_transaction.hash());
 
 	let import = miner.import_own_transaction(client, signed_transaction);
 
 	import
 		.map_err(transaction_error)
 		.and_then(|_| to_value(&hash))
+}
+
+fn signature_with_password(accounts: &AccountProvider, address: Address, hash: H256, pass: String) -> Result<Value, Error> {
+	accounts.sign_with_password(address, pass, hash)
+		.map_err(password_error)
+		.and_then(|hash| to_value(&RpcH520::from(hash)))
 }
 
 fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest) -> Transaction where C: MiningBlockChainClient, M: MinerService {
@@ -105,9 +111,10 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 	}
 }
 
-fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, address: Address, password: String) -> Result<Value, Error>
+fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, password: String) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
+	let address = request.from;
 	let signed_transaction = {
 		let t = prepare_transaction(client, miner, request);
 		let hash = t.hash();
@@ -138,6 +145,14 @@ fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockCh
 		.gas_price_statistics(100, 8)
 		.map(|x| x[4])
 		.unwrap_or_else(|_| miner.sensible_gas_price())
+}
+
+fn signer_disabled_error() -> Error {
+	Error {
+		code: ErrorCode::ServerError(error_codes::SIGNER_DISABLED),
+		message: "Trusted Signer is disabled. This API is not available.".into(),
+		data: None
+	}
 }
 
 fn signing_error(error: AccountError) -> Error {
