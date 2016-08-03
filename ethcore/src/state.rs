@@ -163,9 +163,7 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-		self.cache.borrow().get(&a).unwrap_or(&None).is_some() ||
-			db.contains(a).unwrap_or_else(|e| { warn!("Potential DB corruption encountered: {}", e); false })
+		self.ensure_cached(a, false, |a| a.is_some())
 	}
 
 	/// Get the balance of account `a`.
