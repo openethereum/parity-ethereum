@@ -400,6 +400,8 @@ impl StateRebuilder {
 			// see if we got any errors.
 			for handle in handles {
 				let mut overlay = try!(handle.join());
+				// TODO [rob]: would be nice to have a convenience function
+				// for consolidating overlays.
 				for (key, (val, rc)) in overlay.drain() {
 					if rc == 0 { continue }
 
@@ -408,7 +410,7 @@ impl StateRebuilder {
 					}
 
 					for _ in 0..rc {
-						self.db.emplace(key, val);
+						self.db.emplace(key, val.clone());
 					}
 				}
 			}
@@ -430,7 +432,10 @@ impl StateRebuilder {
 			}
 		}
 
-		try!(self.db.inject());
+		let backing = self.db.backing().clone();
+		let batch = backing.transaction();
+		try!(self.db.inject(&batch));
+		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 
 		Ok(())

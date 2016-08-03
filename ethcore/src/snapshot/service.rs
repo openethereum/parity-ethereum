@@ -34,7 +34,7 @@ use spec::Spec;
 
 use util::{Bytes, H256, Mutex, UtilError};
 use util::io::IoChannel;
-use util::journaldb::{self, Algorithm};
+use util::journaldb::Algorithm;
 use util::kvdb::Database;
 use util::snappy;
 
@@ -98,8 +98,6 @@ struct Restoration {
 impl Restoration {
 	// make a new restoration, building databases in the given path.
 	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Result<Self, Error> {
-		let mut state_db_path = path.to_owned();
-
 		let raw_db = Arc::new(try!(Database::open_default(&*path.to_string_lossy())
 			.map_err(|s| UtilError::SimpleString(s))));
 
@@ -180,7 +178,7 @@ pub struct Service {
 impl Service {
 	/// Create a new snapshot service.
 	pub fn new(spec: Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel) -> Result<Self, Error> {
-		let mut db_path = try!(client_db.parent().and_then(Path::parent)
+		let db_path = try!(client_db.parent().and_then(Path::parent)
 			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.".into()))).to_owned();
 
 		let reader = {
@@ -249,7 +247,7 @@ impl Service {
 
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
-		let mut our_db = self.restoration_db();
+		let our_db = self.restoration_db();
 
 		trace!(target: "snapshot", "replacing {:?} with {:?}", self.client_db, our_db);
 
@@ -278,7 +276,7 @@ impl Service {
 			Err(e) => {
 				// restore the backup.
 				if existed {
-					try!(fs::rename(&backup_db, self.client_db));
+					try!(fs::rename(&backup_db, &self.client_db));
 				}
 				Err(e.into())
 			}

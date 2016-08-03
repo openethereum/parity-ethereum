@@ -570,7 +570,7 @@ impl BlockChain {
 				location: BlockLocation::CanonChain,
 			};
 
-			self.apply_update(&batch, ExtrasUpdate {
+			self.prepare_update(&batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: self.prepare_block_details_update(bytes, &info),
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
@@ -604,7 +604,7 @@ impl BlockChain {
 			let mut update = HashMap::new();
 			update.insert(hash, block_details);
 
-			self.apply_update(&batch, ExtrasUpdate {
+			self.prepare_update(&batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: update,
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
