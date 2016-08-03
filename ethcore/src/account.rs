@@ -191,6 +191,12 @@ impl Account {
 	pub fn is_dirty(&self) -> bool {
 		self.filth == Filth::Dirty
 	}
+
+	/// Mark account as clean.
+	pub fn set_clean(&mut self) {
+		self.filth = Filth::Clean
+	}
+
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &AccountDB) -> bool {
 		// TODO: fill out self.code_cache;
