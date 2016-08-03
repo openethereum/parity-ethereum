@@ -20,7 +20,8 @@ use rustc_serialize::hex::FromHex;
 use std::{ops, fmt, cmp};
 use std::cmp::*;
 use std::ops::*;
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash, Hasher, BuildHasherDefault};
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use math::log2;
 use error::UtilError;
@@ -538,6 +539,36 @@ impl_hash!(H512, 64);
 impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
+
+// Specialized HashMap and HashSet
+
+/// Hasher that just takes 8 bytes of the provided value.
+pub struct PlainHasher(u64);
+
+impl Default for PlainHasher {
+	#[inline]
+	fn default() -> PlainHasher {
+		PlainHasher(0)
+	}
+}
+
+impl Hasher for PlainHasher {
+	#[inline]
+	fn finish(&self) -> u64 {
+		self.0
+	}
+
+	#[inline]
+	fn write(&mut self, bytes: &[u8]) {
+		debug_assert!(bytes.len() == 32);
+		self.0 = unsafe { *::std::mem::transmute::<&u8, &u64>(bytes.get_unchecked(0)) };
+	}
+}
+
+/// Specialized version of HashMap with H256 keys and fast hashing function.
+pub type H256FastMap<T> = HashMap<H256, T, BuildHasherDefault<PlainHasher>>;
+/// Specialized version of HashSet with H256 keys and fast hashing function.
+pub type H256FastSet = HashSet<H256, BuildHasherDefault<PlainHasher>>;
 
 #[cfg(test)]
 mod tests {
