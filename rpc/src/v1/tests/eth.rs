@@ -238,6 +238,48 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 }
 "#;
 
+const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
+	"name": "Frontier (Test)",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000",
+				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
+				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
+				"daoHardforkTransition": "0xffffffffffffffff",
+				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
+				"daoHardforkAccounts": []
+			}
+		}
+	},
+	"params": {
+		"accountStartNonce": "0x100",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x50000",
+		"networkID" : "0x1"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x0000000000000042",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x400000000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa",
+		"gasLimit": "0x50000"
+	},
+	"accounts": {
+	}
+"#;
+
 #[test]
 fn eth_transaction_count() {
 	use util::crypto::Secret;
@@ -366,50 +408,6 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 		}
 	}
 }
-
-const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
-	"name": "Frontier (Test)",
-	"engine": {
-		"Ethash": {
-			"params": {
-				"gasLimitBoundDivisor": "0x0400",
-				"minimumDifficulty": "0x020000",
-				"difficultyBoundDivisor": "0x0800",
-				"durationLimit": "0x0d",
-				"blockReward": "0x4563918244F40000",
-				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
-				"daoHardforkTransition": "0xffffffffffffffff",
-				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
-				"daoHardforkAccounts": []
-			}
-		}
-	},
-	"params": {
-		"accountStartNonce": "0x100",
-		"maximumExtraDataSize": "0x20",
-		"minGasLimit": "0x50000",
-		"networkID" : "0x1"
-	},
-	"genesis": {
-		"seal": {
-			"ethereum": {
-				"nonce": "0x0000000000000042",
-				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
-			}
-		},
-		"difficulty": "0x400000000",
-		"author": "0x0000000000000000000000000000000000000000",
-		"timestamp": "0x00",
-		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-		"extraData": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa",
-		"gasLimit": "0x50000"
-	},
-	"accounts": {
-	}
-}
-"#;
-
 
 #[test]
 fn starting_nonce_test() {
