@@ -647,13 +647,17 @@ macro_rules! construct_uint {
 				(arr[index / 8] >> (((index % 8)) * 8)) as u8
 			}
 
+			#[inline]
 			fn to_big_endian(&self, bytes: &mut[u8]) {
-				assert!($n_words * 8 == bytes.len());
+				debug_assert!($n_words * 8 == bytes.len());
 				let &$name(ref arr) = self;
-				for i in 0..bytes.len() {
-					let rev = bytes.len() - 1 - i;
-					let pos = rev / 8;
-					bytes[i] = (arr[pos] >> ((rev % 8) * 8)) as u8;
+				unsafe {
+					let mut out: *mut u64 = mem::transmute(bytes.as_mut_ptr());
+					out = out.offset($n_words);
+					for i in 0..$n_words {
+						out = out.offset(-1);
+						*out = arr[i].swap_bytes();
+					}
 				}
 			}
 
