@@ -246,13 +246,13 @@ impl Client {
 		}
 	}
 
-	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
+	fn build_last_hashes(&self, parent_hash: H256) -> Arc<LastHashes> {
 		{
 			let hashes = self.last_hashes.read();
 			if hashes.front().map_or(false, |h| h == &parent_hash) {
 				let mut res = Vec::from(hashes.clone());
 				res.resize(256, H256::default());
-				return res;
+				return Arc::new(res);
 			}
 		}
 		let mut last_hashes = LastHashes::new();
@@ -268,7 +268,7 @@ impl Client {
 		}
 		let mut cached_hashes = self.last_hashes.write();
 		*cached_hashes = VecDeque::from(last_hashes.clone());
-		last_hashes
+		Arc::new(last_hashes)
 	}
 
 	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<LockedBlock, ()> {
@@ -976,7 +976,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn last_hashes(&self) -> LastHashes {
-		self.build_last_hashes(self.chain.best_block_hash())
+		(*self.build_last_hashes(self.chain.best_block_hash())).clone()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {

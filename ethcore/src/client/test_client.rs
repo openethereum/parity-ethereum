@@ -272,7 +272,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			false,
 			db,
 			&genesis_header,
-			last_hashes,
+			Arc::new(last_hashes),
 			author,
 			gas_range_target,
 			extra_data
