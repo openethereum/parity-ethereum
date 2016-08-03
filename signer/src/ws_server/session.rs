@@ -96,6 +96,7 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 
 pub struct Session {
 	out: ws::Sender,
+	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
 	handler: Arc<IoHandler>,
@@ -107,9 +108,11 @@ impl ws::Handler for Session {
 		let host = req.header("host").or_else(|| req.header("Host")).map(|x| &x[..]);
 
 		// Check request origin and host header.
-		if !origin_is_allowed(&self.self_origin, origin) && !(origin.is_none() && origin_is_allowed(&self.self_origin, host)) {
-			warn!(target: "signer", "Blocked connection to Signer API from untrusted origin.");
-			return Ok(ws::Response::forbidden(format!("You are not allowed to access system ui. Use: http://{}", self.self_origin)));
+		if !self.skip_origin_validation {
+			if !origin_is_allowed(&self.self_origin, origin) && !(origin.is_none() && origin_is_allowed(&self.self_origin, host)) {
+				warn!(target: "signer", "Blocked connection to Signer API from untrusted origin.");
+				return Ok(ws::Response::forbidden(format!("You are not allowed to access system ui. Use: http://{}", self.self_origin)));
+			}
 		}
 
 		// Detect if it's a websocket request.
@@ -150,14 +153,16 @@ impl ws::Handler for Session {
 
 pub struct Factory {
 	handler: Arc<IoHandler>,
+	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
 }
 
 impl Factory {
-	pub fn new(handler: Arc<IoHandler>, self_origin: String, authcodes_path: PathBuf) -> Self {
+	pub fn new(handler: Arc<IoHandler>, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
 		Factory {
 			handler: handler,
+			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
 			authcodes_path: authcodes_path,
 		}
@@ -171,6 +176,7 @@ impl ws::Factory for Factory {
 		Session {
 			out: sender,
 			handler: self.handler.clone(),
+			skip_origin_validation: self.skip_origin_validation,
 			self_origin: self.self_origin.clone(),
 			authcodes_path: self.authcodes_path.clone(),
 		}

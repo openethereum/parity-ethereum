@@ -74,6 +74,9 @@ Account Options:
                            [default: 8180].
   --signer-path PATH       Specify directory where Signer UIs tokens should
                            be stored. [default: $HOME/.parity/signer]
+  --signer-no-validation   Disable Origin and Host headers validation for
+                           Trusted Signer. WARNING: INSECURE. Used only for
+                           development.
 
 Networking Options:
   --no-network             Disable p2p networking.
@@ -212,7 +215,7 @@ Footprint Options:
                            the entire system, overrides other cache and queue
                            options.
   --fast-and-loose         Disables DB WAL, which gives a significant speed up
-                           but means an unclean exit is unrecoverable. 
+                           but means an unclean exit is unrecoverable.
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs [default: ssd].
@@ -337,6 +340,7 @@ pub struct Args {
 	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
 	pub flag_signer_path: String,
+	pub flag_signer_no_validation: bool,
 	pub flag_force_sealing: bool,
 	pub flag_reseal_on_txs: String,
 	pub flag_reseal_min_period: u64,

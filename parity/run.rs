@@ -311,7 +311,7 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 
 	for a in cfg.unlocked_accounts {
 		if passwords.iter().find(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()).is_none() {
-			return Err(format!("No password given to unlock account {}. Pass the password using `--password`.", a));
+			return Err(format!("No password found to unlock account {}. Make sure valid password is present in files passed using `--password`.", a));
 		}
 	}
 

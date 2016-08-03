@@ -205,6 +205,10 @@ impl MinerService for TestMinerService {
 		self.last_nonces.read().get(address).cloned()
 	}
 
+	fn is_sealing(&self) -> bool {
+		false
+	}
+
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
 	fn submit_seal(&self, _chain: &MiningBlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {

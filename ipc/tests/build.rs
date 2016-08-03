@@ -14,76 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate syntex;
 extern crate ethcore_ipc_codegen as codegen;
 
-use std::env;
-use std::path::Path;
-use std::process::exit;
-
 pub fn main() {
-	let out_dir = env::var_os("OUT_DIR").unwrap();
-
-	// rpc pass
-	if {
-		let src = Path::new("nested.rs.in");
-		let dst = Path::new(&out_dir).join("nested_ipc.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).is_ok()
-	}
-	// serialization pass
-	{
-		let src = Path::new(&out_dir).join("nested_ipc.rs");
-		let dst = Path::new(&out_dir).join("nested_cg.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
-	}
-
-	// rpc pass
-	if {
-		let src = Path::new("service.rs.in");
-		let dst = Path::new(&out_dir).join("service_ipc.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).is_ok()
-	}
-	// serialization pass
-	{
-		let src = Path::new(&out_dir).join("service_ipc.rs");
-		let dst = Path::new(&out_dir).join("service_cg.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
-	}
-
-	// rpc pass
-	if {
-		let src = Path::new("with_attrs.rs.in");
-		let dst = Path::new(&out_dir).join("with_attrs_ipc.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).is_ok()
-	}
-	// serialization pass
-	{
-		let src = Path::new(&out_dir).join("with_attrs_ipc.rs");
-		let dst = Path::new(&out_dir).join("with_attrs_cg.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
-	}
-
-	// rpc pass
-	{
-		let src = Path::new("binary.rs.in");
-		let dst = Path::new(&out_dir).join("binary.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		if let Err(err_msg) = registry.expand("", &src, &dst) {
-			println!("error: {}", err_msg);
-			exit(1);
-		}
-	}
+	codegen::derive_ipc("nested.rs.in").unwrap();
+	codegen::derive_ipc("service.rs.in").unwrap();
+	codegen::derive_ipc("with_attrs.rs.in").unwrap();
+	codegen::derive_binary("binary.rs.in").unwrap();
 }

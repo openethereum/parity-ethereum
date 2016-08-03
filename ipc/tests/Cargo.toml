@@ -10,10 +10,11 @@ path = "run.rs"
 [dependencies]
 ethcore-ipc = { path = "../rpc" }
 ethcore-devtools = { path = "../../devtools" }
-semver = "0.2.0"
+semver = "0.2"
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 ethcore-ipc-nano = { path = "../nano" }
 ethcore-util = { path = "../../util" }
+log = "0.3"
 
 [build-dependencies]
 syntex = "0.33"
