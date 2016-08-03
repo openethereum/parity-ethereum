@@ -232,33 +232,11 @@ impl Service {
 		Ok(service)
 	}
 
-	// Get the client db root.
-	fn client_db_root(&self) -> PathBuf {
-		get_db_path(&self.db_path, self.pruning)
-	}
-
-	// Get the snapshot directory path.
-	fn snapshot_dir(&self) -> PathBuf {
-		let mut path = self.db_path.clone();
-		path.push("snapshot");
-		path
-	}
-
-	// Get the restoration directory path.
-	fn restoration_dir(&self) -> PathBuf {
-		let mut path = self.snapshot_dir();
-		path.push("restoration");
-		path
-	}
-
-	// replace one of the client's databases with our own.
-	// the database handle must be closed before doing this.
-	fn replace_client_db(&self, name: &str) -> Result<(), Error> {
+	// replace one the client's database with our own.
+	fn replace_client_db(&self) -> Result<(), Error> {
 		let mut client_db = self.client_db_root();
-		client_db.push(name);
 
 		let mut our_db = self.restoration_dir();
-		our_db.push(name);
 
 		trace!(target: "snapshot", "replacing {:?} with {:?}", client_db, our_db);
 
