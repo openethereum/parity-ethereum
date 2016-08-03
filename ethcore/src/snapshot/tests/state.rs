@@ -22,17 +22,20 @@ use super::helpers::{compare_dbs, StateProducer};
 
 use rand;
 use util::hash::H256;
-use util::kvdb::Database;
-use util::overlaydb::{DeletionMode, OverlayDB};
+use util::journaldb::{self, Algorithm};
+use util::kvdb::{Database, DatabaseConfig};
 use util::memorydb::MemoryDB;
 use util::Mutex;
 use devtools::RandomTempPath;
+
+use std::sync::Arc;
 
 #[test]
 fn snap_and_restore() {
 	let mut producer = StateProducer::new();
 	let mut rng = rand::thread_rng();
 	let mut old_db = MemoryDB::new();
+	let db_cfg = DatabaseConfig::with_columns(::client::DB_NO_OF_COLUMNS);
 
 	for _ in 0..150 {
 		producer.tick(&mut rng, &mut old_db);
@@ -43,7 +46,7 @@ fn snap_and_restore() {
 	snap_file.push("SNAP");
 
 	let state_root = producer.state_root();
-	let mut writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
+	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
 	let state_hashes = chunk_state(&old_db, &state_root, &writer).unwrap();
 
@@ -56,10 +59,10 @@ fn snap_and_restore() {
 	}).unwrap();
 
 	let mut db_path = snap_dir.as_path().to_owned();
-	db_path.push("state_db");
-	{
-		let new_db = Database::open_default(&db_path.to_string_lossy()).unwrap();
-		let mut rebuilder = StateRebuilder::new(new_db);
+	db_path.push("db");
+	let db = {
+		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
+		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::Archive);
 		let reader = PackedReader::new(&snap_file).unwrap().unwrap();
 
 		for chunk_hash in &reader.manifest().state_hashes {
@@ -70,10 +73,10 @@ fn snap_and_restore() {
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
-	}
+		new_db
+	};
 
-	let db = Database::open_default(&db_path.to_string_lossy()).unwrap();
-	let new_db = OverlayDB::new(db, DeletionMode::Delete);
+	let new_db = journaldb::new(db, Algorithm::Archive, ::client::DB_COL_STATE);
 
-	compare_dbs(&old_db, &new_db);
+	compare_dbs(&old_db, new_db.as_hashdb());
 }

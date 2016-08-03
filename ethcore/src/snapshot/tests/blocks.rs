@@ -24,29 +24,37 @@ use snapshot::{chunk_blocks, BlockRebuilder};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use util::{Mutex, snappy};
+use util::kvdb::{Database, DatabaseConfig};
+
+use std::sync::Arc;
 
 fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();
 	let mut finalizer = BlockFinalizer::default();
 	let genesis = canon_chain.generate(&mut finalizer).unwrap();
+	let db_cfg = DatabaseConfig::with_columns(::client::DB_NO_OF_COLUMNS);
 
 	let orig_path = RandomTempPath::create_dir();
 	let new_path = RandomTempPath::create_dir();
 	let mut snapshot_path = new_path.as_path().to_owned();
 	snapshot_path.push("SNAP");
 
-	let bc = BlockChain::new(Default::default(), &genesis, orig_path.as_path());
+	let old_db = Arc::new(Database::open(&db_cfg, orig_path.as_str()).unwrap());
+	let bc = BlockChain::new(Default::default(), &genesis, old_db.clone());
 
 	// build the blockchain.
 	for _ in 0..amount {
 		let block = canon_chain.generate(&mut finalizer).unwrap();
-		bc.insert_block(&block, vec![]);
+		let batch = old_db.transaction();
+		bc.insert_block(&batch, &block, vec![]);
+		bc.commit();
+		old_db.write(batch).unwrap();
 	}
 
 	let best_hash = bc.best_block_hash();
 
 	// snapshot it.
-	let mut writer = Mutex::new(PackedWriter::new(&snapshot_path).unwrap());
+	let writer = Mutex::new(PackedWriter::new(&snapshot_path).unwrap());
 	let block_hashes = chunk_blocks(&bc, (amount, best_hash), &writer).unwrap();
 	writer.into_inner().finish(::snapshot::ManifestData {
 		state_hashes: Vec::new(),
@@ -57,10 +65,11 @@ fn chunk_and_restore(amount: u64) {
 	}).unwrap();
 
 	// restore it.
-	let new_chain = BlockChain::new(Default::default(), &genesis, new_path.as_path());
+	let new_db = Arc::new(Database::open(&db_cfg, new_path.as_str()).unwrap());
+	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone());
 	let mut rebuilder = BlockRebuilder::new(new_chain).unwrap();
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
-	let engine = ::null_engine::NullEngine::new(Default::default(), Default::default());
+	let engine = ::engines::NullEngine::new(Default::default(), Default::default());
 	for chunk_hash in &reader.manifest().block_hashes {
 		let compressed = reader.chunk(*chunk_hash).unwrap();
 		let chunk = snappy::decompress(&compressed).unwrap();
@@ -71,7 +80,7 @@ fn chunk_and_restore(amount: u64) {
 	drop(rebuilder);
 
 	// and test it.
-	let new_chain = BlockChain::new(Default::default(), &genesis, new_path.as_path());
+	let new_chain = BlockChain::new(Default::default(), &genesis, new_db);
 	assert_eq!(new_chain.best_block_hash(), best_hash);
 }
 
