@@ -252,7 +252,7 @@ impl Decodable for Suicide {
 		let res = Suicide {
 			address: try!(d.val_at(0)),
 			refund_address: try!(d.val_at(1)),
-			balance: try!(d.val_at(3)),
+			balance: try!(d.val_at(2)),
 		};
 
 		Ok(res)
@@ -298,7 +298,7 @@ impl Decodable for Action {
 		match action_type {
 			0 => d.val_at(1).map(Action::Call),
 			1 => d.val_at(1).map(Action::Create),
-			2 => d.val_at(2).map(Action::Suicide),
+			2 => d.val_at(1).map(Action::Suicide),
 			_ => Err(DecoderError::Custom("Invalid action type.")),
 		}
 	}

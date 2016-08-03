@@ -16,7 +16,6 @@
 
 //! Blockchain database.
 
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use bloomchain as bc;
 use util::*;
 use header::*;
@@ -32,6 +31,7 @@ use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{Writable, Readable, CacheUpdatePolicy};
 use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_COL_BODIES};
+use cache_manager::CacheManager;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -130,11 +130,6 @@ enum CacheID {
 	BlockReceipts(H256),
 }
 
-struct CacheManager {
-	cache_usage: VecDeque<HashSet<CacheID>>,
-	in_use: HashSet<CacheID>,
-}
-
 impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
@@ -148,8 +143,6 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 /// **Does not do input data verification.**
 pub struct BlockChain {
 	// All locks must be captured in the order declared here.
-	pref_cache_size: AtomicUsize,
-	max_cache_size: AtomicUsize,
 	blooms_config: bc::Config,
 
 	best_block: RwLock<BestBlock>,
@@ -167,7 +160,11 @@ pub struct BlockChain {
 
 	db: Arc<Database>,
 
-	cache_man: RwLock<CacheManager>,
+	cache_man: RwLock<CacheManager<CacheID>>,
+
+	pending_best_block: RwLock<Option<BestBlock>>,
+	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
+	pending_transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 }
 
 impl BlockProvider for BlockChain {
@@ -297,8 +294,6 @@ impl BlockProvider for BlockChain {
 	}
 }
 
-const COLLECTION_QUEUE_SIZE: usize = 8;
-
 pub struct AncestryIter<'a> {
 	current: H256,
 	chain: &'a BlockChain,
@@ -320,12 +315,10 @@ impl<'a> Iterator for AncestryIter<'a> {
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
 	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>) -> BlockChain {
-		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
-		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
+		// 400 is the avarage size of the key
+		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
 		let bc = BlockChain {
-			pref_cache_size: AtomicUsize::new(config.pref_cache_size),
-			max_cache_size: AtomicUsize::new(config.max_cache_size),
 			blooms_config: bc::Config {
 				levels: LOG_BLOOMS_LEVELS,
 				elements_per_index: LOG_BLOOMS_ELEMENTS_PER_INDEX,
@@ -340,6 +333,9 @@ impl BlockChain {
 			block_receipts: RwLock::new(HashMap::new()),
 			db: db.clone(),
 			cache_man: RwLock::new(cache_man),
+			pending_best_block: RwLock::new(None),
+			pending_block_hashes: RwLock::new(HashMap::new()),
+			pending_transaction_addresses: RwLock::new(HashMap::new()),
 		};
 
 		// load best block
@@ -449,12 +445,6 @@ impl BlockChain {
 		None
 	}
 
-	/// Set the cache configuration.
-	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
-		self.pref_cache_size.store(pref_cache_size, AtomicOrder::Relaxed);
-		self.max_cache_size.store(max_cache_size, AtomicOrder::Relaxed);
-	}
-
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
 	///
 	/// - a vector of hashes of all blocks, ordered from `from` to `to`.
@@ -557,6 +547,8 @@ impl BlockChain {
 			return ImportRoute::none();
 		}
 
+		assert!(self.pending_best_block.read().is_none());
+
 		let block_rlp = UntrustedRlp::new(bytes);
 		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
 		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
@@ -576,7 +568,7 @@ impl BlockChain {
 			);
 		}
 
-		self.apply_update(batch, ExtrasUpdate {
+		self.prepare_update(batch, ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
 			block_details: self.prepare_block_details_update(bytes, &info),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
@@ -631,8 +623,8 @@ impl BlockChain {
 		}
 	}
 
-	/// Applies extras update.
-	fn apply_update(&self, batch: &DBTransaction, update: ExtrasUpdate) {
+	/// Prepares extras update.
+	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate) {
 		{
 			for hash in update.block_details.keys().cloned() {
 				self.note_used(CacheID::BlockDetails(hash));
@@ -655,27 +647,44 @@ impl BlockChain {
 		// These cached values must be updated last with all three locks taken to avoid
 		// cache decoherence
 		{
-			let mut best_block = self.best_block.write();
+			let mut best_block = self.pending_best_block.write();
 			// update best block
 			match update.info.location {
 				BlockLocation::Branch => (),
 				_ => {
 					batch.put(DB_COL_EXTRA, b"best", &update.info.hash).unwrap();
-					*best_block = BestBlock {
+					*best_block = Some(BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
 						total_difficulty: update.info.total_difficulty,
 						block: update.block.to_vec(),
-					};
+					});
 				}
 			}
 
-			let mut write_hashes = self.block_hashes.write();
-			let mut write_txs = self.transaction_addresses.write();
+			let mut write_hashes = self.pending_block_hashes.write();
+			let mut write_txs = self.pending_transaction_addresses.write();
 
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Overwrite);
 		}
+	}
+
+	/// Applt pending insertion updates
+	pub fn commit(&self) {
+		let mut best_block = self.best_block.write();
+		let mut write_hashes = self.block_hashes.write();
+		let mut write_txs = self.transaction_addresses.write();
+		let mut pending_best_block = self.pending_best_block.write();
+		let mut pending_write_hashes = self.pending_block_hashes.write();
+		let mut pending_write_txs = self.pending_transaction_addresses.write();
+		// update best block
+		if let Some(block) = pending_best_block.take() {
+			*best_block = block;
+		}
+
+		write_hashes.extend(mem::replace(&mut *pending_write_hashes, HashMap::new()));
+		write_txs.extend(mem::replace(&mut *pending_write_txs, HashMap::new()));
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
@@ -874,74 +883,40 @@ impl BlockChain {
 	/// Let the cache system know that a cacheable item has been used.
 	fn note_used(&self, id: CacheID) {
 		let mut cache_man = self.cache_man.write();
-		if !cache_man.cache_usage[0].contains(&id) {
-			cache_man.cache_usage[0].insert(id.clone());
-			if cache_man.in_use.contains(&id) {
-				if let Some(c) = cache_man.cache_usage.iter_mut().skip(1).find(|e|e.contains(&id)) {
-					c.remove(&id);
-				}
-			} else {
-				cache_man.in_use.insert(id);
-			}
-		}
+		cache_man.note_used(id);
 	}
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) {
-			// rotate cache
-			let mut cache_man = self.cache_man.write();
-			const AVERAGE_BYTES_PER_CACHE_ENTRY: usize = 400; //estimated
-			if cache_man.cache_usage[0].len() > self.pref_cache_size.load(AtomicOrder::Relaxed) / COLLECTION_QUEUE_SIZE / AVERAGE_BYTES_PER_CACHE_ENTRY {
-				trace!("Cache rotation, cache_size = {}", self.cache_size().total());
-				let cache = cache_man.cache_usage.pop_back().unwrap();
-				cache_man.cache_usage.push_front(cache);
-			}
-			return;
-		}
+		let mut cache_man = self.cache_man.write();
+		cache_man.collect_garbage(|| self.cache_size().total(), | ids | {
+			let mut block_headers = self.block_headers.write();
+			let mut block_bodies = self.block_bodies.write();
+			let mut block_details = self.block_details.write();
+			let mut block_hashes = self.block_hashes.write();
+			let mut transaction_addresses = self.transaction_addresses.write();
+			let mut blocks_blooms = self.blocks_blooms.write();
+			let mut block_receipts = self.block_receipts.write();
 
-		for i in 0..COLLECTION_QUEUE_SIZE {
-			{
-				trace!("Cache cleanup round started {}, cache_size = {}", i, self.cache_size().total());
-				let mut block_headers = self.block_headers.write();
-				let mut block_bodies = self.block_bodies.write();
-				let mut block_details = self.block_details.write();
-				let mut block_hashes = self.block_hashes.write();
-				let mut transaction_addresses = self.transaction_addresses.write();
-				let mut blocks_blooms = self.blocks_blooms.write();
-				let mut block_receipts = self.block_receipts.write();
-				let mut cache_man = self.cache_man.write();
-
-				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
-					cache_man.in_use.remove(&id);
-					match id {
-						CacheID::BlockHeader(h) => { block_headers.remove(&h); },
-						CacheID::BlockBody(h) => { block_bodies.remove(&h); },
-						CacheID::BlockDetails(h) => { block_details.remove(&h); }
-						CacheID::BlockHashes(h) => { block_hashes.remove(&h); }
-						CacheID::TransactionAddresses(h) => { transaction_addresses.remove(&h); }
-						CacheID::BlocksBlooms(h) => { blocks_blooms.remove(&h); }
-						CacheID::BlockReceipts(h) => { block_receipts.remove(&h); }
-					}
+			for id in &ids {
+				match *id {
+					CacheID::BlockHeader(ref h) => { block_headers.remove(h); },
+					CacheID::BlockBody(ref h) => { block_bodies.remove(h); },
+					CacheID::BlockDetails(ref h) => { block_details.remove(h); }
+					CacheID::BlockHashes(ref h) => { block_hashes.remove(h); }
+					CacheID::TransactionAddresses(ref h) => { transaction_addresses.remove(h); }
+					CacheID::BlocksBlooms(ref h) => { blocks_blooms.remove(h); }
+					CacheID::BlockReceipts(ref h) => { block_receipts.remove(h); }
 				}
-				cache_man.cache_usage.push_front(HashSet::new());
-
-				// TODO: handle block_hashes properly.
-				block_hashes.clear();
-
-				block_headers.shrink_to_fit();
-				block_bodies.shrink_to_fit();
-				block_details.shrink_to_fit();
- 				block_hashes.shrink_to_fit();
- 				transaction_addresses.shrink_to_fit();
- 				blocks_blooms.shrink_to_fit();
- 				block_receipts.shrink_to_fit();
 			}
-			trace!("Cache cleanup round complete {}, cache_size = {}", i, self.cache_size().total());
-			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) { break; }
-		}
-
-		// TODO: m_lastCollection = chrono::system_clock::now();
+			block_headers.shrink_to_fit();
+			block_bodies.shrink_to_fit();
+			block_details.shrink_to_fit();
+			block_hashes.shrink_to_fit();
+			transaction_addresses.shrink_to_fit();
+			blocks_blooms.shrink_to_fit();
+			block_receipts.shrink_to_fit();
+		});
 	}
 
 	/// Create a block body from a block.
@@ -991,6 +966,8 @@ mod tests {
 		// when
 		let batch = db.transaction();
 		bc.insert_block(&batch, &first, vec![]);
+		assert_eq!(bc.best_block_number(), 0);
+		bc.commit();
 		// NOTE no db.write here (we want to check if best block is cached)
 
 		// then
@@ -1020,6 +997,7 @@ mod tests {
 		let batch = db.transaction();
 		bc.insert_block(&batch, &first, vec![]);
 		db.write(batch).unwrap();
+		bc.commit();
 
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.best_block_number(), 1);
@@ -1047,6 +1025,7 @@ mod tests {
 			let block = canon_chain.generate(&mut finalizer).unwrap();
 			block_hashes.push(BlockView::new(&block).header_view().sha3());
 			bc.insert_block(&batch, &block, vec![]);
+			bc.commit();
 		}
 		db.write(batch).unwrap();
 
@@ -1077,7 +1056,10 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let batch = db.transaction();
-		bc.insert_block(&batch, &b1a, vec![]);
+		for b in [&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b].iter() {
+			bc.insert_block(&batch, b, vec![]);
+			bc.commit();
+		}
 		bc.insert_block(&batch, &b1b, vec![]);
 		bc.insert_block(&batch, &b2a, vec![]);
 		bc.insert_block(&batch, &b2b, vec![]);
@@ -1123,11 +1105,16 @@ mod tests {
 
 		let batch = db.transaction();
 		let ir1 = bc.insert_block(&batch, &b1, vec![]);
+		bc.commit();
 		let ir2 = bc.insert_block(&batch, &b2, vec![]);
+		bc.commit();
 		let ir3b = bc.insert_block(&batch, &b3b, vec![]);
+		bc.commit();
 		db.write(batch).unwrap();
+		assert_eq!(bc.block_hash(3).unwrap(), b3b_hash);
 		let batch = db.transaction();
 		let ir3a = bc.insert_block(&batch, &b3a, vec![]);
+		bc.commit();
 		db.write(batch).unwrap();
 
 		assert_eq!(ir1, ImportRoute {
@@ -1235,6 +1222,7 @@ mod tests {
 			let batch = db.transaction();
 			bc.insert_block(&batch, &first, vec![]);
 			db.write(batch).unwrap();
+			bc.commit();
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
 
@@ -1299,6 +1287,7 @@ mod tests {
 		let batch = db.transaction();
 		bc.insert_block(&batch, &b1, vec![]);
 		db.write(batch).unwrap();
+		bc.commit();
 
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
@@ -1311,6 +1300,7 @@ mod tests {
 		let batch = db.transaction();
 		let res = bc.insert_block(&batch, bytes, receipts);
 		db.write(batch).unwrap();
+		bc.commit();
 		res
 	}
 
@@ -1401,11 +1391,13 @@ mod tests {
 			for _ in 0..5 {
 				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
 				bc.insert_block(&batch, &canon_block, vec![]);
+				bc.commit();
 			}
 
 			assert_eq!(bc.best_block_number(), 5);
 			bc.insert_block(&batch, &uncle, vec![]);
 			db.write(batch).unwrap();
+			bc.commit();
 		}
 
 		// re-loading the blockchain should load the correct best block.
@@ -1431,7 +1423,9 @@ mod tests {
 
 		let batch = db.transaction();
 		bc.insert_block(&batch, &first, vec![]);
+		bc.commit();
 		bc.insert_block(&batch, &second, vec![]);
+		bc.commit();
 		db.write(batch).unwrap();
 
 		assert_eq!(bc.rewind(), Some(first_hash.clone()));

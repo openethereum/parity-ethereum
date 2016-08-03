@@ -16,13 +16,14 @@
 
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use jsonrpc_core::IoHandler;
 use v1::impls::EthSigningQueueClient;
 use v1::traits::EthSigning;
 use v1::helpers::{ConfirmationsQueue, SigningQueue};
 use v1::tests::helpers::TestMinerService;
 use util::{Address, FixedHash};
-use util::numbers::{Uint, U256};
+use util::numbers::{Uint, U256, H256};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
@@ -37,7 +38,7 @@ struct EthSigningTester {
 
 impl Default for EthSigningTester {
 	fn default() -> Self {
-		let queue = Arc::new(ConfirmationsQueue::default());
+		let queue = Arc::new(ConfirmationsQueue::with_timeout(Duration::from_millis(1)));
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
@@ -58,6 +59,78 @@ fn eth_signing() -> EthSigningTester {
 	EthSigningTester::default()
 }
 
+#[test]
+fn should_add_sign_to_queue() {
+	// given
+	let tester = eth_signing();
+	let address = Address::random();
+	assert_eq!(tester.queue.requests().len(), 0);
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sign",
+		"params": [
+			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"0x0000000000000000000000000000000000000000000000000000000000000005"
+		],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.queue.requests().len(), 1);
+}
+
+#[test]
+fn should_post_sign_to_queue() {
+	// given
+	let tester = eth_signing();
+	let address = Address::random();
+	assert_eq!(tester.queue.requests().len(), 0);
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_postSign",
+		"params": [
+			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"0x0000000000000000000000000000000000000000000000000000000000000005"
+		],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.queue.requests().len(), 1);
+}
+
+#[test]
+fn should_sign_if_account_is_unlocked() {
+	// given
+	let tester = eth_signing();
+	let hash: H256 = 5.into();
+	let acc = tester.accounts.new_account("test").unwrap();
+	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
+
+	let signature = tester.accounts.sign(acc, hash).unwrap();
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sign",
+		"params": [
+			""#.to_owned() + format!("0x{:?}", acc).as_ref() + r#"",
+			""# + format!("0x{:?}", hash).as_ref() + r#""
+		],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", signature).as_ref() + r#"","id":1}"#;
+	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.queue.requests().len(), 0);
+}
 
 #[test]
 fn should_add_transaction_to_queue() {
@@ -80,7 +153,6 @@ fn should_add_transaction_to_queue() {
 		"id": 1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
-
 
 	// then
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));

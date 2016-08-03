@@ -62,10 +62,16 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			.unwrap_or_else(|| to_value(&false))
 	}
 
-	fn accounts(&self, _: Params) -> Result<Value, Error> {
+	fn accounts(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		let store = take_weak!(self.accounts);
-		to_value(&store.accounts().into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+		match params {
+			Params::None => {
+				let store = take_weak!(self.accounts);
+				let accounts = try!(store.accounts().map_err(|_| Error::internal_error()));
+				to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+			},
+			_ => Err(Error::invalid_params())
+		}
 	}
 
 	fn new_account(&self, params: Params) -> Result<Value, Error> {
@@ -99,10 +105,9 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		from_params::<(TransactionRequest, String)>(params)
 			.and_then(|(request, password)| {
 				let request: TRequest = request.into();
-				let sender = request.from;
 				let accounts = take_weak!(self.accounts);
 
-				unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, sender, password)
+				unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, password)
 			})
 	}
 

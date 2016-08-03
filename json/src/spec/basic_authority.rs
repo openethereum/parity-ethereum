@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethash params deserialization.
+//! Authority params deserialization.
 
 use uint::Uint;
 use hash::Address;
 
-/// Ethash params deserialization.
+/// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct BasicAuthorityParams {
 	/// Gas limit divisor.
@@ -32,7 +32,7 @@ pub struct BasicAuthorityParams {
 	pub authorities: Vec<Address>,
 }
 
-/// Ethash engine deserialization.
+/// Authority engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct BasicAuthority {
 	/// Ethash params.

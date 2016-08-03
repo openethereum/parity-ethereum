@@ -25,12 +25,6 @@ use std::mem;
 use ipc::binary::BinaryConvertError;
 use std::collections::{VecDeque, HashMap, BTreeMap};
 
-impl From<String> for Error {
-	fn from(s: String) -> Error {
-		Error::RocksDb(s)
-	}
-}
-
 enum WriteCacheEntry {
 	Remove,
 	Write(Vec<u8>),

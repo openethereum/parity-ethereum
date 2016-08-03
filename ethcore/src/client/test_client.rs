@@ -257,7 +257,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
-	fn prepare_open_block(&self, _author: Address, _gas_range_target: (U256, U256), _extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
@@ -265,7 +265,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		self.spec.ensure_db_good(db.as_hashdb_mut());
 
 		let last_hashes = vec![genesis_header.hash()];
-		OpenBlock::new(
+		let mut open_block = OpenBlock::new(
 			engine.deref(),
 			self.vm_factory(),
 			Default::default(),
@@ -273,10 +273,13 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			db,
 			&genesis_header,
 			last_hashes,
-			Address::zero(),
-			(3141562.into(), 31415620.into()),
-			vec![]
-		).expect("Opening block for tests will not fail.")
+			author,
+			gas_range_target,
+			extra_data
+		).expect("Opening block for tests will not fail.");
+		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
+		open_block.set_timestamp(10_000_000);
+		open_block
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {

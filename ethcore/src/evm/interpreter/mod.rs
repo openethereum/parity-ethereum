@@ -41,6 +41,7 @@ use common::*;
 use types::executed::CallType;
 use super::instructions::{self, Instruction, InstructionInfo};
 use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType};
+use bit_set::BitSet;
 
 #[cfg(feature = "evm-debug")]
 fn color(instruction: Instruction, name: &'static str) -> String {
@@ -115,12 +116,13 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			try!(self.verify_instruction(ext, instruction, &info, &stack));
 
 			// Calculate gas cost
-			let (gas_cost, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, &info, &stack, self.mem.size()));
+			let (gas_cost, mem_gas, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, &info, &stack, self.mem.size()));
 			// TODO: make compile-time removable if too much of a performance hit.
 			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &gas_cost.as_u256());
 
 			try!(gasometer.verify_gas(&gas_cost));
 			self.mem.expand(mem_size);
+			gasometer.current_mem_gas = mem_gas;
 			gasometer.current_gas = gasometer.current_gas - gas_cost;
 
 			evm_debug!({
@@ -540,10 +542,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 		}
 	}
 
-	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &HashSet<usize>) -> evm::Result<usize> {
+	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &BitSet) -> evm::Result<usize> {
 		let jump = jump_u.low_u64() as usize;
 
-		if valid_jump_destinations.contains(&jump) && jump_u < U256::from(!0 as usize) {
+		if valid_jump_destinations.contains(jump) && U256::from(jump) == jump_u {
 			Ok(jump)
 		} else {
 			Err(evm::Error::BadJumpDestination {
@@ -765,8 +767,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 		Ok(())
 	}
 
-	fn find_jump_destinations(&self, code: &[u8]) -> HashSet<CodePosition> {
-		let mut jump_dests = HashSet::new();
+	fn find_jump_destinations(&self, code: &[u8]) -> BitSet {
+		let mut jump_dests = BitSet::with_capacity(code.len());
 		let mut position = 0;
 
 		while position < code.len() {
@@ -818,5 +820,5 @@ fn test_find_jump_destinations() {
 	let valid_jump_destinations = interpreter.find_jump_destinations(&code);
 
 	// then
-	assert!(valid_jump_destinations.contains(&66));
+	assert!(valid_jump_destinations.contains(66));
 }

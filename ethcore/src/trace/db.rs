@@ -20,14 +20,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use util::{H256, H264, Database, DBTransaction, RwLock};
+use util::{H256, H264, Database, DBTransaction, RwLock, HeapSizeOf};
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras, Error};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
 use blooms;
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 use client::DB_COL_TRACE;
-
+use cache_manager::CacheManager;
 
 const TRACE_DB_VER: &'static [u8] = b"1.0";
 
@@ -62,6 +62,12 @@ impl From<GroupPosition> for TraceGroupPosition {
 	}
 }
 
+impl HeapSizeOf for TraceGroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		0
+	}
+}
+
 /// Helper data structure created cause [u8; 6] does not implement Deref to &[u8].
 pub struct TraceGroupKey([u8; 6]);
 
@@ -88,11 +94,18 @@ impl Key<blooms::BloomGroup> for TraceGroupPosition {
 	}
 }
 
+#[derive(Debug, Hash, Eq, PartialEq)]
+enum CacheID {
+	Trace(H256),
+	Bloom(TraceGroupPosition),
+}
+
 /// Trace database.
 pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
+	cache_manager: RwLock<CacheManager<CacheID>>,
 	// db
 	tracesdb: Arc<Database>,
 	// config,
@@ -106,6 +119,7 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
+		self.note_used(CacheID::Bloom(position.clone()));
 		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.blooms, &position).map(Into::into)
 	}
 }
@@ -136,6 +150,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		let db = TraceDB {
 			traces: RwLock::new(HashMap::new()),
 			blooms: RwLock::new(HashMap::new()),
+			cache_manager: RwLock::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
 			tracesdb: tracesdb,
 			bloom_config: config.blooms,
 			enabled: enabled,
@@ -145,8 +160,39 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		Ok(db)
 	}
 
+	fn cache_size(&self) -> usize {
+		let traces = self.traces.read().heap_size_of_children();
+		let blooms = self.blooms.read().heap_size_of_children();
+		traces + blooms
+	}
+
+	/// Let the cache system know that a cacheable item has been used.
+	fn note_used(&self, id: CacheID) {
+		let mut cache_manager = self.cache_manager.write();
+		cache_manager.note_used(id);
+	}
+
+	/// Ticks our cache system and throws out any old data.
+	pub fn collect_garbage(&self) {
+		let mut cache_manager = self.cache_manager.write();
+		cache_manager.collect_garbage(|| self.cache_size(), | ids | {
+			let mut traces = self.traces.write();
+			let mut blooms = self.blooms.write();
+
+			for id in &ids {
+				match *id {
+					CacheID::Trace(ref h) => { traces.remove(h); },
+					CacheID::Bloom(ref h) => { blooms.remove(h); },
+				}
+			}
+			traces.shrink_to_fit();
+			blooms.shrink_to_fit();
+		});
+	}
+
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
+		self.note_used(CacheID::Trace(block_hash.clone()));
 		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.traces, block_hash)
 	}
 
@@ -218,6 +264,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 		// at first, let's insert new block traces
 		{
+			// note_used must be called before locking traces to avoid cache/traces deadlock on garbage collection
+			self.note_used(CacheID::Trace(request.block_hash.clone()));
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
@@ -247,6 +295,9 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
 
 			let mut blooms = self.blooms.write();
+			for key in blooms_to_insert.keys() {
+				self.note_used(CacheID::Bloom(key.clone()));
+			}
 			batch.extend_with_cache(DB_COL_TRACE, blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
 		}
 	}
@@ -373,6 +424,7 @@ mod tests {
 		}
 	}
 
+	#[derive(Clone)]
 	struct Extras {
 		block_hashes: HashMap<BlockNumber, H256>,
 		transaction_hashes: HashMap<BlockNumber, Vec<H256>>,
@@ -599,5 +651,37 @@ mod tests {
 
 		assert_eq!(tracedb.trace(0, 0, vec![]).unwrap(), create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
 		assert_eq!(tracedb.trace(1, 0, vec![]).unwrap(), create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+	}
+
+	#[test]
+	fn query_trace_after_reopen() {
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let mut config = Config::default();
+		let mut extras = Extras::default();
+		let block_0 = H256::from(0xa1);
+		let tx_0 = H256::from(0xff);
+
+		extras.block_hashes.insert(0, block_0.clone());
+		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
+
+		// set tracing on
+		config.enabled = Switch::On;
+
+		{
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone())).unwrap();
+
+			// import block 0
+			let request = create_simple_import_request(0, block_0.clone());
+			let batch = DBTransaction::new(&db);
+			tracedb.import(&batch, request);
+			db.write(batch).unwrap();
+		}
+
+		{
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras)).unwrap();
+			let traces = tracedb.transaction_traces(0, 0);
+			assert_eq!(traces.unwrap(), vec![create_simple_localized_trace(0, block_0, tx_0)]);
+		}
 	}
 }

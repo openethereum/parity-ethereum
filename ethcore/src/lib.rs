@@ -95,6 +95,7 @@ pub extern crate ethstore;
 extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_devtools as devtools;
+extern crate bit_set;
 
 #[cfg(feature = "jit" )] extern crate evmjit;
 
@@ -117,6 +118,7 @@ pub mod snapshot;
 pub mod action_params;
 #[macro_use] pub mod evm;
 
+mod cache_manager;
 mod blooms;
 mod db;
 mod common;

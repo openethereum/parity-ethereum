@@ -107,18 +107,23 @@ impl_bridge_type!(Message, 32, H256, SSMessage);
 impl_bridge_type!(Address, 20, H160, SSAddress);
 
 
-struct NullDir;
+#[derive(Default)]
+struct NullDir {
+	accounts: RwLock<HashMap<SSAddress, SafeAccount>>,
+}
 
 impl KeyDirectory for NullDir {
 	fn load(&self) -> Result<Vec<SafeAccount>, SSError> {
-		Ok(vec![])
+		Ok(self.accounts.read().values().cloned().collect())
 	}
 
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
+		self.accounts.write().insert(account.address.clone(), account.clone());
 		Ok(account)
 	}
 
-	fn remove(&self, _address: &SSAddress) -> Result<(), SSError> {
+	fn remove(&self, address: &SSAddress) -> Result<(), SSError> {
+		self.accounts.write().remove(address);
 		Ok(())
 	}
 }
@@ -164,7 +169,7 @@ impl AccountProvider {
 	pub fn transient_provider() -> Self {
 		AccountProvider {
 			unlocked: RwLock::new(HashMap::new()),
-			sstore: Box::new(EthStore::open(Box::new(NullDir)).unwrap())
+			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).unwrap())
 		}
 	}
 
@@ -184,13 +189,14 @@ impl AccountProvider {
 	}
 
 	/// Returns addresses of all accounts.
-	pub fn accounts(&self) -> Vec<H160> {
-		self.sstore.accounts().into_iter().map(|a| H160(a.into())).collect()
+	pub fn accounts(&self) -> Result<Vec<H160>, Error> {
+		let accounts = try!(self.sstore.accounts()).into_iter().map(|a| H160(a.into())).collect();
+		Ok(accounts)
 	}
 
 	/// Returns each account along with name and meta.
 	pub fn accounts_info(&self) -> Result<HashMap<H160, AccountMeta>, Error> {
-		let r: HashMap<H160, AccountMeta> = self.sstore.accounts()
+		let r: HashMap<H160, AccountMeta> = try!(self.sstore.accounts())
 			.into_iter()
 			.map(|a| (H160(a.clone().into()), self.account_meta(a).unwrap_or_else(|_| Default::default())))
 			.collect();

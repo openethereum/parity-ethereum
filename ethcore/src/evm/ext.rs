@@ -18,8 +18,8 @@
 
 use util::common::*;
 use evm::{self, Schedule};
-use types::executed::CallType;
 use env_info::*;
+use types::executed::CallType;
 
 /// Result of externalities create function.
 pub enum ContractCreateResult {

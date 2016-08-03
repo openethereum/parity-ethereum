@@ -167,22 +167,26 @@ impl State {
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
-		self.get(a, false).as_ref().map_or(U256::zero(), |account| *account.balance())
+		self.ensure_cached(a, false,
+			|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
-		self.get(a, false).as_ref().map_or(U256::zero(), |account| *account.nonce())
+		self.ensure_cached(a, false,
+			|a| a.as_ref().map_or(U256::zero(), |account| *account.nonce()))
 	}
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key))
+		self.ensure_cached(address, false,
+			|a| a.as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key)))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
-		self.get(a, true).as_ref().map_or(None, |a|a.code().map(|x|x.to_vec()))
+		self.ensure_cached(a, true,
+			|a| a.as_ref().map_or(None, |a|a.code().map(|x|x.to_vec())))
 	}
 
 	/// Add `incr` to the balance of account `a`.
@@ -306,11 +310,13 @@ impl State {
 
 	fn query_pod(&mut self, query: &PodState) {
 		for (ref address, ref pod_account) in query.get() {
-			if self.get(address, true).is_some() {
-				for key in pod_account.storage.keys() {
-					self.storage_at(address, key);
+			self.ensure_cached(address, true, |a| {
+				if a.is_some() {
+					for key in pod_account.storage.keys() {
+						self.storage_at(address, key);
+					}
 				}
-			}
+			});
 		}
 	}
 
@@ -323,9 +329,10 @@ impl State {
 		pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post)
 	}
 
-	/// Pull account `a` in our cache from the trie DB and return it.
+	/// Ensure account `a` is in our cache of the trie DB and return a handle for getting it.
 	/// `require_code` requires that the code be cached, too.
-	fn get<'a>(&'a self, a: &Address, require_code: bool) -> &'a Option<Account> {
+	fn ensure_cached<'a, F, U>(&'a self, a: &'a Address, require_code: bool, f: F) -> U
+		where F: FnOnce(&Option<Account>) -> U {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
@@ -336,7 +343,8 @@ impl State {
 				account.cache_code(&AccountDB::new(self.db.as_hashdb(), a));
 			}
 		}
-		unsafe { ::std::mem::transmute(self.cache.borrow().get(a).unwrap()) }
+
+		f(self.cache.borrow().get(a).unwrap())
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
