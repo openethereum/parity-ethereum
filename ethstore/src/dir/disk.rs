@@ -100,19 +100,20 @@ impl KeyDirectory for DiskDirectory {
 		let keyfile: json::KeyFile = account.clone().into();
 
 		// build file path
-		let mut account = account;
-		account.filename = account.filename.or_else(|| {
-			let timestamp = time::strftime("%Y-%m-%d_%H.%M.%S_%Z", &time::now()).unwrap_or("???".to_owned());
-			Some(format!("{}-{}.json", keyfile.id, timestamp))
+		let filename = account.filename.as_ref().cloned().unwrap_or_else(|| {
+			let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).unwrap_or("???".to_owned());
+			format!("UTC--{}Z--{:?}", timestamp, account.address)
 		});
 
-		let keyfile_path = {
-			let mut p = self.path.clone();
-			p.push(account.filename.as_ref().expect("build-file-path ensures is not None; qed"));
-			p
-		};
+		// update account filename
+		let mut account = account;
+		account.filename = Some(filename.clone());
 
 		{
+			// Path to keyfile
+			let mut keyfile_path = self.path.clone();
+			keyfile_path.push(filename.as_str());
+
 			// save the file
 			let mut file = try!(fs::File::create(&keyfile_path));
 			try!(keyfile.write(&mut file).map_err(|e| Error::Custom(format!("{:?}", e))));
@@ -165,8 +166,9 @@ mod test {
 
 		// then
 		assert!(res.is_ok(), "Should save account succesfuly.");
+		assert!(res.unwrap().filename.is_some(), "Filename has been assigned.");
 
 		// cleanup
-		fs::remove_dir_all(dir).unwrap();
+		let _ = fs::remove_dir_all(dir);
 	}
 }
