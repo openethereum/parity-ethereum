@@ -561,7 +561,9 @@ impl Hasher for PlainHasher {
 	#[inline]
 	fn write(&mut self, bytes: &[u8]) {
 		debug_assert!(bytes.len() == 32);
-		self.0 = unsafe { *::std::mem::transmute::<&u8, &u64>(bytes.get_unchecked(0)) };
+		let mut prefix = [0u8; 8];
+		prefix.clone_from_slice(&bytes[0..8]);
+		self.0 = unsafe { ::std::mem::transmute(prefix) };
 	}
 }
 
