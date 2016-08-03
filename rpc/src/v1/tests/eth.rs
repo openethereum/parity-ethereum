@@ -413,11 +413,8 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 
 #[test]
 fn starting_nonce_test() {
-	use util::crypto::Secret;
-
-	let secret = Secret::from_str("8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2").unwrap();
 	let tester = EthTester::from_spec_provider(|| Spec::load(POSITIVE_NONCE_SPEC));
-	let address = tester.accounts.insert_account(secret, "").unwrap();
+	let address = ::util::hash::Address::from(10);
 
 	let sample = tester.handler.handle_request(&(r#"
 		{
