@@ -163,9 +163,7 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-		self.cache.borrow().get(&a).unwrap_or(&None).is_some() ||
-			db.contains(a).unwrap_or_else(|e| { warn!("Potential DB corruption encountered: {}", e); false })
+		self.ensure_cached(a, false, |a| a.is_some())
 	}
 
 	/// Get the balance of account `a`.
@@ -242,7 +240,6 @@ impl State {
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		try!(self.commit());
-		self.clear();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 //		trace!("Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
@@ -273,9 +270,12 @@ impl State {
 
 		{
 			let mut trie = trie_factory.from_existing(db, root).unwrap();
-			for (address, ref a) in accounts.iter() {
+			for (address, ref mut a) in accounts.iter_mut() {
 				match **a {
-					Some(ref account) if account.is_dirty() => try!(trie.insert(address, &account.rlp())),
+					Some(ref mut account) if account.is_dirty() => {
+						account.set_clean();
+						try!(trie.insert(address, &account.rlp()))
+					},
 					None => try!(trie.remove(address)),
 					_ => (),
 				}

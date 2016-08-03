@@ -160,7 +160,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 			false,
 			db,
 			&last_header,
-			last_hashes.clone(),
+			Arc::new(last_hashes.clone()),
 			author.clone(),
 			(3141562.into(), 31415620.into()),
 			vec![]

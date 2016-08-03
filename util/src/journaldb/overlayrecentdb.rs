@@ -126,7 +126,7 @@ impl OverlayRecentDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_overlay(db: &Database, col: Option<u32>) -> JournalOverlay {
@@ -239,9 +239,9 @@ impl JournalDB for OverlayRecentDB {
 			k.append(&now);
 			k.append(&index);
 			k.append(&&PADDING[..]);
-			try!(batch.put(self.column, &k.drain(), r.as_raw()));
+			try!(batch.put_vec(self.column, &k.drain(), r.out()));
 			if journal_overlay.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
+				try!(batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec()));
 				journal_overlay.latest_era = Some(now);
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
@@ -280,7 +280,7 @@ impl JournalDB for OverlayRecentDB {
 				}
 				// apply canon inserts first
 				for (k, v) in canon_insertions {
-					try!(batch.put(self.column, &k, &v));
+					try!(batch.put_vec(self.column, &k, v));
 				}
 				// update the overlay
 				for k in overlay_deletions {
