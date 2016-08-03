@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
-use std::path::{PathBuf};
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
 use crypto::Keccak256;
@@ -36,7 +35,7 @@ pub struct SafeAccount {
 	pub version: Version,
 	pub address: Address,
 	pub crypto: Crypto,
-	pub path: Option<PathBuf>,
+	pub filename: Option<String>,
 	pub name: String,
 	pub meta: String,
 }
@@ -59,20 +58,6 @@ impl Into<json::Crypto> for Crypto {
 			ciphertext: self.ciphertext.into(),
 			kdf: self.kdf.into(),
 			mac: self.mac.into(),
-		}
-	}
-}
-
-impl From<json::KeyFile> for SafeAccount {
-	fn from(json: json::KeyFile) -> Self {
-		SafeAccount {
-			id: json.id.into(),
-			version: json.version.into(),
-			address: json.address.into(),
-			crypto: json.crypto.into(),
-			path: None,
-			name: json.name.unwrap_or(String::new()),
-			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
 	}
 }
@@ -147,26 +132,32 @@ impl Crypto {
 }
 
 impl SafeAccount {
-	// DEPRECATED. use `create_with_name` instead
-	pub fn create(keypair: &KeyPair, id: [u8; 16], password: &str, iterations: u32, name: String, meta: String) -> Self {
+	pub fn create(
+		keypair: &KeyPair,
+		id: [u8; 16],
+		password: &str,
+		iterations: u32,
+		name: String,
+		meta: String
+	) -> Self {
 		SafeAccount {
 			id: id,
 			version: Version::V3,
 			crypto: Crypto::create(keypair.secret(), password, iterations),
 			address: keypair.address(),
-			path: None,
+			filename: None,
 			name: name,
 			meta: meta,
 		}
 	}
 
-	pub fn from_file(json: json::KeyFile, path: PathBuf) -> Self {
+	pub fn from_file(json: json::KeyFile, filename: String) -> Self {
 		SafeAccount {
 			id: json.id.into(),
 			version: json.version.into(),
 			address: json.address.into(),
 			crypto: json.crypto.into(),
-			path: Some(path),
+			filename: Some(filename),
 			name: json.name.unwrap_or(String::new()),
 			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
@@ -184,7 +175,7 @@ impl SafeAccount {
 			version: self.version.clone(),
 			crypto: Crypto::create(&secret, new_password, iterations),
 			address: self.address.clone(),
-			path: self.path.clone(),
+			filename: self.filename.clone(),
 			name: self.name.clone(),
 			meta: self.meta.clone(),
 		};
