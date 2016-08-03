@@ -367,6 +367,76 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 	}
 }
 
+const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
+	"name": "Frontier (Test)",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000",
+				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
+				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
+				"daoHardforkTransition": "0xffffffffffffffff",
+				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
+				"daoHardforkAccounts": []
+			}
+		}
+	},
+	"params": {
+		"accountStartNonce": "0x100",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x50000",
+		"networkID" : "0x1"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x0000000000000042",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x400000000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa",
+		"gasLimit": "0x50000"
+	},
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"faa34835af5c2ea724333018a515fbb7d5bc0b33": { "balance": "10000000000000", "nonce": "0" }
+	}
+}
+"#;
+
+
+#[test]
+fn starting_nonce_test() {
+	use util::crypto::Secret;
+
+	let secret = Secret::from_str("8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2").unwrap();
+	let tester = EthTester::from_spec_provider(|| Spec::load(POSITIVE_NONCE_SPEC));
+	let address = tester.accounts.insert_account(secret, "").unwrap();
+
+	let sample = tester.handler.handle_request(&(r#"
+		{
+			"jsonrpc": "2.0",
+			"method": "eth_getTransactionCount",
+			"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
+			"id": 15
+		}
+		"#)
+	).unwrap();
+
+	assert_eq!(r#"{"jsonrpc":"2.0","result":"0x100","id":15}"#, &sample);
+}
+
 register_test!(eth_transaction_count_1, verify_transaction_counts, "BlockchainTests/bcWalletTest");
 register_test!(eth_transaction_count_2, verify_transaction_counts, "BlockchainTests/bcTotalDifficultyTest");
 register_test!(eth_transaction_count_3, verify_transaction_counts, "BlockchainTests/bcGasPricerTest");
