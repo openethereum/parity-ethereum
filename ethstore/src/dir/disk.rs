@@ -101,7 +101,7 @@ impl KeyDirectory for DiskDirectory {
 
 		// build file path
 		let filename = account.filename.as_ref().cloned().unwrap_or_else(|| {
-			let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).unwrap_or("???".to_owned());
+			let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).expect("Time-format string is valid.");
 			format!("UTC--{}Z--{:?}", timestamp, account.address)
 		});
 
