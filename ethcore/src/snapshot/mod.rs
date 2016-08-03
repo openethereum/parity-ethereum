@@ -17,17 +17,18 @@
 //! Snapshot creation, restoration, and network service.
 
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use engine::Engine;
+use engines::Engine;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
-use util::journaldb::JournalDB;
+use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::Database;
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
 use util::rlp::SHA3_NULL_RLP;
@@ -363,9 +364,9 @@ pub struct StateRebuilder {
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: Box<JournalDB>) -> Self {
+	pub fn new(db: Arc<Database>, pruning: Algorithm) -> Self {
 		StateRebuilder {
-			db: db,
+			db: journaldb::new(db.clone(), pruning, ::client::DB_COL_STATE),
 			state_root: SHA3_NULL_RLP,
 		}
 	}
@@ -375,7 +376,6 @@ impl StateRebuilder {
 		let rlp = UntrustedRlp::new(chunk);
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
-		self.db.revert(); // ensure we're working with a blank slate here.
 
 		// initialize the pairs vector with empty values so we have slots to write into.
 		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
@@ -420,9 +420,9 @@ impl StateRebuilder {
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != SHA3_NULL_RLP {
-				try!(TrieDBMut::from_existing(&mut self.db, &mut self.state_root))
+				try!(TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root))
 			} else {
-				TrieDBMut::new(&mut self.db, &mut self.state_root)
+				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
 			};
 
 			for (hash, thin_rlp) in pairs {
@@ -430,7 +430,7 @@ impl StateRebuilder {
 			}
 		}
 
-		try!(self.db.commit());
+		try!(self.db.inject());
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 
 		Ok(())

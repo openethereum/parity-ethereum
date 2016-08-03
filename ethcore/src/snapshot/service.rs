@@ -20,14 +20,14 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::{ManifestData, StateRebuilder, BlockRebuilder};
 use super::io::{SnapshotReader, LooseReader};
 
 use blockchain::BlockChain;
-use client::get_db_path;
-use engine::Engine;
+use engines::Engine;
 use error::Error;
 use service::ClientIoMessage;
 use spec::Spec;
@@ -100,7 +100,7 @@ impl Restoration {
 	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Result<Self, Error> {
 		let mut state_db_path = path.to_owned();
 
-		let raw_db = Arc::new(try!(Database::open_default(&*db_path.to_string_lossy())
+		let raw_db = Arc::new(try!(Database::open_default(&*path.to_string_lossy())
 			.map_err(|s| UtilError::SimpleString(s))));
 
 		let blocks = try!(BlockRebuilder::new(BlockChain::new(Default::default(), &spec.genesis_block(), raw_db.clone())));
@@ -108,7 +108,7 @@ impl Restoration {
 		Ok(Restoration {
 			state_chunks_left: manifest.state_hashes.iter().cloned().collect(),
 			block_chunks_left: manifest.block_hashes.iter().cloned().collect(),
-			state: StateRebuilder::new(journaldb::new(raw_db, pruning, ::client::DB_COL_STATE)),
+			state: StateRebuilder::new(raw_db, pruning),
 			blocks: blocks,
 			snappy_buffer: Vec::new(),
 			final_state_root: manifest.state_root,
@@ -181,7 +181,7 @@ impl Service {
 	/// Create a new snapshot service.
 	pub fn new(spec: Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel) -> Result<Self, Error> {
 		let mut db_path = try!(client_db.parent().and_then(Path::parent)
-			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.")));
+			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.".into()))).to_owned();
 
 		let reader = {
 			let mut snapshot_path = db_path.clone();
@@ -258,7 +258,7 @@ impl Service {
 
 		let _ = fs::remove_dir_all(&backup_db);
 
-		let existed = match fs::rename(&client_db, &backup_db) {
+		let existed = match fs::rename(&self.client_db, &backup_db) {
 			Ok(_) => true,
 			Err(e) => if let ErrorKind::NotFound = e.kind() {
 				false
@@ -267,7 +267,7 @@ impl Service {
 			}
 		};
 
-		match fs::rename(&our_db, &client_db) {
+		match fs::rename(&our_db, &self.client_db) {
 			Ok(_) => {
 				// clean up the backup.
 				if existed {
@@ -278,7 +278,7 @@ impl Service {
 			Err(e) => {
 				// restore the backup.
 				if existed {
-					try!(fs::rename(&backup_db, client_db));
+					try!(fs::rename(&backup_db, self.client_db));
 				}
 				Err(e.into())
 			}
