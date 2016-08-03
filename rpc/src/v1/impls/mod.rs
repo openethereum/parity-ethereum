@@ -60,7 +60,7 @@ use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use ethcore::account_provider::{AccountProvider, Error as AccountError};
-use util::numbers::*;
+use util::{U256, H256, Address};
 use util::rlp::encode;
 use util::bytes::ToPretty;
 use jsonrpc_core::{Error, ErrorCode, Value, to_value};
@@ -100,13 +100,13 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 		nonce: request.nonce
 			.or_else(|| miner
 					 .last_nonce(&request.from)
-					 .map(|nonce| nonce + U256::one()))
+					 .map(|nonce| nonce + 1.into()))
 			.unwrap_or_else(|| client.latest_nonce(&request.from)),
 
 		action: request.to.map_or(Action::Create, Action::Call),
 		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
-		value: request.value.unwrap_or_else(U256::zero),
+		value: request.value.unwrap_or_else(Default::default),
 		data: request.data.map_or_else(Vec::new, |b| b.to_vec()),
 	}
 }

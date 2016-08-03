@@ -145,8 +145,7 @@ mod tests {
 	use super::AbridgedBlock;
 	use types::transaction::{Action, Transaction};
 
-	use util::numbers::U256;
-	use util::hash::{Address, H256, FixedHash};
+	use util::{Address, H256, FixedHash, U256};
 	use util::{Bytes, RlpStream, Stream};
 
 	fn encode_block(b: &Block) -> Bytes {

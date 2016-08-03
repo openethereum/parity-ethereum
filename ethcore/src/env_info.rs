@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::*;
+use std::cmp;
+use util::{U256, Address, H256, Hashable};
 use header::BlockNumber;
 use ethjson;
 
@@ -45,7 +46,7 @@ impl Default for EnvInfo {
 	fn default() -> Self {
 		EnvInfo {
 			number: 0,
-			author: Address::new(),
+			author: Default::default(),
 			timestamp: 0,
 			difficulty: 0.into(),
 			gas_limit: 0.into(),
@@ -65,7 +66,7 @@ impl From<ethjson::vm::Env> for EnvInfo {
 			gas_limit: e.gas_limit.into(),
 			timestamp: e.timestamp.into(),
 			last_hashes: (1..cmp::min(number + 1, 257)).map(|i| format!("{}", number - i).as_bytes().sha3()).collect(),
-			gas_used: U256::zero(),
+			gas_used: Default::default(),
 		}
 	}
 }
@@ -74,10 +75,9 @@ impl From<ethjson::vm::Env> for EnvInfo {
 mod tests {
 	extern crate rustc_serialize;
 
-	use super::*;
-	use util::hash::*;
-	use util::numbers::U256;
 	use std::str::FromStr;
+	use super::*;
+	use util::{U256, Address};
 	use ethjson;
 
 	#[test]

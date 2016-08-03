@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::hash::H2048;
-use util::numbers::U256;
-use util::bytes::Bytes;
+use util::{U256, H2048, Bytes};
 use header::BlockNumber;
 use super::fork::Fork;
 use super::bloom::Bloom;

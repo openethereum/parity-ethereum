@@ -16,18 +16,15 @@
 
 //! Log entry type definition.
 
-use util::numbers::*;
+use std::mem;
 use std::ops::Deref;
+use std::collections::VecDeque;
+use util::{H256, Address, Bytes, HeapSizeOf, FixedHash, Hashable};
 use util::rlp::*;
-use util::Bytes;
-use util::HeapSizeOf;
-use util::sha3::*;
+use ipc::binary::BinaryConvertError;
 use basic_types::LogBloom;
 use header::BlockNumber;
 use ethjson;
-use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 /// A record of execution for a `LOG` operation.
 #[derive(Default, Debug, Clone, PartialEq, Eq, Binary)]

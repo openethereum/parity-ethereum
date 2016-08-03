@@ -69,12 +69,12 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut());
 		let s = State::from_existing(db, genesis_header.state_root.clone(), engine.account_start_nonce(), Default::default()).unwrap();
-		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000001")), U256::from(1u64));
-		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000002")), U256::from(1u64));
-		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000003")), U256::from(1u64));
-		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000004")), U256::from(1u64));
-		assert_eq!(s.balance(&address_from_hex("102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c")), U256::from(1u64) << 200);
-		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000000")), U256::from(0u64));
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".parse().unwrap()), U256::from(1u64));
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".parse().unwrap()), U256::from(1u64));
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000003".parse().unwrap()), U256::from(1u64));
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000004".parse().unwrap()), U256::from(1u64));
+		assert_eq!(s.balance(&"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c".parse().unwrap()), U256::from(1u64) << 200);
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000000".parse().unwrap()), U256::from(0u64));
 	}
 
 	#[test]

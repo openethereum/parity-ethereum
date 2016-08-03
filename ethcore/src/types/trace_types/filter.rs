@@ -17,6 +17,8 @@
 //! Trace filters type definitions
 
 use std::ops::Range;
+use std::mem;
+use std::collections::VecDeque;
 use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::{Address, FixedHash};
 use util::sha3::Hashable;
@@ -24,8 +26,6 @@ use basic_types::LogBloom;
 use trace::flat::FlatTrace;
 use types::trace_types::trace::{Action, Res};
 use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 /// Addresses filter.
 ///
@@ -55,7 +55,7 @@ impl AddressesFilter {
 	/// Returns blooms of this addresses filter.
 	pub fn blooms(&self) -> Vec<LogBloom> {
 		match self.list.is_empty() {
-			true => vec![LogBloom::new()],
+			true => vec![Default::default()],
 			false => self.list.iter()
 				.map(|address| LogBloom::from_bloomed(&address.sha3()))
 				.collect(),
@@ -142,7 +142,6 @@ mod tests {
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide};
 	use trace::flat::FlatTrace;
 	use trace::{Filter, AddressesFilter};
-	use basic_types::LogBloom;
 	use types::executed::CallType;
 
 	#[test]
@@ -154,7 +153,7 @@ mod tests {
 		};
 
 		let blooms = filter.bloom_possibilities();
-		assert_eq!(blooms, vec![LogBloom::new()]);
+		assert_eq!(blooms, vec![Default::default()]);
 	}
 
 	#[test]

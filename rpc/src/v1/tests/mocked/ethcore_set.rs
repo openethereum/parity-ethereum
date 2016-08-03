@@ -21,7 +21,7 @@ use v1::{EthcoreSet, EthcoreSetClient};
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
 use v1::tests::helpers::TestMinerService;
-use util::numbers::*;
+use util::{U256, Address};
 use rustc_serialize::hex::FromHex;
 use super::manage_network::TestManageNetwork;
 use ethsync::ManageNetwork;

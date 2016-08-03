@@ -102,7 +102,7 @@ pub fn new_builtin_exec(name: &str) -> Box<Fn(&[u8], &mut [u8])> {
 			let mut it: InType = InType { hash: H256::new(), v: H256::new(), r: H256::new(), s: H256::new() };
 			it.copy_raw(input);
 			if it.v == H256::from(&U256::from(27)) || it.v == H256::from(&U256::from(28)) {
-				let s = Signature::from_rsv(&it.r, &it.s, it.v[31] - 27);
+				let s = signature_from_rsv(&it.r, &it.s, it.v[31] - 27);
 				if ec::is_valid(&s) {
 					if let Ok(p) = ec::recover(&s, &it.hash) {
 						let r = p.as_slice().sha3();

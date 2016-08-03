@@ -139,7 +139,6 @@ pub mod triehash;
 pub mod trie;
 pub mod nibbleslice;
 pub mod nibblevec;
-mod heapsizeof;
 pub mod semantic_version;
 pub mod io;
 pub mod network;
@@ -171,6 +170,7 @@ pub use timer::*;
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
+	use {U256, H256, Uint};
 
 	#[test]
 	fn u256_multi_muls() {

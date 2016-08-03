@@ -14,10 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::bytes::Bytes;
-use util::hash::{Address, H256, H2048};
-use util::numbers::U256;
-use util::Itertools;
+use util::{U256, Address, H256, H2048, Bytes, Itertools};
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};

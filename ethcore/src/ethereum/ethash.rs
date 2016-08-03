@@ -372,7 +372,7 @@ mod tests {
 		let vm_factory = Default::default();
 		let mut b = OpenBlock::new(engine.deref(), &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();
-		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
+		let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".parse().unwrap();
 		uncle.author = uncle_author.clone();
 		b.push_uncle(uncle).unwrap();
 

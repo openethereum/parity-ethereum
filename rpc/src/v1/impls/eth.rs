@@ -27,7 +27,7 @@ use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
-use util::numbers::*;
+use util::{H256, Address, FixedHash, U256, H64, Uint};
 use util::sha3::*;
 use util::rlp::{encode, decode, UntrustedRlp, View};
 use util::{FromHex, Mutex};

@@ -36,21 +36,19 @@ lazy_static! {
 	static ref SECP256K1: Secp256k1 = Secp256k1::new();
 }
 
-impl Signature {
-	/// Create a new signature from the R, S and V componenets.
-	pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Signature {
-		let mut ret: Signature = Signature::new();
-		(&mut ret[0..32]).copy_from_slice(r);
-		(&mut ret[32..64]).copy_from_slice(s);
+/// Create a new signature from the R, S and V componenets.
+pub fn signature_from_rsv(r: &H256, s: &H256, v: u8) -> Signature {
+	let mut ret: Signature = Signature::new();
+	(&mut ret[0..32]).copy_from_slice(r);
+	(&mut ret[32..64]).copy_from_slice(s);
 
-		ret[64] = v;
-		ret
-	}
+	ret[64] = v;
+	ret
+}
 
-	/// Convert transaction to R, S and V components.
-	pub fn to_rsv(&self) -> (U256, U256, u8) {
-		(U256::from(&self.as_slice()[0..32]), U256::from(&self.as_slice()[32..64]), self[64])
-	}
+/// Convert transaction to R, S and V components.
+pub fn signature_to_rsv(s: &Signature) -> (U256, U256, u8) {
+	(U256::from(&s.as_slice()[0..32]), U256::from(&s.as_slice()[32..64]), s[64])
 }
 
 #[derive(Debug)]
@@ -206,10 +204,10 @@ pub mod ec {
 		signature.clone_from_slice(&data);
 		signature[64] = rec_id.to_i32() as u8;
 
-		let (_, s, v) = signature.to_rsv();
+		let (_, s, v) = signature_to_rsv(&signature);
 		let secp256k1n = U256::from_str("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141").unwrap();
 		if !is_low_s(&s) {
-			signature = super::Signature::from_rsv(&H256::from_slice(&signature[0..32]), &H256::from(secp256k1n - s), v ^ 1);
+			signature = super::signature_from_rsv(&H256::from_slice(&signature[0..32]), &H256::from(secp256k1n - s), v ^ 1);
 		}
 		Ok(signature)
 	}

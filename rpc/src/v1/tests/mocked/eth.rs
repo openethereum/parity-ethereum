@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::time::{Instant, Duration};
 use jsonrpc_core::IoHandler;
 use util::hash::{Address, H256, FixedHash};
-use util::numbers::{Uint, U256};
+use util::{Uint, U256};
 use util::Mutex;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};

@@ -19,7 +19,7 @@
 use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
-use util::numbers::{U256, Uint as U};
+use util::{U256, Uint as U};
 
 /// Lenient uint json deserialization for test json files.
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -88,7 +88,7 @@ impl Visitor for UintVisitor {
 #[cfg(test)]
 mod test {
 	use serde_json;
-	use util::numbers::U256;
+	use util::U256;
 	use uint::Uint;
 
 	#[test]
