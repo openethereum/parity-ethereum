@@ -160,9 +160,22 @@ impl Tracer for ExecutiveTracer {
 }
 
 /// Simple VM tracer. Traces all operations.
-#[derive(Default)]
 pub struct ExecutiveVMTracer {
 	data: VMTrace,
+}
+
+impl ExecutiveVMTracer {
+	/// Create a new top-level instance.
+	pub fn toplevel() -> Self {
+		ExecutiveVMTracer {
+			data: VMTrace {
+				parent_step: 0,
+				code: vec![],
+				operations: vec![Default::default()],	// prefill with a single entry so that prepare_subtrace can get the parent_step
+				subs: vec![],
+			}
+		}
+	}
 }
 
 impl VMTracer for ExecutiveVMTracer {
@@ -188,7 +201,7 @@ impl VMTracer for ExecutiveVMTracer {
 
 	fn prepare_subtrace(&self, code: &[u8]) -> Self {
 		ExecutiveVMTracer { data: VMTrace {
-			parent_step: self.data.operations.len(),
+			parent_step: self.data.operations.len() - 1,	// won't overflow since we must already have pushed an operation in trace_prepare_execute.
 			code: code.to_vec(),
 			operations: vec![],
 			subs: vec![],

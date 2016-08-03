@@ -99,11 +99,11 @@ impl<'a> Executive<'a> {
 		let check = options.check_nonce;
 		match options.tracing {
 			true => match options.vm_tracing {
-				true => self.transact_with_tracer(t, check, ExecutiveTracer::default(), ExecutiveVMTracer::default()),
+				true => self.transact_with_tracer(t, check, ExecutiveTracer::default(), ExecutiveVMTracer::toplevel()),
 				false => self.transact_with_tracer(t, check, ExecutiveTracer::default(), NoopVMTracer),
 			},
 			false => match options.vm_tracing {
-				true => self.transact_with_tracer(t, check, NoopTracer, ExecutiveVMTracer::default()),
+				true => self.transact_with_tracer(t, check, NoopTracer, ExecutiveVMTracer::toplevel()),
 				false => self.transact_with_tracer(t, check, NoopTracer, NoopVMTracer),
 			},
 		}

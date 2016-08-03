@@ -473,7 +473,7 @@ impl Decodable for VMExecutedOperation {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq, Binary, Default)]
 /// A record of the execution of a single VM operation.
 pub struct VMOperation {
 	/// The program counter.
