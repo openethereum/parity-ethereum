@@ -359,7 +359,7 @@ impl BlockChain {
 
 				let batch = DBTransaction::new(&db);
 				batch.put(DB_COL_HEADERS, &hash, block.header_rlp().as_raw()).unwrap();
-				batch.put(DB_COL_BODIES, &hash, &Self::block_to_body(&genesis)).unwrap();
+				batch.put(DB_COL_BODIES, &hash, &Self::block_to_body(genesis)).unwrap();
 
 				batch.write(DB_COL_EXTRA, &hash, &details);
 				batch.write(DB_COL_EXTRA, &header.number(), &hash);
@@ -1056,7 +1056,7 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let batch = db.transaction();
-		for b in [&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b].iter() {
+		for b in &[&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b] {
 			bc.insert_block(&batch, b, vec![]);
 			bc.commit();
 		}

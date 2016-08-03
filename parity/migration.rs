@@ -161,7 +161,7 @@ fn consolidate_database(
 	let mut db_config = DatabaseConfig {
 		max_open_files: 64,
 		cache_size: None,
-		compaction: config.compaction_profile.clone(),
+		compaction: config.compaction_profile,
 		columns: None,
 		wal: true,
 	};

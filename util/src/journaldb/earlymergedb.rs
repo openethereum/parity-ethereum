@@ -430,7 +430,7 @@ impl JournalDB for EarlyMergeDB {
 			r.begin_list(inserts.len());
 			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
 			r.append(&removes);
-			Self::insert_keys(&inserts, &self.backing, self.column, &mut refs, &batch, trace);
+			Self::insert_keys(&inserts, &self.backing, self.column, &mut refs, batch, trace);
 			if trace {
 				let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
 				trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
@@ -464,7 +464,7 @@ impl JournalDB for EarlyMergeDB {
 					if trace {
 						trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
 					}
-					Self::remove_keys(&deletes, &mut refs, &batch, self.column, RemoveFrom::Archive, trace);
+					Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive, trace);
 
 					if trace {
 						trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
@@ -482,7 +482,7 @@ impl JournalDB for EarlyMergeDB {
 							}
 							Some( RefInfo{queue_refs: x, in_archive: false} ) => {
 								// must set already in; ,
-								Self::set_already_in(&batch, self.column, k);
+								Self::set_already_in(batch, self.column, k);
 								refs.insert(k.clone(), RefInfo{ queue_refs: x - 1, in_archive: true });
 							}
 							Some( RefInfo{in_archive: true, ..} ) => {
@@ -496,7 +496,7 @@ impl JournalDB for EarlyMergeDB {
 					if trace {
 						trace!(target: "jdb.ops", "  Reverting: {:?}", inserts);
 					}
-					Self::remove_keys(&inserts, &mut refs, &batch, self.column, RemoveFrom::Queue, trace);
+					Self::remove_keys(&inserts, &mut refs, batch, self.column, RemoveFrom::Queue, trace);
 				}
 
 				try!(batch.delete(self.column, &last));
