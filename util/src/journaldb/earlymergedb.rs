@@ -513,6 +513,32 @@ impl JournalDB for EarlyMergeDB {
 
 		Ok(0)
 	}
+
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+		let mut ops = 0;
+		for (key, (value, rc)) in self.overlay.drain() {
+			if rc != 0 { ops += 1 }
+
+			match rc {
+				0 => {}
+				1 => {
+					if try!(self.backing.get(self.column, &key)).is_some() {
+						return Err(BaseDataError::AlreadyExists(key).into());
+					}
+					try!(batch.put(self.column, &key, &value))
+				}
+				-1 => {
+					if try!(self.backing.get(self.column, &key)).is_none() {
+						return Err(BaseDataError::NegativelyReferencedHash(key).into());
+					}
+					try!(batch.delete(self.column, &key))
+				}
+				_ => panic!("Attempted to inject invalid state."),
+			}
+		}
+
+		Ok(ops)
+	}
 }
 
 #[cfg(test)]
@@ -1044,5 +1070,20 @@ mod tests {
 			assert!(!jdb.contains(&baz));
 			assert!(!jdb.contains(&bar));
 		}
+	}
+
+	#[test]
+	fn inject() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		let mut jdb = new_db(temp.as_path().as_path());
+		let key = jdb.insert(b"dog");
+		jdb.inject_batch().unwrap();
+
+		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		jdb.remove(&key);
+		jdb.inject_batch().unwrap();
+
+		assert!(jdb.get(&key).is_none());
 	}
 }
