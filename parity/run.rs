@@ -211,8 +211,8 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: Arc::new(cmd.net_settings.clone()),
-		allow_pending_receipt_query: !cmd.geth_compatibility,
-		net_service: manage_network.clone()
+		net_service: manage_network.clone(),
+		geth_compatibility: cmd.geth_compatibility,
 	});
 
 	let dependencies = rpc::Dependencies {

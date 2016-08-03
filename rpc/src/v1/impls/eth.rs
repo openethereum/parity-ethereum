@@ -47,6 +47,23 @@ use v1::helpers::CallRequest as CRequest;
 use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
 use serde;
 
+/// Eth RPC options
+pub struct EthClientOptions {
+	/// Returns receipt from pending blocks
+	pub allow_pending_receipt_query: bool,
+	/// Send additional block number when asking for work
+	pub send_block_number_in_get_work: bool,
+}
+
+impl Default for EthClientOptions {
+	fn default() -> Self {
+		EthClientOptions {
+			allow_pending_receipt_query: true,
+			send_block_number_in_get_work: true,
+		}
+	}
+}
+
 /// Eth rpc implementation.
 pub struct EthClient<C, S: ?Sized, M, EM> where
 	C: MiningBlockChainClient,
@@ -60,7 +77,7 @@ pub struct EthClient<C, S: ?Sized, M, EM> where
 	miner: Weak<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
-	allow_pending_receipt_query: bool,
+	options: EthClientOptions,
 }
 
 impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
@@ -70,7 +87,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<AccountProvider>, miner: &Arc<M>, em: &Arc<EM>, allow_pending_receipt_query: bool)
+	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<AccountProvider>, miner: &Arc<M>, em: &Arc<EM>, options: EthClientOptions)
 		-> EthClient<C, S, M, EM> {
 		EthClient {
 			client: Arc::downgrade(client),
@@ -79,7 +96,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 			accounts: Arc::downgrade(accounts),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
-			allow_pending_receipt_query: allow_pending_receipt_query,
+			options: options,
 		}
 	}
 
@@ -496,7 +513,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				let miner = take_weak!(self.miner);
 				let hash: H256 = hash.into();
 				match miner.pending_receipts().get(&hash) {
-					Some(receipt) if self.allow_pending_receipt_query => to_value(&Receipt::from(receipt.clone())),
+					Some(receipt) if self.options.allow_pending_receipt_query => to_value(&Receipt::from(receipt.clone())),
 					_ => {
 						let client = take_weak!(self.client);
 						let receipt = client.transaction_receipt(TransactionID::Hash(hash));
@@ -582,8 +599,13 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 					let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
-					let block_number = RpcU256::from(b.block().header().number());
-					to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target), block_number))
+
+					if self.options.send_block_number_in_get_work {
+						let block_number = RpcU256::from(b.block().header().number());
+						to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target), block_number))
+					} else {
+						to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target)))
+					}
 				}).unwrap_or(Err(Error::internal_error()))	// no work found.
 			},
 			_ => Err(Error::invalid_params())
