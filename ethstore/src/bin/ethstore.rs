@@ -138,7 +138,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let ok = store.change_password(&address, &old_pwd, &new_pwd).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_list {
-		let accounts = store.accounts();
+		let accounts = try!(store.accounts());
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {
 		let src = try!(key_dir(&args.flag_src));

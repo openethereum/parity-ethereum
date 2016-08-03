@@ -121,7 +121,7 @@ impl EthTester {
 			&account_provider,
 			&miner_service,
 			&external_miner,
-			true
+			Default::default(),
 		);
 		let eth_sign = EthSigningUnsafeClient::new(
 			&client,

@@ -10,7 +10,7 @@ use {crypto, Error};
 
 pub struct PresaleWallet {
 	iv: [u8; 16],
-	ciphertext: [u8; 80],
+	ciphertext: Vec<u8>,
 	address: Address,
 }
 
@@ -19,8 +19,8 @@ impl From<json::PresaleWallet> for PresaleWallet {
 		let mut iv = [0u8; 16];
 		iv.copy_from_slice(&wallet.encseed[..16]);
 
-		let mut ciphertext = [0u8; 80];
-		ciphertext.copy_from_slice(&wallet.encseed[16..]);
+		let mut ciphertext = vec![];
+		ciphertext.extend_from_slice(&wallet.encseed[16..]);
 
 		PresaleWallet {
 			iv: iv,
@@ -42,10 +42,11 @@ impl PresaleWallet {
 		let mut derived_key = vec![0u8; 16];
 		pbkdf2(&mut h_mac, password.as_bytes(), 2000, &mut derived_key);
 
-		let mut key = [0u8; 64];
-		try!(crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword));
+		let mut key = vec![0; self.ciphertext.len()];
+		let len = try!(crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword));
+		let unpadded = &key[..len];
 
-		let secret = Secret::from(key.keccak256());
+		let secret = Secret::from(unpadded.keccak256());
 		if let Ok(kp) = KeyPair::from_secret(secret) {
 			if kp.address() == self.address {
 				return Ok(kp)
