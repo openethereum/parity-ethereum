@@ -35,46 +35,8 @@
 use std::fmt;
 use std::slice;
 use std::ops::{Deref, DerefMut};
-use elastic_array::*;
 
-/// Vector like object
-pub trait VecLike<T> {
-	/// Add an element to the collection
-    fn vec_push(&mut self, value: T);
-
-	/// Add a slice to the collection
-    fn vec_extend(&mut self, slice: &[T]);
-}
-
-impl<T> VecLike<T> for Vec<T> where T: Copy {
-	fn vec_push(&mut self, value: T) {
-		Vec::<T>::push(self, value)
-	}
-
-	fn vec_extend(&mut self, slice: &[T]) {
-		Vec::<T>::extend_from_slice(self, slice)
-	}
-}
-
-macro_rules! impl_veclike_for_elastic_array {
-	($from: ident) => {
-		impl<T> VecLike<T> for $from<T> where T: Copy {
-			fn vec_push(&mut self, value: T) {
-				$from::<T>::push(self, value)
-			}
-			fn vec_extend(&mut self, slice: &[T]) {
-				$from::<T>::append_slice(self, slice)
-
-			}
-		}
-	}
-}
-
-impl_veclike_for_elastic_array!(ElasticArray16);
-impl_veclike_for_elastic_array!(ElasticArray32);
-impl_veclike_for_elastic_array!(ElasticArray1024);
-
-/// Slie pretty print helper
+/// Slice pretty print helper
 pub struct PrettySlice<'a> (&'a [u8]);
 
 impl<'a> fmt::Debug for PrettySlice<'a> {
