@@ -25,7 +25,6 @@ use engines::Engine;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
-use util::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::journaldb::{self, Algorithm, JournalDB};
@@ -376,19 +375,21 @@ impl StateRebuilder {
 		let rlp = UntrustedRlp::new(chunk);
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
+		let backing = self.db.backing().clone();
+		let batch = backing.transaction();
 
 		// initialize the pairs vector with empty values so we have slots to write into.
 		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
 
-		let chunk_size = account_fat_rlps.len() / ::num_cpus::get();
+		let chunk_size = account_fat_rlps.len() / ::num_cpus::get() + 1;
 
 		// build account tries in parallel.
 		try!(scope(|scope| {
 			let mut handles = Vec::new();
 			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let handle: ScopedJoinHandle<Result<MemoryDB, ::error::Error>> = scope.spawn(move || {
-					let mut db = MemoryDB::new();
-					try!(rebuild_account_trie(&mut db, account_chunk, out_pairs_chunk));
+				let mut db = self.db.boxed_clone();
+				let handle: ScopedJoinHandle<Result<Box<JournalDB>, ::error::Error>> = scope.spawn(move || {
+					try!(rebuild_account_trie(db.as_hashdb_mut(), account_chunk, out_pairs_chunk));
 
 					trace!(target: "snapshot", "thread rebuilt {} account tries", account_chunk.len());
 					Ok(db)
@@ -397,22 +398,10 @@ impl StateRebuilder {
 				handles.push(handle);
 			}
 
-			// see if we got any errors.
+			// commit all account tries to the db, but only in this thread.
 			for handle in handles {
-				let mut overlay = try!(handle.join());
-				// TODO [rob]: would be nice to have a convenience function
-				// for consolidating overlays.
-				for (key, (val, rc)) in overlay.drain() {
-					if rc == 0 { continue }
-
-					for _ in rc..0 {
-						self.db.remove(&key);
-					}
-
-					for _ in 0..rc {
-						self.db.emplace(key, val.clone());
-					}
-				}
+				let mut thread_db = try!(handle.join());
+				try!(thread_db.inject(&batch));
 			}
 
 			Ok::<_, ::error::Error>(())
@@ -432,8 +421,6 @@ impl StateRebuilder {
 			}
 		}
 
-		let backing = self.db.backing().clone();
-		let batch = backing.transaction();
 		try!(self.db.inject(&batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
