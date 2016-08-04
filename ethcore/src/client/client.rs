@@ -596,9 +596,17 @@ impl Client {
 
 	/// Take a snapshot.
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W) -> Result<(), ::error::Error> {
-		let db = self.state_db.lock();
-		let best_hash = self.chain_info().best_block_hash;
-		try!(snapshot::take_snapshot(&self.chain, best_hash, db.as_hashdb(), writer));
+		let db = self.state_db.lock().boxed_clone();
+		let best_block_number = self.chain_info().best_block_number;
+		let start_block_number = if best_block_number > 1000 {
+			best_block_number - 1000
+		} else {
+			0
+		};
+		let start_hash = self.block_hash(BlockID::Number(start_block_number))
+			.expect("blocks within HISTORY are always stored.");
+
+		try!(snapshot::take_snapshot(&self.chain, start_hash, db.as_hashdb(), writer));
 
 		Ok(())
 	}
