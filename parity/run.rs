@@ -23,7 +23,7 @@ use ethcore_logger::{Config as LogConfig, setup_log};
 use ethcore_rpc::NetworkSettings;
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
-use util::panics::{MayPanic, ForwardPanic, PanicHandler};
+use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;

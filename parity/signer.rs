@@ -18,7 +18,7 @@ use std::io;
 use std::sync::Arc;
 use std::path::PathBuf;
 use ansi_term::Colour;
-use util::panics::{ForwardPanic, PanicHandler};
+use io::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
 use rpc_apis;
 use ethcore_signer as signer;

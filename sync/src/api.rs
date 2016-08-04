@@ -249,6 +249,10 @@ impl NetworkConfiguration {
 		From::from(BasicNetworkConfiguration::new())
 	}
 
+	pub fn new_local() -> Self {
+		From::from(BasicNetworkConfiguration::new_local())
+	}
+
 	fn validate(&self) -> Result<(), AddrParseError> {
 		if let Some(ref addr) = self.listen_address {
 			try!(SocketAddr::from_str(&addr));

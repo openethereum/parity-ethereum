@@ -63,6 +63,7 @@ extern crate parking_lot;
 
 mod service;
 mod worker;
+mod panics;
 
 use mio::{EventLoop, Token};
 use std::fmt;
@@ -130,6 +131,7 @@ pub use service::IoService;
 pub use service::IoChannel;
 pub use service::IoManager;
 pub use service::TOKENS_PER_HANDLER;
+pub use panics::{PanicHandler, MayPanic, OnPanicListener, ForwardPanic};
 
 #[cfg(test)]
 mod tests {

@@ -24,7 +24,7 @@ use std::default::Default;
 use std::ops::Drop;
 use std::sync::Arc;
 use std::net::SocketAddr;
-use util::panics::{PanicHandler, OnPanicListener, MayPanic};
+use io::{PanicHandler, OnPanicListener, MayPanic};
 use jsonrpc_core::{IoHandler, IoDelegate};
 use rpc::{Extendable, ConfirmationsQueue};
 

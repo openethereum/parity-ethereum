@@ -24,6 +24,7 @@ use spec::Genesis;
 use ethjson;
 use ethjson::blockchain::BlockChain;
 use miner::Miner;
+use io::IoChannel;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();

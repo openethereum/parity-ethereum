@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::panics::*;
 use {NetworkProtocolHandler, NetworkConfiguration, NonReservedPeerMode};
 use error::NetworkError;
 use host::{Host, NetworkContext, NetworkIoMessage, ProtocolId};
@@ -58,6 +57,7 @@ impl NetworkService {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
 		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = try!(IoService::<NetworkIoMessage>::start());
+		panic_handler.forward_from(&io_service);
 
 		let stats = Arc::new(NetworkStats::new());
 		let host_info = Host::client_version();

@@ -28,7 +28,6 @@ use views::*;
 use header::*;
 use service::*;
 use client::BlockStatus;
-use util::panics::*;
 
 pub use types::block_queue_info::BlockQueueInfo;
 

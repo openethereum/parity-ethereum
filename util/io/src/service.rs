@@ -22,7 +22,7 @@ use crossbeam::sync::chase_lev;
 use slab::Slab;
 use {IoError, IoHandler};
 use worker::{Worker, Work, WorkType};
-
+use panics::*;
 use parking_lot::{RwLock};
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 
@@ -173,7 +173,7 @@ pub struct IoManager<Message> where Message: Send + Sync {
 
 impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	/// Creates a new instance and registers it with the event loop.
-	pub fn start(event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), IoError> {
+	pub fn start(panic_handler: Arc<PanicHandler>, event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), IoError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
 		let work_ready_mutex =  Arc::new(SMutex::new(()));
@@ -185,6 +185,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 				IoChannel::new(event_loop.channel()),
 				work_ready.clone(),
 				work_ready_mutex.clone(),
+				panic_handler.clone(),
 			)
 		).collect();
 
@@ -344,21 +345,34 @@ impl<Message> IoChannel<Message> where Message: Send + Clone {
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
 pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
+	panic_handler: Arc<PanicHandler>,
 	thread: Option<JoinHandle<()>>,
 	host_channel: Sender<IoMessage<Message>>,
+}
+
+impl<Message> MayPanic for IoService<Message> where Message: Send + Sync + Clone + 'static {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
+	}
 }
 
 impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, IoError> {
+		let panic_handler = PanicHandler::new_in_arc();
 		let mut config = EventLoopConfig::new();
 		config.messages_per_tick(1024);
-    	let mut event_loop = EventLoop::configured(config).expect("Error creating event loop");
-        let channel = event_loop.channel();
+		let mut event_loop = EventLoop::configured(config).expect("Error creating event loop");
+		let channel = event_loop.channel();
+		let panic = panic_handler.clone();
 		let thread = thread::spawn(move || {
-				IoManager::<Message>::start(&mut event_loop).unwrap();
+			let p = panic.clone();
+			panic.catch_panic(move || {
+				IoManager::<Message>::start(p, &mut event_loop).unwrap();
+			}).unwrap()
 		});
 		Ok(IoService {
+			panic_handler: panic_handler,
 			thread: Some(thread),
 			host_channel: channel
 		})

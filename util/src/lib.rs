@@ -139,7 +139,6 @@ pub mod nibblevec;
 mod heapsizeof;
 pub mod semantic_version;
 pub mod log;
-pub mod panics;
 pub mod path;
 pub mod snappy;
 mod timer;
