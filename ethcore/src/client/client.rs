@@ -654,6 +654,8 @@ impl BlockChainClient for Client {
 		};
 		// that's just a copy of the state.
 		let mut state = try!(self.state_at(block).ok_or(CallError::StatePruned));
+		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
+
 		let sender = try!(t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
@@ -668,9 +670,8 @@ impl BlockChainClient for Client {
 		let mut ret = try!(Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options));
 
 		// TODO gav move this into Executive.
-		if analytics.state_diffing {
-			ret.state_diff = Some(state.diff_from(try!(self.state_at(block).ok_or(CallError::StatePruned))));
-		}
+		ret.state_diff = original_state.map(|original| state.diff_from(original));
+
 		Ok(ret)
 	}
 
@@ -704,14 +705,12 @@ impl BlockChainClient for Client {
 			}
 		}
 		let t = &txs[address.index];
-		let orig = state.clone();
-		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
-		if analytics.state_diffing {
-			if let Ok(ref mut x) = ret {
-				x.state_diff = Some(state.diff_from(orig));
-			}
-		}
-		ret.map_err(CallError::Execution)
+
+		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
+		let mut ret = try!(Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options));
+		ret.state_diff = original_state.map(|original| state.diff_from(original));
+
+		Ok(ret)
 	}
 
 	fn keep_alive(&self) {

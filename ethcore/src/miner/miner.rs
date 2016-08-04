@@ -484,6 +484,8 @@ impl MinerService for Miner {
 				};
 				// that's just a copy of the state.
 				let mut state = block.state().clone();
+				let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
+
 				let sender = try!(t.sender().map_err(|e| {
 					let message = format!("Transaction malformed: {:?}", e);
 					ExecutionError::TransactionMalformed(message)
@@ -498,9 +500,8 @@ impl MinerService for Miner {
 				let mut ret = try!(Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options));
 
 				// TODO gav move this into Executive.
-				if analytics.state_diffing {
-					ret.state_diff = Some(state.diff_from(block.state().clone()));
-				}
+				ret.state_diff = original_state.map(|original| state.diff_from(original));
+
 				Ok(ret)
 			},
 			None => {
