@@ -14,7 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! `JournalDB` over in-memory overlay
+//! Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
+//! and, possibly, latent-removal semantics.
+//! This has two modes: pruned and archive.
+//! Pruned mode will enact deletions, while archive mode will move them to another section of the database.
+//!
+//! Like `OverlayDB`, there is a memory overlay; `commit()` must be called in order to
+//! write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
+//! immediately. Rather some age (based on a linear but arbitrary metric) must pass before
+//! the removals actually take effect.
+//!
+//! There are two memory overlays:
+//! - Transaction overlay contains current transaction data. It is merged with with history
+//! overlay on each `commit()`
+//! - History overlay contains all data inserted during the history period. When the node
+//! in the overlay becomes ancient it is written to disk on `commit()`
+//!
+//! There is also a journal maintained in memory and on the disk as well which lists insertions
+//! and removals for each commit during the history period. This is used to track
+//! data nodes that go out of history scope and must be written to disk.
+//!
+//! Commit workflow:
+//! 1. Create a new journal record from the transaction overlay.
+//! 2. Insert each node from the transaction overlay into the History overlay increasing reference
+//! count if it is already there. Note that the reference counting is managed by `MemoryDB`
+//! 3. Clear the transaction overlay.
+//! 4. For a canonical journal record that becomes ancient inserts its insertions into the disk DB
+//! 5. For each journal record that goes out of the history scope (becomes ancient) remove its
+//! insertions from the history overlay, decreasing the reference counter and removing entry if
+//! if reaches zero.
+//! 6. For a canonical journal record that becomes ancient delete its removals from the disk only if
+//! the removed key is not present in the history overlay.
+//! 7. Delete ancient record from memory and disk.
 
 use common::*;
 use rlp::*;
@@ -26,42 +57,23 @@ use kvdb::{Database, DBTransaction};
 use std::env;
 use super::JournalDB;
 
-/// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
-/// and, possibly, latent-removal semantics.
-///
-/// Like `OverlayDB`, there is a memory overlay; `commit()` must be called in order to
-/// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
-/// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
-/// the removals actually take effect.
-///
-/// There are two memory overlays:
-/// - Transaction overlay contains current transaction data. It is merged with with history
-/// overlay on each `commit()`
-/// - History overlay contains all data inserted during the history period. When the node
-/// in the overlay becomes ancient it is written to disk on `commit()`
-///
-/// There is also a journal maintained in memory and on the disk as well which lists insertions
-/// and removals for each commit during the history period. This is used to track
-/// data nodes that go out of history scope and must be written to disk.
-///
-/// Commit workflow:
-/// 1. Create a new journal record from the transaction overlay.
-/// 2. Insert each node from the transaction overlay into the History overlay increasing reference
-/// count if it is already there. Note that the reference counting is managed by `MemoryDB`
-/// 3. Clear the transaction overlay.
-/// 4. For a canonical journal record that becomes ancient inserts its insertions into the disk DB
-/// 5. For each journal record that goes out of the history scope (becomes ancient) remove its
-/// insertions from the history overlay, decreasing the reference counter and removing entry if
-/// if reaches zero.
-/// 6. For a canonical journal record that becomes ancient delete its removals from the disk only if
-/// the removed key is not present in the history overlay.
-/// 7. Delete ancient record from memory and disk.
+/// Deletion modes. See the module-level documentation for more details.
+#[derive(Debug, Clone, Copy)]
+pub enum Mode {
+	/// Enact deletions.
+	Enact,
+	/// Archive them to another column family.
+	Archive(Option<u32>),
+}
 
+/// Disk-backed HashDB implementation which can either prune or archive old state.
+/// See the module-level documentation for more info.
 pub struct OverlayRecentDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<Database>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
+	mode: Mode,
 }
 
 #[derive(PartialEq)]
@@ -91,6 +103,7 @@ impl Clone for OverlayRecentDB {
 			backing: self.backing.clone(),
 			journal_overlay: self.journal_overlay.clone(),
 			column: self.column.clone(),
+			mode: self.mode.clone(),
 		}
 	}
 }
@@ -99,13 +112,14 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
 	/// Create a new instance.
-	pub fn new(backing: Arc<Database>, col: Option<u32>) -> OverlayRecentDB {
+	pub fn new(backing: Arc<Database>, col: Option<u32>, mode: Mode) -> OverlayRecentDB {
 		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing, col)));
 		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
 			backing: backing,
 			journal_overlay: journal_overlay,
 			column: col,
+			mode: mode,
 		}
 	}
 
@@ -115,7 +129,7 @@ impl OverlayRecentDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
-		Self::new(backing, None)
+		Self::new(backing, None, Mode::Enact)
 	}
 
 	#[cfg(test)]
@@ -126,7 +140,15 @@ impl OverlayRecentDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
+		match self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?") {
+			None => {
+				match self.mode {
+					Mode::Enact => None,
+					Mode::Archive(col) => self.backing.get(col, key).expect("Low-level database error."),
+				}
+			}
+			x => x,
+		}
 	}
 
 	fn read_overlay(db: &Database, col: Option<u32>) -> JournalOverlay {
@@ -289,6 +311,12 @@ impl JournalDB for OverlayRecentDB {
 				// apply canon deletions
 				for k in canon_deletions {
 					if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
+						if let Mode::Archive(archive_col) = self.mode {
+							// if it's slated for deletion, it ought to be in the database.
+							let val = try!(try!(self.backing.get(self.column, &k))
+								.ok_or(BaseDataError::NegativelyReferencedHash(k.clone())));
+							try!(batch.put_vec(archive_col, &k, val));
+						}
 						try!(batch.delete(self.column, &k));
 					}
 				}
@@ -392,7 +420,7 @@ mod tests {
 
 	fn new_db(path: &Path) -> OverlayRecentDB {
 		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());
-		OverlayRecentDB::new(backing, None)
+		OverlayRecentDB::new(backing, None, Mode::Enact)
 	}
 
 	#[test]

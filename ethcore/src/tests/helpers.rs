@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use client::{self, BlockChainClient, Client, ClientConfig};
+use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;
 use block::{OpenBlock, Drain};
@@ -248,7 +248,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 fn new_db(path: &str) -> Arc<Database> {
 	Arc::new(
-		Database::open(&DatabaseConfig::with_columns(client::DB_NO_OF_COLUMNS), path)
+		Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path)
 		.expect("Opening database for tests should always work.")
 	)
 }
@@ -323,7 +323,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 
 pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
-	journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, None)
+	::db::make_journaldb(db.clone(), journaldb::Algorithm::EarlyMerge)
 }
 
 pub fn get_temp_state_in(path: &Path) -> State {

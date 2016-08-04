@@ -16,18 +16,78 @@
 
 //! `JournalDB` interface and implementation.
 
-use common::*;
-use kvdb::Database;
+use ::Bytes;
+use error::UtilError;
+use hash::H256;
+use hashdb::HashDB;
+use kvdb::{Database, DBTransaction};
 
-/// Export the journaldb module.
-pub mod traits;
-mod archivedb;
+use std::fmt;
+use std::str::FromStr;
+use std::sync::Arc;
+
 mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
 
-/// Export the `JournalDB` trait.
-pub use self::traits::JournalDB;
+pub use self::earlymergedb::EarlyMergeDB;
+pub use self::overlayrecentdb::{OverlayRecentDB, Mode};
+pub use self::refcounteddb::RefCountedDB;
+
+/// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
+/// exclusive actions.
+pub trait JournalDB: HashDB {
+	/// Return a copy of ourself, in a box.
+	fn boxed_clone(&self) -> Box<JournalDB>;
+
+	/// Returns heap memory size used
+	fn mem_used(&self) -> usize;
+
+	/// Check if this database has any commits
+	fn is_empty(&self) -> bool;
+
+	/// Get the latest era in the DB. None if there isn't yet any data in there.
+	fn latest_era(&self) -> Option<u64>;
+
+	/// Commit all recent insert operations and canonical historical commits' removals from the
+	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
+	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
+
+	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
+	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
+	///
+	/// Any keys or values inserted or deleted must be completely independent of those affected
+	/// by any previous `commit` operations. Essentially, this means that `inject` can be used
+	/// either to restore a state to a fresh database, or to insert data which may only be journalled
+	/// from this point onwards.
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError>;
+
+	/// State data query
+	fn state(&self, _id: &H256) -> Option<Bytes>;
+
+	/// Whether this database is pruned.
+	fn is_pruned(&self) -> bool { true }
+
+	/// Get backing database.
+	fn backing(&self) -> &Arc<Database>;
+
+	/// Commit all changes in a single batch
+	#[cfg(test)]
+	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		let batch = self.backing().transaction();
+		let res = try!(self.commit(&batch, now, id, end));
+		self.backing().write(batch).map(|_| res).map_err(Into::into)
+	}
+
+	/// Inject all changes in a single batch.
+	#[cfg(test)]
+	fn inject_batch(&mut self) -> Result<u32, UtilError> {
+		let batch = self.backing().transaction();
+		let res = try!(self.inject(&batch));
+		self.backing().write(batch).map(|_| res).map_err(Into::into)
+	}
+}
+
 
 /// A journal database algorithm.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -112,16 +172,6 @@ impl Algorithm {
 impl fmt::Display for Algorithm {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", self.as_str())
-	}
-}
-
-/// Create a new `JournalDB` trait object.
-pub fn new(backing: Arc<Database>, algorithm: Algorithm, col: Option<u32>) -> Box<JournalDB> {
-	match algorithm {
-		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(backing, col)),
-		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(backing, col)),
-		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(backing, col)),
-		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(backing, col)),
 	}
 }
 

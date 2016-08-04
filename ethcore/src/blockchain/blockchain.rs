@@ -29,8 +29,7 @@ use blockchain::best_block::BestBlock;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
-use db::{Writable, Readable, CacheUpdatePolicy};
-use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_COL_BODIES};
+use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
@@ -134,7 +133,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
 		self.note_used(CacheID::BlocksBlooms(position.clone()));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.blocks_blooms, &position).map(Into::into)
+		self.db.read_with_cache(db::COL_EXTRA, &self.blocks_blooms, &position).map(Into::into)
 	}
 }
 
@@ -171,7 +170,7 @@ impl BlockProvider for BlockChain {
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool {
-		self.db.exists_with_cache(DB_COL_EXTRA, &self.block_details, hash)
+		self.db.exists_with_cache(db::COL_EXTRA, &self.block_details, hash)
 	}
 
 	/// Get raw block data
@@ -208,7 +207,7 @@ impl BlockProvider for BlockChain {
 		}
 
 		// Read from DB and populate cache
-		let opt = self.db.get(DB_COL_HEADERS, hash)
+		let opt = self.db.get(db::COL_HEADERS, hash)
 			.expect("Low level database error. Some issue with disk?");
 
 		self.note_used(CacheID::BlockHeader(hash.clone()));
@@ -243,7 +242,7 @@ impl BlockProvider for BlockChain {
 		}
 
 		// Read from DB and populate cache
-		let opt = self.db.get(DB_COL_BODIES, hash)
+		let opt = self.db.get(db::COL_BODIES, hash)
 			.expect("Low level database error. Some issue with disk?");
 
 		self.note_used(CacheID::BlockBody(hash.clone()));
@@ -262,25 +261,25 @@ impl BlockProvider for BlockChain {
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 		self.note_used(CacheID::BlockDetails(hash.clone()));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.block_details, hash)
+		self.db.read_with_cache(db::COL_EXTRA, &self.block_details, hash)
 	}
 
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
 		self.note_used(CacheID::BlockHashes(index));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.block_hashes, &index)
+		self.db.read_with_cache(db::COL_EXTRA, &self.block_hashes, &index)
 	}
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
 		self.note_used(CacheID::TransactionAddresses(hash.clone()));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.transaction_addresses, hash)
+		self.db.read_with_cache(db::COL_EXTRA, &self.transaction_addresses, hash)
 	}
 
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		self.note_used(CacheID::BlockReceipts(hash.clone()));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.block_receipts, hash)
+		self.db.read_with_cache(db::COL_EXTRA, &self.block_receipts, hash)
 	}
 
 	/// Returns numbers of blocks containing given bloom.
@@ -339,7 +338,7 @@ impl BlockChain {
 		};
 
 		// load best block
-		let best_block_hash = match bc.db.get(DB_COL_EXTRA, b"best").unwrap() {
+		let best_block_hash = match bc.db.get(db::COL_EXTRA, b"best").unwrap() {
 			Some(best) => {
 				H256::from_slice(&best)
 			}
@@ -358,12 +357,12 @@ impl BlockChain {
 				};
 
 				let batch = DBTransaction::new(&db);
-				batch.put(DB_COL_HEADERS, &hash, block.header_rlp().as_raw()).unwrap();
-				batch.put(DB_COL_BODIES, &hash, &Self::block_to_body(genesis)).unwrap();
+				batch.put(db::COL_HEADERS, &hash, block.header_rlp().as_raw()).unwrap();
+				batch.put(db::COL_BODIES, &hash, &Self::block_to_body(genesis)).unwrap();
 
-				batch.write(DB_COL_EXTRA, &hash, &details);
-				batch.write(DB_COL_EXTRA, &header.number(), &hash);
-				batch.put(DB_COL_EXTRA, b"best", &hash).unwrap();
+				batch.write(db::COL_EXTRA, &hash, &details);
+				batch.write(db::COL_EXTRA, &header.number(), &hash);
+				batch.put(db::COL_EXTRA, b"best", &hash).unwrap();
 				bc.db.write(batch).expect("Low level database error. Some issue with disk?");
 				hash
 			}
@@ -391,7 +390,7 @@ impl BlockChain {
 	/// Returns true if the given parent block has given child
 	/// (though not necessarily a part of the canon chain).
 	fn is_known_child(&self, parent: &H256, hash: &H256) -> bool {
-		self.db.read_with_cache(DB_COL_EXTRA, &self.block_details, parent).map_or(false, |d| d.children.contains(hash))
+		self.db.read_with_cache(db::COL_EXTRA, &self.block_details, parent).map_or(false, |d| d.children.contains(hash))
 	}
 
 	/// Rewind to a previous block
@@ -400,22 +399,22 @@ impl BlockChain {
 		use db::Key;
 		let batch = self.db.transaction();
 		// track back to the best block we have in the blocks database
-		if let Some(best_block_hash) = self.db.get(DB_COL_EXTRA, b"best").unwrap() {
+		if let Some(best_block_hash) = self.db.get(db::COL_EXTRA, b"best").unwrap() {
 			let best_block_hash = H256::from_slice(&best_block_hash);
 			if best_block_hash == self.genesis_hash() {
 				return None;
 			}
-			if let Some(extras) = self.db.read(DB_COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
+			if let Some(extras) = self.db.read(db::COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
 				type DetailsKey = Key<BlockDetails, Target=H264>;
-				batch.delete(DB_COL_EXTRA, &(DetailsKey::key(&best_block_hash))).unwrap();
+				batch.delete(db::COL_EXTRA, &(DetailsKey::key(&best_block_hash))).unwrap();
 				let hash = extras.parent;
 				let range = extras.number as bc::Number .. extras.number as bc::Number;
 				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
 				let changes = chain.replace(&range, vec![]);
 				for (k, v) in changes.into_iter() {
-					batch.write(DB_COL_EXTRA, &LogGroupPosition::from(k), &BloomGroup::from(v));
+					batch.write(db::COL_EXTRA, &LogGroupPosition::from(k), &BloomGroup::from(v));
 				}
-				batch.put(DB_COL_EXTRA, b"best", &hash).unwrap();
+				batch.put(db::COL_EXTRA, b"best", &hash).unwrap();
 
 				let best_block_total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
 				let best_block_rlp = self.block(&hash).unwrap();
@@ -428,9 +427,9 @@ impl BlockChain {
 					block: best_block_rlp,
 				};
 				// update parent extras
-				if let Some(mut details) = self.db.read(DB_COL_EXTRA, &hash) as Option<BlockDetails> {
+				if let Some(mut details) = self.db.read(db::COL_EXTRA, &hash) as Option<BlockDetails> {
 					details.children.clear();
-					batch.write(DB_COL_EXTRA, &hash, &details);
+					batch.write(db::COL_EXTRA, &hash, &details);
 				}
 				self.db.write(batch).expect("Writing to db failed");
 				self.block_details.write().clear();
@@ -550,8 +549,8 @@ impl BlockChain {
 		assert!(self.pending_best_block.read().is_none());
 
 		// store block in db
-		batch.put_compressed(DB_COL_HEADERS, &hash, block.header_rlp().as_raw().to_vec()).unwrap();
-		batch.put_compressed(DB_COL_BODIES, &hash, Self::block_to_body(bytes)).unwrap();
+		batch.put_compressed(db::COL_HEADERS, &hash, block.header_rlp().as_raw().to_vec()).unwrap();
+		batch.put_compressed(db::COL_BODIES, &hash, Self::block_to_body(bytes)).unwrap();
 
 		let info = self.block_info(&header);
 
@@ -625,17 +624,17 @@ impl BlockChain {
 			}
 
 			let mut write_details = self.block_details.write();
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
 		}
 
 		{
 			let mut write_receipts = self.block_receipts.write();
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(db::COL_EXTRA, &mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
 		{
 			let mut write_blocks_blooms = self.blocks_blooms.write();
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(db::COL_EXTRA, &mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
 		// These cached values must be updated last with all three locks taken to avoid
@@ -646,7 +645,7 @@ impl BlockChain {
 			match update.info.location {
 				BlockLocation::Branch => (),
 				_ => {
-					batch.put(DB_COL_EXTRA, b"best", &update.info.hash).unwrap();
+					batch.put(db::COL_EXTRA, b"best", &update.info.hash).unwrap();
 					*best_block = Some(BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
@@ -659,8 +658,8 @@ impl BlockChain {
 			let mut write_hashes = self.pending_block_hashes.write();
 			let mut write_txs = self.pending_transaction_addresses.write();
 
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Overwrite);
-			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(db::COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(db::COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Overwrite);
 		}
 	}
 
@@ -938,10 +937,9 @@ mod tests {
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 	use views::BlockView;
-	use client;
 
 	fn new_db(path: &str) -> Arc<Database> {
-		Arc::new(Database::open(&DatabaseConfig::with_columns(client::DB_NO_OF_COLUMNS), path).unwrap())
+		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
 	}
 
 	#[test]

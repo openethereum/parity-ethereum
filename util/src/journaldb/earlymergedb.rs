@@ -20,8 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use super::traits::JournalDB;
+use super::{JournalDB, DB_PREFIX_LEN, LATEST_ERA_KEY};
 use kvdb::{Database, DBTransaction};
 #[cfg(test)]
 use std::env;
@@ -548,7 +547,7 @@ mod tests {
 
 	use common::*;
 	use super::*;
-	use super::super::traits::JournalDB;
+	use super::super::JournalDB;
 	use hashdb::*;
 	use log::init_log;
 	use kvdb::{Database, DatabaseConfig};
