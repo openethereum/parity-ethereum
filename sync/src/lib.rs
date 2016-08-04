@@ -30,11 +30,12 @@
 //!
 //! ```rust
 //! extern crate ethcore_util as util;
+//! extern crate ethcore_io as io;
 //! extern crate ethcore;
 //! extern crate ethsync;
 //! use std::env;
 //! use std::sync::Arc;
-//! use util::io::IoChannel;
+//! use io::IoChannel;
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethsync::{EthSync, SyncConfig, ManageNetwork, NetworkConfiguration};
 //! use ethcore::ethereum;
@@ -55,7 +56,7 @@
 //!			miner,
 //!			IoChannel::disconnected()
 //!		).unwrap();
-//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::from(util::NetworkConfiguration::new())).unwrap();
+//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::from(NetworkConfiguration::new())).unwrap();
 //! 	sync.start_network();
 //! }
 //! ```
