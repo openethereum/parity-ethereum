@@ -175,7 +175,7 @@ impl State {
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
 		self.ensure_cached(a, false,
-			|a| a.as_ref().map_or(U256::zero(), |account| *account.nonce()))
+			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.

@@ -310,7 +310,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
 		match id {
-			BlockID::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or_else(U256::zero)),
+			BlockID::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params.account_start_nonce)),
 			_ => None,
 		}
 	}
