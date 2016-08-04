@@ -225,7 +225,7 @@ pub trait EthSigning: Sized + Send + Sync + 'static {
 	/// Returns the transaction hash, the zero hash (not yet available),
 	/// or the signature,
 	/// or an error.
-	fn check_posted_request(&self, _: Params) -> Result<Value, Error>;
+	fn check_request(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
@@ -234,7 +234,7 @@ pub trait EthSigning: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_sendTransaction", EthSigning::send_transaction);
 		delegate.add_method("eth_postSign", EthSigning::post_sign);
 		delegate.add_method("eth_postTransaction", EthSigning::post_transaction);
-		delegate.add_method("eth_checkRequest", EthSigning::check_posted_request);
+		delegate.add_method("eth_checkRequest", EthSigning::check_request);
 		delegate
 	}
 }
