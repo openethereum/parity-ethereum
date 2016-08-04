@@ -171,7 +171,7 @@ pub struct Miner {
 
 	// for sealing...
 	options: MinerOptions,
-	
+
 	next_allowed_reseal: Mutex<Instant>,
 	sealing_block_last_request: Mutex<u64>,
 	gas_range_target: RwLock<(U256, U256)>,
@@ -420,7 +420,7 @@ impl Miner {
 			*sealing_block_last_request = best_number;
 		}
 
-		// Return if we restarted 
+		// Return if we restarted
 		prepare_new
 	}
 
@@ -770,7 +770,7 @@ impl MinerService for Miner {
 				false
 			}
 		};
-		
+
 		if requires_reseal {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
@@ -959,7 +959,7 @@ mod tests {
 				data: "3331600055".from_hex().unwrap(),
 				gas: U256::from(100_000),
 				gas_price: U256::zero(),
-				nonce: U256::zero(),
+				nonce: U256::from_str("00000000000000000000000000100000").unwrap(),
 			}.sign(keypair.secret())
 		};
 
@@ -989,7 +989,7 @@ mod tests {
 				data: "3331600055".from_hex().unwrap(),
 				gas: U256::from(100_000),
 				gas_price: U256::zero(),
-				nonce: U256::zero(),
+				nonce: U256::from_str("00000000000000000000000000100000").unwrap(),
 			}.sign(keypair.secret())
 		};
 
