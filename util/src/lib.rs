@@ -117,6 +117,7 @@ pub extern crate using_queue;
 pub extern crate table;
 extern crate ansi_term;
 
+pub mod bloom;
 pub mod standard;
 #[macro_use]
 pub mod from_json;

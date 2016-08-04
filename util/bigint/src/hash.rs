@@ -16,7 +16,7 @@
 
 //! General hash types, a fixed-size raw-data type used as the output of hash functions.
 
-use std::{ops, fmt, cmp, mem};
+use std::{ops, fmt, cmp};
 use std::cmp::*;
 use std::ops::*;
 use std::hash::{Hash, Hasher, BuildHasherDefault};
@@ -28,7 +28,7 @@ use rustc_serialize::hex::{FromHex, FromHexError};
 use uint::{Uint, U256};
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
-pub trait FixedHash: Sized + FromStr + Default + DerefMut<Target = [u8]> {
+pub trait FixedHash: Sized {
 	/// Create a new, zero-initialised, instance.
 	fn new() -> Self;
 	/// Synonym for `new()`. Prefer to new as it's more readable.
@@ -45,14 +45,6 @@ pub trait FixedHash: Sized + FromStr + Default + DerefMut<Target = [u8]> {
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	/// Copy the data of this object into some mutable slice of length `len()`.
 	fn copy_to(&self, dest: &mut [u8]);
-	/// When interpreting self as a bloom output, augment (bit-wise OR) with the a bloomed version of `b`.
-	fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
-	/// Same as `shift_bloomed` except that `self` is consumed and a new value returned.
-	fn with_bloomed<T>(mut self, b: &T) -> Self where T: FixedHash { self.shift_bloomed(b); self }
-	/// Bloom the current value using the bloom parameter `m`.
-	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
-	/// Check to see whether this hash, interpreted as a bloom, contains the value `b` when bloomed.
-	fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash;
 	/// Returns `true` if all bits set in `b` are also set in `self`.
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 	/// Returns `true` if no bits are set.
@@ -68,16 +60,6 @@ pub fn clean_0x(s: &str) -> &str {
 	} else {
 		s
 	}
-}
-
-/// Returns log2.
-pub fn log2(x: usize) -> u32 {
-	if x <= 1 {
-		return 0;
-	}
-
-	let n = x.leading_zeros();
-	mem::size_of::<usize>() as u32 * 8 - n
 }
 
 macro_rules! impl_hash {
@@ -156,54 +138,6 @@ macro_rules! impl_hash {
 			fn copy_to(&self, dest: &mut[u8]) {
 				let min = cmp::min($size, dest.len());
 				dest[..min].copy_from_slice(&self.0[..min]);
-			}
-
-			fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
-				let bp: Self = b.bloom_part($size);
-				let new_self = &bp | self;
-
-				self.0 = new_self.0;
-				self
-			}
-
-			fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash {
-				// numbers of bits
-				// TODO: move it to some constant
-				let p = 3;
-
-				let bloom_bits = m * 8;
-				let mask = bloom_bits - 1;
-				let bloom_bytes = (log2(bloom_bits) + 7) / 8;
-
-				// must be a power of 2
-				assert_eq!(m & (m - 1), 0);
-				// out of range
-				assert!(p * bloom_bytes <= $size);
-
-				// return type
-				let mut ret = T::new();
-
-				// 'ptr' to out slice
-				let mut ptr = 0;
-
-				// set p number of bits,
-				// p is equal 3 according to yellowpaper
-				for _ in 0..p {
-					let mut index = 0 as usize;
-					for _ in 0..bloom_bytes {
-						index = (index << 8) | self.0[ptr] as usize;
-						ptr += 1;
-					}
-					index &= mask;
-					ret[m - 1 - index / 8] |= 1 << (index % 8);
-				}
-
-				ret
-			}
-
-			fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash {
-				let bp: Self = b.bloom_part($size);
-				self.contains(&bp)
 			}
 
 			fn contains<'a>(&'a self, b: &'a Self) -> bool {
@@ -415,9 +349,6 @@ macro_rules! impl_hash {
 			pub fn hex(&self) -> String {
 				format!("{:?}", self)
 			}
-
-			/// Construct new instance equal to the bloomed value of `b`.
-			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
 		}
 
 		impl Default for $from {
@@ -607,29 +538,6 @@ mod tests {
 
 		// move
 		assert_eq!(a | b, c);
-	}
-
-	#[test]
-	#[ignore]
-	fn shift_bloomed() {
-		//use sha3::Hashable;
-
-		//let bloom = H2048::from_str("00000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002020000000000000000000000000000000000000000000008000000001000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
-		//let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
-		//let topic = H256::from_str("02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
-
-		//let mut my_bloom = H2048::new();
-		//assert!(!my_bloom.contains_bloomed(&address.sha3()));
-		//assert!(!my_bloom.contains_bloomed(&topic.sha3()));
-
-		//my_bloom.shift_bloomed(&address.sha3());
-		//assert!(my_bloom.contains_bloomed(&address.sha3()));
-		//assert!(!my_bloom.contains_bloomed(&topic.sha3()));
-
-		//my_bloom.shift_bloomed(&topic.sha3());
-		//assert_eq!(my_bloom, bloom);
-		//assert!(my_bloom.contains_bloomed(&address.sha3()));
-		//assert!(my_bloom.contains_bloomed(&topic.sha3()));
 	}
 
 	#[test]

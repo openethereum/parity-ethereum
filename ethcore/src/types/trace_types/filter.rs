@@ -20,8 +20,9 @@ use std::ops::Range;
 use std::mem;
 use std::collections::VecDeque;
 use bloomchain::{Filter as BloomFilter, Bloom, Number};
-use util::{Address, FixedHash};
+use util::Address;
 use util::sha3::Hashable;
+use util::bloom::Bloomable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
 use types::trace_types::trace::{Action, Res};
@@ -137,8 +138,9 @@ impl Filter {
 
 #[cfg(test)]
 mod tests {
-	use util::{FixedHash, Address};
+	use util::Address;
 	use util::sha3::Hashable;
+	use util::bloom::Bloomable;
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide};
 	use trace::flat::FlatTrace;
 	use trace::{Filter, AddressesFilter};

@@ -19,8 +19,9 @@
 use std::mem;
 use std::ops::Deref;
 use std::collections::VecDeque;
-use util::{H256, Address, Bytes, HeapSizeOf, FixedHash, Hashable};
+use util::{H256, Address, Bytes, HeapSizeOf, Hashable};
 use util::rlp::*;
+use util::bloom::Bloomable;
 use ipc::binary::BinaryConvertError;
 use basic_types::LogBloom;
 use header::BlockNumber;
