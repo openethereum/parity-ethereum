@@ -959,7 +959,7 @@ mod tests {
 				data: "3331600055".from_hex().unwrap(),
 				gas: U256::from(100_000),
 				gas_price: U256::zero(),
-				nonce: U256::from_str("00000000000000000000000000100000").unwrap(),
+				nonce: U256::zero(),
 			}.sign(keypair.secret())
 		};
 
@@ -989,7 +989,7 @@ mod tests {
 				data: "3331600055".from_hex().unwrap(),
 				gas: U256::from(100_000),
 				gas_price: U256::zero(),
-				nonce: U256::from_str("00000000000000000000000000100000").unwrap(),
+				nonce: U256::zero(),
 			}.sign(keypair.secret())
 		};
 
