@@ -143,7 +143,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 		})
 	}
 
-	fn check_posted_request(&self, params: Params) -> Result<Value, Error> {
+	fn check_request(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let mut pending = self.pending.lock();
 		from_params::<(RpcU256, )>(params).and_then(|(id, )| {
@@ -225,7 +225,7 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		Err(signer_disabled_error())
 	}
 
-	fn check_posted_request(&self, _: Params) -> Result<Value, Error> {
+	fn check_request(&self, _: Params) -> Result<Value, Error> {
 		// We don't support this in non-signer mode.
 		Err(signer_disabled_error())
 	}
