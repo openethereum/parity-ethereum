@@ -69,7 +69,7 @@ impl StateProducer {
 		let mut trie = TrieDBMut::from_existing(db, &mut self.state_root).unwrap();
 
 		for (address_hash, account_data) in accounts_to_modify {
-			trie.insert(&address_hash[..], &account_data);
+			trie.insert(&address_hash[..], &account_data).unwrap();
 		}
 
 		// add between 0 and 5 new accounts each tick.
@@ -80,7 +80,7 @@ impl StateProducer {
 			let balance: usize = rng.gen();
 			let nonce: usize = rng.gen();
 			let acc = ::account::Account::new_basic(balance.into(), nonce.into()).rlp();
-			trie.insert(&address_hash[..], &acc);
+			trie.insert(&address_hash[..], &acc).unwrap();
 		}
 	}
 
@@ -107,7 +107,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 		};
 
 		for (k, v) in map.make_with(seed) {
-			trie.insert(&k, &v);
+			trie.insert(&k, &v).unwrap();
 		}
 	}
 }

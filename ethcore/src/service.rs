@@ -194,10 +194,14 @@ mod tests {
 	#[test]
 	fn it_can_be_started() {
 		let temp_path = RandomTempPath::new();
+		let mut path = temp_path.as_path().to_owned();
+		path.push("pruning");
+		path.push("db");
+
 		let service = ClientService::start(
 			ClientConfig::default(),
 			get_test_spec(),
-			temp_path.as_path(),
+			&path,
 			Arc::new(Miner::with_spec(get_test_spec())),
 		);
 		assert!(service.is_ok());
