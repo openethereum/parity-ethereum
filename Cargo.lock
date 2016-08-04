@@ -645,7 +645,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "json-ipc-server"
 version = "0.2.4"
-source = "git+https://github.com/ethcore/json-ipc-server.git#7a02a0f8b249fda100b9bab5f90b2081d410d8cf"
+source = "git+https://github.com/ethcore/json-ipc-server.git#56b6307130710ebc73cb9be087b6ed0b6c400bcf"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
