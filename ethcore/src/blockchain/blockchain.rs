@@ -540,7 +540,7 @@ impl BlockChain {
 	///
 	/// Supply a dummy parent difficulty when the parent block may not be in the chain.
 	/// Returns true if the block is disconnected.
-	pub fn insert_snapshot_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_diff: Option<U256>) -> bool {
+	pub fn insert_snapshot_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_diff: Option<U256>, is_best: bool) -> bool {
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 		let hash = header.sha3();
@@ -548,6 +548,8 @@ impl BlockChain {
 		if self.is_known(&hash) {
 			return false;
 		}
+
+		assert!(self.pending_best_block.read().is_none());
 
 		let batch = self.db.transaction();
 
@@ -578,7 +580,7 @@ impl BlockChain {
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				info: info,
 				block: bytes
-			});
+			}, is_best);
 			self.db.write(batch).unwrap();
 
 			false
@@ -612,7 +614,7 @@ impl BlockChain {
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				info: info,
 				block: bytes,
-			});
+			}, is_best);
 			self.db.write(batch).unwrap();
 
 			true
@@ -684,7 +686,7 @@ impl BlockChain {
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			info: info.clone(),
 			block: bytes,
-		});
+		}, true);
 
 		ImportRoute::from(info)
 	}
@@ -732,7 +734,7 @@ impl BlockChain {
 	}
 
 	/// Prepares extras update.
-	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate) {
+	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate, is_best: bool) {
 		{
 			for hash in update.block_details.keys().cloned() {
 				self.note_used(CacheID::BlockDetails(hash));
@@ -759,7 +761,7 @@ impl BlockChain {
 			// update best block
 			match update.info.location {
 				BlockLocation::Branch => (),
-				_ => {
+				_ => if is_best {
 					batch.put(DB_COL_EXTRA, b"best", &update.info.hash).unwrap();
 					*best_block = Some(BestBlock {
 						hash: update.info.hash,
@@ -767,7 +769,7 @@ impl BlockChain {
 						total_difficulty: update.info.total_difficulty,
 						block: update.block.to_vec(),
 					});
-				}
+				},
 			}
 			let mut write_hashes = self.pending_block_hashes.write();
 			let mut write_txs = self.pending_transaction_addresses.write();

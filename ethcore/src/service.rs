@@ -63,9 +63,6 @@ impl ClientService {
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
 	{
-		let mut db_path = db_path.to_owned();
-		db_path.push(H64::from(spec.genesis_header().hash()).hex());
-
 		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = try!(IoService::<ClientIoMessage>::start());
 		panic_handler.forward_from(&io_service);
@@ -76,8 +73,8 @@ impl ClientService {
 		}
 
 		let pruning = config.pruning;
-		let client = try!(Client::new(config, &spec, &db_path, miner, io_service.channel()));
-		let snapshot = try!(SnapshotService::new(spec, pruning, db_path, io_service.channel()));
+		let client = try!(Client::new(config, &spec, db_path, miner, io_service.channel()));
+		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel()));
 
 		let snapshot = Arc::new(snapshot);
 

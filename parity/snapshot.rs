@@ -101,6 +101,8 @@ impl SnapshotCommand {
 		let file = try!(self.file_path.clone().ok_or("No file path provided.".to_owned()));
 		let (service, _panic_handler) = try!(self.start_service());
 
+		warn!("Snapshot restoration is experimental and the format may be subject to change.");
+
 		let snapshot = service.snapshot_service();
 		let reader = PackedReader::new(&Path::new(&file))
 			.map_err(|e| format!("Couldn't open snapshot file: {}", e))
@@ -166,6 +168,8 @@ impl SnapshotCommand {
 		let file_path = try!(self.file_path.clone().ok_or("No file path provided.".to_owned()));
 		let file_path: PathBuf = file_path.into();
 		let (service, _panic_handler) = try!(self.start_service());
+
+		warn!("Snapshots are currently experimental. File formats may be subject to change.");
 
 		let writer = try!(PackedWriter::new(&file_path)
 			.map_err(|e| format!("Failed to open snapshot writer: {}", e)));

@@ -35,7 +35,7 @@ use spec::Spec;
 use util::{Bytes, H256, Mutex, UtilError};
 use util::io::IoChannel;
 use util::journaldb::Algorithm;
-use util::kvdb::Database;
+use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
 
 /// Statuses for restorations.
@@ -98,10 +98,12 @@ struct Restoration {
 impl Restoration {
 	// make a new restoration, building databases in the given path.
 	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Result<Self, Error> {
-		let raw_db = Arc::new(try!(Database::open_default(&*path.to_string_lossy())
+		let cfg = DatabaseConfig::with_columns(::client::DB_NO_OF_COLUMNS);
+		let raw_db = Arc::new(try!(Database::open(&cfg, &*path.to_string_lossy())
 			.map_err(|s| UtilError::SimpleString(s))));
 
-		let blocks = try!(BlockRebuilder::new(BlockChain::new(Default::default(), &spec.genesis_block(), raw_db.clone())));
+		let chain = BlockChain::new(Default::default(), &spec.genesis_block(), raw_db.clone());
+		let blocks = try!(BlockRebuilder::new(chain, manifest.block_number));
 
 		Ok(Restoration {
 			state_chunks_left: manifest.state_hashes.iter().cloned().collect(),
@@ -407,7 +409,8 @@ impl SnapshotService for Service {
 		}
 
 		// make new restoration.
-		*res = match Restoration::new(&manifest, self.pruning, &rest_dir, &self.spec) {
+		let db_path = self.restoration_db();
+		*res = match Restoration::new(&manifest, self.pruning, &db_path, &self.spec) {
 				Ok(b) => Some(b),
 				Err(e) => {
 					warn!("encountered error {} while beginning snapshot restoration.", e);

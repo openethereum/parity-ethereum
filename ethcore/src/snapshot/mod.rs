@@ -53,8 +53,8 @@ mod error;
 #[cfg(test)]
 mod tests;
 
-// Try to have chunks be around 16MB (before compression)
-const PREFERRED_CHUNK_SIZE: usize = 16 * 1024 * 1024;
+// Try to have chunks be around 4MB (before compression)
+const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
 // How many blocks to include in a snapshot, starting from the head of the chain.
 const SNAPSHOT_BLOCKS: u64 = 30000;
@@ -483,15 +483,17 @@ pub struct BlockRebuilder {
 	chain: BlockChain,
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
+	best_number: u64,
 }
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain) -> Result<Self, ::error::Error> {
+	pub fn new(chain: BlockChain, best_number: u64) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
 			rng: try!(OsRng::new()),
 			disconnected: Vec::new(),
+			best_number: best_number,
 		})
 	}
 
@@ -525,14 +527,17 @@ impl BlockRebuilder {
 				try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
 			}
 
+			let is_best = cur_number == self.best_number;
+
 			// special-case the first block in each chunk.
 			if idx == 3 {
-				if self.chain.insert_snapshot_block(&block_bytes, receipts, Some(parent_difficulty)) {
+				if self.chain.insert_snapshot_block(&block_bytes, receipts, Some(parent_difficulty), is_best) {
 					self.disconnected.push((cur_number, block.header.hash()));
 				}
 			} else {
-				self.chain.insert_snapshot_block(&block_bytes, receipts, None);
+				self.chain.insert_snapshot_block(&block_bytes, receipts, None, is_best);
 			}
+			self.chain.commit();
 
 			parent_hash = BlockView::new(&block_bytes).hash();
 			cur_number += 1;
