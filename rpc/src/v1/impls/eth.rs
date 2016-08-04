@@ -410,9 +410,10 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				let address: Address = RpcH160::into(address);
 				match block_number {
 					BlockNumber::Pending => to_value(&take_weak!(self.miner).code(take_weak!(self.client).deref(), &address).map_or_else(Bytes::default, Bytes::new)),
-					// TODO [todr] Should support block_number!
-					BlockNumber::Latest => to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)),
-					_ => Err(Error::invalid_params()),
+					_ => match take_weak!(self.client).code(&address, block_number.into()) {
+						Some(code) => to_value(&code.map_or_else(Bytes::default, Bytes::new)),
+						None => Err(errors::state_pruned()),
+					},
 				}
 			})
 	}
