@@ -66,6 +66,8 @@ pub struct TestBlockChainClient {
 	pub queue_size: AtomicUsize,
 	/// Miner
 	pub miner: Arc<Miner>,
+	/// Test spec
+	spec: Spec,
 }
 
 #[derive(Clone)]
@@ -105,6 +107,7 @@ impl TestBlockChainClient {
 			receipts: RwLock::new(HashMap::new()),
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(Spec::new_test())),
+			spec: Spec::new_test(),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
@@ -267,7 +270,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
 		match id {
-			BlockID::Latest => Some(self.nonces.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero)),
+			BlockID::Latest => Some(self.nonces.read().unwrap().get(address).cloned().unwrap_or(self.spec.params.account_start_nonce)),
 			_ => None,
 		}
 	}
