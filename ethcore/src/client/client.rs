@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, HashMap, VecDeque};
-use std::ops::Deref;
 use std::sync::{Arc, Weak};
 use std::path::{Path};
 use std::fmt;
@@ -272,7 +271,7 @@ impl Client {
 	}
 
 	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<LockedBlock, ()> {
-		let engine = self.engine.deref().deref();
+		let engine = &**self.engine;
 		let header = &block.header;
 
 		// Check the block isn't so old we won't be able to enact it.
@@ -283,7 +282,7 @@ impl Client {
 		}
 
 		// Verify Block Family
-		let verify_family_result = self.verifier.verify_block_family(header, &block.bytes, engine, self.chain.deref());
+		let verify_family_result = self.verifier.verify_block_family(header, &block.bytes, engine, &*self.chain);
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -667,7 +666,7 @@ impl BlockChainClient for Client {
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = try!(Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options));
+		let mut ret = try!(Executive::new(&mut state, &env_info, &**self.engine, &self.vm_factory).transact(t, options));
 
 		// TODO gav move this into Executive.
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
@@ -699,7 +698,7 @@ impl BlockChainClient for Client {
 			gas_limit: view.gas_limit(),
 		};
 		for t in txs.iter().take(address.index) {
-			match Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, Default::default()) {
+			match Executive::new(&mut state, &env_info, &**self.engine, &self.vm_factory).transact(t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
@@ -707,7 +706,7 @@ impl BlockChainClient for Client {
 		let t = &txs[address.index];
 
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = try!(Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options));
+		let mut ret = try!(Executive::new(&mut state, &env_info, &**self.engine, &self.vm_factory).transact(t, options));
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
@@ -999,7 +998,7 @@ impl BlockChainClient for Client {
 
 impl MiningBlockChainClient for Client {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
-		let engine = self.engine.deref().deref();
+		let engine = &**self.engine;
 		let h = self.chain.best_block_hash();
 
 		let mut open_block = OpenBlock::new(
