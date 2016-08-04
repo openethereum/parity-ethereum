@@ -36,7 +36,7 @@ pub struct EnvInfo {
 	/// The block gas limit.
 	pub gas_limit: U256,
 	/// The last 256 block hashes.
-	pub last_hashes: LastHashes,
+	pub last_hashes: Arc<LastHashes>,
 	/// The gas used.
 	pub gas_used: U256,
 }
@@ -49,7 +49,7 @@ impl Default for EnvInfo {
 			timestamp: 0,
 			difficulty: 0.into(),
 			gas_limit: 0.into(),
-			last_hashes: vec![],
+			last_hashes: Arc::new(vec![]),
 			gas_used: 0.into(),
 		}
 	}
@@ -64,7 +64,7 @@ impl From<ethjson::vm::Env> for EnvInfo {
 			difficulty: e.difficulty.into(),
 			gas_limit: e.gas_limit.into(),
 			timestamp: e.timestamp.into(),
-			last_hashes: (1..cmp::min(number + 1, 257)).map(|i| format!("{}", number - i).as_bytes().sha3()).collect(),
+			last_hashes: Arc::new((1..cmp::min(number + 1, 257)).map(|i| format!("{}", number - i).as_bytes().sha3()).collect()),
 			gas_used: U256::zero(),
 		}
 	}

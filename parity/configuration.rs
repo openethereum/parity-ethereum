@@ -37,7 +37,7 @@ use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
 use signer::Configuration as SignerConfiguration;
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts};
 use snapshot::{self, SnapshotCommand};
@@ -90,6 +90,7 @@ impl Configuration {
 		let signer_port = self.signer_port();
 		let dapps_conf = self.dapps_config();
 		let signer_conf = self.signer_config();
+		let format = try!(self.format());
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -130,7 +131,7 @@ impl Configuration {
 				cache_config: cache_config,
 				dirs: dirs,
 				file_path: self.args.arg_file.clone(),
-				format: None,
+				format: format,
 				pruning: pruning,
 				compaction: compaction,
 				wal: wal,
@@ -146,7 +147,7 @@ impl Configuration {
 				cache_config: cache_config,
 				dirs: dirs,
 				file_path: self.args.arg_file.clone(),
-				format: None,
+				format: format,
 				pruning: pruning,
 				compaction: compaction,
 				wal: wal,
@@ -258,6 +259,13 @@ impl Configuration {
 
 	fn author(&self) -> Result<Address, String> {
 		to_address(self.args.flag_etherbase.clone().or(self.args.flag_author.clone()))
+	}
+
+	fn format(&self) -> Result<Option<DataFormat>, String> {
+		match self.args.flag_format {
+			Some(ref f) => Ok(Some(try!(f.parse()))),
+			None => Ok(None),
+		}
 	}
 
 	fn cache_config(&self) -> CacheConfig {
@@ -393,7 +401,7 @@ impl Configuration {
 				let mut buffer = String::new();
 				let mut node_file = try!(File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e)));
 				try!(node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file"));
-				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| s.len() > 0).collect::<Vec<_>>();
+				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>();
 				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
 					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
 				}
@@ -580,7 +588,7 @@ mod tests {
 	use ethcore::client::{VMType, BlockID};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
-	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain};
+	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
 	use devtools::{RandomTempPath};
@@ -655,7 +663,7 @@ mod tests {
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
-			format: None,
+			format: Default::default(),
 			pruning: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -677,6 +685,27 @@ mod tests {
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
 			format: Default::default(),
+			compaction: Default::default(),
+			wal: true,
+			mode: Default::default(),
+			tracing: Default::default(),
+			from_block: BlockID::Number(1),
+			to_block: BlockID::Latest,
+		})));
+	}
+
+	#[test]
+	fn test_command_blockchain_export_with_custom_format() {
+		let args = vec!["parity", "export", "--format", "hex", "blockchain.json"];
+		let conf = Configuration::parse(args).unwrap();
+		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+			spec: Default::default(),
+			logger_config: Default::default(),
+			cache_config: Default::default(),
+			dirs: Default::default(),
+			file_path: Some("blockchain.json".into()),
+			pruning: Default::default(),
+			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			wal: true,
 			mode: Default::default(),

@@ -324,7 +324,7 @@ mod tests {
 			author: 0.into(),
 			timestamp: 0,
 			difficulty: 0.into(),
-			last_hashes: vec![],
+			last_hashes: Arc::new(vec![]),
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
 		}
@@ -391,7 +391,9 @@ mod tests {
 		{
 			let env_info = &mut setup.env_info;
 			env_info.number = test_env_number;
-			env_info.last_hashes.push(test_hash.clone());
+			let mut last_hashes = (*env_info.last_hashes).clone();
+			last_hashes.push(test_hash.clone());
+			env_info.last_hashes = Arc::new(last_hashes);
 		}
 		let state = setup.state.reference_mut();
 		let mut tracer = NoopTracer;

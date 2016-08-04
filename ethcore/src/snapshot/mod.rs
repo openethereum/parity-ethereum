@@ -428,7 +428,7 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
-				account_trie.insert(&hash, &thin_rlp);
+				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 
@@ -437,7 +437,6 @@ impl StateRebuilder {
 		try!(self.db.inject(&batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
-
 		Ok(())
 	}
 

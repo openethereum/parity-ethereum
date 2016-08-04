@@ -262,7 +262,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let genesis_header = self.spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		self.spec.ensure_db_good(db.as_hashdb_mut());
+		self.spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
@@ -272,7 +272,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			false,
 			db,
 			&genesis_header,
-			last_hashes,
+			Arc::new(last_hashes),
 			author,
 			gas_range_target,
 			extra_data

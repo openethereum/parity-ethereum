@@ -20,7 +20,7 @@ use bytes::*;
 use std::collections::HashMap;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
-pub trait HashDB: AsHashDB {
+pub trait HashDB: AsHashDB + Send + Sync {
 	/// Get the keys in the database together with number of underlying references.
 	fn keys(&self) -> HashMap<H256, i32>;
 

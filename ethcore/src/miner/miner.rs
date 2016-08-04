@@ -472,7 +472,7 @@ impl MinerService for Miner {
 
 				// TODO: merge this code with client.rs's fn call somwhow.
 				let header = block.header();
-				let last_hashes = chain.last_hashes();
+				let last_hashes = Arc::new(chain.last_hashes());
 				let env_info = EnvInfo {
 					number: header.number(),
 					author: *header.author(),

@@ -20,6 +20,7 @@ use std::fmt;
 
 use util::H256;
 use util::trie::TrieError;
+use util::rlp::DecoderError;
 
 /// Snapshot-related errors.
 #[derive(Debug)]
@@ -30,6 +31,8 @@ pub enum Error {
 	BlockNotFound(H256),
 	/// Trie error.
 	Trie(TrieError),
+	/// Decoder error.
+	Decoder(DecoderError),
 	/// Io error.
 	Io(::std::io::Error),
 }
@@ -40,6 +43,7 @@ impl fmt::Display for Error {
 			Error::InvalidStartingBlock(ref hash) => write!(f, "Invalid starting block hash: {}", hash),
 			Error::BlockNotFound(ref hash) => write!(f, "Block not found in chain: {}", hash),
 			Error::Io(ref err) => err.fmt(f),
+			Error::Decoder(ref err) => err.fmt(f),
 			Error::Trie(ref err) => err.fmt(f),
 		}
 	}
@@ -51,8 +55,14 @@ impl From<::std::io::Error> for Error {
 	}
 }
 
-impl From<TrieError> for Error {
-	fn from(err: TrieError) -> Self {
-		Error::Trie(err)
+impl From<Box<TrieError>> for Error {
+	fn from(err: Box<TrieError>) -> Self {
+		Error::Trie(*err)
+	}
+}
+
+impl From<DecoderError> for Error {
+	fn from(err: DecoderError) -> Self {
+		Error::Decoder(err)
 	}
 }

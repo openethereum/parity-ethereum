@@ -71,7 +71,9 @@ impl PodAccount {
 		let mut r = H256::new();
 		let mut t = SecTrieDBMut::new(db, &mut r);
 		for (k, v) in &self.storage {
-			t.insert(k, &encode(&U256::from(v.as_slice())));
+			if let Err(e) = t.insert(k, &encode(&U256::from(v.as_slice()))) {
+				warn!("Encountered potential DB corruption: {}", e);
+			}
 		}
 	}
 }
@@ -96,7 +98,7 @@ impl From<ethjson::spec::Account> for PodAccount {
 		PodAccount {
 			balance: a.balance.map_or_else(U256::zero, Into::into),
 			nonce: a.nonce.map_or_else(U256::zero, Into::into),
-			code: a.code.map(Into::into).or(Some(Vec::new())),
+			code: a.code.map(Into::into).or_else(|| Some(Vec::new())),
 			storage: BTreeMap::new()
 		}
 	}

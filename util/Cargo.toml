@@ -21,13 +21,13 @@ rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
 lazy_static = "0.2"
 eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
 rust-crypto = "0.2.34"
-elastic-array = "0.4"
-heapsize = "0.3"
+elastic-array = { git = "https://github.com/ethcore/elastic-array" }
+heapsize = { version = "0.3", features = ["unstable"] }
 itertools = "0.4"
 crossbeam = "0.2"
 slab = "0.2"
 sha3 = { path = "sha3" }
-clippy = { version = "0.0.79", optional = true}
+clippy = { version = "0.0.80", optional = true}
 igd = "0.5.0"
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"

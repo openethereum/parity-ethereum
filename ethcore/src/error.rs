@@ -263,7 +263,10 @@ pub type ImportResult = Result<H256, Error>;
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {
-		Error::Client(err)
+		match err {
+			ClientError::Trie(err) => Error::Trie(err),
+			_ => Error::Client(err)
+		}
 	}
 }
 
@@ -348,8 +351,15 @@ impl From<SnapshotError> for Error {
 		match err {
 			SnapshotError::Io(err) => Error::Io(err),
 			SnapshotError::Trie(err) => Error::Trie(err),
+			SnapshotError::Decoder(err) => err.into(),
 			other => Error::Snapshot(other),
 		}
+	}
+}
+
+impl<E> From<Box<E>> for Error where Error: From<E> {
+	fn from(err: Box<E>) -> Error {
+		Error::from(*err)
 	}
 }
 
