@@ -376,7 +376,6 @@ impl StateRebuilder {
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
 		let backing = self.db.backing().clone();
-		let batch = backing.transaction();
 
 		// initialize the pairs vector with empty values so we have slots to write into.
 		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
@@ -399,10 +398,13 @@ impl StateRebuilder {
 			}
 
 			// commit all account tries to the db, but only in this thread.
+			let batch = backing.transaction();
 			for handle in handles {
 				let mut thread_db = try!(handle.join());
 				try!(thread_db.inject(&batch));
 			}
+			try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
+
 
 			Ok::<_, ::error::Error>(())
 		}));
@@ -421,6 +423,7 @@ impl StateRebuilder {
 			}
 		}
 
+		let batch = backing.transaction();
 		try!(self.db.inject(&batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
