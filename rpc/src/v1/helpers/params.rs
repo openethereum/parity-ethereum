@@ -16,7 +16,9 @@
 
 //! Parameters parsing helpers
 
-use jsonrpc_core::{Error, Params};
+use serde;
+use jsonrpc_core::{Error, Params, from_params};
+use v1::types::BlockNumber;
 use v1::helpers::errors;
 
 pub fn expect_no_params(params: Params) -> Result<(), Error> {
@@ -25,3 +27,27 @@ pub fn expect_no_params(params: Params) -> Result<(), Error> {
 		p => Err(errors::invalid_params("No parameters were expected", p)),
 	}
 }
+
+fn params_len(params: &Params) -> usize {
+	match params {
+		&Params::Array(ref vec) => vec.len(),
+		_ => 0,
+	}
+}
+
+/// Deserialize request parameters with optional second parameter `BlockNumber` defaulting to `BlockNumber::Latest`.
+pub fn from_params_default_second<F>(params: Params) -> Result<(F, BlockNumber, ), Error> where F: serde::de::Deserialize {
+	match params_len(&params) {
+		1 => from_params::<(F, )>(params).map(|(f,)| (f, BlockNumber::Latest)),
+		_ => from_params::<(F, BlockNumber)>(params),
+	}
+}
+
+/// Deserialize request parameters with optional third parameter `BlockNumber` defaulting to `BlockNumber::Latest`.
+pub fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNumber, ), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
+	match params_len(&params) {
+		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
+		_ => from_params::<(F1, F2, BlockNumber)>(params)
+	}
+}
+

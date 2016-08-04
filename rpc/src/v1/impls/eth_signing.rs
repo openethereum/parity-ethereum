@@ -143,7 +143,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 		})
 	}
 
-	fn check_transaction(&self, params: Params) -> Result<Value, Error> {
+	fn check_request(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let mut pending = self.pending.lock();
 		from_params::<(RpcU256, )>(params).and_then(|(id, )| {
@@ -151,10 +151,10 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 			let res = match pending.get(&id) {
 				Some(ref promise) => match promise.result() {
 					ConfirmationResult::Waiting => { return Ok(Value::Null); }
-					ConfirmationResult::Rejected => Err(errors::transaction_rejected()),
+					ConfirmationResult::Rejected => Err(errors::request_rejected()),
 					ConfirmationResult::Confirmed(rpc_response) => rpc_response,
 				},
-				_ => { return Err(errors::invalid_params("Unknown RequestID", id)); }
+				_ => { return Err(errors::request_not_found()); }
 			};
 			pending.remove(&id);
 			res
@@ -225,7 +225,7 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		Err(errors::signer_disabled())
 	}
 
-	fn check_transaction(&self, _: Params) -> Result<Value, Error> {
+	fn check_request(&self, _: Params) -> Result<Value, Error> {
 		// We don't support this in non-signer mode.
 		Err(errors::signer_disabled())
 	}

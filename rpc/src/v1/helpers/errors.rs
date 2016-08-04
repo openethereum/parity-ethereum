@@ -32,12 +32,13 @@ mod codes {
 	pub const NO_AUTHOR: i64 = -32002;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
-	pub const TRANSACTION_REJECTED: i64 = -32011;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const SIGNER_DISABLED: i64 = -32030;
-	pub const COMPILATION_ERROR: i64 = -32040;
+	pub const REQUEST_REJECTED: i64 = -32040;
+	pub const REQUEST_NOT_FOUND: i64 = -32041;
+	pub const COMPILATION_ERROR: i64 = -32050;
 }
 
 pub fn unimplemented() -> Error {
@@ -47,6 +48,23 @@ pub fn unimplemented() -> Error {
 		data: None
 	}
 }
+
+pub fn request_not_found() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::REQUEST_NOT_FOUND),
+		message: "Request not found.".into(),
+		data: None,
+	}
+}
+
+pub fn request_rejected() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::REQUEST_REJECTED),
+		message: "Request has been rejected.".into(),
+		data: None,
+	}
+}
+
 
 pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 	Error {
@@ -126,15 +144,6 @@ pub fn from_password_error(error: AccountError) -> Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
 		message: "Account password is invalid or account does not exist.".into(),
 		data: Some(Value::String(format!("{:?}", error))),
-	}
-}
-
-/// Error returned when transaction is rejected (in Trusted Signer).
-pub fn transaction_rejected() -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::TRANSACTION_REJECTED),
-		message: "Transaction has been rejected.".into(),
-		data: None,
 	}
 }
 

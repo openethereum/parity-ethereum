@@ -37,7 +37,7 @@ use spec::Spec;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
-use error::{ExecutionError, ReplayError};
+use error::CallError;
 use trace::LocalizedTrace;
 
 /// Test client.
@@ -61,7 +61,7 @@ pub struct TestBlockChainClient {
 	/// Code.
 	pub code: RwLock<HashMap<Address, Bytes>>,
 	/// Execution result.
-	pub execution_result: RwLock<Option<Executed>>,
+	pub execution_result: RwLock<Option<Result<Executed, CallError>>>,
 	/// Transaction receipts.
 	pub receipts: RwLock<HashMap<TransactionID, LocalizedReceipt>>,
 	/// Block queue size.
@@ -125,7 +125,7 @@ impl TestBlockChainClient {
 	}
 
 	/// Set the execution result.
-	pub fn set_execution_result(&self, result: Executed) {
+	pub fn set_execution_result(&self, result: Result<Executed, CallError>) {
 		*self.execution_result.write() = Some(result);
 	}
 
@@ -292,12 +292,12 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
-		Ok(self.execution_result.read().clone().unwrap())
+	fn call(&self, _t: &SignedTransaction, _block: BlockID, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+		self.execution_result.read().clone().unwrap()
 	}
 
-	fn replay(&self, _id: TransactionID, _analytics: CallAnalytics) -> Result<Executed, ReplayError> {
-		Ok(self.execution_result.read().clone().unwrap())
+	fn replay(&self, _id: TransactionID, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+		self.execution_result.read().clone().unwrap()
 	}
 
 	fn block_total_difficulty(&self, _id: BlockID) -> Option<U256> {
@@ -310,7 +310,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
 		match id {
-			BlockID::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or_else(U256::zero)),
+			BlockID::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params.account_start_nonce)),
 			_ => None,
 		}
 	}
