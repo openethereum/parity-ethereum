@@ -14,16 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[macro_use]
-pub mod errors;
-pub mod dispatch;
-pub mod params;
-mod poll_manager;
-mod poll_filter;
-mod requests;
-mod signing_queue;
+//! Parameters parsing helpers
 
-pub use self::poll_manager::PollManager;
-pub use self::poll_filter::PollFilter;
-pub use self::requests::{TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest};
-pub use self::signing_queue::{ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent};
+use jsonrpc_core::{Error, Params};
+use v1::helpers::errors;
+
+pub fn expect_no_params(params: Params) -> Result<(), Error> {
+	match params {
+		Params::None => Ok(()),
+		p => Err(errors::invalid_params("No parameters were expected", p)),
+	}
+}

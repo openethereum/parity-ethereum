@@ -23,7 +23,7 @@ use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Traces;
-use v1::helpers::CallRequest as CRequest;
+use v1::helpers::{errors, CallRequest as CRequest};
 use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
 
 fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
@@ -143,7 +143,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 						Ok(e) => to_value(&TraceResults::from(e)),
 						_ => Ok(Value::Null),
 					},
-					Err(_) => Err(Error::invalid_params()),
+					Err(e) => Err(errors::invalid_params("Transaction is not valid RLP", e)),
 				}
 			})
 	}
