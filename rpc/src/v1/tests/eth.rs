@@ -257,7 +257,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 		}
 	},
 	"params": {
-		"accountStartNonce": "0x100",
+		"accountStartNonce": "0x0100",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x50000",
 		"networkID" : "0x1"
@@ -277,8 +277,15 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 		"gasLimit": "0x50000"
 	},
 	"accounts": {
+		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"faa34835af5c2ea724333018a515fbb7d5bc0b33": { "balance": "10000000000000", "nonce": "0" }
 	}
+}
 "#;
+
 
 #[test]
 fn eth_transaction_count() {
