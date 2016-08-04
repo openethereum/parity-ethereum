@@ -25,6 +25,7 @@ use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Act
 use v1::traits::Traces;
 use v1::helpers::CallRequest as CRequest;
 use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
+use v1::impls::from_params_default_third;
 
 fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
 	CallAnalytics {
@@ -122,11 +123,11 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params(params)
-			.and_then(|(request, flags)| {
+		from_params_default_third(params)
+			.and_then(|(request, flags, block)| {
 				let request = CallRequest::into(request);
 				let signed = try!(self.sign_call(request));
-				match take_weak!(self.client).call(&signed, to_call_analytics(flags)) {
+				match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
 					Ok(e) => to_value(&TraceResults::from(e)),
 					_ => Ok(Value::Null),
 				}
@@ -135,11 +136,11 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn raw_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(Bytes, _)>(params)
-			.and_then(|(raw_transaction, flags)| {
-				let raw_transaction = raw_transaction.to_vec();
+		from_params_default_third(params)
+			.and_then(|(raw_transaction, flags, block)| {
+				let raw_transaction = Bytes::to_vec(raw_transaction);
 				match UntrustedRlp::new(&raw_transaction).as_val() {
-					Ok(signed) => match take_weak!(self.client).call(&signed, to_call_analytics(flags)) {
+					Ok(signed) => match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
 						Ok(e) => to_value(&TraceResults::from(e)),
 						_ => Ok(Value::Null),
 					},

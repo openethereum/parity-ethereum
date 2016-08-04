@@ -105,7 +105,7 @@ pub struct Executed {
 }
 
 /// Result of executing the transaction.
-#[derive(PartialEq, Debug, Binary)]
+#[derive(PartialEq, Debug, Clone, Binary)]
 pub enum ExecutionError {
 	/// Returned when there gas paid for transaction execution is
 	/// lower than base gas required.
@@ -172,19 +172,25 @@ impl fmt::Display for ExecutionError {
 }
 
 /// Result of executing the transaction.
-#[derive(PartialEq, Debug, Binary)]
-pub enum ReplayError {
+#[derive(PartialEq, Debug, Clone, Binary)]
+pub enum CallError {
 	/// Couldn't find the transaction in the chain.
 	TransactionNotFound,
-	/// Couldn't find the transaction block's state in the chain.
+	/// Couldn't find requested block's state in the chain.
 	StatePruned,
 	/// Error executing.
 	Execution(ExecutionError),
 }
 
-impl fmt::Display for ReplayError {
+impl From<ExecutionError> for CallError {
+	fn from(error: ExecutionError) -> Self {
+		CallError::Execution(error)
+	}
+}
+
+impl fmt::Display for CallError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::ReplayError::*;
+		use self::CallError::*;
 
 		let msg = match *self {
 			TransactionNotFound => "Transaction couldn't be found in the chain".into(),
@@ -192,7 +198,7 @@ impl fmt::Display for ReplayError {
 			Execution(ref e) => format!("{}", e),
 		};
 
-		f.write_fmt(format_args!("Transaction replay error ({}).", msg))
+		f.write_fmt(format_args!("Transaction execution error ({}).", msg))
 	}
 }
 

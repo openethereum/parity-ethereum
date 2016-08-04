@@ -35,7 +35,7 @@ use util::kvdb::*;
 
 // other
 use views::{BlockView, HeaderView, BodyView};
-use error::{ImportError, ExecutionError, ReplayError, BlockError, ImportResult};
+use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult};
 use header::BlockNumber;
 use state::State;
 use spec::Spec;
@@ -639,8 +639,8 @@ impl Client {
 }
 
 impl BlockChainClient for Client {
-	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
-		let header = self.block_header(BlockID::Latest).unwrap();
+	fn call(&self, t: &SignedTransaction, block: BlockID, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		let header = try!(self.block_header(block).ok_or(CallError::StatePruned));
 		let view = HeaderView::new(&header);
 		let last_hashes = self.build_last_hashes(view.hash());
 		let env_info = EnvInfo {
@@ -653,7 +653,7 @@ impl BlockChainClient for Client {
 			gas_limit: U256::max_value(),
 		};
 		// that's just a copy of the state.
-		let mut state = self.state();
+		let mut state = try!(self.state_at(block).ok_or(CallError::StatePruned));
 		let sender = try!(t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
@@ -665,26 +665,24 @@ impl BlockChainClient for Client {
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options);
+		let mut ret = try!(Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, options));
 
 		// TODO gav move this into Executive.
 		if analytics.state_diffing {
-			if let Ok(ref mut x) = ret {
-				x.state_diff = Some(state.diff_from(self.state()));
-			}
+			ret.state_diff = Some(state.diff_from(try!(self.state_at(block).ok_or(CallError::StatePruned))));
 		}
-		ret
+		Ok(ret)
 	}
 
-	fn replay(&self, id: TransactionID, analytics: CallAnalytics) -> Result<Executed, ReplayError> {
-		let address = try!(self.transaction_address(id).ok_or(ReplayError::TransactionNotFound));
-		let header_data = try!(self.block_header(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
-		let body_data = try!(self.block_body(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
-		let mut state = try!(self.state_at_beginning(BlockID::Hash(address.block_hash)).ok_or(ReplayError::StatePruned));
+	fn replay(&self, id: TransactionID, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		let address = try!(self.transaction_address(id).ok_or(CallError::TransactionNotFound));
+		let header_data = try!(self.block_header(BlockID::Hash(address.block_hash)).ok_or(CallError::StatePruned));
+		let body_data = try!(self.block_body(BlockID::Hash(address.block_hash)).ok_or(CallError::StatePruned));
+		let mut state = try!(self.state_at_beginning(BlockID::Hash(address.block_hash)).ok_or(CallError::StatePruned));
 		let txs = BodyView::new(&body_data).transactions();
 
 		if address.index >= txs.len() {
-			return Err(ReplayError::TransactionNotFound);
+			return Err(CallError::TransactionNotFound);
 		}
 
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
@@ -702,7 +700,7 @@ impl BlockChainClient for Client {
 		for t in txs.iter().take(address.index) {
 			match Executive::new(&mut state, &env_info, self.engine.deref().deref(), &self.vm_factory).transact(t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
-				Err(ee) => { return Err(ReplayError::Execution(ee)) }
+				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
 		}
 		let t = &txs[address.index];
@@ -713,7 +711,7 @@ impl BlockChainClient for Client {
 				x.state_diff = Some(state.diff_from(orig));
 			}
 		}
-		ret.map_err(ReplayError::Execution)
+		ret.map_err(CallError::Execution)
 	}
 
 	fn keep_alive(&self) {
