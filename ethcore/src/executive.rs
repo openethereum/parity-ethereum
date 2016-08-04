@@ -99,11 +99,11 @@ impl<'a> Executive<'a> {
 		let check = options.check_nonce;
 		match options.tracing {
 			true => match options.vm_tracing {
-				true => self.transact_with_tracer(t, check, ExecutiveTracer::default(), ExecutiveVMTracer::default()),
+				true => self.transact_with_tracer(t, check, ExecutiveTracer::default(), ExecutiveVMTracer::toplevel()),
 				false => self.transact_with_tracer(t, check, ExecutiveTracer::default(), NoopVMTracer),
 			},
 			false => match options.vm_tracing {
-				true => self.transact_with_tracer(t, check, NoopTracer, ExecutiveVMTracer::default()),
+				true => self.transact_with_tracer(t, check, NoopTracer, ExecutiveVMTracer::toplevel()),
 				false => self.transact_with_tracer(t, check, NoopTracer, NoopVMTracer),
 			},
 		}
@@ -634,7 +634,7 @@ mod tests {
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
-		let mut vm_tracer = ExecutiveVMTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
@@ -693,7 +693,7 @@ mod tests {
 			],
 			subs: vec![
 				VMTrace {
-					parent_step: 7,
+					parent_step: 6,
 					code: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 					operations: vec![
 						VMOperation { pc: 0, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67976.into(), stack_push: vec_into![16], mem_diff: None, store_diff: None }) },
@@ -743,7 +743,7 @@ mod tests {
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
-		let mut vm_tracer = ExecutiveVMTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
