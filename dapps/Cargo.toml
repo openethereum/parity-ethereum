@@ -10,7 +10,7 @@ build = "build.rs"
 
 [dependencies]
 log = "0.3"
-jsonrpc-core = "2.0"
+jsonrpc-core = "2.1"
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 unicase = "1.3"
