@@ -163,8 +163,8 @@ impl Transaction {
 	pub fn invalid_sign(self) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
-			r: Default::default(),
-			s: Default::default(),
+			r: U256::default(),
+			s: U256::default(),
 			v: 0,
 			hash: Cell::new(None),
 			sender: Cell::new(None),
@@ -175,8 +175,8 @@ impl Transaction {
 	pub fn fake_sign(self, from: Address) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
-			r: Default::default(),
-			s: Default::default(),
+			r: U256::default(),
+			s: U256::default(),
 			v: 0,
 			hash: Cell::new(None),
 			sender: Cell::new(Some(from)),

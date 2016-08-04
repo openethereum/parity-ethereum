@@ -80,8 +80,7 @@
 //!      - It removes all transactions (either from `current` or `future`) with nonce < client nonce
 //!      - It moves matching `future` transactions to `current`
 
-use std::default::Default;
-use std::cmp::{Ordering};
+use std::cmp::Ordering;
 use std::cmp;
 use std::collections::{HashMap, BTreeSet};
 use util::{Address, H256, Uint, U256};

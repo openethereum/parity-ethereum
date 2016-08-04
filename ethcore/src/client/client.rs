@@ -256,7 +256,7 @@ impl Client {
 			}
 		}
 		let mut last_hashes = LastHashes::new();
-		last_hashes.resize(256, Default::default());
+		last_hashes.resize(256, H256::default());
 		last_hashes[0] = parent_hash;
 		for i in 0..255 {
 			match self.chain.block_details(&last_hashes[i]) {
@@ -649,7 +649,7 @@ impl BlockChainClient for Client {
 			timestamp: view.timestamp(),
 			difficulty: view.difficulty(),
 			last_hashes: last_hashes,
-			gas_used: Default::default(),
+			gas_used: U256::zero(),
 			gas_limit: U256::max_value(),
 		};
 		// that's just a copy of the state.
@@ -696,7 +696,7 @@ impl BlockChainClient for Client {
 			timestamp: view.timestamp(),
 			difficulty: view.difficulty(),
 			last_hashes: last_hashes,
-			gas_used: U256::zero(),
+			gas_used: U256::default(),
 			gas_limit: view.gas_limit(),
 		};
 		for t in txs.iter().take(address.index) {
@@ -924,7 +924,7 @@ impl BlockChainClient for Client {
 								entry: log,
 								block_hash: hash.clone(),
 								block_number: number,
-								transaction_hash: hashes.get(index).cloned().unwrap_or_else(Default::default),
+								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::default),
 								transaction_index: index,
 								log_index: log_index + i
 							})

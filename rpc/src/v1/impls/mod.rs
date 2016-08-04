@@ -106,7 +106,7 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 		action: request.to.map_or(Action::Create, Action::Call),
 		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
-		value: request.value.unwrap_or_else(Default::default),
+		value: request.value.unwrap_or_else(U256::default),
 		data: request.data.map_or_else(Vec::new, |b| b.to_vec()),
 	}
 }

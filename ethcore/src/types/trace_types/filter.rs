@@ -55,7 +55,7 @@ impl AddressesFilter {
 	/// Returns blooms of this addresses filter.
 	pub fn blooms(&self) -> Vec<LogBloom> {
 		match self.list.is_empty() {
-			true => vec![Default::default()],
+			true => vec![LogBloom::default()],
 			false => self.list.iter()
 				.map(|address| LogBloom::from_bloomed(&address.sha3()))
 				.collect(),
