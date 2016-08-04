@@ -286,7 +286,6 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 }
 "#;
 
-
 #[test]
 fn eth_transaction_count() {
 	use util::crypto::Secret;
