@@ -539,7 +539,10 @@ impl Configuration {
 			return true;
 		}
 
+		let is_author_set = self.author().is_ok() && self.author() != Ok(Address::default());
+
 		let signer_disabled = self.args.flag_unlock.is_some() ||
+			is_author_set ||
 			self.args.flag_geth ||
 			self.args.flag_no_signer;
 
@@ -817,6 +820,23 @@ mod tests {
 
 		// then
 		assert_eq!(conf0.signer_enabled(), false);
+	}
+
+	#[test]
+	fn should_disable_signer_when_author_is_set() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--author", "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
+		let conf1 = parse(&["parity", "--etherbase", "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
+		let conf3 = parse(&["parity", "--author", "0x0000000000000000000000000000000000000000"]);
+		let conf4 = parse(&["parity"]);
+
+		// then
+		assert_eq!(conf0.signer_enabled(), false);
+		assert_eq!(conf1.signer_enabled(), false);
+		assert_eq!(conf3.signer_enabled(), true);
+		assert_eq!(conf4.signer_enabled(), true);
 	}
 
 	#[test]
