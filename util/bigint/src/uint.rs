@@ -36,10 +36,8 @@
 //! The functions here are designed to be fast.
 //!
 
-#[cfg(all(asm_available, target_arch="x86_64"))]
 use std::mem;
 use std::fmt;
-
 use std::str::{FromStr};
 use std::convert::From;
 use std::hash::Hash;
@@ -647,16 +645,46 @@ macro_rules! construct_uint {
 				(arr[index / 8] >> (((index % 8)) * 8)) as u8
 			}
 
+			#[cfg(any(
+				target_arch = "arm",
+				target_arch = "mips",
+				target_arch = "powerpc",
+				target_arch = "x86",
+				target_arch = "x86_64",
+				target_arch = "aarch64",
+				target_arch = "powerpc64"))]
+			#[inline]
 			fn to_big_endian(&self, bytes: &mut[u8]) {
-				assert!($n_words * 8 == bytes.len());
+				debug_assert!($n_words * 8 == bytes.len());
 				let &$name(ref arr) = self;
-				for i in 0..bytes.len() {
-					let rev = bytes.len() - 1 - i;
-					let pos = rev / 8;
-					bytes[i] = (arr[pos] >> ((rev % 8) * 8)) as u8;
+				unsafe {
+					let mut out: *mut u64 = mem::transmute(bytes.as_mut_ptr());
+					out = out.offset($n_words);
+					for i in 0..$n_words {
+						out = out.offset(-1);
+						*out = arr[i].swap_bytes();
+					}
 				}
 			}
 
+			#[cfg(not(any(
+				target_arch = "arm",
+				target_arch = "mips",
+				target_arch = "powerpc",
+				target_arch = "x86",
+				target_arch = "x86_64",
+				target_arch = "aarch64",
+				target_arch = "powerpc64")))]
+			#[inline]
+			fn to_big_endian(&self, bytes: &mut[u8]) {
+				debug_assert!($n_words * 8 == bytes.len());
+				let &$name(ref arr) = self;
+				for i in 0..bytes.len() {
+ 					let rev = bytes.len() - 1 - i;
+ 					let pos = rev / 8;
+ 					bytes[i] = (arr[pos] >> ((rev % 8) * 8)) as u8;
+				}
+			}
 			#[inline]
 			fn exp10(n: usize) -> Self {
 				match n {

@@ -22,7 +22,7 @@ use kvdb::{Database, DBTransaction};
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
-pub trait JournalDB : HashDB + Send + Sync {
+pub trait JournalDB: HashDB {
 	/// Return a copy of ourself, in a box.
 	fn boxed_clone(&self) -> Box<JournalDB>;
 
@@ -39,6 +39,15 @@ pub trait JournalDB : HashDB + Send + Sync {
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
 
+	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
+	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
+	///
+	/// Any keys or values inserted or deleted must be completely independent of those affected
+	/// by any previous `commit` operations. Essentially, this means that `inject` can be used
+	/// either to restore a state to a fresh database, or to insert data which may only be journalled
+	/// from this point onwards.
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError>;
+
 	/// State data query
 	fn state(&self, _id: &H256) -> Option<Bytes>;
 
@@ -48,11 +57,19 @@ pub trait JournalDB : HashDB + Send + Sync {
 	/// Get backing database.
 	fn backing(&self) -> &Arc<Database>;
 
-	#[cfg(test)]
 	/// Commit all changes in a single batch
+	#[cfg(test)]
 	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let batch = self.backing().transaction();
 		let res = try!(self.commit(&batch, now, id, end));
+		self.backing().write(batch).map(|_| res).map_err(Into::into)
+	}
+
+	/// Inject all changes in a single batch.
+	#[cfg(test)]
+	fn inject_batch(&mut self) -> Result<u32, UtilError> {
+		let batch = self.backing().transaction();
+		let res = try!(self.inject(&batch));
 		self.backing().write(batch).map(|_| res).map_err(Into::into)
 	}
 }

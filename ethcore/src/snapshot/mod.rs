@@ -387,11 +387,11 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
-				account_trie.insert(&hash, &thin_rlp);
+				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 
-		let batch = DBTransaction::new(&self.db.backing());
+		let batch = DBTransaction::new(self.db.backing());
 		try!(self.db.commit(&batch, 0, &H256::zero(), None));
 		try!(self.db.backing().write(batch).map_err(|e| Error::Util(e.into())));
 		Ok(())

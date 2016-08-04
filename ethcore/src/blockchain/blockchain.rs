@@ -359,7 +359,7 @@ impl BlockChain {
 
 				let batch = DBTransaction::new(&db);
 				batch.put(DB_COL_HEADERS, &hash, block.header_rlp().as_raw()).unwrap();
-				batch.put(DB_COL_BODIES, &hash, &Self::block_to_body(&genesis)).unwrap();
+				batch.put(DB_COL_BODIES, &hash, &Self::block_to_body(genesis)).unwrap();
 
 				batch.write(DB_COL_EXTRA, &hash, &details);
 				batch.write(DB_COL_EXTRA, &header.number(), &hash);
@@ -549,15 +549,11 @@ impl BlockChain {
 
 		assert!(self.pending_best_block.read().is_none());
 
-		let block_rlp = UntrustedRlp::new(bytes);
-		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
-		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
-
 		// store block in db
-		batch.put(DB_COL_HEADERS, &hash, &compressed_header).unwrap();
-		batch.put(DB_COL_BODIES, &hash, &compressed_body).unwrap();
+		batch.put_compressed(DB_COL_HEADERS, &hash, block.header_rlp().as_raw().to_vec()).unwrap();
+		batch.put_compressed(DB_COL_BODIES, &hash, Self::block_to_body(bytes)).unwrap();
 
-		let info = self.block_info(bytes);
+		let info = self.block_info(&header);
 
 		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
 			info!(target: "reorg", "Reorg to {} ({} {} {})",
@@ -582,10 +578,8 @@ impl BlockChain {
 	}
 
 	/// Get inserted block info which is critical to prepare extras updates.
-	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
-		let block = BlockView::new(block_bytes);
-		let header = block.header_view();
-		let hash = block.sha3();
+	fn block_info(&self, header: &HeaderView) -> BlockInfo {
+		let hash = header.sha3();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
 		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
@@ -1056,7 +1050,7 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let batch = db.transaction();
-		for b in [&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b].iter() {
+		for b in &[&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b] {
 			bc.insert_block(&batch, b, vec![]);
 			bc.commit();
 		}

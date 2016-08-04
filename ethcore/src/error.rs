@@ -258,7 +258,10 @@ pub type ImportResult = Result<H256, Error>;
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {
-		Error::Client(err)
+		match err {
+			ClientError::Trie(err) => Error::Trie(err),
+			_ => Error::Client(err)
+		}
 	}
 }
 
@@ -335,6 +338,12 @@ impl From<BlockImportError> for Error {
 			BlockImportError::Import(e) => Error::Import(e),
 			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
 		}
+	}
+}
+
+impl<E> From<Box<E>> for Error where Error: From<E> {
+	fn from(err: Box<E>) -> Error {
+		Error::from(*err)
 	}
 }
 

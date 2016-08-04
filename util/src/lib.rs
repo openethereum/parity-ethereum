@@ -158,7 +158,7 @@ pub use overlaydb::*;
 pub use journaldb::JournalDB;
 pub use crypto::*;
 pub use triehash::*;
-pub use trie::*;
+pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
 pub use nibbleslice::*;
 pub use semantic_version::*;
 pub use network::*;

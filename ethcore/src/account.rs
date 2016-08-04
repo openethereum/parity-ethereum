@@ -20,6 +20,8 @@ use util::*;
 use pod_account::*;
 use account_db::*;
 
+use std::cell::{Ref, RefCell};
+
 /// Single account in the system.
 #[derive(Clone)]
 pub struct Account {
@@ -136,7 +138,11 @@ impl Account {
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
 
-			(Filth::Clean, H256::from(db.get(key).map_or(U256::zero(), |v| -> U256 {decode(v)})))
+			let item: U256 = match db.get(key){
+				Ok(x) => x.map_or_else(U256::zero, decode),
+				Err(e) => panic!("Encountered potential DB corruption: {}", e),
+			};
+			(Filth::Clean, item.into())
 		}).1.clone()
 	}
 
@@ -185,6 +191,12 @@ impl Account {
 	pub fn is_dirty(&self) -> bool {
 		self.filth == Filth::Dirty
 	}
+
+	/// Mark account as clean.
+	pub fn set_clean(&mut self) {
+		self.filth = Filth::Clean
+	}
+
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &AccountDB) -> bool {
 		// TODO: fill out self.code_cache;
@@ -243,9 +255,13 @@ impl Account {
 			if f == &Filth::Dirty {
 				// cast key and value to trait type,
 				// so we can call overloaded `to_bytes` method
-				match v.is_zero() {
-					true => { t.remove(k); },
-					false => { t.insert(k, &encode(&U256::from(v.as_slice()))); },
+				let res = match v.is_zero() {
+					true => t.remove(k),
+					false => t.insert(k, &encode(&U256::from(v.as_slice()))),
+				};
+
+				if let Err(e) = res {
+					warn!("Encountered potential DB corruption: {}", e);
 				}
 				*f = Filth::Clean;
 			}

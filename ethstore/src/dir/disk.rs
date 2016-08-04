@@ -77,7 +77,9 @@ impl DiskDirectory {
 			.map(json::KeyFile::load)
 			.zip(paths.into_iter())
 			.map(|(file, path)| match file {
-				Ok(file) => Ok((path, file.into())),
+				Ok(file) => Ok((path.clone(), SafeAccount::from_file(
+					file, path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned()
+				))),
 				Err(err) => Err(Error::InvalidKeyFile(format!("{:?}: {}", path, err))),
 			})
 			.collect()
@@ -98,22 +100,26 @@ impl KeyDirectory for DiskDirectory {
 		let keyfile: json::KeyFile = account.clone().into();
 
 		// build file path
-		let mut account = account;
-		account.path = account.path.or_else(|| {
-			let mut keyfile_path = self.path.clone();
-			let timestamp = time::strftime("%Y-%m-%d_%H:%M:%S_%Z", &time::now()).unwrap_or("???".to_owned());
-			keyfile_path.push(format!("{}-{}.json", keyfile.id, timestamp));
-			Some(keyfile_path)
+		let filename = account.filename.as_ref().cloned().unwrap_or_else(|| {
+			let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).expect("Time-format string is valid.");
+			format!("UTC--{}Z--{:?}", timestamp, account.address)
 		});
 
+		// update account filename
+		let mut account = account;
+		account.filename = Some(filename.clone());
+
 		{
+			// Path to keyfile
+			let mut keyfile_path = self.path.clone();
+			keyfile_path.push(filename.as_str());
+
 			// save the file
-			let path = account.path.as_ref().expect("build-file-path ensures is not None; qed");
-			let mut file = try!(fs::File::create(path));
+			let mut file = try!(fs::File::create(&keyfile_path));
 			try!(keyfile.write(&mut file).map_err(|e| Error::Custom(format!("{:?}", e))));
 
-			if let Err(_) = restrict_permissions_to_owner(path) {
-				fs::remove_file(path).expect("Expected to remove recently created file");
+			if let Err(_) = restrict_permissions_to_owner(keyfile_path.as_path()) {
+				fs::remove_file(keyfile_path).expect("Expected to remove recently created file");
 				return Err(Error::Io(io::Error::last_os_error()));
 			}
 		}
@@ -133,5 +139,36 @@ impl KeyDirectory for DiskDirectory {
 			None => Err(Error::InvalidAccount),
 			Some((path, _)) => fs::remove_file(path).map_err(From::from)
 		}
+	}
+}
+
+
+#[cfg(test)]
+mod test {
+	use std::{env, fs};
+	use super::DiskDirectory;
+	use dir::KeyDirectory;
+	use account::SafeAccount;
+	use ethkey::{Random, Generator};
+
+	#[test]
+	fn should_create_new_account() {
+		// given
+		let dir = env::temp_dir();
+		let keypair = Random.generate().unwrap();
+		let password = "hello world";
+		let directory = DiskDirectory::create(dir.clone()).unwrap();
+
+		// when
+		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		let res = directory.insert(account);
+
+
+		// then
+		assert!(res.is_ok(), "Should save account succesfuly.");
+		assert!(res.unwrap().filename.is_some(), "Filename has been assigned.");
+
+		// cleanup
+		let _ = fs::remove_dir_all(dir);
 	}
 }

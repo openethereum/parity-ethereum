@@ -28,14 +28,17 @@ use hash::H256;
 pub enum BaseDataError {
 	/// An entry was removed more times than inserted.
 	NegativelyReferencedHash(H256),
+	/// A committed value was inserted more than once.
+	AlreadyExists(H256),
 }
 
 impl fmt::Display for BaseDataError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			BaseDataError::NegativelyReferencedHash(hash) =>
-				f.write_fmt(format_args!("Entry {} removed from database more times \
-					than it was added.", hash)),
+				write!(f, "Entry {} removed from database more times than it was added.", hash),
+			BaseDataError::AlreadyExists(hash) =>
+				write!(f, "Committed key already exists in database: {}", hash),
 		}
 	}
 }

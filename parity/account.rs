@@ -47,21 +47,25 @@ pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 	}
 }
 
+fn keys_dir(path: String) -> Result<DiskDirectory, String> {
+	DiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))
+}
+
 fn new(n: NewAccount) -> Result<String, String> {
 	let password: String = match n.password_file {
 		Some(file) => try!(password_from_file(file)),
 		None => try!(password_prompt()),
 	};
 
-	let dir = Box::new(DiskDirectory::create(n.path).unwrap());
+	let dir = Box::new(try!(keys_dir(n.path)));
 	let secret_store = Box::new(EthStore::open_with_iterations(dir, n.iterations).unwrap());
 	let acc_provider = AccountProvider::new(secret_store);
-	let new_account = acc_provider.new_account(&password).unwrap();
+	let new_account = try!(acc_provider.new_account(&password).map_err(|e| format!("Could not create new account: {}", e)));
 	Ok(format!("{:?}", new_account))
 }
 
 fn list(path: String) -> Result<String, String> {
-	let dir = Box::new(DiskDirectory::create(path).unwrap());
+	let dir = Box::new(try!(keys_dir(path)));
 	let secret_store = Box::new(EthStore::open(dir).unwrap());
 	let acc_provider = AccountProvider::new(secret_store);
 	let accounts = acc_provider.accounts();
@@ -74,7 +78,7 @@ fn list(path: String) -> Result<String, String> {
 }
 
 fn import(i: ImportAccounts) -> Result<String, String> {
-	let to = DiskDirectory::create(i.to).unwrap();
+	let to = try!(keys_dir(i.to));
 	let mut imported = 0;
 	for path in &i.from {
 		let from = DiskDirectory::at(path);

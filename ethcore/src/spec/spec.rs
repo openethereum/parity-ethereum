@@ -25,6 +25,8 @@ use super::seal::Generic as GenericSeal;
 use ethereum;
 use ethjson;
 
+use std::cell::RefCell;
+
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone)]
 pub struct CommonParams {
@@ -226,21 +228,21 @@ impl Spec {
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, db: &mut HashDB) -> bool {
+	pub fn ensure_db_good(&self, db: &mut HashDB) -> Result<bool, Box<TrieError>> {
 		if !db.contains(&self.state_root()) {
 			let mut root = H256::new();
 			{
 				let mut t = SecTrieDBMut::new(db, &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
-					t.insert(address.as_slice(), &account.rlp());
+					try!(t.insert(address.as_slice(), &account.rlp()));
 				}
 			}
 			for (address, account) in self.genesis_state.get().iter() {
 				account.insert_additional(&mut AccountDBMut::new(db, address));
 			}
 			assert!(db.contains(&self.state_root()));
-			true
-		} else { false }
+			Ok(true)
+		} else { Ok(false) }
 	}
 
 	/// Loads spec from json file.

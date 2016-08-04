@@ -46,7 +46,7 @@ use super::JournalDB;
 ///
 /// Commit workflow:
 /// 1. Create a new journal record from the transaction overlay.
-/// 2. Inseart each node from the transaction overlay into the History overlay increasing reference
+/// 2. Insert each node from the transaction overlay into the History overlay increasing reference
 /// count if it is already there. Note that the reference counting is managed by `MemoryDB`
 /// 3. Clear the transaction overlay.
 /// 4. For a canonical journal record that becomes ancient inserts its insertions into the disk DB
@@ -126,7 +126,7 @@ impl OverlayRecentDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_overlay(db: &Database, col: Option<u32>) -> JournalOverlay {
@@ -155,7 +155,7 @@ impl OverlayRecentDB {
 					for r in insertions.iter() {
 						let k: H256 = r.val_at(0);
 						let v: Bytes = r.val_at(1);
-						overlay.emplace(OverlayRecentDB::to_short_key(&k), v);
+						overlay.emplace(to_short_key(&k), v);
 						inserted_keys.push(k);
 						count += 1;
 					}
@@ -176,12 +176,13 @@ impl OverlayRecentDB {
 		JournalOverlay { backing_overlay: overlay, journal: journal, latest_era: latest_era }
 	}
 
-	#[inline]
-	fn to_short_key(key: &H256) -> H256 {
-		let mut k = H256::new();
-		k[0..DB_PREFIX_LEN].copy_from_slice(&key[0..DB_PREFIX_LEN]);
-		k
-	}
+}
+
+#[inline]
+fn to_short_key(key: &H256) -> H256 {
+	let mut k = H256::new();
+	k[0..DB_PREFIX_LEN].copy_from_slice(&key[0..DB_PREFIX_LEN]);
+	k
 }
 
 impl JournalDB for OverlayRecentDB {
@@ -208,7 +209,7 @@ impl JournalDB for OverlayRecentDB {
 	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
 
 	fn state(&self, key: &H256) -> Option<Bytes> {
-		let v = self.journal_overlay.read().backing_overlay.get(&OverlayRecentDB::to_short_key(key)).map(|v| v.to_vec());
+		let v = self.journal_overlay.read().backing_overlay.get(&to_short_key(key)).map(|v| v.to_vec());
 		v.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
 	}
 
@@ -229,7 +230,7 @@ impl JournalDB for OverlayRecentDB {
 				r.begin_list(2);
 				r.append(&k);
 				r.append(&v);
-				journal_overlay.backing_overlay.emplace(OverlayRecentDB::to_short_key(&k), v);
+				journal_overlay.backing_overlay.emplace(to_short_key(&k), v);
 			}
 			r.append(&removed_keys);
 
@@ -238,15 +239,15 @@ impl JournalDB for OverlayRecentDB {
 			k.append(&now);
 			k.append(&index);
 			k.append(&&PADDING[..]);
-			try!(batch.put(self.column, &k.drain(), r.as_raw()));
+			try!(batch.put_vec(self.column, &k.drain(), r.out()));
 			if journal_overlay.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
+				try!(batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec()));
 				journal_overlay.latest_era = Some(now);
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
 		}
 
-		let journal_overlay = journal_overlay.deref_mut();
+		let journal_overlay = &mut *journal_overlay;
 		// apply old commits' details
 		if let Some((end_era, canon_id)) = end {
 			if let Some(ref mut records) = journal_overlay.journal.get_mut(&end_era) {
@@ -265,9 +266,9 @@ impl JournalDB for OverlayRecentDB {
 					{
 						if canon_id == journal.id {
 							for h in &journal.insertions {
-								if let Some(&(ref d, rc)) = journal_overlay.backing_overlay.raw(&OverlayRecentDB::to_short_key(h)) {
+								if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
 									if rc > 0 {
-										canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
+										canon_insertions.push((h.clone(), d.to_owned())); //TODO: optimize this to avoid data copy
 									}
 								}
 							}
@@ -279,15 +280,15 @@ impl JournalDB for OverlayRecentDB {
 				}
 				// apply canon inserts first
 				for (k, v) in canon_insertions {
-					try!(batch.put(self.column, &k, &v));
+					try!(batch.put_vec(self.column, &k, v));
 				}
 				// update the overlay
 				for k in overlay_deletions {
-					journal_overlay.backing_overlay.remove_and_purge(&OverlayRecentDB::to_short_key(&k));
+					journal_overlay.backing_overlay.remove_and_purge(&to_short_key(&k));
 				}
 				// apply canon deletions
 				for k in canon_deletions {
-					if !journal_overlay.backing_overlay.contains(&OverlayRecentDB::to_short_key(&k)) {
+					if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
 						try!(batch.delete(self.column, &k));
 					}
 				}
@@ -297,6 +298,31 @@ impl JournalDB for OverlayRecentDB {
 		Ok(0)
 	}
 
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+		let mut ops = 0;
+		for (key, (value, rc)) in self.transaction_overlay.drain() {
+			if rc != 0 { ops += 1 }
+
+			match rc {
+				0 => {}
+				1 => {
+					if try!(self.backing.get(self.column, &key)).is_some() {
+						return Err(BaseDataError::AlreadyExists(key).into());
+					}
+					try!(batch.put(self.column, &key, &value))
+				}
+				-1 => {
+					if try!(self.backing.get(self.column, &key)).is_none() {
+						return Err(BaseDataError::NegativelyReferencedHash(key).into());
+					}
+					try!(batch.delete(self.column, &key))
+				}
+				_ => panic!("Attempted to inject invalid state."),
+			}
+		}
+
+		Ok(ops)
+	}
 }
 
 impl HashDB for OverlayRecentDB {
@@ -317,9 +343,9 @@ impl HashDB for OverlayRecentDB {
 	fn get(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.transaction_overlay.raw(key);
 		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some((d, rc)) if rc > 0 => Some(d),
 			_ => {
-				let v = self.journal_overlay.read().backing_overlay.get(&OverlayRecentDB::to_short_key(key)).map(|v| v.to_vec());
+				let v = self.journal_overlay.read().backing_overlay.get(&to_short_key(key)).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
 						Some(&self.transaction_overlay.denote(key, x).0)
@@ -878,5 +904,20 @@ mod tests {
 
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
+	}
+
+	#[test]
+	fn inject() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		let mut jdb = new_db(temp.as_path().as_path());
+		let key = jdb.insert(b"dog");
+		jdb.inject_batch().unwrap();
+
+		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		jdb.remove(&key);
+		jdb.inject_batch().unwrap();
+
+		assert!(jdb.get(&key).is_none());
 	}
 }

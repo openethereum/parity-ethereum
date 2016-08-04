@@ -88,10 +88,10 @@ impl HashDB for ArchiveDB {
 	fn get(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.overlay.raw(key);
 		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some((d, rc)) if rc > 0 => Some(d),
 			_ => {
 				if let Some(x) = self.payload(key) {
-					Some(&self.overlay.denote(key, x).0)
+					Some(self.overlay.denote(key, x).0)
 				}
 				else {
 					None
@@ -182,6 +182,38 @@ impl JournalDB for ArchiveDB {
 			try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
 			self.latest_era = Some(now);
 		}
+		Ok((inserts + deletes) as u32)
+	}
+
+	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+		let mut inserts = 0usize;
+		let mut deletes = 0usize;
+
+		for i in self.overlay.drain().into_iter() {
+			let (key, (value, rc)) = i;
+			if rc > 0 {
+				assert!(rc == 1);
+				if try!(self.backing.get(self.column, &key)).is_some() {
+					return Err(BaseDataError::AlreadyExists(key).into());
+				}
+				try!(batch.put(self.column, &key, &value));
+				inserts += 1;
+			}
+			if rc < 0 {
+				assert!(rc == -1);
+				if try!(self.backing.get(self.column, &key)).is_none() {
+					return Err(BaseDataError::NegativelyReferencedHash(key).into());
+				}
+				try!(batch.delete(self.column, &key));
+				deletes += 1;
+			}
+		}
+
+		for (mut key, value) in self.overlay.drain_aux().into_iter() {
+			key.push(AUX_FLAG);
+			try!(batch.put(self.column, &key, &value));
+		}
+
 		Ok((inserts + deletes) as u32)
 	}
 
@@ -448,5 +480,20 @@ mod tests {
 			let state = jdb.state(&key);
 			assert!(state.is_some());
 		}
+	}
+
+	#[test]
+	fn inject() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		let mut jdb = new_db(temp.as_path().as_path());
+		let key = jdb.insert(b"dog");
+		jdb.inject_batch().unwrap();
+
+		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		jdb.remove(&key);
+		jdb.inject_batch().unwrap();
+
+		assert!(jdb.get(&key).is_none());
 	}
 }

@@ -20,6 +20,8 @@ use util::*;
 use basic_types::*;
 use time::get_time;
 
+use std::cell::RefCell;
+
 /// Type for Block number
 pub type BlockNumber = u64;
 

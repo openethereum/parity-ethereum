@@ -18,8 +18,7 @@ use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
 use super::triedb::TrieDB;
-use super::trietraits::{Trie, TrieItem};
-use super::TrieError;
+use super::{Trie, TrieItem};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
@@ -34,7 +33,7 @@ impl<'db> SecTrieDB<'db> {
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	/// Returns an error if root does not exist.
-	pub fn new(db: &'db HashDB, root: &'db H256) -> Result<Self, TrieError> {
+	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
 		Ok(SecTrieDB { raw: try!(TrieDB::new(db, root)) })
 	}
 
@@ -56,11 +55,13 @@ impl<'db> Trie for SecTrieDB<'db> {
 
 	fn root(&self) -> &H256 { self.raw.root() }
 
-	fn contains(&self, key: &[u8]) -> bool {
+	fn contains(&self, key: &[u8]) -> super::Result<bool> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<&'a [u8]>>
+		where 'a: 'key
+	{
 		self.raw.get(&key.sha3())
 	}
 }
@@ -69,14 +70,14 @@ impl<'db> Trie for SecTrieDB<'db> {
 fn trie_to_sectrie() {
 	use memorydb::MemoryDB;
 	use super::triedbmut::TrieDBMut;
-	use super::trietraits::TrieMut;
+	use super::super::TrieMut;
 
 	let mut memdb = MemoryDB::new();
 	let mut root = H256::default();
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&(&[0x01u8, 0x23]).sha3(), &[0x01u8, 0x23]);
+		t.insert(&(&[0x01u8, 0x23]).sha3(), &[0x01u8, 0x23]).unwrap();
 	}
 	let t = SecTrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap(), &[0x01u8, 0x23]);
+	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
 }

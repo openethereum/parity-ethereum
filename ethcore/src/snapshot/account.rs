@@ -19,7 +19,7 @@
 use account_db::{AccountDB, AccountDBMut};
 use error::Error;
 use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY, TrieDB};
-use util::rlp::{DecoderError, Rlp, RlpStream, Stream, UntrustedRlp, View};
+use util::rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
 
 // An alternate account structure from ::account::Account.
 #[derive(PartialEq, Clone, Debug)]
@@ -99,7 +99,7 @@ impl Account {
 	}
 
 	// decode a fat rlp, and rebuild the storage trie as we go.
-	pub fn from_fat_rlp(acct_db: &mut AccountDBMut, rlp: UntrustedRlp) -> Result<Self, DecoderError> {
+	pub fn from_fat_rlp(acct_db: &mut AccountDBMut, rlp: UntrustedRlp) -> Result<Self, Error> {
 		use util::{TrieDBMut, TrieMut};
 
 		let nonce = try!(rlp.val_at(0));
@@ -120,7 +120,7 @@ impl Account {
 				let k: Bytes  = try!(pair_rlp.val_at(0));
 				let v: Bytes = try!(pair_rlp.val_at(1));
 
-				storage_trie.insert(&k, &v);
+				try!(storage_trie.insert(&k, &v));
 			}
 		}
 		Ok(Account {
@@ -157,7 +157,7 @@ mod tests {
 		{
 			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
 			for (k, v) in map.make() {
-				trie.insert(&k, &v);
+				trie.insert(&k, &v).unwrap();
 			}
 		}
 		root

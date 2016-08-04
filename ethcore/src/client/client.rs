@@ -183,7 +183,7 @@ impl Client {
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, db.clone(), chain.clone())));
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, DB_COL_STATE);
-		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
+		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
 			let batch = DBTransaction::new(&db);
 			try!(state_db.commit(&batch, 0, &spec.genesis_header().hash(), None));
 			try!(db.write(batch).map_err(ClientError::Database));
@@ -246,13 +246,13 @@ impl Client {
 		}
 	}
 
-	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
+	fn build_last_hashes(&self, parent_hash: H256) -> Arc<LastHashes> {
 		{
 			let hashes = self.last_hashes.read();
 			if hashes.front().map_or(false, |h| h == &parent_hash) {
 				let mut res = Vec::from(hashes.clone());
 				res.resize(256, H256::default());
-				return res;
+				return Arc::new(res);
 			}
 		}
 		let mut last_hashes = LastHashes::new();
@@ -268,7 +268,7 @@ impl Client {
 		}
 		let mut cached_hashes = self.last_hashes.write();
 		*cached_hashes = VecDeque::from(last_hashes.clone());
-		last_hashes
+		Arc::new(last_hashes)
 	}
 
 	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<LockedBlock, ()> {
@@ -413,6 +413,7 @@ impl Client {
 			}
 		}
 
+		self.db.flush().expect("DB flush failed.");
 		imported
 	}
 
@@ -440,7 +441,7 @@ impl Client {
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(&batch, number, hash, ancient).expect("State DB commit failed.");
+		block.drain().commit(&batch, number, hash, ancient).expect("DB commit failed.");
 
 		let route = self.chain.insert_block(&batch, block_data, receipts);
 		self.tracedb.import(&batch, TraceImportRequest {
@@ -451,7 +452,7 @@ impl Client {
 			retracted: route.retracted.len()
 		});
 		// Final commit to the DB
-		self.db.write(batch).expect("State DB write failed.");
+		self.db.write_buffered(batch).expect("DB write failed.");
 		self.chain.commit();
 
 		self.update_last_hashes(&parent, hash);
@@ -712,7 +713,7 @@ impl BlockChainClient for Client {
 				x.state_diff = Some(state.diff_from(orig));
 			}
 		}
-		ret.map_err(|ee| ReplayError::Execution(ee))
+		ret.map_err(ReplayError::Execution)
 	}
 
 	fn keep_alive(&self) {
@@ -975,7 +976,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn last_hashes(&self) -> LastHashes {
-		self.build_last_hashes(self.chain.best_block_hash())
+		(*self.build_last_hashes(self.chain.best_block_hash())).clone()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
@@ -1059,6 +1060,7 @@ impl MiningBlockChainClient for Client {
 				precise_time_ns() - start,
 			);
 		});
+		self.db.flush().expect("DB flush failed.");
 		Ok(h)
 	}
 }

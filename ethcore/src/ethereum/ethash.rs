@@ -163,7 +163,9 @@ impl Engine for Ethash {
 		for u in fields.uncles.iter() {
 			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
 		}
-		fields.state.commit();
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -352,8 +354,8 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut());
-		let last_hashes = vec![genesis_header.hash()];
+		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let vm_factory = Default::default();
 		let b = OpenBlock::new(engine.deref(), &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
@@ -367,8 +369,8 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut());
-		let last_hashes = vec![genesis_header.hash()];
+		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let vm_factory = Default::default();
 		let mut b = OpenBlock::new(engine.deref(), &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();
@@ -396,7 +398,7 @@ mod tests {
 			author: 0.into(),
 			timestamp: 0,
 			difficulty: 0.into(),
-			last_hashes: vec![],
+			last_hashes: Arc::new(vec![]),
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
 		});
@@ -408,7 +410,7 @@ mod tests {
 			author: 0.into(),
 			timestamp: 0,
 			difficulty: 0.into(),
-			last_hashes: vec![],
+			last_hashes: Arc::new(vec![]),
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
 		});

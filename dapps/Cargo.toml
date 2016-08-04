@@ -27,7 +27,7 @@ parity-dapps-status = { git = "https://github.com/ethcore/parity-ui.git", versio
 parity-dapps-home = { git = "https://github.com/ethcore/parity-ui.git", version = "0.6" }
 parity-dapps-wallet = { git = "https://github.com/ethcore/parity-ui.git", version = "0.6", optional = true }
 mime_guess = { version = "1.6.1" }
-clippy = { version = "0.0.79", optional = true}
+clippy = { version = "0.0.80", optional = true}
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }

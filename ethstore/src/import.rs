@@ -14,15 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashSet;
 use ethkey::Address;
 use dir::KeyDirectory;
 use Error;
 
 pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Address>, Error> {
 	let accounts = try!(src.load());
-	accounts.into_iter().map(|a| {
-		let address = a.address.clone();
-		try!(dst.insert(a));
-		Ok(address)
-	}).collect()
+	let existing_accounts = try!(dst.load()).into_iter().map(|a| a.address).collect::<HashSet<_>>();
+
+	accounts.into_iter()
+		.filter(|a| !existing_accounts.contains(&a.address))
+		.map(|a| {
+			let address = a.address.clone();
+			try!(dst.insert(a));
+			Ok(address)
+		}).collect()
 }

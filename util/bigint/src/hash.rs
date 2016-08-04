@@ -19,7 +19,8 @@
 use std::{ops, fmt, cmp, mem};
 use std::cmp::*;
 use std::ops::*;
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash, Hasher, BuildHasherDefault};
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use rand::Rng;
 use rand::os::OsRng;
@@ -544,6 +545,37 @@ impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
 
 known_heap_size!(0, H32, H64, H128, Address, H256, H264, H512, H520, H1024, H2048);
+// Specialized HashMap and HashSet
+
+/// Hasher that just takes 8 bytes of the provided value.
+pub struct PlainHasher(u64);
+
+impl Default for PlainHasher {
+	#[inline]
+	fn default() -> PlainHasher {
+		PlainHasher(0)
+	}
+}
+
+impl Hasher for PlainHasher {
+	#[inline]
+	fn finish(&self) -> u64 {
+		self.0
+	}
+
+	#[inline]
+	fn write(&mut self, bytes: &[u8]) {
+		debug_assert!(bytes.len() == 32);
+		let mut prefix = [0u8; 8];
+		prefix.clone_from_slice(&bytes[0..8]);
+		self.0 = unsafe { ::std::mem::transmute(prefix) };
+	}
+}
+
+/// Specialized version of HashMap with H256 keys and fast hashing function.
+pub type H256FastMap<T> = HashMap<H256, T, BuildHasherDefault<PlainHasher>>;
+/// Specialized version of HashSet with H256 keys and fast hashing function.
+pub type H256FastSet = HashSet<H256, BuildHasherDefault<PlainHasher>>;
 
 #[cfg(test)]
 mod tests {

@@ -361,7 +361,7 @@ impl Configuration {
 				let mut buffer = String::new();
 				let mut node_file = try!(File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e)));
 				try!(node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file"));
-				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| s.len() > 0).collect::<Vec<_>>();
+				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>();
 				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
 					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
 				}
