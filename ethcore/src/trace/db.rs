@@ -294,10 +294,11 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.map(|p| (From::from(p.0), From::from(p.1)))
 				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
 
-			let mut blooms = self.blooms.write();
+			// note_used must be called before locking blooms to avoid cache/traces deadlock on garbage collection
 			for key in blooms_to_insert.keys() {
 				self.note_used(CacheID::Bloom(key.clone()));
 			}
+			let mut blooms = self.blooms.write();
 			batch.extend_with_cache(DB_COL_TRACE, blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
 		}
 	}
