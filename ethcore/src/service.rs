@@ -52,7 +52,7 @@ impl ClientService {
 	/// Start the service in a separate thread.
 	pub fn start(
 		config: ClientConfig,
-		spec: Spec,
+		spec: &Spec,
 		db_path: &Path,
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
@@ -65,7 +65,7 @@ impl ClientService {
 		if spec.fork_name.is_some() {
 			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
 		}
-		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel()));
+		let client = try!(Client::new(config, &spec, db_path, miner, io_service.channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
@@ -172,11 +172,12 @@ mod tests {
 	#[test]
 	fn it_can_be_started() {
 		let temp_path = RandomTempPath::new();
+		let spec = get_test_spec();
 		let service = ClientService::start(
 			ClientConfig::default(),
-			get_test_spec(),
+			&spec,
 			temp_path.as_path(),
-			Arc::new(Miner::with_spec(get_test_spec())),
+			Arc::new(Miner::with_spec(&spec)),
 		);
 		assert!(service.is_ok());
 	}
