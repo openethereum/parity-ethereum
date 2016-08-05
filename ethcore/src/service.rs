@@ -198,11 +198,12 @@ mod tests {
 		path.push("pruning");
 		path.push("db");
 
+		let spec = get_test_spec();
 		let service = ClientService::start(
 			ClientConfig::default(),
-			get_test_spec(),
+			&spec,
 			&path,
-			Arc::new(Miner::with_spec(get_test_spec())),
+			Arc::new(Miner::with_spec(&spec)),
 		);
 		assert!(service.is_ok());
 	}
