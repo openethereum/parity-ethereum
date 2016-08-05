@@ -16,9 +16,8 @@
 
 use std::sync::Arc;
 use ethcore::client::BlockChainClient;
-use ethcore;
 use hypervisor::Hypervisor;
-use ethsync::{SyncConfig, NetworkConfiguration};
+use ethsync::{SyncConfig, NetworkConfiguration, NetworkError};
 #[cfg(not(feature="ipc"))]
 use self::no_ipc_deps::*;
 #[cfg(feature="ipc")]
@@ -103,7 +102,7 @@ pub fn sync
 		_client: Arc<BlockChainClient>,
 		log_settings: &LogConfig,
 	)
-	-> Result<SyncModules, ethcore::error::Error>
+	-> Result<SyncModules, NetworkError>
 {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
 	hypervisor = hypervisor.module(SYNC_MODULE_ID, "parity", sync_arguments(sync_cfg, net_cfg, log_settings));
@@ -128,8 +127,8 @@ pub fn sync
 		client: Arc<BlockChainClient>,
 		_log_settings: &LogConfig,
 	)
-	-> Result<SyncModules, ethcore::error::Error>
+	-> Result<SyncModules, NetworkError>
 {
-	let eth_sync = try!(EthSync::new(sync_cfg, client, net_cfg).map_err(ethcore::error::Error::Util));
+	let eth_sync = try!(EthSync::new(sync_cfg, client, net_cfg));
 	Ok((eth_sync.clone() as Arc<SyncProvider>, eth_sync.clone() as Arc<ManageNetwork>, eth_sync.clone() as Arc<ChainNotify>))
 }

@@ -20,6 +20,7 @@ use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 use util::*;
+use io::*;
 use verification::*;
 use error::*;
 use engines::Engine;
@@ -27,7 +28,6 @@ use views::*;
 use header::*;
 use service::*;
 use client::BlockStatus;
-use util::panics::*;
 
 pub use types::block_queue_info::BlockQueueInfo;
 
@@ -450,6 +450,7 @@ impl Drop for BlockQueue {
 #[cfg(test)]
 mod tests {
 	use util::*;
+	use io::*;
 	use spec::*;
 	use block_queue::*;
 	use tests::helpers::*;

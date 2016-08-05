@@ -8,6 +8,8 @@ export TARGETS="
 	-p ethcore-rpc \
 	-p ethcore-signer \
 	-p ethcore-util \
+	-p ethcore-network \
+	-p ethcore-io \
 	-p ethkey \
 	-p ethstore \
 	-p ethsync \

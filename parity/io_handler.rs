@@ -19,7 +19,7 @@ use ethcore::client::Client;
 use ethcore::service::ClientIoMessage;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
-use util::{TimerToken, IoHandler, IoContext};
+use io::{TimerToken, IoHandler, IoContext};
 
 use informant::Informant;
 
