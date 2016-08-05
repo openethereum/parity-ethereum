@@ -441,29 +441,6 @@ impl<'a> From<&'a Address> for H256 {
 	}
 }
 
-/// Convert string `s` to an `H256`. Will panic if `s` is not 64 characters long or if any of
-/// those characters are not 0-9, a-z or A-Z.
-pub fn h256_from_hex(s: &str) -> H256 {
-	H256::from_str(s).unwrap()
-}
-
-/// Convert `n` to an `H256`, setting the rightmost 8 bytes.
-pub fn h256_from_u64(n: u64) -> H256 {
-	H256::from(&U256::from(n))
-}
-
-/// Convert string `s` to an `Address`. Will panic if `s` is not 40 characters long or if any of
-/// those characters are not 0-9, a-z or A-Z.
-pub fn address_from_hex(s: &str) -> Address {
-	Address::from_str(s).unwrap()
-}
-
-/// Convert `n` to an `Address`, setting the rightmost 8 bytes.
-pub fn address_from_u64(n: u64) -> Address {
-	let h256 = h256_from_u64(n);
-	From::from(h256)
-}
-
 impl_hash!(H32, 4);
 impl_hash!(H64, 8);
 impl_hash!(H128, 16);

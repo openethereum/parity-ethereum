@@ -1393,7 +1393,7 @@ fn alter_balance() {
 	let mut state_result = get_temp_state();
 	let mut state = state_result.reference_mut();
 	let a = Address::zero();
-	let b = address_from_u64(1u64);
+	let b = 1u64.into();
 	state.add_balance(&a, &U256::from(69u64));
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	state.commit().unwrap();

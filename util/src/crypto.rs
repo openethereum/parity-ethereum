@@ -235,7 +235,7 @@ pub mod ec {
 
 	/// Check if this is a "low" signature.
 	pub fn is_low(sig: &Signature) -> bool {
-		H256::from_slice(&sig[32..64]) <= h256_from_hex("7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0")
+		H256::from_slice(&sig[32..64]) <= "7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0".into()
 	}
 
 	/// Check if this is a "low" signature.
@@ -246,10 +246,10 @@ pub mod ec {
 	/// Check if each component of the signature is in range.
 	pub fn is_valid(sig: &Signature) -> bool {
 		sig[64] <= 1 &&
-			H256::from_slice(&sig[0..32]) < h256_from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141") &&
-			H256::from_slice(&sig[32..64]) < h256_from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141") &&
-			H256::from_slice(&sig[32..64]) >= h256_from_u64(1) &&
-			H256::from_slice(&sig[0..32]) >= h256_from_u64(1)
+			H256::from_slice(&sig[0..32]) < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into() &&
+			H256::from_slice(&sig[32..64]) < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into() &&
+			H256::from_slice(&sig[32..64]) >= 1.into() &&
+			H256::from_slice(&sig[0..32]) >= 1.into()
 	}
 }
 
@@ -432,14 +432,14 @@ mod tests {
 
 	#[test]
 	fn test_invalid_key() {
-		assert!(KeyPair::from_secret(h256_from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")).is_err());
-		assert!(KeyPair::from_secret(h256_from_hex("0000000000000000000000000000000000000000000000000000000000000000")).is_err());
-		assert!(KeyPair::from_secret(h256_from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")).is_err());
+		assert!(KeyPair::from_secret("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".into()).is_err());
+		assert!(KeyPair::from_secret("0000000000000000000000000000000000000000000000000000000000000000".into()).is_err());
+		assert!(KeyPair::from_secret("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into()).is_err());
 	}
 
 	#[test]
 	fn test_key() {
-		let pair = KeyPair::from_secret(h256_from_hex("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2")).unwrap();
+		let pair = KeyPair::from_secret("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".into()).unwrap();
 		assert_eq!(pair.public().hex(), "101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c");
 	}
 
