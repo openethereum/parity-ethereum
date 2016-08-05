@@ -130,17 +130,30 @@ fn backup_database_path(path: &Path) -> PathBuf {
 	backup_path
 }
 
-/// Default migration settings.
-pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> MigrationConfig {
+/// Legacy migration settings.
+pub fn legacy_migration_settings(compaction_profile: &CompactionProfile) -> MigrationConfig {
 	MigrationConfig {
 		batch_size: BATCH_SIZE,
 		compaction_profile: *compaction_profile,
+		default_cols: None,
+	}
+}
+
+/// Consolidated migration settings.
+pub fn consolidated_migration_settings(compaction_profile: &CompactionProfile) -> MigrationConfig {
+	// number of columns that singledb had when it was introduced.
+	const SINGLE_START_COLS: Option<u32> = Some(5);
+
+	MigrationConfig {
+		batch_size: BATCH_SIZE,
+		compaction_profile: *compaction_profile,
+		default_cols: SINGLE_START_COLS,
 	}
 }
 
 /// Migrations on the consolidated database.
 fn consolidated_database_migrations(compaction_profile: &CompactionProfile, pruning: Algorithm) -> Result<MigrationManager, Error> {
-	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+	let mut manager = MigrationManager::new(consolidated_migration_settings(compaction_profile));
 	try!(manager.add_migration(migrations::ToV10::new(pruning)).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
@@ -158,7 +171,7 @@ fn consolidate_database(
 	}
 
 	let mut migration = migrations::ToV9::new(column, extract);
-	let config = default_migration_settings(compaction_profile);
+	let config = legacy_migration_settings(compaction_profile);
 	let mut db_config = DatabaseConfig {
 		max_open_files: 64,
 		cache_size: None,
@@ -304,21 +317,21 @@ mod legacy {
 
 	/// Migrations on the blocks database.
 	pub fn blocks_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+		let mut manager = MigrationManager::new(legacy_migration_settings(compaction_profile));
 		try!(manager.add_migration(migrations::blocks::V8::default()).map_err(|_| Error::MigrationImpossible));
 		Ok(manager)
 	}
 
 	/// Migrations on the extras database.
 	pub fn extras_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+		let mut manager = MigrationManager::new(legacy_migration_settings(compaction_profile));
 		try!(manager.add_migration(migrations::extras::ToV6).map_err(|_| Error::MigrationImpossible));
 		Ok(manager)
 	}
 
 	/// Migrations on the state database.
 	pub fn state_database_migrations(pruning: Algorithm, compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+		let mut manager = MigrationManager::new(legacy_migration_settings(compaction_profile));
 		let res = match pruning {
 			Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7::default()),
 			Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
