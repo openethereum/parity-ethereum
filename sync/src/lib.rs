@@ -30,11 +30,12 @@
 //!
 //! ```rust
 //! extern crate ethcore_util as util;
+//! extern crate ethcore_io as io;
 //! extern crate ethcore;
 //! extern crate ethsync;
 //! use std::env;
 //! use std::sync::Arc;
-//! use util::io::IoChannel;
+//! use io::IoChannel;
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethsync::{EthSync, SyncConfig, ManageNetwork, NetworkConfiguration};
 //! use ethcore::ethereum;
@@ -55,7 +56,7 @@
 //!			miner,
 //!			IoChannel::disconnected()
 //!		).unwrap();
-//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::from(util::NetworkConfiguration::new())).unwrap();
+//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::from(NetworkConfiguration::new())).unwrap();
 //! 	sync.start_network();
 //! }
 //! ```
@@ -64,6 +65,8 @@
 extern crate log;
 #[macro_use]
 extern crate ethcore_util as util;
+extern crate ethcore_network as network;
+extern crate ethcore_io as io;
 extern crate ethcore;
 extern crate env_logger;
 extern crate time;
@@ -77,7 +80,7 @@ extern crate parking_lot;
 
 mod chain;
 mod blocks;
-mod io;
+mod sync_io;
 
 #[cfg(test)]
 mod tests;
@@ -88,6 +91,7 @@ mod api {
 }
 
 pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNetwork, SyncConfig,
-	NetworkConfiguration, ServiceConfiguration};
+	ServiceConfiguration, NetworkConfiguration};
 pub use chain::{SyncStatus, SyncState};
+pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
 

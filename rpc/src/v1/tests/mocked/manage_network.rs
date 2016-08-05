@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethsync::{ManageNetwork, NetworkConfiguration};
-use util;
 
 pub struct TestManageNetwork;
 
@@ -27,5 +26,5 @@ impl ManageNetwork for TestManageNetwork {
 	fn add_reserved_peer(&self, _peer: String) -> Result<(), String> { Ok(()) }
 	fn start_network(&self) {}
 	fn stop_network(&self) {}
-	fn network_config(&self) -> NetworkConfiguration { NetworkConfiguration::from(util::NetworkConfiguration::new_local()) }
+	fn network_config(&self) -> NetworkConfiguration { NetworkConfiguration::new_local() }
 }

@@ -88,13 +88,14 @@
 ///
 
 use util::*;
+use network::*;
 use std::mem::{replace};
 use ethcore::views::{HeaderView, BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo, BlockImportError};
 use ethcore::error::*;
 use ethcore::block::Block;
-use io::SyncIo;
+use sync_io::SyncIo;
 use time;
 use super::SyncConfig;
 use blocks::BlockCollection;
@@ -1045,7 +1046,7 @@ impl ChainSync {
 	}
 
 	/// Send Status message
-	fn send_status(&mut self, io: &mut SyncIo) -> Result<(), UtilError> {
+	fn send_status(&mut self, io: &mut SyncIo) -> Result<(), NetworkError> {
 		let mut packet = RlpStream::new_list(5);
 		let chain = io.chain().chain_info();
 		packet.append(&(PROTOCOL_VERSION as u32));
@@ -1191,7 +1192,7 @@ impl ChainSync {
 
 	fn return_rlp<FRlp, FError>(io: &mut SyncIo, rlp: &UntrustedRlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
 		where FRlp : Fn(&SyncIo, &UntrustedRlp, PeerId) -> RlpResponseResult,
-			FError : FnOnce(UtilError) -> String
+			FError : FnOnce(NetworkError) -> String
 	{
 		let response = rlp_func(io, rlp, peer);
 		match response {

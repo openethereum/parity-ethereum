@@ -26,7 +26,7 @@ use ethcore::account_provider::AccountProvider;
 use v1::helpers::{SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
-use v1::impls::{default_gas_price, sign_and_dispatch, transaction_rejected_error, signer_disabled_error};
+use v1::impls::{default_gas_price, sign_and_dispatch, request_rejected_error, request_not_found_error, signer_disabled_error};
 
 fn fill_optional_fields<C, M>(request: TRequest, client: &C, miner: &M) -> FilledRequest
 	where C: MiningBlockChainClient, M: MinerService {
@@ -143,7 +143,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 		})
 	}
 
-	fn check_transaction(&self, params: Params) -> Result<Value, Error> {
+	fn check_request(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let mut pending = self.pending.lock();
 		from_params::<(RpcU256, )>(params).and_then(|(id, )| {
@@ -151,10 +151,10 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 			let res = match pending.get(&id) {
 				Some(ref promise) => match promise.result() {
 					ConfirmationResult::Waiting => { return Ok(Value::Null); }
-					ConfirmationResult::Rejected => Err(transaction_rejected_error()),
+					ConfirmationResult::Rejected => Err(request_rejected_error()),
 					ConfirmationResult::Confirmed(rpc_response) => rpc_response,
 				},
-				_ => { return Err(Error::invalid_params()); }
+				_ => { return Err(request_not_found_error()); }
 			};
 			pending.remove(&id);
 			res
@@ -225,7 +225,7 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		Err(signer_disabled_error())
 	}
 
-	fn check_transaction(&self, _: Params) -> Result<Value, Error> {
+	fn check_request(&self, _: Params) -> Result<Value, Error> {
 		// We don't support this in non-signer mode.
 		Err(signer_disabled_error())
 	}

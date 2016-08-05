@@ -77,6 +77,7 @@
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate ethcore_util as util;
+extern crate ethcore_io as io;
 #[macro_use] extern crate lazy_static;
 extern crate rustc_serialize;
 #[macro_use] extern crate heapsize;

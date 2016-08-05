@@ -24,7 +24,7 @@ use tests::helpers::*;
 use devtools::*;
 use miner::Miner;
 use crossbeam;
-use common::IoChannel;
+use io::IoChannel;
 
 pub fn run_test_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_path: &str) {
 	let socket_path = socket_path.to_owned();

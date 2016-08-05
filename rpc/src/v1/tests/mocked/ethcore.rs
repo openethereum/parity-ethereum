@@ -21,7 +21,7 @@ use v1::tests::helpers::TestMinerService;
 use v1::helpers::ConfirmationsQueue;
 use ethcore::client::{TestBlockChainClient};
 use util::log::RotatingLogger;
-use util::network_settings::NetworkSettings;
+use v1::helpers::NetworkSettings;
 
 fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())

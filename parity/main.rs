@@ -40,6 +40,7 @@ extern crate time;
 extern crate number_prefix;
 extern crate rpassword;
 extern crate semver;
+extern crate ethcore_io as io;
 extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
 #[macro_use]

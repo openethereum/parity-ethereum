@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
+use network::NetworkError;
 use ethcore::header::{ Header as BlockHeader};
 
 known_heap_size!(0, HeaderId, SyncBlock);
@@ -228,7 +229,7 @@ impl BlockCollection {
 		self.downloading_headers.contains(hash) || self.downloading_bodies.contains(hash)
 	}
 
-	fn insert_body(&mut self, b: Bytes) -> Result<(), UtilError> {
+	fn insert_body(&mut self, b: Bytes) -> Result<(), NetworkError> {
 		let body = UntrustedRlp::new(&b);
 		let tx = try!(body.at(0));
 		let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
@@ -249,13 +250,13 @@ impl BlockCollection {
 					},
 					None => {
 						warn!("Got body with no header {}", h);
-						Err(UtilError::Network(NetworkError::BadProtocol))
+						Err(NetworkError::BadProtocol)
 					}
 				}
 			}
 			None => {
 				trace!(target: "sync", "Ignored unknown/stale block body");
-				Err(UtilError::Network(NetworkError::BadProtocol))
+				Err(NetworkError::BadProtocol)
 			}
 		}
 	}

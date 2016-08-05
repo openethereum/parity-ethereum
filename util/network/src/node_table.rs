@@ -25,12 +25,12 @@ use std::path::{PathBuf};
 use std::fmt;
 use std::fs;
 use std::io::{Read, Write};
-use hash::*;
-use rlp::*;
+use util::hash::*;
+use util::rlp::*;
 use time::Tm;
-use error::*;
-use network::discovery::{TableUpdates, NodeEntry};
-use network::ip_utils::*;
+use error::NetworkError;
+use discovery::{TableUpdates, NodeEntry};
+use ip_utils::*;
 pub use rustc_serialize::json::Json;
 
 /// Node public key
@@ -107,18 +107,18 @@ impl NodeEndpoint {
 }
 
 impl FromStr for NodeEndpoint {
-	type Err = UtilError;
+	type Err = NetworkError;
 
 	/// Create endpoint from string. Performs name resolution if given a host name.
-	fn from_str(s: &str) -> Result<NodeEndpoint, UtilError> {
+	fn from_str(s: &str) -> Result<NodeEndpoint, NetworkError> {
 		let address = s.to_socket_addrs().map(|mut i| i.next());
 		match address {
 			Ok(Some(a)) => Ok(NodeEndpoint {
 				address: a,
 				udp_port: a.port()
 			}),
-			Ok(_) => Err(UtilError::AddressResolve(None)),
-			Err(e) => Err(UtilError::AddressResolve(Some(e)))
+			Ok(_) => Err(NetworkError::AddressResolve(None)),
+			Err(e) => Err(NetworkError::AddressResolve(Some(e)))
 		}
 	}
 }
@@ -161,7 +161,7 @@ impl Display for Node {
 }
 
 impl FromStr for Node {
-	type Err = UtilError;
+	type Err = NetworkError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
 			(try!(NodeId::from_str(&s[8..136])), try!(NodeEndpoint::from_str(&s[137..])))
@@ -357,7 +357,7 @@ mod tests {
 	use super::*;
 	use std::str::FromStr;
 	use std::net::*;
-	use hash::*;
+	use util::hash::*;
 	use devtools::*;
 
 	#[test]

@@ -171,7 +171,7 @@ pub struct Miner {
 
 	// for sealing...
 	options: MinerOptions,
-	
+
 	next_allowed_reseal: Mutex<Instant>,
 	sealing_block_last_request: Mutex<u64>,
 	gas_range_target: RwLock<(U256, U256)>,
@@ -420,7 +420,7 @@ impl Miner {
 			*sealing_block_last_request = best_number;
 		}
 
-		// Return if we restarted 
+		// Return if we restarted
 		prepare_new
 	}
 
@@ -464,7 +464,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError> {
+	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let sealing_work = self.sealing_work.lock();
 		match sealing_work.queue.peek_last_ref() {
 			Some(work) => {
@@ -484,6 +484,8 @@ impl MinerService for Miner {
 				};
 				// that's just a copy of the state.
 				let mut state = block.state().clone();
+				let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
+
 				let sender = try!(t.sender().map_err(|e| {
 					let message = format!("Transaction malformed: {:?}", e);
 					ExecutionError::TransactionMalformed(message)
@@ -495,18 +497,15 @@ impl MinerService for Miner {
 					state.add_balance(&sender, &(needed_balance - balance));
 				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options);
+				let mut ret = try!(Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options));
 
 				// TODO gav move this into Executive.
-				if analytics.state_diffing {
-					if let Ok(ref mut x) = ret {
-						x.state_diff = Some(state.diff_from(block.state().clone()));
-					}
-				}
-				ret
+				ret.state_diff = original_state.map(|original| state.diff_from(original));
+
+				Ok(ret)
 			},
 			None => {
-				chain.call(t, analytics)
+				chain.call(t, BlockID::Latest, analytics)
 			}
 		}
 	}
@@ -770,7 +769,7 @@ impl MinerService for Miner {
 				false
 			}
 		};
-		
+
 		if requires_reseal {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
