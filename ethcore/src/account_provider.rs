@@ -349,7 +349,7 @@ mod tests {
 		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 2000).is_err());
 		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 2000).is_ok());
 		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
-		::std::thread::sleep(Duration::from_millis(500));
+		::std::thread::sleep(Duration::from_millis(2000));
 		assert!(ap.sign(kp.address(), [0u8; 32]).is_err());
 	}
 }
