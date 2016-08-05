@@ -543,27 +543,37 @@ impl_hash!(H2048, 256);
 // Specialized HashMap and HashSet
 
 /// Hasher that just takes 8 bytes of the provided value.
-pub struct PlainHasher(u64);
+/// May only be used for keys which are 32 bytes.
+pub struct PlainHasher {
+	prefix: [u8; 8],
+	_marker: [u64; 0], // for alignment
+}
 
 impl Default for PlainHasher {
 	#[inline]
 	fn default() -> PlainHasher {
-		PlainHasher(0)
+		PlainHasher {
+			prefix: [0; 8],
+			_marker: [0; 0],
+		}
 	}
 }
 
 impl Hasher for PlainHasher {
 	#[inline]
 	fn finish(&self) -> u64 {
-		self.0
+		unsafe { ::std::mem::transmute(self.prefix) }
 	}
 
 	#[inline]
 	fn write(&mut self, bytes: &[u8]) {
 		debug_assert!(bytes.len() == 32);
-		let mut prefix = [0u8; 8];
-		prefix.clone_from_slice(&bytes[0..8]);
-		self.0 = unsafe { ::std::mem::transmute(prefix) };
+
+		for quarter in bytes.chunks(8) {
+			for (x, y) in self.prefix.iter_mut().zip(quarter) {
+				*x ^= *y
+			}
+		}
 	}
 }
 
@@ -577,6 +587,12 @@ mod tests {
 	use hash::*;
 	use bigint::uint::*;
 	use std::str::FromStr;
+
+	#[test]
+	fn hasher_alignment() {
+		use std::mem::align_of;
+		assert_eq!(align_of::<u64>(), align_of::<PlainHasher>());
+	}
 
 	#[test]
 	#[cfg_attr(feature="dev", allow(eq_op))]
