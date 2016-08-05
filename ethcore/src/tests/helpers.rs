@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use io::*;
 use client::{self, BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;

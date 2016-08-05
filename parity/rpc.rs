@@ -17,7 +17,7 @@
 use std::fmt;
 use std::sync::Arc;
 use std::net::SocketAddr;
-use util::panics::PanicHandler;
+use io::PanicHandler;
 use ethcore_rpc::{RpcServerError, RpcServer as Server};
 use jsonipc;
 use rpc_apis;

@@ -27,12 +27,11 @@ use util::{journaldb, rlp, Bytes, View, PerfTimer, Itertools, Mutex, RwLock};
 use util::journaldb::JournalDB;
 use util::rlp::{UntrustedRlp};
 use util::{U256, H256, Address, H2048, Uint};
-use util::panics::*;
-use util::io::*;
 use util::sha3::*;
 use util::kvdb::*;
 
 // other
+use io::*;
 use views::{BlockView, HeaderView, BodyView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult};
 use header::BlockNumber;

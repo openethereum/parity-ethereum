@@ -20,12 +20,11 @@ use std::cmp::PartialEq;
 use std::str::FromStr;
 use std::sync::Arc;
 use util::RotatingLogger;
-use util::network_settings::NetworkSettings;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use ethcore::account_provider::AccountProvider;
 use ethsync::{ManageNetwork, SyncProvider};
-use ethcore_rpc::Extendable;
+use ethcore_rpc::{Extendable, NetworkSettings};
 pub use ethcore_rpc::ConfirmationsQueue;
 
 

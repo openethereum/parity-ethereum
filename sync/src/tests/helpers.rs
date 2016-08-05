@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
+use network::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient};
 use ethcore::header::BlockNumber;
-use io::SyncIo;
+use sync_io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
 
@@ -48,7 +49,7 @@ impl<'p> SyncIo for TestIo<'p> {
 		false
 	}
 
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
+	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
 		self.queue.push_back(TestPacket {
 			data: data,
 			packet_id: packet_id,
@@ -57,7 +58,7 @@ impl<'p> SyncIo for TestIo<'p> {
 		Ok(())
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
+	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
 		self.queue.push_back(TestPacket {
 			data: data,
 			packet_id: packet_id,

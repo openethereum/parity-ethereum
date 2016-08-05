@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use super::*;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread;
 use std::time::*;
-use common::*;
-use network::*;
+use util::common::*;
 use io::TimerToken;
-use crypto::KeyPair;
+use util::crypto::KeyPair;
 
 pub struct TestProtocol {
 	drop_session: bool,
@@ -98,7 +98,7 @@ fn net_service() {
 
 #[test]
 fn net_connect() {
-	::log::init_log();
+	::util::log::init_log();
 	let key1 = KeyPair::create().unwrap();
 	let mut config1 = NetworkConfiguration::new_local();
 	config1.use_secret = Some(key1.secret().clone());

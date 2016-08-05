@@ -138,7 +138,7 @@ mod tests {
 	use tests::helpers::get_temp_journal_db;
 
 	use util::{SHA3_NULL_RLP, SHA3_EMPTY};
-	use util::hash::{Address, FixedHash, H256};
+	use util::{Address, FixedHash, H256};
 	use util::rlp::{UntrustedRlp, View};
 	use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 

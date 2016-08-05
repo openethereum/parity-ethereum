@@ -18,8 +18,10 @@ mod poll_manager;
 mod poll_filter;
 mod requests;
 mod signing_queue;
+mod network_settings;
 
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::PollFilter;
 pub use self::requests::{TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest};
 pub use self::signing_queue::{ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent};
+pub use self::network_settings::NetworkSettings;
