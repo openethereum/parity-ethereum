@@ -82,6 +82,7 @@ mod blockchain;
 mod presale;
 mod run;
 mod sync;
+mod snapshot;
 
 use std::{process, env};
 use cli::print_version;
@@ -99,6 +100,7 @@ fn execute(command: Cmd) -> Result<String, String> {
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
 		Cmd::SignerToken(path) => signer::new_token(path),
+		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd),
 	}
 }
 
@@ -131,4 +133,3 @@ fn main() {
 		}
 	}
 }
-

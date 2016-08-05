@@ -13,7 +13,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-
 use std::collections::{HashSet, HashMap, VecDeque};
 use std::sync::{Arc, Weak};
 use std::path::{Path};
@@ -62,6 +61,7 @@ use trace::FlatTransactionTraces;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
+use snapshot::{self, io as snapshot_io};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -139,6 +139,7 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1200;
+
 // database columns
 /// Column for State
 pub const DB_COL_STATE: Option<u32> = Some(0);
@@ -161,7 +162,7 @@ pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
 }
 
 impl Client {
-	///  Create a new client with given spec and DB path and custom verifier.
+	/// Create a new client with given spec and DB path and custom verifier.
 	pub fn new(
 		config: ClientConfig,
 		spec: &Spec,
@@ -591,6 +592,23 @@ impl Client {
 			BlockID::Earliest => Some(0),
 			BlockID::Latest | BlockID::Pending => Some(self.chain.best_block_number()),
 		}
+	}
+
+	/// Take a snapshot.
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W) -> Result<(), ::error::Error> {
+		let db = self.state_db.lock().boxed_clone();
+		let best_block_number = self.chain_info().best_block_number;
+		let start_block_number = if best_block_number > 1000 {
+			best_block_number - 1000
+		} else {
+			0
+		};
+		let start_hash = self.block_hash(BlockID::Number(start_block_number))
+			.expect("blocks within HISTORY are always stored.");
+
+		try!(snapshot::take_snapshot(&self.chain, start_hash, db.as_hashdb(), writer));
+
+		Ok(())
 	}
 
 	fn block_hash(chain: &BlockChain, id: BlockID) -> Option<H256> {

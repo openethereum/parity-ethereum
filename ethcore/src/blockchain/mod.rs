@@ -26,7 +26,7 @@ mod import_route;
 mod update;
 
 #[cfg(test)]
-mod generator;
+pub mod generator;
 
 pub use self::blockchain::{BlockProvider, BlockChain};
 pub use self::cache::CacheSize;

@@ -29,6 +29,7 @@ use std::cell::RefCell;
 
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(test, derive(Default))]
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,
@@ -130,7 +131,7 @@ impl From<ethjson::spec::Spec> for Spec {
 }
 
 impl Spec {
-	/// Convert engine spec into a boxed Engine of the right underlying type.
+	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
 	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Engine> {
 		match engine_spec {

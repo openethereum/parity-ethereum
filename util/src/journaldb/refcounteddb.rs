@@ -19,7 +19,7 @@
 use common::*;
 use rlp::*;
 use hashdb::*;
-use overlaydb::*;
+use overlaydb::OverlayDB;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction};

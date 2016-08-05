@@ -586,6 +586,10 @@ impl ChainSync {
 	/// Called by peer once it has new block bodies
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		if !self.peers.get(&peer_id).map_or(false, |p| p.confirmed) {
+			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
+			return Ok(());
+		}
 		let block_rlp = try!(r.at(0));
 		let header_rlp = try!(block_rlp.at(0));
 		let h = header_rlp.as_raw().sha3();
@@ -650,6 +654,10 @@ impl ChainSync {
 
 	/// Handles `NewHashes` packet. Initiates headers download for any unknown hashes.
 	fn on_peer_new_hashes(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		if !self.peers.get(&peer_id).map_or(false, |p| p.confirmed) {
+			trace!(target: "sync", "Ignoring new hashes from unconfirmed peer {}", peer_id);
+			return Ok(());
+		}
 		if self.state != SyncState::Idle {
 			trace!(target: "sync", "Ignoring new hashes since we're already downloading.");
 			let max = r.iter().take(MAX_NEW_HASHES).map(|item| item.val_at::<BlockNumber>(1).unwrap_or(0)).fold(0u64, max);
@@ -1029,7 +1037,7 @@ impl ChainSync {
 		if !io.is_chain_queue_empty() {
 			return Ok(());
 		}
-		if self.peers.get(&peer_id).map_or(false, |p| p.confirmed) {
+		if !self.peers.get(&peer_id).map_or(false, |p| p.confirmed) {
 			trace!(target: "sync", "{} Ignoring transactions from unconfirmed/unknown peer", peer_id);
 		}
 
@@ -1685,7 +1693,7 @@ mod tests {
 				asking_hash: None,
 				ask_time: 0f64,
 				expired: false,
-				confirmed: false,
+				confirmed: true,
 			});
 		sync
 	}

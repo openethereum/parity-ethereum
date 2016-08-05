@@ -134,7 +134,7 @@ impl MemoryDB {
 		if key == &SHA3_NULL_RLP {
 			return Some(STATIC_NULL_RLP.clone());
 		}
-		self.data.get(key).map(|&(ref v, x)| (&v[..], x))
+		self.data.get(key).map(|&(ref val, rc)| (&val[..], rc))
 	}
 
 	/// Denote than an existing value has the given key. Used when a key gets removed without

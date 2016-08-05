@@ -340,7 +340,7 @@ impl BlockQueue {
 			return;
 		}
 		let mut verified_lock = self.verification.verified.lock();
-		let mut verified = verified_lock.deref_mut();
+		let mut verified = &mut *verified_lock;
 		let mut bad = self.verification.bad.lock();
 		let mut processing = self.processing.write();
 		bad.reserve(block_hashes.len());
