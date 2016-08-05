@@ -353,7 +353,7 @@ impl From<snappy::InvalidInput> for Error {
 impl From<SnapshotError> for Error {
 	fn from(err: SnapshotError) -> Error {
 		match err {
-			SnapshotError::Io(err) => Error::Io(err),
+			SnapshotError::Io(err) => Error::StdIo(err),
 			SnapshotError::Trie(err) => Error::Trie(err),
 			SnapshotError::Decoder(err) => err.into(),
 			other => Error::Snapshot(other),

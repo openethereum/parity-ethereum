@@ -20,7 +20,6 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use ethcore_logger::{setup_log, Config as LogConfig};
-use util::panics::PanicHandler;
 use ethcore::snapshot::{RestorationStatus, SnapshotService};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::service::ClientService;
@@ -31,6 +30,8 @@ use params::{SpecType, Pruning};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use fdlimit;
+
+use io::PanicHandler;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]

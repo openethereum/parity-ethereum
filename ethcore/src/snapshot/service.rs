@@ -32,8 +32,9 @@ use error::Error;
 use service::ClientIoMessage;
 use spec::Spec;
 
+use io::IoChannel;
+
 use util::{Bytes, H256, Mutex, UtilError};
-use util::io::IoChannel;
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
