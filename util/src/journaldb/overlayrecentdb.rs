@@ -116,11 +116,11 @@ impl OverlayRecentDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	pub fn new_temp() -> OverlayRecentDB {
+	pub fn new_temp(mode: Archive) -> OverlayRecentDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
-		Self::new(backing, None, Archive::Off)
+		Self::new(backing, None, mode)
 	}
 
 	#[cfg(test)]
@@ -412,18 +412,27 @@ mod tests {
 	use super::*;
 	use hashdb::*;
 	use log::init_log;
-	use journaldb::JournalDB;
-	use kvdb::Database;
+	use journaldb::{Archive, JournalDB};
+	use kvdb::{Database, DatabaseConfig};
 
-	fn new_db(path: &Path) -> OverlayRecentDB {
+	fn new_pruned(path: &Path) -> OverlayRecentDB {
 		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());
 		OverlayRecentDB::new(backing, None, Archive::Off)
 	}
 
+	fn new_archive(path: &Path) -> OverlayRecentDB {
+		let cfg = DatabaseConfig::with_columns(Some(2));
+		let backing = Arc::new(Database::open(&cfg, path.to_str().unwrap()).unwrap());
+		OverlayRecentDB::new(backing, Some(0), Archive::On(Some(1)))
+	}
+
 	#[test]
 	fn insert_same_in_fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 
 		let x = jdb.insert(b"X");
 		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
@@ -452,8 +461,11 @@ mod tests {
 
 	#[test]
 	fn long_history() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 3
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 		let h = jdb.insert(b"foo");
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -475,8 +487,11 @@ mod tests {
 
 	#[test]
 	fn complex() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -518,8 +533,11 @@ mod tests {
 
 	#[test]
 	fn fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -550,8 +568,11 @@ mod tests {
 
 	#[test]
 	fn overwrite() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
@@ -573,7 +594,10 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_one() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -598,7 +622,10 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_other() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -624,7 +651,10 @@ mod tests {
 
 	#[test]
 	fn fork_ins_del_ins() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -658,12 +688,13 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -673,14 +704,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			jdb.remove(&foo);
 			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
 			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -692,7 +723,11 @@ mod tests {
 	#[test]
 	fn insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut jdb = OverlayRecentDB::new_temp();
+
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -718,7 +753,10 @@ mod tests {
 	#[test]
 	fn forked_insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -764,7 +802,10 @@ mod tests {
 
 	#[test]
 	fn broken_assert() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
@@ -792,7 +833,10 @@ mod tests {
 
 	#[test]
 	fn reopen_test() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
@@ -826,13 +870,13 @@ mod tests {
 	fn reopen_remove_three() {
 		init_log();
 
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
 
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
@@ -854,7 +898,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 
 			jdb.remove(&foo);
 			jdb.commit_batch(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
@@ -863,7 +907,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 
 			jdb.commit_batch(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -871,7 +915,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 
 			jdb.commit_batch(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -881,10 +925,11 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		let (foo, bar, baz) = {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -902,7 +947,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
@@ -913,7 +958,10 @@ mod tests {
 
 	#[test]
 	fn insert_older_era() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &b"0a".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -934,8 +982,9 @@ mod tests {
 	#[test]
 	fn inject() {
 		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
 
-		let mut jdb = new_db(temp.as_path().as_path());
+		let mut jdb = new_pruned(&dir);
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
@@ -944,5 +993,262 @@ mod tests {
 		jdb.inject_batch().unwrap();
 
 		assert!(jdb.get(&key).is_none());
+	}
+
+// archive tests
+
+	#[test]
+	fn archive_insert_same_in_fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+
+		let x = jdb.insert(b"X");
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.remove(&x);
+		jdb.commit_batch(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		let x = jdb.insert(b"X");
+		jdb.commit_batch(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.commit_batch(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		jdb.commit_batch(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+
+		assert!(jdb.contains(&x));
+	}
+
+	#[test]
+	fn archive_long_history() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 3
+		let mut jdb = new_archive(&dir);
+		let h = jdb.insert(b"foo");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.remove(&h);
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+	}
+
+	#[test]
+	fn archive_complex() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+
+		let foo = jdb.insert(b"foo");
+		let bar = jdb.insert(b"bar");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+
+		jdb.remove(&foo);
+		jdb.remove(&bar);
+		let baz = jdb.insert(b"baz");
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
+
+		let foo = jdb.insert(b"foo");
+		jdb.remove(&baz);
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&baz));
+
+		jdb.remove(&foo);
+		jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+
+		jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+	}
+
+	#[test]
+	fn archive_fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+
+		let foo = jdb.insert(b"foo");
+		let bar = jdb.insert(b"bar");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+
+		jdb.remove(&foo);
+		let baz = jdb.insert(b"baz");
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+		jdb.remove(&bar);
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
+
+		jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+	}
+
+	#[test]
+	fn archive_overwrite() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+
+		let foo = jdb.insert(b"foo");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&foo));
+
+		jdb.remove(&foo);
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.insert(b"foo");
+		assert!(jdb.contains(&foo));
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+		jdb.commit_batch(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+	}
+
+	#[test]
+	fn archive_fork_same_key() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+
+		let foo = jdb.insert(b"foo");
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+		jdb.insert(b"foo");
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+
+		jdb.commit_batch(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+	}
+
+	#[test]
+	fn archive_reopen() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+		let bar = H256::random();
+
+		let foo = {
+			let mut jdb = new_archive(&dir);
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			jdb.emplace(bar.clone(), b"bar".to_vec());
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			foo
+		};
+
+		{
+			let mut jdb = new_archive(&dir);
+			jdb.remove(&foo);
+			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		}
+
+		{
+			let mut jdb = new_archive(&dir);
+			assert!(jdb.contains(&foo));
+			assert!(jdb.contains(&bar));
+			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		}
+	}
+
+	#[test]
+	fn archive_reopen_remove() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let foo = {
+			let mut jdb = new_archive(&dir);
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			// foo is ancient history.
+
+			jdb.insert(b"foo");
+			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			foo
+		};
+
+		{
+			let mut jdb = new_archive(&dir);
+			jdb.remove(&foo);
+			jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			assert!(jdb.contains(&foo));
+			jdb.remove(&foo);
+			jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit_batch(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
+		}
+	}
+
+	#[test]
+	fn archive_reopen_fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let (foo, _, _) = {
+			let mut jdb = new_archive(&dir);
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			let bar = jdb.insert(b"bar");
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			jdb.remove(&foo);
+			let baz = jdb.insert(b"baz");
+			jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			jdb.remove(&bar);
+			jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+			(foo, bar, baz)
+		};
+
+		{
+			let mut jdb = new_archive(&dir);
+			jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+			assert!(jdb.contains(&foo));
+		}
+	}
+
+	#[test]
+	fn archive_returns_state() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		let key = {
+			let mut jdb = new_archive(temp.as_path().as_path());
+			let key = jdb.insert(b"foo");
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			key
+		};
+
+		{
+			let jdb = new_archive(temp.as_path().as_path());
+			let state = jdb.state(&key);
+			assert!(state.is_some());
+		}
 	}
 }
