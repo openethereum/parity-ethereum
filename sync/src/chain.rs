@@ -1693,7 +1693,7 @@ mod tests {
 				asking_hash: None,
 				ask_time: 0f64,
 				expired: false,
-				confirmed: false,
+				confirmed: true,
 			});
 		sync
 	}
