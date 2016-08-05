@@ -50,7 +50,7 @@ fn setup(signer: Option<u16>) -> PersonalTester {
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
-	let personal = PersonalClient::new(&accounts, &client, &miner, signer);
+	let personal = PersonalClient::new(&accounts, &client, &miner, signer, false);
 
 	let io = IoHandler::new();
 	io.add_delegate(personal.to_delegate());
