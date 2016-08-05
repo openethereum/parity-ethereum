@@ -97,7 +97,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 		min_key: 6,
 		journal_key: 6,
 		value_mode: ValueMode::Random,
-		count: 100
+		count: 100,
 	};
 	{
 		let mut trie = if *root == SHA3_NULL_RLP {

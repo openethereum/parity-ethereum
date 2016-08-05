@@ -538,7 +538,7 @@ impl BlockChain {
 	/// Can be performed out-of-order, but care must be taken that the final chain is in a correct state.
 	/// This is used by snapshot restoration.
 	///
-	/// Supply a dummy parent difficulty when the parent block may not be in the chain.
+	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
 	/// Returns true if the block is disconnected.
 	pub fn insert_snapshot_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_diff: Option<U256>, is_best: bool) -> bool {
 		let block = BlockView::new(bytes);

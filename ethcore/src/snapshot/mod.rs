@@ -541,6 +541,8 @@ impl BlockRebuilder {
 			let parent_num = first_num - 1;
 
 			// check if the parent is even in the chain.
+			// since we don't restore every single block in the chain,
+			// the first block of the first chunks has nothing to connect to.
 			if let Some(parent_hash) = self.chain.block_hash(parent_num) {
 				// if so, add the child to it.
 				self.chain.add_child(parent_hash, *first_hash);
