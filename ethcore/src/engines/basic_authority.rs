@@ -109,7 +109,7 @@ impl Engine for BasicAuthority {
 			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = ap.sign(*block.header().author(), message) {
-				return Some(vec![encode(&signature).to_vec()]);
+				return Some(vec![encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}

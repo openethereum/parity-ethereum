@@ -30,6 +30,7 @@ use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
 use ipc::binary::BinaryConvertError;
+use ethstore::ethkey::Signature as EthkeySignature;
 
 #[derive(Debug, Clone, PartialEq, Eq, Binary)]
 /// Transaction action type.
@@ -142,11 +143,12 @@ impl Transaction {
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(self, secret: &Secret) -> SignedTransaction {
 		let sig = ec::sign(secret, &self.hash()).unwrap();
-		self.with_signature(sig)
+		self.with_signature(sig.into())
 	}
 
 	/// Signs the transaction with signature.
-	pub fn with_signature(self, sig: H520) -> SignedTransaction {
+	pub fn with_signature(self, sig: EthkeySignature) -> SignedTransaction {
+		let sig: H520 = sig.into();
 		let (r, s, v) = signature_to_rsv(&sig);
 		SignedTransaction {
 			unsigned: self,

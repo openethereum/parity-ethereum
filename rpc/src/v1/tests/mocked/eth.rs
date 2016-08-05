@@ -19,9 +19,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 use jsonrpc_core::IoHandler;
-use util::hash::{Address, H256, FixedHash};
-use util::{Uint, U256};
-use util::Mutex;
+use util::{Uint, U256, Address, H256, FixedHash, Mutex};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
@@ -187,7 +185,7 @@ fn rpc_eth_sign() {
 		],
 		"id": 1
 	}"#;
-	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", signed) + r#"","id":1}"#;
+	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{}", signed) + r#"","id":1}"#;
 
 	assert_eq!(tester.io.handle_request(&req), Some(res));
 }

@@ -18,11 +18,11 @@
 
 use std::fmt;
 use std::collections::HashMap;
-use util::{H160, H256, H520, RwLock};
+use util::RwLock;
 use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
 use ethstore::dir::{KeyDirectory};
-use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret, Random, Generator};
-
+use ethstore::ethkey::{Address, Message, Secret, Random, Generator};
+pub use ethstore::ethkey::Signature;
 
 /// Type of unlock.
 #[derive(Clone)]
@@ -65,51 +65,9 @@ impl From<SSError> for Error {
 	}
 }
 
-macro_rules! impl_bridge_type {
-	($name: ident, $size: expr, $core: ident, $store: ident) => {
-		/// Primitive
-		pub struct $name([u8; $size]);
-
-		impl From<[u8; $size]> for $name {
-			fn from(s: [u8; $size]) -> Self {
-				$name(s)
-			}
-		}
-
-		impl From<$core> for $name {
-			fn from(s: $core) -> Self {
-				$name(s.0)
-			}
-		}
-
-		impl From<$store> for $name {
-			fn from(s: $store) -> Self {
-				$name(s.into())
-			}
-		}
-
-		impl Into<$core> for $name {
-			fn into(self) -> $core {
-				$core(self.0)
-			}
-		}
-
-		impl Into<$store> for $name {
-			fn into(self) -> $store {
-				$store::from(self.0)
-			}
-		}
-	}
-}
-
-impl_bridge_type!(Secret, 32, H256, SSSecret);
-impl_bridge_type!(Message, 32, H256, SSMessage);
-impl_bridge_type!(Address, 20, H160, SSAddress);
-
-
 #[derive(Default)]
 struct NullDir {
-	accounts: RwLock<HashMap<SSAddress, SafeAccount>>,
+	accounts: RwLock<HashMap<Address, SafeAccount>>,
 }
 
 impl KeyDirectory for NullDir {
@@ -122,7 +80,7 @@ impl KeyDirectory for NullDir {
 		Ok(account)
 	}
 
-	fn remove(&self, address: &SSAddress) -> Result<(), SSError> {
+	fn remove(&self, address: &Address) -> Result<(), SSError> {
 		self.accounts.write().remove(address);
 		Ok(())
 	}
@@ -131,7 +89,7 @@ impl KeyDirectory for NullDir {
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
-	unlocked: RwLock<HashMap<SSAddress, AccountData>>,
+	unlocked: RwLock<HashMap<Address, AccountData>>,
 	sstore: Box<SecretStore>,
 }
 
@@ -174,38 +132,36 @@ impl AccountProvider {
 	}
 
 	/// Creates new random account.
-	pub fn new_account(&self, password: &str) -> Result<H160, Error> {
+	pub fn new_account(&self, password: &str) -> Result<Address, Error> {
 		let secret = Random.generate().unwrap().secret().clone();
 		let address = try!(self.sstore.insert_account(secret, password));
-		Ok(Address::from(address).into())
+		Ok(address)
 	}
 
 	/// Inserts new account into underlying store.
 	/// Does not unlock account!
-	pub fn insert_account<S>(&self, secret: S, password: &str) -> Result<H160, Error> where Secret: From<S> {
-		let s = Secret::from(secret);
-		let address = try!(self.sstore.insert_account(s.into(), password));
-		Ok(Address::from(address).into())
+	pub fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
+		let address = try!(self.sstore.insert_account(secret, password));
+		Ok(address)
 	}
 
 	/// Returns addresses of all accounts.
-	pub fn accounts(&self) -> Result<Vec<H160>, Error> {
-		let accounts = try!(self.sstore.accounts()).into_iter().map(|a| H160(a.into())).collect();
+	pub fn accounts(&self) -> Result<Vec<Address>, Error> {
+		let accounts = try!(self.sstore.accounts());
 		Ok(accounts)
 	}
 
 	/// Returns each account along with name and meta.
-	pub fn accounts_info(&self) -> Result<HashMap<H160, AccountMeta>, Error> {
-		let r: HashMap<H160, AccountMeta> = try!(self.sstore.accounts())
+	pub fn accounts_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
+		let r: HashMap<Address, AccountMeta> = try!(self.sstore.accounts())
 			.into_iter()
-			.map(|a| (H160(a.clone().into()), self.account_meta(a).unwrap_or_else(|_| Default::default())))
+			.map(|a| (a.clone(), self.account_meta(a).unwrap_or_else(|_| Default::default())))
 			.collect();
 		Ok(r)
 	}
 
 	/// Returns each account along with name and meta.
-	pub fn account_meta<A>(&self, account: A) -> Result<AccountMeta, Error> where Address: From<A> {
-		let account = Address::from(account).into();
+	pub fn account_meta(&self, account: Address) -> Result<AccountMeta, Error> {
 		Ok(AccountMeta {
 			name: try!(self.sstore.name(&account)),
 			meta: try!(self.sstore.meta(&account)),
@@ -214,23 +170,19 @@ impl AccountProvider {
 	}
 
 	/// Returns each account along with name and meta.
-	pub fn set_account_name<A>(&self, account: A, name: String) -> Result<(), Error> where Address: From<A> {
-		let account = Address::from(account).into();
+	pub fn set_account_name(&self, account: Address, name: String) -> Result<(), Error> {
 		try!(self.sstore.set_name(&account, name));
 		Ok(())
 	}
 
 	/// Returns each account along with name and meta.
-	pub fn set_account_meta<A>(&self, account: A, meta: String) -> Result<(), Error> where Address: From<A> {
-		let account = Address::from(account).into();
+	pub fn set_account_meta(&self, account: Address, meta: String) -> Result<(), Error> {
 		try!(self.sstore.set_meta(&account, meta));
 		Ok(())
 	}
 
 	/// Helper method used for unlocking accounts.
-	fn unlock_account<A>(&self, account: A, password: String, unlock: Unlock) -> Result<(), Error> where Address: From<A> {
-		let a = Address::from(account);
-		let account = a.into();
+	fn unlock_account(&self, account: Address, password: String, unlock: Unlock) -> Result<(), Error> {
 		// verify password by signing dump message
 		// result may be discarded
 		let _ = try!(self.sstore.sign(&account, &password, &Default::default()));
@@ -256,27 +208,23 @@ impl AccountProvider {
 	}
 
 	/// Unlocks account permanently.
-	pub fn unlock_account_permanently<A>(&self, account: A, password: String) -> Result<(), Error> where Address: From<A> {
+	pub fn unlock_account_permanently(&self, account: Address, password: String) -> Result<(), Error> {
 		self.unlock_account(account, password, Unlock::Perm)
 	}
 
 	/// Unlocks account temporarily (for one signing).
-	pub fn unlock_account_temporarily<A>(&self, account: A, password: String) -> Result<(), Error> where Address: From<A> {
+	pub fn unlock_account_temporarily(&self, account: Address, password: String) -> Result<(), Error> {
 		self.unlock_account(account, password, Unlock::Temp)
 	}
 
 	/// Checks if given account is unlocked
-	pub fn is_unlocked<A>(&self, account: A) -> bool where Address: From<A> {
-		let account = Address::from(account).into();
+	pub fn is_unlocked(&self, account: Address) -> bool {
 		let unlocked = self.unlocked.read();
 		unlocked.get(&account).is_some()
 	}
 
 	/// Signs the message. Account must be unlocked.
-	pub fn sign<A, M>(&self, account: A, message: M) -> Result<H520, Error> where Address: From<A>, Message: From<M> {
-		let account = Address::from(account).into();
-		let message = Message::from(message).into();
-
+	pub fn sign(&self, account: Address, message: Message) -> Result<Signature, Error> {
 		let data = {
 			let unlocked = self.unlocked.read();
 			try!(unlocked.get(&account).ok_or(Error::NotUnlocked)).clone()
@@ -288,15 +236,13 @@ impl AccountProvider {
 		}
 
 		let signature = try!(self.sstore.sign(&account, &data.password, &message));
-		Ok(H520(signature.into()))
+		Ok(signature)
 	}
 
 	/// Unlocks an account, signs the message, and locks it again.
-	pub fn sign_with_password<A, M>(&self, account: A, password: String, message: M) -> Result<H520, Error> where Address: From<A>, Message: From<M> {
-		let account = Address::from(account).into();
-		let message = Message::from(message).into();
+	pub fn sign_with_password(&self, account: Address, password: String, message: Message) -> Result<Signature, Error> {
 		let signature = try!(self.sstore.sign(&account, &password, &message));
-		Ok(H520(signature.into()))
+		Ok(signature)
 	}
 }
 
@@ -312,8 +258,8 @@ mod tests {
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
-		assert!(ap.sign(kp.address(), [0u8; 32]).is_err());
+		assert!(ap.sign(kp.address(), Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), Default::default()).is_err());
 	}
 
 	#[test]
@@ -323,10 +269,10 @@ mod tests {
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_permanently(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
-		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
+		assert!(ap.sign(kp.address(), Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), Default::default()).is_ok());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
-		assert!(ap.sign(kp.address(), [0u8; 32]).is_ok());
+		assert!(ap.sign(kp.address(), Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), Default::default()).is_ok());
 	}
 }
