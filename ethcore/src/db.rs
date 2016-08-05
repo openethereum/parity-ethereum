@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use util::{DBTransaction, Database, RwLock};
 use util::rlp::{encode, Encodable, decode, Decodable};
-use util::journaldb::{self, Algorithm, JournalDB, Mode};
+use util::journaldb::{self, Algorithm, JournalDB, Archive};
 
 // database columns
 /// Column for State
@@ -44,9 +44,9 @@ pub const NUM_COLUMNS: Option<u32> = Some(6);
 /// Create a new `JournalDB` trait object.
 pub fn make_journaldb(backing: Arc<Database>, algorithm: Algorithm) -> Box<JournalDB> {
 	match algorithm {
-		Algorithm::Archive => Box::new(journaldb::OverlayRecentDB::new(backing, COL_STATE, Mode::Archive(COL_STATE_ARCHIVE))),
+		Algorithm::Archive => Box::new(journaldb::OverlayRecentDB::new(backing, COL_STATE, Archive::On(COL_STATE_ARCHIVE))),
 		Algorithm::EarlyMerge => Box::new(journaldb::EarlyMergeDB::new(backing, COL_STATE)),
-		Algorithm::OverlayRecent => Box::new(journaldb::OverlayRecentDB::new(backing, COL_STATE, Mode::Enact)),
+		Algorithm::OverlayRecent => Box::new(journaldb::OverlayRecentDB::new(backing, COL_STATE, Archive::Off)),
 		Algorithm::RefCounted => Box::new(journaldb::RefCountedDB::new(backing, COL_STATE)),
 	}
 }

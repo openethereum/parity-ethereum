@@ -31,8 +31,17 @@ mod overlayrecentdb;
 mod refcounteddb;
 
 pub use self::earlymergedb::EarlyMergeDB;
-pub use self::overlayrecentdb::{OverlayRecentDB, Mode};
+pub use self::overlayrecentdb::OverlayRecentDB;
 pub use self::refcounteddb::RefCountedDB;
+
+/// Archive modes. These control how the database will deal with "ancient" or non-canonical nodes.
+#[derive(Debug, Clone, Copy)]
+pub enum Archive {
+	/// Don't archive any nodes in the database.
+	Off,
+	/// Archive all old nodes to the given column family.
+	On(Option<u32>),
+}
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.

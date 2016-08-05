@@ -55,16 +55,7 @@ use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use kvdb::{Database, DBTransaction};
 #[cfg(test)]
 use std::env;
-use super::JournalDB;
-
-/// Deletion modes. See the module-level documentation for more details.
-#[derive(Debug, Clone, Copy)]
-pub enum Mode {
-	/// Enact deletions.
-	Enact,
-	/// Archive them to another column family.
-	Archive(Option<u32>),
-}
+use super::{Archive, JournalDB};
 
 /// Disk-backed HashDB implementation which can either prune or archive old state.
 /// See the module-level documentation for more info.
@@ -73,7 +64,7 @@ pub struct OverlayRecentDB {
 	backing: Arc<Database>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
-	mode: Mode,
+	mode: Archive,
 }
 
 #[derive(PartialEq)]
@@ -112,7 +103,7 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
 	/// Create a new instance.
-	pub fn new(backing: Arc<Database>, col: Option<u32>, mode: Mode) -> OverlayRecentDB {
+	pub fn new(backing: Arc<Database>, col: Option<u32>, mode: Archive) -> OverlayRecentDB {
 		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing, col)));
 		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
@@ -129,7 +120,7 @@ impl OverlayRecentDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
-		Self::new(backing, None, Mode::Enact)
+		Self::new(backing, None, Archive::Off)
 	}
 
 	#[cfg(test)]
@@ -143,8 +134,8 @@ impl OverlayRecentDB {
 		match self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?") {
 			None => {
 				match self.mode {
-					Mode::Enact => None,
-					Mode::Archive(col) => self.backing.get(col, key).expect("Low-level database error."),
+					Archive::Off => None,
+					Archive::On(archive_col) => self.backing.get(archive_col, key).expect("Low-level database error."),
 				}
 			}
 			x => x,
@@ -252,6 +243,13 @@ impl JournalDB for OverlayRecentDB {
 				r.begin_list(2);
 				r.append(&k);
 				r.append(&v);
+
+				// put all insertions, canonical or not, into the archive column family.
+				// these will never be deleted.
+				if let Archive::On(archive_col) = self.mode {
+					try!(batch.put(archive_col, &k, &v));
+				}
+
 				journal_overlay.backing_overlay.emplace(to_short_key(&k), v);
 			}
 			r.append(&removed_keys);
@@ -311,12 +309,6 @@ impl JournalDB for OverlayRecentDB {
 				// apply canon deletions
 				for k in canon_deletions {
 					if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
-						if let Mode::Archive(archive_col) = self.mode {
-							// if it's slated for deletion, it ought to be in the database.
-							let val = try!(try!(self.backing.get(self.column, &k))
-								.ok_or(BaseDataError::NegativelyReferencedHash(k.clone())));
-							try!(batch.put_vec(archive_col, &k, val));
-						}
 						try!(batch.delete(self.column, &k));
 					}
 				}
@@ -337,7 +329,12 @@ impl JournalDB for OverlayRecentDB {
 					if try!(self.backing.get(self.column, &key)).is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
-					try!(batch.put(self.column, &key, &value))
+
+					if let Archive::On(archive_col) = self.mode {
+						try!(batch.put(archive_col, &key, &value));
+					}
+
+					try!(batch.put_vec(self.column, &key, value));
 				}
 				-1 => {
 					if try!(self.backing.get(self.column, &key)).is_none() {
@@ -420,7 +417,7 @@ mod tests {
 
 	fn new_db(path: &Path) -> OverlayRecentDB {
 		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());
-		OverlayRecentDB::new(backing, None, Mode::Enact)
+		OverlayRecentDB::new(backing, None, Archive::Off)
 	}
 
 	#[test]
