@@ -348,6 +348,13 @@ impl JournalDB for OverlayRecentDB {
 
 		Ok(ops)
 	}
+
+	fn is_pruned(&self) -> bool {
+		match self.mode {
+			Archive::On(_) => false,
+			Archive::Off => true,
+		}
+	}
 }
 
 impl HashDB for OverlayRecentDB {
