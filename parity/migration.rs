@@ -29,7 +29,7 @@ use ethcore::migrations::Extract;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 9;
+const CURRENT_VERSION: u32 = 10;
 /// First version of the consolidated database.
 const CONSOLIDATION_VERSION: u32 = 9;
 /// Defines how many items are migrated to the new version of database at once.
@@ -43,7 +43,7 @@ pub enum Error {
 	/// Returned when current version cannot be read or guessed.
 	UnknownDatabaseVersion,
 	/// Migration does not support existing pruning algorithm.
-	UnsuportedPruningMethod,
+	UnsupportedPruningMethod,
 	/// Existing DB is newer than the known one.
 	FutureDBVersion,
 	/// Migration is not possible.
@@ -59,7 +59,7 @@ impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		let out = match *self {
 			Error::UnknownDatabaseVersion => "Current database version cannot be read".into(),
-			Error::UnsuportedPruningMethod => "Unsupported pruning method for database migration. Delete DB and resync.".into(),
+			Error::UnsupportedPruningMethod => "Unsupported pruning method for database migration. Delete DB and resync.".into(),
 			Error::FutureDBVersion => "Database was created with newer client version. Upgrade your client or delete DB and resync.".into(),
 			Error::MigrationImpossible => format!("Database migration to version {} is not possible.", CURRENT_VERSION),
 			Error::MigrationFailed => "Database migration unexpectedly failed".into(),
@@ -139,8 +139,9 @@ pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> Mig
 }
 
 /// Migrations on the consolidated database.
-fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-	let manager = MigrationManager::new(default_migration_settings(compaction_profile));
+fn consolidated_database_migrations(compaction_profile: &CompactionProfile, pruning: Algorithm) -> Result<MigrationManager, Error> {
+	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+	try!(manager.add_migration(migrations::ToV10::new(pruning)).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
@@ -255,7 +256,8 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 	// Further migrations
 	if version >= CONSOLIDATION_VERSION && version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {
 		println!("Migrating database from version {} to {}", ::std::cmp::max(CONSOLIDATION_VERSION, version), CURRENT_VERSION);
-		try!(migrate_database(version, consolidated_database_path(path), try!(consolidated_database_migrations(&compaction_profile))));
+		let consolidated_manager = try!(consolidated_database_migrations(&compaction_profile, pruning));
+		try!(migrate_database(version, consolidated_database_path(path), consolidated_manager));
 		println!("Migration finished");
 	}
 
@@ -320,7 +322,7 @@ mod legacy {
 		let res = match pruning {
 			Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7::default()),
 			Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
-			_ => return Err(Error::UnsuportedPruningMethod),
+			_ => return Err(Error::UnsupportedPruningMethod),
 		};
 
 		try!(res.map_err(|_| Error::MigrationImpossible));
