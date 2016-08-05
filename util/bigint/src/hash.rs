@@ -75,6 +75,12 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl From<$from> for [u8; $size] {
+			fn from(s: $from) -> Self {
+				s.0
+			}
+		}
+
 		impl Deref for $from {
 			type Target = [u8];
 
