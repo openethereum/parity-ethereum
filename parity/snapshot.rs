@@ -89,9 +89,9 @@ impl SnapshotCommand {
 
 		let service = try!(ClientService::start(
 			client_config,
-			spec,
+			&spec,
 			Path::new(&client_path),
-			Arc::new(Miner::with_spec(try!(self.spec.spec())))
+			Arc::new(Miner::with_spec(&spec))
 		).map_err(|e| format!("Client service error: {:?}", e)));
 
 		Ok((service, panic_handler))

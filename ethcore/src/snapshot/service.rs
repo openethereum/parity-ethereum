@@ -98,12 +98,12 @@ struct Restoration {
 
 impl Restoration {
 	// make a new restoration, building databases in the given path.
-	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, spec: &Spec) -> Result<Self, Error> {
+	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, gb: &[u8]) -> Result<Self, Error> {
 		let cfg = DatabaseConfig::with_columns(::client::DB_NO_OF_COLUMNS);
 		let raw_db = Arc::new(try!(Database::open(&cfg, &*path.to_string_lossy())
 			.map_err(|s| UtilError::SimpleString(s))));
 
-		let chain = BlockChain::new(Default::default(), &spec.genesis_block(), raw_db.clone());
+		let chain = BlockChain::new(Default::default(), gb, raw_db.clone());
 		let blocks = try!(BlockRebuilder::new(chain, manifest.block_number));
 
 		Ok(Restoration {
@@ -173,14 +173,15 @@ pub struct Service {
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: Option<LooseReader>,
-	spec: Spec,
+	engine: Arc<Engine>,
+	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
 }
 
 impl Service {
 	/// Create a new snapshot service.
-	pub fn new(spec: Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel) -> Result<Self, Error> {
+	pub fn new(spec: &Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel) -> Result<Self, Error> {
 		let db_path = try!(client_db.parent().and_then(Path::parent)
 			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.".into()))).to_owned();
 
@@ -199,7 +200,8 @@ impl Service {
 			pruning: pruning,
 			status: Mutex::new(RestorationStatus::Inactive),
 			reader: reader,
-			spec: spec,
+			engine: spec.engine.clone(),
+			genesis_block: spec.genesis_block(),
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
 		};
@@ -324,7 +326,7 @@ impl Service {
 
 					match is_state {
 						true => rest.feed_state(hash, chunk),
-						false => rest.feed_blocks(hash, chunk, &*self.spec.engine),
+						false => rest.feed_blocks(hash, chunk, &*self.engine),
 					}.map(|_| rest.is_done())
 				};
 
@@ -411,7 +413,7 @@ impl SnapshotService for Service {
 
 		// make new restoration.
 		let db_path = self.restoration_db();
-		*res = match Restoration::new(&manifest, self.pruning, &db_path, &self.spec) {
+		*res = match Restoration::new(&manifest, self.pruning, &db_path, &self.genesis_block) {
 				Ok(b) => Some(b),
 				Err(e) => {
 					warn!("encountered error {} while beginning snapshot restoration.", e);

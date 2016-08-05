@@ -136,9 +136,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// build client
 	let service = try!(ClientService::start(
 		client_config,
-		spec,
+		&spec,
 		Path::new(&client_path),
-		Arc::new(Miner::with_spec(try!(cmd.spec.spec()))),
+		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	panic_handler.forward_from(&service);
@@ -246,9 +246,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 	let service = try!(ClientService::start(
 		client_config,
-		spec,
+		&spec,
 		Path::new(&client_path),
-		Arc::new(Miner::with_spec(try!(cmd.spec.spec())))
+		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	panic_handler.forward_from(&service);

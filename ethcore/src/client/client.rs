@@ -193,6 +193,7 @@ impl Client {
 		}
 
 		let engine = spec.engine.clone();
+
 		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel.clone());
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
