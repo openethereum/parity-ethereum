@@ -45,7 +45,6 @@ mod traits {
 
 pub mod chain_notify {
 	//! Chain notify interface
-
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
 	include!(concat!(env!("OUT_DIR"), "/chain_notify.rs"));
 }

@@ -17,9 +17,9 @@
 //! Account state encoding and decoding
 
 use account_db::{AccountDB, AccountDBMut};
-use error::Error;
 use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY, TrieDB};
 use util::rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
+use snapshot::Error;
 
 // An alternate account structure from ::account::Account.
 #[derive(PartialEq, Clone, Debug)]
@@ -130,38 +130,24 @@ impl Account {
 			code_hash: code_hash,
 		})
 	}
+
+	#[cfg(test)]
+	pub fn storage_root_mut(&mut self) -> &mut H256 {
+		&mut self.storage_root
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use account_db::{AccountDB, AccountDBMut};
 	use tests::helpers::get_temp_journal_db;
+	use snapshot::tests::helpers::fill_storage;
 
 	use util::{SHA3_NULL_RLP, SHA3_EMPTY};
 	use util::hash::{Address, FixedHash, H256};
 	use util::rlp::{UntrustedRlp, View};
-	use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 
 	use super::Account;
-
-	fn fill_storage(mut db: AccountDBMut) -> H256 {
-		let map = StandardMap {
-			alphabet: Alphabet::All,
-			min_key: 6,
-			journal_key: 6,
-			value_mode: ValueMode::Random,
-			count: 100
-		};
-
-		let mut root = H256::new();
-		{
-			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
-			for (k, v) in map.make() {
-				trie.insert(&k, &v).unwrap();
-			}
-		}
-		root
-	}
 
 	#[test]
 	fn encoding_basic() {
@@ -190,12 +176,16 @@ mod tests {
 		let mut db = &mut **db;
 		let addr = Address::random();
 
-		let root = fill_storage(AccountDBMut::new(db.as_hashdb_mut(), &addr));
-		let account = Account {
-			nonce: 25.into(),
-			balance: 987654321.into(),
-			storage_root: root,
-			code_hash: SHA3_EMPTY,
+		let account = {
+			let acct_db = AccountDBMut::new(db.as_hashdb_mut(), &addr);
+			let mut root = SHA3_NULL_RLP;
+			fill_storage(acct_db, &mut root, &mut H256::zero());
+			Account {
+				nonce: 25.into(),
+				balance: 987654321.into(),
+				storage_root: root,
+				code_hash: SHA3_EMPTY,
+			}
 		};
 
 		let thin_rlp = account.to_thin_rlp();

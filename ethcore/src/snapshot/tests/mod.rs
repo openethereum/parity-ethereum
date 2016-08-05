@@ -14,25 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockhain info type definition
+//! Snapshot tests.
 
-use std::mem;
-use std::collections::VecDeque;
-use util::{U256, H256};
-use ipc::binary::BinaryConvertError;
-use header::BlockNumber;
+mod blocks;
+mod state;
 
-/// Information about the blockchain gathered together.
-#[derive(Clone, Debug, Binary)]
-pub struct BlockChainInfo {
-	/// Blockchain difficulty.
-	pub total_difficulty: U256,
-	/// Block queue difficulty.
-	pub pending_total_difficulty: U256,
-	/// Genesis block hash.
-	pub genesis_hash: H256,
-	/// Best blockchain block hash.
-	pub best_block_hash: H256,
-	/// Best blockchain block number.
-	pub best_block_number: BlockNumber
-}
+pub mod helpers;

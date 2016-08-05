@@ -177,7 +177,7 @@ pub struct Miner {
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
-	spec: Spec,
+	engine: Arc<Engine>,
 
 	accounts: Option<Arc<AccountProvider>>,
 	work_poster: Option<WorkPoster>,
@@ -186,7 +186,7 @@ pub struct Miner {
 
 impl Miner {
 	/// Creates new instance of miner without accounts, but with given spec.
-	pub fn with_spec(spec: Spec) -> Miner {
+	pub fn with_spec(spec: &Spec) -> Miner {
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(TransactionQueue::new())),
 			options: Default::default(),
@@ -197,14 +197,14 @@ impl Miner {
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
-			spec: spec,
+			engine: spec.engine.clone(),
 			work_poster: None,
 			gas_pricer: Mutex::new(GasPricer::new_fixed(20_000_000_000u64.into())),
 		}
 	}
 
 	/// Creates new instance of miner
-	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
+	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
 		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
 		Arc::new(Miner {
@@ -217,14 +217,10 @@ impl Miner {
 			extra_data: RwLock::new(Vec::new()),
 			options: options,
 			accounts: accounts,
-			spec: spec,
+			engine: spec.engine.clone(),
 			work_poster: work_poster,
 			gas_pricer: Mutex::new(gas_pricer),
 		})
-	}
-
-	fn engine(&self) -> &Engine {
-		self.spec.engine.deref()
 	}
 
 	fn forced_sealing(&self) -> bool {
@@ -274,8 +270,7 @@ impl Miner {
 				Some(old_block) => {
 					trace!(target: "miner", "Already have previous work; updating and returning");
 					// add transactions to old_block
-					let e = self.engine();
-					old_block.reopen(e, chain.vm_factory())
+					old_block.reopen(&*self.engine, chain.vm_factory())
 				}
 				None => {
 					// block not found - create it.
@@ -338,13 +333,13 @@ impl Miner {
 		if !block.transactions().is_empty() {
 			trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
 			// block with transactions - see if we can seal immediately.
-			let s = self.engine().generate_seal(block.block(), match self.accounts {
+			let s = self.engine.generate_seal(block.block(), match self.accounts {
 				Some(ref x) => Some(&**x),
 				None => None,
 			});
 			if let Some(seal) = s {
 				trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
-				if let Ok(sealed) = block.lock().try_seal(self.engine(), seal) {
+				if let Ok(sealed) = block.lock().try_seal(&*self.engine, seal) {
 					if let Ok(_) = chain.import_block(sealed.rlp_bytes()) {
 						trace!(target: "miner", "prepare_sealing: sealed internally and imported. leaving.");
 					} else {
@@ -497,7 +492,7 @@ impl MinerService for Miner {
 					state.add_balance(&sender, &(needed_balance - balance));
 				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = try!(Executive::new(&mut state, &env_info, self.engine(), chain.vm_factory()).transact(t, options));
+				let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, chain.vm_factory()).transact(t, options));
 
 				// TODO gav move this into Executive.
 				ret.state_diff = original_state.map(|original| state.diff_from(original));
@@ -795,7 +790,7 @@ impl MinerService for Miner {
 
 	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let result = if let Some(b) = self.sealing_work.lock().queue.get_used_if(if self.options.enable_resubmission { GetAction::Clone } else { GetAction::Take }, |b| &b.hash() == &pow_hash) {
-			b.lock().try_seal(self.engine(), seal).or_else(|_| {
+			b.lock().try_seal(&*self.engine, seal).or_else(|_| {
 				warn!(target: "miner", "Mined solution rejected: Invalid.");
 				Err(Error::PowInvalid)
 			})
@@ -897,7 +892,7 @@ mod tests {
 	fn should_prepare_block_to_seal() {
 		// given
 		let client = TestBlockChainClient::default();
-		let miner = Miner::with_spec(Spec::new_test());
+		let miner = Miner::with_spec(&Spec::new_test());
 
 		// when
 		let sealing_work = miner.map_sealing_work(&client, |_| ());
@@ -908,7 +903,7 @@ mod tests {
 	fn should_still_work_after_a_couple_of_blocks() {
 		// given
 		let client = TestBlockChainClient::default();
-		let miner = Miner::with_spec(Spec::new_test());
+		let miner = Miner::with_spec(&Spec::new_test());
 
 		let res = miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
 		assert!(res.is_some());
@@ -940,7 +935,7 @@ mod tests {
 				enable_resubmission: true,
 			},
 			GasPricer::new_fixed(0u64.into()),
-			Spec::new_test(),
+			&Spec::new_test(),
 			None, // accounts provider
 		)).ok().expect("Miner was just created.")
 	}

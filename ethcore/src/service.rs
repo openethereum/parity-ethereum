@@ -22,6 +22,7 @@ use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
+use snapshot::service::Service as SnapshotService;
 use std::sync::atomic::AtomicBool;
 
 #[cfg(feature="ipc")]
@@ -38,12 +39,17 @@ pub enum ClientIoMessage {
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
 	NewTransactions(Vec<Bytes>),
+	/// Feed a state chunk to the snapshot service
+	FeedStateChunk(H256, Bytes),
+	/// Feed a block chunk to the snapshot service
+	FeedBlockChunk(H256, Bytes),
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
 	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
+	snapshot: Arc<SnapshotService>,
 	panic_handler: Arc<PanicHandler>,
 	_stop_guard: ::devtools::StopGuard,
 }
@@ -52,7 +58,7 @@ impl ClientService {
 	/// Start the service in a separate thread.
 	pub fn start(
 		config: ClientConfig,
-		spec: Spec,
+		spec: &Spec,
 		db_path: &Path,
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
@@ -65,10 +71,17 @@ impl ClientService {
 		if spec.fork_name.is_some() {
 			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
 		}
-		let client = try!(Client::new(config, spec, db_path, miner, io_service.channel()));
-		panic_handler.forward_from(client.deref());
+
+		let pruning = config.pruning;
+		let client = try!(Client::new(config, &spec, db_path, miner, io_service.channel()));
+		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel()));
+
+		let snapshot = Arc::new(snapshot);
+
+		panic_handler.forward_from(&*client);
 		let client_io = Arc::new(ClientIoHandler {
-			client: client.clone()
+			client: client.clone(),
+			snapshot: snapshot.clone(),
 		});
 		try!(io_service.register_handler(client_io));
 
@@ -78,6 +91,7 @@ impl ClientService {
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
+			snapshot: snapshot,
 			panic_handler: panic_handler,
 			_stop_guard: stop_guard,
 		})
@@ -96,6 +110,11 @@ impl ClientService {
 	/// Get client interface
 	pub fn client(&self) -> Arc<Client> {
 		self.client.clone()
+	}
+
+	/// Get snapshot interface.
+	pub fn snapshot_service(&self) -> Arc<SnapshotService> {
+		self.snapshot.clone()
 	}
 
 	/// Get network service component
@@ -117,7 +136,8 @@ impl MayPanic for ClientService {
 
 /// IO interface for the Client handler
 struct ClientIoHandler {
-	client: Arc<Client>
+	client: Arc<Client>,
+	snapshot: Arc<SnapshotService>,
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
@@ -139,6 +159,8 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
 			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
+			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
+			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
 			_ => {} // ignore other messages
 		}
 	}
@@ -172,11 +194,16 @@ mod tests {
 	#[test]
 	fn it_can_be_started() {
 		let temp_path = RandomTempPath::new();
+		let mut path = temp_path.as_path().to_owned();
+		path.push("pruning");
+		path.push("db");
+
+		let spec = get_test_spec();
 		let service = ClientService::start(
 			ClientConfig::default(),
-			get_test_spec(),
-			temp_path.as_path(),
-			Arc::new(Miner::with_spec(get_test_spec())),
+			&spec,
+			&path,
+			Arc::new(Miner::with_spec(&spec)),
 		);
 		assert!(service.is_ok());
 	}

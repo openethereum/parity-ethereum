@@ -30,11 +30,12 @@ pub fn run_test_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_p
 	let socket_path = socket_path.to_owned();
 	scope.spawn(move || {
 		let temp = RandomTempPath::create_dir();
+		let spec = get_test_spec();
 		let client = Client::new(
 			ClientConfig::default(),
-			get_test_spec(),
+			&spec,
 			temp.as_path(),
-			Arc::new(Miner::with_spec(get_test_spec())),
+			Arc::new(Miner::with_spec(&spec)),
 			IoChannel::disconnected()).unwrap();
 		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
 		worker.add_reqrep(&socket_path).unwrap();

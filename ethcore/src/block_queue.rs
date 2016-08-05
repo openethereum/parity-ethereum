@@ -80,7 +80,7 @@ impl BlockQueueInfo {
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
 	panic_handler: Arc<PanicHandler>,
-	engine: Arc<Box<Engine>>,
+	engine: Arc<Engine>,
 	more_to_verify: Arc<SCondvar>,
 	verification: Arc<Verification>,
 	verifiers: Vec<JoinHandle<()>>,
@@ -140,7 +140,7 @@ struct Verification {
 
 impl BlockQueue {
 	/// Creates a new queue instance.
-	pub fn new(config: BlockQueueConfig, engine: Arc<Box<Engine>>, message_channel: IoChannel<ClientIoMessage>) -> BlockQueue {
+	pub fn new(config: BlockQueueConfig, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> BlockQueue {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
 			verified: Mutex::new(VecDeque::new()),
@@ -196,7 +196,7 @@ impl BlockQueue {
 		}
 	}
 
-	fn verify(verification: Arc<Verification>, engine: Arc<Box<Engine>>, wait: Arc<SCondvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<SCondvar>) {
+	fn verify(verification: Arc<Verification>, engine: Arc<Engine>, wait: Arc<SCondvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<SCondvar>) {
 		while !deleting.load(AtomicOrdering::Acquire) {
 			{
 				let mut more_to_verify = verification.more_to_verify.lock().unwrap();
@@ -226,7 +226,7 @@ impl BlockQueue {
 			};
 
 			let block_hash = block.header.hash();
-			match verify_block_unordered(block.header, block.bytes, &**engine) {
+			match verify_block_unordered(block.header, block.bytes, &*engine) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
 					for e in verifying.iter_mut() {
@@ -319,7 +319,7 @@ impl BlockQueue {
 			}
 		}
 
-		match verify_block_basic(&header, &bytes, &**self.engine) {
+		match verify_block_basic(&header, &bytes, &*self.engine) {
 			Ok(()) => {
 				self.processing.write().insert(h.clone());
 				self.verification.unverified.lock().push_back(UnverifiedBlock { header: header, bytes: bytes });
@@ -340,7 +340,7 @@ impl BlockQueue {
 			return;
 		}
 		let mut verified_lock = self.verification.verified.lock();
-		let mut verified = verified_lock.deref_mut();
+		let mut verified = &mut *verified_lock;
 		let mut bad = self.verification.bad.lock();
 		let mut processing = self.processing.write();
 		bad.reserve(block_hashes.len());
@@ -460,7 +460,7 @@ mod tests {
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
 		let engine = spec.engine;
-		BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected())
+		BlockQueue::new(BlockQueueConfig::default(), engine, IoChannel::disconnected())
 	}
 
 	#[test]
@@ -468,7 +468,7 @@ mod tests {
 		// TODO better test
 		let spec = Spec::new_test();
 		let engine = spec.engine;
-		let _ = BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected());
+		let _ = BlockQueue::new(BlockQueueConfig::default(), engine, IoChannel::disconnected());
 	}
 
 	#[test]
@@ -531,7 +531,7 @@ mod tests {
 		let engine = spec.engine;
 		let mut config = BlockQueueConfig::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
-		let queue = BlockQueue::new(config, Arc::new(engine), IoChannel::disconnected());
+		let queue = BlockQueue::new(config, engine, IoChannel::disconnected());
 		assert!(!queue.queue_info().is_full());
 		let mut blocks = get_good_dummy_block_seq(50);
 		for b in blocks.drain(..) {
