@@ -35,7 +35,7 @@ pub enum ChainEra {
 }
 
 pub struct TestEngine {
-	engine: Box<Engine>,
+	engine: Arc<Engine>,
 	max_depth: usize
 }
 
@@ -133,7 +133,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	let dir = RandomTempPath::new();
 
 	let test_spec = get_test_spec();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::with_spec(get_test_spec())), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), &get_test_spec(), dir.as_path(), Arc::new(Miner::with_spec(get_test_spec())), IoChannel::disconnected()).unwrap();
 	let test_engine = &test_spec.engine;
 
 	let mut db_result = get_temp_journal_db();
@@ -232,7 +232,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), Arc::new(Miner::with_spec(get_test_spec())), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), &get_test_spec(), dir.as_path(), Arc::new(Miner::with_spec(get_test_spec())), IoChannel::disconnected()).unwrap();
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");

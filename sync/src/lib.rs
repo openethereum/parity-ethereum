@@ -51,7 +51,7 @@
 //! 	);
 //! 	let client = Client::new(
 //!			ClientConfig::default(),
-//!			ethereum::new_frontier(),
+//!			&ethereum::new_frontier(),
 //!			&dir,
 //!			miner,
 //!			IoChannel::disconnected()

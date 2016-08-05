@@ -111,7 +111,7 @@ impl EthTester {
 		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
 		let miner_service = miner_service(spec_provider(), account_provider.clone());
-		let client = Client::new(ClientConfig::default(), spec_provider(), dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
+		let client = Client::new(ClientConfig::default(), &spec_provider(), dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
 		let sync_provider = sync_provider();
 		let external_miner = Arc::new(ExternalMiner::default());
 

@@ -29,6 +29,7 @@ use std::cell::RefCell;
 
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(test, derive(Default))]
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,
@@ -60,7 +61,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine: Box<Engine>,
+	pub engine: Arc<Engine>,
 	/// The fork identifier for this chain. Only needed to distinguish two chains sharing the same genesis.
 	pub fork_name: Option<String>,
 
@@ -130,14 +131,14 @@ impl From<ethjson::spec::Spec> for Spec {
 }
 
 impl Spec {
-	/// Convert engine spec into a boxed Engine of the right underlying type.
+	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
-	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Box<Engine> {
+	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Engine> {
 		match engine_spec {
-			ethjson::spec::Engine::Null => Box::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal => Box::new(InstantSeal::new(params, builtins)),
-			ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
-			ethjson::spec::Engine::BasicAuthority(basic_authority) => Box::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
+			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
+			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
+			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
+			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 		}
 	}
 

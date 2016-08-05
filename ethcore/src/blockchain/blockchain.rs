@@ -533,6 +533,116 @@ impl BlockChain {
 		}
 	}
 
+	/// Inserts a verified, known block from the canonical chain.
+	///
+	/// Can be performed out-of-order, but care must be taken that the final chain is in a correct state.
+	/// This is used by snapshot restoration.
+	///
+	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
+	/// Returns true if the block is disconnected.
+	pub fn insert_snapshot_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool) -> bool {
+		let block = BlockView::new(bytes);
+		let header = block.header_view();
+		let hash = header.sha3();
+
+		if self.is_known(&hash) {
+			return false;
+		}
+
+		assert!(self.pending_best_block.read().is_none());
+
+		let batch = self.db.transaction();
+
+		let block_rlp = UntrustedRlp::new(bytes);
+		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
+		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
+
+		// store block in db
+		batch.put(DB_COL_HEADERS, &hash, &compressed_header).unwrap();
+		batch.put(DB_COL_BODIES, &hash, &compressed_body).unwrap();
+
+		let maybe_parent = self.block_details(&header.parent_hash());
+
+		if let Some(parent_details) = maybe_parent {
+			// parent known to be in chain.
+			let info = BlockInfo {
+				hash: hash,
+				number: header.number(),
+				total_difficulty: parent_details.total_difficulty + header.difficulty(),
+				location: BlockLocation::CanonChain,
+			};
+
+			self.prepare_update(&batch, ExtrasUpdate {
+				block_hashes: self.prepare_block_hashes_update(bytes, &info),
+				block_details: self.prepare_block_details_update(bytes, &info),
+				block_receipts: self.prepare_block_receipts_update(receipts, &info),
+				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
+				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+				info: info,
+				block: bytes
+			}, is_best);
+			self.db.write(batch).unwrap();
+
+			false
+		} else {
+			// parent not in the chain yet. we need the parent difficulty to proceed.
+			let d = parent_td
+				.expect("parent total difficulty always supplied for first block in chunk. only first block can have missing parent; qed");
+
+			let info = BlockInfo {
+				hash: hash,
+				number: header.number(),
+				total_difficulty: d + header.difficulty(),
+				location: BlockLocation::CanonChain,
+			};
+
+			let block_details = BlockDetails {
+				number: header.number(),
+				total_difficulty: info.total_difficulty,
+				parent: header.parent_hash(),
+				children: Vec::new(),
+			};
+
+			let mut update = HashMap::new();
+			update.insert(hash, block_details);
+
+			self.prepare_update(&batch, ExtrasUpdate {
+				block_hashes: self.prepare_block_hashes_update(bytes, &info),
+				block_details: update,
+				block_receipts: self.prepare_block_receipts_update(receipts, &info),
+				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
+				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+				info: info,
+				block: bytes,
+			}, is_best);
+			self.db.write(batch).unwrap();
+
+			true
+		}
+	}
+
+	/// Add a child to a given block. Assumes that the block hash is in
+	/// the chain and the child's parent is this block.
+	///
+	/// Used in snapshots to glue the chunks together at the end.
+	pub fn add_child(&self, block_hash: H256, child_hash: H256) {
+		let mut parent_details = self.block_details(&block_hash)
+			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
+
+		let batch = self.db.transaction();
+		parent_details.children.push(child_hash);
+
+		let mut update = HashMap::new();
+		update.insert(block_hash, parent_details);
+
+		self.note_used(CacheID::BlockDetails(block_hash));
+
+		let mut write_details = self.block_details.write();
+		batch.extend_with_cache(DB_COL_EXTRA, &mut *write_details, update, CacheUpdatePolicy::Overwrite);
+
+		self.db.write(batch).unwrap();
+	}
+
 	#[cfg_attr(feature="dev", allow(similar_names))]
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
@@ -572,7 +682,7 @@ impl BlockChain {
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			info: info.clone(),
 			block: bytes,
-		});
+		}, true);
 
 		ImportRoute::from(info)
 	}
@@ -618,7 +728,7 @@ impl BlockChain {
 	}
 
 	/// Prepares extras update.
-	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate) {
+	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate, is_best: bool) {
 		{
 			for hash in update.block_details.keys().cloned() {
 				self.note_used(CacheID::BlockDetails(hash));
@@ -645,7 +755,7 @@ impl BlockChain {
 			// update best block
 			match update.info.location {
 				BlockLocation::Branch => (),
-				_ => {
+				_ => if is_best {
 					batch.put(DB_COL_EXTRA, b"best", &update.info.hash).unwrap();
 					*best_block = Some(BestBlock {
 						hash: update.info.hash,
@@ -653,9 +763,8 @@ impl BlockChain {
 						total_difficulty: update.info.total_difficulty,
 						block: update.block.to_vec(),
 					});
-				}
+				},
 			}
-
 			let mut write_hashes = self.pending_block_hashes.write();
 			let mut write_txs = self.pending_transaction_addresses.write();
 
@@ -745,6 +854,7 @@ impl BlockChain {
 	}
 
 	/// This function returns modified block details.
+	/// Uses the given parent details or attempts to load them from the database.
 	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlockDetails> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();

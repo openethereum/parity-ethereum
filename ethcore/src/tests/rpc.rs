@@ -32,7 +32,7 @@ pub fn run_test_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_p
 		let temp = RandomTempPath::create_dir();
 		let client = Client::new(
 			ClientConfig::default(),
-			get_test_spec(),
+			&get_test_spec(),
 			temp.as_path(),
 			Arc::new(Miner::with_spec(get_test_spec())),
 			IoChannel::disconnected()).unwrap();

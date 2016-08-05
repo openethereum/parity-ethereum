@@ -171,7 +171,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
 
-	// create client
+	// create client service.
 	let service = try!(ClientService::start(
 		client_config,
 		spec,
