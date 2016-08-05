@@ -29,7 +29,7 @@ use ethcore::miner::{MinerOptions, GasPricer, MinerService, ExternalMiner, Miner
 use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
-use util::io::IoChannel;
+use io::IoChannel;
 use util::{U256, H256, Uint};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;

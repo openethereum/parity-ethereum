@@ -17,7 +17,7 @@
 //! Creates and registers client and network services.
 
 use util::*;
-use util::panics::*;
+use io::*;
 use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};

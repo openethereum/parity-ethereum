@@ -19,8 +19,8 @@ use std::mem;
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use crossbeam::sync::chase_lev;
-use io::service::{HandlerId, IoChannel, IoContext};
-use io::{IoHandler};
+use service::{HandlerId, IoChannel, IoContext};
+use IoHandler;
 use panics::*;
 
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};

@@ -48,6 +48,7 @@ extern crate env_logger;
 extern crate rand;
 
 extern crate ethcore_util as util;
+extern crate ethcore_io as io;
 extern crate ethcore_rpc as rpc;
 extern crate jsonrpc_core;
 extern crate ws;
