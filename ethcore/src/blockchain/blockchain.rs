@@ -540,7 +540,7 @@ impl BlockChain {
 	///
 	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
 	/// Returns true if the block is disconnected.
-	pub fn insert_snapshot_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_diff: Option<U256>, is_best: bool) -> bool {
+	pub fn insert_snapshot_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool) -> bool {
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 		let hash = header.sha3();
@@ -586,8 +586,8 @@ impl BlockChain {
 			false
 		} else {
 			// parent not in the chain yet. we need the parent difficulty to proceed.
-			let d = parent_diff
-				.expect("parent difficulty always supplied for first block in chunk. only first block can have missing parent; qed");
+			let d = parent_td
+				.expect("parent total difficulty always supplied for first block in chunk. only first block can have missing parent; qed");
 
 			let info = BlockInfo {
 				hash: hash,

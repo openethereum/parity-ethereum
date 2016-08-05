@@ -500,7 +500,7 @@ impl BlockRebuilder {
 		// todo: assert here that these values are consistent with chunks being in order.
 		let mut cur_number = try!(rlp.val_at::<u64>(0)) + 1;
 		let mut parent_hash = try!(rlp.val_at::<H256>(1));
-		let parent_difficulty = try!(rlp.val_at::<U256>(2));
+		let parent_total_difficulty = try!(rlp.val_at::<U256>(2));
 
 		for idx in 3..item_count {
 			let pair = try!(rlp.at(idx));
@@ -520,7 +520,7 @@ impl BlockRebuilder {
 
 			// special-case the first block in each chunk.
 			if idx == 3 {
-				if self.chain.insert_snapshot_block(&block_bytes, receipts, Some(parent_difficulty), is_best) {
+				if self.chain.insert_snapshot_block(&block_bytes, receipts, Some(parent_total_difficulty), is_best) {
 					self.disconnected.push((cur_number, block.header.hash()));
 				}
 			} else {
