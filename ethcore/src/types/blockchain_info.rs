@@ -23,7 +23,7 @@ use std::mem;
 use std::collections::VecDeque;
 
 /// Information about the blockchain gathered together.
-#[derive(Debug, Binary)]
+#[derive(Clone, Debug, Binary)]
 pub struct BlockChainInfo {
 	/// Blockchain difficulty.
 	pub total_difficulty: U256,

@@ -53,8 +53,9 @@ pub use self::ethcore_set::EthcoreSetClient;
 pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
 
+use serde;
 use v1::helpers::TransactionRequest;
-use v1::types::{H256 as RpcH256, H520 as RpcH520};
+use v1::types::{H256 as RpcH256, H520 as RpcH520, BlockNumber};
 use ethcore::error::Error as EthcoreError;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
@@ -63,7 +64,7 @@ use ethcore::account_provider::{AccountProvider, Error as AccountError};
 use util::numbers::*;
 use util::rlp::encode;
 use util::bytes::ToPretty;
-use jsonrpc_core::{Error, ErrorCode, Value, to_value};
+use jsonrpc_core::{Error, ErrorCode, Value, to_value, from_params, Params};
 
 mod error_codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -78,6 +79,30 @@ mod error_codes {
 	pub const REQUEST_REJECTED: i64 = -32040;
 	pub const REQUEST_NOT_FOUND: i64 = -32041;
 }
+
+fn params_len(params: &Params) -> usize {
+	match params {
+		&Params::Array(ref vec) => vec.len(),
+		_ => 0,
+	}
+}
+
+/// Deserialize request parameters with optional second parameter `BlockNumber` defaulting to `BlockNumber::Latest`.
+pub fn from_params_default_second<F>(params: Params) -> Result<(F, BlockNumber, ), Error> where F: serde::de::Deserialize {
+	match params_len(&params) {
+		1 => from_params::<(F, )>(params).map(|(f,)| (f, BlockNumber::Latest)),
+		_ => from_params::<(F, BlockNumber)>(params),
+	}
+}
+
+/// Deserialize request parameters with optional third parameter `BlockNumber` defaulting to `BlockNumber::Latest`.
+pub fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNumber, ), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
+	match params_len(&params) {
+		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
+		_ => from_params::<(F1, F2, BlockNumber)>(params)
+	}
+}
+
 
 fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
 	where C: MiningBlockChainClient, M: MinerService {

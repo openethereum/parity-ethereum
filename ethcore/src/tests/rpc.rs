@@ -24,7 +24,7 @@ use tests::helpers::*;
 use devtools::*;
 use miner::Miner;
 use crossbeam;
-use common::IoChannel;
+use io::IoChannel;
 
 pub fn run_test_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_path: &str) {
 	let socket_path = socket_path.to_owned();
@@ -32,7 +32,7 @@ pub fn run_test_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_p
 		let temp = RandomTempPath::create_dir();
 		let client = Client::new(
 			ClientConfig::default(),
-			get_test_spec(),
+			&get_test_spec(),
 			temp.as_path(),
 			Arc::new(Miner::with_spec(get_test_spec())),
 			IoChannel::disconnected()).unwrap();

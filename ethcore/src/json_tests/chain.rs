@@ -24,6 +24,7 @@ use spec::Genesis;
 use ethjson;
 use ethjson::blockchain::BlockChain;
 use miner::Miner;
+use io::IoChannel;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();
@@ -60,7 +61,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 			{
 				let client = Client::new(
 					ClientConfig::default(),
-					spec(&blockchain),
+					&spec(&blockchain),
 					temp.as_path(),
 					Arc::new(Miner::with_spec(spec(&blockchain))),
 					IoChannel::disconnected()

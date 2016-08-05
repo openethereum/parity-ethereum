@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use io::IoError;
-use crypto::CryptoError;
-use rlp::*;
+use util::crypto::CryptoError;
+use util::rlp::*;
+use util::UtilError;
 use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -94,8 +95,16 @@ pub enum NetworkError {
 	PeerNotFound,
 	/// Peer is diconnected.
 	Disconnect(DisconnectReason),
+	/// Util error.
+	Util(UtilError),
 	/// Socket IO error.
 	Io(IoError),
+	/// Error concerning the network address parsing subsystem.
+	AddressParse(::std::net::AddrParseError),
+	/// Error concerning the network address resolution subsystem.
+	AddressResolve(Option<::std::io::Error>),
+	/// Error concerning the Rust standard library's IO subsystem.
+	StdIo(::std::io::Error),
 }
 
 impl fmt::Display for NetworkError {
@@ -109,6 +118,11 @@ impl fmt::Display for NetworkError {
 			PeerNotFound => "Peer not found".into(),
 			Disconnect(ref reason) => format!("Peer disconnected: {}", reason),
 			Io(ref err) => format!("Socket I/O error: {}", err),
+			AddressParse(ref err) => format!("{}", err),
+			AddressResolve(Some(ref err)) => format!("{}", err),
+			AddressResolve(_) => "Failed to resolve network address.".into(),
+			StdIo(ref err) => format!("{}", err),
+			Util(ref err) => format!("{}", err),
 		};
 
 		f.write_fmt(format_args!("Network error ({})", msg))
@@ -121,15 +135,33 @@ impl From<DecoderError> for NetworkError {
 	}
 }
 
+impl From<::std::io::Error> for NetworkError {
+	fn from(err: ::std::io::Error) -> NetworkError {
+		NetworkError::StdIo(err)
+	}
+}
+
 impl From<IoError> for NetworkError {
 	fn from(err: IoError) -> NetworkError {
 		NetworkError::Io(err)
 	}
 }
 
+impl From<UtilError> for NetworkError {
+	fn from(err: UtilError) -> NetworkError {
+		NetworkError::Util(err)
+	}
+}
+
 impl From<CryptoError> for NetworkError {
 	fn from(_err: CryptoError) -> NetworkError {
 		NetworkError::Auth
+	}
+}
+
+impl From<::std::net::AddrParseError> for NetworkError {
+	fn from(err: ::std::net::AddrParseError) -> NetworkError {
+		NetworkError::AddressParse(err)
 	}
 }
 

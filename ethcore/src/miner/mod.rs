@@ -27,7 +27,6 @@
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! use std::env;
-//! use util::network::{NetworkService, NetworkConfiguration};
 //! use ethcore::ethereum;
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethcore::miner::{Miner, MinerService};
@@ -58,7 +57,7 @@ use util::{H256, U256, Address, Bytes};
 use client::{MiningBlockChainClient, Executed, CallAnalytics};
 use block::ClosedBlock;
 use receipt::Receipt;
-use error::{Error, ExecutionError};
+use error::{Error, CallError};
 use transaction::SignedTransaction;
 
 /// Miner client API
@@ -163,7 +162,7 @@ pub trait MinerService : Send + Sync {
 	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
 
 	/// Call into contract code using pending state.
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, ExecutionError>;
+	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
 	/// Get storage value in pending state.
 	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256;

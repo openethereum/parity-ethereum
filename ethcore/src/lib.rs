@@ -77,6 +77,7 @@
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate ethcore_util as util;
+extern crate ethcore_io as io;
 #[macro_use] extern crate lazy_static;
 extern crate rustc_serialize;
 #[macro_use] extern crate heapsize;
@@ -95,6 +96,7 @@ pub extern crate ethstore;
 extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_devtools as devtools;
+extern crate rand;
 extern crate bit_set;
 
 #[cfg(feature = "jit" )] extern crate evmjit;

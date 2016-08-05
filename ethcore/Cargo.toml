@@ -28,11 +28,13 @@ evmjit = { path = "../evmjit", optional = true }
 clippy = { version = "0.0.80", optional = true}
 ethash = { path = "../ethash" }
 ethcore-util = { path = "../util" }
+ethcore-io = { path = "../util/io" }
 ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethstore = { path = "../ethstore" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
+rand = "0.3"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"

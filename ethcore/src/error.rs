@@ -17,12 +17,15 @@
 //! General error types for use in ethcore.
 
 use util::*;
+use io::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use types::block_import_error::BlockImportError;
-pub use types::executed::{ExecutionError, ReplayError};
+use snapshot::Error as SnapshotError;
+
+pub use types::executed::{ExecutionError, CallError};
 
 #[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.
@@ -227,28 +230,34 @@ pub enum Error {
 	PowInvalid,
 	/// Error concerning TrieDBs
 	Trie(TrieError),
-	/// Io error.
-	Io(::std::io::Error),
+	/// Io crate error.
+	Io(IoError),
+	/// Standard io error.
+	StdIo(::std::io::Error),
 	/// Snappy error.
 	Snappy(::util::snappy::InvalidInput),
+	/// Snapshot error.
+	Snapshot(SnapshotError),
 }
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Error::Client(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::Util(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::Block(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::Execution(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::Transaction(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::Import(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::Client(ref err) => err.fmt(f),
+			Error::Util(ref err) => err.fmt(f),
+			Error::Io(ref err) => err.fmt(f),
+			Error::Block(ref err) => err.fmt(f),
+			Error::Execution(ref err) => err.fmt(f),
+			Error::Transaction(ref err) => err.fmt(f),
+			Error::Import(ref err) => err.fmt(f),
 			Error::UnknownEngineName(ref name) =>
 				f.write_fmt(format_args!("Unknown engine name ({})", name)),
 			Error::PowHashInvalid => f.write_str("Invalid or out of date PoW hash."),
 			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
-			Error::Trie(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::Io(ref err) => f.write_fmt(format_args!("{}", err)),
-			Error::Snappy(ref err) => f.write_fmt(format_args!("{}", err)),
+			Error::Trie(ref err) => err.fmt(f),
+			Error::StdIo(ref err) => err.fmt(f),
+			Error::Snappy(ref err) => err.fmt(f),
+			Error::Snapshot(ref err) => err.fmt(f),
 		}
 	}
 }
@@ -309,7 +318,7 @@ impl From<UtilError> for Error {
 
 impl From<IoError> for Error {
 	fn from(err: IoError) -> Error {
-		Error::Util(From::from(err))
+		Error::Io(err)
 	}
 }
 
@@ -321,13 +330,7 @@ impl From<TrieError> for Error {
 
 impl From<::std::io::Error> for Error {
 	fn from(err: ::std::io::Error) -> Error {
-		Error::Io(err)
-	}
-}
-
-impl From<::util::snappy::InvalidInput> for Error {
-	fn from(err: ::util::snappy::InvalidInput) -> Error {
-		Error::Snappy(err)
+		Error::StdIo(err)
 	}
 }
 
@@ -337,6 +340,23 @@ impl From<BlockImportError> for Error {
 			BlockImportError::Block(e) => Error::Block(e),
 			BlockImportError::Import(e) => Error::Import(e),
 			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
+		}
+	}
+}
+
+impl From<snappy::InvalidInput> for Error {
+	fn from(err: snappy::InvalidInput) -> Error {
+		Error::Snappy(err)
+	}
+}
+
+impl From<SnapshotError> for Error {
+	fn from(err: SnapshotError) -> Error {
+		match err {
+			SnapshotError::Io(err) => Error::StdIo(err),
+			SnapshotError::Trie(err) => Error::Trie(err),
+			SnapshotError::Decoder(err) => err.into(),
+			other => Error::Snapshot(other),
 		}
 	}
 }
