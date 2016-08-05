@@ -50,7 +50,7 @@ impl Deprecated {
 	}
 
 	fn dapps_off() -> Self {
-		Deprecated::Replaced("--dapps-off", "--no-daps")
+		Deprecated::Replaced("--dapps-off", "--no-dapps")
 	}
 
 	fn ipcdisable() -> Self {
