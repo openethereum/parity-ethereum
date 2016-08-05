@@ -18,7 +18,7 @@
 
 use std::fmt;
 use std::collections::HashMap;
-use util::{Address as H160, H256, H520, RwLock};
+use util::{H160, H256, H520, RwLock};
 use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
 use ethstore::dir::{KeyDirectory};
 use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret, Random, Generator};

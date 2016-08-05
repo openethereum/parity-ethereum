@@ -168,6 +168,8 @@ pub use log::*;
 pub use kvdb::*;
 pub use timer::*;
 
+pub type Address = H160;
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;

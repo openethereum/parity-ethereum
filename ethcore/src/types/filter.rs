@@ -16,14 +16,13 @@
 
 //! Blockchain filter
 
-use util::hash::*;
-use util::sha3::*;
+use std::mem;
+use std::collections::VecDeque;
+use util::{Address, H256, Hashable, H2048};
 use util::bloom::Bloomable;
 use client::BlockID;
 use log_entry::LogEntry;
 use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 /// Blockchain Filter.
 #[derive(Binary)]
@@ -74,11 +73,11 @@ impl Filter {
 		let blooms = match self.address {
 			Some(ref addresses) if !addresses.is_empty() =>
 				addresses.iter().map(|ref address| {
-					let mut bloom = H2048::new();
+					let mut bloom = H2048::default();
 					bloom.shift_bloomed(&address.sha3());
 					bloom
 				}).collect(),
-			_ => vec![H2048::new()]
+			_ => vec![H2048::default()]
 		};
 
 		self.topics.iter().fold(blooms, |bs, topic| match *topic {

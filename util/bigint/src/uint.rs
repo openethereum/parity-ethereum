@@ -36,14 +36,11 @@
 //! The functions here are designed to be fast.
 //!
 
-use std::mem;
-use std::fmt;
+use std::{mem, fmt};
 use std::str::{FromStr};
-use std::convert::From;
 use std::hash::Hash;
-use std::ops::*;
-use std::cmp::*;
-
+use std::ops::{Shr, Shl, BitAnd, BitOr, BitXor, Not, Div, Rem, Mul, Add, Sub};
+use std::cmp::Ordering;
 use rustc_serialize::hex::{FromHex, FromHexError};
 
 /// Conversion from decimal string error
