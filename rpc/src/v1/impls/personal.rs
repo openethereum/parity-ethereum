@@ -33,16 +33,18 @@ pub struct PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService
 	client: Weak<C>,
 	miner: Weak<M>,
 	signer_port: Option<u16>,
+	allow_perm_unlock: bool,
 }
 
 impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, signer_port: Option<u16>) -> Self {
+	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, signer_port: Option<u16>, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			signer_port: signer_port,
+			allow_perm_unlock: allow_perm_unlock,
 		}
 	}
 
@@ -89,11 +91,17 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 
 	fn unlock_account(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(RpcH160, String, u64)>(params).and_then(
-			|(account, account_pass, _)|{
+		from_params::<(RpcH160, String, Option<u64>)>(params).and_then(
+			|(account, account_pass, duration)|{
 				let account: Address = account.into();
 				let store = take_weak!(self.accounts);
-				match store.unlock_account_temporarily(account, account_pass) {
+				let r = match (self.allow_perm_unlock, duration) {
+					(false, _) => store.unlock_account_temporarily(account, account_pass),
+					(true, Some(0)) => store.unlock_account_permanently(account, account_pass),
+					(true, Some(d)) => store.unlock_account_timed(account, account_pass, d as u32 * 1000),
+					(true, None) => store.unlock_account_timed(account, account_pass, 300_000),
+				};
+				match r {
 					Ok(_) => Ok(Value::Bool(true)),
 					Err(_) => Ok(Value::Bool(false)),
 				}
