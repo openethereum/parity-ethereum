@@ -44,8 +44,7 @@ use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, Index, Filter, Log, Receipt, H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256};
 use v1::helpers::CallRequest as CRequest;
-use v1::impls::{default_gas_price, dispatch_transaction, error_codes};
-use serde;
+use v1::impls::{default_gas_price, dispatch_transaction, error_codes, from_params_default_second, from_params_default_third};
 
 /// Eth RPC options
 pub struct EthClientOptions {
@@ -214,27 +213,6 @@ pub fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: M
 }
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
-
-fn params_len(params: &Params) -> usize {
-	match params {
-		&Params::Array(ref vec) => vec.len(),
-		_ => 0,
-	}
-}
-
-fn from_params_default_second<F>(params: Params) -> Result<(F, BlockNumber, ), Error> where F: serde::de::Deserialize {
-	match params_len(&params) {
-		1 => from_params::<(F, )>(params).map(|(f,)| (f, BlockNumber::Latest)),
-		_ => from_params::<(F, BlockNumber)>(params),
-	}
-}
-
-fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNumber, ), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
-	match params_len(&params) {
-		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
-		_ => from_params::<(F1, F2, BlockNumber)>(params)
-	}
-}
 
 fn make_unsupported_err() -> Error {
 	Error {
@@ -656,8 +634,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
 					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, Default::default()),
-					BlockNumber::Latest => take_weak!(self.client).call(&signed, Default::default()),
-					_ => panic!("{:?}", block_number),
+					block_number => take_weak!(self.client).call(&signed, block_number.into(), Default::default()),
 				};
 				to_value(&r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
 			})
@@ -671,8 +648,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
 					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, Default::default()),
-					BlockNumber::Latest => take_weak!(self.client).call(&signed, Default::default()),
-					_ => return Err(Error::invalid_params()),
+					block => take_weak!(self.client).call(&signed, block.into(), Default::default()),
 				};
 				to_value(&RpcU256::from(r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0))))
 			})

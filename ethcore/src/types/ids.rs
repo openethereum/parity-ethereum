@@ -23,7 +23,7 @@ use std::mem;
 use std::collections::VecDeque;
 
 /// Uniquely identifies block.
-#[derive(Debug, PartialEq, Clone, Hash, Eq, Binary)]
+#[derive(Debug, PartialEq, Copy, Clone, Hash, Eq, Binary)]
 pub enum BlockID {
 	/// Block's sha3.
 	/// Querying by hash is always faster.

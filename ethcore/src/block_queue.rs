@@ -226,7 +226,7 @@ impl BlockQueue {
 			};
 
 			let block_hash = block.header.hash();
-			match verify_block_unordered(block.header, block.bytes, engine.deref().deref()) {
+			match verify_block_unordered(block.header, block.bytes, &**engine) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
 					for e in verifying.iter_mut() {
@@ -319,7 +319,7 @@ impl BlockQueue {
 			}
 		}
 
-		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
+		match verify_block_basic(&header, &bytes, &**self.engine) {
 			Ok(()) => {
 				self.processing.write().insert(h.clone());
 				self.verification.unverified.lock().push_back(UnverifiedBlock { header: header, bytes: bytes });
