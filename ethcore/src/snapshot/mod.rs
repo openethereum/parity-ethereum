@@ -23,6 +23,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
+use ids::BlockID;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
@@ -92,16 +93,16 @@ impl Progress {
 	pub fn done(&self) -> bool  { self.done.load(Ordering::SeqCst) }
 
 }
-
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
 	chain: &BlockChain,
-	start_block_hash: H256,
+	block_at: H256,
 	state_db: &HashDB,
 	writer: W,
 	p: &Progress
 ) -> Result<(), Error> {
-	let start_header = try!(chain.block_header(&start_block_hash).ok_or(Error::InvalidStartingBlock(start_block_hash)));
+	let start_header = try!(chain.block_header(&block_at)
+		.ok_or(Error::InvalidStartingBlock(BlockID::Hash(block_at))));
 	let state_root = start_header.state_root();
 	let number = start_header.number();
 
@@ -109,7 +110,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	let writer = Mutex::new(writer);
 	let (state_hashes, block_hashes) = try!(scope(|scope| {
-		let block_guard = scope.spawn(|| chunk_blocks(chain, (number, start_block_hash), &writer, p));
+		let block_guard = scope.spawn(|| chunk_blocks(chain, (number, block_at), &writer, p));
 		let state_res = chunk_state(state_db, state_root, &writer, p);
 
 		state_res.and_then(|state_hashes| {
@@ -124,7 +125,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		block_hashes: block_hashes,
 		state_root: *state_root,
 		block_number: number,
-		block_hash: start_block_hash,
+		block_hash: block_at,
 	};
 
 	try!(writer.into_inner().finish(manifest_data));
@@ -245,8 +246,7 @@ pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), wr
 		chain.genesis_hash()
 	} else {
 		let first_num = start_number - SNAPSHOT_BLOCKS;
-		chain.block_hash(first_num)
-			.expect("number before best block number; whole chain is stored; qed")
+		try!(chain.block_hash(first_num).ok_or(Error::IncompleteChain))
 	};
 
 	let mut chunker = BlockChunker {

@@ -171,6 +171,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Take,
+				block_at: to_block_id(&self.args.flag_to).ok(),
 			};
 			Cmd::Snapshot(snapshot_cmd)
 		} else if self.args.cmd_restore {
@@ -186,6 +187,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Restore,
+				block_at: to_block_id(&self.args.flag_to).ok(),
 			};
 			Cmd::Snapshot(restore_cmd)
 		} else {

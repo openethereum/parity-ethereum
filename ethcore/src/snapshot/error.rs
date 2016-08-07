@@ -18,6 +18,8 @@
 
 use std::fmt;
 
+use ids::BlockID;
+
 use util::H256;
 use util::trie::TrieError;
 use util::rlp::DecoderError;
@@ -26,9 +28,11 @@ use util::rlp::DecoderError;
 #[derive(Debug)]
 pub enum Error {
 	/// Invalid starting block for snapshot.
-	InvalidStartingBlock(H256),
+	InvalidStartingBlock(BlockID),
 	/// Block not found.
 	BlockNotFound(H256),
+	/// Incomplete chain.
+	IncompleteChain,
 	/// Trie error.
 	Trie(TrieError),
 	/// Decoder error.
@@ -40,8 +44,9 @@ pub enum Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Error::InvalidStartingBlock(ref hash) => write!(f, "Invalid starting block hash: {}", hash),
+			Error::InvalidStartingBlock(ref id) => write!(f, "Invalid starting block: {:?}", id),
 			Error::BlockNotFound(ref hash) => write!(f, "Block not found in chain: {}", hash),
+			Error::IncompleteChain => write!(f, "Cannot create snapshot due to incomplete chain."),
 			Error::Io(ref err) => err.fmt(f),
 			Error::Decoder(ref err) => err.fmt(f),
 			Error::Trie(ref err) => err.fmt(f),
