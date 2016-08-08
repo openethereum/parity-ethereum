@@ -133,7 +133,7 @@ enum CacheID {
 impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.note_used(CacheID::BlocksBlooms(position.clone()));
 		self.db.read_with_cache(DB_COL_EXTRA, &self.blocks_blooms, &position).map(Into::into)
 	}
@@ -161,7 +161,7 @@ pub struct BlockChain {
 
 	db: Arc<Database>,
 
-	cache_man: RwLock<CacheManager<CacheID>>,
+	cache_man: Mutex<CacheManager<CacheID>>,
 
 	pending_best_block: RwLock<Option<BestBlock>>,
 	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
@@ -212,7 +212,7 @@ impl BlockProvider for BlockChain {
 		let opt = self.db.get(DB_COL_HEADERS, hash)
 			.expect("Low level database error. Some issue with disk?");
 
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.note_used(CacheID::BlockHeader(hash.clone()));
 
 		match opt {
@@ -248,7 +248,7 @@ impl BlockProvider for BlockChain {
 		let opt = self.db.get(DB_COL_BODIES, hash)
 			.expect("Low level database error. Some issue with disk?");
 
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.note_used(CacheID::BlockBody(hash.clone()));
 
 		match opt {
@@ -264,28 +264,28 @@ impl BlockProvider for BlockChain {
 
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.note_used(CacheID::BlockDetails(hash.clone()));
 		self.db.read_with_cache(DB_COL_EXTRA, &self.block_details, hash)
 	}
 
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.note_used(CacheID::BlockHashes(index));
 		self.db.read_with_cache(DB_COL_EXTRA, &self.block_hashes, &index)
 	}
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.note_used(CacheID::TransactionAddresses(hash.clone()));
 		self.db.read_with_cache(DB_COL_EXTRA, &self.transaction_addresses, hash)
 	}
 
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.note_used(CacheID::BlockReceipts(hash.clone()));
 		self.db.read_with_cache(DB_COL_EXTRA, &self.block_receipts, hash)
 	}
@@ -339,7 +339,7 @@ impl BlockChain {
 			blocks_blooms: RwLock::new(HashMap::new()),
 			block_receipts: RwLock::new(HashMap::new()),
 			db: db.clone(),
-			cache_man: RwLock::new(cache_man),
+			cache_man: Mutex::new(cache_man),
 			pending_best_block: RwLock::new(None),
 			pending_block_hashes: RwLock::new(HashMap::new()),
 			pending_transaction_addresses: RwLock::new(HashMap::new()),
@@ -642,7 +642,7 @@ impl BlockChain {
 		let mut update = HashMap::new();
 		update.insert(block_hash, parent_details);
 
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.note_used(CacheID::BlockDetails(block_hash));
 
 		let mut write_details = self.block_details.write();
@@ -739,7 +739,7 @@ impl BlockChain {
 	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate, is_best: bool) {
 		{
 			for hash in update.block_details.keys().cloned() {
-				let mut cache_man = self.cache_man.write();
+				let mut cache_man = self.cache_man.lock();
 				cache_man.note_used(CacheID::BlockDetails(hash));
 			}
 
@@ -995,7 +995,7 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		let mut cache_man = self.cache_man.write();
+		let mut cache_man = self.cache_man.lock();
 		cache_man.collect_garbage(|| self.cache_size().total(), | ids | {
 			let mut block_headers = self.block_headers.write();
 			let mut block_bodies = self.block_bodies.write();
