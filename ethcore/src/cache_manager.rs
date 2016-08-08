@@ -45,16 +45,19 @@ impl<T> CacheManager<T> where T: Eq + Hash {
 		}
 	}
 
-	pub fn collect_garbage<C, F>(&mut self, current_size: C, mut notify_unused: F) where C: Fn() -> usize, F: FnMut(HashSet<T>) {
-		if current_size() < self.pref_cache_size {
+	/// Collects unused objects from cache.
+	/// First params is the current size of the cache.
+	/// Second one is an with objects to remove. It should also return new size of the cache.
+	pub fn collect_garbage<F>(&mut self, current_size: usize, mut notify_unused: F) where F: FnMut(HashSet<T>) -> usize {
+		if current_size < self.pref_cache_size {
 			self.rotate_cache_if_needed();
 			return;
 		}
 
 		for _ in 0..COLLECTION_QUEUE_SIZE {
-			notify_unused(self.cache_usage.pop_back().unwrap());
+			let current_size = notify_unused(self.cache_usage.pop_back().unwrap());
 			self.cache_usage.push_front(Default::default());
-			if current_size() < self.max_cache_size {
+			if current_size < self.max_cache_size {
 				break;
 			}
 		}
