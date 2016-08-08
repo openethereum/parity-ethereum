@@ -169,8 +169,8 @@ mod tests {
 	fn should_return_false_if_hash_is_valid_but_time_is_invalid() {
 		// given
 		let code = "23521352asdfasdfadf";
-		let time = 105;
-		let time2 = 95;
+		let time = 107;
+		let time2 = 93;
 		let codes = AuthCodes::new(vec![code.into()], || 100);
 
 		// when
