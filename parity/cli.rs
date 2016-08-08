@@ -233,7 +233,9 @@ Import/Export Options:
 
 Snapshot Options:
   --at BLOCK               Take a snapshot at the given block, which may be an
-                           index, hash, or 'latest' [default: latest]
+                           index, hash, or 'latest'. Note that taking snapshots at
+                           non-recent blocks will only work with --pruning archive
+                           [default: latest]
 
 Virtual Machine Options:
   --jitvm                  Enable the JIT VM.
