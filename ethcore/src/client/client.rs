@@ -594,19 +594,35 @@ impl Client {
 		}
 	}
 
-	/// Take a snapshot.
-	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W) -> Result<(), ::error::Error> {
+	/// Take a snapshot at the given block.
+	/// If the ID given is "latest", this will default to 1000 blocks behind.
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockID, p: &snapshot::Progress) -> Result<(), ::error::Error> {
 		let db = self.state_db.lock().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
-		let start_block_number = if best_block_number > 1000 {
-			best_block_number - 1000
-		} else {
-			0
-		};
-		let start_hash = self.block_hash(BlockID::Number(start_block_number))
-			.expect("blocks within HISTORY are always stored.");
+		let block_number = try!(self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at)));
 
-		try!(snapshot::take_snapshot(&self.chain, start_hash, db.as_hashdb(), writer));
+		if best_block_number > HISTORY + block_number && db.is_pruned() {
+			return Err(snapshot::Error::OldBlockPrunedDB.into());
+		}
+
+		let start_hash = match at {
+			BlockID::Latest => {
+				let start_num = if best_block_number > 1000 {
+					best_block_number - 1000
+				} else {
+					0
+				};
+
+				self.block_hash(BlockID::Number(start_num))
+					.expect("blocks within HISTORY are always stored.")
+			}
+			_ => match self.block_hash(at) {
+				Some(hash) => hash,
+				None => return Err(snapshot::Error::InvalidStartingBlock(at).into()),
+			},
+		};
+
+		try!(snapshot::take_snapshot(&self.chain, start_hash, db.as_hashdb(), writer, p));
 
 		Ok(())
 	}
