@@ -18,6 +18,7 @@
 use std::collections::BTreeMap;
 use jsonrpc_core::*;
 use v1::traits::Rpc;
+use v1::helpers::params::expect_no_params;
 
 /// RPC generic methods implementation.
 pub struct RpcClient {
@@ -39,7 +40,8 @@ impl RpcClient {
 }
 
 impl Rpc for RpcClient {
-	fn rpc_modules(&self, _: Params) -> Result<Value, Error> {
+	fn rpc_modules(&self, params: Params) -> Result<Value, Error> {
+		try!(expect_no_params(params));
 		let modules = self.modules.iter()
 			.fold(BTreeMap::new(), |mut map, (k, v)| {
 				map.insert(k.to_owned(), Value::String(v.to_owned()));
@@ -48,7 +50,8 @@ impl Rpc for RpcClient {
 		Ok(Value::Object(modules))
 	}
 
-	fn modules(&self, _: Params) -> Result<Value, Error> {
+	fn modules(&self, params: Params) -> Result<Value, Error> {
+		try!(expect_no_params(params));
 		let modules = self.modules.iter()
 			.filter(|&(k, _v)| {
 				self.valid_apis.contains(k)

@@ -784,8 +784,8 @@ impl BlockChainClient for Client {
 		Self::block_hash(&self.chain, id)
 	}
 
-	fn code(&self, address: &Address) -> Option<Bytes> {
-		self.state().code(address)
+	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>> {
+		self.state_at(id).map(|s| s.code(address))
 	}
 
 	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {
