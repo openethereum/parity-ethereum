@@ -33,6 +33,8 @@ pub enum Error {
 	BlockNotFound(H256),
 	/// Incomplete chain.
 	IncompleteChain,
+	/// Old starting block in a pruned database.
+	OldBlockPrunedDB,
 	/// Trie error.
 	Trie(TrieError),
 	/// Decoder error.
@@ -47,6 +49,8 @@ impl fmt::Display for Error {
 			Error::InvalidStartingBlock(ref id) => write!(f, "Invalid starting block: {:?}", id),
 			Error::BlockNotFound(ref hash) => write!(f, "Block not found in chain: {}", hash),
 			Error::IncompleteChain => write!(f, "Cannot create snapshot due to incomplete chain."),
+			Error::OldBlockPrunedDB => write!(f, "Attempted to create a snapshot at an old block while using \
+				a pruned database. Please re-run with the --pruning archive flag."),
 			Error::Io(ref err) => err.fmt(f),
 			Error::Decoder(ref err) => err.fmt(f),
 			Error::Trie(ref err) => err.fmt(f),

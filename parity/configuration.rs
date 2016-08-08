@@ -171,7 +171,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Take,
-				block_at: to_block_id(&self.args.flag_to).ok(),
+				block_at: try!(to_block_id(&self.args.flag_at)),
 			};
 			Cmd::Snapshot(snapshot_cmd)
 		} else if self.args.cmd_restore {
@@ -187,7 +187,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Restore,
-				block_at: to_block_id(&self.args.flag_to).ok(),
+				block_at: try!(to_block_id("latest")), // unimportant.
 			};
 			Cmd::Snapshot(restore_cmd)
 		} else {

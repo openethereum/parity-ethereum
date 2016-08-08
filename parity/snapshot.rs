@@ -59,7 +59,7 @@ pub struct SnapshotCommand {
 	pub file_path: Option<String>,
 	pub wal: bool,
 	pub kind: Kind,
-	pub block_at: Option<BlockID>,
+	pub block_at: BlockID,
 }
 
 impl SnapshotCommand {
@@ -183,6 +183,8 @@ impl SnapshotCommand {
 		let progress = Arc::new(Progress::new());
 		let p = progress.clone();
 		let informant_handle = ::std::thread::spawn(move || {
+			::std::thread::sleep(Duration::from_secs(5));
+
 			let mut last_size = 0;
 			while !p.done() {
 				let cur_size = p.size();
