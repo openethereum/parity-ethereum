@@ -81,8 +81,14 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block hash.
 	fn block_hash(&self, id: BlockID) -> Option<H256>;
 
-	/// Get address code.
-	fn code(&self, address: &Address) -> Option<Bytes>;
+	/// Get address code at given block's state.
+	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>>;
+
+	/// Get address code at the latest block's state.
+	fn latest_code(&self, address: &Address) -> Option<Bytes> {
+		self.code(address, BlockID::Latest)
+			.expect("code will return Some if given BlockID::Latest; qed")
+	}
 
 	/// Get address balance at the given block's state.
 	///
