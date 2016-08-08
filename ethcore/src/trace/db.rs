@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use util::{H256, H264, Database, DBTransaction, RwLock, HeapSizeOf};
+use util::{H256, H264, Database, DBTransaction, RwLock, HeapSizeOf, Mutex};
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras, Error};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
@@ -105,7 +105,7 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
-	cache_manager: RwLock<CacheManager<CacheID>>,
+	cache_manager: Mutex<CacheManager<CacheID>>,
 	// db
 	tracesdb: Arc<Database>,
 	// config,
@@ -119,7 +119,8 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
-		self.note_used(CacheID::Bloom(position.clone()));
+		let mut cache_manager = self.cache_manager.lock();
+		cache_manager.note_used(CacheID::Bloom(position.clone()));
 		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.blooms, &position).map(Into::into)
 	}
 }
@@ -150,7 +151,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		let db = TraceDB {
 			traces: RwLock::new(HashMap::new()),
 			blooms: RwLock::new(HashMap::new()),
-			cache_manager: RwLock::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
+			cache_manager: Mutex::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
 			tracesdb: tracesdb,
 			bloom_config: config.blooms,
 			enabled: enabled,
@@ -166,15 +167,9 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		traces + blooms
 	}
 
-	/// Let the cache system know that a cacheable item has been used.
-	fn note_used(&self, id: CacheID) {
-		let mut cache_manager = self.cache_manager.write();
-		cache_manager.note_used(id);
-	}
-
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		let mut cache_manager = self.cache_manager.write();
+		let mut cache_manager = self.cache_manager.lock();
 		cache_manager.collect_garbage(|| self.cache_size(), | ids | {
 			let mut traces = self.traces.write();
 			let mut blooms = self.blooms.write();
@@ -192,7 +187,8 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
-		self.note_used(CacheID::Trace(block_hash.clone()));
+		let mut cache_manager = self.cache_manager.lock();
+		cache_manager.note_used(CacheID::Trace(block_hash.clone()));
 		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.traces, block_hash)
 	}
 
@@ -262,10 +258,11 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			return;
 		}
 
+		let mut cache_manager = self.cache_manager.lock();
 		// at first, let's insert new block traces
 		{
 			// note_used must be called before locking traces to avoid cache/traces deadlock on garbage collection
-			self.note_used(CacheID::Trace(request.block_hash.clone()));
+			cache_manager.note_used(CacheID::Trace(request.block_hash.clone()));
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
@@ -296,7 +293,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 			// note_used must be called before locking blooms to avoid cache/traces deadlock on garbage collection
 			for key in blooms_to_insert.keys() {
-				self.note_used(CacheID::Bloom(key.clone()));
+				cache_manager.note_used(CacheID::Bloom(key.clone()));
 			}
 			let mut blooms = self.blooms.write();
 			batch.extend_with_cache(DB_COL_TRACE, blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
