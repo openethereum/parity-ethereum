@@ -48,10 +48,10 @@ macro_rules! impl_hash {
 							0 => $inner::from(0),
 							2 if value == "0x" => $inner::from(0),
 							_ if value.starts_with("0x") => try!($inner::from_str(&value[2..]).map_err(|_| {
-								Error::custom(format!("Invalid hex value {}.", value).as_ref())
+								Error::custom(format!("Invalid hex value {}.", value).as_str())
 							})),
 							_ => try!($inner::from_str(value).map_err(|_| {
-								Error::custom(format!("Invalid hex value {}.", value).as_ref())
+								Error::custom(format!("Invalid hex value {}.", value).as_str())
 							}))
 						};
 
