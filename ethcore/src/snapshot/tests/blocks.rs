@@ -32,7 +32,7 @@ fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();
 	let mut finalizer = BlockFinalizer::default();
 	let genesis = canon_chain.generate(&mut finalizer).unwrap();
-	let db_cfg = DatabaseConfig::with_columns(::client::DB_NO_OF_COLUMNS);
+	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
 	let orig_path = RandomTempPath::create_dir();
 	let new_path = RandomTempPath::create_dir();
