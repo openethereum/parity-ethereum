@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::net::SocketAddr;
-use util::panics::PanicHandler;
+use io::PanicHandler;
 use rpc_apis;
 use helpers::replace_home;
 

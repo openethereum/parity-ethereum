@@ -40,7 +40,7 @@ impl Block {
 		UntrustedRlp::new(b).as_val::<Block>().is_ok()
 	}
 
-	/// Get the RLP-encoding of the block without the seal.
+	/// Get the RLP-encoding of the block with or without the seal.
 	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.header.stream_rlp(&mut block_rlp, seal);

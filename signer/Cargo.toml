@@ -17,6 +17,7 @@ log = "0.3"
 env_logger = "0.3"
 ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "stable" }
 ethcore-util = { path = "../util" }
+ethcore-io = { path = "../util/io" }
 ethcore-rpc = { path = "../rpc" }
 parity-dapps-signer = { git = "https://github.com/ethcore/parity-ui.git", version = "0.6", optional = true}
 

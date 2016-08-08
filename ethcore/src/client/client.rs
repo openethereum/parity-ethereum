@@ -13,7 +13,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-
 use std::collections::{HashSet, HashMap, VecDeque};
 use std::sync::{Arc, Weak};
 use std::path::{Path};
@@ -27,12 +26,11 @@ use util::{journaldb, rlp, Bytes, View, PerfTimer, Itertools, Mutex, RwLock};
 use util::journaldb::JournalDB;
 use util::rlp::{UntrustedRlp};
 use util::numbers::*;
-use util::panics::*;
-use util::io::*;
 use util::sha3::*;
 use util::kvdb::*;
 
 // other
+use io::*;
 use views::{BlockView, HeaderView, BodyView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult};
 use header::BlockNumber;
@@ -63,6 +61,7 @@ use trace::FlatTransactionTraces;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
+use snapshot::{self, io as snapshot_io};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -120,7 +119,7 @@ pub struct Client {
 	mode: Mode,
 	chain: Arc<BlockChain>,
 	tracedb: Arc<TraceDB<BlockChain>>,
-	engine: Arc<Box<Engine>>,
+	engine: Arc<Engine>,
 	db: Arc<Database>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -140,6 +139,7 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1200;
+
 // database columns
 /// Column for State
 pub const DB_COL_STATE: Option<u32> = Some(0);
@@ -162,10 +162,10 @@ pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
 }
 
 impl Client {
-	///  Create a new client with given spec and DB path and custom verifier.
+	/// Create a new client with given spec and DB path and custom verifier.
 	pub fn new(
 		config: ClientConfig,
-		spec: Spec,
+		spec: &Spec,
 		path: &Path,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
@@ -192,7 +192,7 @@ impl Client {
 			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
 		}
 
-		let engine = Arc::new(spec.engine);
+		let engine = spec.engine.clone();
 
 		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel.clone());
 		let panic_handler = PanicHandler::new_in_arc();
@@ -271,7 +271,7 @@ impl Client {
 	}
 
 	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<LockedBlock, ()> {
-		let engine = &**self.engine;
+		let engine = &*self.engine;
 		let header = &block.header;
 
 		// Check the block isn't so old we won't be able to enact it.
@@ -594,6 +594,23 @@ impl Client {
 		}
 	}
 
+	/// Take a snapshot.
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W) -> Result<(), ::error::Error> {
+		let db = self.state_db.lock().boxed_clone();
+		let best_block_number = self.chain_info().best_block_number;
+		let start_block_number = if best_block_number > 1000 {
+			best_block_number - 1000
+		} else {
+			0
+		};
+		let start_hash = self.block_hash(BlockID::Number(start_block_number))
+			.expect("blocks within HISTORY are always stored.");
+
+		try!(snapshot::take_snapshot(&self.chain, start_hash, db.as_hashdb(), writer));
+
+		Ok(())
+	}
+
 	fn block_hash(chain: &BlockChain, id: BlockID) -> Option<H256> {
 		match id {
 			BlockID::Hash(hash) => Some(hash),
@@ -666,7 +683,7 @@ impl BlockChainClient for Client {
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = try!(Executive::new(&mut state, &env_info, &**self.engine, &self.vm_factory).transact(t, options));
+		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, options));
 
 		// TODO gav move this into Executive.
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
@@ -698,7 +715,7 @@ impl BlockChainClient for Client {
 			gas_limit: view.gas_limit(),
 		};
 		for t in txs.iter().take(address.index) {
-			match Executive::new(&mut state, &env_info, &**self.engine, &self.vm_factory).transact(t, Default::default()) {
+			match Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
@@ -706,7 +723,7 @@ impl BlockChainClient for Client {
 		let t = &txs[address.index];
 
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = try!(Executive::new(&mut state, &env_info, &**self.engine, &self.vm_factory).transact(t, options));
+		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, options));
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
@@ -998,7 +1015,7 @@ impl BlockChainClient for Client {
 
 impl MiningBlockChainClient for Client {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
-		let engine = &**self.engine;
+		let engine = &*self.engine;
 		let h = self.chain.best_block_hash();
 
 		let mut open_block = OpenBlock::new(

@@ -28,6 +28,7 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 #[macro_use]
 extern crate ethcore_util as util;
+extern crate ethcore_io as io;
 extern crate ethcore;
 extern crate ethsync;
 extern crate transient_hashmap;
@@ -41,12 +42,12 @@ extern crate ethcore_devtools as devtools;
 
 use std::sync::Arc;
 use std::net::SocketAddr;
-use util::panics::PanicHandler;
+use io::PanicHandler;
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
 pub mod v1;
-pub use v1::{SigningQueue, ConfirmationsQueue};
+pub use v1::{SigningQueue, ConfirmationsQueue, NetworkSettings};
 
 /// An object that can be extended with `IoDelegates`
 pub trait Extendable {

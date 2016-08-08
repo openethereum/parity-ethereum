@@ -23,7 +23,7 @@ use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use ethcore_logger::{setup_log, Config as LogConfig};
-use util::panics::{PanicHandler, ForwardPanic};
+use io::{PanicHandler, ForwardPanic};
 use util::{PayloadInfo, ToPretty};
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
@@ -136,9 +136,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// build client
 	let service = try!(ClientService::start(
 		client_config,
-		spec,
+		&spec,
 		Path::new(&client_path),
-		Arc::new(Miner::with_spec(try!(cmd.spec.spec()))),
+		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	panic_handler.forward_from(&service);
@@ -246,9 +246,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 	let service = try!(ClientService::start(
 		client_config,
-		spec,
+		&spec,
 		Path::new(&client_path),
-		Arc::new(Miner::with_spec(try!(cmd.spec.spec())))
+		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	panic_handler.forward_from(&service);

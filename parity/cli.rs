@@ -32,6 +32,8 @@ Usage:
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
+  parity snapshot <file> [options]
+  parity restore <file> [options]
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
@@ -286,6 +288,8 @@ pub struct Args {
 	pub cmd_import: bool,
 	pub cmd_signer: bool,
 	pub cmd_new_token: bool,
+	pub cmd_snapshot: bool,
+	pub cmd_restore: bool,
 	pub cmd_ui: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,

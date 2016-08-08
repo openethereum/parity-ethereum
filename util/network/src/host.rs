@@ -27,21 +27,20 @@ use std::default::Default;
 use std::fs;
 use mio::*;
 use mio::tcp::*;
-use hash::*;
-use misc::*;
-use crypto::*;
-use sha3::Hashable;
-use rlp::*;
-use network::session::{Session, SessionData};
+use util::hash::*;
+use util::crypto::*;
+use util::Hashable;
+use util::rlp::*;
+use util::version;
+use session::{Session, SessionData};
 use error::*;
 use io::*;
-use network::{NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION};
-use network::node_table::*;
-use network::stats::NetworkStats;
-use network::error::{NetworkError, DisconnectReason};
-use network::discovery::{Discovery, TableUpdates, NodeEntry};
-use network::ip_utils::{map_external_address, select_public_address};
-use path::restrict_permissions_owner;
+use {NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION};
+use node_table::*;
+use stats::NetworkStats;
+use discovery::{Discovery, TableUpdates, NodeEntry};
+use ip_utils::{map_external_address, select_public_address};
+use util::path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 
 type Slab<T> = ::slab::Slab<T, usize>;
@@ -224,7 +223,7 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Send a packet over the network to another peer.
-	pub fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
+	pub fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
 			try!(session.lock().send_packet(self.io, self.protocol, packet_id as u8, &data));
@@ -235,7 +234,7 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
-	pub fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
+	pub fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
 		assert!(self.session.is_some(), "Respond called without network context");
 		self.send(self.session_id.unwrap(), packet_id, data)
 	}
@@ -264,7 +263,7 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
-	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), UtilError> {
+	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), NetworkError> {
 		self.io.message(NetworkIoMessage::AddTimer {
 			token: token,
 			delay: ms,
@@ -347,7 +346,7 @@ pub struct Host {
 
 impl Host {
 	/// Create a new instance
-	pub fn new(config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host, UtilError> {
+	pub fn new(config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host, NetworkError> {
 		trace!(target: "host", "Creating new Host object");
 
 		let mut listen_address = match config.listen_address {
@@ -428,7 +427,7 @@ impl Host {
 		}
 	}
 
-	pub fn add_reserved_node(&self, id: &str) -> Result<(), UtilError> {
+	pub fn add_reserved_node(&self, id: &str) -> Result<(), NetworkError> {
 		let n = try!(Node::from_str(id));
 
 		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
@@ -472,7 +471,7 @@ impl Host {
 		}
 	}
 
-	pub fn remove_reserved_node(&self, id: &str) -> Result<(), UtilError> {
+	pub fn remove_reserved_node(&self, id: &str) -> Result<(), NetworkError> {
 		let n = try!(Node::from_str(id));
 		self.reserved_nodes.write().remove(&n.id);
 
@@ -493,7 +492,7 @@ impl Host {
 		r
 	}
 
-	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), UtilError> {
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), NetworkError> {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
 		for e in self.sessions.write().iter_mut() {
@@ -509,7 +508,7 @@ impl Host {
 		Ok(())
 	}
 
-	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), UtilError> {
+	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), NetworkError> {
 		if self.info.read().public_endpoint.is_some() {
 			return Ok(());
 		}
@@ -684,7 +683,7 @@ impl Host {
 	}
 
 	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
-	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage>) -> Result<(), UtilError> {
+	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage>) -> Result<(), NetworkError> {
 		let nonce = self.info.write().next_nonce();
 		let mut sessions = self.sessions.write();
 
@@ -699,7 +698,7 @@ impl Host {
 		});
 
 		match token {
-			Some(t) => io.register_stream(t),
+			Some(t) => Ok(try!(From::from(io.register_stream(t)))),
 			None => {
 				debug!(target: "network", "Max sessions reached");
 				Ok(())
@@ -756,7 +755,7 @@ impl Host {
 				match session_result {
 					Err(e) => {
 						trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-						if let UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) = e {
+						if let NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol) = e {
 							if let Some(id) = s.id() {
 								if !self.reserved_nodes.read().contains(id) {
 									self.nodes.write().mark_as_useless(id);

@@ -19,7 +19,7 @@ use std::io::{Write, Read, BufReader, BufRead};
 use std::time::Duration;
 use std::path::Path;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, path, is_valid_node_url, H256, CompactionProfile};
+use util::{clean_0x, U256, Uint, Address, path, H256, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::PendingSet;
@@ -28,6 +28,7 @@ use dir::Directories;
 use params::Pruning;
 use upgrade::upgrade;
 use migration::migrate;
+use ethsync::is_valid_node_url;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -167,11 +168,11 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 }
 
 #[cfg(test)]
-pub fn default_network_config() -> ::util::NetworkConfiguration {
-	use util::{NetworkConfiguration, NonReservedPeerMode};
+pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
+	use ethsync::NetworkConfiguration;
 	NetworkConfiguration {
 		config_path: Some(replace_home("$HOME/.parity/network")),
-		listen_address: Some("0.0.0.0:30303".parse().unwrap()),
+		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,
 		udp_port: None,
 		nat_enabled: true,
@@ -181,7 +182,7 @@ pub fn default_network_config() -> ::util::NetworkConfiguration {
 		max_peers: 50,
 		min_peers: 25,
 		reserved_nodes: Vec::new(),
-		non_reserved_mode: NonReservedPeerMode::Accept,
+		allow_non_reserved: true,
 	}
 }
 

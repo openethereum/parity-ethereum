@@ -96,7 +96,7 @@ impl Default for TestBlockChainClient {
 impl TestBlockChainClient {
 	/// Creates new test client.
 	pub fn new() -> Self {
-
+		let spec = Spec::new_test();
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
 			numbers: RwLock::new(HashMap::new()),
@@ -110,8 +110,8 @@ impl TestBlockChainClient {
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
 			queue_size: AtomicUsize::new(0),
-			miner: Arc::new(Miner::with_spec(Spec::new_test())),
-			spec: Spec::new_test(),
+			miner: Arc::new(Miner::with_spec(&spec)),
+			spec: spec,
 			vm_factory: EvmFactory::new(VMType::Interpreter),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block

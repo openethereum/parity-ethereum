@@ -21,13 +21,14 @@ use std::path::PathBuf;
 use std::cmp::max;
 use cli::{USAGE, Args};
 use docopt::{Docopt, Error as DocoptError};
-use util::{Hashable, NetworkConfiguration, U256, Uint, is_valid_node_url, Bytes, version_data, Secret, Address};
-use util::network_settings::NetworkSettings;
+use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
+use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::client::{VMType, Mode};
 use ethcore::miner::MinerOptions;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
+use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
@@ -40,6 +41,7 @@ use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts};
+use snapshot::{self, SnapshotCommand};
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -49,6 +51,7 @@ pub enum Cmd {
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
 	SignerToken(String),
+	Snapshot(SnapshotCommand),
 }
 
 #[derive(Debug, PartialEq)]
@@ -155,6 +158,36 @@ impl Configuration {
 				to_block: try!(to_block_id(&self.args.flag_to)),
 			};
 			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
+		} else if self.args.cmd_snapshot {
+			let snapshot_cmd = SnapshotCommand {
+				cache_config: cache_config,
+				dirs: dirs,
+				spec: spec,
+				pruning: pruning,
+				logger_config: logger_config,
+				mode: mode,
+				tracing: tracing,
+				compaction: compaction,
+				file_path: self.args.arg_file.clone(),
+				wal: wal,
+				kind: snapshot::Kind::Take,
+			};
+			Cmd::Snapshot(snapshot_cmd)
+		} else if self.args.cmd_restore {
+			let restore_cmd = SnapshotCommand {
+				cache_config: cache_config,
+				dirs: dirs,
+				spec: spec,
+				pruning: pruning,
+				logger_config: logger_config,
+				mode: mode,
+				tracing: tracing,
+				compaction: compaction,
+				file_path: self.args.arg_file.clone(),
+				wal: wal,
+				kind: snapshot::Kind::Restore,
+			};
+			Cmd::Snapshot(restore_cmd)
 		} else {
 			let daemon = if self.args.cmd_daemon {
 				Some(self.args.arg_pid_file.clone())
@@ -397,8 +430,8 @@ impl Configuration {
 		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
 		ret.boot_nodes = try!(to_bootnodes(&self.args.flag_bootnodes));
 		let (listen, public) = try!(self.net_addresses());
-		ret.listen_address = listen;
-		ret.public_address = public;
+		ret.listen_address = listen.map(|l| format!("{}", l));
+		ret.public_address = public.map(|p| format!("{}", p));
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.max_peers = self.max_peers();
@@ -408,9 +441,7 @@ impl Configuration {
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
 
-		if self.args.flag_reserved_only {
-			ret.non_reserved_mode = ::util::network::NonReservedPeerMode::Deny;
-		}
+		ret.allow_non_reserved = !self.args.flag_reserved_only;
 		Ok(ret)
 	}
 
@@ -552,7 +583,7 @@ mod tests {
 	use super::*;
 	use cli::USAGE;
 	use docopt::Docopt;
-	use util::network_settings::NetworkSettings;
+	use ethcore_rpc::NetworkSettings;
 	use ethcore::client::{VMType, BlockID};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
