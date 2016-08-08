@@ -515,11 +515,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 		Ok(InstructionResult::Ok)
 	}
 
-	fn copy_data_to_memory(&mut self, stack: &mut Stack<U256>, data: &[u8]) {
+	fn copy_data_to_memory(&mut self, stack: &mut Stack<U256>, source: &[u8]) {
 		let dest_offset = stack.pop_back();
 		let source_offset = stack.pop_back();
 		let size = stack.pop_back();
-		let source_size = U256::from(data.len());
+		let source_size = U256::from(source.len());
 
 		let output_end = match source_offset > source_size || size > source_size || source_offset + size > source_size {
 			true => {
@@ -531,7 +531,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				for i in zero_slice.iter_mut() {
 					*i = 0;
 				}
-				data.len()
+				source.len()
 			},
 			false => (size.low_u64() + source_offset.low_u64()) as usize
 		};

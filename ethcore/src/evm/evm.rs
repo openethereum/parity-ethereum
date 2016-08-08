@@ -151,10 +151,14 @@ impl CostType for usize {
 	}
 
 	fn from_u256(val: U256) -> Result<Self> {
-		if U256::from(val.low_u64()) != val {
+		let res = val.low_u64() as usize;
+
+		// validate if value fits into usize
+		if U256::from(res) != val {
 			return Err(Error::OutOfGas);
 		}
-		Ok(val.low_u64() as usize)
+
+		Ok(res)
 	}
 
 	fn as_usize(&self) -> usize {
@@ -191,6 +195,7 @@ pub trait Evm {
 
 
 #[test]
+#[cfg(test)]
 fn should_calculate_overflow_mul_shr_without_overflow() {
 	// given
 	let num = 1048576;
@@ -207,6 +212,7 @@ fn should_calculate_overflow_mul_shr_without_overflow() {
 }
 
 #[test]
+#[cfg(test)]
 fn should_calculate_overflow_mul_shr_with_overflow() {
 	// given
 	let max = ::std::u64::MAX;
@@ -225,3 +231,15 @@ fn should_calculate_overflow_mul_shr_with_overflow() {
 	assert!(o1);
 }
 
+#[test]
+#[cfg(test)]
+fn should_validate_u256_to_usize_conversion() {
+	// given
+	let v = U256::from(::std::usize::MAX) + U256::from(1);
+
+	// when
+	let res = Gas::<usize>::from_u256(v);
+
+	// then
+	assert!(res.is_err());
+}
