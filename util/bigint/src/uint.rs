@@ -1129,6 +1129,12 @@ macro_rules! construct_uint {
 				Ok(())
 			}
 		}
+
+		impl From<&'static str> for $name {
+			fn from(s: &'static str) -> Self {
+				s.parse().unwrap()
+			}
+		}
 	);
 }
 

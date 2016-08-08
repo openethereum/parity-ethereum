@@ -361,10 +361,10 @@ fn sender_test() {
 	assert_eq!(t.gas_price, U256::from(0x01u64));
 	assert_eq!(t.nonce, U256::from(0x00u64));
 	if let Action::Call(ref to) = t.action {
-		assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".parse().unwrap());
+		assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".into());
 	} else { panic!(); }
 	assert_eq!(t.value, U256::from(0x0au64));
-	assert_eq!(t.sender().unwrap(), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".parse().unwrap());
+	assert_eq!(t.sender().unwrap(), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
 }
 
 #[test]
