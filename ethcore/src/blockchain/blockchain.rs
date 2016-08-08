@@ -738,8 +738,8 @@ impl BlockChain {
 	/// Prepares extras update.
 	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate, is_best: bool) {
 		{
+			let mut cache_man = self.cache_man.lock();
 			for hash in update.block_details.keys().cloned() {
-				let mut cache_man = self.cache_man.lock();
 				cache_man.note_used(CacheID::BlockDetails(hash));
 			}
 
