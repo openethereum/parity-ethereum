@@ -146,7 +146,9 @@ impl ws::Handler for Session {
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
 		let req = try!(msg.as_text());
 		match self.handler.handle_request(req) {
-			Some(res) => self.out.send(res),
+			Some(res) => {
+				self.out.send(res)
+			},
 			None => Ok(()),
 		}
 	}
