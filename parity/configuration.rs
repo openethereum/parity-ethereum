@@ -41,6 +41,7 @@ use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts};
+use snapshot::{self, SnapshotCommand};
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -50,6 +51,7 @@ pub enum Cmd {
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
 	SignerToken(String),
+	Snapshot(SnapshotCommand),
 }
 
 #[derive(Debug, PartialEq)]
@@ -156,6 +158,36 @@ impl Configuration {
 				to_block: try!(to_block_id(&self.args.flag_to)),
 			};
 			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
+		} else if self.args.cmd_snapshot {
+			let snapshot_cmd = SnapshotCommand {
+				cache_config: cache_config,
+				dirs: dirs,
+				spec: spec,
+				pruning: pruning,
+				logger_config: logger_config,
+				mode: mode,
+				tracing: tracing,
+				compaction: compaction,
+				file_path: self.args.arg_file.clone(),
+				wal: wal,
+				kind: snapshot::Kind::Take,
+			};
+			Cmd::Snapshot(snapshot_cmd)
+		} else if self.args.cmd_restore {
+			let restore_cmd = SnapshotCommand {
+				cache_config: cache_config,
+				dirs: dirs,
+				spec: spec,
+				pruning: pruning,
+				logger_config: logger_config,
+				mode: mode,
+				tracing: tracing,
+				compaction: compaction,
+				file_path: self.args.arg_file.clone(),
+				wal: wal,
+				kind: snapshot::Kind::Restore,
+			};
+			Cmd::Snapshot(restore_cmd)
 		} else {
 			let daemon = if self.args.cmd_daemon {
 				Some(self.args.arg_pid_file.clone())

@@ -18,7 +18,8 @@
 
 use std::fmt;
 use std::collections::HashMap;
-use util::RwLock;
+use util::{Mutex, RwLock};
+use std::time::{Instant, Duration};
 use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
 use ethstore::dir::{KeyDirectory};
 use ethstore::ethkey::{Address, Message, Secret, Random, Generator};
@@ -32,6 +33,8 @@ enum Unlock {
 	/// Account unlocked permantently can always sign message.
 	/// Use with caution.
 	Perm,
+	/// Account unlocked with a timeout
+	Timed((Instant, u32)),
 }
 
 /// Data associated with account.
@@ -89,7 +92,7 @@ impl KeyDirectory for NullDir {
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
-	unlocked: RwLock<HashMap<Address, AccountData>>,
+	unlocked: Mutex<HashMap<Address, AccountData>>,
 	sstore: Box<SecretStore>,
 }
 
@@ -118,7 +121,7 @@ impl AccountProvider {
 	/// Creates new account provider.
 	pub fn new(sstore: Box<SecretStore>) -> Self {
 		AccountProvider {
-			unlocked: RwLock::new(HashMap::new()),
+			unlocked: Mutex::new(HashMap::new()),
 			sstore: sstore,
 		}
 	}
@@ -126,7 +129,7 @@ impl AccountProvider {
 	/// Creates not disk backed provider.
 	pub fn transient_provider() -> Self {
 		AccountProvider {
-			unlocked: RwLock::new(HashMap::new()),
+			unlocked: Mutex::new(HashMap::new()),
 			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).unwrap())
 		}
 	}
@@ -188,12 +191,10 @@ impl AccountProvider {
 		let _ = try!(self.sstore.sign(&account, &password, &Default::default()));
 
 		// check if account is already unlocked pernamently, if it is, do nothing
-		{
-			let unlocked = self.unlocked.read();
-			if let Some(data) = unlocked.get(&account) {
-				if let Unlock::Perm = data.unlock {
-					return Ok(())
-				}
+		let mut unlocked = self.unlocked.lock();
+		if let Some(data) = unlocked.get(&account) {
+			if let Unlock::Perm = data.unlock {
+				return Ok(())
 			}
 		}
 
@@ -202,7 +203,6 @@ impl AccountProvider {
 			password: password,
 		};
 
-		let mut unlocked = self.unlocked.write();
 		unlocked.insert(account, data);
 		Ok(())
 	}
@@ -217,23 +217,33 @@ impl AccountProvider {
 		self.unlock_account(account, password, Unlock::Temp)
 	}
 
+	/// Unlocks account temporarily with a timeout.
+	pub fn unlock_account_timed(&self, account: Address, password: String, duration_ms: u32) -> Result<(), Error> {
+		self.unlock_account(account, password, Unlock::Timed((Instant::now(), duration_ms)))
+	}
+
 	/// Checks if given account is unlocked
 	pub fn is_unlocked(&self, account: Address) -> bool {
-		let unlocked = self.unlocked.read();
+		let unlocked = self.unlocked.lock();
 		unlocked.get(&account).is_some()
 	}
 
 	/// Signs the message. Account must be unlocked.
 	pub fn sign(&self, account: Address, message: Message) -> Result<Signature, Error> {
 		let data = {
-			let unlocked = self.unlocked.read();
-			try!(unlocked.get(&account).ok_or(Error::NotUnlocked)).clone()
+			let mut unlocked = self.unlocked.lock();
+			let data = try!(unlocked.get(&account).ok_or(Error::NotUnlocked)).clone();
+			if let Unlock::Temp = data.unlock {
+				unlocked.remove(&account).expect("data exists: so key must exist: qed");
+			}
+			if let Unlock::Timed((ref start, ref duration)) = data.unlock {
+				if start.elapsed() > Duration::from_millis(*duration as u64) {
+					unlocked.remove(&account).expect("data exists: so key must exist: qed");
+					return Err(Error::NotUnlocked);
+				}
+			}
+			data
 		};
-
-		if let Unlock::Temp = data.unlock {
-			let mut unlocked = self.unlocked.write();
-			unlocked.remove(&account).expect("data exists: so key must exist: qed");
-		}
 
 		let signature = try!(self.sstore.sign(&account, &data.password, &message));
 		Ok(signature)
@@ -250,6 +260,7 @@ impl AccountProvider {
 mod tests {
 	use super::AccountProvider;
 	use ethstore::ethkey::{Generator, Random};
+	use std::time::Duration;
 
 	#[test]
 	fn unlock_account_temp() {
@@ -274,5 +285,17 @@ mod tests {
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
 		assert!(ap.sign(kp.address(), Default::default()).is_ok());
 		assert!(ap.sign(kp.address(), Default::default()).is_ok());
+	}
+
+	#[test]
+	fn unlock_account_timer() {
+		let kp = Random.generate().unwrap();
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 2000).is_err());
+		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 2000).is_ok());
+		assert!(ap.sign(kp.address(), Default::default()).is_ok());
+		::std::thread::sleep(Duration::from_millis(2000));
+		assert!(ap.sign(kp.address(), Default::default()).is_err());
 	}
 }

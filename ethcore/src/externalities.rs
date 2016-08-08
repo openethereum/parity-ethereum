@@ -332,7 +332,7 @@ mod tests {
 
 	struct TestSetup {
 		state: GuardedTempResult<State>,
-		engine: Box<Engine>,
+		engine: Arc<Engine>,
 		sub_state: Substate,
 		env_info: EnvInfo
 	}

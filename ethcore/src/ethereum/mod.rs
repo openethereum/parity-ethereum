@@ -69,21 +69,21 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
 		let s = State::from_existing(db, genesis_header.state_root.clone(), engine.account_start_nonce(), Default::default()).unwrap();
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".parse().unwrap()), U256::from(1u64));
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".parse().unwrap()), U256::from(1u64));
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000003".parse().unwrap()), U256::from(1u64));
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000004".parse().unwrap()), U256::from(1u64));
-		assert_eq!(s.balance(&"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c".parse().unwrap()), U256::from(1u64) << 200);
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000000".parse().unwrap()), U256::from(0u64));
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()), 1u64.into());
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()), 1u64.into());
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000003".into()), 1u64.into());
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000004".into()), 1u64.into());
+		assert_eq!(s.balance(&"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c".into()), U256::from(1u64) << 200);
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000000".into()), 0u64.into());
 	}
 
 	#[test]
 	fn morden() {
 		let morden = new_morden();
 
-		assert_eq!(morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
+		assert_eq!(morden.state_root(), "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".into());
 		let genesis = morden.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+		assert_eq!(BlockView::new(&genesis).header_view().sha3(), "0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".into());
 
 		let _ = morden.engine;
 	}
@@ -92,9 +92,9 @@ mod tests {
 	fn frontier() {
 		let frontier = new_frontier();
 
-		assert_eq!(frontier.state_root(), H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap());
+		assert_eq!(frontier.state_root(), "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".into());
 		let genesis = frontier.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap());
+		assert_eq!(BlockView::new(&genesis).header_view().sha3(), "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3".into());
 
 		let _ = frontier.engine;
 	}
