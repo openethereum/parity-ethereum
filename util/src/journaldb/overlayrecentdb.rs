@@ -244,12 +244,6 @@ impl JournalDB for OverlayRecentDB {
 				r.append(&k);
 				r.append(&v);
 
-				// put all insertions, canonical or not, into the archive column family.
-				// these will never be deleted.
-				if let Archive::On(archive_col) = self.mode {
-					try!(batch.put(archive_col, &k, &v));
-				}
-
 				journal_overlay.backing_overlay.emplace(to_short_key(&k), v);
 			}
 			r.append(&removed_keys);
@@ -309,6 +303,15 @@ impl JournalDB for OverlayRecentDB {
 				// apply canon deletions
 				for k in canon_deletions {
 					if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
+						// also move canon deletions to the archive column.
+						if let Archive::On(archive_col) = self.mode {
+							let maybe_val = try!(self.backing.get(self.column, &k));
+
+							// it's an error to try and delete something which doesn't exist.
+							let val = try!(maybe_val.ok_or(BaseDataError::NegativelyReferencedHash(k.clone())));
+							try!(batch.put_vec(archive_col, &k, val.into()));
+						}
+
 						try!(batch.delete(self.column, &k));
 					}
 				}
@@ -328,10 +331,6 @@ impl JournalDB for OverlayRecentDB {
 				1 => {
 					if try!(self.backing.get(self.column, &key)).is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
-					}
-
-					if let Archive::On(archive_col) = self.mode {
-						try!(batch.put(archive_col, &key, &value));
 					}
 
 					try!(batch.put_vec(self.column, &key, value));
