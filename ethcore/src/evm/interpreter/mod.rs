@@ -538,7 +538,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 		if source_offset < source_size {
 			let output_begin = source_offset.low_u64() as usize;
-			self.mem.write_slice(dest_offset, &data[output_begin..output_end]);
+			self.mem.write_slice(dest_offset, &source[output_begin..output_end]);
 		}
 	}
 

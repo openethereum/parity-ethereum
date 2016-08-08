@@ -238,7 +238,7 @@ fn should_validate_u256_to_usize_conversion() {
 	let v = U256::from(::std::usize::MAX) + U256::from(1);
 
 	// when
-	let res = Gas::<usize>::from_u256(v);
+	let res = usize::from_u256(v);
 
 	// then
 	assert!(res.is_err());
