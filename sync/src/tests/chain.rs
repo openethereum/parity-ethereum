@@ -161,11 +161,11 @@ fn propagate_hashes() {
 	net.trigger_chain_new_blocks(0); //first event just sets the marker
 	net.trigger_chain_new_blocks(0);
 
-	// 5 peers to sync
-	assert_eq!(5, net.peer(0).queue.len());
+	// 5 peers with NewHahses, 4 with blocks
+	assert_eq!(9, net.peer(0).queue.len());
 	let mut hashes = 0;
 	let mut blocks = 0;
-	for i in 0..5 {
+	for i in 0..net.peer(0).queue.len() {
 		if net.peer(0).queue[i].packet_id == 0x1 {
 			hashes += 1;
 		}
@@ -173,7 +173,8 @@ fn propagate_hashes() {
 			blocks += 1;
 		}
 	}
-	assert!(blocks + hashes == 5);
+	assert_eq!(blocks, 4);
+	assert_eq!(hashes, 5);
 }
 
 #[test]
