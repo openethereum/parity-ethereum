@@ -104,7 +104,12 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 impl OverlayRecentDB {
 	/// Create a new instance.
 	pub fn new(backing: Arc<Database>, col: Option<u32>, mode: Archive) -> OverlayRecentDB {
-		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing, col)));
+		let overlay_col = match mode {
+			Archive::Off => col,
+			Archive::On(c) => c,
+		};
+
+		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing, overlay_col)));
 		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
 			backing: backing,
@@ -125,7 +130,12 @@ impl OverlayRecentDB {
 
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
-		let reconstructed = Self::read_overlay(&self.backing, self.column);
+		let overlay_col = match self.mode {
+			Archive::Off => self.column,
+			Archive::On(c) => c,
+		};
+
+		let reconstructed = Self::read_overlay(&self.backing, overlay_col);
 		let journal_overlay = self.journal_overlay.read();
 		*journal_overlay == reconstructed
 	}
@@ -224,9 +234,22 @@ impl JournalDB for OverlayRecentDB {
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let v = self.journal_overlay.read().backing_overlay.get(&to_short_key(key)).map(|v| v.to_vec());
 		v.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
+			.or_else(|| match self.mode {
+				Archive::Off => None,
+				Archive::On(archive_col) =>
+					self.backing.get_by_prefix(archive_col, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+		})
 	}
 
 	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		// default column to insert journalling and writes to.
+		// in archive mode, we put everything except canonical state in the
+		// archive column.
+		let default_col = match self.mode {
+			Archive::Off => self.column,
+			Archive::On(col) => col,
+		};
+
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
 		let mut journal_overlay = self.journal_overlay.write();
@@ -244,6 +267,11 @@ impl JournalDB for OverlayRecentDB {
 				r.append(&k);
 				r.append(&v);
 
+				// only write state entries to the archive directly if in archive mode.
+				if let Archive::On(archive_col) = self.mode {
+					try!(batch.put(archive_col, &k, &v));
+				}
+
 				journal_overlay.backing_overlay.emplace(to_short_key(&k), v);
 			}
 			r.append(&removed_keys);
@@ -253,9 +281,9 @@ impl JournalDB for OverlayRecentDB {
 			k.append(&now);
 			k.append(&index);
 			k.append(&&PADDING[..]);
-			try!(batch.put_vec(self.column, &k.drain(), r.out()));
+			try!(batch.put_vec(default_col, &k.drain(), r.out()));
 			if journal_overlay.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec()));
+				try!(batch.put_vec(default_col, &LATEST_ERA_KEY, encode(&now).to_vec()));
 				journal_overlay.latest_era = Some(now);
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
@@ -275,7 +303,7 @@ impl JournalDB for OverlayRecentDB {
 					r.append(&end_era);
 					r.append(&index);
 					r.append(&&PADDING[..]);
-					try!(batch.delete(self.column, &r.drain()));
+					try!(batch.delete(default_col, &r.drain()));
 					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
 					{
 						if canon_id == journal.id {
@@ -303,15 +331,6 @@ impl JournalDB for OverlayRecentDB {
 				// apply canon deletions
 				for k in canon_deletions {
 					if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
-						// also move canon deletions to the archive column.
-						if let Archive::On(archive_col) = self.mode {
-							let maybe_val = try!(self.backing.get(self.column, &k));
-
-							// it's an error to try and delete something which doesn't exist.
-							let val = try!(maybe_val.ok_or(BaseDataError::NegativelyReferencedHash(k.clone())));
-							try!(batch.put_vec(archive_col, &k, val.into()));
-						}
-
 						try!(batch.delete(self.column, &k));
 					}
 				}
@@ -333,12 +352,21 @@ impl JournalDB for OverlayRecentDB {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
 
+					if let Archive::On(archive_col) = self.mode {
+						try!(batch.put(archive_col, &key, &value));
+					}
+
 					try!(batch.put_vec(self.column, &key, value));
 				}
 				-1 => {
 					if try!(self.backing.get(self.column, &key)).is_none() {
 						return Err(BaseDataError::NegativelyReferencedHash(key).into());
 					}
+
+					if let Archive::On(archive_col) = self.mode {
+						try!(batch.delete(archive_col, &key));
+					}
+
 					try!(batch.delete(self.column, &key))
 				}
 				_ => panic!("Attempted to inject invalid state."),
