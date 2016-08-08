@@ -19,12 +19,15 @@
 use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
 use ethcore_logger::{setup_log, Config as LogConfig};
-use ethcore::snapshot::{RestorationStatus, SnapshotService};
+use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType};
 use ethcore::miner::Miner;
+use ethcore::ids::BlockID;
+
 use cache::CacheConfig;
 use params::{SpecType, Pruning};
 use helpers::{to_client_config, execute_upgrades};
@@ -56,6 +59,7 @@ pub struct SnapshotCommand {
 	pub file_path: Option<String>,
 	pub wal: bool,
 	pub kind: Kind,
+	pub block_at: BlockID,
 }
 
 impl SnapshotCommand {
@@ -168,6 +172,7 @@ impl SnapshotCommand {
 	pub fn take_snapshot(self) -> Result<(), String> {
 		let file_path = try!(self.file_path.clone().ok_or("No file path provided.".to_owned()));
 		let file_path: PathBuf = file_path.into();
+		let block_at = self.block_at.clone();
 		let (service, _panic_handler) = try!(self.start_service());
 
 		warn!("Snapshots are currently experimental. File formats may be subject to change.");
@@ -175,10 +180,34 @@ impl SnapshotCommand {
 		let writer = try!(PackedWriter::new(&file_path)
 			.map_err(|e| format!("Failed to open snapshot writer: {}", e)));
 
-		if let Err(e) = service.client().take_snapshot(writer) {
+		let progress = Arc::new(Progress::new());
+		let p = progress.clone();
+		let informant_handle = ::std::thread::spawn(move || {
+			::std::thread::sleep(Duration::from_secs(5));
+
+			let mut last_size = 0;
+			while !p.done() {
+				let cur_size = p.size();
+				if cur_size != last_size {
+					last_size = cur_size;
+					info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
+				} else {
+					info!("Snapshot: No progress since last update.");
+				}
+
+				::std::thread::sleep(Duration::from_secs(5));
+			}
+ 		});
+
+		if let Err(e) = service.client().take_snapshot(writer, block_at, &*progress) {
 			let _ = ::std::fs::remove_file(&file_path);
 			return Err(format!("Encountered fatal error while creating snapshot: {}", e));
 		}
+
+		info!("snapshot creation complete");
+
+		assert!(progress.done());
+		try!(informant_handle.join().map_err(|_| "failed to join logger thread"));
 
 		Ok(())
 	}

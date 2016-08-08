@@ -775,12 +775,20 @@ impl BlockChain {
 
 	/// Applt pending insertion updates
 	pub fn commit(&self) {
-		let mut best_block = self.best_block.write();
-		let mut write_hashes = self.block_hashes.write();
-		let mut write_txs = self.transaction_addresses.write();
 		let mut pending_best_block = self.pending_best_block.write();
 		let mut pending_write_hashes = self.pending_block_hashes.write();
 		let mut pending_write_txs = self.pending_transaction_addresses.write();
+
+		for n in pending_write_hashes.keys() {
+			self.note_used(CacheID::BlockHashes(*n));
+		}
+		for hash in pending_write_txs.keys() {
+			self.note_used(CacheID::TransactionAddresses(hash.clone()));
+		}
+
+		let mut best_block = self.best_block.write();
+		let mut write_hashes = self.block_hashes.write();
+		let mut write_txs = self.transaction_addresses.write();
 		// update best block
 		if let Some(block) = pending_best_block.take() {
 			*best_block = block;

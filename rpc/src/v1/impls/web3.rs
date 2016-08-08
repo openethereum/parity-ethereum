@@ -19,6 +19,7 @@ use jsonrpc_core::*;
 use util::version;
 use v1::traits::Web3;
 use v1::types::{H256, Bytes};
+use v1::helpers::params::expect_no_params;
 use util::sha3::Hashable;
 
 /// Web3 rpc implementation.
@@ -31,10 +32,8 @@ impl Web3Client {
 
 impl Web3 for Web3Client {
 	fn client_version(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => Ok(Value::String(version().to_owned().replace("Parity/", "Parity//"))),
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+		Ok(Value::String(version().to_owned().replace("Parity/", "Parity//")))
 	}
 
 	fn sha3(&self, params: Params) -> Result<Value, Error> {

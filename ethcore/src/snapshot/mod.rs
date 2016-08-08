@@ -18,10 +18,12 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
+use ids::BlockID;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
@@ -58,9 +60,49 @@ const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 // How many blocks to include in a snapshot, starting from the head of the chain.
 const SNAPSHOT_BLOCKS: u64 = 30000;
 
+/// A progress indicator for snapshots.
+#[derive(Debug)]
+pub struct Progress {
+	accounts: AtomicUsize,
+	blocks: AtomicUsize,
+	size: AtomicUsize, // Todo [rob] use Atomicu64 when it stabilizes.
+	done: AtomicBool,
+}
+
+impl Progress {
+	/// Create a new progress indicator.
+	pub fn new() -> Self {
+		Progress {
+			accounts: AtomicUsize::new(0),
+			blocks: AtomicUsize::new(0),
+			size: AtomicUsize::new(0),
+			done: AtomicBool::new(false),
+		}
+	}
+
+	/// Get the number of accounts snapshotted thus far.
+	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Relaxed) }
+
+	/// Get the number of blocks snapshotted thus far.
+	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Relaxed) }
+
+	/// Get the written size of the snapshot in bytes.
+	pub fn size(&self) -> usize { self.size.load(Ordering::Relaxed) }
+
+	/// Whether the snapshot is complete.
+	pub fn done(&self) -> bool  { self.done.load(Ordering::SeqCst) }
+
+}
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
-pub fn take_snapshot<W: SnapshotWriter + Send>(chain: &BlockChain, start_block_hash: H256, state_db: &HashDB, writer: W) -> Result<(), Error> {
-	let start_header = try!(chain.block_header(&start_block_hash).ok_or(Error::InvalidStartingBlock(start_block_hash)));
+pub fn take_snapshot<W: SnapshotWriter + Send>(
+	chain: &BlockChain,
+	block_at: H256,
+	state_db: &HashDB,
+	writer: W,
+	p: &Progress
+) -> Result<(), Error> {
+	let start_header = try!(chain.block_header(&block_at)
+		.ok_or(Error::InvalidStartingBlock(BlockID::Hash(block_at))));
 	let state_root = start_header.state_root();
 	let number = start_header.number();
 
@@ -68,8 +110,8 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(chain: &BlockChain, start_block_h
 
 	let writer = Mutex::new(writer);
 	let (state_hashes, block_hashes) = try!(scope(|scope| {
-		let block_guard = scope.spawn(|| chunk_blocks(chain, (number, start_block_hash), &writer));
-		let state_res = chunk_state(state_db, state_root, &writer);
+		let block_guard = scope.spawn(|| chunk_blocks(chain, (number, block_at), &writer, p));
+		let state_res = chunk_state(state_db, state_root, &writer, p);
 
 		state_res.and_then(|state_hashes| {
 			block_guard.join().map(|block_hashes| (state_hashes, block_hashes))
@@ -83,10 +125,12 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(chain: &BlockChain, start_block_h
 		block_hashes: block_hashes,
 		state_root: *state_root,
 		block_number: number,
-		block_hash: start_block_hash,
+		block_hash: block_at,
 	};
 
 	try!(writer.into_inner().finish(manifest_data));
+
+	p.done.store(true, Ordering::SeqCst);
 
 	Ok(())
 }
@@ -100,6 +144,7 @@ struct BlockChunker<'a> {
 	hashes: Vec<H256>,
 	snappy_buffer: Vec<u8>,
 	writer: &'a Mutex<SnapshotWriter + 'a>,
+	progress: &'a Progress,
 }
 
 impl<'a> BlockChunker<'a> {
@@ -162,7 +207,8 @@ impl<'a> BlockChunker<'a> {
 
 		let parent_total_difficulty = parent_details.total_difficulty;
 
-		let mut rlp_stream = RlpStream::new_list(3 + self.rlps.len());
+		let num_entries = self.rlps.len();
+		let mut rlp_stream = RlpStream::new_list(3 + num_entries);
 		rlp_stream.append(&parent_number).append(&parent_hash).append(&parent_total_difficulty);
 
 		for pair in self.rlps.drain(..) {
@@ -178,6 +224,9 @@ impl<'a> BlockChunker<'a> {
 		try!(self.writer.lock().write_block_chunk(hash, compressed));
 		trace!(target: "snapshot", "wrote block chunk. hash: {}, size: {}, uncompressed size: {}", hash.hex(), size, raw_data.len());
 
+		self.progress.size.fetch_add(size, Ordering::SeqCst);
+		self.progress.blocks.fetch_add(num_entries, Ordering::SeqCst);
+
 		self.hashes.push(hash);
 		Ok(())
 	}
@@ -189,7 +238,7 @@ impl<'a> BlockChunker<'a> {
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), writer: &Mutex<SnapshotWriter + 'a>) -> Result<Vec<H256>, Error> {
+pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
 	let (start_number, start_hash) = start_block_info;
 
 	let first_hash = if start_number < SNAPSHOT_BLOCKS {
@@ -197,8 +246,7 @@ pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), wr
 		chain.genesis_hash()
 	} else {
 		let first_num = start_number - SNAPSHOT_BLOCKS;
-		chain.block_hash(first_num)
-			.expect("number before best block number; whole chain is stored; qed")
+		try!(chain.block_hash(first_num).ok_or(Error::IncompleteChain))
 	};
 
 	let mut chunker = BlockChunker {
@@ -208,6 +256,7 @@ pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), wr
 		hashes: Vec::new(),
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
 		writer: writer,
+		progress: progress,
 	};
 
 	try!(chunker.chunk_all(first_hash));
@@ -222,6 +271,7 @@ struct StateChunker<'a> {
 	cur_size: usize,
 	snappy_buffer: Vec<u8>,
 	writer: &'a Mutex<SnapshotWriter + 'a>,
+	progress: &'a Progress,
 }
 
 impl<'a> StateChunker<'a> {
@@ -249,7 +299,8 @@ impl<'a> StateChunker<'a> {
 	// Write out the buffer to disk, pushing the created chunk's hash to
 	// the list.
 	fn write_chunk(&mut self) -> Result<(), Error> {
-		let mut stream = RlpStream::new_list(self.rlps.len());
+		let num_entries = self.rlps.len();
+		let mut stream = RlpStream::new_list(num_entries);
 		for rlp in self.rlps.drain(..) {
 			stream.append_raw(&rlp, 1);
 		}
@@ -263,6 +314,9 @@ impl<'a> StateChunker<'a> {
 		try!(self.writer.lock().write_state_chunk(hash, compressed));
 		trace!(target: "snapshot", "wrote state chunk. size: {}, uncompressed size: {}", compressed_size, raw_data.len());
 
+		self.progress.accounts.fetch_add(num_entries, Ordering::SeqCst);
+		self.progress.size.fetch_add(compressed_size, Ordering::SeqCst);
+
 		self.hashes.push(hash);
 		self.cur_size = 0;
 
@@ -275,7 +329,7 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter + 'a>) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
 	let account_trie = try!(TrieDB::new(db, &root));
 
 	let mut chunker = StateChunker {
@@ -284,9 +338,8 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 		cur_size: 0,
 		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
 		writer: writer,
+		progress: progress,
 	};
-
-	trace!(target: "snapshot", "beginning state chunking");
 
 	// account_key here is the address' hash.
 	for (account_key, account_data) in account_trie.iter() {
@@ -383,6 +436,7 @@ impl StateRebuilder {
 		let chunk_size = account_fat_rlps.len() / ::num_cpus::get() + 1;
 
 		// build account tries in parallel.
+		// Todo [rob] keep a thread pool around so we don't do this per-chunk.
 		try!(scope(|scope| {
 			let mut handles = Vec::new();
 			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {

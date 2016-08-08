@@ -231,6 +231,12 @@ Import/Export Options:
   --format FORMAT          For import/export in given format. FORMAT must be
                            one of 'hex' and 'binary'.
 
+Snapshot Options:
+  --at BLOCK               Take a snapshot at the given block, which may be an
+                           index, hash, or 'latest'. Note that taking snapshots at
+                           non-recent blocks will only work with --pruning archive
+                           [default: latest]
+
 Virtual Machine Options:
   --jitvm                  Enable the JIT VM.
 
@@ -365,6 +371,7 @@ pub struct Args {
 	pub flag_version: bool,
 	pub flag_from: String,
 	pub flag_to: String,
+  pub flag_at: String,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_log_file: Option<String>,
