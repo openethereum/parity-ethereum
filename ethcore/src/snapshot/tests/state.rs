@@ -16,7 +16,7 @@
 
 //! State snapshotting tests.
 
-use snapshot::{chunk_state, StateRebuilder};
+use snapshot::{chunk_state, Progress, StateRebuilder};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::{compare_dbs, StateProducer};
 
@@ -48,7 +48,7 @@ fn snap_and_restore() {
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
-	let state_hashes = chunk_state(&old_db, &state_root, &writer).unwrap();
+	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::new()).unwrap();
 
 	writer.into_inner().finish(::snapshot::ManifestData {
 		state_hashes: state_hashes,

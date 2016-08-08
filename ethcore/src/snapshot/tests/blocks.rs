@@ -20,7 +20,7 @@ use devtools::RandomTempPath;
 
 use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 use blockchain::BlockChain;
-use snapshot::{chunk_blocks, BlockRebuilder};
+use snapshot::{chunk_blocks, BlockRebuilder, Progress};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use util::{Mutex, snappy};
@@ -55,7 +55,7 @@ fn chunk_and_restore(amount: u64) {
 
 	// snapshot it.
 	let writer = Mutex::new(PackedWriter::new(&snapshot_path).unwrap());
-	let block_hashes = chunk_blocks(&bc, (amount, best_hash), &writer).unwrap();
+	let block_hashes = chunk_blocks(&bc, (amount, best_hash), &writer, &Progress::new()).unwrap();
 	writer.into_inner().finish(::snapshot::ManifestData {
 		state_hashes: Vec::new(),
 		block_hashes: block_hashes,

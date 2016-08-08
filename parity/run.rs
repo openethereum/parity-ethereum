@@ -139,7 +139,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
 
 	// create miner
-	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), spec, Some(account_provider.clone()));
+	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);
 	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
@@ -161,10 +161,6 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		fork_name.as_ref(),
 	);
 
-	// load spec
-	// TODO: make it clonable and load it only once!
-	let spec = try!(cmd.spec.spec());
-
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;
 	if !cmd.custom_bootnodes {
@@ -174,7 +170,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client service.
 	let service = try!(ClientService::start(
 		client_config,
-		spec,
+		&spec,
 		Path::new(&client_path),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));

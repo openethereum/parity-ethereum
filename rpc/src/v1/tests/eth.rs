@@ -50,7 +50,7 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 	}))
 }
 
-fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
+fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 	Miner::new(
 		MinerOptions {
 			new_work_notify: vec![],
@@ -65,8 +65,8 @@ fn miner_service(spec: Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			enable_resubmission: true,
 		},
 		GasPricer::new_fixed(20_000_000_000u64.into()),
-		spec,
-		Some(accounts)
+		&spec,
+		Some(accounts),
 	)
 }
 
@@ -89,7 +89,7 @@ struct EthTester {
 
 impl EthTester {
 	fn from_chain(chain: &BlockChain) -> Self {
-		let tester = Self::from_spec_provider(|| make_spec(chain));
+		let tester = Self::from_spec(make_spec(chain));
 
 		for b in &chain.blocks_rlp() {
 			if Block::is_good(&b) {
@@ -105,13 +105,11 @@ impl EthTester {
 		tester
 	}
 
-	fn from_spec_provider<F>(spec_provider: F) -> Self
-		where F: Fn() -> Spec {
-
+	fn from_spec(spec: Spec) -> Self {
 		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
-		let miner_service = miner_service(spec_provider(), account_provider.clone());
-		let client = Client::new(ClientConfig::default(), &spec_provider(), dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
+		let miner_service = miner_service(&spec, account_provider.clone());
+		let client = Client::new(ClientConfig::default(), &spec, dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
 		let sync_provider = sync_provider();
 		let external_miner = Arc::new(ExternalMiner::default());
 
@@ -291,7 +289,7 @@ fn eth_transaction_count() {
 	use util::crypto::Secret;
 
 	let secret = Secret::from_str("8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2").unwrap();
-	let tester = EthTester::from_spec_provider(|| Spec::load(TRANSACTION_COUNT_SPEC));
+	let tester = EthTester::from_spec(Spec::load(TRANSACTION_COUNT_SPEC));
 	let address = tester.accounts.insert_account(secret, "").unwrap();
 	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
 
@@ -417,7 +415,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 
 #[test]
 fn starting_nonce_test() {
-	let tester = EthTester::from_spec_provider(|| Spec::load(POSITIVE_NONCE_SPEC));
+	let tester = EthTester::from_spec(Spec::load(POSITIVE_NONCE_SPEC));
 	let address = ::util::hash::Address::from(10);
 
 	let sample = tester.handler.handle_request(&(r#"

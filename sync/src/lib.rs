@@ -43,15 +43,16 @@
 //!
 //! fn main() {
 //! 	let dir = env::temp_dir();
+//!		let spec = ethereum::new_frontier();
 //! 	let miner = Miner::new(
 //! 		Default::default(),
 //! 		GasPricer::new_fixed(20_000_000_000u64.into()),
-//! 		ethereum::new_frontier(),
+//! 		&spec,
 //! 		None
 //! 	);
 //! 	let client = Client::new(
 //!			ClientConfig::default(),
-//!			&ethereum::new_frontier(),
+//!			&spec,
 //!			&dir,
 //!			miner,
 //!			IoChannel::disconnected()
