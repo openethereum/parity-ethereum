@@ -119,8 +119,9 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
-		self.note_used(CacheID::Bloom(position.clone()));
-		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.blooms, &position).map(Into::into)
+		let result = self.tracesdb.read_with_cache(DB_COL_TRACE, &self.blooms, &position).map(Into::into);
+		self.note_used(CacheID::Bloom(position));
+		result
 	}
 }
 
@@ -174,11 +175,13 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		let mut cache_manager = self.cache_manager.write();
-		cache_manager.collect_garbage(|| self.cache_size(), | ids | {
-			let mut traces = self.traces.write();
-			let mut blooms = self.blooms.write();
+		let current_size = self.cache_size();
 
+		let mut traces = self.traces.write();
+		let mut blooms = self.blooms.write();
+		let mut cache_manager = self.cache_manager.write();
+
+		cache_manager.collect_garbage(current_size, | ids | {
 			for id in &ids {
 				match *id {
 					CacheID::Trace(ref h) => { traces.remove(h); },
@@ -187,13 +190,16 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			}
 			traces.shrink_to_fit();
 			blooms.shrink_to_fit();
+
+			traces.heap_size_of_children() + blooms.heap_size_of_children()
 		});
 	}
 
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
+		let result = self.tracesdb.read_with_cache(DB_COL_TRACE, &self.traces, block_hash);
 		self.note_used(CacheID::Trace(block_hash.clone()));
-		self.tracesdb.read_with_cache(DB_COL_TRACE, &self.traces, block_hash)
+		result
 	}
 
 	/// Returns vector of transaction traces for given block.
@@ -264,12 +270,13 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 		// at first, let's insert new block traces
 		{
-			// note_used must be called before locking traces to avoid cache/traces deadlock on garbage collection
-			self.note_used(CacheID::Trace(request.block_hash.clone()));
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
 			batch.write_with_cache(DB_COL_TRACE, traces.deref_mut(), request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+
+			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
+			self.note_used(CacheID::Trace(request.block_hash.clone()));
 		}
 
 		// now let's rebuild the blooms
@@ -294,12 +301,14 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.map(|p| (From::from(p.0), From::from(p.1)))
 				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
 
-			// note_used must be called before locking blooms to avoid cache/traces deadlock on garbage collection
-			for key in blooms_to_insert.keys() {
-				self.note_used(CacheID::Bloom(key.clone()));
-			}
+			let blooms_keys: Vec<_> = blooms_to_insert.keys().cloned().collect();
 			let mut blooms = self.blooms.write();
 			batch.extend_with_cache(DB_COL_TRACE, blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
+
+			// note_used must be called after locking blooms to avoid cache/traces deadlock on garbage collection
+			for key in blooms_keys.into_iter() {
+				self.note_used(CacheID::Bloom(key));
+			}
 		}
 	}
 
