@@ -134,6 +134,29 @@ impl KeyPair {
 			public: p,
 		})
 	}
+
+
+	// TODO: move to ethstore/secret.rs once @debris has refactored necessary dependencies into own crate
+	/// Convert the given phrase into a secret as per brain-wallet spec. 
+	/// Taken from https://github.com/ethereum/wiki/wiki/Brain-Wallet
+	/// Note particularly secure for low-entropy keys.
+	pub fn from_phrase(phrase: &str) -> KeyPair {
+		let mut h = phrase.as_bytes().sha3();
+		for _ in 0..16384 {
+			h = h.sha3();
+		}
+		loop {
+			let r = KeyPair::from_secret(h);
+			if r.is_ok() {
+				let r = r.unwrap(); 
+				if r.address()[0] == 0 {
+					return r;
+				}
+			}
+			h = h.sha3();
+		}
+	}
+	
 	/// Create a new random key pair
 	pub fn create() -> Result<KeyPair, CryptoError> {
 		let context = &SECP256K1;
@@ -441,6 +464,11 @@ mod tests {
 	fn test_key() {
 		let pair = KeyPair::from_secret("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".into()).unwrap();
 		assert_eq!(pair.public().hex(), "101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c");
+	}
+
+	#[test]
+	fn test_key_from_phrase() {
+		assert_eq!(KeyPair::from_phrase("correct horse battery staple").address(), "0021f80b7f29b9c84e8099c2c6c74a46ed2268c4".into());
 	}
 
 	#[test]

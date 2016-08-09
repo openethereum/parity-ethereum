@@ -27,6 +27,9 @@ pub trait Personal: Sized + Send + Sync + 'static {
 	/// Creates new account (it becomes new current unlocked account)
 	fn new_account(&self, _: Params) -> Result<Value, Error>;
 
+	/// Creates new account from the given phrase using standard brainwallet mechanism.
+	fn new_account_from_phrase(&self, _: Params) -> Result<Value, Error>;
+
 	/// Unlocks specified account for use (can only be one unlocked account at one moment)
 	fn unlock_account(&self, _: Params) -> Result<Value, Error>;
 
@@ -51,6 +54,7 @@ pub trait Personal: Sized + Send + Sync + 'static {
 		delegate.add_method("personal_signerEnabled", Personal::signer_enabled);
 		delegate.add_method("personal_listAccounts", Personal::accounts);
 		delegate.add_method("personal_newAccount", Personal::new_account);
+		delegate.add_method("personal_newAccountFromPhrase", Personal::new_account_from_phrase);
 		delegate.add_method("personal_unlockAccount", Personal::unlock_account);
 		delegate.add_method("personal_signAndSendTransaction", Personal::sign_and_send_transaction);
 		delegate.add_method("personal_setAccountName", Personal::set_account_name);
