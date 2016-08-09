@@ -35,6 +35,38 @@ fn combine_key<'a>(address_hash: &'a H256, key: &'a H256) -> H256 {
 	dst
 }
 
+/// A factory for different kinds of account dbs.
+#[derive(Debug, Clone)]
+pub enum Factory {
+	/// Mangle hashes based on address.
+	Mangled,
+	/// Don't mangle hashes.
+	Plain,
+}
+
+impl Default for Factory {
+	fn default() -> Self { Factory::Mangled }
+}
+
+impl Factory {
+	/// Create a read-only accountdb.
+	/// This will panic when write operations are called.
+	pub fn readonly<'db>(&self, db: &'db HashDB, address: &Address) -> Box<HashDB + 'db> {
+		match *self {
+			Factory::Mangled => Box::new(AccountDB::new(db, address)),
+			Factory::Plain => Box::new(Wrapping(db)),
+		}
+	}
+
+	/// Create a new mutable hashdb.
+	pub fn create<'db>(&self, db: &'db mut HashDB, address: &Address) -> Box<HashDB + 'db> {
+		match *self {
+			Factory::Mangled => Box::new(AccountDBMut::new(db, address)),
+			Factory::Plain => Box::new(WrappingMut(db)),
+		}
+	}
+}
+
 // TODO: introduce HashDBMut?
 /// DB backend wrapper for Account trie
 /// Transforms trie node keys for the database
@@ -162,4 +194,79 @@ impl<'db> HashDB for AccountDBMut<'db>{
 	}
 }
 
+struct Wrapping<'db>(&'db HashDB);
 
+impl<'db> HashDB for Wrapping<'db> {
+	fn keys(&self) -> HashMap<H256, i32> {
+		unimplemented!()
+	}
+
+	fn get(&self, key: &H256) -> Option<&[u8]> {
+		if key == &SHA3_NULL_RLP {
+			return Some(&NULL_RLP_STATIC);
+		}
+		self.0.get(key)
+	}
+
+	fn contains(&self, key: &H256) -> bool {
+		if key == &SHA3_NULL_RLP {
+			return true;
+		}
+		self.0.contains(key)
+	}
+
+	fn insert(&mut self, _value: &[u8]) -> H256 {
+		unimplemented!()
+	}
+
+	fn emplace(&mut self, _key: H256, _value: Bytes) {
+		unimplemented!()
+	}
+
+	fn remove(&mut self, _key: &H256) {
+		unimplemented!()
+	}
+}
+
+struct WrappingMut<'db>(&'db mut HashDB);
+
+impl<'db> HashDB for WrappingMut<'db>{
+	fn keys(&self) -> HashMap<H256, i32> {
+		unimplemented!()
+	}
+
+	fn get(&self, key: &H256) -> Option<&[u8]> {
+		if key == &SHA3_NULL_RLP {
+			return Some(&NULL_RLP_STATIC);
+		}
+		self.0.get(key)
+	}
+
+	fn contains(&self, key: &H256) -> bool {
+		if key == &SHA3_NULL_RLP {
+			return true;
+		}
+		self.0.contains(key)
+	}
+
+	fn insert(&mut self, value: &[u8]) -> H256 {
+		if value == &NULL_RLP {
+			return SHA3_NULL_RLP.clone();
+		}
+		self.0.insert(value)
+	}
+
+	fn emplace(&mut self, key: H256, value: Bytes) {
+		if key == SHA3_NULL_RLP {
+			return;
+		}
+		self.0.emplace(key, value)
+	}
+
+	fn remove(&mut self, key: &H256) {
+		if key == &SHA3_NULL_RLP {
+			return;
+		}
+		self.0.remove(key)
+	}
+}

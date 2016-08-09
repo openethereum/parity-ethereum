@@ -80,6 +80,7 @@ impl VMType {
 }
 
 /// Evm factory. Creates appropriate Evm.
+#[derive(Clone)]
 pub struct Factory {
 	evm: VMType
 }
@@ -128,7 +129,7 @@ impl Factory {
 
 impl Default for Factory {
 	/// Returns jitvm factory
-	#[cfg(feature = "jit")]
+	#[cfg(all(feature = "jit", not(test)))]
 	fn default() -> Factory {
 		Factory {
 			evm: VMType::Jit
@@ -136,7 +137,7 @@ impl Default for Factory {
 	}
 
 	/// Returns native rust evm factory
-	#[cfg(not(feature = "jit"))]
+	#[cfg(any(not(feature = "jit"), test))]
 	fn default() -> Factory {
 		Factory {
 			evm: VMType::Interpreter
