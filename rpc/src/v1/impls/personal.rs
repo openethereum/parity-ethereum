@@ -102,6 +102,19 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		)
 	}
 
+	fn new_account_from_wallet(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(String, String, )>(params).and_then(
+			|(json, pass, )| {
+				let store = take_weak!(self.accounts);
+				match store.import_presale(json.as_bytes(), &pass).or_else(|_| store.import_wallet(json.as_bytes(), &pass)) {
+					Ok(address) => to_value(&RpcH160::from(address)),
+					Err(e) => Err(errors::account("Could not create account.", e)),
+				}
+			}
+		)
+	}
+
 	fn unlock_account(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(RpcH160, String, Option<u64>)>(params).and_then(

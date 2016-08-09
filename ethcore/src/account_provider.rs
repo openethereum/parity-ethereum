@@ -191,6 +191,18 @@ impl AccountProvider {
 		Ok(Address::from(address).into())
 	}
 
+	/// Import a new presale wallet.
+	pub fn import_presale(&self, presale_json: &[u8], password: &str) -> Result<H160, Error> {
+		let address = try!(self.sstore.import_presale(presale_json, password));
+		Ok(Address::from(address).into())
+	}
+
+	/// Import a new presale wallet.
+	pub fn import_wallet(&self, json: &[u8], password: &str) -> Result<H160, Error> {
+		let address = try!(self.sstore.import_wallet(json, password));
+		Ok(Address::from(address).into())
+	}
+
 	/// Returns addresses of all accounts.
 	pub fn accounts(&self) -> Result<Vec<H160>, Error> {
 		let accounts = try!(self.sstore.accounts()).into_iter().map(|a| H160(a.into())).collect();

@@ -51,6 +51,20 @@ impl From<json::Crypto> for Crypto {
 	}
 }
 
+impl From<json::KeyFile> for SafeAccount {
+	fn from(json: json::KeyFile) -> Self {
+		SafeAccount {
+			id: json.id.into(),
+			version: json.version.into(),
+			address: json.address.into(),
+			crypto: json.crypto.into(),
+			filename: None,
+			name: json.name.unwrap_or(String::new()),
+			meta: json.meta.unwrap_or("{}".to_owned()),
+		}
+	}
+}
+
 impl Into<json::Crypto> for Crypto {
 	fn into(self) -> json::Crypto {
 		json::Crypto {
@@ -67,7 +81,7 @@ impl Into<json::KeyFile> for SafeAccount {
 		json::KeyFile {
 			id: From::from(self.id),
 			version: self.version.into(),
-			address: self.address.into(), //From::from(self.address),
+			address: self.address.into(),
 			crypto: self.crypto.into(),
 			name: Some(self.name.into()),
 			meta: Some(self.meta.into()),
