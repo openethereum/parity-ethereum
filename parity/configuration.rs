@@ -524,6 +524,12 @@ impl Configuration {
 		let dapps_path = replace_home(&self.args.flag_dapps_path);
 		let signer_path = replace_home(&self.args.flag_signer_path);
 
+		if self.args.flag_geth {
+			let geth_path = path::ethereum::default();
+			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
+				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+		}
+
 		Directories {
 			keys: keys_path,
 			db: db_path,
