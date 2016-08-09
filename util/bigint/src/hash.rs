@@ -541,7 +541,7 @@ mod tests {
 
 	#[test]
 	fn from_and_to_address() {
-		let address = H160::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
+		let address: H160 = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
 		let h = H256::from(address.clone());
 		let a = H160::from(h);
 		assert_eq!(address, a);
