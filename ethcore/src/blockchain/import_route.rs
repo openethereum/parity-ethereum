@@ -16,7 +16,7 @@
 
 //! Import route.
 
-use util::hash::H256;
+use util::H256;
 use blockchain::block_info::{BlockInfo, BlockLocation};
 
 /// Import route for newly inserted block.
@@ -67,8 +67,7 @@ impl From<BlockInfo> for ImportRoute {
 
 #[cfg(test)]
 mod tests {
-	use util::hash::H256;
-	use util::numbers::U256;
+	use util::{U256, H256};
 	use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 	use blockchain::ImportRoute;
 

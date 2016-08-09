@@ -27,6 +27,7 @@ use std::fs;
 use std::io::{Read, Write};
 use util::hash::*;
 use util::rlp::*;
+use util::UtilError;
 use time::Tm;
 use error::NetworkError;
 use discovery::{TableUpdates, NodeEntry};
@@ -164,7 +165,7 @@ impl FromStr for Node {
 	type Err = NetworkError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
-			(try!(NodeId::from_str(&s[8..136])), try!(NodeEndpoint::from_str(&s[137..])))
+			(try!(s[8..136].parse().map_err(UtilError::from)), try!(NodeEndpoint::from_str(&s[137..])))
 		}
 		else {
 			(NodeId::new(), try!(NodeEndpoint::from_str(s)))

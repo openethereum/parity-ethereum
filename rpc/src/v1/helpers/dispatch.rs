@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::*;
+use util::{Address, H256, U256, Uint};
 use util::rlp::encode;
 use util::bytes::ToPretty;
 use ethcore::miner::MinerService;

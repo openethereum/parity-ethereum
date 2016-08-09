@@ -16,19 +16,20 @@
 
 //! Transaction data structure.
 
-use util::numbers::*;
+use std::mem;
+use std::collections::VecDeque;
+use util::{H256, Address, U256, H520};
 use std::ops::Deref;
 use util::rlp::*;
 use util::sha3::*;
 use util::{UtilError, CryptoError, Bytes, Signature, Secret, ec};
+use util::crypto::{signature_from_rsv, signature_to_rsv};
 use std::cell::*;
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
 use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 #[derive(Debug, Clone, PartialEq, Eq, Binary)]
 /// Transaction action type.
@@ -146,7 +147,7 @@ impl Transaction {
 
 	/// Signs the transaction with signature.
 	pub fn with_signature(self, sig: H520) -> SignedTransaction {
-		let (r, s, v) = sig.to_rsv();
+		let (r, s, v) = signature_to_rsv(&sig);
 		SignedTransaction {
 			unsigned: self,
 			r: r,
@@ -162,8 +163,8 @@ impl Transaction {
 	pub fn invalid_sign(self) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
-			r: U256::zero(),
-			s: U256::zero(),
+			r: U256::default(),
+			s: U256::default(),
 			v: 0,
 			hash: Cell::new(None),
 			sender: Cell::new(None),
@@ -174,8 +175,8 @@ impl Transaction {
 	pub fn fake_sign(self, from: Address) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
-			r: U256::zero(),
-			s: U256::zero(),
+			r: U256::default(),
+			s: U256::default(),
 			v: 0,
 			hash: Cell::new(None),
 			sender: Cell::new(Some(from)),
@@ -290,7 +291,7 @@ impl SignedTransaction {
 	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
 
 	/// Construct a signature object from the sig.
-	pub fn signature(&self) -> Signature { Signature::from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v()) }
+	pub fn signature(&self) -> Signature { signature_from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v()) }
 
 	/// Checks whether the signature has a low 's' value.
 	pub fn check_low_s(&self) -> Result<(), Error> {
@@ -360,10 +361,10 @@ fn sender_test() {
 	assert_eq!(t.gas_price, U256::from(0x01u64));
 	assert_eq!(t.nonce, U256::from(0x00u64));
 	if let Action::Call(ref to) = t.action {
-		assert_eq!(*to, address_from_hex("095e7baea6a6c7c4c2dfeb977efac326af552d87"));
+		assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".into());
 	} else { panic!(); }
 	assert_eq!(t.value, U256::from(0x0au64));
-	assert_eq!(t.sender().unwrap(), address_from_hex("0f65fe9276bc9a24ae7083ae28e2660ef72df99e"));
+	assert_eq!(t.sender().unwrap(), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
 }
 
 #[test]

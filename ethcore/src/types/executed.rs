@@ -16,8 +16,7 @@
 
 //! Transaction execution format module.
 
-use util::numbers::*;
-use util::Bytes;
+use util::{Bytes, U256, Address, U512};
 use util::rlp::*;
 use trace::{VMTrace, FlatTrace};
 use types::log_entry::LogEntry;

@@ -16,13 +16,11 @@
 
 //! Diff between two accounts.
 
-use util::numbers::*;
 use std::cmp::*;
-use std::fmt;
-use ipc::binary::{BinaryConvertError, BinaryConvertable};
-use util::Bytes;
+use std::{fmt, mem};
 use std::collections::{VecDeque, BTreeMap};
-use std::mem;
+use util::{U256, H256, Uint, Bytes};
+use ipc::binary::{BinaryConvertError, BinaryConvertable};
 
 #[derive(Debug, PartialEq, Eq, Clone, Binary)]
 /// Diff type for specifying a change (or not).

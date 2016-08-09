@@ -17,12 +17,9 @@
 //! Account state encoding and decoding
 
 use account_db::{AccountDB, AccountDBMut};
-use snapshot::Error;
-
-use util::{Bytes, HashDB, SHA3_EMPTY, TrieDB};
-use util::hash::{FixedHash, H256};
-use util::numbers::U256;
+use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY, TrieDB};
 use util::rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
+use snapshot::Error;
 
 // An alternate account structure from ::account::Account.
 #[derive(PartialEq, Clone, Debug)]

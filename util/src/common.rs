@@ -21,8 +21,10 @@ pub use from_json::*;
 pub use error::*;
 pub use bytes::*;
 pub use vector::*;
-pub use numbers::*;
 pub use sha3::*;
+pub use bigint::hash::*;
+pub use bigint::uint::*;
+pub use bigint::hash;
 
 #[macro_export]
 macro_rules! vec_into {
