@@ -19,20 +19,17 @@ pub enum Operation {
 impl Deserialize for Operation {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
 		where D: Deserializer {
-		let v = try!(Value::deserialize(deserializer));
-		if let Value::Object(ref map) = v.clone() {
-			if let Some(&Value::String(ref s) = map.get("type") {
-				let result = match s.as_ref() {
-					"constructor" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Constructor),
-					"function" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Function),
-					"event" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Event),
-					_ => Err(SerdeError::custom("Invalid operation type.")),
-				};
-
-				return result.map_err(|e| D::Error::custom(format!("{:?}", e).as_ref()));
-			}
-		}
-		Err(D::Error::custom("Invalid operation"))
+		let v: Value = try!(Value::deserialize(deserializer));
+		let cloned = v.clone();
+		let map = try!(cloned.as_object().ok_or_else(|| SerdeError::custom("Invalid operation")));
+		let s = try!(map.get("type").and_then(Value::as_string).ok_or_else(|| SerdeError::custom("Invalid operation type")));
+		let result = match s {
+			"constructor" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Constructor),
+			"function" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Function),
+			"event" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Event),
+			_ => Err(SerdeError::custom("Invalid operation type.")),
+		};
+		result.map_err(|e| D::Error::custom(e.to_string()))
 	}
 }
 
