@@ -46,7 +46,7 @@ impl TestProtocol {
 	}
 
 	pub fn got_packet(&self) -> bool {
-		self.packet.lock().deref()[..] == b"hello"[..]
+		self.packet.lock()[..] == b"hello"[..]
 	}
 
 	pub fn got_timeout(&self) -> bool {

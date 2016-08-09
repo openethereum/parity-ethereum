@@ -266,7 +266,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
-			engine.deref(),
+			&**engine,
 			self.vm_factory(),
 			Default::default(),
 			false,
@@ -482,9 +482,9 @@ impl BlockChainClient for TestBlockChainClient {
 		if number == len {
 			{
 				let mut difficulty = self.difficulty.write();
-				*difficulty.deref_mut() = *difficulty.deref() + header.difficulty;
+				*difficulty = *difficulty + header.difficulty;
 			}
-			mem::replace(self.last_hash.write().deref_mut(), h.clone());
+			mem::replace(&mut *self.last_hash.write(), h.clone());
 			self.blocks.write().insert(h.clone(), b);
 			self.numbers.write().insert(number, h.clone());
 			let mut parent_hash = header.parent_hash;

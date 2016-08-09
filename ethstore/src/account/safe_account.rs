@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ops::{Deref, DerefMut};
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
 use crypto::Keccak256;
@@ -87,7 +86,7 @@ impl Crypto {
 		let mut ciphertext = [0u8; 32];
 
 		// aes-128-ctr with initial vector of iv
-		crypto::aes::encrypt(&derived_left_bits, &iv, secret.deref(), &mut ciphertext);
+		crypto::aes::encrypt(&derived_left_bits, &iv, &**secret, &mut ciphertext);
 
 		// KECCAK(DK[16..31] ++ <ciphertext>), where DK[16..31] - derived_right_bits
 		let mac = crypto::derive_mac(&derived_right_bits, &ciphertext).keccak256();
@@ -123,7 +122,7 @@ impl Crypto {
 
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, secret.deref_mut())
+				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut *secret)
 			},
 		}
 

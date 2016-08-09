@@ -17,7 +17,6 @@
 //! Panic utilities
 
 use std::thread;
-use std::ops::DerefMut;
 use std::sync::Arc;
 use std::default::Default;
 
@@ -91,7 +90,7 @@ impl PanicHandler {
 	/// You should use `catch_panic` instead of calling this method explicitly.
 	pub fn notify_all(&self, r: String) {
 		let mut listeners = self.listeners.lock();
-		for listener in listeners.deref_mut() {
+		for mut listener in &mut **listeners {
 			listener.call(&r);
 		}
 	}

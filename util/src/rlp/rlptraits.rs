@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Common RLP traits
-use std::ops::Deref;
 use rlp::bytes::VecLike;
 use rlp::{DecoderError, UntrustedRlp};
 use rlp::rlpstream::RlpStream;
@@ -244,7 +243,7 @@ pub trait ByteEncodable {
 	fn bytes_len(&self) -> usize;
 }
 
-/// Structure encodable to RLP. Implement this trait for 
+/// Structure encodable to RLP. Implement this trait for
 pub trait Encodable {
 	/// Append a value to the stream
 	fn rlp_append(&self, s: &mut RlpStream);
@@ -257,7 +256,7 @@ pub trait Encodable {
 	}
 
 	/// Get the hash or RLP encoded representation
-	fn rlp_sha3(&self) -> H256 { self.rlp_bytes().deref().sha3() }
+	fn rlp_sha3(&self) -> H256 { (&*self.rlp_bytes()).sha3() }
 }
 
 /// Encodable wrapper trait required to handle special case of encoding a &[u8] as string and not as list
