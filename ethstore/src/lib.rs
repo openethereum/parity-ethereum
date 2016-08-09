@@ -18,6 +18,7 @@
 #![cfg_attr(feature="nightly", plugin(serde_macros))]
 
 extern crate libc;
+extern crate itertools;
 extern crate rand;
 extern crate time;
 extern crate serde;
@@ -25,6 +26,8 @@ extern crate serde_json;
 extern crate rustc_serialize;
 extern crate crypto as rcrypto;
 extern crate tiny_keccak;
+#[macro_use]
+extern crate lazy_static;
 // reexport it nicely
 extern crate ethkey as _ethkey;
 
@@ -48,4 +51,5 @@ pub use self::ethstore::EthStore;
 pub use self::import::import_accounts;
 pub use self::presale::PresaleWallet;
 pub use self::secret_store::SecretStore;
+pub use self::random::random_phrase;
 

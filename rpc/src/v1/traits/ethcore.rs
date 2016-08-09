@@ -67,6 +67,9 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns error when signer is disabled
 	fn unsigned_transactions_count(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns a cryptographically random phrase sufficient for securely seeding a secret key.
+	fn generate_secret_phrase(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -86,6 +89,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_defaultExtraData", Ethcore::default_extra_data);
 		delegate.add_method("ethcore_gasPriceStatistics", Ethcore::gas_price_statistics);
 		delegate.add_method("ethcore_unsignedTransactionsCount", Ethcore::unsigned_transactions_count);
+		delegate.add_method("ethcore_generateSecretPhrase", Ethcore::generate_secret_phrase);
 
 		delegate
 	}

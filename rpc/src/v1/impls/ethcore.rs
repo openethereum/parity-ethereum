@@ -20,6 +20,7 @@ use util::misc::version_data;
 use std::sync::{Arc, Weak};
 use std::ops::Deref;
 use std::collections::{BTreeMap};
+use ethstore::random_phrase;
 use ethcore::client::{MiningBlockChainClient};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
@@ -165,5 +166,12 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 			None => Err(errors::signer_disabled()),
 			Some(ref queue) => to_value(&queue.len()),
 		}
+	}
+
+	fn generate_secret_phrase(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+
+		to_value(&random_phrase(12))
 	}
 }
