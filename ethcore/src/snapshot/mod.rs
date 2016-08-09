@@ -29,7 +29,7 @@ use views::BlockView;
 use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
 use util::Mutex;
 use util::hash::{FixedHash, H256};
-use util::journaldb::{self, Algorithm, JournalDB};
+use util::journaldb::{Algorithm, JournalDB};
 use util::kvdb::Database;
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
 use util::rlp::SHA3_NULL_RLP;
@@ -418,7 +418,7 @@ impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
 	pub fn new(db: Arc<Database>, pruning: Algorithm) -> Self {
 		StateRebuilder {
-			db: journaldb::new(db.clone(), pruning, ::client::DB_COL_STATE),
+			db: ::db::make_journaldb(db.clone(), pruning),
 			state_root: SHA3_NULL_RLP,
 		}
 	}

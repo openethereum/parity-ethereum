@@ -248,8 +248,9 @@ impl TestBlockChainClient {
 
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
-	let db = Database::open_default(temp.as_str()).unwrap();
-	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, None);
+	let cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db = Database::open(&cfg, temp.as_str()).unwrap();
+	let journal_db = ::db::make_journaldb(Arc::new(db), journaldb::Algorithm::EarlyMerge);
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(journal_db)

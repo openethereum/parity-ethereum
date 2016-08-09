@@ -22,7 +22,7 @@ use std::time::{Instant};
 use time::precise_time_ns;
 
 // util
-use util::{journaldb, rlp, Bytes, View, PerfTimer, Itertools, Mutex, RwLock};
+use util::{rlp, Bytes, View, PerfTimer, Itertools, Mutex, RwLock};
 use util::journaldb::JournalDB;
 use util::rlp::{UntrustedRlp};
 use util::numbers::*;
@@ -61,6 +61,7 @@ use trace::FlatTransactionTraces;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
+use db;
 use snapshot::{self, io as snapshot_io};
 
 // re-export
@@ -140,20 +141,6 @@ pub struct Client {
 
 const HISTORY: u64 = 1200;
 
-// database columns
-/// Column for State
-pub const DB_COL_STATE: Option<u32> = Some(0);
-/// Column for Block headers
-pub const DB_COL_HEADERS: Option<u32> = Some(1);
-/// Column for Block bodies
-pub const DB_COL_BODIES: Option<u32> = Some(2);
-/// Column for Extras
-pub const DB_COL_EXTRA: Option<u32> = Some(3);
-/// Column for Traces
-pub const DB_COL_TRACE: Option<u32> = Some(4);
-/// Number of columns in DB
-pub const DB_NO_OF_COLUMNS: Option<u32> = Some(5);
-
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
 	let mut p = path.as_ref().to_path_buf();
@@ -172,7 +159,7 @@ impl Client {
 	) -> Result<Arc<Client>, ClientError> {
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
-		let mut db_config = DatabaseConfig::with_columns(DB_NO_OF_COLUMNS);
+		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
 		db_config.cache_size = config.db_cache_size;
 		db_config.compaction = config.db_compaction.compaction_profile();
 		db_config.wal = config.db_wal;
@@ -181,7 +168,7 @@ impl Client {
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, db.clone(), chain.clone())));
 
-		let mut state_db = journaldb::new(db.clone(), config.pruning, DB_COL_STATE);
+		let mut state_db = db::make_journaldb(db.clone(), config.pruning);
 		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
 			let batch = DBTransaction::new(&db);
 			try!(state_db.commit(&batch, 0, &spec.genesis_header().hash(), None));

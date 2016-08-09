@@ -14,7 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! `JournalDB` over in-memory overlay
+//! Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
+//! and, possibly, latent-removal semantics.
+//! This has two modes: pruned and archive.
+//! Pruned mode will enact deletions, while archive mode will move them to another section of the database.
+//!
+//! Like `OverlayDB`, there is a memory overlay; `commit()` must be called in order to
+//! write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
+//! immediately. Rather some age (based on a linear but arbitrary metric) must pass before
+//! the removals actually take effect.
+//!
+//! There are two memory overlays:
+//! - Transaction overlay contains current transaction data. It is merged with with history
+//! overlay on each `commit()`
+//! - History overlay contains all data inserted during the history period. When the node
+//! in the overlay becomes ancient it is written to disk on `commit()`
+//!
+//! There is also a journal maintained in memory and on the disk as well which lists insertions
+//! and removals for each commit during the history period. This is used to track
+//! data nodes that go out of history scope and must be written to disk.
+//!
+//! Commit workflow:
+//! 1. Create a new journal record from the transaction overlay.
+//! 2. Insert each node from the transaction overlay into the History overlay increasing reference
+//! count if it is already there. Note that the reference counting is managed by `MemoryDB`
+//! 3. Clear the transaction overlay.
+//! 4. For a canonical journal record that becomes ancient inserts its insertions into the disk DB
+//! 5. For each journal record that goes out of the history scope (becomes ancient) remove its
+//! insertions from the history overlay, decreasing the reference counter and removing entry if
+//! if reaches zero.
+//! 6. For a canonical journal record that becomes ancient delete its removals from the disk only if
+//! the removed key is not present in the history overlay.
+//! 7. Delete ancient record from memory and disk.
 
 use common::*;
 use rlp::*;
@@ -24,44 +55,16 @@ use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use kvdb::{Database, DBTransaction};
 #[cfg(test)]
 use std::env;
-use super::JournalDB;
+use super::{Archive, JournalDB};
 
-/// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
-/// and, possibly, latent-removal semantics.
-///
-/// Like `OverlayDB`, there is a memory overlay; `commit()` must be called in order to
-/// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
-/// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
-/// the removals actually take effect.
-///
-/// There are two memory overlays:
-/// - Transaction overlay contains current transaction data. It is merged with with history
-/// overlay on each `commit()`
-/// - History overlay contains all data inserted during the history period. When the node
-/// in the overlay becomes ancient it is written to disk on `commit()`
-///
-/// There is also a journal maintained in memory and on the disk as well which lists insertions
-/// and removals for each commit during the history period. This is used to track
-/// data nodes that go out of history scope and must be written to disk.
-///
-/// Commit workflow:
-/// 1. Create a new journal record from the transaction overlay.
-/// 2. Insert each node from the transaction overlay into the History overlay increasing reference
-/// count if it is already there. Note that the reference counting is managed by `MemoryDB`
-/// 3. Clear the transaction overlay.
-/// 4. For a canonical journal record that becomes ancient inserts its insertions into the disk DB
-/// 5. For each journal record that goes out of the history scope (becomes ancient) remove its
-/// insertions from the history overlay, decreasing the reference counter and removing entry if
-/// if reaches zero.
-/// 6. For a canonical journal record that becomes ancient delete its removals from the disk only if
-/// the removed key is not present in the history overlay.
-/// 7. Delete ancient record from memory and disk.
-
+/// Disk-backed HashDB implementation which can either prune or archive old state.
+/// See the module-level documentation for more info.
 pub struct OverlayRecentDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<Database>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
+	mode: Archive,
 }
 
 #[derive(PartialEq)]
@@ -91,6 +94,7 @@ impl Clone for OverlayRecentDB {
 			backing: self.backing.clone(),
 			journal_overlay: self.journal_overlay.clone(),
 			column: self.column.clone(),
+			mode: self.mode.clone(),
 		}
 	}
 }
@@ -99,34 +103,53 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
 	/// Create a new instance.
-	pub fn new(backing: Arc<Database>, col: Option<u32>) -> OverlayRecentDB {
-		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing, col)));
+	pub fn new(backing: Arc<Database>, col: Option<u32>, mode: Archive) -> OverlayRecentDB {
+		let overlay_col = match mode {
+			Archive::Off => col,
+			Archive::On(c) => c,
+		};
+
+		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing, overlay_col)));
 		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
 			backing: backing,
 			journal_overlay: journal_overlay,
 			column: col,
+			mode: mode,
 		}
 	}
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	pub fn new_temp() -> OverlayRecentDB {
+	pub fn new_temp(mode: Archive) -> OverlayRecentDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
-		Self::new(backing, None)
+		Self::new(backing, None, mode)
 	}
 
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
-		let reconstructed = Self::read_overlay(&self.backing, self.column);
+		let overlay_col = match self.mode {
+			Archive::Off => self.column,
+			Archive::On(c) => c,
+		};
+
+		let reconstructed = Self::read_overlay(&self.backing, overlay_col);
 		let journal_overlay = self.journal_overlay.read();
 		*journal_overlay == reconstructed
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
+		match self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?") {
+			None => {
+				match self.mode {
+					Archive::Off => None,
+					Archive::On(archive_col) => self.backing.get(archive_col, key).expect("Low-level database error."),
+				}
+			}
+			x => x,
+		}
 	}
 
 	fn read_overlay(db: &Database, col: Option<u32>) -> JournalOverlay {
@@ -211,9 +234,22 @@ impl JournalDB for OverlayRecentDB {
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let v = self.journal_overlay.read().backing_overlay.get(&to_short_key(key)).map(|v| v.to_vec());
 		v.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
+			.or_else(|| match self.mode {
+				Archive::Off => None,
+				Archive::On(archive_col) =>
+					self.backing.get_by_prefix(archive_col, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+		})
 	}
 
 	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		// default column to insert journalling and writes to.
+		// in archive mode, we put everything except canonical state in the
+		// archive column.
+		let default_col = match self.mode {
+			Archive::Off => self.column,
+			Archive::On(col) => col,
+		};
+
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
 		let mut journal_overlay = self.journal_overlay.write();
@@ -230,6 +266,12 @@ impl JournalDB for OverlayRecentDB {
 				r.begin_list(2);
 				r.append(&k);
 				r.append(&v);
+
+				// only write state entries to the archive directly if in archive mode.
+				if let Archive::On(archive_col) = self.mode {
+					try!(batch.put(archive_col, &k, &v));
+				}
+
 				journal_overlay.backing_overlay.emplace(to_short_key(&k), v);
 			}
 			r.append(&removed_keys);
@@ -239,9 +281,9 @@ impl JournalDB for OverlayRecentDB {
 			k.append(&now);
 			k.append(&index);
 			k.append(&&PADDING[..]);
-			try!(batch.put_vec(self.column, &k.drain(), r.out()));
+			try!(batch.put_vec(default_col, &k.drain(), r.out()));
 			if journal_overlay.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec()));
+				try!(batch.put_vec(default_col, &LATEST_ERA_KEY, encode(&now).to_vec()));
 				journal_overlay.latest_era = Some(now);
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
@@ -261,7 +303,7 @@ impl JournalDB for OverlayRecentDB {
 					r.append(&end_era);
 					r.append(&index);
 					r.append(&&PADDING[..]);
-					try!(batch.delete(self.column, &r.drain()));
+					try!(batch.delete(default_col, &r.drain()));
 					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
 					{
 						if canon_id == journal.id {
@@ -309,12 +351,22 @@ impl JournalDB for OverlayRecentDB {
 					if try!(self.backing.get(self.column, &key)).is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
-					try!(batch.put(self.column, &key, &value))
+
+					if let Archive::On(archive_col) = self.mode {
+						try!(batch.put(archive_col, &key, &value));
+					}
+
+					try!(batch.put_vec(self.column, &key, value));
 				}
 				-1 => {
 					if try!(self.backing.get(self.column, &key)).is_none() {
 						return Err(BaseDataError::NegativelyReferencedHash(key).into());
 					}
+
+					if let Archive::On(archive_col) = self.mode {
+						try!(batch.delete(archive_col, &key));
+					}
+
 					try!(batch.delete(self.column, &key))
 				}
 				_ => panic!("Attempted to inject invalid state."),
@@ -322,6 +374,13 @@ impl JournalDB for OverlayRecentDB {
 		}
 
 		Ok(ops)
+	}
+
+	fn is_pruned(&self) -> bool {
+		match self.mode {
+			Archive::On(_) => false,
+			Archive::Off => true,
+		}
 	}
 }
 
@@ -387,18 +446,27 @@ mod tests {
 	use super::*;
 	use hashdb::*;
 	use log::init_log;
-	use journaldb::JournalDB;
-	use kvdb::Database;
+	use journaldb::{Archive, JournalDB};
+	use kvdb::{Database, DatabaseConfig};
 
-	fn new_db(path: &Path) -> OverlayRecentDB {
+	fn new_pruned(path: &Path) -> OverlayRecentDB {
 		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());
-		OverlayRecentDB::new(backing, None)
+		OverlayRecentDB::new(backing, None, Archive::Off)
+	}
+
+	fn new_archive(path: &Path) -> OverlayRecentDB {
+		let cfg = DatabaseConfig::with_columns(Some(2));
+		let backing = Arc::new(Database::open(&cfg, path.to_str().unwrap()).unwrap());
+		OverlayRecentDB::new(backing, Some(0), Archive::On(Some(1)))
 	}
 
 	#[test]
 	fn insert_same_in_fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 
 		let x = jdb.insert(b"X");
 		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
@@ -427,8 +495,11 @@ mod tests {
 
 	#[test]
 	fn long_history() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 3
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 		let h = jdb.insert(b"foo");
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -450,8 +521,11 @@ mod tests {
 
 	#[test]
 	fn complex() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -493,8 +567,11 @@ mod tests {
 
 	#[test]
 	fn fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -525,8 +602,11 @@ mod tests {
 
 	#[test]
 	fn overwrite() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_pruned(&dir);
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
@@ -548,7 +628,10 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_one() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -573,7 +656,10 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_other() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -599,7 +685,10 @@ mod tests {
 
 	#[test]
 	fn fork_ins_del_ins() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -633,12 +722,13 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -648,14 +738,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			jdb.remove(&foo);
 			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
 			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -667,7 +757,11 @@ mod tests {
 	#[test]
 	fn insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut jdb = OverlayRecentDB::new_temp();
+
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -693,7 +787,10 @@ mod tests {
 	#[test]
 	fn forked_insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -739,7 +836,10 @@ mod tests {
 
 	#[test]
 	fn broken_assert() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
@@ -767,7 +867,10 @@ mod tests {
 
 	#[test]
 	fn reopen_test() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
@@ -801,13 +904,13 @@ mod tests {
 	fn reopen_remove_three() {
 		init_log();
 
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
 
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
@@ -829,7 +932,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 
 			jdb.remove(&foo);
 			jdb.commit_batch(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
@@ -838,7 +941,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 
 			jdb.commit_batch(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -846,7 +949,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 
 			jdb.commit_batch(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -856,10 +959,11 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
 		let (foo, bar, baz) = {
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -877,7 +981,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = new_pruned(&dir);
 			jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
@@ -888,7 +992,10 @@ mod tests {
 
 	#[test]
 	fn insert_older_era() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let mut jdb = new_pruned(&dir);
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &b"0a".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -909,8 +1016,9 @@ mod tests {
 	#[test]
 	fn inject() {
 		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
 
-		let mut jdb = new_db(temp.as_path().as_path());
+		let mut jdb = new_pruned(&dir);
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
@@ -919,5 +1027,262 @@ mod tests {
 		jdb.inject_batch().unwrap();
 
 		assert!(jdb.get(&key).is_none());
+	}
+
+// archive tests
+
+	#[test]
+	fn archive_insert_same_in_fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+
+		let x = jdb.insert(b"X");
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.remove(&x);
+		jdb.commit_batch(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		let x = jdb.insert(b"X");
+		jdb.commit_batch(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.commit_batch(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		jdb.commit_batch(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+
+		assert!(jdb.contains(&x));
+	}
+
+	#[test]
+	fn archive_long_history() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 3
+		let mut jdb = new_archive(&dir);
+		let h = jdb.insert(b"foo");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.remove(&h);
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+	}
+
+	#[test]
+	fn archive_complex() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+
+		let foo = jdb.insert(b"foo");
+		let bar = jdb.insert(b"bar");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+
+		jdb.remove(&foo);
+		jdb.remove(&bar);
+		let baz = jdb.insert(b"baz");
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
+
+		let foo = jdb.insert(b"foo");
+		jdb.remove(&baz);
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&baz));
+
+		jdb.remove(&foo);
+		jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+
+		jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+	}
+
+	#[test]
+	fn archive_fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+
+		let foo = jdb.insert(b"foo");
+		let bar = jdb.insert(b"bar");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+
+		jdb.remove(&foo);
+		let baz = jdb.insert(b"baz");
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+		jdb.remove(&bar);
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+		assert!(jdb.contains(&foo));
+		assert!(jdb.contains(&bar));
+		assert!(jdb.contains(&baz));
+
+		jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+	}
+
+	#[test]
+	fn archive_overwrite() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+
+		let foo = jdb.insert(b"foo");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&foo));
+
+		jdb.remove(&foo);
+		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.insert(b"foo");
+		assert!(jdb.contains(&foo));
+		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+		jdb.commit_batch(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+	}
+
+	#[test]
+	fn archive_fork_same_key() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		// history is 1
+		let mut jdb = new_archive(&dir);
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+
+		let foo = jdb.insert(b"foo");
+		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+		jdb.insert(b"foo");
+		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+
+		jdb.commit_batch(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		assert!(jdb.contains(&foo));
+	}
+
+	#[test]
+	fn archive_reopen() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+		let bar = H256::random();
+
+		let foo = {
+			let mut jdb = new_archive(&dir);
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			jdb.emplace(bar.clone(), b"bar".to_vec());
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			foo
+		};
+
+		{
+			let mut jdb = new_archive(&dir);
+			jdb.remove(&foo);
+			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		}
+
+		{
+			let mut jdb = new_archive(&dir);
+			assert!(jdb.contains(&foo));
+			assert!(jdb.contains(&bar));
+			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		}
+	}
+
+	#[test]
+	fn archive_reopen_remove() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let foo = {
+			let mut jdb = new_archive(&dir);
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			// foo is ancient history.
+
+			jdb.insert(b"foo");
+			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			foo
+		};
+
+		{
+			let mut jdb = new_archive(&dir);
+			jdb.remove(&foo);
+			jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			assert!(jdb.contains(&foo));
+			jdb.remove(&foo);
+			jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit_batch(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
+		}
+	}
+
+	#[test]
+	fn archive_reopen_fork() {
+		let temp = ::devtools::RandomTempPath::new();
+		let dir = temp.as_path().clone();
+
+		let (foo, _, _) = {
+			let mut jdb = new_archive(&dir);
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			let bar = jdb.insert(b"bar");
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			jdb.remove(&foo);
+			let baz = jdb.insert(b"baz");
+			jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			jdb.remove(&bar);
+			jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+			(foo, bar, baz)
+		};
+
+		{
+			let mut jdb = new_archive(&dir);
+			jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+			assert!(jdb.contains(&foo));
+		}
+	}
+
+	#[test]
+	fn archive_returns_state() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		let key = {
+			let mut jdb = new_archive(temp.as_path().as_path());
+			let key = jdb.insert(b"foo");
+			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			key
+		};
+
+		{
+			let jdb = new_archive(temp.as_path().as_path());
+			let state = jdb.state(&key);
+			assert!(state.is_some());
+		}
 	}
 }

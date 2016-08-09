@@ -31,6 +31,8 @@ pub struct Config {
 	pub batch_size: usize,
 	/// Database compaction profile.
 	pub compaction_profile: CompactionProfile,
+	/// Amount of columns to assume as a default.
+	pub default_cols: Option<u32>,
 }
 
 impl Default for Config {
@@ -38,6 +40,7 @@ impl Default for Config {
 		Config {
 			batch_size: 1024,
 			compaction_profile: Default::default(),
+			default_cols: None,
 		}
 	}
 }
@@ -272,7 +275,7 @@ impl Manager {
 		let migration = self.migrations.iter().find(|m| m.version() == version);
 		match migration {
 			Some(m) => m.columns(),
-			None => None
+			None => self.config.default_cols,
 		}
 	}
 }

@@ -14,26 +14,59 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Extras db utils.
+//! Database-related utilities and constants.
 
 use std::ops::Deref;
 use std::hash::Hash;
 use std::collections::HashMap;
+use std::sync::Arc;
+
 use util::{DBTransaction, Database, RwLock};
 use util::rlp::{encode, Encodable, decode, Decodable};
+use util::journaldb::{self, Algorithm, JournalDB, Archive};
 
+// database columns
+/// Column for State
+pub const COL_STATE: Option<u32> = Some(0);
+/// Column for Block headers
+pub const COL_HEADERS: Option<u32> = Some(1);
+/// Column for Block bodies
+pub const COL_BODIES: Option<u32> = Some(2);
+/// Column for Extras
+pub const COL_EXTRA: Option<u32> = Some(3);
+/// Column for Traces
+pub const COL_TRACE: Option<u32> = Some(4);
+/// Column for archived state.
+pub const COL_STATE_ARCHIVE: Option<u32> = Some(5);
+/// Number of columns in DB
+pub const NUM_COLUMNS: Option<u32> = Some(6);
 
+/// Create a new `JournalDB` trait object.
+pub fn make_journaldb(backing: Arc<Database>, algorithm: Algorithm) -> Box<JournalDB> {
+	match algorithm {
+		Algorithm::Archive => Box::new(journaldb::OverlayRecentDB::new(backing, COL_STATE, Archive::On(COL_STATE_ARCHIVE))),
+		Algorithm::EarlyMerge => Box::new(journaldb::EarlyMergeDB::new(backing, COL_STATE)),
+		Algorithm::OverlayRecent => Box::new(journaldb::OverlayRecentDB::new(backing, COL_STATE, Archive::Off)),
+		Algorithm::RefCounted => Box::new(journaldb::RefCountedDB::new(backing, COL_STATE)),
+	}
+}
+
+/// Different ways that caches can be updated.
 #[derive(Clone, Copy)]
 pub enum CacheUpdatePolicy {
+	/// Overwrite updated entries in the cache.
 	Overwrite,
+	/// Remove updated entries from the cache.
 	Remove,
 }
 
+/// An in-memory cache to be used in conjunction with a disk-backed database.
 pub trait Cache<K, V> {
+	/// Insert a key-value pair, returning the old value.
 	fn insert(&mut self, k: K, v: V) -> Option<V>;
-
+	/// Remove a key from the cache, returning the old value.
 	fn remove(&mut self, k: &K) -> Option<V>;
-
+	/// Fetch a value from the cache.
 	fn get(&self, k: &K) -> Option<&V>;
 }
 
@@ -52,7 +85,9 @@ impl<K, V> Cache<K, V> for HashMap<K, V> where K: Hash + Eq {
 }
 
 /// Should be used to get database key associated with given value.
+/// This is used to produce unique keys based on a specific type.
 pub trait Key<T> {
+	/// The produced key type.
 	type Target: Deref<Target = [u8]>;
 
 	/// Returns db key.

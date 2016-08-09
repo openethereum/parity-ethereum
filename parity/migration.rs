@@ -23,13 +23,13 @@ use util::journaldb::Algorithm;
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
 use util::kvdb::{CompactionProfile, Database, DatabaseConfig};
 use ethcore::migrations;
-use ethcore::client;
+use ethcore::db;
 use ethcore::migrations::Extract;
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 9;
+const CURRENT_VERSION: u32 = 10;
 /// First version of the consolidated database.
 const CONSOLIDATION_VERSION: u32 = 9;
 /// Defines how many items are migrated to the new version of database at once.
@@ -43,7 +43,7 @@ pub enum Error {
 	/// Returned when current version cannot be read or guessed.
 	UnknownDatabaseVersion,
 	/// Migration does not support existing pruning algorithm.
-	UnsuportedPruningMethod,
+	UnsupportedPruningMethod,
 	/// Existing DB is newer than the known one.
 	FutureDBVersion,
 	/// Migration is not possible.
@@ -59,7 +59,7 @@ impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		let out = match *self {
 			Error::UnknownDatabaseVersion => "Current database version cannot be read".into(),
-			Error::UnsuportedPruningMethod => "Unsupported pruning method for database migration. Delete DB and resync.".into(),
+			Error::UnsupportedPruningMethod => "Unsupported pruning method for database migration. Delete DB and resync.".into(),
 			Error::FutureDBVersion => "Database was created with newer client version. Upgrade your client or delete DB and resync.".into(),
 			Error::MigrationImpossible => format!("Database migration to version {} is not possible.", CURRENT_VERSION),
 			Error::MigrationFailed => "Database migration unexpectedly failed".into(),
@@ -130,17 +130,31 @@ fn backup_database_path(path: &Path) -> PathBuf {
 	backup_path
 }
 
-/// Default migration settings.
-pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> MigrationConfig {
+/// Legacy migration settings.
+pub fn legacy_migration_settings(compaction_profile: &CompactionProfile) -> MigrationConfig {
 	MigrationConfig {
 		batch_size: BATCH_SIZE,
 		compaction_profile: *compaction_profile,
+		default_cols: None,
+	}
+}
+
+/// Consolidated migration settings.
+pub fn consolidated_migration_settings(compaction_profile: &CompactionProfile) -> MigrationConfig {
+	// number of columns that singledb had when it was introduced.
+	const SINGLE_START_COLS: Option<u32> = Some(5);
+
+	MigrationConfig {
+		batch_size: BATCH_SIZE,
+		compaction_profile: *compaction_profile,
+		default_cols: SINGLE_START_COLS,
 	}
 }
 
 /// Migrations on the consolidated database.
-fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-	let manager = MigrationManager::new(default_migration_settings(compaction_profile));
+fn consolidated_database_migrations(compaction_profile: &CompactionProfile, pruning: Algorithm) -> Result<MigrationManager, Error> {
+	let mut manager = MigrationManager::new(consolidated_migration_settings(compaction_profile));
+	try!(manager.add_migration(migrations::ToV10::new(pruning)).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
@@ -157,7 +171,7 @@ fn consolidate_database(
 	}
 
 	let mut migration = migrations::ToV9::new(column, extract);
-	let config = default_migration_settings(compaction_profile);
+	let config = legacy_migration_settings(compaction_profile);
 	let mut db_config = DatabaseConfig {
 		max_open_files: 64,
 		cache_size: None,
@@ -240,11 +254,11 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 		let db_path = consolidated_database_path(path);
 		// Remove the database dir (it shouldn't exist anyway, but it might when migration was interrupted)
 		let _ = fs::remove_dir_all(db_path.clone());
-		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_HEADERS, Extract::Header, &compaction_profile));
-		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), client::DB_COL_BODIES, Extract::Body, &compaction_profile));
-		try!(consolidate_database(legacy::extras_database_path(path), db_path.clone(), client::DB_COL_EXTRA, Extract::All, &compaction_profile));
-		try!(consolidate_database(legacy::state_database_path(path), db_path.clone(), client::DB_COL_STATE, Extract::All, &compaction_profile));
-		try!(consolidate_database(legacy::trace_database_path(path), db_path.clone(), client::DB_COL_TRACE, Extract::All, &compaction_profile));
+		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), db::COL_HEADERS, Extract::Header, &compaction_profile));
+		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), db::COL_BODIES, Extract::Body, &compaction_profile));
+		try!(consolidate_database(legacy::extras_database_path(path), db_path.clone(), db::COL_EXTRA, Extract::All, &compaction_profile));
+		try!(consolidate_database(legacy::state_database_path(path), db_path.clone(), db::COL_STATE, Extract::All, &compaction_profile));
+		try!(consolidate_database(legacy::trace_database_path(path), db_path.clone(), db::COL_TRACE, Extract::All, &compaction_profile));
 		let _ = fs::remove_dir_all(legacy::blocks_database_path(path));
 		let _ = fs::remove_dir_all(legacy::extras_database_path(path));
 		let _ = fs::remove_dir_all(legacy::state_database_path(path));
@@ -255,7 +269,8 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 	// Further migrations
 	if version >= CONSOLIDATION_VERSION && version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {
 		println!("Migrating database from version {} to {}", ::std::cmp::max(CONSOLIDATION_VERSION, version), CURRENT_VERSION);
-		try!(migrate_database(version, consolidated_database_path(path), try!(consolidated_database_migrations(&compaction_profile))));
+		let consolidated_manager = try!(consolidated_database_migrations(&compaction_profile, pruning));
+		try!(migrate_database(version, consolidated_database_path(path), consolidated_manager));
 		println!("Migration finished");
 	}
 
@@ -302,25 +317,25 @@ mod legacy {
 
 	/// Migrations on the blocks database.
 	pub fn blocks_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+		let mut manager = MigrationManager::new(legacy_migration_settings(compaction_profile));
 		try!(manager.add_migration(migrations::blocks::V8::default()).map_err(|_| Error::MigrationImpossible));
 		Ok(manager)
 	}
 
 	/// Migrations on the extras database.
 	pub fn extras_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+		let mut manager = MigrationManager::new(legacy_migration_settings(compaction_profile));
 		try!(manager.add_migration(migrations::extras::ToV6).map_err(|_| Error::MigrationImpossible));
 		Ok(manager)
 	}
 
 	/// Migrations on the state database.
 	pub fn state_database_migrations(pruning: Algorithm, compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+		let mut manager = MigrationManager::new(legacy_migration_settings(compaction_profile));
 		let res = match pruning {
 			Algorithm::Archive => manager.add_migration(migrations::state::ArchiveV7::default()),
 			Algorithm::OverlayRecent => manager.add_migration(migrations::state::OverlayRecentV7::default()),
-			_ => return Err(Error::UnsuportedPruningMethod),
+			_ => return Err(Error::UnsupportedPruningMethod),
 		};
 
 		try!(res.map_err(|_| Error::MigrationImpossible));
