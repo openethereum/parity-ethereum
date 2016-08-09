@@ -46,7 +46,7 @@ impl TimeProvider for DefaultTimeProvider {
 }
 
 /// No of seconds the hash is valid
-const TIME_THRESHOLD: u64 = 2;
+const TIME_THRESHOLD: u64 = 7;
 const TOKEN_LENGTH: usize = 16;
 
 /// Manages authorization codes for `SignerUIs`
@@ -102,7 +102,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 		let now = self.now.now();
 		// check time
 		if time >= now + TIME_THRESHOLD || time <= now - TIME_THRESHOLD {
-			warn!(target: "signer", "Received old authentication request.");
+			warn!(target: "signer", "Received old authentication request. ({} vs {})", now, time);
 			return false;
 		}
 
@@ -169,8 +169,8 @@ mod tests {
 	fn should_return_false_if_hash_is_valid_but_time_is_invalid() {
 		// given
 		let code = "23521352asdfasdfadf";
-		let time = 105;
-		let time2 = 95;
+		let time = 107;
+		let time2 = 93;
 		let codes = AuthCodes::new(vec![code.into()], || 100);
 
 		// when

@@ -96,12 +96,10 @@ pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
 	transaction_queue: Mutex<TransactionQueue>,
 	sealing_work: Mutex<SealingWork>,
-
-	// for sealing...
-	options: MinerOptions,
-	
 	next_allowed_reseal: Mutex<Instant>,
 	sealing_block_last_request: Mutex<u64>,
+	// for sealing...
+	options: MinerOptions,
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
@@ -651,11 +649,11 @@ impl MinerService for Miner {
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "update_sealing");
 		let requires_reseal = {
+			let has_local_transactions = self.transaction_queue.lock().unwrap().has_local_pending_transactions();
 			let mut sealing_work = self.sealing_work.lock().unwrap();
 			if sealing_work.enabled {
 				trace!(target: "miner", "update_sealing: sealing enabled");
 				let current_no = chain.chain_info().best_block_number;
-				let has_local_transactions = self.transaction_queue.lock().unwrap().has_local_pending_transactions();
 				let last_request = *self.sealing_block_last_request.lock().unwrap();
 				let should_disable_sealing = !self.forced_sealing()
 					&& !has_local_transactions

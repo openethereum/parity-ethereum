@@ -40,7 +40,8 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 	try!(verify_header(&header, engine));
 	try!(verify_block_integrity(bytes, &header.transactions_root, &header.uncles_hash));
 	try!(engine.verify_block_basic(&header, Some(bytes)));
-	for u in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
+	for u in try!(UntrustedRlp::new(bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
+		let u = try!(u);
 		try!(verify_header(&u, engine));
 		try!(engine.verify_block_basic(&u, None));
 	}
@@ -58,8 +59,8 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 /// Returns a `PreverifiedBlock` structure populated with transactions
 pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreverifiedBlock, Error> {
 	try!(engine.verify_block_unordered(&header, Some(&bytes)));
-	for u in Rlp::new(&bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(engine.verify_block_unordered(&u, None));
+	for u in try!(UntrustedRlp::new(&bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
+		try!(engine.verify_block_unordered(&try!(u), None));
 	}
 	// Verify transactions.
 	let mut transactions = Vec::new();
@@ -84,7 +85,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 	try!(verify_parent(&header, &parent));
 	try!(engine.verify_block_family(&header, &parent, Some(bytes)));
 
-	let num_uncles = Rlp::new(bytes).at(2).item_count();
+	let num_uncles = try!(UntrustedRlp::new(bytes).at(2)).item_count();
 	if num_uncles != 0 {
 		if num_uncles > engine.maximum_uncle_count() {
 			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: None, max: Some(engine.maximum_uncle_count()), found: num_uncles })));
@@ -106,7 +107,8 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			}
 		}
 
-		for uncle in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
+		for uncle in try!(UntrustedRlp::new(bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
+			let uncle = try!(uncle);
 			if excluded.contains(&uncle.hash()) {
 				return Err(From::from(BlockError::UncleInChain(uncle.hash())))
 			}
@@ -210,13 +212,13 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 
 /// Verify block data against header: transactions root and uncles hash.
 fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &H256) -> Result<(), Error> {
-	let block = Rlp::new(block);
-	let tx = block.at(1);
+	let block = UntrustedRlp::new(block);
+	let tx = try!(block.at(1));
 	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
 	if expected_root != transactions_root {
 		return Err(From::from(BlockError::InvalidTransactionsRoot(Mismatch { expected: expected_root.clone(), found: transactions_root.clone() })))
 	}
-	let expected_uncles = &block.at(2).as_raw().sha3();
+	let expected_uncles = &try!(block.at(2)).as_raw().sha3();
 	if expected_uncles != uncles_hash {
 		return Err(From::from(BlockError::InvalidUnclesHash(Mismatch { expected: expected_uncles.clone(), found: uncles_hash.clone() })))
 	}
