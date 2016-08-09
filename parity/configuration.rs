@@ -511,6 +511,8 @@ impl Configuration {
 	}
 
 	fn directories(&self) -> Directories {
+		use util::path;
+
 		let db_path = replace_home(self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 
 		let keys_path = replace_home(
@@ -527,7 +529,7 @@ impl Configuration {
 		if self.args.flag_geth {
 			let geth_path = path::ethereum::default();
 			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
-				|e| die!("Error while attempting to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
 		}
 
 		Directories {
