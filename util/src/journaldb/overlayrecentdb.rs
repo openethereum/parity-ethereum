@@ -348,11 +348,11 @@ impl HashDB for OverlayRecentDB {
 				let v = self.journal_overlay.read().backing_overlay.get(&to_short_key(key)).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
-						Some(&self.transaction_overlay.denote(key, x).0)
+						Some(self.transaction_overlay.denote(key, x).0)
 					}
 					_ => {
 						if let Some(x) = self.payload(key) {
-							Some(&self.transaction_overlay.denote(key, x).0)
+							Some(self.transaction_overlay.denote(key, x).0)
 						}
 						else {
 							None

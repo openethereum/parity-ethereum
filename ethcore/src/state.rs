@@ -347,7 +347,7 @@ impl State {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			let maybe_acc = match db.get(&a) {
+			let maybe_acc = match db.get(a) {
 				Ok(acc) => acc.map(Account::from_rlp),
 				Err(e) => panic!("Potential DB corruption encountered: {}", e),
 			};
@@ -375,7 +375,7 @@ impl State {
 		let contains_key = self.cache.borrow().contains_key(a);
 		if !contains_key {
 			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			let maybe_acc = match db.get(&a) {
+			let maybe_acc = match db.get(a) {
 				Ok(acc) => acc.map(Account::from_rlp),
 				Err(e) => panic!("Potential DB corruption encountered: {}", e),
 			};
