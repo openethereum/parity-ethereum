@@ -19,7 +19,7 @@ docopt = { version = "0.6", optional = true }
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
-syntex = "0.32.0"
+syntex = "0.36.0"
 
 [features]
 default = ["serde_codegen", "cli"]
