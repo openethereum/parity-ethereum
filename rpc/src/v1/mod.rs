@@ -18,8 +18,9 @@
 //!
 //! Compliant with ethereum rpc.
 
-mod impls;
+#[macro_use]
 mod helpers;
+mod impls;
 
 pub mod traits;
 pub mod tests;

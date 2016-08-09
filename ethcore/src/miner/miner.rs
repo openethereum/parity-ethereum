@@ -528,7 +528,7 @@ impl MinerService for Miner {
 
 	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes> {
 		let sealing_work = self.sealing_work.lock();
-		sealing_work.queue.peek_last_ref().map_or_else(|| chain.code(address), |b| b.block().fields().state.code(address))
+		sealing_work.queue.peek_last_ref().map_or_else(|| chain.latest_code(address), |b| b.block().fields().state.code(address))
 	}
 
 	fn set_author(&self, author: Address) {

@@ -319,8 +319,11 @@ impl BlockChainClient for TestBlockChainClient {
 		self.nonce(address, BlockID::Latest).unwrap()
 	}
 
-	fn code(&self, address: &Address) -> Option<Bytes> {
-		self.code.read().get(address).cloned()
+	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>> {
+		match id {
+			BlockID::Latest => Some(self.code.read().get(address).cloned()),
+			_ => None,
+		}
 	}
 
 	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {

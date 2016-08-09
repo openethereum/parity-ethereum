@@ -20,8 +20,9 @@ use std::collections::{BTreeMap};
 use jsonrpc_core::*;
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160, TransactionRequest};
-use v1::impls::unlock_sign_and_dispatch;
-use v1::helpers::{TransactionRequest as TRequest};
+use v1::helpers::{errors, TransactionRequest as TRequest};
+use v1::helpers::params::expect_no_params;
+use v1::helpers::dispatch::unlock_sign_and_dispatch;
 use ethcore::account_provider::AccountProvider;
 use util::Address;
 use ethcore::client::MiningBlockChainClient;
@@ -57,8 +58,10 @@ impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService
 
 impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
-	fn signer_enabled(&self, _: Params) -> Result<Value, Error> {
+	fn signer_enabled(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
+
 		self.signer_port
 			.map(|v| to_value(&v))
 			.unwrap_or_else(|| to_value(&false))
@@ -66,14 +69,11 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 
 	fn accounts(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => {
-				let store = take_weak!(self.accounts);
-				let accounts = try!(store.accounts().map_err(|_| Error::internal_error()));
-				to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
-			},
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+
+		let store = take_weak!(self.accounts);
+		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
+		to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
 	fn new_account(&self, params: Params) -> Result<Value, Error> {
@@ -83,7 +83,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 				let store = take_weak!(self.accounts);
 				match store.new_account(&pass) {
 					Ok(address) => to_value(&RpcH160::from(address)),
-					Err(_) => Err(Error::internal_error())
+					Err(e) => Err(errors::account("Could not create account.", e)),
 				}
 			}
 		)
@@ -124,7 +124,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		let store = take_weak!(self.accounts);
 		from_params::<(RpcH160, _)>(params).and_then(|(addr, name)| {
 			let addr: Address = addr.into();
-			store.set_account_name(addr, name).map_err(|_| Error::invalid_params()).map(|_| Value::Null)
+			store.set_account_name(addr, name).map_err(|e| errors::account("Could not set account name.", e)).map(|_| Value::Null)
 		})
 	}
 
@@ -133,14 +133,16 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		let store = take_weak!(self.accounts);
 		from_params::<(RpcH160, _)>(params).and_then(|(addr, meta)| {
 			let addr: Address = addr.into();
-			store.set_account_meta(addr, meta).map_err(|_| Error::invalid_params()).map(|_| Value::Null)
+			store.set_account_meta(addr, meta).map_err(|e| errors::account("Could not set account meta.", e)).map(|_| Value::Null)
 		})
 	}
 
-	fn accounts_info(&self, _: Params) -> Result<Value, Error> {
+	fn accounts_info(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		let store = take_weak!(self.accounts);
-		Ok(Value::Object(try!(store.accounts_info().map_err(|_| Error::invalid_params())).into_iter().map(|(a, v)| {
+		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
+		Ok(Value::Object(info.into_iter().map(|(a, v)| {
 			let m = map![
 				"name".to_owned() => to_value(&v.name).unwrap(),
 				"meta".to_owned() => to_value(&v.meta).unwrap(),
