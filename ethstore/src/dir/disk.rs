@@ -22,6 +22,8 @@ use ethkey::Address;
 use {json, SafeAccount, Error};
 use super::KeyDirectory;
 
+const IGNORED_FILES: &'static [&'static str] = &[".DS_Store"];
+
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
 	use std::ffi;
@@ -62,7 +64,9 @@ impl DiskDirectory {
 			.flat_map(Result::ok)
 			.filter(|entry| {
 				let metadata = entry.metadata();
-				metadata.is_ok() && !metadata.unwrap().is_dir()
+				let file_name = entry.file_name();
+				metadata.is_ok() && !metadata.unwrap().is_dir() &&
+				!IGNORED_FILES.contains(&file_name.to_str().unwrap())
 			})
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>();
