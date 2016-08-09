@@ -27,6 +27,7 @@ use util::Mutex;
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, Log, H256 as RpcH256, U256 as RpcU256};
 use v1::helpers::{PollFilter, PollManager};
+use v1::helpers::params::expect_no_params;
 use v1::impls::eth::pending_logs;
 
 /// Eth filter rpc implementation.
@@ -76,28 +77,22 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 
 	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => {
-				let mut polls = self.polls.lock();
-				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
-				to_value(&RpcU256::from(id))
-			},
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+
+		let mut polls = self.polls.lock();
+		let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
+		to_value(&RpcU256::from(id))
 	}
 
 	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => {
-				let mut polls = self.polls.lock();
-				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
-				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
+		try!(expect_no_params(params));
 
-				to_value(&RpcU256::from(id))
-			},
-			_ => Err(Error::invalid_params())
-		}
+		let mut polls = self.polls.lock();
+		let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
+		let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
+
+		to_value(&RpcU256::from(id))
 	}
 
 	fn filter_changes(&self, params: Params) -> Result<Value, Error> {

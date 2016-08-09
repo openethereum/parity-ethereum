@@ -20,6 +20,8 @@ use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethsync::ManageNetwork;
+use v1::helpers::errors;
+use v1::helpers::params::expect_no_params;
 use v1::traits::EthcoreSet;
 use v1::types::{Bytes, H160, U256};
 
@@ -117,7 +119,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		from_params::<(String,)>(params).and_then(|(peer,)| {
 			match take_weak!(self.net).add_reserved_peer(peer) {
 				Ok(()) => to_value(&true),
-				Err(_) => Err(Error::invalid_params()),
+				Err(e) => Err(errors::invalid_params("Peer address", e)),
 			}
 		})
 	}
@@ -127,29 +129,33 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		from_params::<(String,)>(params).and_then(|(peer,)| {
 			match take_weak!(self.net).remove_reserved_peer(peer) {
 				Ok(()) => to_value(&true),
-				Err(_) => Err(Error::invalid_params()),
+				Err(e) => Err(errors::invalid_params("Peer address", e)),
 			}
 		})
 	}
 
-	fn drop_non_reserved_peers(&self, _: Params) -> Result<Value, Error> {
+	fn drop_non_reserved_peers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		take_weak!(self.net).deny_unreserved_peers();
 		to_value(&true)
 	}
 
-	fn accept_non_reserved_peers(&self, _: Params) -> Result<Value, Error> {
+	fn accept_non_reserved_peers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		take_weak!(self.net).accept_unreserved_peers();
 		to_value(&true)
 	}
 
-	fn start_network(&self, _: Params) -> Result<Value, Error> {
+	fn start_network(&self, params: Params) -> Result<Value, Error> {
+		try!(expect_no_params(params));
 		take_weak!(self.net).start_network();
 		Ok(Value::Bool(true))
 	}
 
-	fn stop_network(&self, _: Params) -> Result<Value, Error> {
+	fn stop_network(&self, params: Params) -> Result<Value, Error> {
+		try!(expect_no_params(params));
 		take_weak!(self.net).stop_network();
 		Ok(Value::Bool(true))
 	}
