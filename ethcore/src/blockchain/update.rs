@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use util::numbers::H256;
+use util::H256;
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
 use blooms::BloomGroup;

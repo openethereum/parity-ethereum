@@ -44,7 +44,7 @@ impl Account {
 mod tests {
 	use serde_json;
 	use spec::account::Account;
-	use util::numbers::U256;
+	use util::U256;
 	use uint::Uint;
 	use bytes::Bytes;
 

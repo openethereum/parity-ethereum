@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
-use util::numbers::*;
+use util::{U256, Uint, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
