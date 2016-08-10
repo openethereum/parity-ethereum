@@ -33,6 +33,7 @@ ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethstore = { path = "../ethstore" }
+ethkey = { path = "../ethkey" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rand = "0.3"
 

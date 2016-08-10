@@ -21,7 +21,7 @@ use std::str::FromStr;
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
 use secp256k1::key::{SecretKey, PublicKey};
 use rustc_serialize::hex::{ToHex, FromHex};
-use bigint::hash::H520;
+use bigint::hash::{H520, H256};
 use {Secret, Public, SECP256K1, Error, Message, public_to_address, Address};
 
 #[repr(C)]
@@ -42,6 +42,15 @@ impl Signature {
 	/// Get the recovery byte.
 	pub fn v(&self) -> u8 {
 		self.0[64]
+	}
+
+	/// Create a signature object from the sig.
+	pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Signature {
+		let mut sig = [0u8; 65];
+		sig[0..32].copy_from_slice(&r);
+		sig[32..64].copy_from_slice(&s);
+		sig[64] = v;
+		Signature(sig)
 	}
 }
 
