@@ -187,6 +187,15 @@ impl SyncStatus {
 	pub fn is_major_syncing(&self) -> bool {
 		self.state != SyncState::Idle && self.state != SyncState::NewBlocks
 	}
+
+	/// Returns max no of peers to display in informants
+	pub fn current_max_peers(&self, min_peers: u32, max_peers: u32) -> u32 {
+		if self.num_peers as u32 > min_peers {
+			max_peers
+		} else {
+			min_peers
+		}
+	}
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
