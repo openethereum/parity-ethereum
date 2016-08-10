@@ -100,7 +100,7 @@ impl SecretStore for EthStore {
 
 	fn import_wallet(&self, json: &[u8], password: &str) -> Result<Address, Error> {
 		let json_keyfile = try!(json::KeyFile::load(json).map_err(|_| Error::InvalidKeyFile("Invalid JSON format".to_owned())));
-		let mut safe_account = SafeAccount::from(json_keyfile);
+		let mut safe_account = SafeAccount::from_file(json_keyfile, None);
 		let secret = try!(safe_account.crypto.secret(password).map_err(|_| Error::InvalidPassword));
 		safe_account.address = try!(KeyPair::from_secret(secret)).address();
 		let address = safe_account.address.clone();
