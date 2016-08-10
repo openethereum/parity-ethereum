@@ -149,6 +149,8 @@ impl KeyDirectory for DiskDirectory {
 			Some((path, _)) => fs::remove_file(path).map_err(From::from)
 		}
 	}
+
+	fn path(&self) -> Option<&PathBuf> { Some(&self.path) }
 }
 
 

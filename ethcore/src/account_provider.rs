@@ -20,6 +20,7 @@ use std::fmt;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
 use util::{Address as H160, H256, H520, Mutex, RwLock};
+use std::path::PathBuf;
 use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
 use ethstore::dir::{KeyDirectory};
 use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret, Random, Generator};
@@ -131,13 +132,6 @@ impl KeyDirectory for NullDir {
 	}
 }
 
-/// Account management.
-/// Responsible for unlocking accounts.
-pub struct AccountProvider {
-	unlocked: Mutex<HashMap<SSAddress, AccountData>>,
-	sstore: Box<SecretStore>,
-}
-
 /// Collected account metadata
 #[derive(Clone, Debug, PartialEq)]
 pub struct AccountMeta {
@@ -147,6 +141,61 @@ pub struct AccountMeta {
 	pub meta: String,
 	/// The 128-bit UUID of the account, if it has one (brain-wallets don't).
 	pub uuid: Option<String>,
+}
+
+/// Disk-backed map from Address to String. Uses JSON.
+struct AddressBook {
+	path: PathBuf,
+	cache: HashMap<H160, AccountMeta>,
+}
+
+impl AddressBook {
+	pub fn new(path: String) -> Self {
+		let mut r = AddressBook {
+			path: path.into(),
+			cache: HashMap::new(), 
+		};
+		r.load();
+		r
+	}
+
+	pub fn get(&self) -> HashMap<H160, AccountMeta> {
+		self.cache.clone()
+	}
+
+	pub fn set_name(&mut self, a: H160, name: String) {
+		let mut x = self.cache.get(&a)
+			.map(|a| a.clone())
+			.unwrap_or(AccountMeta{name: Default::default(), meta: "{}".to_owned(), uuid: None});
+		x.name = name;
+		self.cache.insert(a, x);
+		self.save();
+	}
+
+	pub fn set_meta(&mut self, a: H160, meta: String) {
+		let mut x = self.cache.get(&a)
+			.map(|a| a.clone())
+			.unwrap_or(AccountMeta{name: "Anonymous".to_owned(), meta: Default::default(), uuid: None});
+		x.meta = meta;
+		self.cache.insert(a, x);
+		self.save();
+	}
+
+	fn load(&mut self) {
+		// TODO
+	}
+
+	fn save(&mut self) {
+		// TODO
+	}
+}
+
+/// Account management.
+/// Responsible for unlocking accounts.
+pub struct AccountProvider {
+	unlocked: Mutex<HashMap<SSAddress, AccountData>>,
+	sstore: Box<SecretStore>,
+	address_book: Mutex<AddressBook>,
 }
 
 impl Default for AccountMeta {
@@ -164,6 +213,7 @@ impl AccountProvider {
 	pub fn new(sstore: Box<SecretStore>) -> Self {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
+			address_book: Mutex::new(AddressBook::new(sstore.local_path().into())),
 			sstore: sstore,
 		}
 	}
@@ -172,6 +222,7 @@ impl AccountProvider {
 	pub fn transient_provider() -> Self {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
+			address_book: Mutex::new(AddressBook::new(Default::default())),
 			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).unwrap())
 		}
 	}
@@ -207,6 +258,23 @@ impl AccountProvider {
 	pub fn accounts(&self) -> Result<Vec<H160>, Error> {
 		let accounts = try!(self.sstore.accounts()).into_iter().map(|a| H160(a.into())).collect();
 		Ok(accounts)
+	}
+
+	/// Returns each address along with metadata.
+	pub fn addresses_info(&self) -> Result<HashMap<H160, AccountMeta>, Error> {
+		Ok(self.address_book.lock().get())
+	}
+
+	/// Returns each address along with metadata.
+	pub fn set_address_name<A>(&self, account: A, name: String) -> Result<(), Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		Ok(self.address_book.lock().set_name(account, name))
+	}
+
+	/// Returns each address along with metadata.
+	pub fn set_address_meta<A>(&self, account: A, meta: String) -> Result<(), Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		Ok(self.address_book.lock().set_meta(account, meta))
 	}
 
 	/// Returns each account along with name and meta.
