@@ -22,6 +22,8 @@ use ethkey::Address;
 use {json, SafeAccount, Error};
 use super::KeyDirectory;
 
+const IGNORED_FILES: &'static [&'static str] = &["thumbs.db"];
+
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
 	use std::ffi;
@@ -62,7 +64,14 @@ impl DiskDirectory {
 			.flat_map(Result::ok)
 			.filter(|entry| {
 				let metadata = entry.metadata();
-				metadata.is_ok() && !metadata.unwrap().is_dir()
+				let file_name = entry.file_name();
+				let name = file_name.to_str().unwrap();
+				// filter directories
+				metadata.is_ok() && !metadata.unwrap().is_dir() &&
+				// hidden files
+				!name.starts_with(".") &&
+				// other ignored files
+				!IGNORED_FILES.contains(&name)
 			})
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>();
