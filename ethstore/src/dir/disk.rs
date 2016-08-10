@@ -64,13 +64,14 @@ impl DiskDirectory {
 			.flat_map(Result::ok)
 			.filter(|entry| {
 				let metadata = entry.metadata();
-				let file_name = entry.file_name().to_str().unwrap();
+				let file_name = entry.file_name();
+				let name = file_name.to_str().unwrap();
 				// filter directories
 				metadata.is_ok() && !metadata.unwrap().is_dir() &&
 				// hidden files
-				!file_name.starts_with(".") &&
+				!name.starts_with(".") &&
 				// other ignored files
-				!IGNORED_FILES.contains(&file_name);
+				!IGNORED_FILES.contains(&name)
 			})
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>();
