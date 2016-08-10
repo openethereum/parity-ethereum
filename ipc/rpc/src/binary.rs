@@ -388,8 +388,6 @@ impl<T> BinaryConvertable for VecDeque<T> where T: BinaryConvertable {
 	}
 }
 
-//
-
 impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 	fn size(&self) -> usize {
 		match T::len_params() {
@@ -1150,4 +1148,18 @@ fn serialize_not_enough_lengths() {
 			})) => {},
 		other => panic!("Not an missing length param error but: {:?}", other),
 	}
+}
+
+#[test]
+fn vec_of_vecs() {
+	let sample = vec![vec![5u8, 10u8], vec![], vec![9u8, 11u8]];
+	let serialized = serialize(&sample).unwrap();
+	let deserialized = deserialize::<Vec<Vec<u8>>>(&serialized).unwrap();
+	assert_eq!(sample, deserialized);
+
+	// empty
+	let sample: Vec<Vec<u8>> = vec![];
+	let serialized = serialize(&sample).unwrap();
+	let deserialized = deserialize::<Vec<Vec<u8>>>(&serialized).unwrap();
+	assert_eq!(sample, deserialized);
 }
