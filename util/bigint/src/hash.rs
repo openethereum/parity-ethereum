@@ -16,24 +16,19 @@
 
 //! General hash types, a fixed-size raw-data type used as the output of hash functions.
 
-use rustc_serialize::hex::FromHex;
 use std::{ops, fmt, cmp};
 use std::cmp::*;
 use std::ops::*;
 use std::hash::{Hash, Hasher, BuildHasherDefault};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use math::log2;
-use error::UtilError;
 use rand::Rng;
 use rand::os::OsRng;
-use bytes::{BytesConvertable,Populatable};
-use bigint::uint::{Uint, U256};
+use rustc_serialize::hex::{FromHex, FromHexError};
+use uint::{Uint, U256};
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
-///
-/// Note: types implementing `FixedHash` must be also `BytesConvertable`.
-pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default {
+pub trait FixedHash: Sized {
 	/// Create a new, zero-initialised, instance.
 	fn new() -> Self;
 	/// Synonym for `new()`. Prefer to new as it's more readable.
@@ -50,14 +45,6 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	/// Copy the data of this object into some mutable slice of length `len()`.
 	fn copy_to(&self, dest: &mut [u8]);
-	/// When interpreting self as a bloom output, augment (bit-wise OR) with the a bloomed version of `b`.
-	fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
-	/// Same as `shift_bloomed` except that `self` is consumed and a new value returned.
-	fn with_bloomed<T>(mut self, b: &T) -> Self where T: FixedHash { self.shift_bloomed(b); self }
-	/// Bloom the current value using the bloom parameter `m`.
-	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
-	/// Check to see whether this hash, interpreted as a bloom, contains the value `b` when bloomed.
-	fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash;
 	/// Returns `true` if all bits set in `b` are also set in `self`.
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 	/// Returns `true` if no bits are set.
@@ -153,54 +140,6 @@ macro_rules! impl_hash {
 				dest[..min].copy_from_slice(&self.0[..min]);
 			}
 
-			fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
-				let bp: Self = b.bloom_part($size);
-				let new_self = &bp | self;
-
-				self.0 = new_self.0;
-				self
-			}
-
-			fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash {
-				// numbers of bits
-				// TODO: move it to some constant
-				let p = 3;
-
-				let bloom_bits = m * 8;
-				let mask = bloom_bits - 1;
-				let bloom_bytes = (log2(bloom_bits) + 7) / 8;
-
-				// must be a power of 2
-				assert_eq!(m & (m - 1), 0);
-				// out of range
-				assert!(p * bloom_bytes <= $size);
-
-				// return type
-				let mut ret = T::new();
-
-				// 'ptr' to out slice
-				let mut ptr = 0;
-
-				// set p number of bits,
-				// p is equal 3 according to yellowpaper
-				for _ in 0..p {
-					let mut index = 0 as usize;
-					for _ in 0..bloom_bytes {
-						index = (index << 8) | self.0[ptr] as usize;
-						ptr += 1;
-					}
-					index &= mask;
-					ret.as_slice_mut()[m - 1 - index / 8] |= 1 << (index % 8);
-				}
-
-				ret
-			}
-
-			fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash {
-				let bp: Self = b.bloom_part($size);
-				self.contains(&bp)
-			}
-
 			fn contains<'a>(&'a self, b: &'a Self) -> bool {
 				&(b & self) == b
 			}
@@ -219,15 +158,17 @@ macro_rules! impl_hash {
 		}
 
 		impl FromStr for $from {
-			type Err = UtilError;
-			fn from_str(s: &str) -> Result<$from, UtilError> {
+			type Err = FromHexError;
+
+			fn from_str(s: &str) -> Result<$from, FromHexError> {
 				let a = try!(s.from_hex());
-				if a.len() != $size { return Err(UtilError::BadSize); }
-				let mut ret = $from([0;$size]);
-				for i in 0..$size {
-					ret.0[i] = a[i];
+				if a.len() != $size {
+					return Err(FromHexError::InvalidHexLength);
 				}
-				Ok(ret)
+
+				let mut ret = [0;$size];
+				ret.copy_from_slice(&a);
+				Ok($from(ret))
 			}
 		}
 
@@ -408,9 +349,6 @@ macro_rules! impl_hash {
 			pub fn hex(&self) -> String {
 				format!("{:?}", self)
 			}
-
-			/// Construct new instance equal to the bloomed value of `b`.
-			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
 		}
 
 		impl Default for $from {
@@ -461,13 +399,13 @@ impl<'a> From<&'a U256> for H256 {
 
 impl From<H256> for U256 {
 	fn from(value: H256) -> U256 {
-		U256::from(value.as_slice())
+		U256::from(&value)
 	}
 }
 
 impl<'a> From<&'a H256> for U256 {
 	fn from(value: &'a H256) -> U256 {
-		U256::from(value.as_slice())
+		U256::from(value.as_ref() as &[u8])
 	}
 }
 
@@ -503,32 +441,6 @@ impl<'a> From<&'a Address> for H256 {
 	}
 }
 
-/// Convert string `s` to an `H256`. Will panic if `s` is not 64 characters long or if any of
-/// those characters are not 0-9, a-z or A-Z.
-pub fn h256_from_hex(s: &str) -> H256 {
-	use std::str::FromStr;
-	H256::from_str(s).unwrap()
-}
-
-/// Convert `n` to an `H256`, setting the rightmost 8 bytes.
-pub fn h256_from_u64(n: u64) -> H256 {
-	use bigint::uint::U256;
-	H256::from(&U256::from(n))
-}
-
-/// Convert string `s` to an `Address`. Will panic if `s` is not 40 characters long or if any of
-/// those characters are not 0-9, a-z or A-Z.
-pub fn address_from_hex(s: &str) -> Address {
-	use std::str::FromStr;
-	Address::from_str(s).unwrap()
-}
-
-/// Convert `n` to an `Address`, setting the rightmost 8 bytes.
-pub fn address_from_u64(n: u64) -> Address {
-	let h256 = h256_from_u64(n);
-	From::from(h256)
-}
-
 impl_hash!(H32, 4);
 impl_hash!(H64, 8);
 impl_hash!(H128, 16);
@@ -540,6 +452,7 @@ impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
 
+known_heap_size!(0, H32, H64, H128, Address, H256, H264, H512, H520, H1024, H2048);
 // Specialized HashMap and HashSet
 
 /// Hasher that just takes 8 bytes of the provided value.
@@ -585,7 +498,7 @@ pub type H256FastSet = HashSet<H256, BuildHasherDefault<PlainHasher>>;
 #[cfg(test)]
 mod tests {
 	use hash::*;
-	use bigint::uint::*;
+	use uint::*;
 	use std::str::FromStr;
 
 	#[test]
@@ -618,28 +531,6 @@ mod tests {
 
 		// move
 		assert_eq!(a | b, c);
-	}
-
-	#[test]
-	fn shift_bloomed() {
-		use sha3::Hashable;
-
-		let bloom = H2048::from_str("00000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002020000000000000000000000000000000000000000000008000000001000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
-		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
-		let topic = H256::from_str("02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
-
-		let mut my_bloom = H2048::new();
-		assert!(!my_bloom.contains_bloomed(&address.sha3()));
-		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
-
-		my_bloom.shift_bloomed(&address.sha3());
-		assert!(my_bloom.contains_bloomed(&address.sha3()));
-		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
-
-		my_bloom.shift_bloomed(&topic.sha3());
-		assert_eq!(my_bloom, bloom);
-		assert!(my_bloom.contains_bloomed(&address.sha3()));
-		assert!(my_bloom.contains_bloomed(&topic.sha3()));
 	}
 
 	#[test]

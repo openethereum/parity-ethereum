@@ -29,8 +29,7 @@
 //! extern crate rustc_serialize;
 //!
 //!	use util::crypto::KeyPair;
-//! use util::hash::Address;
-//! use util::numbers::{Uint, U256};
+//! use util::{Uint, U256, Address};
 //!	use ethcore::miner::{TransactionQueue, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
 //!	use rustc_serialize::hex::FromHex;
@@ -81,12 +80,10 @@
 //!      - It removes all transactions (either from `current` or `future`) with nonce < client nonce
 //!      - It moves matching `future` transactions to `current`
 
-use std::default::Default;
-use std::cmp::{Ordering};
+use std::cmp::Ordering;
 use std::cmp;
 use std::collections::{HashMap, BTreeSet};
-use util::numbers::{Uint, U256};
-use util::hash::{Address, H256};
+use util::{Address, H256, Uint, U256};
 use util::table::Table;
 use transaction::*;
 use error::{Error, TransactionError};

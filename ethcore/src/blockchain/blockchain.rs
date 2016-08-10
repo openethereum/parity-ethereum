@@ -133,8 +133,9 @@ enum CacheID {
 impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
-		self.note_used(CacheID::BlocksBlooms(position.clone()));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.blocks_blooms, &position).map(Into::into)
+		let result = self.db.read_with_cache(DB_COL_EXTRA, &self.blocks_blooms, &position).map(Into::into);
+		self.cache_man.lock().note_used(CacheID::BlocksBlooms(position));
+		result
 	}
 }
 
@@ -160,7 +161,7 @@ pub struct BlockChain {
 
 	db: Arc<Database>,
 
-	cache_man: RwLock<CacheManager<CacheID>>,
+	cache_man: Mutex<CacheManager<CacheID>>,
 
 	pending_best_block: RwLock<Option<BestBlock>>,
 	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
@@ -211,9 +212,7 @@ impl BlockProvider for BlockChain {
 		let opt = self.db.get(DB_COL_HEADERS, hash)
 			.expect("Low level database error. Some issue with disk?");
 
-		self.note_used(CacheID::BlockHeader(hash.clone()));
-
-		match opt {
+		let result = match opt {
 			Some(b) => {
 				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
 				let mut write = self.block_headers.write();
@@ -221,7 +220,10 @@ impl BlockProvider for BlockChain {
 				Some(bytes)
 			},
 			None => None
-		}
+		};
+
+		self.cache_man.lock().note_used(CacheID::BlockHeader(hash.clone()));
+		result
 	}
 
 	/// Get block body data
@@ -246,9 +248,7 @@ impl BlockProvider for BlockChain {
 		let opt = self.db.get(DB_COL_BODIES, hash)
 			.expect("Low level database error. Some issue with disk?");
 
-		self.note_used(CacheID::BlockBody(hash.clone()));
-
-		match opt {
+		let result = match opt {
 			Some(b) => {
 				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
 				let mut write = self.block_bodies.write();
@@ -256,31 +256,39 @@ impl BlockProvider for BlockChain {
 				Some(bytes)
 			},
 			None => None
-		}
+		};
+
+		self.cache_man.lock().note_used(CacheID::BlockBody(hash.clone()));
+
+		result
 	}
 
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
-		self.note_used(CacheID::BlockDetails(hash.clone()));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.block_details, hash)
+		let result = self.db.read_with_cache(DB_COL_EXTRA, &self.block_details, hash);
+		self.cache_man.lock().note_used(CacheID::BlockDetails(hash.clone()));
+		result
 	}
 
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-		self.note_used(CacheID::BlockHashes(index));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.block_hashes, &index)
+		let result = self.db.read_with_cache(DB_COL_EXTRA, &self.block_hashes, &index);
+		self.cache_man.lock().note_used(CacheID::BlockHashes(index));
+		result
 	}
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
-		self.note_used(CacheID::TransactionAddresses(hash.clone()));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.transaction_addresses, hash)
+		let result = self.db.read_with_cache(DB_COL_EXTRA, &self.transaction_addresses, hash);
+		self.cache_man.lock().note_used(CacheID::TransactionAddresses(hash.clone()));
+		result
 	}
 
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
-		self.note_used(CacheID::BlockReceipts(hash.clone()));
-		self.db.read_with_cache(DB_COL_EXTRA, &self.block_receipts, hash)
+		let result = self.db.read_with_cache(DB_COL_EXTRA, &self.block_receipts, hash);
+		self.cache_man.lock().note_used(CacheID::BlockReceipts(hash.clone()));
+		result
 	}
 
 	/// Returns numbers of blocks containing given bloom.
@@ -332,7 +340,7 @@ impl BlockChain {
 			blocks_blooms: RwLock::new(HashMap::new()),
 			block_receipts: RwLock::new(HashMap::new()),
 			db: db.clone(),
-			cache_man: RwLock::new(cache_man),
+			cache_man: Mutex::new(cache_man),
 			pending_best_block: RwLock::new(None),
 			pending_block_hashes: RwLock::new(HashMap::new()),
 			pending_transaction_addresses: RwLock::new(HashMap::new()),
@@ -635,10 +643,11 @@ impl BlockChain {
 		let mut update = HashMap::new();
 		update.insert(block_hash, parent_details);
 
-		self.note_used(CacheID::BlockDetails(block_hash));
 
 		let mut write_details = self.block_details.write();
 		batch.extend_with_cache(DB_COL_EXTRA, &mut *write_details, update, CacheUpdatePolicy::Overwrite);
+
+		self.cache_man.lock().note_used(CacheID::BlockDetails(block_hash));
 
 		self.db.write(batch).unwrap();
 	}
@@ -730,12 +739,15 @@ impl BlockChain {
 	/// Prepares extras update.
 	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate, is_best: bool) {
 		{
-			for hash in update.block_details.keys().cloned() {
-				self.note_used(CacheID::BlockDetails(hash));
-			}
+			let block_hashes: Vec<_> = update.block_details.keys().cloned().collect();
 
 			let mut write_details = self.block_details.write();
 			batch.extend_with_cache(DB_COL_EXTRA, &mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
+
+			let mut cache_man = self.cache_man.lock();
+			for hash in block_hashes {
+				cache_man.note_used(CacheID::BlockDetails(hash));
+			}
 		}
 
 		{
@@ -779,13 +791,6 @@ impl BlockChain {
 		let mut pending_write_hashes = self.pending_block_hashes.write();
 		let mut pending_write_txs = self.pending_transaction_addresses.write();
 
-		for n in pending_write_hashes.keys() {
-			self.note_used(CacheID::BlockHashes(*n));
-		}
-		for hash in pending_write_txs.keys() {
-			self.note_used(CacheID::TransactionAddresses(hash.clone()));
-		}
-
 		let mut best_block = self.best_block.write();
 		let mut write_hashes = self.block_hashes.write();
 		let mut write_txs = self.transaction_addresses.write();
@@ -794,8 +799,20 @@ impl BlockChain {
 			*best_block = block;
 		}
 
+		let pending_hashes_keys: Vec<_> = pending_write_hashes.keys().cloned().collect();
+		let pending_txs_keys: Vec<_> = pending_write_txs.keys().cloned().collect();
+
 		write_hashes.extend(mem::replace(&mut *pending_write_hashes, HashMap::new()));
 		write_txs.extend(mem::replace(&mut *pending_write_txs, HashMap::new()));
+
+		let mut cache_man = self.cache_man.lock();
+		for n in pending_hashes_keys {
+			cache_man.note_used(CacheID::BlockHashes(n));
+		}
+
+		for hash in pending_txs_keys {
+			cache_man.note_used(CacheID::TransactionAddresses(hash));
+		}
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
@@ -992,24 +1009,20 @@ impl BlockChain {
 		}
 	}
 
-	/// Let the cache system know that a cacheable item has been used.
-	fn note_used(&self, id: CacheID) {
-		let mut cache_man = self.cache_man.write();
-		cache_man.note_used(id);
-	}
-
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		let mut cache_man = self.cache_man.write();
-		cache_man.collect_garbage(|| self.cache_size().total(), | ids | {
-			let mut block_headers = self.block_headers.write();
-			let mut block_bodies = self.block_bodies.write();
-			let mut block_details = self.block_details.write();
-			let mut block_hashes = self.block_hashes.write();
-			let mut transaction_addresses = self.transaction_addresses.write();
-			let mut blocks_blooms = self.blocks_blooms.write();
-			let mut block_receipts = self.block_receipts.write();
+		let current_size = self.cache_size().total();
 
+		let mut block_headers = self.block_headers.write();
+		let mut block_bodies = self.block_bodies.write();
+		let mut block_details = self.block_details.write();
+		let mut block_hashes = self.block_hashes.write();
+		let mut transaction_addresses = self.transaction_addresses.write();
+		let mut blocks_blooms = self.blocks_blooms.write();
+		let mut block_receipts = self.block_receipts.write();
+
+		let mut cache_man = self.cache_man.lock();
+		cache_man.collect_garbage(current_size, | ids | {
 			for id in &ids {
 				match *id {
 					CacheID::BlockHeader(ref h) => { block_headers.remove(h); },
@@ -1021,6 +1034,7 @@ impl BlockChain {
 					CacheID::BlockReceipts(ref h) => { block_receipts.remove(h); }
 				}
 			}
+
 			block_headers.shrink_to_fit();
 			block_bodies.shrink_to_fit();
 			block_details.shrink_to_fit();
@@ -1028,6 +1042,14 @@ impl BlockChain {
 			transaction_addresses.shrink_to_fit();
 			blocks_blooms.shrink_to_fit();
 			block_receipts.shrink_to_fit();
+
+			block_headers.heap_size_of_children() +
+			block_bodies.heap_size_of_children() +
+			block_details.heap_size_of_children() +
+			block_hashes.heap_size_of_children() +
+			transaction_addresses.heap_size_of_children() +
+			blocks_blooms.heap_size_of_children() +
+			block_receipts.heap_size_of_children()
 		});
 	}
 

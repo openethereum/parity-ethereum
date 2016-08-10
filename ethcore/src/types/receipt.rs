@@ -16,15 +16,15 @@
 
 //! Receipt
 
-use util::numbers::*;
+use std::mem;
+use std::collections::VecDeque;
+use util::{H256, U256, Address};
 use util::rlp::*;
 use util::HeapSizeOf;
 use basic_types::LogBloom;
 use header::BlockNumber;
 use log_entry::{LogEntry, LocalizedLogEntry};
 use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 /// Information describing execution of a transaction.
 #[derive(Default, Debug, Clone, Binary)]
@@ -45,7 +45,7 @@ impl Receipt {
 		Receipt {
 			state_root: state_root,
 			gas_used: gas_used,
-			log_bloom: logs.iter().fold(LogBloom::new(), |mut b, l| { b = &b | &l.bloom(); b }), //TODO: use |= operator
+			log_bloom: logs.iter().fold(LogBloom::default(), |mut b, l| { b = &b | &l.bloom(); b }), //TODO: use |= operator
 			logs: logs,
 		}
 	}

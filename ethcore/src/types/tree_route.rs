@@ -16,10 +16,10 @@
 
 //! Tree route info type definition
 
-use util::numbers::H256;
-use ipc::BinaryConvertError;
 use std::collections::VecDeque;
 use std::mem;
+use ipc::BinaryConvertError;
+use util::H256;
 
 /// Represents a tree route between `from` block and `to` block:
 #[derive(Debug, Binary)]

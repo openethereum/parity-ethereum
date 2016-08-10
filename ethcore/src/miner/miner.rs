@@ -168,12 +168,11 @@ pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
 	transaction_queue: Arc<Mutex<TransactionQueue>>,
 	sealing_work: Mutex<SealingWork>,
-
+	next_allowed_reseal: Mutex<Instant>,
+	sealing_block_last_request: Mutex<u64>,
 	// for sealing...
 	options: MinerOptions,
 
-	next_allowed_reseal: Mutex<Instant>,
-	sealing_block_last_request: Mutex<u64>,
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
@@ -291,8 +290,8 @@ impl Miner {
 		for tx in transactions {
 			let hash = tx.hash();
 			match open_block.push_transaction(tx, None) {
-				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
+					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
 					// Exit early if gas left is smaller then min_tx_gas
 					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
 					if gas_limit - gas_used < min_tx_gas {
@@ -301,8 +300,8 @@ impl Miner {
 				},
 				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
 				// If there is errornous state of transaction queue it will be fixed when next block is imported.
-				Err(Error::Execution(ExecutionError::InvalidNonce { .. })) => {
-					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?}", hash);
+				Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) => {
+					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
 				},
 				// already have transaction - ignore
 				Err(Error::Transaction(TransactionError::AlreadyImported)) => {},
@@ -736,11 +735,11 @@ impl MinerService for Miner {
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "update_sealing");
 		let requires_reseal = {
+			let has_local_transactions = self.transaction_queue.lock().has_local_pending_transactions();
 			let mut sealing_work = self.sealing_work.lock();
 			if sealing_work.enabled {
 				trace!(target: "miner", "update_sealing: sealing enabled");
 				let current_no = chain.chain_info().best_block_number;
-				let has_local_transactions = self.transaction_queue.lock().has_local_pending_transactions();
 				let last_request = *self.sealing_block_last_request.lock();
 				let should_disable_sealing = !self.forced_sealing()
 					&& !has_local_transactions

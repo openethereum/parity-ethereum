@@ -232,11 +232,12 @@ fn fax_raw_dyn() {
 #[test]
 fn populate_big_types() {
 	use hash::*;
-	let a = address_from_hex("ffffffffffffffffffffffffffffffffffffffff");
-	let mut h = h256_from_u64(0x69);
+	let a: Address = "ffffffffffffffffffffffffffffffffffffffff".into();
+	let mut h: H256 = 0x69.into();
 	h.populate_raw_from(&a);
-	assert_eq!(h, h256_from_hex("ffffffffffffffffffffffffffffffffffffffff000000000000000000000000"));
-	let mut h = h256_from_u64(0x69);
+	assert_eq!(h, "ffffffffffffffffffffffffffffffffffffffff000000000000000000000000".into());
+
+	let mut h: H256 = 0x69.into();
 	h.copy_raw_from(&a);
-	assert_eq!(h, h256_from_hex("ffffffffffffffffffffffffffffffffffffffff000000000000000000000069"));
+	assert_eq!(h, "ffffffffffffffffffffffffffffffffffffffff000000000000000000000069".into());
 }

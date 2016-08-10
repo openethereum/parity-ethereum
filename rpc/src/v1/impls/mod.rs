@@ -48,4 +48,3 @@ pub use self::ethcore::EthcoreClient;
 pub use self::ethcore_set::EthcoreSetClient;
 pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
-

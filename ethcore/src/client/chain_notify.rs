@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::*;
-use ipc::{IpcConfig, BinaryConvertError};
 use std::collections::VecDeque;
 use std::mem;
+use ipc::{IpcConfig, BinaryConvertError};
+use util::H256;
 
 /// Represents what has to be handled by actor listening to chain events
 #[derive(Ipc)]

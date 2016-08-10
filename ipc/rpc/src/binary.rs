@@ -17,7 +17,7 @@
 //! Binary representation of types
 
 use util::bytes::Populatable;
-use util::numbers::{U256, U512, H256, H2048, Address};
+use util::{U256, U512, H256, H2048, Address};
 use std::mem;
 use std::collections::{VecDeque, BTreeMap};
 use std::ops::Range;
