@@ -32,5 +32,8 @@ RUN git clone https://github.com/ethcore/parity && \
         cargo build --release --verbose && \
         ls /build/parity/target/release/parity && \
         strip /build/parity/target/release/parity
-        
+
+RUN file /build/parity/target/release/parity
+
+EXPOSE 8080 8545 8180
 ENTRYPOINT ["/build/parity/target/release/parity"]
