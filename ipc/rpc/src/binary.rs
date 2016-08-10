@@ -288,6 +288,9 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 			let key = if key_size == 0 {
 				try!(K::from_empty_bytes())
 			} else {
+				if index + key_size > buffer.len() {
+					return Err(BinaryConvertError::boundaries())
+				}
 				try!(K::from_bytes(&buffer[index..index+key_size], length_stack))
 			};
 			index = index + key_size;
@@ -299,6 +302,9 @@ impl<K, V> BinaryConvertable for BTreeMap<K, V> where K : BinaryConvertable + Or
 			let val = if val_size == 0 {
 				try!(V::from_empty_bytes())
 			} else {
+				if index + val_size > buffer.len() {
+					return Err(BinaryConvertError::boundaries())
+				}
 				try!(V::from_bytes(&buffer[index..index+val_size], length_stack))
 			};
 			result.insert(key, val);
@@ -365,13 +371,16 @@ impl<T> BinaryConvertable for VecDeque<T> where T: BinaryConvertable {
 				try!(T::from_empty_bytes())
 			}
 			else {
+				if index + next_size > buffer.len() {
+					return Err(BinaryConvertError::boundaries())
+				}
 				try!(T::from_bytes(&buffer[index..index+next_size], length_stack))
 			};
 			result.push_back(item);
 
 			index = index + next_size;
 			if index == buffer.len() { break; }
-			if index + next_size > buffer.len() {
+			if index > buffer.len() {
 				return Err(BinaryConvertError::boundaries())
 			}
 		}
@@ -431,13 +440,16 @@ impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 				try!(T::from_empty_bytes())
 			}
 			else {
+				if index + next_size > buffer.len() {
+					return Err(BinaryConvertError::boundaries())
+				}
 				try!(T::from_bytes(&buffer[index..index+next_size], length_stack))
 			};
 			result.push(item);
 
 			index = index + next_size;
 			if index == buffer.len() { break; }
-			if index + next_size > buffer.len() {
+			if index > buffer.len() {
 				return Err(BinaryConvertError::boundaries())
 			}
 		}
