@@ -66,13 +66,13 @@ pub use self::rlpstream::RlpStream;
 pub use self::rlpcompression::RlpType;
 
 extern crate ethcore_bigint as bigint;
-extern crate elastic_array;
 extern crate rustc_serialize;
+extern crate smallvec;
 
 #[macro_use]
 extern crate lazy_static;
 
-use elastic_array::ElasticArray1024;
+use smallvec::SmallVec;
 
 /// The RLP encoded empty data (used to mean "null value").
 pub const NULL_RLP: [u8; 1] = [0x80; 1];
@@ -106,7 +106,7 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```
-pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: RlpEncodable {
+pub fn encode<E>(object: &E) -> SmallVec<[u8; 1024]> where E: RlpEncodable {
 	let mut stream = RlpStream::new();
 	stream.append(object);
 	stream.drain()

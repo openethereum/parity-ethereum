@@ -179,7 +179,7 @@ mod tests {
 	use snapshot::tests::helpers::fill_storage;
 
 	use util::sha3::{SHA3_EMPTY, SHA3_NULL_RLP};
-	use util::{Address, H256, HashDB, DBValue};
+	use util::{Address, H256, HashDB, DBValue, FromSlice};
 	use rlp::{UntrustedRlp, View};
 
 	use std::collections::HashSet;

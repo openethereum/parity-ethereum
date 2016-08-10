@@ -17,8 +17,8 @@
 use ::{UntrustedRlp, View, Compressible, encode, Stream, RlpStream};
 use commonrlps::{BLOCKS_RLP_SWAPPER, SNAPSHOT_RLP_SWAPPER};
 
+use smallvec::SmallVec;
 use std::collections::HashMap;
-use elastic_array::ElasticArray1024;
 
 /// Stores RLPs used for compression
 pub struct InvalidRlpSwapper<'a> {
@@ -61,14 +61,14 @@ pub enum RlpType {
 	Snapshot,
 }
 
-fn to_elastic(slice: &[u8]) -> ElasticArray1024<u8> {
-	let mut out = ElasticArray1024::new();
-	out.append_slice(slice);
+fn to_small_vec(slice: &[u8]) -> SmallVec<[u8; 1024]> {
+	let mut out = SmallVec::new();
+	out.extend(slice.iter().cloned());
 	out
 }
 
-fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<ElasticArray1024<u8>> where
-	F: Fn(&UntrustedRlp) -> Option<ElasticArray1024<u8>> {
+fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<SmallVec<[u8; 1024]>> where
+	F: Fn(&UntrustedRlp) -> Option<SmallVec<[u8; 1024]>> {
 	match rlp.iter()
 	.fold((false, RlpStream::new_list(rlp.item_count())),
 		|(is_some, mut acc), subrlp| {
@@ -86,28 +86,28 @@ fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<ElasticArray1024<u8>> where
 }
 
 /// Replace common RLPs with invalid shorter ones.
-fn simple_compress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8> {
+fn simple_compress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> SmallVec<[u8; 1024]> {
 	if rlp.is_data() {
-		to_elastic(swapper.get_invalid(rlp.as_raw()).unwrap_or_else(|| rlp.as_raw()))
+		to_small_vec(swapper.get_invalid(rlp.as_raw()).unwrap_or_else(|| rlp.as_raw()))
 	} else {
-		map_rlp(rlp, |r| Some(simple_compress(r, swapper))).unwrap_or_else(|| to_elastic(rlp.as_raw()))
+		map_rlp(rlp, |r| Some(simple_compress(r, swapper))).unwrap_or_else(|| to_small_vec(rlp.as_raw()))
 	}
 }
 
 /// Recover valid RLP from a compressed form.
-fn simple_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> ElasticArray1024<u8> {
+fn simple_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> SmallVec<[u8; 1024]> {
 	if rlp.is_data() {
-		to_elastic(swapper.get_valid(rlp.as_raw()).unwrap_or_else(|| rlp.as_raw()))
+		to_small_vec(swapper.get_valid(rlp.as_raw()).unwrap_or_else(|| rlp.as_raw()))
 	} else {
-		map_rlp(rlp, |r| Some(simple_decompress(r, swapper))).unwrap_or_else(|| to_elastic(rlp.as_raw()))
+		map_rlp(rlp, |r| Some(simple_decompress(r, swapper))).unwrap_or_else(|| to_small_vec(rlp.as_raw()))
 	}
 }
 
 /// Replace common RLPs with invalid shorter ones, None if no compression achieved.
 /// Tries to compress data insides.
-fn deep_compress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>> {
+fn deep_compress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<SmallVec<[u8; 1024]>> {
 	let simple_swap = ||
-		swapper.get_invalid(rlp.as_raw()).map(to_elastic);
+		swapper.get_invalid(rlp.as_raw()).map(to_small_vec);
 	if rlp.is_data() {
 		// Try to treat the inside as RLP.
 		return match rlp.payload_info() {
@@ -134,9 +134,9 @@ fn deep_compress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<Elas
 
 /// Recover valid RLP from a compressed form, None if no decompression achieved.
 /// Tries to decompress compressed data insides.
-fn deep_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<ElasticArray1024<u8>> {
+fn deep_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<SmallVec<[u8; 1024]>> {
 	let simple_swap = ||
-		swapper.get_valid(rlp.as_raw()).map(to_elastic);
+		swapper.get_valid(rlp.as_raw()).map(to_small_vec);
 	// Simply decompress data.
 	if rlp.is_data() { return simple_swap(); }
 	match rlp.item_count() {
@@ -154,17 +154,17 @@ fn deep_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<El
 impl<'a> Compressible for UntrustedRlp<'a> {
 	type DataType = RlpType;
 
-	fn compress(&self, t: RlpType) -> ElasticArray1024<u8> {
+	fn compress(&self, t: RlpType) -> SmallVec<[u8; 1024]> {
 		match t {
 			RlpType::Snapshot => simple_compress(self, &SNAPSHOT_RLP_SWAPPER),
-			RlpType::Blocks => deep_compress(self, &BLOCKS_RLP_SWAPPER).unwrap_or_else(|| to_elastic(self.as_raw())),
+			RlpType::Blocks => deep_compress(self, &BLOCKS_RLP_SWAPPER).unwrap_or_else(|| to_small_vec(self.as_raw())),
 		}
 	}
 
-	fn decompress(&self, t: RlpType) -> ElasticArray1024<u8> {
+	fn decompress(&self, t: RlpType) -> SmallVec<[u8; 1024]> {
 		match t {
 			RlpType::Snapshot => simple_decompress(self, &SNAPSHOT_RLP_SWAPPER),
-			RlpType::Blocks => deep_decompress(self, &BLOCKS_RLP_SWAPPER).unwrap_or_else(|| to_elastic(self.as_raw())),
+			RlpType::Blocks => deep_decompress(self, &BLOCKS_RLP_SWAPPER).unwrap_or_else(|| to_small_vec(self.as_raw())),
 		}
 	}
 }

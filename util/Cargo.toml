@@ -18,7 +18,6 @@ rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
 lazy_static = "0.2"
 eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
 rust-crypto = "0.2.34"
-elastic-array = { git = "https://github.com/ethcore/elastic-array" }
 rlp = { path = "rlp" }
 heapsize = { version = "0.3", features = ["unstable"] }
 itertools = "0.5"
@@ -37,6 +36,8 @@ tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }
 regex = "0.1"
 lru-cache = "0.1.0"
+# smallvec = "0.3"
+smallvec =  { git = "https://github.com/servo/rust-smallvec" }
 
 [features]
 default = []

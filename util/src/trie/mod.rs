@@ -18,7 +18,7 @@
 
 use std::fmt;
 use hash::H256;
-use hashdb::{HashDB, DBValue};
+use hashdb::{HashDB, DBValue, FromSlice};
 
 /// Export the standardmap module.
 pub mod standardmap;

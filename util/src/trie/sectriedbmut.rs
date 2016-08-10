@@ -20,6 +20,9 @@ use hashdb::{HashDB, DBValue};
 use super::triedbmut::TrieDBMut;
 use super::TrieMut;
 
+#[cfg(test)]
+use hashdb::FromSlice;
+
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
 /// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDBMut` object.

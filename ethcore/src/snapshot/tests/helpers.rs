@@ -21,7 +21,7 @@ use basic_account::BasicAccount;
 use account_db::AccountDBMut;
 use rand::Rng;
 
-use util::DBValue;
+use util::{DBValue, FromSlice};
 use util::hash::H256;
 use util::hashdb::HashDB;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
@@ -67,7 +67,7 @@ impl StateProducer {
 			let mut account: BasicAccount = ::rlp::decode(&*account_data);
 			let acct_db = AccountDBMut::from_hash(db, *address_hash);
 			fill_storage(acct_db, &mut account.storage_root, &mut self.storage_seed);
-			*account_data = DBValue::from_vec(::rlp::encode(&account).to_vec());
+			*account_data = DBValue::from_slice(&::rlp::encode(&account));
 		}
 
 		// sweep again to alter account trie.

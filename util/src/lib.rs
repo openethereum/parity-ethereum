@@ -94,7 +94,6 @@ extern crate env_logger;
 extern crate crypto as rcrypto;
 extern crate secp256k1;
 extern crate arrayvec;
-extern crate elastic_array;
 extern crate time;
 extern crate ethcore_devtools as devtools;
 extern crate libc;
@@ -108,6 +107,7 @@ extern crate regex;
 extern crate lru_cache;
 extern crate heapsize;
 extern crate itertools;
+extern crate smallvec;
 
 #[macro_use]
 extern crate lazy_static;

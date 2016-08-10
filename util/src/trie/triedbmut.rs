@@ -26,9 +26,9 @@ use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, RlpStream, View, Stream};
 use ::sha3::SHA3_NULL_RLP;
-use hashdb::DBValue;
+use hashdb::{DBValue, FromSlice};
 
-use elastic_array::ElasticArray1024;
+use smallvec::SmallVec;
 
 use std::collections::{HashSet, VecDeque};
 use std::mem;
@@ -123,7 +123,7 @@ impl Node {
 
 	// encode a node to RLP
 	// TODO: parallelize
-	fn into_rlp<F>(self, mut child_cb: F) -> ElasticArray1024<u8>
+	fn into_rlp<F>(self, mut child_cb: F) -> SmallVec<[u8; 1024]>
 		where F: FnMut(NodeHandle, &mut RlpStream)
 	{
 		match self {

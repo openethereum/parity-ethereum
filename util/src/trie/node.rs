@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use elastic_array::ElasticArray36;
 use nibbleslice::*;
 use nibblevec::NibbleVec;
 use bytes::*;
 use rlp::*;
-use hashdb::DBValue;
+use hashdb::{DBValue, FromSlice};
+use smallvec::SmallVec;
 
 /// Partial node key type.
-pub type NodeKey = ElasticArray36<u8>;
+pub type NodeKey = SmallVec<[u8; 64]>;
 
 /// Type of node in the trie and essential information thereof.
 #[derive(Eq, PartialEq, Debug, Clone)]

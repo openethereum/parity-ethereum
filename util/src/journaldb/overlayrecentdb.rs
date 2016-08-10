@@ -216,7 +216,7 @@ impl JournalDB for OverlayRecentDB {
 		let overlay = self.journal_overlay.read();
 
 		mem += overlay.backing_overlay.mem_used();
-		mem += overlay.pending_overlay.heap_size_of_children();
+		//mem += overlay.pending_overlay.heap_size_of_children();
 		mem += overlay.journal.heap_size_of_children();
 
 		mem

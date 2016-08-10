@@ -26,7 +26,7 @@ use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
-use util::{Bytes, DBValue, Mutex, RwLock, U256};
+use util::{Bytes, DBValue, FromSlice, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
 
 use std::collections::HashMap;
@@ -1259,9 +1259,7 @@ impl LightProtocol {
 		let id_guard = self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw)?;
 		let raw_proof: Vec<DBValue> = raw.at(2)?.iter()
 			.map(|rlp| {
-				let mut db_val = DBValue::new();
-				db_val.append_slice(rlp.data()?);
-				Ok(db_val)
+				Ok(DBValue::from_slice(rlp.data()?))
 			})
 			.collect::<Result<Vec<_>, ::rlp::DecoderError>>()?;
 

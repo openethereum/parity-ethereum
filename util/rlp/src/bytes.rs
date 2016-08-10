@@ -22,44 +22,7 @@ use std::fmt;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
 use bigint::prelude::{Uint, U128, U256, H64, H128, H160, H256, H512, H520, H2048};
-use elastic_array::*;
-
-/// Vector like object
-pub trait VecLike<T> {
-	/// Add an element to the collection
-    fn vec_push(&mut self, value: T);
-
-	/// Add a slice to the collection
-    fn vec_extend(&mut self, slice: &[T]);
-}
-
-impl<T> VecLike<T> for Vec<T> where T: Copy {
-	fn vec_push(&mut self, value: T) {
-		Vec::<T>::push(self, value)
-	}
-
-	fn vec_extend(&mut self, slice: &[T]) {
-		Vec::<T>::extend_from_slice(self, slice)
-	}
-}
-
-macro_rules! impl_veclike_for_elastic_array {
-	($from: ident) => {
-		impl<T> VecLike<T> for $from<T> where T: Copy {
-			fn vec_push(&mut self, value: T) {
-				$from::<T>::push(self, value)
-			}
-			fn vec_extend(&mut self, slice: &[T]) {
-				$from::<T>::append_slice(self, slice)
-
-			}
-		}
-	}
-}
-
-impl_veclike_for_elastic_array!(ElasticArray16);
-impl_veclike_for_elastic_array!(ElasticArray32);
-impl_veclike_for_elastic_array!(ElasticArray1024);
+use smallvec::VecLike;
 
 /// Converts given type to its shortest representation in bytes
 ///
@@ -73,7 +36,7 @@ pub trait ToBytes {
 
 impl <'a> ToBytes for &'a str {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.vec_extend(self.as_bytes());
+		out.extend(self.as_bytes().iter().cloned());
 	}
 
 	fn to_bytes_len(&self) -> usize {
@@ -83,7 +46,7 @@ impl <'a> ToBytes for &'a str {
 
 impl ToBytes for String {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.vec_extend(self.as_bytes());
+		out.extend(self.as_bytes().iter().cloned());
 	}
 
 	fn to_bytes_len(&self) -> usize {
@@ -96,7 +59,7 @@ impl ToBytes for u64 {
 		let count = self.to_bytes_len();
 		for i in 0..count {
 			let j = count - 1 - i;
-			out.vec_push((*self >> (j * 8)) as u8);
+			out.push((*self >> (j * 8)) as u8);
 		}
 	}
 
@@ -105,7 +68,7 @@ impl ToBytes for u64 {
 
 impl ToBytes for bool {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.vec_push(if *self { 1u8 } else { 0u8 })
+		out.push(if *self { 1u8 } else { 0u8 })
 	}
 
 	fn to_bytes_len(&self) -> usize { 1 }
@@ -134,7 +97,7 @@ macro_rules! impl_uint_to_bytes {
 				let count = self.to_bytes_len();
 				for i in 0..count {
 					let j = count - 1 - i;
-					out.vec_push(self.byte(j));
+					out.push(self.byte(j));
 				}
 			}
 			fn to_bytes_len(&self) -> usize { (self.bits() + 7) / 8 }
@@ -149,7 +112,7 @@ macro_rules! impl_hash_to_bytes {
 	($name: ident) => {
 		impl ToBytes for $name {
 			fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-				out.vec_extend(&self);
+				out.extend(self.iter().cloned());
 			}
 			fn to_bytes_len(&self) -> usize { self.len() }
 		}
