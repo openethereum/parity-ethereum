@@ -1,7 +1,7 @@
 #!/bin/sh
 # Running Parity Full Test Sute
 
-FEATURES="--features json-tests"
+FEATURES="--features json-tests;ipc"
 
 case $1 in
     --no-json)
