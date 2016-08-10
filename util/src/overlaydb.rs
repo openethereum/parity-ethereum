@@ -22,7 +22,6 @@ use bytes::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use std::ops::*;
 use std::sync::*;
 use std::collections::HashMap;
 use kvdb::{Database, DBTransaction};
@@ -130,7 +129,7 @@ impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter(self.column) {
-			let h = H256::from_slice(key.deref());
+			let h = H256::from_slice(&*key);
 			let r = self.payload(&h).unwrap().1;
 			ret.insert(h, r as i32);
 		}
@@ -305,7 +304,7 @@ fn playpen() {
 		batch.put(None, b"test", b"test2").unwrap();
 		db.write(batch).unwrap();
 		match db.get(None, b"test") {
-			Ok(Some(value)) => println!("Got value {:?}", value.deref()),
+			Ok(Some(value)) => println!("Got value {:?}", &*value),
 			Ok(None) => println!("No value for that key"),
 			Err(..) => println!("Gah"),
 		}

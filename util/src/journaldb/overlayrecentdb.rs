@@ -329,7 +329,7 @@ impl HashDB for OverlayRecentDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter(self.column) {
-			let h = H256::from_slice(key.deref());
+			let h = H256::from_slice(&*key);
 			ret.insert(h, 1);
 		}
 
@@ -348,11 +348,11 @@ impl HashDB for OverlayRecentDB {
 				let v = self.journal_overlay.read().backing_overlay.get(&to_short_key(key)).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
-						Some(&self.transaction_overlay.denote(key, x).0)
+						Some(self.transaction_overlay.denote(key, x).0)
 					}
 					_ => {
 						if let Some(x) = self.payload(key) {
-							Some(&self.transaction_overlay.denote(key, x).0)
+							Some(self.transaction_overlay.denote(key, x).0)
 						}
 						else {
 							None

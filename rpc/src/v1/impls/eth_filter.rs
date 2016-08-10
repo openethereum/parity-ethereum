@@ -16,7 +16,6 @@
 
 //! Eth Filter RPC implementation
 
-use std::ops::Deref;
 use std::sync::{Arc, Weak};
 use std::collections::HashSet;
 use jsonrpc_core::*;
@@ -160,7 +159,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 
 							// additionally retrieve pending logs
 							if include_pending {
-								let pending_logs = pending_logs(take_weak!(self.miner).deref(), &filter);
+								let pending_logs = pending_logs(&*take_weak!(self.miner), &filter);
 
 								// remove logs about which client was already notified about
 								let new_pending_logs: Vec<_> = pending_logs.iter()
@@ -201,7 +200,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							.collect::<Vec<Log>>();
 
 						if include_pending {
-							logs.extend(pending_logs(take_weak!(self.miner).deref(), &filter));
+							logs.extend(pending_logs(&*take_weak!(self.miner), &filter));
 						}
 
 						to_value(&logs)

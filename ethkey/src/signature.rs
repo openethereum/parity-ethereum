@@ -136,7 +136,7 @@ pub fn verify_public(public: &Public, signature: &Signature, message: &Message) 
 
 	let pdata: [u8; 65] = {
 		let mut temp = [4u8; 65];
-		temp[1..65].copy_from_slice(public.deref());
+		temp[1..65].copy_from_slice(&**public);
 		temp
 	};
 

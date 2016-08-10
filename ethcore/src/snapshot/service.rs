@@ -101,7 +101,7 @@ impl Restoration {
 	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, gb: &[u8]) -> Result<Self, Error> {
 		let cfg = DatabaseConfig::with_columns(::client::DB_NO_OF_COLUMNS);
 		let raw_db = Arc::new(try!(Database::open(&cfg, &*path.to_string_lossy())
-			.map_err(|s| UtilError::SimpleString(s))));
+			.map_err(UtilError::SimpleString)));
 
 		let chain = BlockChain::new(Default::default(), gb, raw_db.clone());
 		let blocks = try!(BlockRebuilder::new(chain, manifest.block_number));
@@ -207,23 +207,17 @@ impl Service {
 		};
 
 		// create the snapshot dir if it doesn't exist.
-		match fs::create_dir_all(service.snapshot_dir()) {
-			Err(e) => {
-				if e.kind() != ErrorKind::AlreadyExists {
-					return Err(e.into())
-				}
+		if let Err(e) = fs::create_dir_all(service.snapshot_dir()) {
+			if e.kind() != ErrorKind::AlreadyExists {
+				return Err(e.into())
 			}
-			_ => {}
 		}
 
 		// delete the temporary restoration dir if it does exist.
-		match fs::remove_dir_all(service.restoration_dir()) {
-			Err(e) => {
-				if e.kind() != ErrorKind::NotFound {
-					return Err(e.into())
-				}
+		if let Err(e) = fs::remove_dir_all(service.restoration_dir()) {
+			if e.kind() != ErrorKind::NotFound {
+				return Err(e.into())
 			}
-			_ => {}
 		}
 
 		Ok(service)

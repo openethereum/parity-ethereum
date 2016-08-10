@@ -116,7 +116,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 pub fn compare_dbs(one: &HashDB, two: &HashDB) {
 	let keys = one.keys();
 
-	for (key, _) in keys {
+	for key in keys.keys() {
 		assert_eq!(one.get(&key).unwrap(), two.get(&key).unwrap());
 	}
 }

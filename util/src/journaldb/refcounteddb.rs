@@ -190,7 +190,7 @@ impl JournalDB for RefCountedDB {
 		for remove in self.removes.drain(..) {
 			self.forward.remove(&remove);
 		}
-		self.forward.commit_to_batch(&batch)
+		self.forward.commit_to_batch(batch)
 	}
 }
 

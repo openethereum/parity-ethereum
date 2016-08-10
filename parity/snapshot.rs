@@ -109,7 +109,7 @@ impl SnapshotCommand {
 		warn!("Snapshot restoration is experimental and the format may be subject to change.");
 
 		let snapshot = service.snapshot_service();
-		let reader = PackedReader::new(&Path::new(&file))
+		let reader = PackedReader::new(Path::new(&file))
 			.map_err(|e| format!("Couldn't open snapshot file: {}", e))
 			.and_then(|x| x.ok_or("Snapshot file has invalid format.".into()));
 
@@ -172,7 +172,7 @@ impl SnapshotCommand {
 	pub fn take_snapshot(self) -> Result<(), String> {
 		let file_path = try!(self.file_path.clone().ok_or("No file path provided.".to_owned()));
 		let file_path: PathBuf = file_path.into();
-		let block_at = self.block_at.clone();
+		let block_at = self.block_at;
 		let (service, _panic_handler) = try!(self.start_service());
 
 		warn!("Snapshots are currently experimental. File formats may be subject to change.");
@@ -180,7 +180,7 @@ impl SnapshotCommand {
 		let writer = try!(PackedWriter::new(&file_path)
 			.map_err(|e| format!("Failed to open snapshot writer: {}", e)));
 
-		let progress = Arc::new(Progress::new());
+		let progress = Arc::new(Progress::default());
 		let p = progress.clone();
 		let informant_handle = ::std::thread::spawn(move || {
 			::std::thread::sleep(Duration::from_secs(5));

@@ -23,7 +23,6 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
-use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
@@ -324,7 +323,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
 				match block_number {
-					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address))),
+					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).balance(&*take_weak!(self.client), &address))),
 					id => match take_weak!(self.client).balance(&address, id.into()) {
 						Some(balance) => to_value(&RpcU256::from(balance)),
 						None => Err(errors::state_pruned()),
@@ -356,7 +355,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
 				match block_number {
-					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).nonce(take_weak!(self.client).deref(), &address))),
+					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).nonce(&*take_weak!(self.client), &address))),
 					id => match take_weak!(self.client).nonce(&address, id.into()) {
 						Some(nonce) => to_value(&RpcU256::from(nonce)),
 						None => Err(errors::state_pruned()),
@@ -409,7 +408,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
 				match block_number {
-					BlockNumber::Pending => to_value(&take_weak!(self.miner).code(take_weak!(self.client).deref(), &address).map_or_else(Bytes::default, Bytes::new)),
+					BlockNumber::Pending => to_value(&take_weak!(self.miner).code(&*take_weak!(self.client), &address).map_or_else(Bytes::default, Bytes::new)),
 					_ => match take_weak!(self.client).code(&address, block_number.into()) {
 						Some(code) => to_value(&code.map_or_else(Bytes::default, Bytes::new)),
 						None => Err(errors::state_pruned()),
@@ -507,7 +506,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 					.collect::<Vec<Log>>();
 
 				if include_pending {
-					let pending = pending_logs(take_weak!(self.miner).deref(), &filter);
+					let pending = pending_logs(&*take_weak!(self.miner), &filter);
 					logs.extend(pending);
 				}
 
@@ -541,7 +540,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
 			return Err(errors::no_author())
 		}
-		miner.map_sealing_work(client.deref(), |b| {
+		miner.map_sealing_work(&*client, |b| {
 			let pow_hash = b.hash();
 			let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 			let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
@@ -565,7 +564,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-			let r = miner.submit_seal(client.deref(), pow_hash, seal);
+			let r = miner.submit_seal(&*client, pow_hash, seal);
 			to_value(&r.is_ok())
 		})
 	}
@@ -597,7 +596,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				let request = CallRequest::into(request);
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, Default::default()),
+					BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
 					block_number => take_weak!(self.client).call(&signed, block_number.into(), Default::default()),
 				};
 				to_value(&r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
@@ -611,7 +610,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				let request = CallRequest::into(request);
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, Default::default()),
+					BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
 					block => take_weak!(self.client).call(&signed, block.into(), Default::default()),
 				};
 				to_value(&RpcU256::from(r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0))))

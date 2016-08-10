@@ -421,7 +421,6 @@ mod tests {
 	use super::*;
 	use devtools::*;
 	use std::str::FromStr;
-	use std::ops::Deref;
 
 	fn test_db(config: &DatabaseConfig) {
 		let path = RandomTempPath::create_dir();
@@ -435,13 +434,13 @@ mod tests {
 		batch.put(None, &key2, b"dog").unwrap();
 		db.write(batch).unwrap();
 
-		assert_eq!(db.get(None, &key1).unwrap().unwrap().deref(), b"cat");
+		assert_eq!(&*db.get(None, &key1).unwrap().unwrap(), b"cat");
 
 		let contents: Vec<_> = db.iter(None).collect();
 		assert_eq!(contents.len(), 2);
-		assert_eq!(&*contents[0].0, key1.deref());
+		assert_eq!(&*contents[0].0, &*key1);
 		assert_eq!(&*contents[0].1, b"cat");
-		assert_eq!(&*contents[1].0, key2.deref());
+		assert_eq!(&*contents[1].0, &*key2);
 		assert_eq!(&*contents[1].1, b"dog");
 
 		let batch = db.transaction();
@@ -459,10 +458,10 @@ mod tests {
 		transaction.delete(None, &key1).unwrap();
 		db.write(transaction).unwrap();
 		assert!(db.get(None, &key1).unwrap().is_none());
-		assert_eq!(db.get(None, &key3).unwrap().unwrap().deref(), b"elephant");
+		assert_eq!(&*db.get(None, &key3).unwrap().unwrap(), b"elephant");
 
-		assert_eq!(db.get_by_prefix(None, &key3).unwrap().deref(), b"elephant");
-		assert_eq!(db.get_by_prefix(None, &key2).unwrap().deref(), b"dog");
+		assert_eq!(&*db.get_by_prefix(None, &key3).unwrap(), b"elephant");
+		assert_eq!(&*db.get_by_prefix(None, &key2).unwrap(), b"dog");
 	}
 
 	#[test]
