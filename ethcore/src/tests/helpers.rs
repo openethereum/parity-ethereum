@@ -155,7 +155,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 
 		// forge block.
 		let mut b = OpenBlock::new(
-			&*test_engine,
+			test_engine,
 			&vm_factory,
 			Default::default(),
 			false,
@@ -183,7 +183,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 			n += 1;
 		}
 
-		let b = b.close_and_lock().seal(&*test_engine, vec![]).unwrap();
+		let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
 
 		if let Err(e) = client.import_block(b.rlp_bytes()) {
 			panic!("error importing block which is valid by definition: {:?}", e);

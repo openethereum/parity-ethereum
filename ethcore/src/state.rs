@@ -630,7 +630,7 @@ fn should_trace_call_transaction_to_builtin() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = 1_000_000.into();
-	let engine = Spec::new_test().engine;
+	let engine = &*Spec::new_test().engine;
 
 	let t = Transaction {
 		nonce: 0.into(),
@@ -642,7 +642,7 @@ fn should_trace_call_transaction_to_builtin() {
 	}.sign(&"".sha3());
 
 	let vm_factory = Default::default();
-	let result = state.apply(&info, &*engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -673,7 +673,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = 1_000_000.into();
-	let engine = Spec::new_test().engine;
+	let engine = &*Spec::new_test().engine;
 
 	let t = Transaction {
 		nonce: 0.into(),
@@ -686,7 +686,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
 	let vm_factory = Default::default();
-	let result = state.apply(&info, &*engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -717,7 +717,7 @@ fn should_not_trace_callcode() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = 1_000_000.into();
-	let engine = Spec::new_test().engine;
+	let engine = &*Spec::new_test().engine;
 
 	let t = Transaction {
 		nonce: 0.into(),
@@ -731,7 +731,7 @@ fn should_not_trace_callcode() {
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
 	let vm_factory = Default::default();
-	let result = state.apply(&info, &*engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -778,7 +778,7 @@ fn should_not_trace_delegatecall() {
 	let mut info = EnvInfo::default();
 	info.gas_limit = 1_000_000.into();
 	info.number = 0x789b0;
-	let engine = Spec::new_test().engine;
+	let engine = &*Spec::new_test().engine;
 
 	println!("schedule.have_delegate_call: {:?}", engine.schedule(&info).have_delegate_call);
 
@@ -794,7 +794,7 @@ fn should_not_trace_delegatecall() {
 	state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
 	let vm_factory = Default::default();
-	let result = state.apply(&info, &*engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),

@@ -258,7 +258,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
-		let engine = &self.spec.engine;
+		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
@@ -266,7 +266,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
-			&**engine,
+			engine,
 			self.vm_factory(),
 			Default::default(),
 			false,
