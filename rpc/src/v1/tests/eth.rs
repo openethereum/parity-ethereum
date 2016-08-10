@@ -415,7 +415,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 
 #[test]
 fn starting_nonce_test() {
-	let tester = EthTester::from_spec_provider(|| Spec::load(POSITIVE_NONCE_SPEC));
+	let tester = EthTester::from_spec(Spec::load(POSITIVE_NONCE_SPEC));
 	let address = Address::from(10);
 
 	let sample = tester.handler.handle_request(&(r#"
