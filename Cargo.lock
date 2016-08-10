@@ -416,6 +416,7 @@ dependencies = [
  "ethcore-ipc 1.4.0",
  "ethcore-util 1.4.0",
  "ethjson 0.1.0",
+ "ethstore 0.1.0",
  "ethsync 1.4.0",
  "json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)",
  "jsonrpc-core 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -505,6 +506,8 @@ name = "ethstore"
 version = "0.1.0"
 dependencies = [
  "ethkey 0.2.0",
+ "itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",

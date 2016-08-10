@@ -24,7 +24,9 @@ use ethkey::{Signature, Address, Message, Secret};
 use dir::KeyDirectory;
 use account::SafeAccount;
 use {Error, SecretStore};
+use json;
 use json::UUID;
+use presale::PresaleWallet;
 
 pub struct EthStore {
 	dir: Box<KeyDirectory>,
@@ -86,6 +88,23 @@ impl SecretStore for EthStore {
 		let account = SafeAccount::create(&keypair, id, password, self.iterations, UUID::from(id).into(), "{}".to_owned());
 		let address = account.address.clone();
 		try!(self.save(account));
+		Ok(address)
+	}
+
+	fn import_presale(&self, json: &[u8], password: &str) -> Result<Address, Error> {
+		let json_wallet = try!(json::PresaleWallet::load(json).map_err(|_| Error::InvalidKeyFile("Invalid JSON format".to_owned())));
+		let wallet = PresaleWallet::from(json_wallet);
+		let keypair = try!(wallet.decrypt(password).map_err(|_| Error::InvalidPassword));
+		self.insert_account(keypair.secret().clone(), password)
+	}
+
+	fn import_wallet(&self, json: &[u8], password: &str) -> Result<Address, Error> {
+		let json_keyfile = try!(json::KeyFile::load(json).map_err(|_| Error::InvalidKeyFile("Invalid JSON format".to_owned())));
+		let mut safe_account = SafeAccount::from_file(json_keyfile, None);
+		let secret = try!(safe_account.crypto.secret(password).map_err(|_| Error::InvalidPassword));
+		safe_account.address = try!(KeyPair::from_secret(secret)).address();
+		let address = safe_account.address.clone();
+		try!(self.save(safe_account));
 		Ok(address)
 	}
 
