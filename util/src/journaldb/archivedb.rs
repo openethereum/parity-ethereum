@@ -74,7 +74,7 @@ impl HashDB for ArchiveDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter(self.column) {
-			let h = H256::from_slice(key.deref());
+			let h = H256::from_slice(&*key);
 			ret.insert(h, 1);
 		}
 

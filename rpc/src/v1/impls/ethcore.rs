@@ -18,7 +18,6 @@
 use util::{RotatingLogger};
 use util::misc::version_data;
 use std::sync::{Arc, Weak};
-use std::ops::Deref;
 use std::collections::{BTreeMap};
 use ethcore::client::{MiningBlockChainClient};
 use jsonrpc_core::*;
@@ -95,7 +94,7 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 		try!(self.active());
 		try!(expect_no_params(params));
 		let logs = self.logger.logs();
-		to_value(&logs.deref().as_slice())
+		to_value(&logs.as_slice())
 	}
 
 	fn dev_logs_levels(&self, params: Params) -> Result<Value, Error> {

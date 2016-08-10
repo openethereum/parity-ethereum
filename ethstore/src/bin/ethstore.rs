@@ -143,7 +143,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	} else if args.cmd_import {
 		let src = try!(key_dir(&args.flag_src));
 		let dst = try!(key_dir(&args.flag_dir));
-		let accounts = try!(import_accounts(src.deref(), dst.deref()));
+		let accounts = try!(import_accounts(*src, *dst));
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import_wallet {
 		let wallet = try!(PresaleWallet::open(&args.arg_path));

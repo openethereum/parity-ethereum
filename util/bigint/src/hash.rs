@@ -490,9 +490,9 @@ impl Hasher for PlainHasher {
 	}
 }
 
-/// Specialized version of HashMap with H256 keys and fast hashing function.
+/// Specialized version of `HashMap` with H256 keys and fast hashing function.
 pub type H256FastMap<T> = HashMap<H256, T, BuildHasherDefault<PlainHasher>>;
-/// Specialized version of HashSet with H256 keys and fast hashing function.
+/// Specialized version of `HashSet` with H256 keys and fast hashing function.
 pub type H256FastSet = HashSet<H256, BuildHasherDefault<PlainHasher>>;
 
 #[cfg(test)]

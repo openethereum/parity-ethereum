@@ -64,14 +64,20 @@ impl From<::std::io::Error> for Error {
 	}
 }
 
-impl From<Box<TrieError>> for Error {
-	fn from(err: Box<TrieError>) -> Self {
-		Error::Trie(*err)
+impl From<TrieError> for Error {
+	fn from(err: TrieError) -> Self {
+		Error::Trie(err)
 	}
 }
 
 impl From<DecoderError> for Error {
 	fn from(err: DecoderError) -> Self {
 		Error::Decoder(err)
+	}
+}
+
+impl<E> From<Box<E>> for Error where Error: From<E> {
+	fn from(err: Box<E>) -> Self {
+		Error::from(*err)
 	}
 }
