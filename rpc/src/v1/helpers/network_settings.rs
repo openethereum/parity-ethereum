@@ -32,7 +32,6 @@ pub struct NetworkSettings {
 	pub rpc_port: u16,
 }
 
-#[cfg(test)]
 impl Default for NetworkSettings {
 	fn default() -> Self {
 		NetworkSettings {

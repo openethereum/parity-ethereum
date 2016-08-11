@@ -777,7 +777,6 @@ mod tests {
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
 			chain: "morden".to_owned(),
-			max_peers: 50,
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),
