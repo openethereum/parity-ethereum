@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ops::{Deref, DerefMut};
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
 use crypto::Keccak256;
@@ -67,7 +66,7 @@ impl Into<json::KeyFile> for SafeAccount {
 		json::KeyFile {
 			id: From::from(self.id),
 			version: self.version.into(),
-			address: self.address.into(), //From::from(self.address),
+			address: self.address.into(),
 			crypto: self.crypto.into(),
 			name: Some(self.name.into()),
 			meta: Some(self.meta.into()),
@@ -87,7 +86,7 @@ impl Crypto {
 		let mut ciphertext = [0u8; 32];
 
 		// aes-128-ctr with initial vector of iv
-		crypto::aes::encrypt(&derived_left_bits, &iv, secret.deref(), &mut ciphertext);
+		crypto::aes::encrypt(&derived_left_bits, &iv, &**secret, &mut ciphertext);
 
 		// KECCAK(DK[16..31] ++ <ciphertext>), where DK[16..31] - derived_right_bits
 		let mac = crypto::derive_mac(&derived_right_bits, &ciphertext).keccak256();
@@ -123,7 +122,7 @@ impl Crypto {
 
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, secret.deref_mut())
+				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut *secret)
 			},
 		}
 
@@ -151,13 +150,16 @@ impl SafeAccount {
 		}
 	}
 
-	pub fn from_file(json: json::KeyFile, filename: String) -> Self {
+	/// Create a new `SafeAccount` from the given `json`; if it was read from a
+	/// file, the `filename` should be `Some` name. If it is as yet anonymous, then it
+	/// can be left `None`.
+	pub fn from_file(json: json::KeyFile, filename: Option<String>) -> Self {
 		SafeAccount {
 			id: json.id.into(),
 			version: json.version.into(),
 			address: json.address.into(),
 			crypto: json.crypto.into(),
-			filename: Some(filename),
+			filename: filename,
 			name: json.name.unwrap_or(String::new()),
 			meta: json.meta.unwrap_or("{}".to_owned()),
 		}

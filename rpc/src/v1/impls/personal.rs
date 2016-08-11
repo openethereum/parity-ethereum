@@ -24,7 +24,7 @@ use v1::helpers::{errors, TransactionRequest as TRequest};
 use v1::helpers::params::expect_no_params;
 use v1::helpers::dispatch::unlock_sign_and_dispatch;
 use ethcore::account_provider::AccountProvider;
-use util::Address;
+use util::{Address, KeyPair};
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 
@@ -82,6 +82,32 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			|(pass, )| {
 				let store = take_weak!(self.accounts);
 				match store.new_account(&pass) {
+					Ok(address) => to_value(&RpcH160::from(address)),
+					Err(e) => Err(errors::account("Could not create account.", e)),
+				}
+			}
+		)
+	}
+
+	fn new_account_from_phrase(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(String, String, )>(params).and_then(
+			|(phrase, pass, )| {
+				let store = take_weak!(self.accounts);
+				match store.insert_account(*KeyPair::from_phrase(&phrase).secret(), &pass) {
+					Ok(address) => to_value(&RpcH160::from(address)),
+					Err(e) => Err(errors::account("Could not create account.", e)),
+				}
+			}
+		)
+	}
+
+	fn new_account_from_wallet(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(String, String, )>(params).and_then(
+			|(json, pass, )| {
+				let store = take_weak!(self.accounts);
+				match store.import_presale(json.as_bytes(), &pass).or_else(|_| store.import_wallet(json.as_bytes(), &pass)) {
 					Ok(address) => to_value(&RpcH160::from(address)),
 					Err(e) => Err(errors::account("Could not create account.", e)),
 				}

@@ -30,8 +30,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethsync::SyncConfig;
 use informant::Informant;
-#[cfg(feature="ipc")]
-use ethcore::client::ChainNotify;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
@@ -82,9 +80,6 @@ pub struct RunCmd {
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
-	// create supervisor
-	let mut hypervisor = modules::hypervisor();
-
 	// increase max number of open files
 	raise_fd_limit();
 
@@ -166,6 +161,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
+
+	// create supervisor
+	let mut hypervisor = modules::hypervisor();
 
 	// create client service.
 	let service = try!(ClientService::start(

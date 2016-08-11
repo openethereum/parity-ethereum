@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trace database.
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::collections::HashMap;
 use std::sync::Arc;
 use bloomchain::{Number, Config as BloomConfig};
@@ -273,8 +273,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			batch.write_with_cache(DB_COL_TRACE, traces.deref_mut(), request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
-
+			batch.write_with_cache(DB_COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
 			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
 			self.note_used(CacheID::Trace(request.block_hash.clone()));
 		}
@@ -303,8 +302,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 			let blooms_keys: Vec<_> = blooms_to_insert.keys().cloned().collect();
 			let mut blooms = self.blooms.write();
-			batch.extend_with_cache(DB_COL_TRACE, blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
-
+			batch.extend_with_cache(DB_COL_TRACE, &mut *blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
 			// note_used must be called after locking blooms to avoid cache/traces deadlock on garbage collection
 			for key in blooms_keys.into_iter() {
 				self.note_used(CacheID::Bloom(key));

@@ -1769,7 +1769,7 @@ mod tests {
 		let chain_info = client.chain_info();
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &mut io);
+		let peers = sync.get_lagging_peers(&chain_info, &io);
 		let peer_count = sync.propagate_new_hashes(&chain_info, &mut io, &peers);
 
 		// 1 message should be send
@@ -1788,7 +1788,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let mut io = TestIo::new(&mut client, &mut queue, None);
-		let peers = sync.get_lagging_peers(&chain_info, &mut io);
+		let peers = sync.get_lagging_peers(&chain_info, &io);
 		let peer_count = sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
 
 		// 1 message should be send
@@ -1808,7 +1808,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let mut io = TestIo::new(&mut client, &mut queue, None);
-		let peers = sync.get_lagging_peers(&chain_info, &mut io);
+		let peers = sync.get_lagging_peers(&chain_info, &io);
 		let peer_count = sync.propagate_blocks(&chain_info, &mut io, &[hash.clone()], &peers);
 
 		// 1 message should be send
@@ -1915,7 +1915,7 @@ mod tests {
 		let chain_info = client.chain_info();
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &mut io);
+		let peers = sync.get_lagging_peers(&chain_info, &io);
 		sync.propagate_new_hashes(&chain_info, &mut io, &peers);
 
 		let data = &io.queue[0].data.clone();
@@ -1934,7 +1934,7 @@ mod tests {
 		let chain_info = client.chain_info();
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &mut io);
+		let peers = sync.get_lagging_peers(&chain_info, &io);
 		sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
 
 		let data = &io.queue[0].data.clone();

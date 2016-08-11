@@ -15,19 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
+use util::{RotatingLogger, KeyPair};
+use util::misc::version_data;
 use std::sync::{Arc, Weak};
-use std::ops::Deref;
 use std::collections::{BTreeMap};
 
-use util::{RotatingLogger};
-use util::misc::version_data;
+use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 
 use jsonrpc_core::*;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, Peers};
+use v1::types::{Bytes, U256, H160, Peers};
 use v1::helpers::{errors, SigningQueue, ConfirmationsQueue, NetworkSettings};
 use v1::helpers::params::expect_no_params;
 
@@ -111,7 +111,7 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		try!(self.active());
 		try!(expect_no_params(params));
 		let logs = self.logger.logs();
-		to_value(&logs.deref().as_slice())
+		to_value(&logs.as_slice())
 	}
 
 	fn dev_logs_levels(&self, params: Params) -> Result<Value, Error> {
@@ -189,5 +189,19 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 			None => Err(errors::signer_disabled()),
 			Some(ref queue) => to_value(&queue.len()),
 		}
+	}
+
+	fn generate_secret_phrase(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+
+		to_value(&random_phrase(12))
+	}
+
+	fn phrase_to_address(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(String,)>(params).and_then(|(phrase,)|
+			to_value(&H160::from(KeyPair::from_phrase(&phrase).address()))
+		)
 	}
 }

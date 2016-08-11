@@ -21,7 +21,6 @@ use self::ansi_term::Style;
 use std::sync::{Arc};
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::time::{Instant, Duration};
-use std::ops::{Deref, DerefMut};
 use isatty::{stdout_isatty};
 use ethsync::{SyncProvider, ManageNetwork};
 use util::{Uint, RwLock, Mutex, H256, Colour};
@@ -112,7 +111,7 @@ impl Informant {
 					paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 					paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 					{
-						let last_report = match write_report.deref() { &Some(ref last_report) => last_report.clone(), _ => ClientReport::default() };
+						let last_report = match *write_report { Some(ref last_report) => last_report.clone(), _ => ClientReport::default() };
 						format!("{} blk/s {} tx/s {} Mgas/s",
 							paint(Yellow.bold(), format!("{:4}", ((report.blocks_imported - last_report.blocks_imported) * 1000) as u64 / elapsed.as_milliseconds())),
 							paint(Yellow.bold(), format!("{:4}", ((report.transactions_applied - last_report.transactions_applied) * 1000) as u64 / elapsed.as_milliseconds())),
@@ -147,9 +146,9 @@ impl Informant {
 			)
 		);
 
-		*self.chain_info.write().deref_mut() = Some(chain_info);
-		*self.cache_info.write().deref_mut() = Some(cache_info);
-		*write_report.deref_mut() = Some(report);
+		*self.chain_info.write() = Some(chain_info);
+		*self.cache_info.write() = Some(cache_info);
+		*write_report = Some(report);
 	}
 }
 

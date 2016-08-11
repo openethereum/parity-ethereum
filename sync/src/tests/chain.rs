@@ -27,7 +27,7 @@ fn two_peers() {
 	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
 	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
-	assert_eq!(net.peer(0).chain.blocks.read().deref(), net.peer(1).chain.blocks.read().deref());
+	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn long_chain() {
 	net.peer_mut(1).chain.add_blocks(50000, EachBlockWith::Nothing);
 	net.sync();
 	assert!(net.peer(0).chain.block(BlockID::Number(50000)).is_some());
-	assert_eq!(net.peer(0).chain.blocks.read().deref(), net.peer(1).chain.blocks.read().deref());
+	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn empty_blocks() {
 	}
 	net.sync();
 	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
-	assert_eq!(net.peer(0).chain.blocks.read().deref(), net.peer(1).chain.blocks.read().deref());
+	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
 #[test]
@@ -89,10 +89,10 @@ fn forked() {
 	// peer 1 has the best chain of 601 blocks
 	let peer1_chain = net.peer(1).chain.numbers.read().clone();
 	net.sync();
-	assert_eq!(net.peer(0).chain.difficulty.read().deref(), net.peer(1).chain.difficulty.read().deref());
-	assert_eq!(net.peer(0).chain.numbers.read().deref(), &peer1_chain);
-	assert_eq!(net.peer(1).chain.numbers.read().deref(), &peer1_chain);
-	assert_eq!(net.peer(2).chain.numbers.read().deref(), &peer1_chain);
+	assert_eq!(*net.peer(0).chain.difficulty.read(), *net.peer(1).chain.difficulty.read());
+	assert_eq!(&*net.peer(0).chain.numbers.read(), &peer1_chain);
+	assert_eq!(&*net.peer(1).chain.numbers.read(), &peer1_chain);
+	assert_eq!(&*net.peer(2).chain.numbers.read(), &peer1_chain);
 }
 
 #[test]
@@ -222,3 +222,4 @@ fn high_td_attach() {
 
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
 }
+
