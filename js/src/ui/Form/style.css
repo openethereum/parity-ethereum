@@ -1,0 +1,15 @@
+.form {
+}
+
+.autofill {
+  height: 0;
+  width: '1px';
+  position: 'absolute';
+  left: 0;
+  top: 0;
+}
+
+:root .form input:-webkit-autofill {
+  display: none;
+  opacity: 0;
+}

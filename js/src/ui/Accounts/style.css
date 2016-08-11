@@ -1,0 +1,13 @@
+.account {
+  flex: 0 1 50%;
+  width: 50%;
+}
+
+.account>div {
+  height: 100%;
+}
+
+.accounts {
+  display: flex;
+  flex-wrap: wrap;
+}

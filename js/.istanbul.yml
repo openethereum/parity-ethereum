@@ -1,0 +1,4 @@
+instrumentation:
+  root: src
+  extensions:
+    - .js

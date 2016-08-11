@@ -1,0 +1,16 @@
+.balance {
+  height: 32px;
+}
+
+.balance img {
+  margin-right: 0.5em;
+  height: 32px;
+  width: 32px;
+}
+
+.balance div {
+  height: 32px;
+  line-height: 32px;
+  display: inline-block;
+  vertical-align: top;
+}
