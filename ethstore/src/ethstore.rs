@@ -27,6 +27,7 @@ use {Error, SecretStore};
 use json;
 use json::UUID;
 use presale::PresaleWallet;
+use import;
 
 pub struct EthStore {
 	dir: Box<KeyDirectory>,
@@ -172,5 +173,17 @@ impl SecretStore for EthStore {
 
 		// save to file
 		self.save(account)
+	}
+
+	fn local_path(&self) -> String {
+		self.dir.path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| String::new())
+	}
+
+	fn list_geth_accounts(&self, testnet: bool) -> Vec<Address> {
+		import::read_geth_accounts(testnet)
+	}
+
+	fn import_geth_accounts(&self, desired: Vec<Address>, testnet: bool) -> Result<Vec<Address>, Error> {
+		import::import_geth_accounts(&*self.dir, desired.into_iter().collect(), testnet)
 	}
 }

@@ -19,33 +19,49 @@ use util::{RotatingLogger, KeyPair};
 use util::misc::version_data;
 use std::sync::{Arc, Weak};
 use std::collections::{BTreeMap};
+
 use ethstore::random_phrase;
-use ethcore::client::{MiningBlockChainClient};
-use jsonrpc_core::*;
+use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
+use ethcore::client::{MiningBlockChainClient};
+
+use jsonrpc_core::*;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160};
+use v1::types::{Bytes, U256, H160, Peers};
 use v1::helpers::{errors, SigningQueue, ConfirmationsQueue, NetworkSettings};
 use v1::helpers::params::expect_no_params;
 
 /// Ethcore implementation.
-pub struct EthcoreClient<C, M> where
+pub struct EthcoreClient<C, M, S: ?Sized> where
 	C: MiningBlockChainClient,
-	M: MinerService {
+	M: MinerService,
+	S: SyncProvider {
 
 	client: Weak<C>,
 	miner: Weak<M>,
+	sync: Weak<S>,
+	net: Weak<ManageNetwork>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	confirmations_queue: Option<Arc<ConfirmationsQueue>>,
 }
 
-impl<C, M> EthcoreClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M: MinerService, S: SyncProvider {
 	/// Creates new `EthcoreClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>, queue: Option<Arc<ConfirmationsQueue>>) -> Self {
+	pub fn new(
+		client: &Arc<C>,
+		miner: &Arc<M>,
+		sync: &Arc<S>,
+		net: &Arc<ManageNetwork>,
+		logger: Arc<RotatingLogger>,
+		settings: Arc<NetworkSettings>,
+		queue: Option<Arc<ConfirmationsQueue>>
+		) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
+			sync: Arc::downgrade(sync),
+			net: Arc::downgrade(net),
 			logger: logger,
 			settings: settings,
 			confirmations_queue: queue,
@@ -59,7 +75,7 @@ impl<C, M> EthcoreClient<C, M> where C: MiningBlockChainClient, M: MinerService 
 	}
 }
 
-impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: MiningBlockChainClient + 'static {
+impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService + 'static, C: MiningBlockChainClient + 'static, S: SyncProvider + 'static {
 
 	fn transactions_limit(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
@@ -110,10 +126,18 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 		to_value(&self.settings.chain)
 	}
 
-	fn net_max_peers(&self, params: Params) -> Result<Value, Error> {
+	fn net_peers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&self.settings.max_peers)
+
+		let sync_status = take_weak!(self.sync).status();
+		let net_config = take_weak!(self.net).network_config();
+
+		to_value(&Peers {
+			active: sync_status.num_active_peers,
+			connected: sync_status.num_peers,
+			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
+		})
 	}
 
 	fn net_port(&self, params: Params) -> Result<Value, Error> {

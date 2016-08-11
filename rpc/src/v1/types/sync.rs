@@ -31,6 +31,17 @@ pub struct SyncInfo {
 	pub highest_block: U256,
 }
 
+/// Peers info
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Peers {
+	/// Number of active peers
+	pub active: usize,
+	/// Number of connected peers
+	pub connected: usize,
+	/// Max number of peers
+	pub max: u32,
+}
+
 /// Sync status
 #[derive(Debug, PartialEq)]
 pub enum SyncStatus {
@@ -53,13 +64,20 @@ impl Serialize for SyncStatus {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use super::{SyncInfo, SyncStatus};
+	use super::{SyncInfo, SyncStatus, Peers};
 
 	#[test]
 	fn test_serialize_sync_info() {
 		let t = SyncInfo::default();
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, r#"{"startingBlock":"0x00","currentBlock":"0x00","highestBlock":"0x00"}"#);
+	}
+
+	#[test]
+	fn test_serialize_peers() {
+		let t = Peers::default();
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"active":0,"connected":0,"max":0}"#);
 	}
 
 	#[test]

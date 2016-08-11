@@ -45,8 +45,8 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns chain name
 	fn net_chain(&self, _: Params) -> Result<Value, Error>;
 
-	/// Returns max peers
-	fn net_max_peers(&self, _: Params) -> Result<Value, Error>;
+	/// Returns peers details
+	fn net_peers(&self, _: Params) -> Result<Value, Error>;
 
 	/// Returns network port
 	fn net_port(&self, _: Params) -> Result<Value, Error>;
@@ -85,7 +85,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_devLogs", Ethcore::dev_logs);
 		delegate.add_method("ethcore_devLogsLevels", Ethcore::dev_logs_levels);
 		delegate.add_method("ethcore_netChain", Ethcore::net_chain);
-		delegate.add_method("ethcore_netMaxPeers", Ethcore::net_max_peers);
+		delegate.add_method("ethcore_netPeers", Ethcore::net_peers);
 		delegate.add_method("ethcore_netPort", Ethcore::net_port);
 		delegate.add_method("ethcore_rpcSettings", Ethcore::rpc_settings);
 		delegate.add_method("ethcore_nodeName", Ethcore::node_name);

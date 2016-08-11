@@ -54,6 +54,12 @@ pub trait Personal: Sized + Send + Sync + 'static {
 	/// Returns accounts information.
 	fn accounts_info(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns the accounts available for importing from Geth.
+	fn geth_accounts(&self, _: Params) -> Result<Value, Error>;
+
+	/// Imports a number of Geth accounts, with the list provided as the argument.
+	fn import_geth_accounts(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -67,6 +73,8 @@ pub trait Personal: Sized + Send + Sync + 'static {
 		delegate.add_method("personal_setAccountName", Personal::set_account_name);
 		delegate.add_method("personal_setAccountMeta", Personal::set_account_meta);
 		delegate.add_method("personal_accountsInfo", Personal::accounts_info);
+		delegate.add_method("personal_listGethAccounts", Personal::geth_accounts);
+		delegate.add_method("personal_importGethAccounts", Personal::import_geth_accounts);
 
 		delegate
 	}
