@@ -22,7 +22,7 @@ use ethkey::Address;
 use {json, SafeAccount, Error};
 use super::KeyDirectory;
 
-const IGNORED_FILES: &'static [&'static str] = &["thumbs.db"];
+const IGNORED_FILES: &'static [&'static str] = &["thumbs.db", "address_book.json"];
 
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {

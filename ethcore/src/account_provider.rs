@@ -142,7 +142,6 @@ impl AddressBook {
 	pub fn new(path: String) -> Self {
 		trace!(target: "addressbook", "new({})", path);
 		let mut path: PathBuf = path.into();
-		path.pop();
 		path.push("address_book.json");
 		trace!(target: "addressbook", "path={:?}", path);
 		let mut r = AddressBook {
@@ -387,9 +386,23 @@ impl AccountProvider {
 
 #[cfg(test)]
 mod tests {
-	use super::AccountProvider;
+	use super::{AccountProvider, AddressBook};
+	use std::collections::HashMap;
+	use ethjson::misc::AccountMeta;
 	use ethstore::ethkey::{Generator, Random};
 	use std::time::Duration;
+	use devtools::RandomTempPath;
+
+	#[test]
+	fn should_save_and_reload_address_book() {
+		let temp = RandomTempPath::create_dir();
+		let path = temp.as_str().to_owned();
+		let mut b = AddressBook::new(path.clone());
+		b.set_name(1.into(), "One".to_owned());
+		b.set_meta(1.into(), "{1:1}".to_owned());
+		let b = AddressBook::new(path);
+		assert_eq!(b.get(), hash_map![1.into() => AccountMeta{name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None}]);
+	}
 
 	#[test]
 	fn unlock_account_temp() {
