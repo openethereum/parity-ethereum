@@ -310,7 +310,7 @@ impl Configuration {
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
 		let cfg = AccountsConfig {
 			iterations: self.args.flag_keys_iterations,
-			import_keys: !self.args.flag_no_import_keys,
+			import_keys: self.args.flag_import_geth_keys,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: try!(to_addresses(&self.args.flag_unlock)),

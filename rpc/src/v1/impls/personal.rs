@@ -184,4 +184,21 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			(format!("0x{}", a.hex()), Value::Object(m))
 		}).collect::<BTreeMap<_, _>>()))
 	}
+
+	fn geth_accounts(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+		let store = take_weak!(self.accounts);
+		to_value(&store.list_geth_accounts(false).into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+	}
+
+	fn import_geth_accounts(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Vec<RpcH160>,)>(params).and_then(|(addresses,)| {
+			let store = take_weak!(self.accounts);
+			to_value(&try!(store
+				.import_geth_accounts(addresses.into_iter().map(Into::into).collect(), false)
+				.map_err(|e| errors::account("Couldn't import Geth accounts", e))
+			).into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+		})
+	}
 }

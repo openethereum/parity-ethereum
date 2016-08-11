@@ -382,6 +382,17 @@ impl AccountProvider {
 		let signature = try!(self.sstore.sign(&account, &password, &message));
 		Ok(H520(signature.into()))
 	}
+
+	/// Returns the underlying `SecretStore` reference if one exists.
+	pub fn list_geth_accounts(&self, testnet: bool) -> Vec<H160> {
+		self.sstore.list_geth_accounts(testnet).into_iter().map(|a| Address::from(a).into()).collect()
+	}
+
+	/// Returns the underlying `SecretStore` reference if one exists.
+	pub fn import_geth_accounts(&self, desired: Vec<H160>, testnet: bool) -> Result<Vec<H160>, Error> {
+		let desired = desired.into_iter().map(|a| Address::from(a).into()).collect();
+		Ok(try!(self.sstore.import_geth_accounts(desired, testnet)).into_iter().map(|a| Address::from(a).into()).collect())
+	}
 }
 
 #[cfg(test)]
