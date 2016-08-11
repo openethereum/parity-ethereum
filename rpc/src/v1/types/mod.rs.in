@@ -40,7 +40,7 @@ pub use self::filter::Filter;
 pub use self::hash::{H64, H160, H256, H520, H2048};
 pub use self::index::Index;
 pub use self::log::Log;
-pub use self::sync::{SyncStatus, SyncInfo};
+pub use self::sync::{SyncStatus, SyncInfo, Peers};
 pub use self::transaction::Transaction;
 pub use self::transaction_request::TransactionRequest;
 pub use self::receipt::Receipt;
