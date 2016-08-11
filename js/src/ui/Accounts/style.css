@@ -3,8 +3,8 @@
   width: 50%;
 }
 
-.account>div {
-  height: 100%;
+.padded {
+  padding: 1em 0.5em 0 0.5em;
 }
 
 .accounts {
