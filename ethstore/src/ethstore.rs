@@ -173,4 +173,8 @@ impl SecretStore for EthStore {
 		// save to file
 		self.save(account)
 	}
+
+	fn local_path(&self) -> String {
+		self.dir.path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| String::new())
+	} 
 }

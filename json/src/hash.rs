@@ -17,8 +17,9 @@
 //! Lenient hash json deserialization for test json files.
 
 use std::str::FromStr;
-use serde::{Deserialize, Deserializer, Error};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
 use serde::de::Visitor;
+use rustc_serialize::hex::ToHex;
 use util::hash::{H64 as Hash64, Address as Hash160, H256 as Hash256, H2048 as Hash2048};
 
 
@@ -31,6 +32,12 @@ macro_rules! impl_hash {
 		impl Into<$inner> for $name {
 			fn into(self) -> $inner {
 				self.0
+			}
+		}
+
+		impl From<$inner> for $name {
+			fn from(i: $inner) -> Self {
+				$name(i)
 			}
 		}
 
@@ -64,6 +71,14 @@ macro_rules! impl_hash {
 				}
 
 				deserializer.deserialize(HashVisitor)
+			}
+		}
+
+		impl Serialize for $name {
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer {
+				let mut hex = "0x".to_owned();
+				hex.push_str(&self.0.to_hex());
+				serializer.serialize_str(&hex)
 			}
 		}
 	}
