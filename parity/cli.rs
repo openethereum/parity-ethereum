@@ -19,7 +19,7 @@ use docopt::Docopt;
 
 pub const USAGE: &'static str = r#"
 Parity. Ethereum Client.
-  By Wood/Paronyan/Kotewicz/Drwięga/Volf/.
+  By Wood/Paronyan/Kotewicz/Drwięga/Volf et al.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
