@@ -57,12 +57,18 @@ pub trait JournalDB: HashDB {
 	/// Get backing database.
 	fn backing(&self) -> &Arc<Database>;
 
+	/// Clear internal strucutres. This should called after changes have been written
+	/// to the backing strage
+	fn flush(&self) {}
+
 	/// Commit all changes in a single batch
 	#[cfg(test)]
 	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let batch = self.backing().transaction();
 		let res = try!(self.commit(&batch, now, id, end));
-		self.backing().write(batch).map(|_| res).map_err(Into::into)
+		let result = self.backing().write(batch).map(|_| res).map_err(Into::into);
+		self.flush();
+		result
 	}
 
 	/// Inject all changes in a single batch.
