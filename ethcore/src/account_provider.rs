@@ -16,15 +16,15 @@
 
 //! Account management.
 
-use std::fmt;
+use std::{fs, fmt};
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
 use util::{Address as H160, H256, H520, Mutex, RwLock};
 use std::path::PathBuf;
+use ethjson::misc::AccountMeta;
 use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
 use ethstore::dir::{KeyDirectory};
 use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret, Random, Generator};
-
 
 /// Type of unlock.
 #[derive(Clone)]
@@ -132,17 +132,6 @@ impl KeyDirectory for NullDir {
 	}
 }
 
-/// Collected account metadata
-#[derive(Clone, Debug, PartialEq)]
-pub struct AccountMeta {
-	/// The name of the account.
-	pub name: String,
-	/// The rest of the metadata of the account.
-	pub meta: String,
-	/// The 128-bit UUID of the account, if it has one (brain-wallets don't).
-	pub uuid: Option<String>,
-}
-
 /// Disk-backed map from Address to String. Uses JSON.
 struct AddressBook {
 	path: PathBuf,
@@ -151,11 +140,16 @@ struct AddressBook {
 
 impl AddressBook {
 	pub fn new(path: String) -> Self {
+		trace!(target: "addressbook", "new({})", path);
+		let mut path: PathBuf = path.into();
+		path.pop();
+		path.push("address_book.json");
+		trace!(target: "addressbook", "path={:?}", path);
 		let mut r = AddressBook {
-			path: path.into(),
-			cache: HashMap::new(), 
+			path: path,
+			cache: HashMap::new(),
 		};
-		r.load();
+		r.revert();
 		r
 	}
 
@@ -181,12 +175,23 @@ impl AddressBook {
 		self.save();
 	}
 
-	fn load(&mut self) {
-		// TODO
+	fn revert(&mut self) {
+		trace!(target: "addressbook", "revert");
+		let _ = fs::File::open(self.path.clone())
+			.map_err(|e| trace!(target: "addressbook", "Couldn't open address book: {}", e))
+			.and_then(|f| AccountMeta::read_address_map(&f)
+				.map_err(|e| warn!(target: "addressbook", "Couldn't read address book: {}", e))
+				.and_then(|m| { self.cache = m; Ok(()) })
+			);
 	}
 
 	fn save(&mut self) {
-		// TODO
+		trace!(target: "addressbook", "save");
+		let _ = fs::File::create(self.path.clone())
+			.map_err(|e| warn!(target: "addressbook", "Couldn't open address book for writing: {}", e))
+			.and_then(|mut f| AccountMeta::write_address_map(&self.cache, &mut f)
+				.map_err(|e| warn!(target: "addressbook", "Couldn't write to address book: {}", e))
+			);
 	}
 }
 
@@ -196,16 +201,6 @@ pub struct AccountProvider {
 	unlocked: Mutex<HashMap<SSAddress, AccountData>>,
 	sstore: Box<SecretStore>,
 	address_book: Mutex<AddressBook>,
-}
-
-impl Default for AccountMeta {
-	fn default() -> Self {
-		AccountMeta {
-			name: String::new(),
-			meta: "{}".to_owned(),
-			uuid: None,
-		}
-	}
 }
 
 impl AccountProvider {
