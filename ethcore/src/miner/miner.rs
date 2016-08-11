@@ -881,6 +881,7 @@ mod tests {
 	use super::super::MinerService;
 	use super::*;
 	use util::*;
+	use ethkey::{Generator, Random};
 	use client::{TestBlockChainClient, EachBlockWith};
 	use client::{TransactionImportResult};
 	use types::transaction::{Transaction, Action};
@@ -945,7 +946,7 @@ mod tests {
 		let client = TestBlockChainClient::default();
 		let miner = miner();
 		let transaction = {
-			let keypair = KeyPair::create().unwrap();
+			let keypair = Random.generate().unwrap();
 			Transaction {
 				action: Action::Create,
 				value: U256::zero(),
@@ -975,7 +976,7 @@ mod tests {
 		let client = TestBlockChainClient::default();
 		let miner = miner();
 		let transaction = {
-			let keypair = KeyPair::create().unwrap();
+			let keypair = Random.generate().unwrap();
 			Transaction {
 				action: Action::Create,
 				value: U256::zero(),

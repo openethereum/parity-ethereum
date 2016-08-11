@@ -22,10 +22,8 @@ use std::ops::Deref;
 use std::cell::*;
 use util::rlp::*;
 use util::sha3::Hashable;
-//use util::{UtilError, CryptoError, Bytes, Signature, Secret, ec};
-//use util::crypto::{signature_from_rsv, signature_to_rsv};
-use util::{H256, Address, U256, H520, Bytes};
-use ethkey::{Signature, sign, Secret, recover, public_to_address};
+use util::{H256, Address, U256, Bytes};
+use ethkey::{Signature, sign, Secret, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
@@ -297,11 +295,11 @@ impl SignedTransaction {
 
 	/// Checks whether the signature has a low 's' value.
 	pub fn check_low_s(&self) -> Result<(), Error> {
-		//if !ec::is_low_s(&self.s) {
-			//Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)))
-		//} else {
+		if !self.signature().is_low_s() {
+			Err(EthkeyError::InvalidSignature.into())
+		} else {
 			Ok(())
-		//}
+		}
 	}
 
 	/// Returns transaction sender.
@@ -371,7 +369,9 @@ fn sender_test() {
 
 #[test]
 fn signing() {
-	let key = ::util::crypto::KeyPair::create().unwrap();
+	use ethkey::{Random, Generator};
+
+	let key = Random.generate().unwrap();
 	let t = Transaction {
 		action: Action::Create,
 		nonce: U256::from(42),

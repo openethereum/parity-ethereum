@@ -24,7 +24,6 @@ use mio::udp::*;
 use util::sha3::*;
 use time;
 use util::hash::*;
-use util::crypto::*;
 use util::rlp::*;
 use node_table::*;
 use error::NetworkError;

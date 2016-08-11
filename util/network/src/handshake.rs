@@ -21,8 +21,6 @@ use util::hash::*;
 use util::rlp::*;
 use util::sha3::Hashable;
 use util::bytes::Bytes;
-use util::crypto::*;
-use util::crypto;
 use connection::{Connection};
 use host::{HostInfo};
 use node_table::NodeId;

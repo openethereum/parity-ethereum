@@ -21,7 +21,7 @@ use std::str::FromStr;
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
 use secp256k1::key::{SecretKey, PublicKey};
 use rustc_serialize::hex::{ToHex, FromHex};
-use bigint::hash::{H520, H256};
+use bigint::hash::{H520, H256, FixedHash};
 use {Secret, Public, SECP256K1, Error, Message, public_to_address, Address};
 
 #[repr(C)]
@@ -51,6 +51,20 @@ impl Signature {
 		sig[32..64].copy_from_slice(&s);
 		sig[64] = v;
 		Signature(sig)
+	}
+
+	/// Check if this is a "low" signature.
+	pub fn is_low_s(&self) -> bool {
+		H256::from_slice(self.s()) <= "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0".into()
+	}
+
+	/// Check if each component of the signature is in range.
+	pub fn is_valid(&self) -> bool {
+		self.v() <= 1 &&
+			H256::from_slice(self.r()) < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into() &&
+			H256::from_slice(self.r()) >= 1.into() &&
+			H256::from_slice(self.s()) < "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141".into() &&
+			H256::from_slice(self.s()) >= 1.into()
 	}
 }
 

@@ -302,12 +302,6 @@ impl From<ExecutionError> for Error {
 	}
 }
 
-impl From<CryptoError> for Error {
-	fn from(err: CryptoError) -> Error {
-		Error::Util(UtilError::Crypto(err))
-	}
-}
-
 impl From<DecoderError> for Error {
 	fn from(err: DecoderError) -> Error {
 		Error::Util(UtilError::Decoder(err))

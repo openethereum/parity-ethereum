@@ -26,16 +26,17 @@
 //! ```rust
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
+//! extern crate ethkey;
 //! extern crate rustc_serialize;
 //!
-//!	use util::crypto::KeyPair;
 //! use util::{Uint, U256, Address};
+//! use ethkey::{Random, Generator};
 //!	use ethcore::miner::{TransactionQueue, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
 //!	use rustc_serialize::hex::FromHex;
 //!
 //! fn main() {
-//!		let key = KeyPair::create().unwrap();
+//!		let key = Random.generate().unwrap();
 //!		let t1 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
 //!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(10) };
 //!		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
@@ -798,6 +799,7 @@ mod test {
 	extern crate rustc_serialize;
 	use util::table::*;
 	use util::*;
+	use ethkey::{Random, Generator};
 	use transaction::*;
 	use error::{Error, TransactionError};
 	use super::*;
@@ -823,7 +825,7 @@ mod test {
 	}
 
 	fn new_tx() -> SignedTransaction {
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		new_unsigned_tx(U256::from(123)).sign(keypair.secret())
 	}
 
@@ -841,7 +843,7 @@ mod test {
 
 	/// Returns two transactions with identical (sender, nonce) but different hashes
 	fn new_similar_txs() -> (SignedTransaction, SignedTransaction) {
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let secret = &keypair.secret();
 		let nonce = U256::from(123);
 		let tx = new_unsigned_tx(nonce);
@@ -856,7 +858,7 @@ mod test {
 	}
 
 	fn new_txs_with_gas_price_diff(second_nonce: U256, gas_price: U256) -> (SignedTransaction, SignedTransaction) {
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let secret = &keypair.secret();
 		let nonce = U256::from(123);
 		let tx = new_unsigned_tx(nonce);
@@ -1230,7 +1232,7 @@ mod test {
 	fn should_move_transactions_if_gap_filled() {
 		// given
 		let mut txq = TransactionQueue::new();
-		let kp = KeyPair::create().unwrap();
+		let kp = Random.generate().unwrap();
 		let secret = kp.secret();
 		let tx = new_unsigned_tx(U256::from(123)).sign(secret);
 		let tx1 = new_unsigned_tx(U256::from(124)).sign(secret);
@@ -1461,7 +1463,7 @@ mod test {
 		init_log();
 		// given
 		let mut txq = TransactionQueue::new();
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let tx = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
 		let tx2 = {
 			let mut tx2 = tx.deref().clone();
@@ -1484,7 +1486,7 @@ mod test {
 	fn should_replace_same_transaction_when_importing_to_futures() {
 		// given
 		let mut txq = TransactionQueue::new();
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let tx0 = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
 		let tx1 = {
 			let mut tx1 = tx0.deref().clone();
@@ -1637,7 +1639,7 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::new();
 		let (tx1, tx2, tx2_2, tx3) = {
-			let keypair = KeyPair::create().unwrap();
+			let keypair = Random.generate().unwrap();
 			let secret = &keypair.secret();
 			let nonce = U256::from(123);
 			let tx = new_unsigned_tx(nonce);

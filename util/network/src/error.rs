@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use io::IoError;
-use util::crypto::CryptoError;
 use util::rlp::*;
 use util::UtilError;
 use std::fmt;

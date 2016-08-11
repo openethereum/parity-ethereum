@@ -29,7 +29,6 @@ use error::*;
 use io::{IoContext, StreamToken};
 use handshake::Handshake;
 use stats::NetworkStats;
-use util::crypto;
 use rcrypto::blockmodes::*;
 use rcrypto::aessafe::*;
 use rcrypto::symmetriccipher::*;

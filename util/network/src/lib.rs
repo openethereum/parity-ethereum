@@ -70,6 +70,7 @@ extern crate rustc_serialize;
 extern crate igd;
 extern crate libc;
 extern crate slab;
+extern crate ethkey;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 
