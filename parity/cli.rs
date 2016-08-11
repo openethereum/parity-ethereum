@@ -19,7 +19,7 @@ use docopt::Docopt;
 
 pub const USAGE: &'static str = r#"
 Parity. Ethereum Client.
-  By Wood/Paronyan/Kotewicz/Drwięga/Volf.
+  By Wood/Paronyan/Kotewicz/Drwięga/Volf et al.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
@@ -67,7 +67,6 @@ Account Options:
   --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) [default: 10240].
-  --no-import-keys         Do not import keys from legacy clients.
   --force-signer           Enable Trusted Signer WebSocket endpoint used by
                            Signer UIs, even when --unlock is in use.
   --no-signer              Disable Trusted Signer WebSocket endpoint used by
@@ -248,6 +247,7 @@ Legacy Options:
   --testnet                Geth-compatible testnet mode. Equivalent to --chain
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.
+  --import-geth-keys       Attempt to import keys from Geth client.
   --datadir PATH           Equivalent to --db-path PATH.
   --networkid INDEX        Equivalent to --network-id INDEX.
   --peers NUM              Equivalent to --min-peers NUM.
@@ -310,7 +310,7 @@ pub struct Args {
 	pub flag_password: Vec<String>,
 	pub flag_keys_path: String,
 	pub flag_keys_iterations: u32,
-	pub flag_no_import_keys: bool,
+	pub flag_import_geth_keys: bool,
 	pub flag_bootnodes: Option<String>,
 	pub flag_network_id: Option<String>,
 	pub flag_pruning: String,

@@ -16,14 +16,15 @@
 
 //! Account management.
 
-use std::fmt;
+use std::{fs, fmt};
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
 use util::{Address as H160, H256, H520, Mutex, RwLock};
+use std::path::PathBuf;
+use ethjson::misc::AccountMeta;
 use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
 use ethstore::dir::{KeyDirectory};
 use ethstore::ethkey::{Address as SSAddress, Message as SSMessage, Secret as SSSecret, Random, Generator};
-
 
 /// Type of unlock.
 #[derive(Clone)]
@@ -131,32 +132,74 @@ impl KeyDirectory for NullDir {
 	}
 }
 
+/// Disk-backed map from Address to String. Uses JSON.
+struct AddressBook {
+	path: PathBuf,
+	cache: HashMap<H160, AccountMeta>,
+}
+
+impl AddressBook {
+	pub fn new(path: String) -> Self {
+		trace!(target: "addressbook", "new({})", path);
+		let mut path: PathBuf = path.into();
+		path.push("address_book.json");
+		trace!(target: "addressbook", "path={:?}", path);
+		let mut r = AddressBook {
+			path: path,
+			cache: HashMap::new(),
+		};
+		r.revert();
+		r
+	}
+
+	pub fn get(&self) -> HashMap<H160, AccountMeta> {
+		self.cache.clone()
+	}
+
+	pub fn set_name(&mut self, a: H160, name: String) {
+		let mut x = self.cache.get(&a)
+			.map(|a| a.clone())
+			.unwrap_or(AccountMeta{name: Default::default(), meta: "{}".to_owned(), uuid: None});
+		x.name = name;
+		self.cache.insert(a, x);
+		self.save();
+	}
+
+	pub fn set_meta(&mut self, a: H160, meta: String) {
+		let mut x = self.cache.get(&a)
+			.map(|a| a.clone())
+			.unwrap_or(AccountMeta{name: "Anonymous".to_owned(), meta: Default::default(), uuid: None});
+		x.meta = meta;
+		self.cache.insert(a, x);
+		self.save();
+	}
+
+	fn revert(&mut self) {
+		trace!(target: "addressbook", "revert");
+		let _ = fs::File::open(self.path.clone())
+			.map_err(|e| trace!(target: "addressbook", "Couldn't open address book: {}", e))
+			.and_then(|f| AccountMeta::read_address_map(&f)
+				.map_err(|e| warn!(target: "addressbook", "Couldn't read address book: {}", e))
+				.and_then(|m| { self.cache = m; Ok(()) })
+			);
+	}
+
+	fn save(&mut self) {
+		trace!(target: "addressbook", "save");
+		let _ = fs::File::create(self.path.clone())
+			.map_err(|e| warn!(target: "addressbook", "Couldn't open address book for writing: {}", e))
+			.and_then(|mut f| AccountMeta::write_address_map(&self.cache, &mut f)
+				.map_err(|e| warn!(target: "addressbook", "Couldn't write to address book: {}", e))
+			);
+	}
+}
+
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
 	unlocked: Mutex<HashMap<SSAddress, AccountData>>,
 	sstore: Box<SecretStore>,
-}
-
-/// Collected account metadata
-#[derive(Clone, Debug, PartialEq)]
-pub struct AccountMeta {
-	/// The name of the account.
-	pub name: String,
-	/// The rest of the metadata of the account.
-	pub meta: String,
-	/// The 128-bit UUID of the account, if it has one (brain-wallets don't).
-	pub uuid: Option<String>,
-}
-
-impl Default for AccountMeta {
-	fn default() -> Self {
-		AccountMeta {
-			name: String::new(),
-			meta: "{}".to_owned(),
-			uuid: None,
-		}
-	}
+	address_book: Mutex<AddressBook>,
 }
 
 impl AccountProvider {
@@ -164,6 +207,7 @@ impl AccountProvider {
 	pub fn new(sstore: Box<SecretStore>) -> Self {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
+			address_book: Mutex::new(AddressBook::new(sstore.local_path().into())),
 			sstore: sstore,
 		}
 	}
@@ -172,6 +216,7 @@ impl AccountProvider {
 	pub fn transient_provider() -> Self {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
+			address_book: Mutex::new(AddressBook::new(Default::default())),
 			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).unwrap())
 		}
 	}
@@ -207,6 +252,23 @@ impl AccountProvider {
 	pub fn accounts(&self) -> Result<Vec<H160>, Error> {
 		let accounts = try!(self.sstore.accounts()).into_iter().map(|a| H160(a.into())).collect();
 		Ok(accounts)
+	}
+
+	/// Returns each address along with metadata.
+	pub fn addresses_info(&self) -> Result<HashMap<H160, AccountMeta>, Error> {
+		Ok(self.address_book.lock().get())
+	}
+
+	/// Returns each address along with metadata.
+	pub fn set_address_name<A>(&self, account: A, name: String) -> Result<(), Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		Ok(self.address_book.lock().set_name(account, name))
+	}
+
+	/// Returns each address along with metadata.
+	pub fn set_address_meta<A>(&self, account: A, meta: String) -> Result<(), Error> where Address: From<A> {
+		let account = Address::from(account).into();
+		Ok(self.address_book.lock().set_meta(account, meta))
 	}
 
 	/// Returns each account along with name and meta.
@@ -320,13 +382,38 @@ impl AccountProvider {
 		let signature = try!(self.sstore.sign(&account, &password, &message));
 		Ok(H520(signature.into()))
 	}
+
+	/// Returns the underlying `SecretStore` reference if one exists.
+	pub fn list_geth_accounts(&self, testnet: bool) -> Vec<H160> {
+		self.sstore.list_geth_accounts(testnet).into_iter().map(|a| Address::from(a).into()).collect()
+	}
+
+	/// Returns the underlying `SecretStore` reference if one exists.
+	pub fn import_geth_accounts(&self, desired: Vec<H160>, testnet: bool) -> Result<Vec<H160>, Error> {
+		let desired = desired.into_iter().map(|a| Address::from(a).into()).collect();
+		Ok(try!(self.sstore.import_geth_accounts(desired, testnet)).into_iter().map(|a| Address::from(a).into()).collect())
+	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::AccountProvider;
+	use super::{AccountProvider, AddressBook};
+	use std::collections::HashMap;
+	use ethjson::misc::AccountMeta;
 	use ethstore::ethkey::{Generator, Random};
 	use std::time::Duration;
+	use devtools::RandomTempPath;
+
+	#[test]
+	fn should_save_and_reload_address_book() {
+		let temp = RandomTempPath::create_dir();
+		let path = temp.as_str().to_owned();
+		let mut b = AddressBook::new(path.clone());
+		b.set_name(1.into(), "One".to_owned());
+		b.set_meta(1.into(), "{1:1}".to_owned());
+		let b = AddressBook::new(path);
+		assert_eq!(b.get(), hash_map![1.into() => AccountMeta{name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None}]);
+	}
 
 	#[test]
 	fn unlock_account_temp() {

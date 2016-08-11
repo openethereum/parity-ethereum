@@ -42,5 +42,11 @@ pub trait SecretStore: Send + Sync {
 	fn set_name(&self, address: &Address, name: String) -> Result<(), Error>;
 
 	fn set_meta(&self, address: &Address, meta: String) -> Result<(), Error>;
+
+	fn local_path(&self) -> String;
+
+	fn list_geth_accounts(&self, testnet: bool) -> Vec<Address>;
+
+	fn import_geth_accounts(&self, desired: Vec<Address>, testnet: bool) -> Result<Vec<Address>, Error>;
 }
 
