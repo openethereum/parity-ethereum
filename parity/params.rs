@@ -167,7 +167,7 @@ impl Default for AccountsConfig {
 	fn default() -> Self {
 		AccountsConfig {
 			iterations: 10240,
-			import_keys: true,
+			import_keys: false,
 			testnet: false,
 			password_files: Vec::new(),
 			unlocked_accounts: Vec::new(),
