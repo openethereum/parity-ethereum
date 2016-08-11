@@ -143,7 +143,12 @@ export default class NewAccount extends Component {
 
     return api.personal
       .newAccountFromWallet(this.state.json, this.state.password)
-      .then((address) => api.personal.setAccountName(address, this.state.name))
+      .then((address) => {
+        this.setState({
+          address: address
+        });
+        return api.personal.setAccountName(address, this.state.name);
+      })
       .then(() => {
         this.onNext();
         this.props.onUpdate && this.props.onUpdate();
