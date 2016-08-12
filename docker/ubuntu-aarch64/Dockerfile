@@ -46,4 +46,8 @@ RUN git clone https://github.com/ethcore/parity && \
         cargo build --target aarch64-unknown-linux-gnu --release --verbose && \
         ls /build/parity/target/aarch64-unknown-linux-gnu/release/parity &&     \
         /usr/bin/aarch64-linux-gnu-strip /build/parity/target/aarch64-unknown-linux-gnu/release/parity
+
 RUN file /build/parity/target/aarch64-unknown-linux-gnu/release/parity
+
+EXPOSE 8080 8545 8180
+ENTRYPOINT ["/build/parity/target/aarch64-unknown-linux-gnu/release/parity"]

@@ -992,7 +992,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-dapps"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fa7c8b054507b0c85db22e555fe7cca838704661"
+source = "git+https://github.com/ethcore/parity-ui.git#e4dddf36e7c9fa5c6e746790119c71f67438784a"
 dependencies = [
  "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1006,7 +1006,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-home"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fa7c8b054507b0c85db22e555fe7cca838704661"
+source = "git+https://github.com/ethcore/parity-ui.git#e4dddf36e7c9fa5c6e746790119c71f67438784a"
 dependencies = [
  "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
@@ -1014,7 +1014,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-signer"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fa7c8b054507b0c85db22e555fe7cca838704661"
+source = "git+https://github.com/ethcore/parity-ui.git#e4dddf36e7c9fa5c6e746790119c71f67438784a"
 dependencies = [
  "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
@@ -1022,7 +1022,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-status"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fa7c8b054507b0c85db22e555fe7cca838704661"
+source = "git+https://github.com/ethcore/parity-ui.git#e4dddf36e7c9fa5c6e746790119c71f67438784a"
 dependencies = [
  "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
@@ -1030,7 +1030,7 @@ dependencies = [
 [[package]]
 name = "parity-dapps-wallet"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#fa7c8b054507b0c85db22e555fe7cca838704661"
+source = "git+https://github.com/ethcore/parity-ui.git#e4dddf36e7c9fa5c6e746790119c71f67438784a"
 dependencies = [
  "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
