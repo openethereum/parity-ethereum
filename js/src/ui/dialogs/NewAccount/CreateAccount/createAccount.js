@@ -159,7 +159,7 @@ export default class CreateAccount extends Component {
       });
   }
 
-  passChanges = () => {
+  updateParent = () => {
     this.props.onChange(this.state.isValidName && this.state.isValidPass, {
       address: this.state.selectedAddress,
       name: this.state.accountName,
@@ -177,7 +177,7 @@ export default class CreateAccount extends Component {
 
     this.setState({
       selectedAddress: address
-    }, this.passChanges);
+    }, this.updateParent);
   }
 
   onEditAccountName = (event) => {
@@ -187,7 +187,7 @@ export default class CreateAccount extends Component {
     this.setState({
       accountName: value,
       isValidName: valid
-    }, this.passChanges);
+    }, this.updateParent);
   }
 
   onEditPassword1 = (event) => {
@@ -197,7 +197,7 @@ export default class CreateAccount extends Component {
     this.setState({
       password1: value,
       isValidPass: valid
-    }, this.passChanges);
+    }, this.updateParent);
   }
 
   onEditPassword2 = (event) => {
@@ -207,6 +207,6 @@ export default class CreateAccount extends Component {
     this.setState({
       password2: value,
       isValidPass: valid
-    }, this.passChanges);
+    }, this.updateParent);
   }
 }

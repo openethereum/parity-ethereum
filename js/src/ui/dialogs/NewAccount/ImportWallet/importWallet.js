@@ -89,7 +89,7 @@ export default class ImportWallet extends Component {
         this.setState({
           walletJson: event.target.result,
           isValidFile: true
-        }, this.passChanges);
+        }, this.updateParent);
       };
       reader.readAsText(el.files[0]);
     }
@@ -97,14 +97,14 @@ export default class ImportWallet extends Component {
     this.setState({
       walletFile: el.value,
       isValidFile: false
-    }, this.passChanges);
+    }, this.updateParent);
   }
 
   openFileDialog = () => {
     ReactDOM.findDOMNode(this.refs.fileUpload).click();
   }
 
-  passChanges = () => {
+  updateParent = () => {
     const valid = this.state.isValidName && this.state.isValidPass && this.state.isValidFile;
 
     this.props.onChange(valid, {
@@ -122,7 +122,7 @@ export default class ImportWallet extends Component {
     this.setState({
       accountName: value,
       isValidName: valid
-    }, this.passChanges);
+    }, this.updateParent);
   }
 
   onEditPassword = (event) => {
@@ -132,6 +132,6 @@ export default class ImportWallet extends Component {
     this.setState({
       password: value,
       isValidPass: valid
-    }, this.passChanges);
+    }, this.updateParent);
   }
 }
