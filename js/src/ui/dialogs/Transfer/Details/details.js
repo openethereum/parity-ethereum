@@ -7,7 +7,7 @@ import Form, { Input } from '../../../Form';
 
 import styles from '../style.css';
 
-const DEFAULT_GAS = '21000';
+const DEFAULT_GAS = '30000';
 
 const CHECK_STYLE = {
   position: 'absolute',
