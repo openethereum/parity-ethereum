@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 
 import AccountSummary from './AccountSummary';
 import Actions from './Actions';
-import { NewAccount } from '../Dialogs';
+import { FundAccount, NewAccount, Transfer } from '../Dialogs';
 
 import styles from './style.css';
 
@@ -25,10 +25,16 @@ export default class Accounts extends Component {
   render () {
     return (
       <div>
+        <FundAccount
+          onClose={ this.onFundAccountClose }
+          visible={ this.state.fundDialog } />
         <NewAccount
           onClose={ this.onNewAccountClose }
           onUpdate={ this.onNewAccountUpdate }
           visible={ this.state.newDialog } />
+        <Transfer
+          onClose={ this.onTransferClose }
+          visible={ this.state.transferDialog } />
         <Actions
           onFundAccount={ this.onFundAccountClick }
           onNewAccount={ this.onNewAccountClick }
@@ -61,6 +67,10 @@ export default class Accounts extends Component {
     this.setState({ fundDialog: !this.state.fundDialog });
   }
 
+  onFundAccountClose = () => {
+    this.onFundAccountClick();
+  }
+
   onNewAccountClick = () => {
     this.setState({ newDialog: !this.state.newDialog });
   }
@@ -75,6 +85,10 @@ export default class Accounts extends Component {
 
   onTransferClick = () => {
     this.setState({ transferDialog: !this.state.transferDialog });
+  }
+
+  onTransferClose = () => {
+    this.onTransferClick();
   }
 
   retrieveAccounts () {
