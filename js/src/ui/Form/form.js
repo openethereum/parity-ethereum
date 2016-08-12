@@ -11,7 +11,7 @@ export default class Form extends Component {
     // HACK: hidden inputs to disable Chrome's autocomplete
     return (
       <form
-        autoComplete='off'
+        autoComplete='new-password'
         className={ styles.form }>
         <div className={ styles.autofill }>
           <input type='text' name='fakeusernameremembered' />

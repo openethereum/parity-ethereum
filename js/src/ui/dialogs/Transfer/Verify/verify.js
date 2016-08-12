@@ -14,7 +14,8 @@ export default class Verify extends Component {
   }
 
   state = {
-    password: ''
+    password: '',
+    errorPassword: ''
   }
 
   render () {
@@ -55,8 +56,9 @@ export default class Verify extends Component {
         <div className={ styles.columns }>
           <div>
             <Input
+              error={ this.state.errorPassword }
               label='password'
-              hint='password to unlock the origin account'
+              hint='password for the origin account'
               value={ this.state.password }
               type='password' />
           </div>

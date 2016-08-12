@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 
 const UNDERLINE_DISABLED = {
-  borderColor: 'rgba(255, 255, 255, 0.298039)'
+  borderColor: 'transparent' // 'rgba(255, 255, 255, 0.298039)'
 };
 
 const UNDERLINE_NORMAL = {
@@ -13,8 +13,9 @@ const UNDERLINE_NORMAL = {
 export default class Input extends Component {
   static propTypes = {
     disabled: PropTypes.bool,
-    label: PropTypes.string,
+    error: PropTypes.string,
     hint: PropTypes.string,
+    label: PropTypes.string,
     multiLine: PropTypes.bool,
     onChange: PropTypes.func,
     rows: PropTypes.number,
@@ -26,20 +27,23 @@ export default class Input extends Component {
 
   render () {
     return (
-      <TextField
-        autoComplete='off'
-        disabled={ this.props.disabled }
-        floatingLabelFixed
-        floatingLabelText={ this.props.label }
-        fullWidth
-        hintText={ this.props.hint }
-        multiLine={ this.props.multiLine }
-        rows={ this.props.rows }
-        type={ this.props.type || 'text' }
-        underlineDisabledStyle={ UNDERLINE_DISABLED }
-        underlineStyle={ UNDERLINE_NORMAL }
-        value={ this.props.value }
-        onChange={ this.props.onChange } />
+      <div>
+        <TextField
+          autoComplete='off'
+          disabled={ this.props.disabled }
+          errorText={ this.props.error }
+          floatingLabelFixed
+          floatingLabelText={ this.props.label }
+          fullWidth
+          hintText={ this.props.hint }
+          multiLine={ this.props.multiLine }
+          rows={ this.props.rows }
+          type={ this.props.type || 'text' }
+          underlineDisabledStyle={ UNDERLINE_DISABLED }
+          underlineStyle={ UNDERLINE_NORMAL }
+          value={ this.props.value }
+          onChange={ this.props.onChange } />
+      </div>
     );
   }
 }
