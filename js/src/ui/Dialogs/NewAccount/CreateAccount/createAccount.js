@@ -3,8 +3,8 @@ import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import Form from '../../Form';
-import IdentityIcon from '../../IdentityIcon';
+import Form from '../../../Form';
+import IdentityIcon from '../../../IdentityIcon';
 
 import styles from '../style.css';
 

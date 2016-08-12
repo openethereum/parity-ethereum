@@ -5,8 +5,7 @@ import { CardText } from 'material-ui/Card';
 
 import Balances from '../Balances';
 import Container from '../Container';
-import Form from '../Form';
-import FormWrap from '../FormWrap';
+import Form, { FormWrap } from '../Form';
 import IdentityIcon from '../IdentityIcon';
 
 import Actions from './actions';

@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom';
 import { FlatButton, TextField } from 'material-ui';
 import CommunicationImportExport from 'material-ui/svg-icons/communication/import-export';
 
-import Form from '../../Form';
+import Form from '../../../Form';
 
 import styles from '../style.css';
 

@@ -2,8 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { TextField } from 'material-ui';
 
-import Form from '../../Form';
-import FormWrap from '../../FormWrap';
+import Form, { FormWrap } from '../../../Form';
 
 export default class CreateAccount extends Component {
   static contextTypes = {

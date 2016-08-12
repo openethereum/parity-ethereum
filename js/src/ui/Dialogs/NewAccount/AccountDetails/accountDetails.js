@@ -2,9 +2,8 @@ import React, { Component, PropTypes } from 'react';
 
 import { TextField } from 'material-ui';
 
-import Form from '../../Form';
-import FormWrap from '../../FormWrap';
-import IdentityIcon from '../../IdentityIcon';
+import Form, { FormWrap } from '../../../Form';
+import IdentityIcon from '../../../IdentityIcon';
 
 import styles from '../style.css';
 

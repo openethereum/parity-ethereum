@@ -7,7 +7,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import Overlay from '../Overlay';
+import Overlay from '../../Overlay';
 
 import AccountDetails from './AccountDetails';
 import CreationType from './CreationType';

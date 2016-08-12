@@ -5,7 +5,7 @@ import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import Overlay from '../Overlay';
+import Overlay from '../../Overlay';
 
 import Completed from './Completed';
 import CreateAccount from './CreateAccount';

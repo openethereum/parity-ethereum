@@ -6,7 +6,7 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
 import Api from '../../api';
 
-import FirstRun from '../FirstRun';
+import { FirstRun } from '../Dialogs';
 import Status from './Status';
 import TabBar from './TabBar';
 
