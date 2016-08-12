@@ -22,7 +22,7 @@ export default class IdentityIcon extends Component {
       iconsrc: blockies({
         seed: address,
         size: 8,
-        scale: 8
+        scale: 5
       }).toDataURL()
     });
   }

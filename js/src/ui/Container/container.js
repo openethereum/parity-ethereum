@@ -11,8 +11,8 @@ export default class Container extends Component {
 
   render () {
     return (
-      <div className={ styles.padded }>
-        <Card>
+      <div className={ styles.container }>
+        <Card className={ styles.padded }>
           { this.props.children }
         </Card>
       </div>

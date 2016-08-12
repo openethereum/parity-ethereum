@@ -60,10 +60,22 @@ export default class Verify extends Component {
               label='password'
               hint='password for the origin account'
               value={ this.state.password }
+              onChange={ this.onEditPassword }
               type='password' />
           </div>
         </div>
       </Form>
     );
+  }
+
+  updateParent = () => {
+  }
+
+  onEditPassword = (event) => {
+    const value = event.target.value;
+
+    this.setState({
+      password: value
+    }, this.updateParent);
   }
 }

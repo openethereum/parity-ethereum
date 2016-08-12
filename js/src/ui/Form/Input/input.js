@@ -26,6 +26,8 @@ export default class Input extends Component {
   }
 
   render () {
+    const nameid = ' ';
+
     return (
       <div>
         <TextField
@@ -37,6 +39,8 @@ export default class Input extends Component {
           fullWidth
           hintText={ this.props.hint }
           multiLine={ this.props.multiLine }
+          name={ nameid }
+          id={ nameid }
           rows={ this.props.rows }
           type={ this.props.type || 'text' }
           underlineDisabledStyle={ UNDERLINE_DISABLED }

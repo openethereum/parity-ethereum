@@ -1,3 +1,7 @@
-.padded {
+.container {
   padding: 1em 1em 0 1em;
+}
+
+.padded {
+  padding: 1em;
 }

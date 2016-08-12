@@ -1,7 +1,5 @@
 import React, { Component, PropTypes } from 'react';
 
-import { CardText } from 'material-ui/Card';
-
 import { FundAccount, Transfer } from '../../dialogs';
 
 import Balances from '../../Balances';
@@ -49,26 +47,24 @@ export default class Account extends Component {
         <Container>
           <IdentityIcon
             address={ address } />
-          <CardText>
-            <Form>
-              <FormWrap>
-                <Input
-                  label='account name'
-                  hint='a descriptive name for the account'
-                  value={ this.state.name }
-                  onChange={ this.onEditName } />
-              </FormWrap>
-              <FormWrap>
-                <Input
-                  disabled
-                  label='account address'
-                  hint='the account network address'
-                  value={ address } />
-              </FormWrap>
-            </Form>
-            <Balances
+          <Form>
+            <FormWrap>
+              <Input
+                label='account name'
+                hint='a descriptive name for the account'
+                value={ this.state.name }
+                onChange={ this.onEditName } />
+            </FormWrap>
+            <FormWrap>
+              <Input
+                disabled
+                label='account address'
+                hint='the account network address'
+                value={ address } />
+            </FormWrap>
+          </Form>
+          <Balances
               address={ address } />
-          </CardText>
         </Container>
       </div>
     );

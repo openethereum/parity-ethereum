@@ -1,13 +1,13 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { CardText, CardTitle } from 'material-ui/Card';
+import { CardTitle } from 'material-ui/Card';
 
 import Balances from '../../../Balances';
 import Container from '../../../Container';
 import IdentityIcon from '../../../IdentityIcon';
 
-const TITLE_STYLE = { textTransform: 'uppercase', paddingBottom: 0 };
+const TITLE_STYLE = { textTransform: 'uppercase', paddingBottom: 0, paddingTop: 0 };
 
 export default class AccountSummary extends Component {
   static contextTypes = {
@@ -33,10 +33,8 @@ export default class AccountSummary extends Component {
         <CardTitle
           style={ TITLE_STYLE }
           title={ <Link to={ viewLink }>{ account.name || 'Unnamed' }</Link> } />
-        <CardText>
-          <Balances
-            address={ account.address } />
-        </CardText>
+        <Balances
+          address={ account.address } />
       </Container>
     );
   }
