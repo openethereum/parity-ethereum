@@ -7,7 +7,7 @@ import Balances from '../../../Balances';
 import Container from '../../../Container';
 import IdentityIcon from '../../../IdentityIcon';
 
-const TITLE_STYLE = { textTransform: 'uppercase', paddingBottom: 0, paddingTop: 0 };
+const TITLE_STYLE = { textTransform: 'uppercase', padding: 0 };
 
 export default class AccountSummary extends Component {
   static contextTypes = {
