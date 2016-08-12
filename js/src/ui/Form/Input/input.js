@@ -29,6 +29,7 @@ export default class Input extends Component {
       <TextField
         autoComplete='off'
         disabled={ this.props.disabled }
+        floatingLabelFixed
         floatingLabelText={ this.props.floatingLabelText }
         fullWidth
         hintText={ this.props.hintText }
