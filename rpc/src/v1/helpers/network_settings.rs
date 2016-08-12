@@ -22,10 +22,6 @@ pub struct NetworkSettings {
 	pub name: String,
 	/// Name of the chain we are connected to
 	pub chain: String,
-	/// Min number of peers
-	pub min_peers: u32,
-	/// Max number of peers
-	pub max_peers: u32,
 	/// Networking port
 	pub network_port: u16,
 	/// Is JSON-RPC server enabled?
@@ -41,8 +37,6 @@ impl Default for NetworkSettings {
 		NetworkSettings {
 			name: "".into(),
 			chain: "homestead".into(),
-			min_peers: 25,
-			max_peers: 50,
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".into(),

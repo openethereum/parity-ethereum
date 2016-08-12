@@ -192,7 +192,7 @@ impl<'db> TrieDB<'db> {
 		where 'db: 'key
 	{
 		let root_rlp = try!(self.root_data());
-		self.get_from_node(&root_rlp, key)
+		self.get_from_node(root_rlp, key)
 	}
 
 	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no

@@ -1464,7 +1464,7 @@ mod test {
 		let keypair = KeyPair::create().unwrap();
 		let tx = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
 		let tx2 = {
-			let mut tx2 = tx.deref().clone();
+			let mut tx2 = (*tx).clone();
 			tx2.gas_price = U256::from(200);
 			tx2.sign(keypair.secret())
 		};
@@ -1487,12 +1487,12 @@ mod test {
 		let keypair = KeyPair::create().unwrap();
 		let tx0 = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
 		let tx1 = {
-			let mut tx1 = tx0.deref().clone();
+			let mut tx1 = (*tx0).clone();
 			tx1.nonce = U256::from(124);
 			tx1.sign(keypair.secret())
 		};
 		let tx2 = {
-			let mut tx2 = tx1.deref().clone();
+			let mut tx2 = (*tx1).clone();
 			tx2.gas_price = U256::from(200);
 			tx2.sign(keypair.secret())
 		};

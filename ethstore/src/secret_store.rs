@@ -21,6 +21,10 @@ use json::UUID;
 pub trait SecretStore: Send + Sync {
 	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error>;
 
+	fn import_presale(&self, json: &[u8], password: &str) -> Result<Address, Error>;
+
+	fn import_wallet(&self, json: &[u8], password: &str) -> Result<Address, Error>;
+
 	fn accounts(&self) -> Result<Vec<Address>, Error>;
 
 	fn change_password(&self, account: &Address, old_password: &str, new_password: &str) -> Result<(), Error>;
@@ -38,5 +42,11 @@ pub trait SecretStore: Send + Sync {
 	fn set_name(&self, address: &Address, name: String) -> Result<(), Error>;
 
 	fn set_meta(&self, address: &Address, meta: String) -> Result<(), Error>;
+
+	fn local_path(&self) -> String;
+
+	fn list_geth_accounts(&self, testnet: bool) -> Vec<Address>;
+
+	fn import_geth_accounts(&self, desired: Vec<Address>, testnet: bool) -> Result<Vec<Address>, Error>;
 }
 
