@@ -11,7 +11,7 @@ const DEFAULT_GAS = '21000';
 
 const CHECK_STYLE = {
   position: 'absolute',
-  top: '1em',
+  bottom: '8px',
   left: '1em'
 };
 
