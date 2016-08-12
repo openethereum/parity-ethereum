@@ -71,6 +71,7 @@ extern crate igd;
 extern crate libc;
 extern crate slab;
 extern crate ethkey;
+extern crate ethcrypto as crypto;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 

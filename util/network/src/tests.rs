@@ -20,7 +20,7 @@ use std::thread;
 use std::time::*;
 use util::common::*;
 use io::TimerToken;
-use util::crypto::KeyPair;
+use ethkey::{Random, Generator};
 
 pub struct TestProtocol {
 	drop_session: bool,
@@ -99,7 +99,7 @@ fn net_service() {
 #[test]
 fn net_connect() {
 	::util::log::init_log();
-	let key1 = KeyPair::create().unwrap();
+	let key1 = Random.generate().unwrap();
 	let mut config1 = NetworkConfiguration::new_local();
 	config1.use_secret = Some(key1.secret().clone());
 	config1.boot_nodes = vec![ ];
@@ -130,7 +130,7 @@ fn net_start_stop() {
 
 #[test]
 fn net_disconnect() {
-	let key1 = KeyPair::create().unwrap();
+	let key1 = Random.generate().unwrap();
 	let mut config1 = NetworkConfiguration::new_local();
 	config1.use_secret = Some(key1.secret().clone());
 	config1.boot_nodes = vec![ ];

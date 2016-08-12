@@ -18,6 +18,8 @@ use io::IoError;
 use util::rlp::*;
 use util::UtilError;
 use std::fmt;
+use ethkey::Error as KeyError;
+use crypto::Error as CryptoError;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisconnectReason
@@ -152,6 +154,12 @@ impl From<UtilError> for NetworkError {
 	}
 }
 
+impl From<KeyError> for NetworkError {
+	fn from(_err: KeyError) -> Self {
+		NetworkError::Auth
+	}
+}
+
 impl From<CryptoError> for NetworkError {
 	fn from(_err: CryptoError) -> NetworkError {
 		NetworkError::Auth
@@ -178,7 +186,7 @@ fn test_errors() {
 		_ => panic!("Unexpeceted error"),
 	}
 
-	match <NetworkError as From<CryptoError>>::from(CryptoError::InvalidSecret) {
+	match <NetworkError as From<CryptoError>>::from(CryptoError::InvalidMessage) {
 		NetworkError::Auth => {},
 		_ => panic!("Unexpeceted error"),
 	}
