@@ -1,9 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 
 import { TextField } from 'material-ui';
-import { Card, CardText } from 'material-ui/Card';
+import { CardText } from 'material-ui/Card';
 
 import Balances from '../Balances';
+import Container from '../Container';
 import Form from '../Form';
 import FormWrap from '../FormWrap';
 import IdentityIcon from '../IdentityIcon';
@@ -33,7 +34,7 @@ export default class Account extends Component {
     return (
       <div>
         <Actions />
-        <Card>
+        <Container>
           <IdentityIcon
             address={ address } />
           <CardText>
@@ -60,7 +61,7 @@ export default class Account extends Component {
             <Balances
               address={ address } />
           </CardText>
-        </Card>
+        </Container>
       </div>
     );
   }

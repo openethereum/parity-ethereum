@@ -50,10 +50,8 @@ export default class Accounts extends Component {
         <div
           className={ styles.account }
           key={ account.address }>
-          <div className={ styles.padded }>
-            <AccountSummary
-              account={ account } />
-          </div>
+          <AccountSummary
+            account={ account } />
         </div>
       );
     });

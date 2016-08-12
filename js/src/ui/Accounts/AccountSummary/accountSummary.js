@@ -1,9 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Card, CardText, CardTitle } from 'material-ui/Card';
+import { CardText, CardTitle } from 'material-ui/Card';
 
 import Balances from '../../Balances';
+import Container from '../../Container';
 import IdentityIcon from '../../IdentityIcon';
 
 const TITLE_STYLE = { textTransform: 'uppercase', paddingBottom: 0 };
@@ -26,7 +27,7 @@ export default class AccountSummary extends Component {
     const viewLink = `/account/${account.address}`;
 
     return (
-      <Card>
+      <Container>
         <IdentityIcon
           address={ account.address } />
         <CardTitle
@@ -36,7 +37,7 @@ export default class AccountSummary extends Component {
           <Balances
             address={ account.address } />
         </CardText>
-      </Card>
+      </Container>
     );
   }
 }

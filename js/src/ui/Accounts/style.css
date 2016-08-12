@@ -3,10 +3,6 @@
   width: 50%;
 }
 
-.padded {
-  padding: 1em 0.5em 0 0.5em;
-}
-
 .accounts {
   display: flex;
   flex-wrap: wrap;
