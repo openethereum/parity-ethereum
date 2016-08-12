@@ -3,6 +3,8 @@ import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 import { CardText } from 'material-ui/Card';
 
+import { FundAccount, Transfer } from '../../dialogs';
+
 import Balances from '../../Balances';
 import Container from '../../Container';
 import Form, { FormWrap } from '../../Form';
@@ -20,7 +22,9 @@ export default class Account extends Component {
   }
 
   state = {
-    name: 'Unnamed'
+    name: 'Unnamed',
+    fundDialog: false,
+    transferDialog: false
   }
 
   componentWillMount () {
@@ -32,7 +36,15 @@ export default class Account extends Component {
 
     return (
       <div>
-        <Actions />
+        <FundAccount
+          onClose={ this.onFundAccountClose }
+          visible={ this.state.fundDialog } />
+        <Transfer
+          onClose={ this.onTransferClose }
+          visible={ this.state.transferDialog } />
+        <Actions
+          onFundAccount={ this.onFundAccountClick }
+          onTransfer={ this.onTransferClick } />
         <Container>
           <IdentityIcon
             address={ address } />
@@ -63,6 +75,22 @@ export default class Account extends Component {
         </Container>
       </div>
     );
+  }
+
+  onFundAccountClick = () => {
+    this.setState({ fundDialog: !this.state.fundDialog });
+  }
+
+  onFundAccountClose = () => {
+    this.onFundAccountClick();
+  }
+
+  onTransferClick = () => {
+    this.setState({ transferDialog: !this.state.transferDialog });
+  }
+
+  onTransferClose = () => {
+    this.onTransferClick();
   }
 
   onEditName = (event) => {

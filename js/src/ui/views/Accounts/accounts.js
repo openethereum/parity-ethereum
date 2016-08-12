@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 
 import AccountSummary from './AccountSummary';
 import Actions from './Actions';
-import { FundAccount, NewAccount, Transfer } from '../../dialogs';
+import { NewAccount } from '../../dialogs';
 
 import styles from './style.css';
 
@@ -13,9 +13,7 @@ export default class Accounts extends Component {
 
   state = {
     accounts: [],
-    fundDialog: false,
-    newDialog: false,
-    transferDialog: false
+    newDialog: false
   }
 
   componentWillMount () {
@@ -25,20 +23,12 @@ export default class Accounts extends Component {
   render () {
     return (
       <div>
-        <FundAccount
-          onClose={ this.onFundAccountClose }
-          visible={ this.state.fundDialog } />
         <NewAccount
           onClose={ this.onNewAccountClose }
           onUpdate={ this.onNewAccountUpdate }
           visible={ this.state.newDialog } />
-        <Transfer
-          onClose={ this.onTransferClose }
-          visible={ this.state.transferDialog } />
         <Actions
-          onFundAccount={ this.onFundAccountClick }
-          onNewAccount={ this.onNewAccountClick }
-          onTransfer={ this.onTransferClick } />
+          onNewAccount={ this.onNewAccountClick } />
         <div className={ styles.accounts }>
           { this.renderAccounts() }
         </div>
@@ -63,14 +53,6 @@ export default class Accounts extends Component {
     });
   }
 
-  onFundAccountClick = () => {
-    this.setState({ fundDialog: !this.state.fundDialog });
-  }
-
-  onFundAccountClose = () => {
-    this.onFundAccountClick();
-  }
-
   onNewAccountClick = () => {
     this.setState({ newDialog: !this.state.newDialog });
   }
@@ -81,14 +63,6 @@ export default class Accounts extends Component {
 
   onNewAccountUpdate = () => {
     this.retrieveAccounts();
-  }
-
-  onTransferClick = () => {
-    this.setState({ transferDialog: !this.state.transferDialog });
-  }
-
-  onTransferClose = () => {
-    this.onTransferClick();
   }
 
   retrieveAccounts () {
