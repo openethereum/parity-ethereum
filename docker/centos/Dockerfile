@@ -5,7 +5,7 @@ RUN yum -y update&& \
     yum install -y git make gcc-c++ gcc file binutils
 # install rustup
 RUN curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&\
-ls&&\ 
+ls&&\
  sh rustup.sh -s -- --disable-sudo
 # show backtraces
 ENV RUST_BACKTRACE 1
@@ -26,4 +26,8 @@ RUN git clone https://github.com/ethcore/parity && \
         cargo build --release --verbose && \
 	ls /build/parity/target/release/parity &&	\
 	strip /build/parity/target/release/parity
+
 RUN file /build/parity/target/release/parity
+
+EXPOSE 8080 8545 8180
+ENTRYPOINT ["/build/parity/target/release/parity"]
