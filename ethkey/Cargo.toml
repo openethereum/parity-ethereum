@@ -5,7 +5,7 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 
 [dependencies]
 rand = "0.3.14"
-lazy_static = "0.2.1"
+lazy_static = "0.2"
 tiny-keccak = "1.0"
 eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
 rustc-serialize = "0.3"

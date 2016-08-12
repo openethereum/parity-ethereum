@@ -26,6 +26,8 @@
 #![cfg_attr(feature="dev", allow(match_bool))]
 // Keeps consistency (all lines with `.clone()`).
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
+// Complains on Box<E> when implementing From<Box<E>>
+#![cfg_attr(feature="dev", allow(boxed_local))]
 // TODO [todr] a lot of warnings to be fixed
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
 

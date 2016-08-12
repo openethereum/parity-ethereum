@@ -66,6 +66,12 @@ pub fn expand_ipc_implementation(
 	push(Annotatable::Item(interface_map.item));
 }
 
+macro_rules! literal {
+    ($builder:ident, $($arg:tt)*) => {
+	 	$builder.expr().lit().str::<&str>(&format!($($arg)*))
+    }
+}
+
 fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
 	match arg.pat.node {
 		PatKind::Ident(_, ref ident, _) => builder.id(ident.node),
@@ -247,9 +253,15 @@ fn implement_dispatch_arm_invoke(
 ) -> P<ast::Expr>
 {
 	let deserialize_expr = if buffer {
-		quote_expr!(cx, ::ipc::binary::deserialize(buf).expect("ipc deserialization error, aborting"))
+		quote_expr!(cx,
+			::ipc::binary::deserialize(buf)
+				.unwrap_or_else(|e| { panic!("ipc error while deserializing payload, aborting \n payload: {:?}, \n error: {:?}", buf, e); } )
+		)
 	} else {
-		quote_expr!(cx, ::ipc::binary::deserialize_from(r).expect("ipc deserialization error, aborting"))
+		quote_expr!(cx,
+			::ipc::binary::deserialize_from(r)
+				.unwrap_or_else(|e| { panic!("ipc error while deserializing payload, aborting \n error: {:?}", e); } )
+		)
 	};
 
 	let invoke_serialize_stmt = implement_dispatch_arm_invoke_stmt(cx, builder, dispatch);
@@ -273,10 +285,9 @@ fn implement_dispatch_arm(
 {
 	let index_ident = builder.id(format!("{}", index + (RESERVED_MESSAGE_IDS as u32)).as_str());
 	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch, buffer);
-	let dispatching_trace = "Dispatching: ".to_owned() + &dispatch.function_name;
-	let dispatching_trace_literal = builder.expr().lit().str::<&str>(&dispatching_trace);
+	let trace = literal!(builder, "Dispatching: {}", &dispatch.function_name);
 	quote_arm!(cx, $index_ident => {
-		trace!(target: "ipc", $dispatching_trace_literal);
+		trace!(target: "ipc", $trace);
 		$invoke_expr
 	})
 }
@@ -425,22 +436,20 @@ fn implement_client_method_body(
 		request_serialization_statements
 	};
 
-	let invocation_trace = "Invoking: ".to_owned() + &dispatch.function_name;
-	let invocation_trace_literal = builder.expr().lit().str::<&str>(&invocation_trace);
-
+	let trace = literal!(builder, "Invoking: {}", &dispatch.function_name);
 	if let Some(ref return_ty) = dispatch.return_type_ty {
 		let return_expr = quote_expr!(cx,
 			::ipc::binary::deserialize_from::<$return_ty, _>(&mut *socket).unwrap()
 		);
 		quote_expr!(cx, {
-			trace!(target: "ipc", $invocation_trace_literal);
-			$request
+			trace!(target: "ipc", $trace);
+			$request;
 			$return_expr
 		})
 	}
 	else {
 		quote_expr!(cx, {
-			trace!(target: "ipc", $invocation_trace_literal);
+			trace!(target: "ipc", $trace);
 			$request
 		})
 	}
@@ -556,7 +565,6 @@ fn push_client(
 	push_client_implementation(cx, builder, interface_map, push);
 	push_with_socket_client_implementation(cx, builder, interface_map, push);
 }
-
 
 fn push_with_socket_client_implementation(
 	cx: &ExtCtxt,
@@ -694,7 +702,6 @@ fn implement_handshake_arm(
 	)
 }
 
-
 fn get_str_from_lit(cx: &ExtCtxt, name: &str, lit: &ast::Lit) -> Result<String, ()> {
 	match lit.node {
 		ast::LitKind::Str(ref s, _) => Ok(format!("{}", s)),
@@ -825,7 +832,7 @@ fn implement_interface(
 		_ => {
 			cx.span_err(
 				item.span,
-				"`#[derive(Ipc)]` may only be applied to item implementations");
+				"`#[derive(Ipc)]` may only be applied to implementations and traits");
 			return Err(Error);
 		},
 	};

@@ -3,7 +3,7 @@ description = "Ethcore Trusted Signer"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore-signer"
-version = "1.3.0"
+version = "1.4.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
@@ -19,7 +19,7 @@ ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "mio-upstream-stab
 ethcore-util = { path = "../util" }
 ethcore-io = { path = "../util/io" }
 ethcore-rpc = { path = "../rpc" }
-parity-dapps-signer = { git = "https://github.com/ethcore/parity-ui.git", version = "0.6", optional = true}
+parity-dapps-signer = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4", optional = true}
 
 clippy = { version = "0.0.80", optional = true}
 

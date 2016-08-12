@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ops::Deref;
-use std::default::Default;
 use elastic_array::*;
 use rlp::bytes::{ToBytes, VecLike};
 use rlp::{Stream, Encoder, Encodable};
@@ -293,7 +291,7 @@ impl<'a> Encodable for &'a[u8] {
 
 impl Encodable for Vec<u8> {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_value(&U8Slice(self.deref()))
+		s.append_value(&U8Slice(self))
 	}
 }
 
@@ -334,7 +332,7 @@ impl<'a, T> Encodable for &'a[T] where T: Encodable {
 
 impl<T> Encodable for Vec<T>  where T: Encodable {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.deref(), s);
+		Encodable::rlp_append(&self.as_slice(), s);
 	}
 }
 

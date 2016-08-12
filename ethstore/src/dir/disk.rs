@@ -22,6 +22,8 @@ use ethkey::Address;
 use {json, SafeAccount, Error};
 use super::KeyDirectory;
 
+const IGNORED_FILES: &'static [&'static str] = &["thumbs.db", "address_book.json"];
+
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
 	use std::ffi;
@@ -62,7 +64,14 @@ impl DiskDirectory {
 			.flat_map(Result::ok)
 			.filter(|entry| {
 				let metadata = entry.metadata();
-				metadata.is_ok() && !metadata.unwrap().is_dir()
+				let file_name = entry.file_name();
+				let name = file_name.to_str().unwrap();
+				// filter directories
+				metadata.is_ok() && !metadata.unwrap().is_dir() &&
+				// hidden files
+				!name.starts_with(".") &&
+				// other ignored files
+				!IGNORED_FILES.contains(&name)
 			})
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>();
@@ -78,7 +87,7 @@ impl DiskDirectory {
 			.zip(paths.into_iter())
 			.map(|(file, path)| match file {
 				Ok(file) => Ok((path.clone(), SafeAccount::from_file(
-					file, path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned()
+					file, Some(path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned())
 				))),
 				Err(err) => Err(Error::InvalidKeyFile(format!("{:?}: {}", path, err))),
 			})
@@ -140,6 +149,8 @@ impl KeyDirectory for DiskDirectory {
 			Some((path, _)) => fs::remove_file(path).map_err(From::from)
 		}
 	}
+
+	fn path(&self) -> Option<&PathBuf> { Some(&self.path) }
 }
 
 

@@ -154,5 +154,10 @@ pub use log::*;
 pub use kvdb::*;
 pub use timer::*;
 
+/// Address
 pub type Address = H160;
+
+/// Secret
+pub type Secret = H256;
+
 

@@ -61,7 +61,7 @@ const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 const SNAPSHOT_BLOCKS: u64 = 30000;
 
 /// A progress indicator for snapshots.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Progress {
 	accounts: AtomicUsize,
 	blocks: AtomicUsize,
@@ -70,16 +70,6 @@ pub struct Progress {
 }
 
 impl Progress {
-	/// Create a new progress indicator.
-	pub fn new() -> Self {
-		Progress {
-			accounts: AtomicUsize::new(0),
-			blocks: AtomicUsize::new(0),
-			size: AtomicUsize::new(0),
-			done: AtomicBool::new(false),
-		}
-	}
-
 	/// Get the number of accounts snapshotted thus far.
 	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Relaxed) }
 
@@ -510,12 +500,12 @@ fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mu
 	Ok(())
 }
 
-/// Proportion of blocks which we will verify PoW for.
+/// Proportion of blocks which we will verify `PoW` for.
 const POW_VERIFY_RATE: f32 = 0.02;
 
 /// Rebuilds the blockchain from chunks.
 ///
-/// Does basic verification for all blocks, but PoW verification for some.
+/// Does basic verification for all blocks, but `PoW` verification for some.
 /// Blocks must be fed in-order.
 ///
 /// The first block in every chunk is disconnected from the last block in the

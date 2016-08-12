@@ -48,7 +48,7 @@ fn snap_and_restore() {
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
-	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::new()).unwrap();
+	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default()).unwrap();
 
 	writer.into_inner().finish(::snapshot::ManifestData {
 		state_hashes: state_hashes,
