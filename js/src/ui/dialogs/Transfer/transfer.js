@@ -7,7 +7,7 @@ import Overlay from '../../Overlay';
 
 import Details from './Details';
 
-const STAGE_NAMES = ['transfer details', 'verify transaction', 'transaction receipt'];
+const STAGE_NAMES = ['transfer', 'verify transaction', 'transaction receipt'];
 
 export default class Transfer extends Component {
   static propTypes = {

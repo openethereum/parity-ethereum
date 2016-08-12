@@ -39,9 +39,9 @@ export default class ImportWallet extends Component {
         </div>
         <TextField
           autoComplete='off'
-          floatingLabelText='Account Name'
+          floatingLabelText='account name'
           fullWidth
-          hintText='A descriptive name for the account'
+          hintText='a descriptive name for the account'
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
         <div className={ styles.passwords }>
@@ -49,9 +49,9 @@ export default class ImportWallet extends Component {
             <TextField
               autoComplete='off'
               className={ styles.password }
-              floatingLabelText='Password'
+              floatingLabelText='password'
               fullWidth
-              hintText='The password to unlock the wallet'
+              hintText='the password to unlock the wallet'
               type='password'
               value={ this.state.password }
               onChange={ this.onEditPassword } />
@@ -60,9 +60,9 @@ export default class ImportWallet extends Component {
         <TextField
           autoComplete='off'
           disabled
-          floatingLabelText='Wallet file'
+          floatingLabelText='wallet file'
           fullWidth
-          hintText='The uploaded file for import'
+          hintText='the uploaded file for import'
           value={ this.state.walletFile } />
         <div className={ styles.upload }>
           <FlatButton

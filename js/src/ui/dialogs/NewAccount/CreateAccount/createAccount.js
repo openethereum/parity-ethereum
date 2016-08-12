@@ -40,9 +40,9 @@ export default class CreateAccount extends Component {
         </div>
         <TextField
           autoComplete='off'
-          floatingLabelText='Account Name'
+          floatingLabelText='account name'
           fullWidth
-          hintText='A descriptive name for the account'
+          hintText='a descriptive name for the account'
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
         <div className={ styles.passwords }>
@@ -50,9 +50,9 @@ export default class CreateAccount extends Component {
             <TextField
               autoComplete='off'
               className={ styles.password }
-              floatingLabelText='Password'
+              floatingLabelText='password'
               fullWidth
-              hintText='A strong, unique password'
+              hintText='a strong, unique password'
               type='password'
               value={ this.state.password1 }
               onChange={ this.onEditPassword1 } />
@@ -61,9 +61,9 @@ export default class CreateAccount extends Component {
             <TextField
               autoComplete='off'
               className={ styles.password }
-              floatingLabelText='Password (repeat)'
+              floatingLabelText='password (repeat)'
               fullWidth
-              hintText='A strong, unique password'
+              hintText='a strong, unique password'
               type='password'
               value={ this.state.password2 }
               onChange={ this.onEditPassword2 } />

@@ -31,8 +31,8 @@ export default class RecoverAccount extends Component {
           <TextField
             autoComplete='off'
             disabled
-            hintText='A descriptive name for the account'
-            floatingLabelText='Account Name'
+            hintText='a descriptive name for the account'
+            floatingLabelText='account name'
             fullWidth
             value={ this.props.name } />
         </FormWrap>
@@ -40,8 +40,8 @@ export default class RecoverAccount extends Component {
           <TextField
             autoComplete='off'
             disabled
-            hintText='The network address for the account'
-            floatingLabelText='Address'
+            hintText='the network address for the account'
+            floatingLabelText='address'
             fullWidth
             value={ this.props.address } />
         </FormWrap>

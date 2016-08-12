@@ -55,9 +55,9 @@ export default class Account extends Component {
               <FormWrap>
                 <TextField
                   autoComplete='off'
-                  floatingLabelText='Account Name'
+                  floatingLabelText='account name'
                   fullWidth
-                  hintText='A descriptive name for the account'
+                  hintText='a descriptive name for the account'
                   value={ this.state.name }
                   onChange={ this.onEditName } />
               </FormWrap>
@@ -65,9 +65,9 @@ export default class Account extends Component {
                 <TextField
                   autoComplete='off'
                   disabled
-                  floatingLabelText='Account Address'
+                  floatingLabelText='account address'
                   fullWidth
-                  hintText='The network address'
+                  hintText='the account network address'
                   value={ address } />
               </FormWrap>
             </Form>
