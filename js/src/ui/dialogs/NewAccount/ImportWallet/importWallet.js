@@ -38,16 +38,16 @@ export default class ImportWallet extends Component {
           Provide a descriptive name for the account, the password required to unlock the account and the on-disk location of the wallet to be imported.
         </div>
         <Input
-          floatingLabelText='account name'
-          hintText='a descriptive name for the account'
+          label='account name'
+          hint='a descriptive name for the account'
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
               className={ styles.password }
-              floatingLabelText='password'
-              hintText='the password to unlock the wallet'
+              label='password'
+              hint='the password to unlock the wallet'
               type='password'
               value={ this.state.password }
               onChange={ this.onEditPassword } />
@@ -55,8 +55,8 @@ export default class ImportWallet extends Component {
         </div>
         <Input
           disabled
-          floatingLabelText='wallet file'
-          hintText='the uploaded file for import'
+          label='wallet file'
+          hint='the uploaded file for import'
           value={ this.state.walletFile } />
         <div className={ styles.upload }>
           <FlatButton

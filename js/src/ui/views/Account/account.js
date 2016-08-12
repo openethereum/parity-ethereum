@@ -53,16 +53,16 @@ export default class Account extends Component {
             <Form>
               <FormWrap>
                 <Input
-                  floatingLabelText='account name'
-                  hintText='a descriptive name for the account'
+                  label='account name'
+                  hint='a descriptive name for the account'
                   value={ this.state.name }
                   onChange={ this.onEditName } />
               </FormWrap>
               <FormWrap>
                 <Input
                   disabled
-                  floatingLabelText='account address'
-                  hintText='the account network address'
+                  label='account address'
+                  hint='the account network address'
                   value={ address } />
               </FormWrap>
             </Form>

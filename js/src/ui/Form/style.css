@@ -3,8 +3,8 @@
 
 .autofill {
   height: 0;
-  width: '1px';
-  position: 'absolute';
+  width: 1px;
+  position: absolute;
   left: 0;
   top: 0;
 }

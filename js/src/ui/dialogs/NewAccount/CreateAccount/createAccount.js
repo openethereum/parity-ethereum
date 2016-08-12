@@ -38,16 +38,16 @@ export default class CreateAccount extends Component {
           Provide a descriptive name for the account, a strong password and select your preferred identity icon to create the account
         </div>
         <Input
-          floatingLabelText='account name'
-          hintText='a descriptive name for the account'
+          label='account name'
+          hint='a descriptive name for the account'
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
               className={ styles.password }
-              floatingLabelText='password'
-              hintText='a strong, unique password'
+              label='password'
+              hint='a strong, unique password'
               type='password'
               value={ this.state.password1 }
               onChange={ this.onEditPassword1 } />
@@ -55,8 +55,8 @@ export default class CreateAccount extends Component {
           <div className={ styles.password }>
             <Input
               className={ styles.password }
-              floatingLabelText='password (repeat)'
-              hintText='verify your password'
+              label='password (repeat)'
+              hint='verify your password'
               type='password'
               value={ this.state.password2 }
               onChange={ this.onEditPassword2 } />

@@ -46,16 +46,16 @@ export default class Details extends Component {
           Complete the information for the transaction with a valid recipient and the amount to be transferred. For normal transactions, the gas value can be left at the default.
         </div>
         <Input
-          floatingLabelText='recipient address'
-          hintText='the recipient address'
+          label='recipient address'
+          hint='the recipient address'
           value={ this.state.recipient }
           onChange={ this.onEditRecipient } />
         <div className={ styles.columns }>
           <div>
             <Input
               disabled={ this.state.amountFull }
-              floatingLabelText='amount to transfer (in ΞTH)'
-              hintText='the amount to transfer to the recipient'
+              label='amount to transfer (in ΞTH)'
+              hint='the amount to transfer to the recipient'
               value={ this.state.amount }
               onChange={ this.onEditAmount } />
           </div>
@@ -70,8 +70,8 @@ export default class Details extends Component {
         <div className={ styles.columns }>
           <div>
             <Input
-              floatingLabelText='gas amount'
-              hintText='the amount of gas to use for the transaction'
+              label='gas amount'
+              hint='the amount of gas to use for the transaction'
               value={ this.state.amountGas }
               onChange={ this.onEditGas } />
           </div>
@@ -80,8 +80,8 @@ export default class Details extends Component {
           <div>
             <Input
               disabled
-              floatingLabelText='total amount'
-              hintText='the total amount of the transaction'
+              label='total amount'
+              hint='the total amount of the transaction'
               value={ `${this.state.amountTotal} ΞTH` } />
           </div>
         </div>

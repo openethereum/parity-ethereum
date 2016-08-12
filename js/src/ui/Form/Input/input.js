@@ -13,8 +13,8 @@ const UNDERLINE_NORMAL = {
 export default class Input extends Component {
   static propTypes = {
     disabled: PropTypes.bool,
-    floatingLabelText: PropTypes.string,
-    hintText: PropTypes.string,
+    label: PropTypes.string,
+    hint: PropTypes.string,
     multiLine: PropTypes.bool,
     onChange: PropTypes.func,
     rows: PropTypes.number,
@@ -30,9 +30,9 @@ export default class Input extends Component {
         autoComplete='off'
         disabled={ this.props.disabled }
         floatingLabelFixed
-        floatingLabelText={ this.props.floatingLabelText }
+        floatingLabelText={ this.props.label }
         fullWidth
-        hintText={ this.props.hintText }
+        hintText={ this.props.hint }
         multiLine={ this.props.multiLine }
         rows={ this.props.rows }
         type={ this.props.type || 'text' }

@@ -28,15 +28,15 @@ export default class RecoverAccount extends Component {
         <FormWrap>
           <Input
             disabled
-            hintText='a descriptive name for the account'
-            floatingLabelText='account name'
+            hint='a descriptive name for the account'
+            label='account name'
             value={ this.props.name } />
         </FormWrap>
         <FormWrap>
           <Input
             disabled
-            hintText='the network address for the account'
-            floatingLabelText='address'
+            hint='the network address for the account'
+            label='address'
             value={ this.props.address } />
         </FormWrap>
         { this.renderPhrase() }
@@ -53,8 +53,8 @@ export default class RecoverAccount extends Component {
       <FormWrap>
         <Input
           disabled
-          hintText='The account recovery phrase'
-          floatingLabelText='Recovery Phrase'
+          hint='The account recovery phrase'
+          label='Recovery Phrase'
           multiLine
           rows={ 1 }
           value={ this.props.phrase } />

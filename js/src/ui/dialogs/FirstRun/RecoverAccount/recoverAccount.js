@@ -23,22 +23,22 @@ export default class RecoverAccount extends Component {
         <FormWrap>
           <Input
             disabled
-            hintText='a descriptive name for the account'
-            floatingLabelText='account name'
+            hint='a descriptive name for the account'
+            label='account name'
             value={ this.props.accountName } />
         </FormWrap>
         <FormWrap>
           <Input
             disabled
-            hintText='the network address for the account'
-            floatingLabelText='address'
+            hint='the network address for the account'
+            label='address'
             value={ this.props.accountAddress } />
         </FormWrap>
         <FormWrap>
           <Input
             disabled
-            hintText='the account recovery phrase'
-            floatingLabelText='recovery phrase'
+            hint='the account recovery phrase'
+            label='recovery phrase'
             multiLine
             rows={ 2 }
             value={ this.props.accountPhrase } />
