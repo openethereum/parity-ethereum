@@ -787,7 +787,7 @@ impl Host {
 								let entry = NodeEntry { id: s.id().unwrap().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
 								self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
 								let mut discovery = self.discovery.lock();
-								if let Some(ref mut discovery) = *discovery.deref_mut() {
+								if let Some(ref mut discovery) = *discovery {
 									discovery.add_node(entry);
 								}
 							}

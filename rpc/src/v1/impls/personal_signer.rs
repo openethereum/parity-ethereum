@@ -23,8 +23,9 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use v1::traits::PersonalSigner;
 use v1::types::{TransactionModification, ConfirmationRequest, U256};
-use v1::impls::{unlock_sign_and_dispatch, signature_with_password};
-use v1::helpers::{SigningQueue, ConfirmationsQueue, ConfirmationPayload};
+use v1::helpers::{errors, SigningQueue, ConfirmationsQueue, ConfirmationPayload};
+use v1::helpers::params::expect_no_params;
+use v1::helpers::dispatch::{unlock_sign_and_dispatch, signature_with_password};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -55,8 +56,9 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 
 impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
-	fn requests_to_confirm(&self, _params: Params) -> Result<Value, Error> {
+	fn requests_to_confirm(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		let queue = take_weak!(self.queue);
 		to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>())
 	}
@@ -91,7 +93,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 						queue.request_confirmed(id, Ok(response.clone()));
 					}
 					result
-				}).unwrap_or_else(|| Err(Error::invalid_params()))
+				}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
 			}
 		)
 	}

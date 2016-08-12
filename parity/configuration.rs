@@ -501,8 +501,6 @@ impl Configuration {
 		NetworkSettings {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
-			max_peers: self.max_peers(),
-			min_peers: self.min_peers(),
 			network_port: self.args.flag_port,
 			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
@@ -511,6 +509,8 @@ impl Configuration {
 	}
 
 	fn directories(&self) -> Directories {
+		use util::path;
+
 		let db_path = replace_home(self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 
 		let keys_path = replace_home(
@@ -523,6 +523,12 @@ impl Configuration {
 
 		let dapps_path = replace_home(&self.args.flag_dapps_path);
 		let signer_path = replace_home(&self.args.flag_signer_path);
+
+		if self.args.flag_geth {
+			let geth_path = path::ethereum::default();
+			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
+				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+		}
 
 		Directories {
 			keys: keys_path,
@@ -771,8 +777,6 @@ mod tests {
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
 			chain: "morden".to_owned(),
-			max_peers: 50,
-			min_peers: 25,
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),

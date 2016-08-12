@@ -23,7 +23,6 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
-use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
@@ -43,8 +42,9 @@ use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, Index, Filter, Log, Receipt, H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256};
-use v1::helpers::CallRequest as CRequest;
-use v1::impls::{default_gas_price, dispatch_transaction, error_codes, from_params_default_second, from_params_default_third};
+use v1::helpers::{CallRequest as CRequest, errors};
+use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
+use v1::helpers::params::{expect_no_params, from_params_default_second, from_params_default_third};
 
 /// Eth RPC options
 pub struct EthClientOptions {
@@ -214,30 +214,6 @@ pub fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: M
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
-fn make_unsupported_err() -> Error {
-	Error {
-		code: ErrorCode::ServerError(error_codes::UNSUPPORTED_REQUEST_CODE),
-		message: "Unsupported request.".into(),
-		data: None
-	}
-}
-
-fn no_work_err() -> Error {
-	Error {
-		code: ErrorCode::ServerError(error_codes::NO_WORK_CODE),
-		message: "Still syncing.".into(),
-		data: None
-	}
-}
-
-fn no_author_err() -> Error {
-	Error {
-		code: ErrorCode::ServerError(error_codes::NO_AUTHOR_CODE),
-		message: "Author not configured. Run parity with --author to configure.".into(),
-		data: None
-	}
-}
-
 impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
@@ -265,94 +241,80 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => Ok(Value::String(format!("{}", take_weak!(self.sync).status().protocol_version).to_owned())),
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+
+		Ok(Value::String(format!("{}", take_weak!(self.sync).status().protocol_version).to_owned()))
 	}
 
 	fn syncing(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => {
-				let status = take_weak!(self.sync).status();
-				let res = match status.state {
-					SyncState::Idle => SyncStatus::None,
-					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => {
-						let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
-						let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
+		try!(expect_no_params(params));
 
-						if highest_block > current_block + U256::from(6) {
-							let info = SyncInfo {
-								starting_block: status.start_block_number.into(),
-								current_block: current_block.into(),
-								highest_block: highest_block.into(),
-							};
-							SyncStatus::Info(info)
-						} else {
-							SyncStatus::None
-						}
-					}
-				};
-				to_value(&res)
+		let status = take_weak!(self.sync).status();
+		let res = match status.state {
+			SyncState::Idle => SyncStatus::None,
+			SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => {
+				let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
+				let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
+
+				if highest_block > current_block + U256::from(6) {
+					let info = SyncInfo {
+						starting_block: status.start_block_number.into(),
+						current_block: current_block.into(),
+						highest_block: highest_block.into(),
+					};
+					SyncStatus::Info(info)
+				} else {
+					SyncStatus::None
+				}
 			}
-			_ => Err(Error::invalid_params()),
-		}
+		};
+		to_value(&res)
 	}
 
 	fn author(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => to_value(&RpcH160::from(take_weak!(self.miner).author())),
-			_ => Err(Error::invalid_params()),
-		}
+		try!(expect_no_params(params));
+
+		to_value(&RpcH160::from(take_weak!(self.miner).author()))
 	}
 
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => to_value(&(take_weak!(self.miner).is_sealing())),
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+
+		to_value(&(take_weak!(self.miner).is_sealing()))
 	}
 
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => to_value(&RpcU256::from(self.external_miner.hashrate())),
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+
+		to_value(&RpcU256::from(self.external_miner.hashrate()))
 	}
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => {
-				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
-				to_value(&RpcU256::from(default_gas_price(&*client, &*miner)))
-			}
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+
+		let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+		to_value(&RpcU256::from(default_gas_price(&*client, &*miner)))
 	}
 
 	fn accounts(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => {
-				let store = take_weak!(self.accounts);
-				let accounts = try!(store.accounts().map_err(|_| Error::internal_error()));
-				to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
-			},
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+
+		let store = take_weak!(self.accounts);
+		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
+		to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => to_value(&RpcU256::from(take_weak!(self.client).chain_info().best_block_number)),
-			_ => Err(Error::invalid_params())
-		}
+		try!(expect_no_params(params));
+
+		to_value(&RpcU256::from(take_weak!(self.client).chain_info().best_block_number))
 	}
 
 	fn balance(&self, params: Params) -> Result<Value, Error> {
@@ -361,8 +323,11 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
 				match block_number {
-					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address))),
-					id => to_value(&RpcU256::from(try!(take_weak!(self.client).balance(&address, id.into()).ok_or_else(make_unsupported_err)))),
+					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).balance(&*take_weak!(self.client), &address))),
+					id => match take_weak!(self.client).balance(&address, id.into()) {
+						Some(balance) => to_value(&RpcU256::from(balance)),
+						None => Err(errors::state_pruned()),
+					}
 				}
 			})
 	}
@@ -377,7 +342,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)))),
 					id => match take_weak!(self.client).storage_at(&address, &H256::from(position), id.into()) {
 						Some(s) => to_value(&RpcH256::from(s)),
-						None => Err(make_unsupported_err()), // None is only returned on unsupported requests.
+						None => Err(errors::state_pruned()),
 					}
 				}
 			})
@@ -390,8 +355,11 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
 				match block_number {
-					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).nonce(take_weak!(self.client).deref(), &address))),
-					id => to_value(&take_weak!(self.client).nonce(&address, id.into()).map(RpcU256::from)),
+					BlockNumber::Pending => to_value(&RpcU256::from(take_weak!(self.miner).nonce(&*take_weak!(self.client), &address))),
+					id => match take_weak!(self.client).nonce(&address, id.into()) {
+						Some(nonce) => to_value(&RpcU256::from(nonce)),
+						None => Err(errors::state_pruned()),
+					}
 				}
 			})
 	}
@@ -440,9 +408,11 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(address, block_number,)| {
 				let address: Address = RpcH160::into(address);
 				match block_number {
-					BlockNumber::Pending => to_value(&take_weak!(self.miner).code(take_weak!(self.client).deref(), &address).map_or_else(Bytes::default, Bytes::new)),
-					BlockNumber::Latest => to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)),
-					_ => Err(Error::invalid_params()),
+					BlockNumber::Pending => to_value(&take_weak!(self.miner).code(&*take_weak!(self.client), &address).map_or_else(Bytes::default, Bytes::new)),
+					_ => match take_weak!(self.client).code(&address, block_number.into()) {
+						Some(code) => to_value(&code.map_or_else(Bytes::default, Bytes::new)),
+						None => Err(errors::state_pruned()),
+					},
 				}
 			})
 	}
@@ -515,16 +485,13 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => {
-				let mut compilers = vec![];
-				if Command::new(SOLC).output().is_ok() {
-					compilers.push("solidity".to_owned())
-				}
-				to_value(&compilers)
-			}
-			_ => Err(Error::invalid_params())
+		try!(expect_no_params(params));
+
+		let mut compilers = vec![];
+		if Command::new(SOLC).output().is_ok() {
+			compilers.push("solidity".to_owned())
 		}
+		to_value(&compilers)
 	}
 
 	fn logs(&self, params: Params) -> Result<Value, Error> {
@@ -539,7 +506,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 					.collect::<Vec<Log>>();
 
 				if include_pending {
-					let pending = pending_logs(take_weak!(self.miner).deref(), &filter);
+					let pending = pending_logs(&*take_weak!(self.miner), &filter);
 					logs.extend(pending);
 				}
 
@@ -549,45 +516,42 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn work(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => {
-				let client = take_weak!(self.client);
-				// check if we're still syncing and return empty strings in that case
-				{
-					//TODO: check if initial sync is complete here
-					//let sync = take_weak!(self.sync);
-					if /*sync.status().state != SyncState::Idle ||*/ client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
-						trace!(target: "miner", "Syncing. Cannot give any work.");
-						return Err(no_work_err());
-					}
+		try!(expect_no_params(params));
 
-					// Otherwise spin until our submitted block has been included.
-					let timeout = Instant::now() + Duration::from_millis(1000);
-					while Instant::now() < timeout && client.queue_info().total_queue_size() > 0 {
-						thread::sleep(Duration::from_millis(1));
-					}
-				}
+		let client = take_weak!(self.client);
+		// check if we're still syncing and return empty strings in that case
+		{
+			//TODO: check if initial sync is complete here
+			//let sync = take_weak!(self.sync);
+			if /*sync.status().state != SyncState::Idle ||*/ client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+				trace!(target: "miner", "Syncing. Cannot give any work.");
+				return Err(errors::no_work());
+			}
 
-				let miner = take_weak!(self.miner);
-				if miner.author().is_zero() {
-					warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
-					return Err(no_author_err())
-				}
-				miner.map_sealing_work(client.deref(), |b| {
-					let pow_hash = b.hash();
-					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-					let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
-
-					if self.options.send_block_number_in_get_work {
-						let block_number = RpcU256::from(b.block().header().number());
-						to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target), block_number))
-					} else {
-						to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target)))
-					}
-				}).unwrap_or(Err(Error::internal_error()))	// no work found.
-			},
-			_ => Err(Error::invalid_params())
+			// Otherwise spin until our submitted block has been included.
+			let timeout = Instant::now() + Duration::from_millis(1000);
+			while Instant::now() < timeout && client.queue_info().total_queue_size() > 0 {
+				thread::sleep(Duration::from_millis(1));
+			}
 		}
+
+		let miner = take_weak!(self.miner);
+		if miner.author().is_zero() {
+			warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
+			return Err(errors::no_author())
+		}
+		miner.map_sealing_work(&*client, |b| {
+			let pow_hash = b.hash();
+			let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
+			let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
+
+			if self.options.send_block_number_in_get_work {
+				let block_number = RpcU256::from(b.block().header().number());
+				to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target), block_number))
+			} else {
+				to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target)))
+			}
+		}).unwrap_or(Err(Error::internal_error()))	// no work found.
 	}
 
 	fn submit_work(&self, params: Params) -> Result<Value, Error> {
@@ -600,7 +564,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-			let r = miner.submit_seal(client.deref(), pow_hash, seal);
+			let r = miner.submit_seal(&*client, pow_hash, seal);
 			to_value(&r.is_ok())
 		})
 	}
@@ -627,13 +591,12 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		trace!(target: "jsonrpc", "call: {:?}", params);
 		from_params_default_second(params)
 			.and_then(|(request, block_number,)| {
 				let request = CallRequest::into(request);
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, Default::default()),
+					BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
 					block_number => take_weak!(self.client).call(&signed, block_number.into(), Default::default()),
 				};
 				to_value(&r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
@@ -647,7 +610,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				let request = CallRequest::into(request);
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed, Default::default()),
+					BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
 					block => take_weak!(self.client).call(&signed, block.into(), Default::default()),
 				};
 				to_value(&RpcU256::from(r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0))))
@@ -675,17 +638,23 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 					.stdout(Stdio::piped())
 					.stderr(Stdio::null())
 					.spawn();
-				if let Ok(mut child) = maybe_child {
-					if let Ok(_) = child.stdin.as_mut().expect("we called child.stdin(Stdio::piped()) before spawn; qed").write_all(code.as_bytes()) {
-						if let Ok(output) = child.wait_with_output() {
-							let s = String::from_utf8_lossy(&output.stdout);
-							if let Some(hex) = s.lines().skip_while(|ref l| !l.contains("Binary")).skip(1).next() {
-								return to_value(&Bytes::new(hex.from_hex().unwrap_or(vec![])));
-							}
+
+				maybe_child
+					.map_err(errors::compilation)
+					.and_then(|mut child| {
+						try!(child.stdin.as_mut()
+							.expect("we called child.stdin(Stdio::piped()) before spawn; qed")
+							.write_all(code.as_bytes())
+							.map_err(errors::compilation));
+						let output = try!(child.wait_with_output().map_err(errors::compilation));
+
+						let s = String::from_utf8_lossy(&output.stdout);
+						if let Some(hex) = s.lines().skip_while(|ref l| !l.contains("Binary")).skip(1).next() {
+							to_value(&Bytes::new(hex.from_hex().unwrap_or(vec![])))
+						} else {
+							Err(errors::compilation("Unexpected output."))
 						}
-					}
-				}
-				Err(Error::invalid_params())
+					})
 			})
 	}
 }

@@ -18,34 +18,48 @@
 use util::{RotatingLogger};
 use util::misc::version_data;
 use std::sync::{Arc, Weak};
-use std::ops::Deref;
 use std::collections::{BTreeMap};
-use ethcore::client::{MiningBlockChainClient};
-use jsonrpc_core::*;
+use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
+use ethcore::client::{MiningBlockChainClient};
+
+use jsonrpc_core::*;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256};
-use v1::helpers::{SigningQueue, ConfirmationsQueue, NetworkSettings};
-use v1::impls::signer_disabled_error;
+use v1::types::{Bytes, U256, Peers};
+use v1::helpers::{errors, SigningQueue, ConfirmationsQueue, NetworkSettings};
+use v1::helpers::params::expect_no_params;
 
 /// Ethcore implementation.
-pub struct EthcoreClient<C, M> where
+pub struct EthcoreClient<C, M, S: ?Sized> where
 	C: MiningBlockChainClient,
-	M: MinerService {
+	M: MinerService,
+	S: SyncProvider {
 
 	client: Weak<C>,
 	miner: Weak<M>,
+	sync: Weak<S>,
+	net: Weak<ManageNetwork>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	confirmations_queue: Option<Arc<ConfirmationsQueue>>,
 }
 
-impl<C, M> EthcoreClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M: MinerService, S: SyncProvider {
 	/// Creates new `EthcoreClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>, queue: Option<Arc<ConfirmationsQueue>>) -> Self {
+	pub fn new(
+		client: &Arc<C>,
+		miner: &Arc<M>,
+		sync: &Arc<S>,
+		net: &Arc<ManageNetwork>,
+		logger: Arc<RotatingLogger>,
+		settings: Arc<NetworkSettings>,
+		queue: Option<Arc<ConfirmationsQueue>>
+		) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
+			sync: Arc::downgrade(sync),
+			net: Arc::downgrade(net),
 			logger: logger,
 			settings: settings,
 			confirmations_queue: queue,
@@ -59,66 +73,86 @@ impl<C, M> EthcoreClient<C, M> where C: MiningBlockChainClient, M: MinerService 
 	}
 }
 
-impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: MiningBlockChainClient + 'static {
+impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService + 'static, C: MiningBlockChainClient + 'static, S: SyncProvider + 'static {
 
-	fn transactions_limit(&self, _: Params) -> Result<Value, Error> {
+	fn transactions_limit(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&take_weak!(self.miner).transactions_limit())
 	}
 
-	fn min_gas_price(&self, _: Params) -> Result<Value, Error> {
+	fn min_gas_price(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&U256::from(take_weak!(self.miner).minimal_gas_price()))
 	}
 
-	fn extra_data(&self, _: Params) -> Result<Value, Error> {
+	fn extra_data(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&Bytes::new(take_weak!(self.miner).extra_data()))
 	}
 
-	fn gas_floor_target(&self, _: Params) -> Result<Value, Error> {
+	fn gas_floor_target(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&U256::from(take_weak!(self.miner).gas_floor_target()))
 	}
 
-	fn gas_ceil_target(&self, _: Params) -> Result<Value, Error> {
+	fn gas_ceil_target(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&U256::from(take_weak!(self.miner).gas_ceil_target()))
 	}
 
-	fn dev_logs(&self, _params: Params) -> Result<Value, Error> {
+	fn dev_logs(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		let logs = self.logger.logs();
-		to_value(&logs.deref().as_slice())
+		to_value(&logs.as_slice())
 	}
 
-	fn dev_logs_levels(&self, _params: Params) -> Result<Value, Error> {
+	fn dev_logs_levels(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&self.logger.levels())
 	}
 
-	fn net_chain(&self, _params: Params) -> Result<Value, Error> {
+	fn net_chain(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&self.settings.chain)
 	}
 
-	fn net_max_peers(&self, _params: Params) -> Result<Value, Error> {
+	fn net_peers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		to_value(&self.settings.max_peers)
+		try!(expect_no_params(params));
+
+		let sync_status = take_weak!(self.sync).status();
+		let net_config = take_weak!(self.net).network_config();
+
+		to_value(&Peers {
+			active: sync_status.num_active_peers,
+			connected: sync_status.num_peers,
+			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
+		})
 	}
 
-	fn net_port(&self, _params: Params) -> Result<Value, Error> {
+	fn net_port(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&self.settings.network_port)
 	}
 
-	fn node_name(&self, _params: Params) -> Result<Value, Error> {
+	fn node_name(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		to_value(&self.settings.name)
 	}
 
-	fn rpc_settings(&self, _params: Params) -> Result<Value, Error> {
+	fn rpc_settings(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
 		let mut map = BTreeMap::new();
 		map.insert("enabled".to_owned(), Value::Bool(self.settings.rpc_enabled));
 		map.insert("interface".to_owned(), Value::String(self.settings.rpc_interface.clone()));
@@ -128,30 +162,29 @@ impl<C, M> Ethcore for EthcoreClient<C, M> where M: MinerService + 'static, C: M
 
 	fn default_extra_data(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => to_value(&Bytes::new(version_data())),
-			_ => Err(Error::invalid_params()),
-		}
+		try!(expect_no_params(params));
+		to_value(&Bytes::new(version_data()))
 	}
 
 	fn gas_price_statistics(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		match params {
-			Params::None => match take_weak!(self.client).gas_price_statistics(100, 8) {
-				Ok(stats) => to_value(&stats
-					.into_iter()
-					.map(|x| to_value(&U256::from(x)).expect("x must be U256; qed"))
-					.collect::<Vec<_>>()),
-				_ => Err(Error::internal_error()),
-			},
-			_ => Err(Error::invalid_params()),
+		try!(expect_no_params(params));
+
+		match take_weak!(self.client).gas_price_statistics(100, 8) {
+			Ok(stats) => to_value(&stats
+				.into_iter()
+				.map(|x| to_value(&U256::from(x)).expect("x must be U256; qed"))
+				.collect::<Vec<_>>()),
+			_ => Err(Error::internal_error()),
 		}
 	}
 
-	fn unsigned_transactions_count(&self, _params: Params) -> Result<Value, Error> {
+	fn unsigned_transactions_count(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
+		try!(expect_no_params(params));
+
 		match self.confirmations_queue {
-			None => Err(signer_disabled_error()),
+			None => Err(errors::signer_disabled()),
 			Some(ref queue) => to_value(&queue.len()),
 		}
 	}

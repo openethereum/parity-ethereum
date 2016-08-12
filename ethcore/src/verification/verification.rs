@@ -344,7 +344,7 @@ mod tests {
 		// Test against morden
 		let mut good = Header::new();
 		let spec = Spec::new_test();
-		let engine = &spec.engine;
+		let engine = &*spec.engine;
 
 		let min_gas_limit = engine.params().min_gas_limit;
 		good.gas_limit = min_gas_limit;
@@ -425,69 +425,69 @@ mod tests {
 		bc.insert(create_test_block(&parent7));
 		bc.insert(create_test_block(&parent8));
 
-		check_ok(basic_test(&create_test_block(&good), engine.deref()));
+		check_ok(basic_test(&create_test_block(&good), engine));
 
 		let mut header = good.clone();
 		header.transactions_root = good_transactions_root.clone();
 		header.uncles_hash = good_uncles_hash.clone();
-		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref()));
+		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
 		header.gas_limit = min_gas_limit - From::from(1);
-		check_fail(basic_test(&create_test_block(&header), engine.deref()),
+		check_fail(basic_test(&create_test_block(&header), engine),
 			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit }));
 
 		header = good.clone();
 		header.number = BlockNumber::max_value();
-		check_fail(basic_test(&create_test_block(&header), engine.deref()),
+		check_fail(basic_test(&create_test_block(&header), engine),
 			RidiculousNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number }));
 
 		header = good.clone();
 		header.gas_used = header.gas_limit + From::from(1);
-		check_fail(basic_test(&create_test_block(&header), engine.deref()),
+		check_fail(basic_test(&create_test_block(&header), engine),
 			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used }));
 
 		header = good.clone();
 		header.extra_data.resize(engine.maximum_extra_data_size() + 1, 0u8);
-		check_fail(basic_test(&create_test_block(&header), engine.deref()),
+		check_fail(basic_test(&create_test_block(&header), engine),
 			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data.len() }));
 
 		header = good.clone();
 		header.extra_data.resize(engine.maximum_extra_data_size() + 1, 0u8);
-		check_fail(basic_test(&create_test_block(&header), engine.deref()),
+		check_fail(basic_test(&create_test_block(&header), engine),
 			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data.len() }));
 
 		header = good.clone();
 		header.uncles_hash = good_uncles_hash.clone();
-		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref()),
+		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine),
 			InvalidTransactionsRoot(Mismatch { expected: good_transactions_root.clone(), found: header.transactions_root }));
 
 		header = good.clone();
 		header.transactions_root = good_transactions_root.clone();
-		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref()),
+		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine),
 			InvalidUnclesHash(Mismatch { expected: good_uncles_hash.clone(), found: header.uncles_hash }));
 
-		check_ok(family_test(&create_test_block(&good), engine.deref(), &bc));
-		check_ok(family_test(&create_test_block_with_data(&good, &good_transactions, &good_uncles), engine.deref(), &bc));
+		check_ok(family_test(&create_test_block(&good), engine, &bc));
+		check_ok(family_test(&create_test_block_with_data(&good, &good_transactions, &good_uncles), engine, &bc));
 
 		header = good.clone();
 		header.parent_hash = H256::random();
-		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc),
 			UnknownParent(header.parent_hash));
 
 		header = good.clone();
 		header.timestamp = 10;
-		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc),
 			InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp + 1), found: header.timestamp }));
 
 		header = good.clone();
 		header.number = 9;
-		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc),
 			InvalidNumber(Mismatch { expected: parent.number + 1, found: header.number }));
 
 		header = good.clone();
 		let mut bad_uncles = good_uncles.clone();
 		bad_uncles.push(good_uncle1.clone());
-		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine.deref(), &bc),
+		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine, &bc),
 			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
 
 		// TODO: some additional uncle checks

@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ops::*;
 use std::sync::Arc;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
@@ -75,7 +74,7 @@ pub struct EthSync {
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
-		let chain_sync = ChainSync::new(config, chain.deref());
+		let chain_sync = ChainSync::new(config, &*chain);
 		let service = try!(NetworkService::new(try!(network_config.into_basic())));
 		let sync = Arc::new(EthSync{
 			network: service,
@@ -108,20 +107,20 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, self.chain.deref()), *peer, packet_id, data);
+		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain), *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
+		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain), *peer);
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
+		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain), *peer);
 	}
 
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
-		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
-		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain));
+		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain));
 	}
 }
 
@@ -135,7 +134,7 @@ impl ChainNotify for EthSync {
 		_duration: u64)
 	{
 		self.network.with_context(ETH_PROTOCOL, |context| {
-			let mut sync_io = NetSyncIo::new(context, self.handler.chain.deref());
+			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain);
 			self.handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&imported,
@@ -204,7 +203,7 @@ impl ManageNetwork for EthSync {
 
 	fn stop_network(&self) {
 		self.network.with_context(ETH_PROTOCOL, |context| {
-			let mut sync_io = NetSyncIo::new(context, self.handler.chain.deref());
+			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain);
 			self.handler.sync.write().abort(&mut sync_io);
 		});
 		self.stop();

@@ -27,8 +27,8 @@ use std::sync::*;
 use nanomsg::{Socket, Protocol, Error, Endpoint, PollRequest, PollFd, PollInOut};
 use std::ops::Deref;
 
-const POLL_TIMEOUT: isize = 100;
-const CLIENT_CONNECTION_TIMEOUT: isize = 2500;
+const POLL_TIMEOUT: isize = 200;
+const CLIENT_CONNECTION_TIMEOUT: isize = 15000;
 
 /// Generic worker to handle service (binded) sockets
 pub struct Worker<S: ?Sized> where S: IpcInterface {
@@ -68,7 +68,6 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 		SocketError::DuplexLink
 	}));
 
-	// 2500 ms default timeout
 	socket.set_receive_timeout(CLIENT_CONNECTION_TIMEOUT).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
@@ -91,7 +90,6 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 		SocketError::RequestLink
 	}));
 
-	// 2500 ms default timeout
 	socket.set_receive_timeout(CLIENT_CONNECTION_TIMEOUT).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
