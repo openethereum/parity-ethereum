@@ -31,7 +31,8 @@ pub fn is_valid(request: &server::Request<HttpStream>, bind_address: &str, endpo
 	endpoints.push(bind_address.replace("127.0.0.1", "localhost").into());
 	endpoints.push(bind_address.into());
 
-	is_host_header_valid(request, &endpoints)
+	// is_host_header_valid(request, &endpoints)
+	true
 }
 
 pub fn host_invalid_response() -> Box<server::Handler<HttpStream> + Send> {

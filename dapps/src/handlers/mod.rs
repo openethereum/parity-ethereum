@@ -20,11 +20,13 @@ mod auth;
 mod echo;
 mod content;
 mod redirect;
+mod fetch_file;
 
 pub use self::auth::AuthRequiredHandler;
 pub use self::echo::EchoHandler;
 pub use self::content::ContentHandler;
 pub use self::redirect::Redirection;
+pub use self::fetch_file::{Fetch, FetchResult, Error as FetchError};
 
 use url::Url;
 use hyper::{server, header, net, uri};

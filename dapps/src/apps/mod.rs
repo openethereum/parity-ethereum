@@ -20,6 +20,9 @@ use proxypac::ProxyPac;
 use parity_dapps::WebApp;
 
 mod fs;
+mod fetcher;
+
+pub use self::fetcher::AppFetcher;
 
 extern crate parity_dapps_status;
 extern crate parity_dapps_home;

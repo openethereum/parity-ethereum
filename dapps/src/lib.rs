@@ -54,8 +54,9 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate parity_dapps;
 extern crate ethcore_rpc;
-extern crate ethcore_util;
+extern crate ethcore_util as util;
 extern crate mime_guess;
+extern crate rustc_serialize;
 
 mod endpoint;
 mod apps;
@@ -132,7 +133,8 @@ impl Server {
 		let bind_address = format!("{}", addr);
 
 		try!(hyper::Server::http(addr))
-			.handle(move |_| router::Router::new(
+			.handle(move |ctrl| router::Router::new(
+				ctrl,
 				apps::main_page(),
 				endpoints.clone(),
 				special.clone(),
