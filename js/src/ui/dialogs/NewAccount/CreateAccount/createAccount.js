@@ -56,7 +56,7 @@ export default class CreateAccount extends Component {
             <Input
               className={ styles.password }
               floatingLabelText='password (repeat)'
-              hintText='a strong, unique password'
+              hintText='verify your password'
               type='password'
               value={ this.state.password2 }
               onChange={ this.onEditPassword2 } />

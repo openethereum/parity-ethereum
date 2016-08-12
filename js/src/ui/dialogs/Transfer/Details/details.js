@@ -5,7 +5,7 @@ import { Checkbox } from 'material-ui';
 import Api from '../../../../api';
 import Form, { Input } from '../../../Form';
 
-import styles from './style.css';
+import styles from '../style.css';
 
 const DEFAULT_GAS = '21000';
 
@@ -42,6 +42,9 @@ export default class Details extends Component {
   render () {
     return (
       <Form>
+        <div className={ styles.info }>
+          Complete the information for the transaction with a valid recipient and the amount to be transferred. For normal transactions, the gas value can be left at the default.
+        </div>
         <Input
           floatingLabelText='recipient address'
           hintText='the recipient address'

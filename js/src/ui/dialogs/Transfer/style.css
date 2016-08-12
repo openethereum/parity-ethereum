@@ -1,3 +1,8 @@
+.info {
+  padding-bottom: 1em;
+  width: 75%;
+}
+
 .columns {
   display: flex;
   flex-wrap: wrap;
