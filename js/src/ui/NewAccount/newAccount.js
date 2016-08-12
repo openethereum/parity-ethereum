@@ -3,6 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
+import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
@@ -84,15 +85,25 @@ export default class NewAccount extends Component {
   renderDialogActions () {
     switch (this.state.stage) {
       case 0:
-        return (
+        return [
+          <FlatButton
+            icon={ <ContentClear /> }
+            label='Cancel'
+            primary
+            onTouchTap={ this.onClose } />,
           <FlatButton
             icon={ <NavigationArrowForward /> }
             label='Next'
             primary
             onTouchTap={ this.onNext } />
-        );
+        ];
       case 1:
         return [
+          <FlatButton
+            icon={ <ContentClear /> }
+            label='Cancel'
+            primary
+            onTouchTap={ this.onClose } />,
           <FlatButton
             icon={ <NavigationArrowBack /> }
             label='Back'
