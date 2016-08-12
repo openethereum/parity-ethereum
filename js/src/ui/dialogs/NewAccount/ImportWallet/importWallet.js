@@ -95,7 +95,7 @@ export default class ImportWallet extends Component {
     }
 
     this.setState({
-      walletFile: el.value,
+      walletFile: el.value.replace('C:\\fakepath\\', ''),
       isValidFile: false
     }, this.updateParent);
   }
