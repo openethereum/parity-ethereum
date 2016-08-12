@@ -1,0 +1,11 @@
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.columns>div {
+  flex: 0 1 50%;
+  width: 50%;
+  position: relative;
+}

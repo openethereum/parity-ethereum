@@ -1,20 +1,24 @@
 import React, { Component, PropTypes } from 'react';
-
 import { FlatButton } from 'material-ui';
 import ContentClear from 'material-ui/svg-icons/content/clear';
+import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import Overlay from '../../Overlay';
 
-const STAGE_NAMES = ['transfer'];
+import Details from './Details';
+
+const STAGE_NAMES = ['transfer details', 'verify transaction', 'transaction receipt'];
 
 export default class Transfer extends Component {
   static propTypes = {
+    address: PropTypes.string.isRequired,
     visible: PropTypes.bool.isRequired,
     onClose: PropTypes.func
   }
 
   state = {
-    stage: 0
+    stage: 0,
+    isValid: false
   }
 
   render () {
@@ -24,21 +28,52 @@ export default class Transfer extends Component {
         current={ this.state.stage }
         steps={ STAGE_NAMES }
         visible={ this.props.visible }>
-        <div>
-          In progress funds transfer
-        </div>
+        { this.renderPage() }
       </Overlay>
     );
   }
 
+  renderPage () {
+    switch (this.state.stage) {
+      case 0:
+        return (
+          <Details
+            address={ this.props.address }
+            onChange={ this.onChangeDetails } />
+        );
+    }
+  }
+
   renderDialogActions () {
-    return (
+    return [
       <FlatButton
         icon={ <ContentClear /> }
         label='Cancel'
         primary
-        onTouchTap={ this.onClose } />
-    );
+        onTouchTap={ this.onClose } />,
+      <FlatButton
+        disabled={ !this.state.isValid }
+        icon={ <NavigationArrowForward /> }
+        label='Next'
+        primary
+        onTouchTap={ this.onNext } />
+    ];
+  }
+
+  onNext = () => {
+    this.setState({
+      stage: this.state.stage + 1
+    });
+  }
+
+  onPrev = () => {
+    this.setState({
+      stage: this.state.stage - 1
+    });
+  }
+
+  onChangeDetails = (valid, details) => {
+
   }
 
   onClose = () => {
