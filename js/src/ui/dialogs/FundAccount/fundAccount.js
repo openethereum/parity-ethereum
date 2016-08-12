@@ -9,6 +9,7 @@ const STAGE_NAMES = ['fund account'];
 
 export default class FundAccount extends Component {
   static propTypes = {
+    address: PropTypes.string.isRequired,
     visible: PropTypes.bool.isRequired,
     onClose: PropTypes.func
   }

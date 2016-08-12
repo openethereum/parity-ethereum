@@ -37,9 +37,11 @@ export default class Account extends Component {
     return (
       <div>
         <FundAccount
+          address={ address }
           onClose={ this.onFundAccountClose }
           visible={ this.state.fundDialog } />
         <Transfer
+          address={ address }
           onClose={ this.onTransferClose }
           visible={ this.state.transferDialog } />
         <Actions
