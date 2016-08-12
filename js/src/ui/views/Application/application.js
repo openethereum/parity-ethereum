@@ -4,9 +4,9 @@ import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import darkBaseTheme from 'material-ui/styles/baseThemes/darkBaseTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
-import Api from '../../api';
+import Api from '../../../api';
 
-import { FirstRun } from '../dialogs';
+import { FirstRun } from '../../dialogs';
 import Status from './Status';
 import TabBar from './TabBar';
 

@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 
 import AccountSummary from './AccountSummary';
 import Actions from './Actions';
-import { FundAccount, NewAccount, Transfer } from '../dialogs';
+import { FundAccount, NewAccount, Transfer } from '../../dialogs';
 
 import styles from './style.css';
 

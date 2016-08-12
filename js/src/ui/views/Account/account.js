@@ -3,10 +3,10 @@ import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 import { CardText } from 'material-ui/Card';
 
-import Balances from '../Balances';
-import Container from '../Container';
-import Form, { FormWrap } from '../Form';
-import IdentityIcon from '../IdentityIcon';
+import Balances from '../../Balances';
+import Container from '../../Container';
+import Form, { FormWrap } from '../../Form';
+import IdentityIcon from '../../IdentityIcon';
 
 import Actions from './actions';
 

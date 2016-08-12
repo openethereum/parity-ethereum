@@ -3,9 +3,9 @@ import { Link } from 'react-router';
 
 import { CardText, CardTitle } from 'material-ui/Card';
 
-import Balances from '../../Balances';
-import Container from '../../Container';
-import IdentityIcon from '../../IdentityIcon';
+import Balances from '../../../Balances';
+import Container from '../../../Container';
+import IdentityIcon from '../../../IdentityIcon';
 
 const TITLE_STYLE = { textTransform: 'uppercase', paddingBottom: 0 };
 

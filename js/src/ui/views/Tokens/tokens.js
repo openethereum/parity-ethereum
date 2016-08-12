@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 
 import { CardText } from 'material-ui/Card';
 
-import Container from '../Container';
+import Container from '../../Container';
 
 export default class Tokens extends Component {
   render () {
