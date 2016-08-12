@@ -7,7 +7,7 @@ const UNDERLINE_DISABLED = {
 };
 
 const UNDERLINE_NORMAL = {
-  borderWidth: '2px'
+  borderBottom: 'solid 2px'
 };
 
 export default class Input extends Component {
