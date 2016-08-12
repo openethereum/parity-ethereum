@@ -1,13 +1,12 @@
 import React, { Component, PropTypes } from 'react';
 
-import { TextField } from 'material-ui';
 import { CardText } from 'material-ui/Card';
 
 import { FundAccount, Transfer } from '../../dialogs';
 
 import Balances from '../../Balances';
 import Container from '../../Container';
-import Form, { FormWrap } from '../../Form';
+import Form, { FormWrap, Input } from '../../Form';
 import IdentityIcon from '../../IdentityIcon';
 
 import Actions from './actions';
@@ -53,20 +52,16 @@ export default class Account extends Component {
           <CardText>
             <Form>
               <FormWrap>
-                <TextField
-                  autoComplete='off'
+                <Input
                   floatingLabelText='account name'
-                  fullWidth
                   hintText='a descriptive name for the account'
                   value={ this.state.name }
                   onChange={ this.onEditName } />
               </FormWrap>
               <FormWrap>
-                <TextField
-                  autoComplete='off'
+                <Input
                   disabled
                   floatingLabelText='account address'
-                  fullWidth
                   hintText='the account network address'
                   value={ address } />
               </FormWrap>

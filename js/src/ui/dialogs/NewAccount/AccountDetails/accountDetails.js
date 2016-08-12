@@ -1,8 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import { TextField } from 'material-ui';
-
-import Form, { FormWrap } from '../../../Form';
+import Form, { FormWrap, Input } from '../../../Form';
 import IdentityIcon from '../../../IdentityIcon';
 
 import styles from '../style.css';
@@ -28,21 +26,17 @@ export default class RecoverAccount extends Component {
            { info }
         </div>
         <FormWrap>
-          <TextField
-            autoComplete='off'
+          <Input
             disabled
             hintText='a descriptive name for the account'
             floatingLabelText='account name'
-            fullWidth
             value={ this.props.name } />
         </FormWrap>
         <FormWrap>
-          <TextField
-            autoComplete='off'
+          <Input
             disabled
             hintText='the network address for the account'
             floatingLabelText='address'
-            fullWidth
             value={ this.props.address } />
         </FormWrap>
         { this.renderPhrase() }
@@ -57,12 +51,10 @@ export default class RecoverAccount extends Component {
 
     return (
       <FormWrap>
-        <TextField
-          autoComplete='off'
+        <Input
           disabled
           hintText='The account recovery phrase'
           floatingLabelText='Recovery Phrase'
-          fullWidth
           multiLine
           rows={ 1 }
           value={ this.props.phrase } />

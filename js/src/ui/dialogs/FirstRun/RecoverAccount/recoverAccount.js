@@ -1,8 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import { TextField } from 'material-ui';
-
-import Form, { FormWrap } from '../../../Form';
+import Form, { FormWrap, Input } from '../../../Form';
 import IdentityIcon from '../../../IdentityIcon';
 
 export default class RecoverAccount extends Component {
@@ -23,30 +21,24 @@ export default class RecoverAccount extends Component {
         <IdentityIcon
           address={ this.props.accountAddress } />
         <FormWrap>
-          <TextField
-            autoComplete='off'
+          <Input
             disabled
-            hintText='A descriptive name for the account'
-            floatingLabelText='Account Name'
-            fullWidth
+            hintText='a descriptive name for the account'
+            floatingLabelText='account name'
             value={ this.props.accountName } />
         </FormWrap>
         <FormWrap>
-          <TextField
-            autoComplete='off'
+          <Input
             disabled
-            hintText='The network address for the account'
-            floatingLabelText='Address'
-            fullWidth
+            hintText='the network address for the account'
+            floatingLabelText='address'
             value={ this.props.accountAddress } />
         </FormWrap>
         <FormWrap>
-          <TextField
-            autoComplete='off'
+          <Input
             disabled
-            hintText='The account recovery phrase'
-            floatingLabelText='Recovery Phrase'
-            fullWidth
+            hintText='the account recovery phrase'
+            floatingLabelText='recovery phrase'
             multiLine
             rows={ 2 }
             value={ this.props.accountPhrase } />

@@ -1,8 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import { TextField } from 'material-ui';
-
-import Form, { FormWrap } from '../../../Form';
+import Form, { FormWrap, Input } from '../../../Form';
 
 export default class CreateAccount extends Component {
   static contextTypes = {
@@ -27,29 +25,23 @@ export default class CreateAccount extends Component {
     return (
       <Form>
         <FormWrap>
-          <TextField
-            autoComplete='off'
+          <Input
             floatingLabelText='Account Name'
-            fullWidth
             hintText='A descriptive name for the account'
             value={ this.state.accountName }
             onChange={ this.onEditAccountName } />
         </FormWrap>
         <FormWrap>
-          <TextField
-            autoComplete='off'
+          <Input
             floatingLabelText='Password'
-            fullWidth
             hintText='A strong, unique password'
             type='password'
             value={ this.state.password1 }
             onChange={ this.onEditPassword1 } />
         </FormWrap>
         <FormWrap>
-          <TextField
-            autoComplete='off'
+          <Input
             floatingLabelText='Password (repeat)'
-            fullWidth
             hintText='A strong, unique password'
             type='password'
             value={ this.state.password2 }

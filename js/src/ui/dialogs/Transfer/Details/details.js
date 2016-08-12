@@ -1,9 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 import BigNumber from 'bignumber.js';
-import { Checkbox, TextField } from 'material-ui';
+import { Checkbox } from 'material-ui';
 
 import Api from '../../../../api';
-import Form from '../../../Form';
+import Form, { Input } from '../../../Form';
 
 import styles from './style.css';
 
@@ -42,20 +42,16 @@ export default class Details extends Component {
   render () {
     return (
       <Form>
-        <TextField
-          autoComplete='off'
+        <Input
           floatingLabelText='recipient address'
-          fullWidth
           hintText='the recipient address'
           value={ this.state.recipient }
           onChange={ this.onEditRecipient } />
         <div className={ styles.columns }>
           <div>
-            <TextField
-              autoComplete='off'
+            <Input
               disabled={ this.state.amountFull }
               floatingLabelText='amount to transfer (in ΞTH)'
-              fullWidth
               hintText='the amount to transfer to the recipient'
               value={ this.state.amount }
               onChange={ this.onEditAmount } />
@@ -70,10 +66,8 @@ export default class Details extends Component {
         </div>
         <div className={ styles.columns }>
           <div>
-            <TextField
-              autoComplete='off'
+            <Input
               floatingLabelText='gas amount'
-              fullWidth
               hintText='the amount of gas to use for the transaction'
               value={ this.state.amountGas }
               onChange={ this.onEditGas } />
@@ -81,11 +75,9 @@ export default class Details extends Component {
         </div>
         <div className={ styles.columns }>
           <div>
-            <TextField
-              autoComplete='off'
+            <Input
               disabled
               floatingLabelText='total amount'
-              fullWidth
               hintText='the total amount of the transaction'
               value={ `${this.state.amountTotal} ΞTH` } />
           </div>

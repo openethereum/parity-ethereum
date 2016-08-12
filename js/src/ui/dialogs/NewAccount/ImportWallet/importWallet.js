@@ -1,10 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 
-import { FlatButton, TextField } from 'material-ui';
+import { FlatButton } from 'material-ui';
 import CommunicationImportExport from 'material-ui/svg-icons/communication/import-export';
 
-import Form from '../../../Form';
+import Form, { Input } from '../../../Form';
 
 import styles from '../style.css';
 
@@ -37,31 +37,25 @@ export default class ImportWallet extends Component {
         <div className={ styles.info }>
           Provide a descriptive name for the account, the password required to unlock the account and the on-disk location of the wallet to be imported.
         </div>
-        <TextField
-          autoComplete='off'
+        <Input
           floatingLabelText='account name'
-          fullWidth
           hintText='a descriptive name for the account'
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
-            <TextField
-              autoComplete='off'
+            <Input
               className={ styles.password }
               floatingLabelText='password'
-              fullWidth
               hintText='the password to unlock the wallet'
               type='password'
               value={ this.state.password }
               onChange={ this.onEditPassword } />
           </div>
         </div>
-        <TextField
-          autoComplete='off'
+        <Input
           disabled
           floatingLabelText='wallet file'
-          fullWidth
           hintText='the uploaded file for import'
           value={ this.state.walletFile } />
         <div className={ styles.upload }>

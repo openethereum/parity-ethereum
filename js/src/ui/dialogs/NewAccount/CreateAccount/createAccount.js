@@ -1,9 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 
-import { TextField } from 'material-ui';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import Form from '../../../Form';
+import Form, { Input } from '../../../Form';
 import IdentityIcon from '../../../IdentityIcon';
 
 import styles from '../style.css';
@@ -38,31 +37,25 @@ export default class CreateAccount extends Component {
         <div className={ styles.info }>
           Provide a descriptive name for the account, a strong password and select your preferred identity icon to create the account
         </div>
-        <TextField
-          autoComplete='off'
+        <Input
           floatingLabelText='account name'
-          fullWidth
           hintText='a descriptive name for the account'
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
-            <TextField
-              autoComplete='off'
+            <Input
               className={ styles.password }
               floatingLabelText='password'
-              fullWidth
               hintText='a strong, unique password'
               type='password'
               value={ this.state.password1 }
               onChange={ this.onEditPassword1 } />
           </div>
           <div className={ styles.password }>
-            <TextField
-              autoComplete='off'
+            <Input
               className={ styles.password }
               floatingLabelText='password (repeat)'
-              fullWidth
               hintText='a strong, unique password'
               type='password'
               value={ this.state.password2 }
