@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 
 const UNDERLINE_DISABLED = {
-  borderColor: 'transparent' // 'rgba(255, 255, 255, 0.298039)'
+  borderColor: 'rgba(255, 255, 255, 0.298039)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
 };
 
 const UNDERLINE_NORMAL = {
