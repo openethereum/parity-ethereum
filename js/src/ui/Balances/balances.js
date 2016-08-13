@@ -33,14 +33,20 @@ export default class Balances extends Component {
               src={ balance.img }
               alt={ balance.type } />
             <div>
-              { balance.value.toFormat(8) } { balance.token }
+              { balance.value.toFormat() } { balance.token }
             </div>
           </div>
         );
       });
 
+    if (!balances.length) {
+      return null;
+    }
+
     return (
-      <div>{ balances }</div>
+      <div className={ styles.balances }>
+        { balances }
+      </div>
     );
   }
 

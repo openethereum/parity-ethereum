@@ -64,7 +64,7 @@ export default class Account extends Component {
             </FormWrap>
           </Form>
           <Balances
-              address={ address } />
+            address={ address } />
         </Container>
       </div>
     );

@@ -1,13 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { CardTitle } from 'material-ui/Card';
-
 import Balances from '../../../Balances';
-import Container from '../../../Container';
+import Container, { Title } from '../../../Container';
 import IdentityIcon from '../../../IdentityIcon';
-
-const TITLE_STYLE = { textTransform: 'uppercase', padding: 0 };
 
 export default class AccountSummary extends Component {
   static contextTypes = {
@@ -30,9 +26,9 @@ export default class AccountSummary extends Component {
       <Container>
         <IdentityIcon
           address={ account.address } />
-        <CardTitle
-          style={ TITLE_STYLE }
-          title={ <Link to={ viewLink }>{ account.name || 'Unnamed' }</Link> } />
+        <Title
+          title={ <Link to={ viewLink }>{ account.name || 'Unnamed' }</Link> }
+          byline={ account.address } />
         <Balances
           address={ account.address } />
       </Container>
