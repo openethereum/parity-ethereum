@@ -1,13 +1,17 @@
 import React, { Component, PropTypes } from 'react';
 
+import ContentCreate from 'material-ui/svg-icons/content/create';
+
 import { FundAccount, Transfer } from '../../dialogs';
 
 import Balances from '../../Balances';
-import Container from '../../Container';
-import Form, { FormWrap, Input } from '../../Form';
+import Container, { Title } from '../../Container';
+import Form, { FormWrap, Input, InputInline } from '../../Form';
 import IdentityIcon from '../../IdentityIcon';
 
 import Actions from './actions';
+
+import styles from './style.css';
 
 export default class Account extends Component {
   static contextTypes = {
@@ -30,6 +34,14 @@ export default class Account extends Component {
 
   render () {
     const address = this.props.params.address;
+    const title = (
+      <span>
+        <span>{ this.state.name }</span>
+        <ContentCreate
+          className={ styles.editicon }
+          color='rgb(0, 151, 167)' />
+      </span>
+    );
 
     return (
       <div>
@@ -49,10 +61,11 @@ export default class Account extends Component {
             address={ address } />
           <Form>
             <FormWrap>
-              <Input
+              <InputInline
                 label='account name'
                 hint='a descriptive name for the account'
                 value={ this.state.name }
+                static={ <Title title={ title } /> }
                 onChange={ this.onEditName } />
             </FormWrap>
             <FormWrap>

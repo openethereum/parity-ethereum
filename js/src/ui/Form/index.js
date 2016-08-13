@@ -1,5 +1,6 @@
 import FormWrap from './FormWrap';
 import Input from './Input';
+import InputInline from './InputInline';
 
 export default from './form';
-export { FormWrap, Input };
+export { FormWrap, Input, InputInline };

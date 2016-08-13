@@ -17,7 +17,9 @@ export default class Input extends Component {
     hint: PropTypes.string,
     label: PropTypes.string,
     multiLine: PropTypes.bool,
+    onBlur: PropTypes.func,
     onChange: PropTypes.func,
+    onKeyDown: PropTypes.func,
     rows: PropTypes.number,
     type: PropTypes.string,
     value: PropTypes.oneOfType([
@@ -46,7 +48,9 @@ export default class Input extends Component {
           underlineDisabledStyle={ UNDERLINE_DISABLED }
           underlineStyle={ UNDERLINE_NORMAL }
           value={ this.props.value }
-          onChange={ this.props.onChange } />
+          onBlur={ this.props.onBlur }
+          onChange={ this.props.onChange }
+          onKeyDown={ this.props.onKeyDown } />
       </div>
     );
   }
