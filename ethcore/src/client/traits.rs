@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+
+use std::mem;
+use std::collections::{BTreeMap, VecDeque};
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
@@ -33,8 +36,6 @@ use executive::Executed;
 use env_info::LastHashes;
 use types::call_analytics::CallAnalytics;
 use block_import_error::BlockImportError;
-use std::mem;
-use std::collections::VecDeque;
 use ipc::{IpcConfig, BinaryConvertError};
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
@@ -146,6 +147,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Get the registrar address, if it exists.
+	fn additional_params(&self) -> BTreeMap<String, String>;
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> Bytes;
