@@ -106,7 +106,7 @@ mod tests {
 			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
 			block_number: Some(U256::from(0x4510c)),
 			cumulative_gas_used: U256::from(0x20),
-			gas_used: U256::from(0x10),
+			gas_used: Some(U256::from(0x10)),
 			contract_address: None,
 			logs: vec![Log {
 				address: H160::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),

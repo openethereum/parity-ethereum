@@ -198,9 +198,18 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().values().cloned().collect()
 	}
 
-	fn pending_receipt(&self, _hash: &H256) -> Option<RichReceipt> {
+	fn pending_receipt(&self, hash: &H256) -> Option<RichReceipt> {
 		// Not much point implementing this since the logic is complex and the only thing it relies on is pending_receipts, which is already tested.
-		unimplemented!();
+		self.pending_receipts().get(hash).map(|r|
+			RichReceipt {
+				transaction_hash: Default::default(),
+				transaction_index: Default::default(),
+				cumulative_gas_used: r.gas_used.clone(),
+				gas_used: r.gas_used.clone(),
+				contract_address: None,
+				logs: r.logs.clone(),
+			}
+		)
 	}
 
 	fn pending_receipts(&self) -> BTreeMap<H256, Receipt> {
