@@ -2,3 +2,17 @@
   width: 100%;
   height: 100%;
 }
+
+.toolbar {
+  background: rgb(65, 65, 65) !important;
+  height: 72px !important;
+}
+
+.tabs {
+  min-width: 450px;
+}
+
+.logo {
+  height: 56px;
+  padding: 8px 2em 8px 0;
+}

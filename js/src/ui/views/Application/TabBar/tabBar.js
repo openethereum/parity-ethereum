@@ -1,10 +1,13 @@
 import React, { Component, PropTypes } from 'react';
 
+import Toolbar from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
 import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
+
+import styles from '../style.css';
 
 export default class TabBar extends Component {
   static contextTypes = {
@@ -13,23 +16,31 @@ export default class TabBar extends Component {
 
   render () {
     return (
-      <Tabs>
-        <Tab
-          data-route='/accounts'
-          icon={ <ActionAccountBalanceWallet /> }
-          label='accounts'
-          onActive={ this.onActivate } />
-        <Tab
-          data-route='/tokens'
-          icon={ <ActionDashboard /> }
-          label='tokens'
-          onActive={ this.onActivate } />
-        <Tab
-          data-route='/apps'
-          icon={ <NavigationApps /> }
-          label='apps'
-          onActive={ this.onActivate } />
-      </Tabs>
+      <Toolbar
+        className={ styles.toolbar }>
+        <img
+          className={ styles.logo }
+          src='images/parity-x56.png'
+          alt='Parity' />
+        <Tabs
+          className={ styles.tabs }>
+          <Tab
+            data-route='/accounts'
+            icon={ <ActionAccountBalanceWallet /> }
+            label='accounts'
+            onActive={ this.onActivate } />
+          <Tab
+            data-route='/tokens'
+            icon={ <ActionDashboard /> }
+            label='tokens'
+            onActive={ this.onActivate } />
+          <Tab
+            data-route='/apps'
+            icon={ <NavigationApps /> }
+            label='apps'
+            onActive={ this.onActivate } />
+        </Tabs>
+      </Toolbar>
     );
   }
 
