@@ -9,10 +9,10 @@
 }
 
 .tabs {
-  min-width: 450px;
+  width: 100%;
 }
 
 .logo {
   height: 56px;
-  padding: 8px 2em 8px 0;
+  padding: 8px 3em 8px 0;
 }
