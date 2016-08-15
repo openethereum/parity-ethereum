@@ -20,7 +20,7 @@ export default class IdentityIcon extends Component {
   updateIcon (address) {
     this.setState({
       iconsrc: blockies({
-        seed: address,
+        seed: address.toLowerCase(),
         size: 8,
         scale: 7
       }).toDataURL()
