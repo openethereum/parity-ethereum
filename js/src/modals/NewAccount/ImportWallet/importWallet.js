@@ -121,7 +121,7 @@ export default class ImportWallet extends Component {
 
   onEditPassword = (event) => {
     const value = event.target.value;
-    const valid = value.length >= 8;
+    const valid = value.length >= 1;
 
     this.setState({
       password: value,
