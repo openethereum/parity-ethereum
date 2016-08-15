@@ -6,7 +6,12 @@ export default class Apps extends Component {
   render () {
     return (
       <Container>
-        managing contracts (adding, calling, etc) should go in here, next steps... almost there...
+        <div>managing contracts should go in here</div>
+        <ul>
+          <li>adding contracts</li>
+          <li>viewing waht was added</li>
+          <li>calling stuff on them</li>
+        </ul>
       </Container>
     );
   }
