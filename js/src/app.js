@@ -12,11 +12,11 @@ injectTapEventPlugin();
 import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 import { createHashHistory } from 'history';
 
-import Accounts from './ui/views/Accounts';
-import Account from './ui/views/Account';
-import Application from './ui/views/Application';
-import Apps from './ui/views/Apps';
-import Tokens from './ui/views/Tokens';
+import Accounts from './views/Accounts';
+import Account from './views/Account';
+import Application from './views/Application';
+import Apps from './views/Apps';
+import Tokens from './views/Tokens';
 
 import styles from './reset.css';
 
