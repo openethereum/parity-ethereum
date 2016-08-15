@@ -7,7 +7,7 @@ import Form, { Input } from '../../../ui/Form';
 
 import styles from '../style.css';
 
-const DEFAULT_GAS = '30000';
+const DEFAULT_GAS = '21000';
 
 const CHECK_STYLE = {
   position: 'absolute',
@@ -51,6 +51,17 @@ export default class Details extends Component {
   }
 
   render () {
+    // <div className={ styles.columns }>
+    //   <div>
+    //     <Input
+    //       label='gas amount'
+    //       hint='the amount of gas to use for the transaction'
+    //       error={ this.state.gasError }
+    //       value={ this.state.gas }
+    //       onChange={ this.onEditGas } />
+    //   </div>
+    // </div>
+
     return (
       <Form>
         <div className={ styles.info }>
@@ -77,16 +88,6 @@ export default class Details extends Component {
               label='full account balance'
               onCheck={ this.onCheckFullAmount }
               style={ CHECK_STYLE } />
-          </div>
-        </div>
-        <div className={ styles.columns }>
-          <div>
-            <Input
-              label='gas amount'
-              hint='the amount of gas to use for the transaction'
-              error={ this.state.gasError }
-              value={ this.state.gas }
-              onChange={ this.onEditGas } />
           </div>
         </div>
         <div className={ styles.columns }>
