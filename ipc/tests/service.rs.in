@@ -16,9 +16,6 @@
 
 use std::sync::RwLock;
 use ipc::IpcConfig;
-use std::mem;
-use ipc::binary::BinaryConvertError;
-use std::collections::VecDeque;
 
 pub struct Service {
 	pub commits: RwLock<usize>,

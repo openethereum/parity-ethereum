@@ -16,7 +16,6 @@
 
 //! Block import error related types
 
-use std::collections::VecDeque;
 use error::{ImportError, BlockError, Error};
 use std::convert::From;
 
