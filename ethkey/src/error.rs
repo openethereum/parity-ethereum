@@ -38,8 +38,8 @@ pub enum Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let msg = match *self {
-			Error::InvalidSecret => "Invalid secret key".into(),
-			Error::InvalidPublic => "Invalid public key".into(),
+			Error::InvalidSecret => "Invalid secret".into(),
+			Error::InvalidPublic => "Invalid public".into(),
 			Error::InvalidAddress => "Invalid address".into(),
 			Error::InvalidSignature => "Invalid EC signature".into(),
 			Error::InvalidMessage => "Invalid AES message".into(),

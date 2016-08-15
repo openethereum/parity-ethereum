@@ -30,7 +30,7 @@ use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
 use io::IoChannel;
-use util::{U256, H256, Uint};
+use util::{U256, H256, Uint, Address};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
@@ -416,7 +416,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 #[test]
 fn starting_nonce_test() {
 	let tester = EthTester::from_spec(Spec::load(POSITIVE_NONCE_SPEC));
-	let address = ::util::hash::Address::from(10);
+	let address = Address::from(10);
 
 	let sample = tester.handler.handle_request(&(r#"
 		{

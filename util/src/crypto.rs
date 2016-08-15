@@ -23,6 +23,7 @@ use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 use sha3::Hashable;
 use std::fmt;
+use Address;
 
 /// Secret key for secp256k1 EC operations. 256 bit generic "hash" data.
 pub type Secret = H256;

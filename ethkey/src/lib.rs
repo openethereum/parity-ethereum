@@ -20,13 +20,13 @@ extern crate lazy_static;
 extern crate tiny_keccak;
 extern crate secp256k1;
 extern crate rustc_serialize;
+extern crate bigint;
 
 mod brain;
 mod error;
 mod keypair;
 mod keccak;
 mod prefix;
-mod primitive;
 mod random;
 mod signature;
 
@@ -43,7 +43,13 @@ pub trait Generator {
 pub use self::brain::Brain;
 pub use self::error::Error;
 pub use self::keypair::{KeyPair, public_to_address};
-pub use self::primitive::{Secret, Public, Address, Message};
 pub use self::prefix::Prefix;
 pub use self::random::Random;
 pub use self::signature::{sign, verify_public, verify_address, recover, Signature};
+
+use bigint::hash::{H160, H256, H512};
+
+pub type Address = H160;
+pub type Secret = H256;
+pub type Message = H256;
+pub type Public = H512;

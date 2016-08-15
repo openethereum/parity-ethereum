@@ -185,7 +185,7 @@ fn should_sign_if_account_is_unlocked() {
 		],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", signature).as_ref() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{}", signature).as_ref() + r#"","id":1}"#;
 	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 0);
 }

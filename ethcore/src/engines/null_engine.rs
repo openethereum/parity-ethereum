@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::hash::Address;
+use util::Address;
 use builtin::Builtin;
 use engines::Engine;
 use spec::CommonParams;
