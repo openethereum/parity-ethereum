@@ -122,7 +122,6 @@ pub mod ecdh {
 
 	/// Agree on a shared secret
 	pub fn agree(secret: &Secret, public: &Public) -> Result<Secret, Error> {
-
 		let context = &SECP256K1;
 		let pdata = {
 			let mut temp = [4u8; 65];

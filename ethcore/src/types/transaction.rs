@@ -320,8 +320,8 @@ impl SignedTransaction {
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
 	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<SignedTransaction, Error> {
-		if require_low && !ec::is_low_s(&self.s) {
-			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));
+		if require_low && !self.signature().is_low_s() {
+			return Err(EthkeyError::InvalidSignature.into())
 		}
 		try!(self.sender());
 		if self.gas < U256::from(self.gas_required(&schedule)) {
