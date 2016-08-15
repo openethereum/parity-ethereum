@@ -111,6 +111,10 @@ export default class Details extends Component {
       const balance = new BigNumber(this.props.balance ? this.props.balance.value : 0);
 
       amount = Api.format.fromWei(balance.minus(gas));
+
+      if (amount.lt(0)) {
+        amount = new BigNumber(0);
+      }
     }
 
     this.setState({
