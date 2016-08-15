@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
+import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import ContentSend from 'material-ui/svg-icons/content/send';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
@@ -65,6 +66,10 @@ export default class Transfer extends Component {
             recipient={ this.state.recipient }
             onChange={ this.onChangePassword } />
         );
+      case 2:
+        return (
+          <div>{ this.state.txhash }</div>
+        );
     }
   }
 
@@ -97,12 +102,20 @@ export default class Transfer extends Component {
             primary
             onTouchTap={ this.onPrev } />,
           <FlatButton
-            disabled={ !this.state.isValid }
+            disabled={ !this.state.isValid || this.state.sending }
             icon={ <ContentSend /> }
             label='Send'
             primary
             onTouchTap={ this.onSend } />
         ];
+      case 2:
+        return (
+          <FlatButton
+            icon={ <ActionDoneAll /> }
+            label='Close'
+            primary
+            onTouchTap={ this.onClose } />
+      );
     }
   }
 
@@ -131,6 +144,10 @@ export default class Transfer extends Component {
         }, this.state.password)
         .then((txhash) => {
           console.log('transaction', txhash);
+          this.setState({
+            sending: false,
+            txhash: txhash
+          }, this.onNext);
         })
         .catch((error) => {
           console.error(error);
