@@ -185,7 +185,7 @@ export default class Details extends Component {
     const isValid = !this.state.recipientError && !this.state.amountError && !this.state.gasError;
 
     this.props.onChange(isValid, {
-      amount: Api.format.fromWei(this.state.amount).toString(),
+      amount: Api.format.toWei(this.state.amount).toString(),
       gas: this.state.gas,
       recipient: this.state.recipient,
       total: this.state.total

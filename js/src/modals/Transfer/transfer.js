@@ -13,6 +13,10 @@ import Verify from './Verify';
 const STAGE_NAMES = ['transfer', 'verify transaction', 'transaction receipt'];
 
 export default class Transfer extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     address: PropTypes.string.isRequired,
     balance: PropTypes.object,
@@ -24,9 +28,11 @@ export default class Transfer extends Component {
     stage: 0,
     amount: 0,
     gas: 0,
+    password: null,
     recipient: null,
     total: 0,
-    isValid: false
+    isValid: false,
+    sending: false
   }
 
   render () {
@@ -95,7 +101,7 @@ export default class Transfer extends Component {
             icon={ <ContentSend /> }
             label='Send'
             primary
-            onTouchTap={ this.onNext } />
+            onTouchTap={ this.onSend } />
         ];
     }
   }
@@ -109,6 +115,26 @@ export default class Transfer extends Component {
   onPrev = () => {
     this.setState({
       stage: this.state.stage - 1
+    });
+  }
+
+  onSend = () => {
+    this.setState({
+      sending: true
+    }, () => {
+      this.context.api.personal
+        .signAndSendTransaction({
+          from: this.props.address,
+          to: this.state.recipient,
+          gas: this.state.gas,
+          value: this.state.amount
+        }, this.state.password)
+        .then((txhash) => {
+          console.log('transaction', txhash);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
     });
   }
 
