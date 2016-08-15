@@ -4,18 +4,27 @@ import Form, { Input } from '../../../Form';
 
 import styles from '../style.css';
 
+const ERRORS = {
+  noPassword: 'supply a valid password to confirm the transaction'
+};
+
 export default class Verify extends Component {
   static propTypes = {
     address: PropTypes.string,
     recipient: PropTypes.string,
     signer: PropTypes.bool,
     amount: PropTypes.number,
-    amountTotal: PropTypes.number
+    amountTotal: PropTypes.number,
+    onChange: PropTypes.func.isRequired
   }
 
   state = {
     password: '',
-    errorPassword: ''
+    passwordError: ERRORS.noPassword
+  }
+
+  componentDidMount () {
+    this.updateParent();
   }
 
   render () {
@@ -56,7 +65,7 @@ export default class Verify extends Component {
         <div className={ styles.columns }>
           <div>
             <Input
-              error={ this.state.errorPassword }
+              error={ this.state.passwordError }
               label='password'
               hint='password for the origin account'
               value={ this.state.password }
@@ -69,13 +78,24 @@ export default class Verify extends Component {
   }
 
   updateParent = () => {
+    const isValid = !this.state.passwordError;
+
+    this.props.onChange(isValid, {
+      password: this.state.password
+    });
   }
 
   onEditPassword = (event) => {
+    let error = null;
     const value = event.target.value;
 
+    if (!value || !value.length) {
+      error = ERRORS.noPassword;
+    }
+
     this.setState({
-      password: value
+      password: value,
+      passwordError: error
     }, this.updateParent);
   }
 }

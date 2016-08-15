@@ -21,7 +21,8 @@ export default class Transfer extends Component {
 
   state = {
     stage: 0,
-    isValid: true
+    recipient: null,
+    isValid: false
   }
 
   render () {
@@ -48,7 +49,8 @@ export default class Transfer extends Component {
         return (
           <Verify
             address={ this.props.address }
-            onChange={ this.onChangeDetails } />
+            recipient={ this.state.recipient }
+            onChange={ this.onChangePassword } />
         );
     }
   }
@@ -103,8 +105,18 @@ export default class Transfer extends Component {
     });
   }
 
-  onChangeDetails = (valid, details) => {
+  onChangeDetails = (valid, { recipient }) => {
+    this.setState({
+      recipient: recipient,
+      isValid: valid
+    });
+  }
 
+  onChangePassword = (valid, { password }) => {
+    this.setState({
+      password: password,
+      isValid: valid
+    });
   }
 
   onClose = () => {

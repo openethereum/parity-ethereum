@@ -15,6 +15,11 @@ const CHECK_STYLE = {
   left: '1em'
 };
 
+const ERRORS = {
+  requireRecipient: 'a recipient account is required for the transaction',
+  invalidAddress: 'the supplied address is an invalid network address'
+};
+
 export default class Details extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -27,12 +32,12 @@ export default class Details extends Component {
 
   state = {
     recipient: '',
+    recipientError: ERRORS.requireRecipient,
     amount: 0.0,
     amountFull: false,
     amountGas: DEFAULT_GAS,
     amountTotal: 0.0,
-    gasprice: 0,
-    isValid: false
+    gasprice: 0
   }
 
   componentDidMount () {
@@ -48,6 +53,7 @@ export default class Details extends Component {
         <Input
           label='recipient address'
           hint='the recipient address'
+          error={ this.state.recipientError }
           value={ this.state.recipient }
           onChange={ this.onEditRecipient } />
         <div className={ styles.columns }>
@@ -89,10 +95,6 @@ export default class Details extends Component {
     );
   }
 
-  updateParent = () => {
-    this.props.onChange(this.state.isValid);
-  }
-
   onCheckFullAmount = (event) => {
     this.setState({
       amountFull: !this.state.amountFull
@@ -116,12 +118,27 @@ export default class Details extends Component {
   }
 
   onEditRecipient = (event) => {
+    let error = null;
     const value = event.target.value;
+
+    if (!value || !value.length) {
+      error = ERRORS.requireRecipient;
+    } else if (!Api.format.isAddressValid(value)) {
+      error = ERRORS.invalidAddress;
+    }
 
     this.setState({
       recipient: value,
-      isValid: false
+      recipientError: error
     }, this.calculateTotals);
+  }
+
+  updateParent = () => {
+    const isValid = !this.state.recipientError;
+
+    this.props.onChange(isValid, {
+      recipient: this.state.recipient
+    });
   }
 
   calculateTotals = () => {
