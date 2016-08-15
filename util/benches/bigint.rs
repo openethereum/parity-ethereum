@@ -24,11 +24,11 @@
 #![feature(asm)]
 
 extern crate test;
-extern crate ethcore_util;
+extern crate bigint;
 extern crate rand;
 
 use test::{Bencher, black_box};
-use ethcore_util::U256;
+use bigint::uint::{U256, U512, Uint, U128};
 
 #[bench]
 fn u256_add(b: &mut Bencher) {
