@@ -6,6 +6,7 @@
 .toolbar {
   background: rgb(65, 65, 65) !important;
   height: 72px !important;
+  position: relative;
 }
 
 .tabs {

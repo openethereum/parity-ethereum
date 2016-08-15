@@ -7,6 +7,8 @@ import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-bal
 import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
+import Tooltip from '../../../ui/Tooltip';
+
 import styles from '../style.css';
 
 export default class TabBar extends Component {
@@ -22,6 +24,8 @@ export default class TabBar extends Component {
           className={ styles.logo }
           src='images/parity-x56.png'
           alt='Parity' />
+        <Tooltip
+          text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
         <Tabs
           className={ styles.tabs }>
           <Tab
