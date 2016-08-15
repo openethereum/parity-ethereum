@@ -21,9 +21,6 @@ use util::sha3::*;
 use util::bloom::Bloomable;
 use client::BlockID;
 use log_entry::LogEntry;
-use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 /// Blockchain Filter.
 #[derive(Binary)]
