@@ -2,8 +2,6 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
 
-import ContentSend from 'material-ui/svg-icons/content/send';
-
 import Api from '../../../api';
 import etherscan from '../../../3rdparty/etherscan';
 import Container from '../../../ui/Container';
@@ -65,13 +63,10 @@ export default class Transactions extends Component {
         const hashLink = `https://etherscan.io/tx/${tx.hash}`;
         const fromLink = `https://etherscan.io/address/${tx.from}`;
         const toLink = `https://etherscan.io/address/${tx.to}`;
-        const send = null; // tx.from === this.props.address ? <ContentSend /> : null;
 
         return (
           <tr key={ tx.hash }>
-            <td className={ styles.center }>
-              { send }
-            </td>
+            <td className={ styles.center }></td>
             <td className={ styles.center }>
               <a href={ fromLink } target='_blank'>{ formatHash(tx.from) }</a>
             </td>
