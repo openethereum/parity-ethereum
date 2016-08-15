@@ -11,7 +11,8 @@ export default class AccountSummary extends Component {
   }
 
   static propTypes = {
-    account: PropTypes.object.isRequired
+    account: PropTypes.object.isRequired,
+    children: PropTypes.node
   }
 
   state = {
@@ -31,6 +32,7 @@ export default class AccountSummary extends Component {
           byline={ account.address } />
         <Balances
           address={ account.address } />
+        { this.props.children }
       </Container>
     );
   }

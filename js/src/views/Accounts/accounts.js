@@ -53,8 +53,9 @@ export default class Accounts extends Component {
           className={ styles.account }
           key={ account.address }>
           <AccountSummary
-            account={ account } />
-          { idx === 0 ? firstTooltip : null }
+            account={ account }>
+            { idx === 0 ? firstTooltip : null }
+          </AccountSummary>
         </div>
       );
     });
