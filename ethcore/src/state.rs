@@ -422,8 +422,10 @@ impl Clone for State {
 #[cfg(test)]
 mod tests {
 
+use std::str::FromStr;
+use rustc_serialize::hex::FromHex;
 use super::*;
-use util::common::*;
+use util::{U256, H256, FixedHash, Address, Hashable};
 use account::*;
 use tests::helpers::*;
 use devtools::*;

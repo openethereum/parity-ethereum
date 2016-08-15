@@ -18,12 +18,11 @@ extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethkey;
 
-use std::str::FromStr;
 use std::{env, fmt, process};
 use std::num::ParseIntError;
 use docopt::Docopt;
 use rustc_serialize::hex::{FromHex, FromHexError};
-use ethkey::{KeyPair, Random, Brain, Prefix, Error as EthkeyError, Generator, Secret, Message, Public, Signature, Address, sign, verify_public, verify_address};
+use ethkey::{KeyPair, Random, Brain, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address};
 
 pub const USAGE: &'static str = r#"
 Ethereum keys generator.
@@ -148,9 +147,9 @@ fn main() {
 fn display(keypair: KeyPair, mode: DisplayMode) -> String {
 	match mode {
 		DisplayMode::KeyPair => format!("{}", keypair),
-		DisplayMode::Secret => format!("{}", keypair.secret()),
-		DisplayMode::Public => format!("{}", keypair.public()),
-		DisplayMode::Address => format!("{}", keypair.address()),
+		DisplayMode::Secret => format!("{:?}", keypair.secret()),
+		DisplayMode::Public => format!("{:?}", keypair.public()),
+		DisplayMode::Address => format!("{:?}", keypair.address()),
 	}
 }
 
@@ -161,7 +160,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	return if args.cmd_info {
 		let display_mode = DisplayMode::new(&args);
-		let secret = try!(Secret::from_str(&args.arg_secret));
+		let secret = try!(args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret));
 		let keypair = try!(KeyPair::from_secret(secret));
 		Ok(display(keypair, display_mode))
 	} else if args.cmd_generate {
@@ -179,18 +178,18 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		};
 		Ok(display(try!(keypair), display_mode))
 	} else if args.cmd_sign {
-		let secret = try!(Secret::from_str(&args.arg_secret));
-		let message = try!(Message::from_str(&args.arg_message));
+		let secret = try!(args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret));
+		let message = try!(args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage));
 		let signature = try!(sign(&secret, &message));
 		Ok(format!("{}", signature))
 	} else if args.cmd_verify {
-		let signature = try!(Signature::from_str(&args.arg_signature));
-		let message = try!(Message::from_str(&args.arg_message));
+		let signature = try!(args.arg_signature.parse().map_err(|_| EthkeyError::InvalidSignature));
+		let message = try!(args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage));
 		let ok = if args.cmd_public {
-			let public = try!(Public::from_str(&args.arg_public));
+			let public = try!(args.arg_public.parse().map_err(|_| EthkeyError::InvalidPublic));
 			try!(verify_public(&public, &signature, &message))
 		} else if args.cmd_address {
-			let address = try!(Address::from_str(&args.arg_address));
+			let address = try!(args.arg_address.parse().map_err(|_| EthkeyError::InvalidAddress));
 			try!(verify_address(&address, &signature, &message))
 		} else {
 			unreachable!();
@@ -212,7 +211,7 @@ mod tests {
 			.map(Into::into)
 			.collect::<Vec<String>>();
 
-		let expected = 
+		let expected =
 "secret:  17d08f5fe8c77af811caa0c9a187e668ce3b74a99acc3f6d976f075fa8e0be55
 public:  689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124
 address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
@@ -226,7 +225,7 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 			.map(Into::into)
 			.collect::<Vec<String>>();
 
-		let expected = 
+		let expected =
 "secret:  17d08f5fe8c77af811caa0c9a187e668ce3b74a99acc3f6d976f075fa8e0be55
 public:  689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124
 address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
@@ -272,7 +271,7 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
-		
+
 		let expected = "c1878cf60417151c766a712653d26ef350c8c75393458b7a9be715f053215af63dfd3b02c2ae65a8677917a8efa3172acb71cb90196e42106953ea0363c5aaf200".to_owned();
 		assert_eq!(execute(command).unwrap(), expected);
 	}

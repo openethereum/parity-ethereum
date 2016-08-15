@@ -36,14 +36,11 @@
 //! The functions here are designed to be fast.
 //!
 
-use std::mem;
-use std::fmt;
+use std::{mem, fmt};
 use std::str::{FromStr};
-use std::convert::From;
 use std::hash::Hash;
-use std::ops::*;
-use std::cmp::*;
-
+use std::ops::{Shr, Shl, BitAnd, BitOr, BitXor, Not, Div, Rem, Mul, Add, Sub};
+use std::cmp::Ordering;
 use rustc_serialize::hex::{FromHex, FromHexError};
 
 /// Conversion from decimal string error
@@ -2208,5 +2205,59 @@ mod tests {
 		let result = U256([1, 2, 3, 4]).full_mul(U256([5, 6, 7, 8]));
 		assert_eq!(U512([5, 16, 34, 60, 61, 52, 32, 0]), result);
 	}
-}
 
+	#[test]
+	fn u256_multi_muls2() {
+
+		let (result, _) = U256([0, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, 0]));
+		assert_eq!(U256([0, 0, 0, 0]), result);
+
+		let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([1, 0, 0, 0]));
+		assert_eq!(U256([1, 0, 0, 0]), result);
+
+		let (result, _) = U256([5, 0, 0, 0]).overflowing_mul(U256([5, 0, 0, 0]));
+		assert_eq!(U256([25, 0, 0, 0]), result);
+
+		let (result, _) = U256([0, 5, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+		assert_eq!(U256([0, 0, 25, 0]), result);
+
+		let (result, _) = U256([0, 0, 0, 1]).overflowing_mul(U256([1, 0, 0, 0]));
+		assert_eq!(U256([0, 0, 0, 1]), result);
+
+		let (result, _) = U256([0, 0, 0, 5]).overflowing_mul(U256([2, 0, 0, 0]));
+		assert_eq!(U256([0, 0, 0, 10]), result);
+
+		let (result, _) = U256([0, 0, 1, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+		assert_eq!(U256([0, 0, 0, 5]), result);
+
+		let (result, _) = U256([0, 0, 8, 0]).overflowing_mul(U256([0, 0, 7, 0]));
+		assert_eq!(U256([0, 0, 0, 0]), result);
+
+		let (result, _) = U256([2, 0, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+		assert_eq!(U256([0, 10, 0, 0]), result);
+
+		let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, u64::max_value()]));
+		assert_eq!(U256([0, 0, 0, u64::max_value()]), result);
+
+		let x1: U256 = "0000000000000000000000000000000000000000000000000000012365124623".into();
+		let x2sqr_right: U256 = "000000000000000000000000000000000000000000014baeef72e0378e2328c9".into();
+		let x1sqr = x1 * x1;
+		assert_eq!(x2sqr_right, x1sqr);
+
+		let x1cube = x1sqr * x1;
+		let x1cube_right: U256 = "0000000000000000000000000000000001798acde139361466f712813717897b".into();
+		assert_eq!(x1cube_right, x1cube);
+
+		let x1quad = x1cube * x1;
+		let x1quad_right: U256 = "000000000000000000000001adbdd6bd6ff027485484b97f8a6a4c7129756dd1".into();
+		assert_eq!(x1quad_right, x1quad);
+
+		let x1penta = x1quad * x1;
+		let x1penta_right: U256 = "00000000000001e92875ac24be246e1c57e0507e8c46cc8d233b77f6f4c72993".into();
+		assert_eq!(x1penta_right, x1penta);
+
+		let x1septima = x1penta * x1;
+		let x1septima_right: U256 = "00022cca1da3f6e5722b7d3cc5bbfb486465ebc5a708dd293042f932d7eee119".into();
+		assert_eq!(x1septima_right, x1septima);
+	}
+}
