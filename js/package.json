@@ -104,6 +104,7 @@
     "js-sha3": "^0.5.2",
     "lodash": "4.11.1",
     "material-ui": "^0.15.4",
+    "moment": "^2.14.1",
     "react": "^15.2.1",
     "react-addons-css-transition-group": "^15.2.1",
     "react-dom": "^15.2.1",

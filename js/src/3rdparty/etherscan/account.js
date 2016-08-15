@@ -1,5 +1,6 @@
 const PAGE_SIZE = 25;
 
+import Api from '../../api';
 import { call } from './call';
 
 function _call (method, params) {
@@ -33,6 +34,17 @@ function transactions (address, page) {
     page: (page || 0) + 1,
     offset: PAGE_SIZE,
     sort: 'desc'
+  }).then((transactions) => {
+    return transactions.map((tx) => {
+      return {
+        from: Api.format.toChecksumAddress(tx.from),
+        to: Api.format.toChecksumAddress(tx.to),
+        hash: tx.hash,
+        blockNumber: tx.blockNumber,
+        timeStamp: tx.timeStamp,
+        value: tx.value
+      };
+    });
   });
 }
 

@@ -1,3 +1,19 @@
 .editicon {
   margin-left: 0.5em;
 }
+
+.right {
+  text-align: right;
+}
+
+.center {
+  text-align: center;
+}
+
+.left {
+  text-align: left;
+}
+
+.transactions {
+  width: 100%;
+}

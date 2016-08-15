@@ -9,7 +9,8 @@ import Container, { Title } from '../../ui/Container';
 import Form, { FormWrap, Input, InputInline } from '../../ui/Form';
 import IdentityIcon from '../../ui/IdentityIcon';
 
-import Actions from './actions';
+import Actions from './Actions';
+import Transactions from './Transactions';
 
 import styles from './style.css';
 
@@ -82,6 +83,8 @@ export default class Account extends Component {
             address={ address }
             onChange={ this.onChangeBalances } />
         </Container>
+        <Transactions
+          address={ address } />
       </div>
     );
   }
