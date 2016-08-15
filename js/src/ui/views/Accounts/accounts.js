@@ -75,16 +75,18 @@ export default class Accounts extends Component {
       ])
       .then(([addresses, infos]) => {
         this.setState({
-          accounts: addresses.map((address) => {
-            const info = infos[address];
+          accounts: addresses
+            .filter((address) => infos[address].uuid)
+            .map((address) => {
+              const info = infos[address];
 
-            return {
-              address: address,
-              name: info.name,
-              uuid: info.uuid,
-              meta: info.meta
-            };
-          })
+              return {
+                address: address,
+                name: info.name,
+                uuid: info.uuid,
+                meta: info.meta
+              };
+            })
         });
       });
   }
