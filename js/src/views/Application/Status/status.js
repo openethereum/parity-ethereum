@@ -22,8 +22,8 @@ export default class Status extends Component {
     return (
       <div className={ styles.status }>
         <div>{ this.state.clientVersion }</div>
+        <div>{ this.state.blockNumber } blocks</div>
         <div>{ this.state.peerCount } peers</div>
-        <div>{ this.state.blockNumber }</div>
       </div>
     );
   }

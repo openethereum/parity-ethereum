@@ -2,4 +2,11 @@
   clear: both;
   padding: 1em;
   margin: 1em 0;
+  text-align: right;
+  opacity: 0.75;
+}
+
+.title {
+  font-weight: bold;
+  margin: 0 0.5em 0 2em;
 }
