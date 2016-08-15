@@ -40,6 +40,10 @@ pub trait ChainNotify : Send + Sync {
 	fn stop(&self) {
 		// does nothing by default
 	}
+
+	/// fires when chain broadcasts a message
+	fn broadcast(&self, _data: Vec<u8>) {
+	}
 }
 
 impl IpcConfig for ChainNotify { }

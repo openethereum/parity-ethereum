@@ -1020,6 +1020,10 @@ impl BlockChainClient for Client {
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.pending_transactions()
 	}
+
+	fn queue_infinity_message(&self, _message: Bytes) {
+		//TODO: handle message here
+	}
 }
 
 impl MiningBlockChainClient for Client {

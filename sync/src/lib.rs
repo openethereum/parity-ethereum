@@ -82,6 +82,7 @@ extern crate parking_lot;
 mod chain;
 mod blocks;
 mod sync_io;
+mod infinity;
 
 #[cfg(test)]
 mod tests;

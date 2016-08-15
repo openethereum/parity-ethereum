@@ -554,6 +554,10 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
+	fn queue_infinity_message(&self, _packet: Bytes) {
+		unimplemented!();
+	}
+
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.pending_transactions()
 	}
