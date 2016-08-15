@@ -24,6 +24,7 @@ export default class Account extends Component {
 
   state = {
     name: 'Unnamed',
+    balances: [],
     fundDialog: false,
     transferDialog: false
   }
@@ -51,6 +52,7 @@ export default class Account extends Component {
           visible={ this.state.fundDialog } />
         <Transfer
           address={ address }
+          balance={ this.state.balances[0] }
           onClose={ this.onTransferClose }
           visible={ this.state.transferDialog } />
         <Actions
@@ -77,7 +79,8 @@ export default class Account extends Component {
             </FormWrap>
           </Form>
           <Balances
-            address={ address } />
+            address={ address }
+            onChange={ this.onChangeBalances } />
         </Container>
       </div>
     );
@@ -97,6 +100,12 @@ export default class Account extends Component {
 
   onTransferClose = () => {
     this.onTransferClick();
+  }
+
+  onChangeBalances = (balances) => {
+    this.setState({
+      balances: balances
+    });
   }
 
   onEditName = (event) => {

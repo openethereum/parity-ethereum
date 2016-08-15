@@ -15,13 +15,17 @@ const STAGE_NAMES = ['transfer', 'verify transaction', 'transaction receipt'];
 export default class Transfer extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
+    balance: PropTypes.object,
     visible: PropTypes.bool.isRequired,
     onClose: PropTypes.func
   }
 
   state = {
     stage: 0,
+    amount: 0,
+    gas: 0,
     recipient: null,
+    total: 0,
     isValid: false
   }
 
@@ -43,12 +47,15 @@ export default class Transfer extends Component {
         return (
           <Details
             address={ this.props.address }
+            balance={ this.props.balance }
             onChange={ this.onChangeDetails } />
         );
       case 1:
         return (
           <Verify
             address={ this.props.address }
+            amount={ this.state.amount }
+            total={ this.state.total }
             recipient={ this.state.recipient }
             onChange={ this.onChangePassword } />
         );
@@ -105,9 +112,12 @@ export default class Transfer extends Component {
     });
   }
 
-  onChangeDetails = (valid, { recipient }) => {
+  onChangeDetails = (valid, { amount, gas, recipient, total }) => {
     this.setState({
+      amount: amount,
+      gas: gas,
       recipient: recipient,
+      total: total,
       isValid: valid
     });
   }

@@ -17,7 +17,9 @@ const CHECK_STYLE = {
 
 const ERRORS = {
   requireRecipient: 'a recipient account is required for the transaction',
-  invalidAddress: 'the supplied address is an invalid network address'
+  invalidAddress: 'the supplied address is an invalid network address',
+  invalidAmount: 'the supplied amount should be a valid positive number',
+  largeAmount: 'the transaction total is higher than the available balance'
 };
 
 export default class Details extends Component {
@@ -27,16 +29,20 @@ export default class Details extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
+    balance: PropTypes.object,
     onChange: PropTypes.func.isRequired
   }
 
   state = {
     recipient: '',
     recipientError: ERRORS.requireRecipient,
-    amount: 0.0,
+    amount: 0,
+    accountError: null,
     amountFull: false,
-    amountGas: DEFAULT_GAS,
-    amountTotal: 0.0,
+    gas: DEFAULT_GAS,
+    gasError: null,
+    total: 0,
+    totalError: null,
     gasprice: 0
   }
 
@@ -78,7 +84,8 @@ export default class Details extends Component {
             <Input
               label='gas amount'
               hint='the amount of gas to use for the transaction'
-              value={ this.state.amountGas }
+              error={ this.state.gasError }
+              value={ this.state.gas }
               onChange={ this.onEditGas } />
           </div>
         </div>
@@ -88,7 +95,8 @@ export default class Details extends Component {
               disabled
               label='total amount'
               hint='the total amount of the transaction'
-              value={ `${this.state.amountTotal} ΞTH` } />
+              error={ this.state.totalError }
+              value={ `${Api.format.fromWei(this.state.total).toFormat()} ΞTH` } />
           </div>
         </div>
       </Form>
@@ -98,22 +106,48 @@ export default class Details extends Component {
   onCheckFullAmount = (event) => {
     this.setState({
       amountFull: !this.state.amountFull
-    });
+    }, this.calculateTotals);
   }
 
   onEditAmount = (event) => {
-    const value = event.target.value;
+    let value = event.target.value;
+    let error = null;
+    let num = null;
+
+    try {
+      num = new BigNumber(value);
+    } catch (e) {
+      num = null;
+    }
+
+    if (!num || num.lt(0)) {
+      error = ERRORS.invalidAmount;
+    }
 
     this.setState({
-      amount: value
+      amount: value,
+      amountError: error
     }, this.calculateTotals);
   }
 
   onEditGas = (event) => {
-    const value = event.target.value;
+    let value = event.target.value;
+    let error = null;
+    let num = null;
+
+    try {
+      num = new BigNumber(value);
+    } catch (e) {
+      num = null;
+    }
+
+    if (!num || num.lt(0)) {
+      error = ERRORS.invalidAmount;
+    }
 
     this.setState({
-      amount: value
+      gas: value,
+      gasError: error
     }, this.calculateTotals);
   }
 
@@ -134,20 +168,30 @@ export default class Details extends Component {
   }
 
   updateParent = () => {
-    const isValid = !this.state.recipientError;
+    const isValid = !this.state.recipientError && !this.state.amountError && !this.state.gasError;
 
     this.props.onChange(isValid, {
-      recipient: this.state.recipient
+      amount: Api.format.fromWei(this.state.amount).toString(),
+      gas: this.state.gas,
+      recipient: this.state.recipient,
+      total: this.state.total
     });
   }
 
   calculateTotals = () => {
-    const gas = new BigNumber(this.state.gasprice).mul(new BigNumber(this.state.amountGas || 0));
+    const gas = new BigNumber(this.state.gasprice).mul(new BigNumber(this.state.gas || 0));
     const amount = Api.format.toWei(this.state.amount || 0);
-    const total = Api.format.fromWei(amount.plus(gas));
+    const total = amount.plus(gas);
+    const balance = new BigNumber(this.props.balance ? this.props.balance.value : 0);
+    let error = null;
+
+    if (total.gt(balance)) {
+      error = ERRORS.largeAmount;
+    }
 
     this.setState({
-      amountTotal: total.toNumber()
+      total: total.toString(),
+      totalError: error
     }, this.updateParent);
   }
 

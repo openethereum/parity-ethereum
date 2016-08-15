@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
+import Api from '../../../../api';
 import Form, { Input } from '../../../Form';
 
 import styles from '../style.css';
@@ -13,8 +14,8 @@ export default class Verify extends Component {
     address: PropTypes.string,
     recipient: PropTypes.string,
     signer: PropTypes.bool,
-    amount: PropTypes.number,
-    amountTotal: PropTypes.number,
+    amount: PropTypes.string,
+    total: PropTypes.string,
     onChange: PropTypes.func.isRequired
   }
 
@@ -50,16 +51,16 @@ export default class Verify extends Component {
           <div>
             <Input
               disabled
-              label='amount to transfer (in ΞTH)'
+              label='amount to transfer'
               hint='the amount to transfer to the recipient'
-              value={ this.props.amount } />
+              value={ `${Api.format.fromWei(this.props.amount).toFormat()} ΞTH` } />
           </div>
           <div>
             <Input
               disabled
-              label='total transaction amount (in ΞTH)'
+              label='total transaction amount'
               hint='the amount used by this transaction'
-              value={ this.props.amountTotal } />
+              value={ `${Api.format.fromWei(this.props.total).toFormat()} ΞTH` } />
           </div>
         </div>
         <div className={ styles.columns }>

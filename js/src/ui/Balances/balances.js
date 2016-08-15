@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import Api from '../../api';
@@ -10,7 +11,8 @@ export default class Balances extends Component {
   }
 
   static propTypes = {
-    address: PropTypes.string.isRequired
+    address: PropTypes.string.isRequired,
+    onChange: PropTypes.func
   }
 
   state = {
@@ -23,7 +25,7 @@ export default class Balances extends Component {
 
   render () {
     const balances = this.state.balances
-      .filter((balance) => balance.value.gt(0))
+      .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
         return (
           <div
@@ -33,7 +35,7 @@ export default class Balances extends Component {
               src={ balance.img }
               alt={ balance.type } />
             <div>
-              { balance.value.toFormat() } { balance.token }
+              { Api.format.fromWei(balance.value).toFormat() } { balance.token }
             </div>
           </div>
         );
@@ -50,6 +52,14 @@ export default class Balances extends Component {
     );
   }
 
+  updateParent = () => {
+    if (!this.props.onChange) {
+      return;
+    }
+
+    this.props.onChange(this.state.balances);
+  }
+
   getBalances () {
     const api = this.context.api;
 
@@ -62,12 +72,12 @@ export default class Balances extends Component {
           balances: [
             {
               token: 'ΞTH',
-              value: Api.format.fromWei(balance),
+              value: balance.toString(),
               img: 'images/ethereum-32x32.png',
               type: 'Ethereum'
             }
           ]
-        });
+        }, this.updateParent);
       });
   }
 }
