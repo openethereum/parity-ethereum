@@ -17,8 +17,8 @@
 //! General hash types, a fixed-size raw-data type used as the output of hash functions.
 
 use std::{ops, fmt, cmp};
-use std::cmp::*;
-use std::ops::*;
+use std::cmp::{min, Ordering};
+use std::ops::{Deref, DerefMut, BitXor, BitAnd, BitOr, IndexMut, Index};
 use std::hash::{Hash, Hasher, BuildHasherDefault};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
@@ -72,6 +72,12 @@ macro_rules! impl_hash {
 		impl From<[u8; $size]> for $from {
 			fn from(bytes: [u8; $size]) -> Self {
 				$from(bytes)
+			}
+		}
+
+		impl From<$from> for [u8; $size] {
+			fn from(s: $from) -> Self {
+				s.0
 			}
 		}
 
@@ -409,9 +415,9 @@ impl<'a> From<&'a H256> for U256 {
 	}
 }
 
-impl From<H256> for Address {
-	fn from(value: H256) -> Address {
-		let mut ret = Address::new();
+impl From<H256> for H160 {
+	fn from(value: H256) -> H160 {
+		let mut ret = H160::new();
 		ret.0.copy_from_slice(&value[12..32]);
 		ret
 	}
@@ -425,16 +431,16 @@ impl From<H256> for H64 {
 	}
 }
 
-impl From<Address> for H256 {
-	fn from(value: Address) -> H256 {
+impl From<H160> for H256 {
+	fn from(value: H160) -> H256 {
 		let mut ret = H256::new();
 		ret.0[12..32].copy_from_slice(&value);
 		ret
 	}
 }
 
-impl<'a> From<&'a Address> for H256 {
-	fn from(value: &'a Address) -> H256 {
+impl<'a> From<&'a H160> for H256 {
+	fn from(value: &'a H160) -> H256 {
 		let mut ret = H256::new();
 		ret.0[12..32].copy_from_slice(value);
 		ret
@@ -444,7 +450,7 @@ impl<'a> From<&'a Address> for H256 {
 impl_hash!(H32, 4);
 impl_hash!(H64, 8);
 impl_hash!(H128, 16);
-impl_hash!(Address, 20);
+impl_hash!(H160, 20);
 impl_hash!(H256, 32);
 impl_hash!(H264, 33);
 impl_hash!(H512, 64);
@@ -452,7 +458,7 @@ impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
 
-known_heap_size!(0, H32, H64, H128, Address, H256, H264, H512, H520, H1024, H2048);
+known_heap_size!(0, H32, H64, H128, H160, H256, H264, H512, H520, H1024, H2048);
 // Specialized HashMap and HashSet
 
 /// Hasher that just takes 8 bytes of the provided value.
@@ -535,9 +541,9 @@ mod tests {
 
 	#[test]
 	fn from_and_to_address() {
-		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
+		let address: H160 = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
 		let h = H256::from(address.clone());
-		let a = Address::from(h);
+		let a = H160::from(h);
 		assert_eq!(address, a);
 	}
 

@@ -16,7 +16,7 @@
 
 //! Interface for Evm externalities.
 
-use util::common::*;
+use util::*;
 use evm::{self, Schedule};
 use env_info::*;
 use types::executed::CallType;
