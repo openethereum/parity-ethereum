@@ -6,6 +6,7 @@
 .account {
   flex: 0 1 50%;
   width: 50%;
+  position: relative;
 }
 
 .account:nth-child(odd)>div {
@@ -14,4 +15,8 @@
 
 .account:nth-child(even)>div {
   padding-left: 0.5em !important;
+}
+
+.toolbar {
+  position: relative;
 }

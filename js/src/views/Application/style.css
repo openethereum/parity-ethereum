@@ -11,6 +11,7 @@
 
 .tabs {
   width: 100%;
+  position: relative;
 }
 
 .logo {

@@ -3,6 +3,7 @@ import React, { Component } from 'react';
 import AccountSummary from './AccountSummary';
 import Actions from './Actions';
 import { NewAccount } from '../../modals';
+import Tooltip from '../../ui/Tooltip';
 
 import styles from './style.css';
 
@@ -41,13 +42,19 @@ export default class Accounts extends Component {
       return null;
     }
 
-    return this.state.accounts.map((account) => {
+    const firstTooltip = (
+      <Tooltip
+        text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
+    );
+
+    return this.state.accounts.map((account, idx) => {
       return (
         <div
           className={ styles.account }
           key={ account.address }>
           <AccountSummary
             account={ account } />
+          { idx === 0 ? firstTooltip : null }
         </div>
       );
     });

@@ -24,8 +24,6 @@ export default class TabBar extends Component {
           className={ styles.logo }
           src='images/parity-x56.png'
           alt='Parity' />
-        <Tooltip
-          text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
         <Tabs
           className={ styles.tabs }>
           <Tab
@@ -43,6 +41,8 @@ export default class TabBar extends Component {
             icon={ <NavigationApps /> }
             label='apps'
             onActive={ this.onActivate } />
+          <Tooltip
+            text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
         </Tabs>
       </Toolbar>
     );
