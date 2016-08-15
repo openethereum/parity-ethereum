@@ -30,7 +30,10 @@ export default class TabBar extends Component {
             data-route='/accounts'
             icon={ <ActionAccountBalanceWallet /> }
             label='accounts'
-            onActive={ this.onActivate } />
+            onActive={ this.onActivate }>
+            <Tooltip
+              text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+          </Tab>
           <Tab
             data-route='/tokens'
             icon={ <ActionDashboard /> }
@@ -41,8 +44,6 @@ export default class TabBar extends Component {
             icon={ <NavigationApps /> }
             label='apps'
             onActive={ this.onActivate } />
-          <Tooltip
-            text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
         </Tabs>
       </Toolbar>
     );

@@ -5,6 +5,7 @@ import darkBaseTheme from 'material-ui/styles/baseThemes/darkBaseTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
 import Api from '../../api';
+import { TooltipManager } from '../../ui/Tooltip';
 
 import { FirstRun } from '../../modals';
 import Status from './Status';
@@ -15,6 +16,7 @@ import styles from './style.css';
 const lightTheme = getMuiTheme(lightBaseTheme);
 const muiTheme = getMuiTheme(darkBaseTheme);
 const api = new Api(new Api.Transport.Http('/rpc/'));
+const tooltips = new TooltipManager();
 
 muiTheme.stepper.textColor = '#eee';
 muiTheme.stepper.disabledTextColor = '#777';
@@ -28,7 +30,8 @@ muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
 export default class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
-    muiTheme: PropTypes.object
+    muiTheme: PropTypes.object,
+    tooltips: PropTypes.object
   }
 
   static propTypes = {
@@ -60,7 +63,8 @@ export default class Application extends Component {
   getChildContext () {
     return {
       api: api,
-      muiTheme: muiTheme
+      muiTheme: muiTheme,
+      tooltips: tooltips
     };
   }
 
