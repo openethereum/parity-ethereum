@@ -104,7 +104,17 @@ export default class Details extends Component {
   }
 
   onCheckFullAmount = (event) => {
+    let amount = this.state.amount;
+
+    if (!this.state.amountFull) {
+      const gas = new BigNumber(this.state.gasprice).mul(new BigNumber(this.state.gas || 0));
+      const balance = new BigNumber(this.props.balance ? this.props.balance.value : 0);
+
+      amount = Api.format.fromWei(balance.minus(gas));
+    }
+
     this.setState({
+      amount: amount.toString(),
       amountFull: !this.state.amountFull
     }, this.calculateTotals);
   }
