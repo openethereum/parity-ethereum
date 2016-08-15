@@ -1,6 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 
+import IconButton from 'material-ui/IconButton';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
+import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
 import Form, { Input } from '../../../ui/Form';
 import IdentityIcon from '../../../ui/IdentityIcon';
@@ -126,11 +128,18 @@ export default class CreateAccount extends Component {
     return (
       <div className={ styles.identities }>
         { identities }
+        <div className={ styles.refresh }>
+          <IconButton
+            onTouchTap={ this.createIdentities }>
+            <ActionAutorenew
+              color='rgb(0, 151, 167)' />
+          </IconButton>
+        </div>
       </div>
     );
   }
 
-  createIdentities () {
+  createIdentities = () => {
     const api = this.context.api;
 
     Promise
