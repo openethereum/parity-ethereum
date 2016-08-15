@@ -7,6 +7,12 @@ import IdentityIcon from '../../../IdentityIcon';
 
 import styles from '../style.css';
 
+const ERRORS = {
+  noName: 'you need to specify a valid name for the account',
+  invalidPassword: 'you need to specify a password >= 8 characters',
+  noMatchPassword: 'the supplied passwords does not match'
+};
+
 export default class CreateAccount extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -18,8 +24,11 @@ export default class CreateAccount extends Component {
 
   state = {
     accountName: '',
+    accountNameError: ERRORS.noName,
     password1: '',
+    password1Error: ERRORS.invalidPassword,
     password2: '',
+    password2Error: ERRORS.noMatchPassword,
     accounts: null,
     selectedAddress: '',
     isValidPass: false,
@@ -40,6 +49,7 @@ export default class CreateAccount extends Component {
         <Input
           label='account name'
           hint='a descriptive name for the account'
+          error={ this.state.accountNameError }
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
         <div className={ styles.passwords }>
@@ -49,6 +59,7 @@ export default class CreateAccount extends Component {
               label='password'
               hint='a strong, unique password'
               type='password'
+              error={ this.state.password1Error }
               value={ this.state.password1 }
               onChange={ this.onEditPassword1 } />
           </div>
@@ -58,6 +69,7 @@ export default class CreateAccount extends Component {
               label='password (repeat)'
               hint='verify your password'
               type='password'
+              error={ this.state.password2Error }
               value={ this.state.password2 }
               onChange={ this.onEditPassword2 } />
           </div>
@@ -175,31 +187,52 @@ export default class CreateAccount extends Component {
 
   onEditAccountName = (event) => {
     const value = event.target.value;
-    const valid = value.length >= 2;
+    let error = null;
+
+    if (!value || value.trim().length < 2) {
+      error = ERRORS.noName;
+    }
 
     this.setState({
       accountName: value,
-      isValidName: valid
+      accountNameError: error,
+      isValidName: !error
     }, this.updateParent);
   }
 
   onEditPassword1 = (event) => {
     const value = event.target.value;
-    const valid = value.length >= 8 && this.state.password2 === value;
+    let error1 = null;
+    let error2 = null;
+
+    if (!value || value.trim().length < 8) {
+      error1 = ERRORS.invalidPassword;
+    }
+
+    if (value !== this.state.password2) {
+      error2 = ERRORS.noMatchPassword;
+    }
 
     this.setState({
       password1: value,
-      isValidPass: valid
+      password1Error: error1,
+      password2Error: error2,
+      isValidPass: !error1 && !error2
     }, this.updateParent);
   }
 
   onEditPassword2 = (event) => {
     const value = event.target.value;
-    const valid = value.length >= 8 && this.state.password1 === value;
+    let error2 = null;
+
+    if (value !== this.state.password1) {
+      error2 = ERRORS.noMatchPassword;
+    }
 
     this.setState({
       password2: value,
-      isValidPass: valid
+      password2Error: error2,
+      isValidPass: !error2
     }, this.updateParent);
   }
 }
