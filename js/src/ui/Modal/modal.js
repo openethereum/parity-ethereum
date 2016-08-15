@@ -2,13 +2,13 @@ import React, { Component, PropTypes } from 'react';
 
 import { Dialog } from 'material-ui';
 
-import OverlaySteps from './OverlaySteps';
+import ModalSteps from './ModalSteps';
 
 const TITLE_STYLE = { borderStyle: 'none' };
 const DIALOG_STYLE = { paddingTop: '1px' };
 const CONTENT_STYLE = { transform: 'translate(0px, 0px)' };
 
-export default class Overlay extends Component {
+export default class Modal extends Component {
   static propTypes = {
     actions: PropTypes.node,
     children: PropTypes.node,
@@ -22,7 +22,7 @@ export default class Overlay extends Component {
 
   render () {
     const title = this.props.steps
-      ? (<OverlaySteps current={ this.props.current } steps={ this.props.steps } />)
+      ? (<ModalSteps current={ this.props.current } steps={ this.props.steps } />)
       : this.props.title;
 
     return (

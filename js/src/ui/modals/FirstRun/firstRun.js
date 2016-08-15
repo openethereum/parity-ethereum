@@ -5,7 +5,7 @@ import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import Overlay from '../../Overlay';
+import Modal from '../../Modal';
 
 import Completed from './Completed';
 import CreateAccount from './CreateAccount';
@@ -26,7 +26,7 @@ export default class FirstRun extends Component {
 
   render () {
     return (
-      <Overlay
+      <Modal
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
         steps={ STAGE_NAMES }
@@ -42,7 +42,7 @@ export default class FirstRun extends Component {
           visible={ this.state.stage === 2 } />
         <Completed
           visible={ this.state.stage === 3 } />
-      </Overlay>
+      </Modal>
     );
   }
 

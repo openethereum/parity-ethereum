@@ -7,7 +7,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import Overlay from '../../Overlay';
+import Modal from '../../Modal';
 
 import AccountDetails from './AccountDetails';
 import CreationType from './CreationType';
@@ -41,13 +41,13 @@ export default class NewAccount extends Component {
 
   render () {
     return (
-      <Overlay
+      <Modal
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
         steps={ this.state.createType === 'fromNew' ? STAGE_NAMES : STAGE_IMPORT }
         visible={ this.props.visible }>
         { this.renderPage() }
-      </Overlay>
+      </Modal>
     );
   }
 

@@ -4,7 +4,7 @@ import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
 
 import styles from './style.css';
 
-export default class OverlaySteps extends Component {
+export default class ModalSteps extends Component {
   static propTypes = {
     current: PropTypes.number,
     steps: PropTypes.array.isRequired

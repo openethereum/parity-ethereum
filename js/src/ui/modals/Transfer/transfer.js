@@ -5,7 +5,7 @@ import ContentSend from 'material-ui/svg-icons/content/send';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import Overlay from '../../Overlay';
+import Modal from '../../Modal';
 
 import Details from './Details';
 import Verify from './Verify';
@@ -26,13 +26,13 @@ export default class Transfer extends Component {
 
   render () {
     return (
-      <Overlay
+      <Modal
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
         steps={ STAGE_NAMES }
         visible={ this.props.visible }>
         { this.renderPage() }
-      </Overlay>
+      </Modal>
     );
   }
 

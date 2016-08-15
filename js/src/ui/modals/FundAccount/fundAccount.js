@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import Overlay from '../../Overlay';
+import Modal from '../../Modal';
 
 const STAGE_NAMES = ['fund account'];
 
@@ -20,7 +20,7 @@ export default class FundAccount extends Component {
 
   render () {
     return (
-      <Overlay
+      <Modal
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
         steps={ STAGE_NAMES }
@@ -28,7 +28,7 @@ export default class FundAccount extends Component {
         <div>
           Placeholder until such time as we have the ShapeShift.io integration going (just time, a scarce commodity)
         </div>
-      </Overlay>
+      </Modal>
     );
   }
 

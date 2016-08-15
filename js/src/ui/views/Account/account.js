@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import ContentCreate from 'material-ui/svg-icons/content/create';
 
-import { FundAccount, Transfer } from '../../dialogs';
+import { FundAccount, Transfer } from '../../modals';
 
 import Balances from '../../Balances';
 import Container, { Title } from '../../Container';

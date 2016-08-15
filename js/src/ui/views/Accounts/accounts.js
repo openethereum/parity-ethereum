@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 
 import AccountSummary from './AccountSummary';
 import Actions from './Actions';
-import { NewAccount } from '../../dialogs';
+import { NewAccount } from '../../modals';
 
 import styles from './style.css';
 
