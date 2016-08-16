@@ -13,6 +13,7 @@ export default class Modal extends Component {
     actions: PropTypes.node,
     children: PropTypes.node,
     current: PropTypes.number,
+    scroll: PropTypes.bool,
     steps: PropTypes.array,
     title: React.PropTypes.oneOfType([
       PropTypes.node, PropTypes.string
@@ -30,7 +31,7 @@ export default class Modal extends Component {
         actions={ this.props.actions }
         actionsContainerStyle={ TITLE_STYLE }
         autoDetectWindowHeight={ false }
-        autoScrollBodyContent={ false }
+        autoScrollBodyContent={ !!this.props.scroll }
         contentStyle={ CONTENT_STYLE }
         modal
         open={ this.props.visible }
