@@ -5,6 +5,7 @@ import moment from 'moment';
 import Api from '../../../api';
 import etherscan from '../../../3rdparty/etherscan';
 import Container from '../../../ui/Container';
+import IdentityIcon from '../../../ui/IdentityIcon';
 
 import styles from '../style.css';
 
@@ -68,9 +69,11 @@ export default class Transactions extends Component {
           <tr key={ tx.hash }>
             <td className={ styles.center }></td>
             <td className={ styles.center }>
+              <IdentityIcon inline center address={ tx.from } />
               <a href={ fromLink } target='_blank'>{ formatHash(tx.from) }</a>
             </td>
             <td className={ styles.center }>
+              <IdentityIcon inline center address={ tx.to } />
               <a href={ toLink } target='_blank'>{ formatHash(tx.to) }</a>
             </td>
             <td className={ styles.center }>

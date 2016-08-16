@@ -8,7 +8,7 @@ export default class IdentityIcon extends Component {
     address: PropTypes.string,
     center: PropTypes.bool,
     padded: PropTypes.bool,
-    tiny: PropTypes.bool
+    inline: PropTypes.bool
   }
 
   state = {
@@ -24,13 +24,13 @@ export default class IdentityIcon extends Component {
       iconsrc: blockies({
         seed: address.toLowerCase(),
         size: 8,
-        scale: this.props.tiny ? 3 : 7
+        scale: this.props.inline ? 2 : 7
       }).toDataURL()
     });
   }
 
   render () {
-    const className = `${styles.icon} ${this.props.center ? styles.center : styles.right} ${this.props.padded ? styles.padded : null}`;
+    const className = `${styles.icon} ${this.props.center ? styles.center : styles.right} ${this.props.padded ? styles.padded : null} ${this.props.inline ? styles.inline : null}`;
 
     return (
       <div className={ className }>

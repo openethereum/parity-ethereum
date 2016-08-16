@@ -17,3 +17,8 @@
 .transactions {
   width: 100%;
 }
+
+.transactions tr {
+  line-height: 24px;
+  vertical-align: middle;
+}
