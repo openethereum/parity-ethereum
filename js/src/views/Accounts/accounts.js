@@ -17,8 +17,14 @@ export default class Accounts extends Component {
     newDialog: false
   }
 
-  componentWillMount () {
+  componentDidMount () {
+    // TODO: we should be getting data from a provider
+    this._isMounted = true;
     this.retrieveAccounts();
+  }
+
+  componentWillUnmount () {
+    this._isMounted = false;
   }
 
   render () {
@@ -73,6 +79,10 @@ export default class Accounts extends Component {
   }
 
   retrieveAccounts () {
+    if (!this._isMounted) {
+      return;
+    }
+
     const api = this.context.api;
 
     Promise

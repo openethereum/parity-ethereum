@@ -34,6 +34,10 @@ export default class TooltipOverlay extends Component {
   }
 
   register (updateCallback) {
+    if (this.state.currentId === -1) {
+      return;
+    }
+
     this.state.updateCallbacks.push(updateCallback);
     this.update();
 
