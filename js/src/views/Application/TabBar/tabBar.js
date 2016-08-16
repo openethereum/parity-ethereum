@@ -5,6 +5,7 @@ import { Tabs, Tab } from 'material-ui/Tabs';
 
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
 import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
+import ActionSettings from 'material-ui/svg-icons/action/settings';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
 import Tooltip from '../../../ui/Tooltip';
@@ -43,6 +44,11 @@ export default class TabBar extends Component {
             data-route='/apps'
             icon={ <NavigationApps /> }
             label='apps'
+            onActive={ this.onActivate } />
+          <Tab
+            data-route='/settings'
+            icon={ <ActionSettings /> }
+            label='settings'
             onActive={ this.onActivate } />
         </Tabs>
       </Toolbar>

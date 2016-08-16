@@ -17,6 +17,7 @@ import Account from './views/Account';
 import Application from './views/Application';
 import Apps from './views/Apps';
 import Tokens from './views/Tokens';
+import Settings from './views/Settings';
 
 import styles from './reset.css';
 
@@ -30,6 +31,7 @@ ReactDOM.render(
       <Route path='account/:address' component={ Account } />
       <Route path='apps' component={ Apps } />
       <Route path='tokens' component={ Tokens } />
+      <Route path='settings' component={ Settings } />
     </Route>
   </Router>,
   document.querySelector('#container')
