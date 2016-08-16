@@ -51,17 +51,6 @@ export default class Details extends Component {
   }
 
   render () {
-    // <div className={ styles.columns }>
-    //   <div>
-    //     <Input
-    //       label='gas amount'
-    //       hint='the amount of gas to use for the transaction'
-    //       error={ this.state.gasError }
-    //       value={ this.state.gas }
-    //       onChange={ this.onEditGas } />
-    //   </div>
-    // </div>
-
     return (
       <Form>
         <div className={ styles.info }>
@@ -101,6 +90,21 @@ export default class Details extends Component {
           </div>
         </div>
       </Form>
+    );
+  }
+
+  renderExtended () {
+    return (
+      <div className={ styles.columns }>
+        <div>
+          <Input
+            label='gas amount'
+            hint='the amount of gas to use for the transaction'
+            error={ this.state.gasError }
+            value={ this.state.gas }
+            onChange={ this.onEditGas } />
+        </div>
+      </div>
     );
   }
 
