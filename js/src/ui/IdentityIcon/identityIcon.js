@@ -6,7 +6,8 @@ import styles from './style.css';
 export default class IdentityIcon extends Component {
   static propTypes = {
     address: PropTypes.string,
-    center: PropTypes.bool
+    center: PropTypes.bool,
+    padded: PropTypes.bool
   }
 
   state = {
@@ -28,7 +29,7 @@ export default class IdentityIcon extends Component {
   }
 
   render () {
-    const className = `${styles.icon} ${this.props.center ? styles.center : styles.right}`;
+    const className = `${styles.icon} ${this.props.center ? styles.center : styles.right} ${this.props.padded ? styles.padded : null}`;
 
     return (
       <div className={ className }>

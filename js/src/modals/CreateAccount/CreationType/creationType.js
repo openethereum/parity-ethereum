@@ -15,22 +15,19 @@ export default class CreationType extends Component {
 
   render () {
     return (
-      <div>
-        <div className={ styles.info }>
-          You can create an account either with a password or though an import from a pre-existing resource or export from another system
-        </div>
+      <div className={ styles.paddedtop }>
         <RadioButtonGroup
           defaultSelected='fromNew'
           name='creationType'
           onChange={ this.onChange }>
           <RadioButton
-            label='Create new account'
+            label='Create new account via username & password'
             value='fromNew' />
           <RadioButton
-            label='Import account from JSON file'
+            label='Import account from a backup JSON file'
             value='fromJSON' />
           <RadioButton
-            label='Import account from pre-sale wallet'
+            label='Import account from an Ethereum pre-sale wallet'
             value='fromPresale' />
         </RadioButtonGroup>
       </div>

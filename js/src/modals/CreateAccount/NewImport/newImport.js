@@ -46,9 +46,6 @@ export default class NewImport extends Component {
   render () {
     return (
       <Form>
-        <div className={ styles.info }>
-          Provide a descriptive name for the account, the password required to unlock the account and the on-disk location of the wallet to be imported.
-        </div>
         <Input
           label='account name'
           hint='a descriptive name for the account'

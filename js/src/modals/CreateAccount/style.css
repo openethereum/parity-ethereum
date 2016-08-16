@@ -1,7 +1,6 @@
-.info {
-  padding-bottom: 1.618em;
+.paddedtop {
+  padding: 1.618em 0 0 0;
   line-height: 1.618em;
-  width: 75%;
 }
 
 .password {

@@ -45,9 +45,6 @@ export default class CreateAccount extends Component {
   render () {
     return (
       <Form>
-        <div className={ styles.info }>
-          Provide a descriptive name for the account, a strong password and select your preferred identity icon to create the account
-        </div>
         <Input
           label='account name'
           hint='a descriptive name for the account'

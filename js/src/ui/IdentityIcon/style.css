@@ -8,9 +8,12 @@
 .right {
   float: right;
   text-align: right;
-  margin: 0;
 }
 
 .icon img {
   border-radius: 50%;
+}
+
+.padded {
+  margin: 1em 0 0 0;
 }

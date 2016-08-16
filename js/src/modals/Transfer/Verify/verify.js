@@ -29,14 +29,8 @@ export default class Verify extends Component {
   }
 
   render () {
-    const info = this.props.signer
-      ? 'Please verify the transaction information below, once it is posted you can authorise it via the Parity Signer Chrome extension'
-      : 'Please verify the transaction information below and confirm the transaction with your account password';
     return (
       <Form>
-        <div className={ styles.info }>
-          { info }
-        </div>
         <Input
           disabled
           label='account address'

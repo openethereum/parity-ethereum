@@ -55,9 +55,6 @@ export default class Details extends Component {
   render () {
     return (
       <Form>
-        <div className={ styles.info }>
-          Complete the information for the transaction with a valid recipient and the amount to be transferred. Additional transaction information such as the gas, gasPrice and transaction data can be set via the extended information options.
-        </div>
         <div>
           <Input
             label='recipient address'
