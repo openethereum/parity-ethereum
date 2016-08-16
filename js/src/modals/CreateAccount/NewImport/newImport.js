@@ -64,23 +64,25 @@ export default class NewImport extends Component {
               onChange={ this.onEditPassword } />
           </div>
         </div>
-        <Input
-          disabled
-          label='wallet file'
-          hint='the wallet file for import'
-          error={ this.state.walletFileError }
-          value={ this.state.walletFile } />
-        <div className={ styles.upload }>
-          <FlatButton
-            icon={ <CommunicationImportExport /> }
-            label='Select file'
-            primary
-            onClick={ this.openFileDialog } />
-          <input
-            ref='fileUpload'
-            type='file'
-            style={ { display: 'none' } }
-            onChange={ this.onFileChange } />
+        <div>
+          <Input
+            disabled
+            label='wallet file'
+            hint='the wallet file for import'
+            error={ this.state.walletFileError }
+            value={ this.state.walletFile } />
+          <div className={ styles.upload }>
+            <FlatButton
+              icon={ <CommunicationImportExport /> }
+              label='Select file'
+              primary
+              onClick={ this.openFileDialog } />
+            <input
+              ref='fileUpload'
+              type='file'
+              style={ { display: 'none' } }
+              onChange={ this.onFileChange } />
+          </div>
         </div>
       </Form>
     );
