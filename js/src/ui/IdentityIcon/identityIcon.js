@@ -7,7 +7,8 @@ export default class IdentityIcon extends Component {
   static propTypes = {
     address: PropTypes.string,
     center: PropTypes.bool,
-    padded: PropTypes.bool
+    padded: PropTypes.bool,
+    tiny: PropTypes.bool
   }
 
   state = {
@@ -23,7 +24,7 @@ export default class IdentityIcon extends Component {
       iconsrc: blockies({
         seed: address.toLowerCase(),
         size: 8,
-        scale: 7
+        scale: this.props.tiny ? 3 : 7
       }).toDataURL()
     });
   }
