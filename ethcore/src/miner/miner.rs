@@ -732,7 +732,7 @@ impl MinerService for Miner {
 							gas_used: receipt.gas_used - prev_gas,
 							contract_address: match tx.action {
 								Action::Call(_) => None,
-								Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce))
+								Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce)),
 							},
 							logs: receipt.logs.clone(),
 						}

@@ -107,7 +107,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 				let view = block_view.header_view();
 				let block = Block {
 					hash: Some(view.sha3().into()),
-					size: Some(bytes.len()),
+					size: Some(bytes.len().into()),
 					parent_hash: view.parent_hash().into(),
 					uncles_hash: view.uncles_hash().into(),
 					author: view.author().into(),

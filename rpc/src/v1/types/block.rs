@@ -90,7 +90,7 @@ pub struct Block {
 	/// Transactions
 	pub transactions: BlockTransactions,
 	/// Size in bytes
-	pub size: Option<usize>,
+	pub size: Option<U256>,
 }
 
 #[cfg(test)]
