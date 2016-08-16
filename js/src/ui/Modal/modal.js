@@ -4,6 +4,7 @@ import { Dialog } from 'material-ui';
 
 import ModalSteps from './ModalSteps';
 
+const ACTIONS_STYLE = { borderStyle: 'none' };
 const TITLE_STYLE = { borderStyle: 'none' };
 const DIALOG_STYLE = { paddingTop: '1px' };
 const CONTENT_STYLE = { transform: 'translate(0px, 0px)' };
@@ -29,7 +30,7 @@ export default class Modal extends Component {
     return (
       <Dialog
         actions={ this.props.actions }
-        actionsContainerStyle={ TITLE_STYLE }
+        actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
         autoScrollBodyContent={ !!this.props.scroll }
         contentStyle={ CONTENT_STYLE }
