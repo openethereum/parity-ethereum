@@ -101,13 +101,13 @@ export default class FirstRun extends Component {
     }
   }
 
-  onBtnClose = () => {
+  onClose = () => {
     this.setState({
       stage: 0
     }, this.props.onClose);
   }
 
-  onBtnNext = () => {
+  onNext = () => {
     this.setState({
       stage: this.state.stage + 1
     });
@@ -126,23 +126,9 @@ export default class FirstRun extends Component {
   onCreate = () => {
     const api = this.context.api;
 
-    if (this.state.createType === 'fromNew') {
-      return api.personal
-        .newAccountFromPhrase(this.state.phrase, this.state.password)
-        .then((address) => api.personal.setAccountName(address, this.state.name))
-        .then(() => {
-          this.onNext();
-        });
-    }
-
     return api.personal
-      .newAccountFromWallet(this.state.json, this.state.password)
-      .then((address) => {
-        this.setState({
-          address: address
-        });
-        return api.personal.setAccountName(address, this.state.name);
-      })
+      .newAccountFromPhrase(this.state.phrase, this.state.password)
+      .then((address) => api.personal.setAccountName(address, this.state.name))
       .then(() => {
         this.onNext();
       });
