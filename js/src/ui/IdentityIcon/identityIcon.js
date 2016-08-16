@@ -24,7 +24,7 @@ export default class IdentityIcon extends Component {
       iconsrc: blockies({
         seed: address.toLowerCase(),
         size: 8,
-        scale: this.props.inline ? 2 : 7
+        scale: this.props.inline ? 3 : 7
       }).toDataURL()
     });
   }
