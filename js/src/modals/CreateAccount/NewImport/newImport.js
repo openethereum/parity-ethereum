@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 
 import { FlatButton } from 'material-ui';
-import CommunicationImportExport from 'material-ui/svg-icons/communication/import-export';
+import EditorAttachFile from 'material-ui/svg-icons/editor/attach-file';
 
 import Form, { Input } from '../../../ui/Form';
 
@@ -73,7 +73,7 @@ export default class NewImport extends Component {
             value={ this.state.walletFile } />
           <div className={ styles.upload }>
             <FlatButton
-              icon={ <CommunicationImportExport /> }
+              icon={ <EditorAttachFile /> }
               label='Select file'
               primary
               onClick={ this.openFileDialog } />
