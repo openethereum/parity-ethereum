@@ -8,6 +8,9 @@ import Form, { Input } from '../../../ui/Form';
 
 import styles from '../style.css';
 
+const FAKEPATH = 'C:\\fakepath\\';
+const STYLE_HIDDEN = { display: 'none' };
+
 const ERRORS = {
   noName: 'you need to specify a valid name for the account',
   noPassword: 'supply a valid password to confirm the transaction',
@@ -80,7 +83,7 @@ export default class NewImport extends Component {
             <input
               ref='fileUpload'
               type='file'
-              style={ { display: 'none' } }
+              style={ STYLE_HIDDEN }
               onChange={ this.onFileChange } />
           </div>
         </div>
@@ -105,7 +108,7 @@ export default class NewImport extends Component {
     }
 
     this.setState({
-      walletFile: el.value.replace('C:\\fakepath\\', ''),
+      walletFile: el.value.replace(FAKEPATH, ''),
       walletFileError: error,
       isValidFile: false
     }, this.updateParent);
