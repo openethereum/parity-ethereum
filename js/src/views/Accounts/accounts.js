@@ -70,7 +70,6 @@ export default class Accounts extends Component {
   }
 
   onNewAccountUpdate = () => {
-    this.retrieveAccounts();
   }
 
   retrieveAccounts () {
@@ -82,6 +81,7 @@ export default class Accounts extends Component {
         api.personal.accountsInfo()
       ])
       .then(([addresses, infos]) => {
+        setTimeout(() => this.retrieveAccounts(), 2500);
         this.setState({
           accounts: addresses
             .filter((address) => infos[address].uuid)

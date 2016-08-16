@@ -39,6 +39,7 @@ export default class Status extends Component {
         api.eth.syncing()
       ])
       .then(([clientVersion, peerCount, blockNumber, syncing]) => {
+        setTimeout(() => this.poll(), 2500);
         this.setState({
           blockNumber: blockNumber.toFormat(0),
           clientVersion: clientVersion,
@@ -46,7 +47,5 @@ export default class Status extends Component {
           syncing: syncing
         });
       });
-
-    setTimeout(() => this.poll(), 2500);
   }
 }
