@@ -38,7 +38,7 @@ export default class Account extends Component {
     const address = this.props.params.address;
     const title = (
       <span>
-        <span>{ this.state.name }</span>
+        <span>{ this.state.name || 'Unnamed' }</span>
         <ContentCreate
           className={ styles.editicon }
           color='rgb(0, 151, 167)' />
