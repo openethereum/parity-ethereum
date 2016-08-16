@@ -1,3 +1,13 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: transparent;
+  z-index: 499;
+}
+
 .box {
   position: absolute;
   background: #663600; /* rgba(48, 48, 48, 0.95); #88b7d5; */

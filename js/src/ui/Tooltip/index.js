@@ -1,4 +1,4 @@
-import TooltipManager from './TooltipManager';
+import TooltipOverlay from './TooltipOverlay';
 
 export default from './tooltip';
-export { TooltipManager };
+export { TooltipOverlay };

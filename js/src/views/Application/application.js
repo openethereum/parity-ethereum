@@ -5,7 +5,7 @@ import darkBaseTheme from 'material-ui/styles/baseThemes/darkBaseTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
 import Api from '../../api';
-import { TooltipManager } from '../../ui/Tooltip';
+import { TooltipOverlay } from '../../ui/Tooltip';
 
 import { FirstRun } from '../../modals';
 import Status from './Status';
@@ -16,7 +16,6 @@ import styles from './style.css';
 const lightTheme = getMuiTheme(lightBaseTheme);
 const muiTheme = getMuiTheme(darkBaseTheme);
 const api = new Api(new Api.Transport.Http('/rpc/'));
-const tooltips = new TooltipManager();
 
 muiTheme.stepper.textColor = '#eee';
 muiTheme.stepper.disabledTextColor = '#777';
@@ -49,22 +48,23 @@ export default class Application extends Component {
 
   render () {
     return (
-      <div className={ styles.container }>
-        <FirstRun
-          onClose={ this.onCloseFirst }
-          visible={ this.state.showFirst } />
-        <TabBar />
-        { this.props.children }
-        <Status />
-      </div>
+      <TooltipOverlay>
+        <div className={ styles.container }>
+          <FirstRun
+            onClose={ this.onCloseFirst }
+            visible={ this.state.showFirst } />
+          <TabBar />
+          { this.props.children }
+          <Status />
+        </div>
+      </TooltipOverlay>
     );
   }
 
   getChildContext () {
     return {
       api: api,
-      muiTheme: muiTheme,
-      tooltips: tooltips
+      muiTheme: muiTheme
     };
   }
 
