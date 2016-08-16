@@ -5,6 +5,7 @@ import { Checkbox, FloatingActionButton } from 'material-ui';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 
 import Api from '../../../api';
+import AddressSelector from '../../AddressSelector';
 import Form, { Input } from '../../../ui/Form';
 
 import styles from '../style.css';
@@ -45,7 +46,8 @@ export default class Details extends Component {
     gasError: null,
     total: 0,
     totalError: null,
-    gasprice: 0
+    gasprice: 0,
+    showAddresses: false
   }
 
   componentDidMount () {
@@ -55,6 +57,9 @@ export default class Details extends Component {
   render () {
     return (
       <Form>
+        <AddressSelector
+          onSelect={ this.onSelectRecipient }
+          visible={ this.state.showAddresses } />
         <div>
           <Input
             label='recipient address'
@@ -114,6 +119,14 @@ export default class Details extends Component {
         </div>
       </div>
     );
+  }
+
+  onSelectRecipient = (recipient) => {
+    this.setState({
+      showAddresses: false
+    }, () => {
+      this.validateRecipient(recipient);
+    });
   }
 
   onCheckFullAmount = (event) => {
@@ -178,9 +191,8 @@ export default class Details extends Component {
     }, this.calculateTotals);
   }
 
-  onEditRecipient = (event) => {
+  validateRecipient (value) {
     let error = null;
-    const value = event.target.value;
 
     if (!value || !value.length) {
       error = ERRORS.requireRecipient;
@@ -194,8 +206,14 @@ export default class Details extends Component {
     }, this.calculateTotals);
   }
 
-  onContacts = () => {
+  onEditRecipient = (event) => {
+    this.validateRecipient(event.target.value);
+  }
 
+  onContacts = () => {
+    this.setState({
+      showAddresses: true
+    });
   }
 
   updateParent = () => {
