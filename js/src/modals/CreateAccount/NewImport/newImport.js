@@ -77,7 +77,7 @@ export default class NewImport extends Component {
           <div className={ styles.upload }>
             <FloatingActionButton
               primary mini
-              onClick={ this.openFileDialog }>
+              onTouchTap={ this.openFileDialog }>
               <EditorAttachFile />
             </FloatingActionButton>
             <input

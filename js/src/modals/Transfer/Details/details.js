@@ -1,8 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import BigNumber from 'bignumber.js';
-import { Checkbox, FlatButton, FloatingActionButton } from 'material-ui';
+import { Checkbox, FloatingActionButton } from 'material-ui';
 
-import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 
 import Api from '../../../api';
@@ -67,11 +66,10 @@ export default class Details extends Component {
             value={ this.state.recipient }
             onChange={ this.onEditRecipient } />
           <div className={ styles.floatbutton }>
-            <FloatingActionButton primary mini>
+            <FloatingActionButton
+              primary mini
+              onTouchTap={ this.onContacts }>
               <CommunicationContacts />
-            </FloatingActionButton>
-            <FloatingActionButton primary mini>
-              <ActionAccountBalanceWallet />
             </FloatingActionButton>
           </div>
         </div>
@@ -197,6 +195,10 @@ export default class Details extends Component {
       recipient: value,
       recipientError: error
     }, this.calculateTotals);
+  }
+
+  onContacts = () => {
+
   }
 
   updateParent = () => {
