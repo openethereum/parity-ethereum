@@ -15,3 +15,14 @@
   width: 50%;
   position: relative;
 }
+
+.floatbutton {
+  text-align: right;
+  float: right;
+  margin-left: -100%;
+  margin-top: 28px;
+}
+
+.floatbutton>div {
+  margin-right: 0.5em;
+}

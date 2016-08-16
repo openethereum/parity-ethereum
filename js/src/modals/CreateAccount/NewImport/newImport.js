@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 
-import { FlatButton } from 'material-ui';
+import { FloatingActionButton } from 'material-ui';
 import EditorAttachFile from 'material-ui/svg-icons/editor/attach-file';
 
 import Form, { Input } from '../../../ui/Form';
@@ -72,11 +72,11 @@ export default class NewImport extends Component {
             error={ this.state.walletFileError }
             value={ this.state.walletFile } />
           <div className={ styles.upload }>
-            <FlatButton
-              icon={ <EditorAttachFile /> }
-              label='Select file'
-              primary
-              onClick={ this.openFileDialog } />
+            <FloatingActionButton
+              primary mini
+              onClick={ this.openFileDialog }>
+              <EditorAttachFile />
+            </FloatingActionButton>
             <input
               ref='fileUpload'
               type='file'

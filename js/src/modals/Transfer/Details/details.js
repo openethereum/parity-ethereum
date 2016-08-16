@@ -1,6 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 import BigNumber from 'bignumber.js';
-import { Checkbox } from 'material-ui';
+import { Checkbox, FlatButton, FloatingActionButton } from 'material-ui';
+
+import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
+import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 
 import Api from '../../../api';
 import Form, { Input } from '../../../ui/Form';
@@ -56,12 +59,22 @@ export default class Details extends Component {
         <div className={ styles.info }>
           Complete the information for the transaction with a valid recipient and the amount to be transferred. Additional transaction information such as the gas, gasPrice and transaction data can be set via the extended information options.
         </div>
-        <Input
-          label='recipient address'
-          hint='the recipient address'
-          error={ this.state.recipientError }
-          value={ this.state.recipient }
-          onChange={ this.onEditRecipient } />
+        <div>
+          <Input
+            label='recipient address'
+            hint='the recipient address'
+            error={ this.state.recipientError }
+            value={ this.state.recipient }
+            onChange={ this.onEditRecipient } />
+          <div className={ styles.floatbutton }>
+            <FloatingActionButton primary mini>
+              <CommunicationContacts />
+            </FloatingActionButton>
+            <FloatingActionButton primary mini>
+              <ActionAccountBalanceWallet />
+            </FloatingActionButton>
+          </div>
+        </div>
         <div className={ styles.columns }>
           <div>
             <Input

@@ -40,3 +40,7 @@
   margin-left: -100%;
   margin-top: 28px;
 }
+
+.upload>div {
+  margin-right: 0.5em;
+}
