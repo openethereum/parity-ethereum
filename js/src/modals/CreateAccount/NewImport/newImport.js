@@ -8,7 +8,13 @@ import Form, { Input } from '../../../ui/Form';
 
 import styles from '../style.css';
 
-export default class ImportWallet extends Component {
+const ERRORS = {
+  noName: 'you need to specify a valid name for the account',
+  noPassword: 'supply a valid password to confirm the transaction',
+  noFile: 'select a valid wallet file to import'
+};
+
+export default class NewImport extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -19,8 +25,11 @@ export default class ImportWallet extends Component {
 
   state = {
     accountName: '',
+    accountNameError: ERRORS.noName,
     password: '',
+    passwordError: ERRORS.noPassword,
     walletFile: '',
+    walletFileError: ERRORS.noFile,
     walletJson: '',
     isValidPass: false,
     isValidName: false,
@@ -40,6 +49,7 @@ export default class ImportWallet extends Component {
         <Input
           label='account name'
           hint='a descriptive name for the account'
+          error={ this.state.accountNameError }
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
         <div className={ styles.passwords }>
@@ -49,6 +59,7 @@ export default class ImportWallet extends Component {
               label='password'
               hint='the password to unlock the wallet'
               type='password'
+              error={ this.state.passwordError }
               value={ this.state.password }
               onChange={ this.onEditPassword } />
           </div>
@@ -56,7 +67,8 @@ export default class ImportWallet extends Component {
         <Input
           disabled
           label='wallet file'
-          hint='the uploaded file for import'
+          hint='the wallet file for import'
+          error={ this.state.walletFileError }
           value={ this.state.walletFile } />
         <div className={ styles.upload }>
           <FlatButton
@@ -76,12 +88,14 @@ export default class ImportWallet extends Component {
 
   onFileChange = (event) => {
     const el = event.target;
+    const error = ERRORS.noFile;
 
     if (el.files.length) {
       const reader = new FileReader();
       reader.onload = (event) => {
         this.setState({
           walletJson: event.target.result,
+          walletFileError: null,
           isValidFile: true
         }, this.updateParent);
       };
@@ -90,6 +104,7 @@ export default class ImportWallet extends Component {
 
     this.setState({
       walletFile: el.value.replace('C:\\fakepath\\', ''),
+      walletFileError: error,
       isValidFile: false
     }, this.updateParent);
   }
@@ -111,21 +126,31 @@ export default class ImportWallet extends Component {
 
   onEditAccountName = (event) => {
     const value = event.target.value;
-    const valid = value.length >= 2;
+    let error = null;
+
+    if (!value || value.trim().length < 2) {
+      error = ERRORS.noName;
+    }
 
     this.setState({
       accountName: value,
-      isValidName: valid
+      accountNameError: error,
+      isValidName: !error
     }, this.updateParent);
   }
 
   onEditPassword = (event) => {
+    let error = null;
     const value = event.target.value;
-    const valid = value.length >= 1;
+
+    if (!value || !value.length) {
+      error = ERRORS.noPassword;
+    }
 
     this.setState({
       password: value,
-      isValidPass: valid
+      passwordError: error,
+      isValidPass: !error
     }, this.updateParent);
   }
 }

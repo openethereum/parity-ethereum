@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 
 import AccountSummary from './AccountSummary';
 import Actions from './Actions';
-import { NewAccount } from '../../modals';
+import { CreateAccount } from '../../modals';
 import Tooltip from '../../ui/Tooltip';
 
 import styles from './style.css';
@@ -24,7 +24,7 @@ export default class Accounts extends Component {
   render () {
     return (
       <div>
-        <NewAccount
+        <CreateAccount
           onClose={ this.onNewAccountClose }
           onUpdate={ this.onNewAccountUpdate }
           visible={ this.state.newDialog } />

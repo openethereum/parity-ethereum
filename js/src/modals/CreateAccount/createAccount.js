@@ -11,13 +11,13 @@ import Modal from '../../ui/Modal';
 
 import AccountDetails from './AccountDetails';
 import CreationType from './CreationType';
-import CreateAccount from './CreateAccount';
-import ImportWallet from './ImportWallet';
+import NewAccount from './NewAccount';
+import NewImport from './NewImport';
 
 const STAGE_NAMES = ['creation type', 'create account', 'account information'];
 const STAGE_IMPORT = ['creation type', 'import wallet', 'account information'];
 
-export default class NewAccount extends Component {
+export default class CreateAccount extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -62,12 +62,12 @@ export default class NewAccount extends Component {
       case 1:
         if (this.state.createType === 'fromNew') {
           return (
-            <CreateAccount
+            <NewAccount
               onChange={ this.onChangeDetails } />
           );
         } else {
           return (
-            <ImportWallet
+            <NewImport
               onChange={ this.onChangeWallet } />
           );
         }
