@@ -8,6 +8,7 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 
 import Modal from '../../ui/Modal';
 
+import Complete from './Complete';
 import Details from './Details';
 import Verify from './Verify';
 
@@ -68,7 +69,9 @@ export default class Transfer extends Component {
         );
       case 2:
         return (
-          <div>{ this.state.txhash }</div>
+          <Complete
+            sending={ this.state.sending }
+            txhash={ this.state.txhash } />
         );
     }
   }
@@ -132,27 +135,29 @@ export default class Transfer extends Component {
   }
 
   onSend = () => {
+    this.onNext();
+
     this.setState({
       sending: true
-    }, () => {
-      this.context.api.personal
-        .signAndSendTransaction({
-          from: this.props.address,
-          to: this.state.recipient,
-          gas: this.state.gas,
-          value: this.state.amount
-        }, this.state.password)
-        .then((txhash) => {
-          console.log('transaction', txhash);
-          this.setState({
-            sending: false,
-            txhash: txhash
-          }, this.onNext);
-        })
-        .catch((error) => {
-          console.error(error);
-        });
     });
+
+    this.context.api.personal
+      .signAndSendTransaction({
+        from: this.props.address,
+        to: this.state.recipient,
+        gas: this.state.gas,
+        value: this.state.amount
+      }, this.state.password)
+      .then((txhash) => {
+        console.log('transaction', txhash);
+        this.setState({
+          sending: false,
+          txhash: txhash
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   }
 
   onChangeDetails = (valid, { amount, gas, recipient, total }) => {
