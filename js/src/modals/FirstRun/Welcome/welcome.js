@@ -1,4 +1,4 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 
 const LOGO_STYLE = {
   float: 'right',
@@ -7,15 +7,7 @@ const LOGO_STYLE = {
 };
 
 export default class FirstRun extends Component {
-  static propTypes = {
-    visible: PropTypes.bool.isRequired
-  }
-
   render () {
-    if (!this.props.visible) {
-      return null;
-    }
-
     return (
       <div>
         <img

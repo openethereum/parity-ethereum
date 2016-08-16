@@ -7,21 +7,30 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 
 import Modal from '../../ui/Modal';
 
+import { NewAccount, AccountDetails } from '../CreateAccount';
+
 import Completed from './Completed';
-import CreateAccount from './CreateAccount';
-import RecoverAccount from './RecoverAccount';
 import Welcome from './Welcome';
 
 const STAGE_NAMES = ['welcome', 'new account', 'recovery', 'completed'];
 
 export default class FirstRun extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     visible: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
   state = {
-    stage: 0
+    stage: 0,
+    name: '',
+    address: '',
+    password: '',
+    phrase: '',
+    canCreate: false
   }
 
   render () {
@@ -31,19 +40,34 @@ export default class FirstRun extends Component {
         current={ this.state.stage }
         steps={ STAGE_NAMES }
         visible={ this.props.visible }>
-        <Welcome
-          visible={ this.state.stage === 0 } />
-        <CreateAccount
-          visible={ this.state.stage === 1 } />
-        <RecoverAccount
-          accountName='Newly Created Name'
-          accountAddress='0xF6ABb80F11f269e4500A05721680E0a3AB075Ecf'
-          accountPhrase='twenty never horse quick battery foot staple rabbit skate chair'
-          visible={ this.state.stage === 2 } />
-        <Completed
-          visible={ this.state.stage === 3 } />
+        { this.renderStage() }
       </Modal>
     );
+  }
+
+  renderStage () {
+    switch (this.state.stage) {
+      case 0:
+        return (
+          <Welcome />
+        );
+      case 1:
+        return (
+          <NewAccount
+            onChange={ this.onChangeDetails } />
+        );
+      case 2:
+        return (
+          <AccountDetails
+            address={ this.state.address }
+            name={ this.state.name }
+            phrase={ this.state.phrase } />
+        );
+      case 3:
+        return (
+          <Completed />
+        );
+    }
   }
 
   renderDialogActions () {
@@ -55,15 +79,16 @@ export default class FirstRun extends Component {
             icon={ <NavigationArrowForward /> }
             label='Next'
             primary
-            onTouchTap={ this.onBtnNext } />
+            onTouchTap={ this.onNext } />
         );
       case 1:
         return (
           <FlatButton
             icon={ <ActionDone /> }
             label='Create'
+            disabled={ !this.state.canCreate }
             primary
-            onTouchTap={ this.onBtnNext } />
+            onTouchTap={ this.onCreate } />
         );
       case 3:
         return (
@@ -71,7 +96,7 @@ export default class FirstRun extends Component {
             icon={ <ActionDoneAll /> }
             label='Close'
             primary
-            onTouchTap={ this.onBtnClose } />
+            onTouchTap={ this.onClose } />
       );
     }
   }
@@ -86,5 +111,40 @@ export default class FirstRun extends Component {
     this.setState({
       stage: this.state.stage + 1
     });
+  }
+
+  onChangeDetails = (valid, { name, address, password, phrase }) => {
+    this.setState({
+      canCreate: valid,
+      name: name,
+      address: address,
+      password: password,
+      phrase: phrase
+    });
+  }
+
+  onCreate = () => {
+    const api = this.context.api;
+
+    if (this.state.createType === 'fromNew') {
+      return api.personal
+        .newAccountFromPhrase(this.state.phrase, this.state.password)
+        .then((address) => api.personal.setAccountName(address, this.state.name))
+        .then(() => {
+          this.onNext();
+        });
+    }
+
+    return api.personal
+      .newAccountFromWallet(this.state.json, this.state.password)
+      .then((address) => {
+        this.setState({
+          address: address
+        });
+        return api.personal.setAccountName(address, this.state.name);
+      })
+      .then(() => {
+        this.onNext();
+      });
   }
 }
