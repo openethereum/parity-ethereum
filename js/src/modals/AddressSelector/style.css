@@ -33,6 +33,7 @@
 .account>div {
   display: table-cell;
   padding-right: 1em;
+  vertical-align: top;
 }
 
 .address {
