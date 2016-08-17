@@ -14,16 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::mpsc;
+use zip;
+use zip::result::ZipError;
+use std::fs;
+use std::io::{self, Read};
+use std::path::PathBuf;
+use std::sync::{mpsc, Arc};
+use std::collections::HashSet;
 use rustc_serialize::hex::ToHex;
-use util::{Address, FromHex};
+use util::{Address, FromHex, Mutex};
 
 use hyper::Control;
 use hyper::client::{Client};
 
+use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, Manifest};
 use endpoint::{EndpointPath, Handler};
 use handlers::{Fetch, FetchResult, FetchError};
 
+#[derive(Debug)]
 struct GithubApp {
 	pub account: String,
 	pub repo: String,
@@ -34,7 +42,7 @@ struct GithubApp {
 impl GithubApp {
 	pub fn url(&self) -> String {
 		// format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
-		format!("http://files.todr.me/{}.zip", self.commit.to_hex())
+		format!("http://github.todr.me/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
 	}
 
 	fn commit(bytes: &[u8]) -> [u8;20] {
@@ -46,7 +54,10 @@ impl GithubApp {
 	}
 }
 
-pub struct AppFetcher;
+#[derive(Default)]
+pub struct AppFetcher {
+	in_progress: Arc<Mutex<HashSet<String>>>,
+}
 
 impl AppFetcher {
 
@@ -65,77 +76,198 @@ impl AppFetcher {
 	}
 
 	pub fn to_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
+		{
+			let mut in_progress = self.in_progress.lock();
+			if in_progress.contains(&path.app_id) {
+				return Box::new(ContentHandler::html(
+					StatusCode::ServiceUnavailable,
+					"<h1>This dapp is already being downloaded.</h1>".into()
+				));
+			}
+			in_progress.insert(path.app_id.clone());
+		}
+
 		let app = self.resolve(&path.app_id).expect("to_handler is called only when `can_resolve` returns true.");
 		let client = Client::new().expect("Failed to create a Client");
+		let in_progress = self.in_progress.clone();
+		let app_id = path.app_id.clone();
 		Box::new(AppFetcherHandler {
 			control: Some(control),
-			status: FetchStatus::NotStarted(app),
+			status: FetchState::NotStarted(app),
 			client: Some(client),
+			done: Some(move || {
+				in_progress.lock().remove(&app_id);
+			})
 		})
 	}
 
 }
 
 // TODO [todr] https support
-fn fetch_app(client: &mut Client<Fetch>, app: &GithubApp, control: Control) -> mpsc::Receiver<FetchResult> {
+fn fetch_app(client: &mut Client<Fetch>, app: &GithubApp, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
+	let url = try!(app.url().parse().map_err(|e| format!("{:?}", e)));
+	trace!(target: "dapps", "Fetching from: {:?}", url);
+
 	let (tx, rx) = mpsc::channel();
-	let x = client.request(app.url().parse().expect("ValidURL"), Fetch::new(tx, Box::new(move || {
+	let res = client.request(url, Fetch::new(tx, Box::new(move || {
+		trace!(target: "dapps", "Fetching finished.");
 		// Ignoring control errors
 		let _ = control.ready(Next::read());
 	})));
-	if let Ok(_) = x {
-		rx
-	} else {
-		rx
+	match res {
+		Ok(_) => Ok(rx),
+		Err(e) => Err(format!("{:?}", e)),
 	}
 }
 
-// fn validate_and_install_app(app: PathBuf) {
-//
-// }
+#[derive(Debug)]
+enum ValidationError {
+	ManifestNotFound,
+	Io(io::Error),
+	Zip(ZipError),
+}
+
+impl From<io::Error> for ValidationError {
+	fn from(err: io::Error) -> Self {
+		ValidationError::Io(err)
+	}
+}
+
+impl From<ZipError> for ValidationError {
+	fn from(err: ZipError) -> Self {
+		ValidationError::Zip(err)
+	}
+}
+
+fn find_manifest(zip: &mut zip::ZipArchive<fs::File>) -> Result<(Manifest, PathBuf), ValidationError> {
+	for i in 0..zip.len() {
+		let mut file = try!(zip.by_index(i));
+
+		if !file.name().ends_with(MANIFEST_FILENAME) {
+			continue;
+		}
+
+		// try to read manifest
+		let mut manifest = String::new();
+		let manifest = file
+				.read_to_string(&mut manifest).ok()
+				.and_then(|_| deserialize_manifest(manifest).ok());
+		if let Some(manifest) = manifest {
+			let mut manifest_location = PathBuf::from(file.name());
+			manifest_location.pop(); // get rid of filename
+			return Ok((manifest, manifest_location));
+		}
+	}
+	return Err(ValidationError::ManifestNotFound);
+}
+
+fn validate_and_install_app(app: PathBuf) -> Result<String, ValidationError> {
+	trace!(target: "dapps", "Opening dapp bundle at {:?}", app);
+	let mut target = PathBuf::from("/home/tomusdrw/.parity/dapps");
+	let file = try!(fs::File::open(app));
+	// Unpack archive
+	let mut zip = try!(zip::ZipArchive::new(file));
+	// First find manifest file
+	let (manifest, manifest_dir) = try!(find_manifest(&mut zip));
+	target.push(&manifest.id);
+
+	// Remove old directory
+	if target.exists() {
+		warn!(target: "dapps", "Overwriting existing dapp: {}", manifest.id);
+		try!(fs::remove_dir_all(target.clone()));
+	}
+
+	// Unpack zip
+	for i in 0..zip.len() {
+		let mut file = try!(zip.by_index(i));
+		// TODO [todr] Check if it's consistent on windows.
+		let is_dir = file.name().chars().rev().next() == Some('/');
+
+		let file_path = PathBuf::from(file.name());
+		let location_in_manifest_base = file_path.strip_prefix(&manifest_dir);
+		// Create files that are inside manifest directory
+		if let Ok(location_in_manifest_base) = location_in_manifest_base {
+			let p = target.join(location_in_manifest_base);
+			// Check if it's a directory
+			if is_dir {
+				try!(fs::create_dir_all(p));
+			} else {
+				let mut target = try!(fs::File::create(p));
+				try!(io::copy(&mut file, &mut target));
+			}
+		}
+	}
+
+	Ok(manifest.id)
+}
 
 use std::io::Write;
 use std::time::{Instant, Duration};
-use hyper::{header, server, Decoder, Encoder, Next, Method};
+
+use hyper::{self, header, server, Decoder, Encoder, Next, Method};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
-use handlers::ContentHandler;
 
-enum FetchStatus {
+use handlers::ContentHandler;
+use apps::DAPPS_DOMAIN;
+
+enum FetchState {
 	NotStarted(GithubApp),
 	Error(ContentHandler),
 	InProgress {
 		deadline: Instant,
 		receiver: mpsc::Receiver<FetchResult>
 	},
-	Done,
+	Done(String),
 }
 
 const FETCH_TIMEOUT: u64 = 30;
 
-struct AppFetcherHandler {
+struct AppFetcherHandler<F: Fn() -> ()> {
 	control: Option<Control>,
-	status: FetchStatus,
+	status: FetchState,
 	client: Option<Client<Fetch>>,
+	done: Option<F>,
 }
 
-impl server::Handler<HttpStream> for AppFetcherHandler {
+impl<F: Fn() -> ()> Drop for AppFetcherHandler<F> {
+	fn drop(&mut self) {
+		self.done.take().unwrap()();
+	}
+}
+
+impl<F: Fn() -> ()> AppFetcherHandler<F> {
+	fn close_client(client: &mut Option<Client<Fetch>>) {
+		client.take()
+			.expect("After client is closed we are going into write, hence we can never close it again")
+			.close();
+	}
+}
+
+impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
-		let status = if let FetchStatus::NotStarted(ref app) = self.status {
+		let status = if let FetchState::NotStarted(ref app) = self.status {
 			Some(match *request.method() {
 				// Start fetching content
 				Method::Get => {
-					let control = self.control.take().expect("on_request is called only once, thus control is always defined");
-					FetchStatus::InProgress {
-						deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),
-						receiver: fetch_app(self.client.as_mut().expect("on_request is called before client is closed."), app, control),
+					trace!(target: "dapps", "Fetching dapp: {:?}", app);
+					let control = self.control.take().expect("on_request is called only once, thus control is always Some");
+					let fetch = fetch_app(self.client.as_mut().expect("on_request is called before client is closed."), app, control);
+					match fetch {
+						Ok(receiver) => FetchState::InProgress {
+							deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),
+							receiver: receiver,
+						},
+						Err(e) => FetchState::Error(ContentHandler::html(
+							StatusCode::BadGateway,
+							format!("<h1>Error starting dapp download.</h1><pre>{}</pre>", e),
+						)),
 					}
 				},
 				// or return error
-				_ => FetchStatus::Error(ContentHandler::new(
+				_ => FetchState::Error(ContentHandler::html(
 					StatusCode::MethodNotAllowed,
 					"<h1>Only <code>GET</code> requests are allowed.</h1>".into(),
-					"text/html".into()
 				)),
 			})
 		} else { None };
@@ -150,39 +282,49 @@ impl server::Handler<HttpStream> for AppFetcherHandler {
 	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
 		let (status, next) = match self.status {
 			// Request may time out
-			FetchStatus::InProgress { ref deadline, ref receiver } if *deadline < Instant::now() => {
-				let timeout = ContentHandler::new(
+			FetchState::InProgress { ref deadline, ref receiver } if *deadline < Instant::now() => {
+				trace!(target: "dapps", "Fetching dapp failed because of timeout.");
+				let timeout = ContentHandler::html(
 					StatusCode::GatewayTimeout,
 					format!("<h1>Could not fetch app bundle within {} seconds.</h1>", FETCH_TIMEOUT),
-					"text/html".into()
 					);
-				(Some(FetchStatus::Error(timeout)), Next::write())
+				Self::close_client(&mut self.client);
+				(Some(FetchState::Error(timeout)), Next::write())
 			},
-			FetchStatus::InProgress { ref deadline, ref receiver } => {
+			FetchState::InProgress { ref deadline, ref receiver } => {
 				// Check if there is an answer
 				let rec = receiver.try_recv();
 				match rec {
 					// Unpack and validate
 					Ok(Ok(path)) => {
-						self.client.take()
-							.expect("After client is closed we are going into write, hence we can never close it again")
-							.close();
-						(Some(FetchStatus::Done), Next::write())
+						trace!(target: "dapps", "Fetching dapp finished. Starting validation.");
+						Self::close_client(&mut self.client);
+						// Unpack and verify
+						let state = match validate_and_install_app(path) {
+							Err(e) => {
+								trace!(target: "dapps", "Error while validating dapp: {:?}", e);
+								FetchState::Error(ContentHandler::html(
+									StatusCode::BadGateway,
+									format!("<h1>Downloaded bundle does not contain valid app.</h1><pre>{:?}</pre>", e),
+								))
+							},
+							Ok(id) => FetchState::Done(id)
+						};
+						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {
-						warn!("Unable to fetch new Dapp: {:?}", e);
-						let error = ContentHandler::new(
+						warn!(target: "dapps", "Unable to fetch new dapp: {:?}", e);
+						let error = ContentHandler::html(
 							StatusCode::BadGateway,
-							"<h1>There was an error when fetching the Dapp.".into(),
-							"text/html".into(),
+							"<h1>There was an error when fetching the dapp.</h1>".into(),
 						);
-						(Some(FetchStatus::Error(error)), Next::write())
+						(Some(FetchState::Error(error)), Next::write())
 					},
 					// wait some more
 					_ => (None, Next::wait())
 				}
 			},
-			FetchStatus::Error(ref mut handler) => (None, handler.on_request_readable(decoder)),
+			FetchState::Error(ref mut handler) => (None, handler.on_request_readable(decoder)),
 			_ => (None, Next::write()),
 		};
 
@@ -195,19 +337,21 @@ impl server::Handler<HttpStream> for AppFetcherHandler {
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		match self.status {
-			FetchStatus::Done => {
+			FetchState::Done(ref id) => {
+				trace!(target: "dapps", "Fetching dapp finished. Redirecting to {}", id);
 				res.set_status(StatusCode::Found);
-				res.headers_mut().set(header::Location("todo".into()));
+				// TODO [todr] should detect if its using nice-urls
+				res.headers_mut().set(header::Location(format!("http://{}{}", id, DAPPS_DOMAIN)));
 				Next::write()
 			},
-			FetchStatus::Error(ref mut handler) => handler.on_response(res),
+			FetchState::Error(ref mut handler) => handler.on_response(res),
 			_ => Next::end(),
 		}
 	}
 
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		match self.status {
-			FetchStatus::Error(ref mut handler) => handler.on_response_writable(encoder),
+			FetchState::Error(ref mut handler) => handler.on_response_writable(encoder),
 			_ => Next::end(),
 		}
 	}

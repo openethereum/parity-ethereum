@@ -50,6 +50,7 @@ extern crate hyper;
 extern crate unicase;
 extern crate serde;
 extern crate serde_json;
+extern crate zip;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate parity_dapps;

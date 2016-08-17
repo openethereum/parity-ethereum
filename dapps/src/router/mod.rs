@@ -130,7 +130,7 @@ impl<A: Authorization> Router<A> {
 			control: Some(control),
 			main_page: main_page,
 			endpoints: endpoints,
-			fetch: Arc::new(AppFetcher),
+			fetch: Arc::new(AppFetcher::default()),
 			special: special,
 			authorization: authorization,
 			bind_address: bind_address,

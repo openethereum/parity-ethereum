@@ -16,7 +16,7 @@
 
 //! Hyper Client Handler to Fetch File
 
-use std::{env, io, fs};
+use std::{env, io, fs, fmt};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -43,6 +43,12 @@ pub struct Fetch {
 	result: Option<FetchResult>,
 	sender: mpsc::Sender<FetchResult>,
 	on_done: Option<OnDone>,
+}
+
+impl fmt::Debug for Fetch {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		write!(f, "Fetch {{ path: {:?}, file: {:?}, result: {:?} }}", self.path, self.file, self.result)
+	}
 }
 
 impl Drop for Fetch {
