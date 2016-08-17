@@ -16,8 +16,6 @@
 
 //! Transaction data structure.
 
-use std::mem;
-use std::collections::VecDeque;
 use util::{H256, Address, U256, H520};
 use std::ops::Deref;
 use util::rlp::*;
@@ -29,7 +27,6 @@ use error::*;
 use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
-use ipc::binary::BinaryConvertError;
 use ethstore::ethkey::Signature as EthkeySignature;
 
 #[derive(Debug, Clone, PartialEq, Eq, Binary)]

@@ -19,9 +19,6 @@
 use util::H256;
 use super::trace::{Action, Res};
 use header::BlockNumber;
-use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 /// Localized trace.
 #[derive(Debug, PartialEq, Binary)]
