@@ -29,7 +29,7 @@ use hyper::client::{Client};
 
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, Manifest};
 use endpoint::{EndpointPath, Handler};
-use handlers::{Fetch, FetchResult, FetchError};
+use handlers::{Fetch, FetchResult};
 
 #[derive(Debug)]
 struct GithubApp {
@@ -54,21 +54,40 @@ impl GithubApp {
 	}
 }
 
-#[derive(Default)]
 pub struct AppFetcher {
+	dapps_path: PathBuf,
 	in_progress: Arc<Mutex<HashSet<String>>>,
 }
 
 impl AppFetcher {
 
+	pub fn new(dapps_path: &str) -> Self {
+		AppFetcher {
+			dapps_path: PathBuf::from(dapps_path),
+			in_progress: Arc::new(Mutex::new(HashSet::new())),
+		}
+	}
+
 	fn resolve(&self, app_id: &str) -> Option<GithubApp> {
 		// TODO [todr] use GithubHint contract to check the details
-		Some(GithubApp {
-			account: "ethcore".into(),
-			repo: "daoclaim".into(),
-			commit: GithubApp::commit(&"ec4c1fe06c808fe3739858c347109b1f5f1ed4b5".from_hex().unwrap()),
-			owner: Address::default(),
-		})
+		// For now we are just accepting patterns: <commithash>.<repo>.<account>.parity
+
+		let mut app_parts = app_id.split('.');
+		let hash = app_parts.next().and_then(|h| h.from_hex().ok());
+		let repo = app_parts.next();
+		let account = app_parts.next();
+
+		match (hash, repo, account) {
+			(Some(hash), Some(repo), Some(account)) => {
+				Some(GithubApp {
+					account: account.into(),
+					repo: repo.into(),
+					commit: GithubApp::commit(&hash),
+					owner: Address::default(),
+				})
+			},
+			_ => None,
+		}
 	}
 
 	pub fn can_resolve(&self, app_id: &str) -> bool {
@@ -92,6 +111,7 @@ impl AppFetcher {
 		let in_progress = self.in_progress.clone();
 		let app_id = path.app_id.clone();
 		Box::new(AppFetcherHandler {
+			dapps_path: self.dapps_path.clone(),
 			control: Some(control),
 			status: FetchState::NotStarted(app),
 			client: Some(client),
@@ -161,10 +181,9 @@ fn find_manifest(zip: &mut zip::ZipArchive<fs::File>) -> Result<(Manifest, PathB
 	return Err(ValidationError::ManifestNotFound);
 }
 
-fn validate_and_install_app(app: PathBuf) -> Result<String, ValidationError> {
-	trace!(target: "dapps", "Opening dapp bundle at {:?}", app);
-	let mut target = PathBuf::from("/home/tomusdrw/.parity/dapps");
-	let file = try!(fs::File::open(app));
+fn validate_and_install_app(mut target: PathBuf, app_path: PathBuf) -> Result<String, ValidationError> {
+	trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
+	let file = try!(fs::File::open(app_path));
 	// Unpack archive
 	let mut zip = try!(zip::ZipArchive::new(file));
 	// First find manifest file
@@ -201,10 +220,9 @@ fn validate_and_install_app(app: PathBuf) -> Result<String, ValidationError> {
 	Ok(manifest.id)
 }
 
-use std::io::Write;
 use std::time::{Instant, Duration};
 
-use hyper::{self, header, server, Decoder, Encoder, Next, Method};
+use hyper::{header, server, Decoder, Encoder, Next, Method};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
@@ -224,6 +242,7 @@ enum FetchState {
 const FETCH_TIMEOUT: u64 = 30;
 
 struct AppFetcherHandler<F: Fn() -> ()> {
+	dapps_path: PathBuf,
 	control: Option<Control>,
 	status: FetchState,
 	client: Option<Client<Fetch>>,
@@ -282,7 +301,7 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
 		let (status, next) = match self.status {
 			// Request may time out
-			FetchState::InProgress { ref deadline, ref receiver } if *deadline < Instant::now() => {
+			FetchState::InProgress { ref deadline, .. } if *deadline < Instant::now() => {
 				trace!(target: "dapps", "Fetching dapp failed because of timeout.");
 				let timeout = ContentHandler::html(
 					StatusCode::GatewayTimeout,
@@ -291,7 +310,7 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 				Self::close_client(&mut self.client);
 				(Some(FetchState::Error(timeout)), Next::write())
 			},
-			FetchState::InProgress { ref deadline, ref receiver } => {
+			FetchState::InProgress { ref receiver, .. } => {
 				// Check if there is an answer
 				let rec = receiver.try_recv();
 				match rec {
@@ -300,7 +319,7 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 						trace!(target: "dapps", "Fetching dapp finished. Starting validation.");
 						Self::close_client(&mut self.client);
 						// Unpack and verify
-						let state = match validate_and_install_app(path) {
+						let state = match validate_and_install_app(self.dapps_path.clone(), path) {
 							Err(e) => {
 								trace!(target: "dapps", "Error while validating dapp: {:?}", e);
 								FetchState::Error(ContentHandler::html(
@@ -357,13 +376,13 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 	}
 }
 
-// 1. Wait for response (with some timeout)
-// 2. Validate
-// 3. Unpack to ~/.parity/dapps
-// 4. Display errors or refresh to load again from memory / FS
+// 1. [x] Wait for response (with some timeout)
+// 2. Validate (Check hash)
+// 3. [x] Unpack to ~/.parity/dapps
+// 4. [x] Display errors or refresh to load again from memory / FS
 // 5. Mark as volatile?
 //    Keep a list of "installed" apps?
 //    Serve from memory?
 //
 // 6. Hosts validation?
-// 7. Mutex on dapp
+// 7. [x] Mutex on dapp

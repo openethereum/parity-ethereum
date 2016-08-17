@@ -123,6 +123,7 @@ impl Server {
 	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>, dapps_path: String) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
+		let apps_fetcher = Arc::new(apps::AppFetcher::new(&dapps_path));
 		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
 		let special = Arc::new({
 			let mut special = HashMap::new();
@@ -137,6 +138,7 @@ impl Server {
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
 				apps::main_page(),
+				apps_fetcher.clone(),
 				endpoints.clone(),
 				special.clone(),
 				authorization.clone(),

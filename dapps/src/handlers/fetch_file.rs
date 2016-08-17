@@ -16,13 +16,13 @@
 
 //! Hyper Client Handler to Fetch File
 
-use std::{env, io, fs, fmt};
+use std::{io, fs, fmt};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
 use hyper::status::StatusCode;
-use hyper::client::{Client, Request, Response, DefaultTransport as HttpStream};
+use hyper::client::{Request, Response, DefaultTransport as HttpStream};
 use hyper::header::Connection;
 use hyper::{self, Decoder, Encoder, Next};
 

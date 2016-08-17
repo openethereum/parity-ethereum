@@ -119,6 +119,7 @@ impl<A: Authorization> Router<A> {
 	pub fn new(
 		control: Control,
 		main_page: &'static str,
+		app_fetcher: Arc<AppFetcher>,
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 		authorization: Arc<A>,
@@ -130,7 +131,7 @@ impl<A: Authorization> Router<A> {
 			control: Some(control),
 			main_page: main_page,
 			endpoints: endpoints,
-			fetch: Arc::new(AppFetcher::default()),
+			fetch: app_fetcher,
 			special: special,
 			authorization: authorization,
 			bind_address: bind_address,
