@@ -14,7 +14,9 @@ export default class Tooltip extends Component {
 
   static propTypes = {
     title: PropTypes.string,
-    text: PropTypes.string
+    text: PropTypes.string,
+    top: PropTypes.string,
+    left: PropTypes.string
   }
 
   state = {
@@ -53,8 +55,18 @@ export default class Tooltip extends Component {
         onTouchTap={ this.onClose } />
       );
 
+    const inlineStyles = {};
+    if (this.props.top) {
+      inlineStyles.top = this.props.top;
+    }
+    if (this.props.left) {
+      inlineStyles.left = this.props.left;
+    }
+
     return (
-      <div className={ styles.box }>
+      <div
+        style={ inlineStyles }
+        className={ styles.box }>
         <div className={ styles.title }>
           { this.props.title }
         </div>

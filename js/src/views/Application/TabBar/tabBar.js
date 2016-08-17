@@ -33,6 +33,7 @@ export default class TabBar extends Component {
             label='accounts'
             onActive={ this.onActivate }>
             <Tooltip
+              left='6%' top='65%'
               text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           </Tab>
           <Tab

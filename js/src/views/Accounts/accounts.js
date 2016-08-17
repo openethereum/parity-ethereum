@@ -50,6 +50,7 @@ export default class Accounts extends Component {
 
     const firstTooltip = (
       <Tooltip
+        top='80%'
         text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
     );
 

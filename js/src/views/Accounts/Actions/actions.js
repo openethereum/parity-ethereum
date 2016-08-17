@@ -25,6 +25,7 @@ export default class Actions extends Component {
             onTouchTap={ this.props.onNewAccount } />
         </ToolbarGroup>
         <Tooltip
+          left='5%' top='85%'
           text='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item' />
       </Toolbar>
     );
