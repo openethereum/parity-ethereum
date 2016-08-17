@@ -28,6 +28,8 @@
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
 // Complains on Box<E> when implementing From<Box<E>>
 #![cfg_attr(feature="dev", allow(boxed_local))]
+// Complains about nested modules with same name as parent
+#![cfg_attr(feature="dev", allow(module_inception))]
 // TODO [todr] a lot of warnings to be fixed
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
 

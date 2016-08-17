@@ -376,7 +376,7 @@ impl Miner {
 			(work, is_new)
 		};
 		if is_new {
-			work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|ref p| p.notify(pow_hash, difficulty, number)));
+			work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|p| p.notify(pow_hash, difficulty, number)));
 		}
 	}
 

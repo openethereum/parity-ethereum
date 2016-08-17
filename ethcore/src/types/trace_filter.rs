@@ -16,9 +16,6 @@
 
 //! Trace filter related types
 
-use std::mem;
-use ipc::binary::{BinaryConvertError};
-use std::collections::VecDeque;
 use std::ops::Range;
 use util::{Address};
 use types::ids::BlockID;
