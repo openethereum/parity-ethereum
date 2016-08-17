@@ -14,8 +14,14 @@ import CreationType from './CreationType';
 import NewAccount from './NewAccount';
 import NewImport from './NewImport';
 
-const STAGE_NAMES = ['creation type', 'create account', 'account information'];
-const STAGE_IMPORT = ['creation type', 'import wallet', 'account information'];
+const TITLES = {
+  type: 'creation type',
+  create: 'create account',
+  info: 'account information',
+  import: 'import wallet'
+};
+const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
+const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 
 export default class CreateAccount extends Component {
   static contextTypes = {
