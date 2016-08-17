@@ -170,6 +170,13 @@ impl SafeAccount {
 		sign(&secret, message).map_err(From::from)
 	}
 
+	pub fn decrypt(&self, password: &str, _shared_mac: &[u8], _message: &[u8]) -> Result<Vec<u8>, Error> {
+		let _secret = try!(self.crypto.secret(password));
+		unimplemented!();
+		// TODO: gav Use once #1921 is in.
+		//decrypt(&secret, shared_mac, message).map_err(From::from)
+	}
+
 	pub fn change_password(&self, old_password: &str, new_password: &str, iterations: u32) -> Result<Self, Error> {
 		let secret = try!(self.crypto.secret(old_password));
 		let result = SafeAccount {

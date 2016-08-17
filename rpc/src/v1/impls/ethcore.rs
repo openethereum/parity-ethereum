@@ -20,6 +20,7 @@ use std::str::FromStr;
 use std::collections::{BTreeMap};
 use util::{RotatingLogger, KeyPair, Address};
 use util::misc::version_data;
+use util::crypto::ecies;
 
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
@@ -28,7 +29,7 @@ use ethcore::client::{MiningBlockChainClient};
 
 use jsonrpc_core::*;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160, Peers};
+use v1::types::{Bytes, U256, H160, H512, Peers};
 use v1::helpers::{errors, SigningQueue, ConfirmationsQueue, NetworkSettings};
 use v1::helpers::params::expect_no_params;
 
@@ -215,5 +216,13 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		from_params::<(String,)>(params).and_then(|(phrase,)|
 			to_value(&H160::from(KeyPair::from_phrase(&phrase).address()))
 		)
+	}
+
+	fn encrypt_message(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(H512, Bytes)>(params).and_then(|(key, phrase)| {
+			let s = try!(ecies::encrypt(&key.into(), &[0; 0], &phrase.0).map_err(|_| Error::internal_error()));
+			to_value(&Bytes::from(s))
+		})
 	}
 }

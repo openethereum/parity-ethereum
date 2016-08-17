@@ -17,7 +17,7 @@
 use util::rlp::encode;
 use ethcore::contract_address;
 use ethcore::transaction::{LocalizedTransaction, Action, SignedTransaction};
-use v1::types::{Bytes, H160, H256, U256};
+use v1::types::{Bytes, H160, H256, U256, H512};
 
 /// Transaction
 #[derive(Debug, Default, Serialize)]
@@ -52,6 +52,9 @@ pub struct Transaction {
 	pub creates: Option<H160>,
 	/// Raw transaction data
 	pub raw: Bytes,
+	/// Public key of the signer.
+	#[serde(rename="publicKey")]
+	pub public_key: Option<H512>,
 }
 
 impl From<LocalizedTransaction> for Transaction {
@@ -76,6 +79,7 @@ impl From<LocalizedTransaction> for Transaction {
 				Action::Call(_) => None,
 			},
 			raw: encode(&t.signed).to_vec().into(),
+			public_key: t.public_key().ok(.map(Into::into),
 		}
 	}
 }
@@ -102,6 +106,7 @@ impl From<SignedTransaction> for Transaction {
 				Action::Call(_) => None,
 			},
 			raw: encode(&t).to_vec().into(),
+			public_key: t.public_key().ok().map(Into::into),
 		}
 	}
 }
@@ -115,7 +120,7 @@ mod tests {
 	fn test_transaction_serialize() {
 		let t = Transaction::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x","creates":null,"raw":"0x"}"#);
+		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x","creates":null,"raw":"0x","publicKey":null}"#);
 	}
 }
 

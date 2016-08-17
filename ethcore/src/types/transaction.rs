@@ -20,7 +20,7 @@ use util::{H256, Address, U256, H520};
 use std::ops::Deref;
 use util::rlp::*;
 use util::sha3::*;
-use util::{UtilError, CryptoError, Bytes, Signature, Secret, ec};
+use util::{UtilError, CryptoError, Bytes, Signature, Secret, Public, ec};
 use util::crypto::{signature_from_rsv, signature_to_rsv};
 use std::cell::*;
 use error::*;
@@ -307,11 +307,16 @@ impl SignedTransaction {
 		match sender {
 			Some(s) => Ok(s),
 			None => {
-				let s = Address::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3());
+				let s = Address::from(try!(self.public_key()).sha3());
 				self.sender.set(Some(s));
 				Ok(s)
 			}
 		}
+	}
+
+	/// Returns the public key of the sender.
+	pub fn public_key(&self) -> Result<Public, Error> {
+		Ok(try!(ec::recover(&self.signature(), &self.unsigned.hash())))
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
