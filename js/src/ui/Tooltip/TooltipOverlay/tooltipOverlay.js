@@ -2,6 +2,8 @@ import React, { Component, PropTypes } from 'react';
 
 import styles from '../style.css';
 
+const LS_KEY = 'tooltips';
+
 export default class TooltipOverlay extends Component {
   static childContextTypes = {
     tooltips: PropTypes.object
@@ -12,8 +14,16 @@ export default class TooltipOverlay extends Component {
   }
 
   state = {
-    currentId: 0,
+    currentId: -1,
     updateCallbacks: []
+  }
+
+  componentDidMount () {
+    const ls = window.localStorage.getItem('tooltips');
+
+    this.setState({
+      currentId: ls ? -1 : 0
+    });
   }
 
   render () {
@@ -34,10 +44,6 @@ export default class TooltipOverlay extends Component {
   }
 
   register (updateCallback) {
-    if (this.state.currentId === -1) {
-      return;
-    }
-
     this.state.updateCallbacks.push(updateCallback);
     this.update();
 
@@ -57,6 +63,8 @@ export default class TooltipOverlay extends Component {
   }
 
   close () {
+    window.localStorage.setItem(LS_KEY, '{"state":"off"}');
+
     this.setState({
       currentId: -1
     }, this.update);
