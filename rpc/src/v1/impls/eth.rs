@@ -107,7 +107,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 				let view = block_view.header_view();
 				let block = Block {
 					hash: Some(view.sha3().into()),
-					size: Some(bytes.len()),
+					size: Some(bytes.len().into()),
 					parent_hash: view.parent_hash().into(),
 					uncles_hash: view.uncles_hash().into(),
 					author: view.author().into(),
@@ -460,8 +460,8 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(hash,)| {
 				let miner = take_weak!(self.miner);
 				let hash: H256 = hash.into();
-				match miner.pending_receipts().get(&hash) {
-					Some(receipt) if self.options.allow_pending_receipt_query => to_value(&Receipt::from(receipt.clone())),
+				match (miner.pending_receipt(&hash), self.options.allow_pending_receipt_query) {
+					(Some(receipt), true) => to_value(&Receipt::from(receipt)),
 					_ => {
 						let client = take_weak!(self.client);
 						let receipt = client.transaction_receipt(TransactionID::Hash(hash));
