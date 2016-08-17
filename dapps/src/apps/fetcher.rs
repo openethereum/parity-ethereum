@@ -329,6 +329,8 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 							},
 							Ok(id) => FetchState::Done(id)
 						};
+						// Remove temporary zip file
+						let _ = fs::remove_file(path);
 						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {

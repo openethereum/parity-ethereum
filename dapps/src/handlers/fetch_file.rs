@@ -20,6 +20,7 @@ use std::{io, fs, fmt};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
+use rand::{Rng, OsRng};
 
 use hyper::status::StatusCode;
 use hyper::client::{Request, Response, DefaultTransport as HttpStream};
@@ -36,6 +37,11 @@ pub enum Error {
 
 pub type FetchResult = Result<PathBuf, Error>;
 pub type OnDone = Box<Fn() + Send>;
+
+fn random_filename() -> String {
+	let mut rng = OsRng::new().unwrap();
+	rng.gen_ascii_chars().take(12).collect()
+}
 
 pub struct Fetch {
 	path: PathBuf,
@@ -72,8 +78,11 @@ impl Drop for Fetch {
 
 impl Fetch {
 	pub fn new(sender: mpsc::Sender<FetchResult>, on_done: OnDone) -> Self {
+		let mut dir = env::temp_dir();
+		dir.push(random_filename());
+
 		Fetch {
-			path: PathBuf::from("/tmp/testfile.zip"),
+			path: dir,
 			file: None,
 			result: None,
 			sender: sender,
