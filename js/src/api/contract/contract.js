@@ -47,14 +47,14 @@ export default class Contract {
     return this;
   }
 
-  deploy (code, values, password) {
+  deploy (code, values) {
     const options = {
       data: code,
       gas: 900000
     };
 
-    return this._eth.personal
-      .signAndSendTransaction(this._encodeOptions(this.constructors[0], options, values), password)
+    return this._eth.eth
+      .sendTransaction(this._encodeOptions(this.constructors[0], options, values))
       .then((txhash) => this.pollTransactionReceipt(txhash))
       .then((receipt) => {
         this._address = receipt.contractAddress;
@@ -144,11 +144,6 @@ export default class Contract {
       func.sendTransaction = (options, values) => {
         return this._eth.eth
           .sendTransaction(this._encodeOptions(func, addAddress(options), values));
-      };
-
-      func.signAndSendTransaction = (options, values, password) => {
-        return this._eth.personal
-          .signAndSendTransaction(this._encodeOptions(func, addAddress(options), values), password);
       };
 
       func.estimateGas = (options, values) => {

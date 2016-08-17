@@ -199,13 +199,13 @@ describe('api/contract/Contract', () => {
     describe('success', () => {
       before(() => {
         scope = mockHttp([
-          { method: 'personal_signAndSendTransaction', reply: { result: '0x678' } },
+          { method: 'eth_sendTransaction', reply: { result: '0x678' } },
           { method: 'eth_getTransactionReceipt', reply: { result: null } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT } },
           { method: 'eth_getCode', reply: { result: '0x456' } }
         ]);
 
-        return contract.deploy('0x123', [], 'xxx');
+        return contract.deploy('0x123', []);
       });
 
       it('calls sendTransaction, getTransactionReceipt & getCode in order', () => {
@@ -213,9 +213,8 @@ describe('api/contract/Contract', () => {
       });
 
       it('passes the options & password through to sendTransaction', () => {
-        expect(scope.body.personal_signAndSendTransaction.params).to.deep.equal([
-          { data: '0x123', gas: '0xdbba0' },
-          'xxx'
+        expect(scope.body.eth_sendTransaction.params).to.deep.equal([
+          { data: '0x123', gas: '0xdbba0' }
         ]);
       });
 
@@ -227,7 +226,7 @@ describe('api/contract/Contract', () => {
     describe('error', () => {
       before(() => {
         scope = mockHttp([
-          { method: 'personal_signAndSendTransaction', reply: { result: '0x678' } },
+          { method: 'eth_sendTransaction', reply: { result: '0x678' } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT } },
           { method: 'eth_getCode', reply: { result: '0x' } }
         ]);
@@ -235,7 +234,7 @@ describe('api/contract/Contract', () => {
 
       it('fails when no code was deployed', () => {
         return contract
-          .deploy('0x123', [], 'xxx')
+          .deploy('0x123', [])
           .catch((error) => {
             expect(error.message).to.match(/not deployed/);
           });
@@ -255,17 +254,15 @@ describe('api/contract/Contract', () => {
     });
 
     describe('attachments', () => {
-      it('attaches .call, .sendTransaction, .signAndSend & .estimateGas to constructors', () => {
+      it('attaches .call, .sendTransaction & .estimateGas to constructors', () => {
         expect(isFunction(cons.call)).to.be.true;
         expect(isFunction(cons.sendTransaction)).to.be.true;
-        expect(isFunction(cons.signAndSendTransaction)).to.be.true;
         expect(isFunction(cons.estimateGas)).to.be.true;
       });
 
-      it('attaches .call, .sendTransaction, .signAndSend & .estimateGas to functions', () => {
+      it('attaches .call, .sendTransaction & .estimateGas to functions', () => {
         expect(isFunction(func.call)).to.be.true;
         expect(isFunction(func.sendTransaction)).to.be.true;
-        expect(isFunction(func.signAndSendTransaction)).to.be.true;
         expect(isFunction(func.estimateGas)).to.be.true;
       });
 
@@ -274,7 +271,6 @@ describe('api/contract/Contract', () => {
 
         expect(isFunction(func.call)).to.be.true;
         expect(isFunction(func.sendTransaction)).to.be.false;
-        expect(isFunction(func.signAndSendTransaction)).to.be.false;
         expect(isFunction(func.estimateGas)).to.be.false;
       });
     });
@@ -294,25 +290,6 @@ describe('api/contract/Contract', () => {
               to: ADDR,
               data: ENCODED
             });
-          });
-      });
-    });
-
-    describe('signAndSendTransaction', () => {
-      beforeEach(() => {
-        scope = mockHttp([{ method: 'personal_signAndSendTransaction', reply: { result: ['hashId'] } }]);
-      });
-
-      it('encodes options and mades an personal_signAndSendTransaction call', () => {
-        return func
-          .signAndSendTransaction({ someExtras: 'foo' }, VALUES, 'xxx')
-          .then(() => {
-            expect(scope.isDone()).to.be.true;
-            expect(scope.body.personal_signAndSendTransaction.params).to.deep.equal([{
-              someExtras: 'foo',
-              to: ADDR,
-              data: ENCODED
-            }, 'xxx']);
           });
       });
     });
