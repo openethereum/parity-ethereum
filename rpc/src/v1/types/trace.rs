@@ -32,14 +32,14 @@ pub struct MemoryDiff {
 	/// Offset into memory the change begins.
 	pub off: usize,
 	/// The changed data.
-	pub data: Vec<u8>,
+	pub data: Bytes,
 }
 
 impl From<et::MemoryDiff> for MemoryDiff {
 	fn from(c: et::MemoryDiff) -> Self {
 		MemoryDiff {
 			off: c.offset,
-			data: c.data,
+			data: c.data.into(),
 		}
 	}
 }
@@ -591,7 +591,7 @@ mod tests {
 			]
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"code":[0,1,2,3],"ops":[{"pc":0,"cost":10,"ex":null,"sub":null},{"pc":1,"cost":11,"ex":{"used":10,"push":["0x45"],"mem":null,"store":null},"sub":{"code":[0],"ops":[{"pc":0,"cost":0,"ex":{"used":10,"push":["0x2a"],"mem":{"off":42,"data":[1,2,3]},"store":{"key":"0x45","val":"0x2a"}},"sub":null}]}}]}"#);
+		assert_eq!(serialized, r#"{"code":"0x00010203","ops":[{"pc":0,"cost":10,"ex":null,"sub":null},{"pc":1,"cost":11,"ex":{"used":10,"push":["0x45"],"mem":null,"store":null},"sub":{"code":"0x00","ops":[{"pc":0,"cost":0,"ex":{"used":10,"push":["0x2a"],"mem":{"off":42,"data":"0x010203"},"store":{"key":"0x45","val":"0x2a"}},"sub":null}]}}]}"#);
 	}
 
 	#[test]
