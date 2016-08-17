@@ -21,9 +21,8 @@ extern crate ethstore;
 use std::{env, process, fs};
 use std::io::Read;
 use std::ops::Deref;
-use std::str::FromStr;
 use docopt::Docopt;
-use ethstore::ethkey::{Secret, Address, Message};
+use ethstore::ethkey::Address;
 use ethstore::dir::{KeyDirectory, ParityDirectory, DiskDirectory, GethDirectory, DirectoryType};
 use ethstore::{EthStore, SecretStore, import_accounts, Error, PresaleWallet};
 
@@ -127,12 +126,12 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	let store = try!(EthStore::open(try!(key_dir(&args.flag_dir))));
 
 	return if args.cmd_insert {
-		let secret = try!(Secret::from_str(&args.arg_secret));
+		let secret = try!(args.arg_secret.parse().map_err(|_| Error::InvalidSecret));
 		let password = try!(load_password(&args.arg_password));
 		let address = try!(store.insert_account(secret, &password));
 		Ok(format!("{}", address))
 	} else if args.cmd_change_pwd {
-		let address = try!(Address::from_str(&args.arg_address));
+		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
 		let old_pwd = try!(load_password(&args.arg_old_pwd));
 		let new_pwd = try!(load_password(&args.arg_new_pwd));
 		let ok = store.change_password(&address, &old_pwd, &new_pwd).is_ok();
@@ -152,13 +151,13 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let address = try!(store.insert_account(kp.secret().clone(), &password));
 		Ok(format!("{}", address))
 	} else if args.cmd_remove {
-		let address = try!(Address::from_str(&args.arg_address));
+		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
 		let password = try!(load_password(&args.arg_password));
 		let ok = store.remove_account(&address, &password).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_sign {
-		let address = try!(Address::from_str(&args.arg_address));
-		let message = try!(Message::from_str(&args.arg_message));
+		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
+		let message = try!(args.arg_message.parse().map_err(|_| Error::InvalidMessage));
 		let password = try!(load_password(&args.arg_password));
 		let signature = try!(store.sign(&address, &password, &message));
 		Ok(format!("{}", signature))

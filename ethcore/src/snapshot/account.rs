@@ -144,7 +144,7 @@ mod tests {
 	use snapshot::tests::helpers::fill_storage;
 
 	use util::{SHA3_NULL_RLP, SHA3_EMPTY};
-	use util::hash::{Address, FixedHash, H256};
+	use util::{Address, FixedHash, H256};
 	use util::rlp::{UntrustedRlp, View};
 
 	use super::Account;

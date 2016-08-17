@@ -66,8 +66,6 @@ linux-armv7:
   stage: build
   image: ethcore/rust-arm:latest
   script:
-    - export CXX=arm-linux-gnueabihf-g++
-    - export CC=arm-linux-gnueabihf-gcc
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
@@ -85,8 +83,6 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   script:
-    - export CXX=arm-linux-gnueabihf-g++
-    - export CC=arm-linux-gnueabihf-gcc
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
@@ -104,8 +100,6 @@ linux-armv6:
   stage: build
   image: ethcore/rust-arm:latest
   script:
-    - export CXX=arm-linux-gnueabi-g++
-    - export CC=arm-linux-gnueabi-gcc
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
@@ -123,8 +117,6 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-arm:latest
   script:
-    - export CXX=aarch64-linux-gnu-g++
-    - export CC=aarch64-linux-gnu-gcc
     - mkdir -p .cargo
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
@@ -154,7 +146,6 @@ windows:
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
-    - SET
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release --verbose
   tags:

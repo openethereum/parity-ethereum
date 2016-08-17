@@ -15,11 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
+use std::cmp::PartialEq;
 use std::{mem, fmt};
 use std::str::FromStr;
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
 use secp256k1::key::{SecretKey, PublicKey};
 use rustc_serialize::hex::{ToHex, FromHex};
+use bigint::hash::H520;
 use {Secret, Public, SECP256K1, Error, Message, public_to_address, Address};
 
 #[repr(C)]
@@ -45,7 +47,7 @@ impl Signature {
 
 // manual implementation large arrays don't have trait impls by default.
 // remove when integer generics exist
-impl ::std::cmp::PartialEq for Signature {
+impl PartialEq for Signature {
 	fn eq(&self, other: &Self) -> bool {
 		&self.0[..] == &other.0[..]
 	}
@@ -98,6 +100,18 @@ impl From<[u8; 65]> for Signature {
 impl Into<[u8; 65]> for Signature {
 	fn into(self) -> [u8; 65] {
 		self.0
+	}
+}
+
+impl From<Signature> for H520 {
+	fn from(s: Signature) -> Self {
+		H520::from(s.0)
+	}
+}
+
+impl From<H520> for Signature {
+	fn from(bytes: H520) -> Self {
+		Signature(bytes.into())
 	}
 }
 
