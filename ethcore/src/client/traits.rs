@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::mem;
+use std::collections::{BTreeMap, VecDeque};
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
@@ -144,6 +146,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Get the registrar address, if it exists.
+	fn additional_params(&self) -> BTreeMap<String, String>;
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> Bytes;
