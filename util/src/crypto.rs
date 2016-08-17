@@ -334,9 +334,11 @@ pub mod ecies {
 		{
 			let msgd = &mut msg[1..];
 			r.public().copy_to(&mut msgd[0..64]);
+			let iv = H128::random();
+			iv.copy_to(&mut msgd[64..(64+16)]);
 			{
 				let cipher = &mut msgd[(64 + 16)..(64 + 16 + plain.len())];
-				aes::encrypt(ekey, &H128::new(), plain, cipher);
+				aes::encrypt(ekey, &iv, plain, cipher);
 			}
 			let mut hmac = Hmac::new(Sha256::new(), &mkey);
 			{
