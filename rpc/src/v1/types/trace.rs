@@ -522,7 +522,7 @@ mod tests {
 			state_diff: None,
 		};
 		let serialized = serde_json::to_string(&r).unwrap();
-		assert_eq!(serialized, r#"{"output":[96],"trace":[],"vmTrace":null,"stateDiff":null}"#);
+		assert_eq!(serialized, r#"{"output":"0x60","trace":[],"vmTrace":null,"stateDiff":null}"#);
 	}
 
 	#[test]
