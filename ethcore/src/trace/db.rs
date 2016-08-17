@@ -144,8 +144,8 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		};
 
 		let batch = DBTransaction::new(&tracesdb);
-		batch.put(DB_COL_TRACE, b"enabled", &encoded_tracing).unwrap();
-		batch.put(DB_COL_TRACE, b"version", TRACE_DB_VER).unwrap();
+		batch.put(DB_COL_TRACE, b"enabled", &encoded_tracing);
+		batch.put(DB_COL_TRACE, b"version", TRACE_DB_VER);
 		tracesdb.write(batch).unwrap();
 
 		let db = TraceDB {

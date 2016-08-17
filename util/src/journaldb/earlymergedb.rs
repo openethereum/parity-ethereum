@@ -101,8 +101,8 @@ impl EarlyMergeDB {
 	}
 
 	// The next three are valid only as long as there is an insert operation of `key` in the journal.
-	fn set_already_in(batch: &DBTransaction, col: Option<u32>, key: &H256) { batch.put(col, &Self::morph_key(key, 0), &[1u8]).expect("Low-level database error. Some issue with your hard disk?"); }
-	fn reset_already_in(batch: &DBTransaction, col: Option<u32>, key: &H256) { batch.delete(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?"); }
+	fn set_already_in(batch: &DBTransaction, col: Option<u32>, key: &H256) { batch.put(col, &Self::morph_key(key, 0), &[1u8]); }
+	fn reset_already_in(batch: &DBTransaction, col: Option<u32>, key: &H256) { batch.delete(col, &Self::morph_key(key, 0)); }
 	fn is_already_in(backing: &Database, col: Option<u32>, key: &H256) -> bool {
 		backing.get(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
@@ -132,7 +132,7 @@ impl EarlyMergeDB {
 			// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
 			//Self::reset_already_in(&h);
 			assert!(!Self::is_already_in(backing, col, &h));
-			batch.put(col, h, d).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(col, h, d);
 			refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: false});
 			if trace {
 				trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
@@ -193,7 +193,7 @@ impl EarlyMergeDB {
 				}
 				Some(RefInfo{queue_refs: 1, in_archive: false}) => {
 					refs.remove(h);
-					batch.delete(col, h).expect("Low-level database error. Some issue with your hard disk?");
+					batch.delete(col, h);
 					if trace {
 						trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
 					}
@@ -201,7 +201,7 @@ impl EarlyMergeDB {
 				None => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
-					batch.delete(col, h).expect("Low-level database error. Some issue with your hard disk?");
+					batch.delete(col, h);
 					if trace {
 						trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
 					}
@@ -436,9 +436,9 @@ impl JournalDB for EarlyMergeDB {
 				trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
 				trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
 			}
-			try!(batch.put(self.column, &last, r.as_raw()));
+			batch.put(self.column, &last, r.as_raw());
 			if self.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
+				batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
 				self.latest_era = Some(now);
 			}
 		}
@@ -499,7 +499,7 @@ impl JournalDB for EarlyMergeDB {
 					Self::remove_keys(&inserts, &mut refs, batch, self.column, RemoveFrom::Queue, trace);
 				}
 
-				try!(batch.delete(self.column, &last));
+				batch.delete(self.column, &last);
 				index += 1;
 			}
 			if trace {
@@ -525,13 +525,13 @@ impl JournalDB for EarlyMergeDB {
 					if try!(self.backing.get(self.column, &key)).is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
-					try!(batch.put(self.column, &key, &value))
+					batch.put(self.column, &key, &value)
 				}
 				-1 => {
 					if try!(self.backing.get(self.column, &key)).is_none() {
 						return Err(BaseDataError::NegativelyReferencedHash(key).into());
 					}
-					try!(batch.delete(self.column, &key))
+					batch.delete(self.column, &key)
 				}
 				_ => panic!("Attempted to inject invalid state."),
 			}

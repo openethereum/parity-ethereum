@@ -116,10 +116,10 @@ impl OverlayDB {
 			let mut s = RlpStream::new_list(2);
 			s.append(&payload.1);
 			s.append(&payload.0);
-			batch.put(self.column, key, s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(self.column, key, s.as_raw());
 			false
 		} else {
-			batch.delete(self.column, key).expect("Low-level database error. Some issue with your hard disk?");
+			batch.delete(self.column, key);
 			true
 		}
 	}
@@ -301,7 +301,7 @@ fn playpen() {
 	{
 		let db = Database::open_default("/tmp/test").unwrap();
 		let batch = db.transaction();
-		batch.put(None, b"test", b"test2").unwrap();
+		batch.put(None, b"test", b"test2");
 		db.write(batch).unwrap();
 		match db.get(None, b"test") {
 			Ok(Some(value)) => println!("Got value {:?}", &*value),
@@ -309,7 +309,7 @@ fn playpen() {
 			Err(..) => println!("Gah"),
 		}
 		let batch = db.transaction();
-		batch.delete(None, b"test").unwrap();
+		batch.delete(None, b"test");
 		db.write(batch).unwrap();
 	}
 	fs::remove_dir_all("/tmp/test").unwrap();
