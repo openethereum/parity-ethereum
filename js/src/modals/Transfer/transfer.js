@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
@@ -6,13 +7,23 @@ import ContentSend from 'material-ui/svg-icons/content/send';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
+import Api from '../../api';
 import Modal from '../../ui/Modal';
 
 import Complete from './Complete';
 import Details from './Details';
-import Verify from './Verify';
+import Extras from './Extras';
+import ERRORS from './errors';
 
-const STAGE_NAMES = ['transfer', 'verify transaction', 'transaction receipt'];
+const DEFAULT_GAS = '21000';
+const DEFAULT_GASPRICE = '20000000000';
+const TITLES = {
+  transfer: 'transfer details',
+  complete: 'complete',
+  extras: 'extra information'
+};
+const STAGES_BASIC = [TITLES.transfer, TITLES.complete];
+const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
 
 export default class Transfer extends Component {
   static contextTypes = {
@@ -28,13 +39,25 @@ export default class Transfer extends Component {
 
   state = {
     stage: 0,
-    amount: 0,
-    gas: 0,
-    password: null,
-    recipient: null,
-    total: 0,
-    isValid: false,
-    sending: false
+    extraData: '',
+    extraDataError: null,
+    extras: false,
+    gas: DEFAULT_GAS,
+    gasError: null,
+    gasPrice: DEFAULT_GASPRICE,
+    gasPriceError: null,
+    recipient: '',
+    recipientError: ERRORS.requireRecipient,
+    sending: false,
+    total: '0.0',
+    totalError: null,
+    value: '0.0',
+    valueAll: false,
+    valueError: null
+  }
+
+  componentDidMount () {
+    this.getDefaults();
   }
 
   render () {
@@ -42,7 +65,7 @@ export default class Transfer extends Component {
       <Modal
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
-        steps={ STAGE_NAMES }
+        steps={ this.state.extras ? STAGES_EXTRA : STAGES_BASIC }
         visible={ this.props.visible }>
         { this.renderPage() }
       </Modal>
@@ -54,20 +77,32 @@ export default class Transfer extends Component {
       case 0:
         return (
           <Details
-            address={ this.props.address }
-            balance={ this.props.balance }
-            onChange={ this.onChangeDetails } />
-        );
-      case 1:
-        return (
-          <Verify
-            address={ this.props.address }
-            amount={ this.state.amount }
-            total={ this.state.total }
+            all={ this.state.valueAll }
+            extras={ this.state.extras }
             recipient={ this.state.recipient }
-            onChange={ this.onChangePassword } />
+            recipientError={ this.state.recipientError }
+            total={ this.state.total }
+            totalError={ this.state.totalError }
+            value={ this.state.value }
+            valueError={ this.state.valueError }
+            onChange={ this.onUpdateDetails } />
         );
-      case 2:
+
+      default:
+        if (this.state.stage === 1 && this.state.extras) {
+          return (
+            <Extras
+              extraData={ this.state.extraData }
+              gas={ this.state.gas }
+              gasError={ this.state.gasError }
+              gasPrice={ this.state.gasPrice }
+              gasPriceError={ this.state.gasPriceError }
+              total={ this.state.total }
+              totalError={ this.state.totalError }
+              onChange={ this.onUpdateDetails } />
+          );
+        }
+
         return (
           <Complete
             sending={ this.state.sending }
@@ -77,48 +112,67 @@ export default class Transfer extends Component {
   }
 
   renderDialogActions () {
+    const cancelBtn = (
+      <FlatButton
+        icon={ <ContentClear /> }
+        label='Cancel' primary
+        onTouchTap={ this.onClose } />
+    );
+    const nextBtn = (
+      <FlatButton
+        disabled={ !this.isValid() }
+        icon={ <NavigationArrowForward /> }
+        label='Next' primary
+        onTouchTap={ this.onNext } />
+    );
+    const prevBtn = (
+      <FlatButton
+        icon={ <NavigationArrowBack /> }
+        label='Back' primary
+        onTouchTap={ this.onPrev } />
+    );
+    const sendBtn = (
+      <FlatButton
+        disabled={ !this.isValid() || this.state.sending }
+        icon={ <ContentSend /> }
+        label='Send' primary
+        onTouchTap={ this.onSend } />
+    );
+    const doneBtn = (
+      <FlatButton
+        icon={ <ActionDoneAll /> }
+        label='Close' primary
+        onTouchTap={ this.onClose } />
+    );
+
     switch (this.state.stage) {
       case 0:
-        return [
-          <FlatButton
-            icon={ <ContentClear /> }
-            label='Cancel'
-            primary
-            onTouchTap={ this.onClose } />,
-          <FlatButton
-            disabled={ !this.state.isValid }
-            icon={ <NavigationArrowForward /> }
-            label='Next'
-            primary
-            onTouchTap={ this.onNext } />
-        ];
+        return this.state.extras
+          ? [cancelBtn, nextBtn]
+          : [cancelBtn, sendBtn];
       case 1:
-        return [
-          <FlatButton
-            icon={ <ContentClear /> }
-            label='Cancel'
-            primary
-            onTouchTap={ this.onClose } />,
-          <FlatButton
-            icon={ <NavigationArrowBack /> }
-            label='Back'
-            primary
-            onTouchTap={ this.onPrev } />,
-          <FlatButton
-            disabled={ !this.state.isValid || this.state.sending }
-            icon={ <ContentSend /> }
-            label='Send'
-            primary
-            onTouchTap={ this.onSend } />
-        ];
+        return this.state.extras
+          ? [cancelBtn, prevBtn, sendBtn]
+          : [doneBtn];
+      default:
+        return [doneBtn];
+    }
+  }
+
+  isValid () {
+    const detailsValid = !this.state.recipientError && !this.state.valueError && !this.state.totalError;
+    const extrasValid = !this.state.gasError && !this.state.gasPriceError && !this.state.totalError;
+    const verifyValid = !this.state.passwordError;
+
+    switch (this.state.stage) {
+      case 0:
+        return detailsValid;
+
+      case 1:
+        return this.state.extras ? extrasValid : verifyValid;
+
       case 2:
-        return (
-          <FlatButton
-            icon={ <ActionDoneAll /> }
-            label='Close'
-            primary
-            onTouchTap={ this.onClose } />
-      );
+        return verifyValid;
     }
   }
 
@@ -134,6 +188,104 @@ export default class Transfer extends Component {
     });
   }
 
+  _onUpdateAll (valueAll) {
+    this.setState({
+      valueAll
+    }, this.recalculate);
+  }
+
+  _onUpdateExtras (extras) {
+    this.setState({
+      extras
+    });
+  }
+
+  _onUpdateExtraData (extraData) {
+    this.setState({
+      extraData
+    });
+  }
+
+  validatePositiveNumber (num) {
+    try {
+      const v = new BigNumber(num);
+      if (v.lt(0)) {
+        return ERRORS.invalidAmount;
+      }
+    } catch (e) {
+      return ERRORS.invalidAmount;
+    }
+
+    return null;
+  }
+
+  _onUpdateGas (gas) {
+    const gasError = this.validatePositiveNumber(gas);
+
+    this.setState({
+      gas,
+      gasError
+    }, this.recalculate);
+  }
+
+  _onUpdateGasPrice (gasPrice) {
+    const gasPriceError = this.validatePositiveNumber(gasPrice);
+
+    this.setState({
+      gasPrice,
+      gasPriceError
+    }, this.recalculate);
+  }
+
+  _onUpdateRecipient (recipient) {
+    let recipientError = null;
+
+    if (!recipient || !recipient.length) {
+      recipientError = ERRORS.requireRecipient;
+    } else if (!Api.format.isAddressValid(recipient)) {
+      recipientError = ERRORS.invalidAddress;
+    }
+
+    this.setState({
+      recipient,
+      recipientError
+    });
+  }
+
+  _onUpdateValue (value) {
+    const valueError = this.validatePositiveNumber(value);
+
+    this.setState({
+      value,
+      valueError
+    }, this.recalculate);
+  }
+
+  onUpdateDetails = (type, value) => {
+    switch (type) {
+      case 'all':
+        return this._onUpdateAll(value);
+
+      case 'extras':
+        return this._onUpdateExtras(value);
+
+      case 'extraData':
+        return this._onUpdateExtraData(value);
+
+      case 'gas':
+        return this._onUpdateGas(value);
+
+      case 'gasPrice':
+        return this._onUpdateGasPrice(value);
+
+      case 'recipient':
+        return this._onUpdateRecipient(value);
+
+      case 'value':
+        return this._onUpdateValue(value);
+    }
+  }
+
   onSend = () => {
     this.onNext();
 
@@ -141,13 +293,14 @@ export default class Transfer extends Component {
       sending: true
     });
 
-    this.context.api.personal
-      .signAndSendTransaction({
+    this.context.api.eth
+      .sendTransaction({
         from: this.props.address,
         to: this.state.recipient,
         gas: this.state.gas,
-        value: this.state.amount
-      }, this.state.password)
+        gasPrice: this.state.gasPrice,
+        value: Api.format.toWei(this.state.value)
+      })
       .then((txhash) => {
         console.log('transaction', txhash);
         this.setState({
@@ -160,20 +313,18 @@ export default class Transfer extends Component {
       });
   }
 
-  onChangeDetails = (valid, { amount, gas, recipient, total }) => {
+  onChangeDetails = (valid, { value, recipient, total, extras }) => {
     this.setState({
-      amount: amount,
-      gas: gas,
-      recipient: recipient,
-      total: total,
-      isValid: valid
+      value,
+      extras,
+      recipient,
+      total
     });
   }
 
   onChangePassword = (valid, { password }) => {
     this.setState({
-      password: password,
-      isValid: valid
+      password
     });
   }
 
@@ -183,5 +334,41 @@ export default class Transfer extends Component {
     }, () => {
       this.props.onClose && this.props.onClose();
     });
+  }
+
+  recalculate = () => {
+    let value = this.state.value;
+    const gas = new BigNumber(this.state.gasPrice || 0).mul(new BigNumber(this.state.gas || 0));
+    const balance = new BigNumber(this.props.balance.value || 0);
+
+    if (this.state.valueAll) {
+      value = Api.format.fromWei(balance.minus(gas)).toString();
+    }
+
+    const amount = Api.format.toWei(value || 0);
+    const total = amount.plus(gas);
+    let totalError = null;
+
+    if (total.gt(balance)) {
+      totalError = ERRORS.largeAmount;
+    }
+
+    this.setState({
+      total: Api.format.fromWei(total).toString(),
+      totalError,
+      value
+    });
+  }
+
+  getDefaults = () => {
+    const api = this.context.api;
+
+    api.eth
+      .gasPrice()
+      .then((gasprice) => {
+        this.setState({
+          gasprice: gasprice.toString()
+        }, this.recalculate);
+      });
   }
 }

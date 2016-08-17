@@ -22,15 +22,10 @@ export default class Complete extends Component {
       );
     }
 
-    const txlink = `https://etherscan.io/tx/${this.props.txhash}`;
-
     return (
       <div>
         <div className={ styles.info }>
-          The transaction was send with a transaction hash (useful for tracking on a block explorer) of
-        </div>
-        <div>
-          <a href={ txlink } target='_blank'>{ this.props.txhash }</a>
+          The transaction was sent and awaits verification in the signer. <a href='http://127.0.0.1:8180' target='_blank'>Enter the signer</a> and authenticate the correct transactions with your account password.
         </div>
       </div>
     );
