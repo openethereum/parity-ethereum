@@ -16,8 +16,6 @@
 
 
 use ipc::*;
-use std::mem;
-use std::collections::VecDeque;
 use util::Bytes;
 
 #[derive(Binary)]

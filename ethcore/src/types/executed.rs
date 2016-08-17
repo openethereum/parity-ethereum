@@ -21,10 +21,7 @@ use util::rlp::*;
 use trace::{VMTrace, FlatTrace};
 use types::log_entry::LogEntry;
 use types::state_diff::StateDiff;
-use ipc::binary::BinaryConvertError;
 use std::fmt;
-use std::mem;
-use std::collections::VecDeque;
 
 /// The type of the call-like instruction.
 #[derive(Debug, PartialEq, Clone, Binary)]

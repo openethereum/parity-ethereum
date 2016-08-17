@@ -16,12 +16,11 @@
 
 //! State diff module.
 
-use std::{mem, fmt};
+use std::fmt;
 use std::ops::*;
-use std::collections::{VecDeque, BTreeMap};
+use std::collections::BTreeMap;
 use util::Address;
 use account_diff::*;
-use ipc::binary::BinaryConvertError;
 
 #[derive(Debug, PartialEq, Eq, Clone, Binary)]
 /// Expression for the delta between two system states. Encoded the

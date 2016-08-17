@@ -16,10 +16,6 @@
 
 //! Block queue info types
 
-use std::mem;
-use ipc::binary::BinaryConvertError;
-use std::collections::VecDeque;
-
 /// Block queue status
 #[derive(Debug, Binary)]
 pub struct BlockQueueInfo {

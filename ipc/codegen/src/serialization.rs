@@ -95,11 +95,11 @@ fn serialize_item(
 				$size_expr
 			}
 
-			fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+			fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut ::std::collections::VecDeque<usize>) -> Result<(), ::ipc::BinaryConvertError> {
 				$write_expr
 			}
 
-			fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+			fn from_bytes(buffer: &[u8], length_stack: &mut ::std::collections::VecDeque<usize>) -> Result<Self, ::ipc::BinaryConvertError> {
 				$read_expr
 			}
 
@@ -210,13 +210,13 @@ fn binary_expr_struct(
 						let field_id = builder.id(field.ident.unwrap());
 						Some(quote_expr!(cx,
 							match $field_type_ident_qualified::len_params() {
-								0 => mem::size_of::<$field_type_ident>(),
+								0 => ::std::mem::size_of::<$field_type_ident>(),
 								_ => $x. $field_id .size(),
 							}))
 					})
 					.unwrap_or_else(|| {
 						quote_expr!(cx, match $field_type_ident_qualified::len_params() {
-							0 => mem::size_of::<$field_type_ident>(),
+							0 => ::std::mem::size_of::<$field_type_ident>(),
 							_ => $index_ident .size(),
 						})
 					})
@@ -279,7 +279,7 @@ fn binary_expr_struct(
 			}
 			_ => {
 				write_stmts.push(quote_stmt!(cx, let next_line = offset + match $field_type_ident_qualified::len_params() {
-						0 => mem::size_of::<$field_type_ident>(),
+						0 => ::std::mem::size_of::<$field_type_ident>(),
 						_ => { let size = $member_expr .size(); length_stack.push_back(size); size },
 					}).unwrap());
 				write_stmts.push(quote_stmt!(cx, let $range_ident = offset..next_line; ).unwrap());
@@ -309,7 +309,7 @@ fn binary_expr_struct(
 			},
 			_ => {
 				map_stmts.push(quote_stmt!(cx, let size = match $field_type_ident_qualified::len_params() {
-						0 => mem::size_of::<$field_type_ident>(),
+						0 => ::std::mem::size_of::<$field_type_ident>(),
 						_ => length_stack.pop_front().unwrap(),
 					}).unwrap());
 				map_stmts.push(quote_stmt!(cx, total += size;).unwrap());
@@ -412,7 +412,7 @@ fn binary_expr_enum(
 		arms.iter().map(|x| x.write.clone()).collect::<Vec<ast::Arm>>(),
 		arms.iter().map(|x| x.read.clone()).collect::<Vec<ast::Arm>>());
 
-	read_arms.push(quote_arm!(cx, _ => { Err(BinaryConvertError::variant(buffer[0])) } ));
+	read_arms.push(quote_arm!(cx, _ => { Err(::ipc::BinaryConvertError::variant(buffer[0])) } ));
 
 	Ok(BinaryExpressions {
 		size: quote_expr!(cx, 1usize + match *self { $size_arms }),
