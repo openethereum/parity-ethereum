@@ -17,8 +17,6 @@
 //! Trace filters type definitions
 
 use std::ops::Range;
-use std::mem;
-use std::collections::VecDeque;
 use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::Address;
 use util::sha3::Hashable;
@@ -26,7 +24,6 @@ use util::bloom::Bloomable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
 use types::trace_types::trace::{Action, Res};
-use ipc::binary::BinaryConvertError;
 
 /// Addresses filter.
 ///

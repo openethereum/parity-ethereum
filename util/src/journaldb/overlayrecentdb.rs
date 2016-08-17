@@ -218,7 +218,7 @@ impl JournalDB for OverlayRecentDB {
 		let journal_overlay = self.journal_overlay.read();
 		let key = to_short_key(key);
 		journal_overlay.backing_overlay.get(&key).map(|v| v.to_vec())
-		.or_else(|| journal_overlay.pending_overlay.get(&key).map(|v| v.clone()))
+		.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
 		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
 	}
 
@@ -365,7 +365,7 @@ impl HashDB for OverlayRecentDB {
 					let journal_overlay = self.journal_overlay.read();
 					let key = to_short_key(key);
 					journal_overlay.backing_overlay.get(&key).map(|v| v.to_vec())
-						.or_else(|| journal_overlay.pending_overlay.get(&key).map(|v| v.clone()))
+						.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
 				};
 				match v {
 					Some(x) => {

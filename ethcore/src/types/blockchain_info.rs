@@ -16,10 +16,7 @@
 
 //! Blockhain info type definition
 
-use std::mem;
-use std::collections::VecDeque;
 use util::{U256, H256};
-use ipc::binary::BinaryConvertError;
 use header::BlockNumber;
 
 /// Information about the blockchain gathered together.

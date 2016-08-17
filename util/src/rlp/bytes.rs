@@ -22,7 +22,7 @@ use std::fmt;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
 use bigint::uint::{Uint, U128, U256};
-use hash::{H64, H128, Address, H256, H512, H520, H2048};
+use hash::{H64, H128, H160, H256, H512, H520, H2048};
 use elastic_array::*;
 
 /// Vector like object
@@ -159,7 +159,7 @@ macro_rules! impl_hash_to_bytes {
 
 impl_hash_to_bytes!(H64);
 impl_hash_to_bytes!(H128);
-impl_hash_to_bytes!(Address);
+impl_hash_to_bytes!(H160);
 impl_hash_to_bytes!(H256);
 impl_hash_to_bytes!(H512);
 impl_hash_to_bytes!(H520);
@@ -282,7 +282,7 @@ macro_rules! impl_hash_from_bytes {
 
 impl_hash_from_bytes!(H64, 8);
 impl_hash_from_bytes!(H128, 16);
-impl_hash_from_bytes!(Address, 20);
+impl_hash_from_bytes!(H160, 20);
 impl_hash_from_bytes!(H256, 32);
 impl_hash_from_bytes!(H512, 64);
 impl_hash_from_bytes!(H520, 65);

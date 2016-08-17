@@ -320,7 +320,7 @@ impl State {
 	}
 
 	fn query_pod(&mut self, query: &PodState) {
-		for (ref address, ref pod_account) in query.get() {
+		for (address, pod_account) in query.get() {
 			self.ensure_cached(address, true, |a| {
 				if a.is_some() {
 					for key in pod_account.storage.keys() {
@@ -422,8 +422,10 @@ impl Clone for State {
 #[cfg(test)]
 mod tests {
 
+use std::str::FromStr;
+use rustc_serialize::hex::FromHex;
 use super::*;
-use util::common::*;
+use util::{U256, H256, FixedHash, Address, Hashable};
 use account::*;
 use tests::helpers::*;
 use devtools::*;

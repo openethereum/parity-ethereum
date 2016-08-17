@@ -35,7 +35,7 @@ use executive::Executed;
 use env_info::LastHashes;
 use types::call_analytics::CallAnalytics;
 use block_import_error::BlockImportError;
-use ipc::{IpcConfig, BinaryConvertError};
+use ipc::IpcConfig;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 

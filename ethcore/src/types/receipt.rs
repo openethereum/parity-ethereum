@@ -16,15 +16,12 @@
 
 //! Receipt
 
-use std::mem;
-use std::collections::VecDeque;
 use util::{H256, U256, Address};
 use util::rlp::*;
 use util::HeapSizeOf;
 use basic_types::LogBloom;
 use header::BlockNumber;
 use log_entry::{LogEntry, LocalizedLogEntry};
-use ipc::binary::BinaryConvertError;
 
 /// Information describing execution of a transaction.
 #[derive(Default, Debug, Clone, Binary)]
