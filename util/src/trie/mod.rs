@@ -35,6 +35,9 @@ pub mod sectriedb;
 /// Export the sectriedbmut module.
 pub mod sectriedbmut;
 
+pub mod recorder;
+
+
 mod fatdb;
 mod fatdbmut;
 
@@ -45,6 +48,8 @@ pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
 pub use self::fatdb::{FatDB, FatDBIterator};
 pub use self::fatdbmut::FatDBMut;
+pub use self::recorder::Recorder;
+
 
 /// Trie Errors.
 ///
