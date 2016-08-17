@@ -53,6 +53,10 @@ export default class Api {
     return this._web3;
   }
 
+  newContract (abi) {
+    return new Contract(this, abi);
+  }
+
   static format = format;
 
   static Contract = Contract

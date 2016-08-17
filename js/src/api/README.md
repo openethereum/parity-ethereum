@@ -100,7 +100,7 @@ attach a contract at address
 
 ```javascript
 // via the constructor & .at function
-const contract = new EthApi.Contract(ethapi, abi).at('0xa9280...7347b');
+const contract = api.newContract(abi).at('0xa9280...7347b');
 // or on an already initialised contract
 contract.at('0xa9280...7347b');
 // perform calls here
@@ -109,8 +109,8 @@ contract.at('0xa9280...7347b');
 find & call a function
 
 ```javascript
-contract.functions
-  .find((func) => func.name === 'callMe')
+contract.named
+  .callMe
   .call({ gas: 21000 }, [true, 'someString']) // or estimateGas or sendTransaction
   .then((result) => {
     console.log(`the result was ${result}`);

@@ -16,6 +16,11 @@ export default class Contract {
     this._constructors = this._abi.constructors.map((cons) => this._bindFunction(cons));
     this._functions = this._abi.functions.map((func) => this._bindFunction(func));
     this._events = this._abi.events;
+
+    this._named = {};
+    this._functions.forEach((fn) => {
+      this._named[fn.name] = fn;
+    });
   }
 
   get address () {
@@ -32,6 +37,10 @@ export default class Contract {
 
   get functions () {
     return this._functions;
+  }
+
+  get named () {
+    return this._named;
   }
 
   get eth () {
@@ -127,7 +136,7 @@ export default class Contract {
   }
 
   _bindFunction (func) {
-    const addAddress = (options) => {
+    const addAddress = (options = {}) => {
       options.to = options.to || this._address;
       return options;
     };
