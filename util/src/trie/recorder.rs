@@ -41,10 +41,6 @@ pub trait Recorder {
 	/// The depth parameter is the depth of the visited node, with the root node having depth 0.
 	fn record(&mut self, hash: &H256, data: &[u8], depth: u32);
 
-	/// Record that the given node (with unknown hash) has been visited.
-	/// The depth parameter is the depth of the visited node.
-	fn record_unknown(&mut self, data: &[u8], depth: u32);
-
 	/// Drain all accepted records from the recorder in no particular order.
 	fn drain(self) -> Vec<Record> where Self: Sized;
 }
@@ -55,9 +51,6 @@ pub struct NoOp;
 impl Recorder for NoOp {
 	#[inline]
 	fn record(&mut self, _hash: &H256, _data: &[u8], _depth: u32) {}
-
-	#[inline]
-	fn record_unknown(&mut self, _data: &[u8], _depth: u32) {}
 
 	#[inline]
 	fn drain(self) -> Vec<Record> { Vec::new() }
@@ -99,16 +92,6 @@ impl Recorder for BasicRecorder {
 		}
 	}
 
-	fn record_unknown(&mut self, data: &[u8], depth: u32) {
-		if depth >= self.min_depth {
-			self.nodes.push(Record {
-				depth: depth,
-				data: data.into(),
-				hash: data.sha3(),
-			})
-		}
-	}
-
 	fn drain(self) -> Vec<Record> {
 		self.nodes
 	}
@@ -122,8 +105,10 @@ mod tests {
 	#[test]
 	fn no_op_does_nothing() {
 		let mut no_op = NoOp;
-		no_op.record(&Default::default(), &[], 1);
-		no_op.record_unknown(&[], 2);
+		let (node1, node2) = (&[1], &[2]);
+		let (hash1, hash2) = (node1.sha3(), node2.sha3());
+		no_op.record(&hash1, node1, 1);
+		no_op.record(&hash2, node2, 2);
 
 		assert_eq!(no_op.drain(), Vec::new());
 	}
@@ -137,7 +122,7 @@ mod tests {
 
 		let (hash1, hash2) = (node1.sha3(), node2.sha3());
 		basic.record(&hash1, &node1, 0);
-		basic.record_unknown(&node2, 456);
+		basic.record(&hash2, &node2, 456);
 
 		let record1 = Record {
 			data: node1,
@@ -161,8 +146,9 @@ mod tests {
 		let node1 = vec![1, 2, 3, 4];
 		let node2 = vec![4, 5, 6, 7, 8, 9, 10];
 
+		let hash1 = node1.sha3();
 		let hash2 = node2.sha3();
-		basic.record_unknown(&node1, 0);
+		basic.record(&hash1, &node1, 0);
 		basic.record(&hash2, &node2, 456);
 
 		let records = basic.drain();
