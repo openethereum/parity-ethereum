@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use util::{RotatingLogger, KeyPair};
-use util::misc::version_data;
 use std::sync::{Arc, Weak};
+use std::str::FromStr;
 use std::collections::{BTreeMap};
+use util::{RotatingLogger, KeyPair, Address};
+use util::misc::version_data;
 
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
@@ -56,7 +57,7 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		queue: Option<Arc<ConfirmationsQueue>>
-		) -> Self {
+	) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
@@ -150,6 +151,17 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		try!(self.active());
 		try!(expect_no_params(params));
 		to_value(&self.settings.name)
+	}
+
+	fn registry_address(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+		let r = take_weak!(self.client)
+			.additional_params()
+			.get("registrar")
+			.and_then(|s| Address::from_str(s).ok())
+			.map(|s| H160::from(s));
+		to_value(&r)
 	}
 
 	fn rpc_settings(&self, params: Params) -> Result<Value, Error> {
