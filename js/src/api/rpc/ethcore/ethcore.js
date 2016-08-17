@@ -92,6 +92,12 @@ export default class Ethcore {
       .then(outAddress);
   }
 
+  registryAddress () {
+    return this._transport
+      .execute('ethcore_registryAddress')
+      .then(outAddress);
+  }
+
   removeReservedPeer (encode) {
     return this._transport
       .execute('ethcore_removeReservedPeer', encode);

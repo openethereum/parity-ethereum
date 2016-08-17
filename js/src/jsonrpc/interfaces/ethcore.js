@@ -162,6 +162,15 @@ export default {
     }
   },
 
+  registryAddress: {
+    desc: 'The address for the global registry',
+    params: [],
+    returns: {
+      type: Address,
+      desc: 'The registry address'
+    }
+  },
+
   rpcSettings: {
     desc: 'Returns basic settings of rpc (enabled, port, interface).',
     params: [],
