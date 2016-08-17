@@ -10,7 +10,7 @@ import styles from '../style.css';
 
 const CHECK_STYLE = {
   position: 'absolute',
-  bottom: '8px',
+  top: '38px',
   left: '1em'
 };
 

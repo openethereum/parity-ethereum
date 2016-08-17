@@ -342,7 +342,8 @@ export default class Transfer extends Component {
     const balance = new BigNumber(this.props.balance.value || 0);
 
     if (this.state.valueAll) {
-      value = Api.format.fromWei(balance.minus(gas)).toString();
+      const bn = Api.format.fromWei(balance.minus(gas));
+      value = bn.lt(0) ? '0.0' : bn.toString();
     }
 
     const amount = Api.format.toWei(value || 0);
