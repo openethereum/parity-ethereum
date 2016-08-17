@@ -1,6 +1,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
+import LinearProgress from 'material-ui/LinearProgress';
 
 import Api from '../../../api';
 import etherscan from '../../../3rdparty/etherscan';
@@ -41,7 +42,8 @@ export default class Transactions extends Component {
   }
 
   state = {
-    transactions: []
+    transactions: [],
+    loading: true
   }
 
   componentDidMount () {
@@ -91,25 +93,35 @@ export default class Transactions extends Component {
           </tr>
         );
       });
+
+      return (
+        <table className={ styles.transactions }>
+          <thead>
+            <tr>
+              <th>&nbsp;</th>
+              <th>from</th>
+              <th>to</th>
+              <th>txhash</th>
+              <th className={ styles.right }>block</th>
+              <th className={ styles.right }>age</th>
+              <th className={ styles.right }>value</th>
+            </tr>
+          </thead>
+          <tbody>
+            { transactions }
+          </tbody>
+        </table>
+      );
+    } else if (this.state.loading) {
+      return (
+        <LinearProgress mode='indeterminate' />
+      );
     }
 
     return (
-      <table className={ styles.transactions }>
-        <thead>
-          <tr>
-            <th>&nbsp;</th>
-            <th>from</th>
-            <th>to</th>
-            <th>txhash</th>
-            <th className={ styles.right }>block</th>
-            <th className={ styles.right }>age</th>
-            <th className={ styles.right }>value</th>
-          </tr>
-        </thead>
-        <tbody>
-          { transactions }
-        </tbody>
-      </table>
+      <div className={ styles.info }>
+        No transactions were found for this account
+      </div>
     );
   }
 
@@ -118,7 +130,8 @@ export default class Transactions extends Component {
       .transactions(this.props.address)
       .then((transactions) => {
         this.setState({
-          transactions: transactions
+          transactions: transactions,
+          loading: false
         });
       });
   }
