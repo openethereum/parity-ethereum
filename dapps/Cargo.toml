@@ -9,6 +9,7 @@ build = "build.rs"
 [lib]
 
 [dependencies]
+rand = "0.3.14"
 log = "0.3"
 jsonrpc-core = "2.1"
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }

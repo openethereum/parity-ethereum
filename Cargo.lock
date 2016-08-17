@@ -286,6 +286,7 @@ dependencies = [
  "parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-dapps-status 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-dapps-wallet 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",

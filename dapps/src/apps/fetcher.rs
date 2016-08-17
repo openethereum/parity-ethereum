@@ -319,7 +319,7 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 						trace!(target: "dapps", "Fetching dapp finished. Starting validation.");
 						Self::close_client(&mut self.client);
 						// Unpack and verify
-						let state = match validate_and_install_app(self.dapps_path.clone(), path) {
+						let state = match validate_and_install_app(self.dapps_path.clone(), path.clone()) {
 							Err(e) => {
 								trace!(target: "dapps", "Error while validating dapp: {:?}", e);
 								FetchState::Error(ContentHandler::html(

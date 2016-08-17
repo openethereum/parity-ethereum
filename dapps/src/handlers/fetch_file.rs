@@ -16,7 +16,7 @@
 
 //! Hyper Client Handler to Fetch File
 
-use std::{io, fs, fmt};
+use std::{env, io, fs, fmt};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
