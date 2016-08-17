@@ -320,7 +320,7 @@ impl State {
 	}
 
 	fn query_pod(&mut self, query: &PodState) {
-		for (ref address, ref pod_account) in query.get() {
+		for (address, pod_account) in query.get() {
 			self.ensure_cached(address, true, |a| {
 				if a.is_some() {
 					for key in pod_account.storage.keys() {

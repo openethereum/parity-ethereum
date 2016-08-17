@@ -153,7 +153,7 @@ impl<'db> TrieDB<'db> {
 	fn fmt_all(&self, node: Node, f: &mut fmt::Formatter, deepness: usize) -> fmt::Result {
 		match node {
 			Node::Leaf(slice, value) => try!(writeln!(f, "'{:?}: {:?}.", slice, value.pretty())),
-			Node::Extension(ref slice, ref item) => {
+			Node::Extension(ref slice, item) => {
 				try!(write!(f, "'{:?} ", slice));
 				if let Ok(node) = self.get_node(item) {
 					try!(self.fmt_all(node, f, deepness));
@@ -203,8 +203,8 @@ impl<'db> TrieDB<'db> {
 		where 'db: 'key
 	{
 		match Node::decoded(node) {
-			Node::Leaf(ref slice, ref value) if key == slice => Ok(Some(value)),
-			Node::Extension(ref slice, ref item) if key.starts_with(slice) => {
+			Node::Leaf(ref slice, value) if key == slice => Ok(Some(value)),
+			Node::Extension(ref slice, item) if key.starts_with(slice) => {
 				let data = try!(self.get_raw_or_lookup(item));
 				self.get_from_node(data, &key.mid(slice.len()))
 			},

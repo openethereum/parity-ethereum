@@ -390,7 +390,7 @@ impl Configuration {
 
 	fn extra_data(&self) -> Result<Bytes, String> {
 		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
-			Some(ref x) if x.len() <= 32 => Ok(x.as_bytes().to_owned()),
+			Some(x) if x.len() <= 32 => Ok(x.as_bytes().to_owned()),
 			None => Ok(version_data()),
 			Some(_) => Err("Extra data must be at most 32 characters".into()),
 		}
