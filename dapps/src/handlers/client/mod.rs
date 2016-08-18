@@ -20,4 +20,3 @@ mod fetch_file;
 
 pub use self::fetch_file::{Fetch, FetchResult, OnDone};
 
-

@@ -46,7 +46,6 @@ impl GithubApp {
 
 		Some(commit)
 	}
-
 }
 
 pub trait URLHint {

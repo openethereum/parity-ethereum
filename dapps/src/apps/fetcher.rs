@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Fetchable Dapps support.
+//! Manages downloaded (cached) Dapps and downloads them when necessary.
+//! Uses `URLHint` to resolve addresses into Dapps bundle file location.
+
 use zip;
 use std::{fs, env};
 use std::io::{self, Read, Write};
@@ -31,7 +35,6 @@ use handlers::{ContentHandler, AppFetcherHandler, DappHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
 use apps::urlhint::{URLHintContract, URLHint};
-
 
 enum AppStatus {
 	Fetching,
