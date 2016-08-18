@@ -20,81 +20,18 @@ use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::collections::HashMap;
-use rustc_serialize::hex::ToHex;
 
 use hyper::Control;
 use hyper::status::StatusCode;
 
 use random_filename;
-use util::{Address, FromHex, Mutex};
-use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
-
+use util::Mutex;
 use page::LocalPageEndpoint;
 use handlers::{ContentHandler, AppFetcherHandler, DappHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};
+use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
+use apps::urlhint::{URLHintContract, URLHint};
 
-const COMMIT_LEN: usize = 20;
-
-#[derive(Debug)]
-pub struct GithubApp {
-	pub account: String,
-	pub repo: String,
-	pub commit: [u8;COMMIT_LEN],
-	pub owner: Address,
-}
-
-impl GithubApp {
-	pub fn url(&self) -> String {
-		// format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
-		format!("http://github.todr.me/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
-	}
-
-	fn commit(bytes: &[u8]) -> Option<[u8;COMMIT_LEN]> {
-		if bytes.len() < COMMIT_LEN {
-			return None;
-		}
-
-		let mut commit = [0; COMMIT_LEN];
-		for i in 0..COMMIT_LEN {
-			commit[i] = bytes[i];
-		}
-
-		Some(commit)
-	}
-
-}
-
-pub trait URLHint {
-	fn resolve(&self, app_id: &str) -> Option<GithubApp>;
-}
-
-pub struct URLHintContract;
-
-impl URLHint for URLHintContract {
-	fn resolve(&self, app_id: &str) -> Option<GithubApp> {
-		// TODO [todr] use GithubHint contract to check the details
-		// For now we are just accepting patterns: <commithash>.<repo>.<account>.parity
-		let mut app_parts = app_id.split('.');
-
-		let hash = app_parts.next()
-			.and_then(|h| h.from_hex().ok())
-			.and_then(|h| GithubApp::commit(&h));
-		let repo = app_parts.next();
-		let account = app_parts.next();
-
-		match (hash, repo, account) {
-			(Some(hash), Some(repo), Some(account)) => {
-				Some(GithubApp {
-					account: account.into(),
-					repo: repo.into(),
-					commit: hash,
-					owner: Address::default(),
-				})
-			},
-			_ => None,
-		}
-	}
-}
 
 enum AppStatus {
 	Fetching,
@@ -321,33 +258,16 @@ impl DappHandler for DappInstaller {
 #[cfg(test)]
 mod tests {
 	use std::path::PathBuf;
-	use super::{GithubApp, AppFetcher, AppStatus, URLHint};
+	use super::{AppFetcher, AppStatus};
+	use apps::urlhint::{GithubApp, URLHint};
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
-	use util::Address;
 
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
 		fn resolve(&self, _app_id: &str) -> Option<GithubApp> {
 			None
 		}
-	}
-
-	#[test]
-	fn should_return_valid_url() {
-		// given
-		let app = GithubApp {
-			account: "test".into(),
-			repo: "xyz".into(),
-			commit: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
-			owner: Address::default(),
-		};
-
-		// when
-		let url = app.url();
-
-		// then
-		assert_eq!(url, "http://github.todr.me/test/xyz/zip/000102030405060708090a0b0c0d0e0f10111213".to_owned());
 	}
 
 	#[test]

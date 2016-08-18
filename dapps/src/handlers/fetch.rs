@@ -27,7 +27,7 @@ use hyper::status::StatusCode;
 use handlers::ContentHandler;
 use handlers::client::{Fetch, FetchResult};
 use apps::DAPPS_DOMAIN;
-use apps::fetcher::GithubApp;
+use apps::urlhint::GithubApp;
 use apps::manifest::Manifest;
 
 const FETCH_TIMEOUT: u64 = 30;
