@@ -56,6 +56,10 @@ impl ContentHandler {
 		}
 	}
 
+	pub fn html(code: StatusCode, content: String) -> Self {
+		Self::new(code, content, "text/html".into())
+	}
+
 	pub fn new(code: StatusCode, content: String, mimetype: String) -> Self {
 		ContentHandler {
 			code: code,

@@ -57,7 +57,7 @@ impl DBTransaction {
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
-	pub fn put(&self, col: Option<u32>, key: &[u8], value: &[u8]) -> Result<(), String> {
+	pub fn put(&self, col: Option<u32>, key: &[u8], value: &[u8]) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.lock().push(DBOp::Insert {
@@ -65,11 +65,10 @@ impl DBTransaction {
 			key: ekey,
 			value: value.to_vec(),
 		});
-		Ok(())
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
-	pub fn put_vec(&self, col: Option<u32>, key: &[u8], value: Bytes) -> Result<(), String> {
+	pub fn put_vec(&self, col: Option<u32>, key: &[u8], value: Bytes) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.lock().push(DBOp::Insert {
@@ -77,12 +76,11 @@ impl DBTransaction {
 			key: ekey,
 			value: value,
 		});
-		Ok(())
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	/// Value will be RLP-compressed on  flush
-	pub fn put_compressed(&self, col: Option<u32>, key: &[u8], value: Bytes) -> Result<(), String> {
+	pub fn put_compressed(&self, col: Option<u32>, key: &[u8], value: Bytes) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.lock().push(DBOp::InsertCompressed {
@@ -90,18 +88,16 @@ impl DBTransaction {
 			key: ekey,
 			value: value,
 		});
-		Ok(())
 	}
 
 	/// Delete value by key.
-	pub fn delete(&self, col: Option<u32>, key: &[u8]) -> Result<(), String> {
+	pub fn delete(&self, col: Option<u32>, key: &[u8]) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.lock().push(DBOp::Delete {
 			col: col,
 			key: ekey,
 		});
-		Ok(())
 	}
 }
 
@@ -292,7 +288,7 @@ impl Database {
 	}
 
 	/// Commit transaction to database.
-	pub fn write_buffered(&self, tr: DBTransaction) -> Result<(), String> {
+	pub fn write_buffered(&self, tr: DBTransaction) {
 		let mut overlay = self.overlay.write();
 		let ops = tr.ops.into_inner();
 		for op in ops {
@@ -311,7 +307,6 @@ impl Database {
 				},
 			}
 		};
-		Ok(())
 	}
 
 	/// Commit buffered changes to database.
@@ -422,8 +417,8 @@ mod tests {
 		let key3 = H256::from_str("01c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
 
 		let batch = db.transaction();
-		batch.put(None, &key1, b"cat").unwrap();
-		batch.put(None, &key2, b"dog").unwrap();
+		batch.put(None, &key1, b"cat");
+		batch.put(None, &key2, b"dog");
 		db.write(batch).unwrap();
 
 		assert_eq!(&*db.get(None, &key1).unwrap().unwrap(), b"cat");
@@ -436,18 +431,18 @@ mod tests {
 		assert_eq!(&*contents[1].1, b"dog");
 
 		let batch = db.transaction();
-		batch.delete(None, &key1).unwrap();
+		batch.delete(None, &key1);
 		db.write(batch).unwrap();
 
 		assert!(db.get(None, &key1).unwrap().is_none());
 
 		let batch = db.transaction();
-		batch.put(None, &key1, b"cat").unwrap();
+		batch.put(None, &key1, b"cat");
 		db.write(batch).unwrap();
 
 		let transaction = db.transaction();
-		transaction.put(None, &key3, b"elephant").unwrap();
-		transaction.delete(None, &key1).unwrap();
+		transaction.put(None, &key3, b"elephant");
+		transaction.delete(None, &key1);
 		db.write(transaction).unwrap();
 		assert!(db.get(None, &key1).unwrap().is_none());
 		assert_eq!(&*db.get(None, &key3).unwrap().unwrap(), b"elephant");
@@ -456,9 +451,9 @@ mod tests {
 		assert_eq!(&*db.get_by_prefix(None, &key2).unwrap(), b"dog");
 
 		let transaction = db.transaction();
-		transaction.put(None, &key1, b"horse").unwrap();
-		transaction.delete(None, &key3).unwrap();
-		db.write_buffered(transaction).unwrap();
+		transaction.put(None, &key1, b"horse");
+		transaction.delete(None, &key3);
+		db.write_buffered(transaction);
 		assert!(db.get(None, &key3).unwrap().is_none());
 		assert_eq!(&*db.get(None, &key1).unwrap().unwrap(), b"horse");
 

@@ -79,6 +79,23 @@ impl HeapSizeOf for Receipt {
 
 /// Receipt with additional info.
 #[derive(Debug, Clone, PartialEq, Binary)]
+pub struct RichReceipt {
+	/// Transaction hash.
+	pub transaction_hash: H256,
+	/// Transaction index.
+	pub transaction_index: usize,
+	/// The total gas used in the block following execution of the transaction.
+	pub cumulative_gas_used: U256,
+	/// The gas used in the execution of the transaction. Note the difference of meaning to `Receipt::gas_used`.
+	pub gas_used: U256,
+	/// Contract address.
+	pub contract_address: Option<Address>,
+	/// Logs
+	pub logs: Vec<LogEntry>,
+}
+
+/// Receipt with additional info.
+#[derive(Debug, Clone, PartialEq, Binary)]
 pub struct LocalizedReceipt {
 	/// Transaction hash.
 	pub transaction_hash: H256,

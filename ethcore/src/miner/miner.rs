@@ -23,10 +23,11 @@ use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use state::State;
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
+use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
 use error::*;
-use transaction::SignedTransaction;
-use receipt::Receipt;
+use transaction::{Action, SignedTransaction};
+use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionOrigin};
@@ -709,6 +710,35 @@ impl MinerService for Miner {
 		match (&self.options.pending_set, sealing_set) {
 			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.find(hash),
 			(_, sealing) => sealing.and_then(|s| s.transactions().iter().find(|t| &t.hash() == hash).cloned()),
+		}
+	}
+
+	fn pending_receipt(&self, hash: &H256) -> Option<RichReceipt> {
+		let sealing_work = self.sealing_work.lock();
+		match (sealing_work.enabled, sealing_work.queue.peek_last_ref()) {
+			(true, Some(pending)) => {
+				let txs = pending.transactions();
+				txs.iter()
+					.map(|t| t.hash())
+					.position(|t| t == *hash)
+					.map(|index| {
+						let prev_gas = if index == 0 { Default::default() } else { pending.receipts()[index - 1].gas_used };
+						let ref tx = txs[index];
+						let ref receipt = pending.receipts()[index];
+						RichReceipt {
+							transaction_hash: hash.clone(),
+							transaction_index: index,
+							cumulative_gas_used: receipt.gas_used,
+							gas_used: receipt.gas_used - prev_gas,
+							contract_address: match tx.action {
+								Action::Call(_) => None,
+								Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce)),
+							},
+							logs: receipt.logs.clone(),
+						}
+					})
+			},
+			_ => None
 		}
 	}
 

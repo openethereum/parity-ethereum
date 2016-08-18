@@ -14,32 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! URL Endpoint traits
+use serde_json;
+pub use api::App as Manifest;
 
-use hyper::{server, net};
-use std::collections::BTreeMap;
+pub const MANIFEST_FILENAME: &'static str = "manifest.json";
 
-#[derive(Debug, PartialEq, Default, Clone)]
-pub struct EndpointPath {
-	pub app_id: String,
-	pub host: String,
-	pub port: u16,
+pub fn deserialize_manifest(manifest: String) -> Result<Manifest, String> {
+	serde_json::from_str::<Manifest>(&manifest).map_err(|e| format!("{:?}", e))
+	// TODO [todr] Manifest validation (especialy: id (used as path))
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct EndpointInfo {
-	pub name: String,
-	pub description: String,
-	pub version: String,
-	pub author: String,
-	pub icon_url: String,
-}
-
-pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
-pub type Handler = server::Handler<net::HttpStream> + Send;
-
-pub trait Endpoint : Send + Sync {
-	fn info(&self) -> Option<&EndpointInfo> { None }
-
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler>;
+pub fn serialize_manifest(manifest: &Manifest) -> Result<String, String> {
+	serde_json::to_string_pretty(manifest).map_err(|e| format!("{:?}", e))
 }

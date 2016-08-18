@@ -180,7 +180,8 @@ impl State {
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
 		self.ensure_cached(address, false, |a| a.as_ref().map_or(H256::new(), |a| {
-			let db = self.factories.accountdb.readonly(self.db.as_hashdb(), address);
+			let addr_hash = a.address_hash(address);
+			let db = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
 			a.storage_at(db.as_hashdb(), key)
 		}))
 	}
@@ -243,7 +244,7 @@ impl State {
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		try!(self.commit());
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
-//		trace!("Transaction receipt: {:?}", receipt);
+		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}
 
@@ -261,7 +262,8 @@ impl State {
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
 				&mut&mut Some(ref mut account) if account.is_dirty() => {
-					let mut account_db = factories.accountdb.create(db, address);
+					let addr_hash = account.address_hash(address);
+					let mut account_db = factories.accountdb.create(db, addr_hash);
 					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
 					account.commit_code(account_db.as_hashdb_mut());
 				}
@@ -356,7 +358,8 @@ impl State {
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
-				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), a);
+				let addr_hash = account.address_hash(a);
+				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
 				account.cache_code(accountdb.as_hashdb());
 			}
 		}
@@ -395,7 +398,8 @@ impl State {
 		RefMut::map(self.cache.borrow_mut(), |c| {
 			let account = c.get_mut(a).unwrap().as_mut().unwrap();
 			if require_code {
-				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), a);
+				let addr_hash = account.address_hash(a);
+				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
 				account.cache_code(accountdb.as_hashdb());
 			}
 			account

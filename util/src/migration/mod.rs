@@ -75,7 +75,7 @@ impl Batch {
 		let transaction = DBTransaction::new(dest);
 
 		for keypair in &self.inner {
-			try!(transaction.put(self.column, &keypair.0, &keypair.1).map_err(Error::Custom));
+			transaction.put(self.column, &keypair.0, &keypair.1);
 		}
 
 		self.inner.clear();
