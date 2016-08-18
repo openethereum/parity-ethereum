@@ -7,7 +7,9 @@ authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
 log = "0.3"
-json-tcp-server = "https://github.com/ethcore/json-tcp-server"
+json-tcp-server = { git = "https://github.com/ethcore/json-tcp-server" }
+jsonrpc-core = "2.1"
+mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
 
 [profile.release]
 debug = true

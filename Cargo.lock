@@ -20,6 +20,7 @@ dependencies = [
  "ethcore-logger 1.4.0",
  "ethcore-rpc 1.4.0",
  "ethcore-signer 1.4.0",
+ "ethcore-stratum 1.4.0",
  "ethcore-util 1.4.0",
  "ethsync 1.4.0",
  "fdlimit 0.1.0",
@@ -448,6 +449,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-stratum"
+version = "1.4.0"
+dependencies = [
+ "json-tcp-server 0.1.0 (git+https://github.com/ethcore/json-tcp-server)",
+ "jsonrpc-core 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
+]
+
+[[package]]
 name = "ethcore-util"
 version = "1.4.0"
 dependencies = [
@@ -695,6 +706,20 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "json-tcp-server"
+version = "0.1.0"
+source = "git+https://github.com/ethcore/json-tcp-server#75c6df535e92b6741a42f3825b668565665ab7da"
+dependencies = [
+ "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
