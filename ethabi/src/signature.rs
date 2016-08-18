@@ -8,7 +8,7 @@ pub fn signature(name: &str, params: &[ParamType]) -> Vec<u8> {
 		.collect::<Vec<String>>()
 		.join(",");
 
-	let data: Vec<u8> = From::from(format!("{}({})", name, types).as_ref() as &str);
+	let data: Vec<u8> = From::from(format!("{}({})", name, types).as_str());
 	let mut result = [0u8; 4];
 
 	let mut sponge = Keccak::new_keccak256();
