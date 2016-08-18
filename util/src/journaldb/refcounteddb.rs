@@ -141,7 +141,7 @@ impl JournalDB for RefCountedDB {
 			r.append(id);
 			r.append(&self.inserts);
 			r.append(&self.removes);
-			try!(batch.put(self.column, &last, r.as_raw()));
+			batch.put(self.column, &last, r.as_raw());
 
 			trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
 
@@ -149,7 +149,7 @@ impl JournalDB for RefCountedDB {
 			self.removes.clear();
 
 			if self.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
+				batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
 				self.latest_era = Some(now);
 			}
 		}
@@ -176,7 +176,7 @@ impl JournalDB for RefCountedDB {
 				for i in &to_remove {
 					self.forward.remove(i);
 				}
-				try!(batch.delete(self.column, &last));
+				batch.delete(self.column, &last);
 				index += 1;
 			}
 		}
