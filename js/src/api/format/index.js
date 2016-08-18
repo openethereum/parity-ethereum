@@ -1,4 +1,4 @@
-import { isAddress, toChecksumAddress } from './address';
+import { isAddress, toChecksumAddress } from '../../abi/util/address';
 import { fromWei, toWei } from './wei';
 import { sha3 } from './sha3';
 

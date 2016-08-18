@@ -2,7 +2,7 @@ import BigNumber from 'bignumber.js';
 import { isInstanceOf } from '../src/api/util/types';
 
 export { isFunction, isInstanceOf } from '../src/api/util/types';
-export { isAddress } from '../src/api/format/address';
+export { isAddress } from '../src/abi/util/address';
 
 const ZEROS = '000000000000000000000000000000000000000000000000000000000000';
 

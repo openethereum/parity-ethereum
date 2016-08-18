@@ -158,7 +158,7 @@ describe('api/contract/Contract', () => {
         messageId: new BigNumber('281474976731085'),
         parentId: new BigNumber(0),
         postId: new BigNumber('281474976731104'),
-        sender: '63cf90d3f0410092fc0fca41846f596223979195'
+        sender: '0x63Cf90D3f0410092FC0fca41846f596223979195'
       });
     });
   });

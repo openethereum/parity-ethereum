@@ -67,12 +67,12 @@ describe('abi/spec/event/Event', () => {
         '0000000000000000000000001111111111111111111111111111111111111111' ],
         '00000000000000000000000000000000000000000000000000000000000000030000000000000000000000002222222222222222222222222222222222222222');
 
-      expect(decoded.address).to.equal('4444444444444444444444444444444444444444');
+      expect(decoded.address).to.equal('0x4444444444444444444444444444444444444444');
       expect(decoded.params).to.deep.equal([
         new DecodedLogParam('a', new ParamType('int', null, 256), new Token('int', new BigNumber(3))),
         new DecodedLogParam('b', new ParamType('int', null, 256), new Token('int', new BigNumber(2))),
-        new DecodedLogParam('c', new ParamType('address'), new Token('address', '2222222222222222222222222222222222222222')),
-        new DecodedLogParam('d', new ParamType('address'), new Token('address', '1111111111111111111111111111111111111111'))
+        new DecodedLogParam('c', new ParamType('address'), new Token('address', '0x2222222222222222222222222222222222222222')),
+        new DecodedLogParam('d', new ParamType('address'), new Token('address', '0x1111111111111111111111111111111111111111'))
       ]);
     });
 

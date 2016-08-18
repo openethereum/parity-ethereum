@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 
-import { toChecksumAddress } from './address';
+import { toChecksumAddress } from '../../abi/util/address';
 
 export function outAccountInfo (infos) {
   const ret = {};

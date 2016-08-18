@@ -1,5 +1,7 @@
 import BigNumber from 'bignumber.js';
 
+import { toChecksumAddress } from './address';
+
 export function asU32 (slice) {
   // TODO: validation
 
@@ -19,7 +21,7 @@ export function asI32 (slice) {
 export function asAddress (slice) {
   // TODO: address validation?
 
-  return slice.slice(-40);
+  return toChecksumAddress(`0x${slice.slice(-40)}`);
 }
 
 export function asBool (slice) {
