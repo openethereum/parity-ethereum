@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cell::{RefCell, RefMut};
-
 use common::*;
 use engines::Engine;
 use executive::{Executive, TransactOptions};
@@ -25,6 +24,12 @@ use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
+
+mod account;
+mod substate;
+
+pub use self::account::Account;
+pub use self::substate::Substate;
 
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome {
@@ -428,7 +433,6 @@ use std::str::FromStr;
 use rustc_serialize::hex::FromHex;
 use super::*;
 use util::{U256, H256, FixedHash, Address, Hashable};
-use account::*;
 use tests::helpers::*;
 use devtools::*;
 use env_info::*;
