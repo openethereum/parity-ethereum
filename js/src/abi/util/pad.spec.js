@@ -64,6 +64,10 @@ describe('abi/util/pad', () => {
     it('right pads length > 64 bytes (64 byte multiples)', () => {
       expect(padFixedBytes(`${LONG15}${SHORT15}`)).to.equal(`${LONG15}${LONG15}`);
     });
+
+    it('strips leading 0x when passed in', () => {
+      expect(padFixedBytes(`0x${SHORT15}`)).to.equal(LONG15);
+    });
   });
 
   describe('padBytes', () => {
