@@ -29,6 +29,10 @@ pub mod service_urls {
 	pub const SYNC: &'static str = "ipc:///tmp/parity-sync.ipc";
 	pub const SYNC_NOTIFY: &'static str = "ipc:///tmp/parity-sync-notify.ipc";
 	pub const NETWORK_MANAGER: &'static str = "ipc:///tmp/parity-manage-net.ipc";
+	#[cfg(feature="stratum")]
+	pub const STRATUM: &'static str = "ipc:///tmp/parity-stratum.ipc";
+	#[cfg(feature="stratum")]
+	pub const MINING_JOB_DISPATCHER: &'static str = "ipc:///tmp/parity-mining-jobs.ipc";
 }
 
 #[cfg(not(feature="ipc"))]

@@ -26,6 +26,8 @@ use ctrlc::CtrlC;
 use std::sync::atomic::{AtomicBool, Ordering};
 use nanoipc::{IpcInterface, GuardedSocket, NanoSocket};
 use ipc::WithSocket;
+use ethcore_logger::{Config as LogConfig, setup_log};
+use docopt::Docopt;
 
 #[derive(Debug)]
 pub enum BootError {
@@ -81,4 +83,41 @@ pub fn main_thread() -> Arc<AtomicBool> {
 		ctrc_stop.store(true, Ordering::Relaxed);
 	});
 	stop
+}
+
+pub fn setup_cli_logger(svc_name: &str) {
+	let usage = format!("
+Ethcore {} service
+Usage:
+  parity {} [options]
+
+ Options:
+  -l --logging LOGGING     Specify the logging level. Must conform to the same
+						   format as RUST_LOG.
+  --log-file FILENAME      Specify a filename into which logging should be
+						   directed.
+  --no-color               Don't use terminal color codes in output.
+", svc_name, svc_name);
+
+	#[derive(Debug, RustcDecodable)]
+	struct Args {
+		flag_logging: Option<String>,
+		flag_log_file: Option<String>,
+		flag_no_color: bool,
+	}
+
+	impl Args {
+		pub fn log_settings(&self) -> LogConfig {
+			LogConfig {
+				color: self.flag_no_color || cfg!(windows),
+				mode: self.flag_logging.clone(),
+				file: self.flag_log_file.clone(),
+			}
+		}
+	}
+
+	let args: Args = Docopt::new(usage)
+		.and_then(|d| d.decode())
+		.unwrap_or_else(|e| e.exit());
+	setup_log(&args.log_settings()).expect("Log initialization failure");
 }
