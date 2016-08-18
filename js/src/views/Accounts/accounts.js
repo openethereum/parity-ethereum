@@ -143,6 +143,7 @@ export default class Accounts extends Component {
 
           tokens.push({
             address: token[0],
+            format: token[2].toString(),
             image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
             supply: '0',
             token: token[1],

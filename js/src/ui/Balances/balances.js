@@ -29,8 +29,8 @@ export default class Balances extends Component {
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
         const value = balance.format
-          ? Api.format.fromWei(balance.value).toFormat()
-          : new BigNumber(balance.value).toFormat();
+          ? new BigNumber(balance.value).div(new BigNumber(balance.format)).toFormat()
+          : Api.format.fromWei(balance.value).toFormat();
         return (
           <div
             className={ styles.balance }
@@ -72,7 +72,6 @@ export default class Balances extends Component {
       .getBalance(this.props.address)
       .then((balance) => {
         const balances = [{
-          format: true,
           image: 'images/tokens/ethereum-32x32.png',
           token: 'ΞTH',
           type: 'Ethereum',
@@ -88,6 +87,7 @@ export default class Balances extends Component {
 
                 if (token) {
                   balances.push({
+                    format: token.format,
                     image: token.image,
                     token: token.token,
                     type: token.type,
