@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 import Api from '../../api';
 import Container from '../../ui/Container';
 
-import { eip20, registry, tokenreg } from '../../services/contracts';
+import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
 
 export default class Tokens extends Component {
   static contextTypes = {
@@ -17,14 +17,14 @@ export default class Tokens extends Component {
     api.ethcore
       .registryAddress()
       .then((address) => {
-        this.contracts.registry = api.newContract(registry).at(address);
-        return this.contracts.registry.named
+        this.contracts.registry = api.newContract(registryAbi).at(address);
+        return this.contracts.registry
           .getAddress
           .call({}, [Api.format.sha3('tokenreg'), 'A']);
       })
       .then((address) => {
-        this.contracts.tokenreg = api.newContract(tokenreg).at(address);
-        return this.contracts.tokenreg.named
+        this.contracts.tokenreg = api.newContract(tokenRegAbi).at(address);
+        return this.contracts.tokenreg
           .tokenCount
           .call();
       })
@@ -32,7 +32,7 @@ export default class Tokens extends Component {
         const promises = [];
 
         while (promises.length < tokenCount.toNumber()) {
-          promises.push(this.contracts.tokenreg.named.token.call({}, [promises.length]));
+          promises.push(this.contracts.tokenreg.token.call({}, [promises.length]));
         }
 
         return Promise.all(promises);
@@ -44,21 +44,27 @@ export default class Tokens extends Component {
         tokens.forEach((token) => {
           console.log(token[0], token[1], token[2].toFormat(), token[3]);
 
-          const contract = api.newContract(eip20).at(token[0]);
+          const contract = api.newContract(eip20Abi).at(token[0]);
 
           this.eip20s.push({
+            address: token[0],
+            image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
+            supply: '0',
             token: token[1],
             type: token[3],
-            image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
             contract
           });
-          promises.push(contract.named.totalSupply.call());
+          promises.push(contract.totalSupply.call());
         });
 
         return Promise.all(promises);
       })
       .then((supplies) => {
         console.log('supplies', supplies.map((supply) => supply.toFormat()));
+
+        supplies.forEach((supply, idx) => {
+          this.eip20s[idx].supply = supply.toString();
+        });
       })
       .catch((error) => {
         console.error(error);
