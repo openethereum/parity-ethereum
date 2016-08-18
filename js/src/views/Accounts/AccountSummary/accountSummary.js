@@ -12,6 +12,7 @@ export default class AccountSummary extends Component {
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    tokens: PropTypes.array,
     children: PropTypes.node
   }
 
@@ -31,7 +32,8 @@ export default class AccountSummary extends Component {
           title={ <Link to={ viewLink }>{ account.name || 'Unnamed' }</Link> }
           byline={ account.address } />
         <Balances
-          address={ account.address } />
+          address={ account.address }
+          tokens={ this.props.tokens } />
         { this.props.children }
       </Container>
     );

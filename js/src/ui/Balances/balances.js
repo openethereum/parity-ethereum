@@ -12,6 +12,7 @@ export default class Balances extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
+    tokens: PropTypes.array,
     onChange: PropTypes.func
   }
 
@@ -27,15 +28,18 @@ export default class Balances extends Component {
     const balances = this.state.balances
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
+        const value = balance.format
+          ? Api.format.fromWei(balance.value).toFormat()
+          : new BigNumber(balance.value).toFormat();
         return (
           <div
             className={ styles.balance }
             key={ balance.token }>
             <img
-              src={ balance.img }
+              src={ balance.image }
               alt={ balance.type } />
             <div>
-              { Api.format.fromWei(balance.value).toFormat() } { balance.token }
+              { value } { balance.token }
             </div>
           </div>
         );
@@ -62,22 +66,41 @@ export default class Balances extends Component {
 
   getBalances () {
     const api = this.context.api;
+    const calls = (this.props.tokens || []).map((token) => token.contract.balanceOf.call({}, [this.props.address]));
 
-    Promise
-      .all([
-        api.eth.getBalance(this.props.address)
-      ])
-      .then(([balance]) => {
-        this.setState({
-          balances: [
-            {
-              token: 'ΞTH',
-              value: balance.toString(),
-              img: 'images/tokens/ethereum-32x32.png',
-              type: 'Ethereum'
+    api.eth
+      .getBalance(this.props.address)
+      .then((balance) => {
+        const balances = [{
+          format: true,
+          image: 'images/tokens/ethereum-32x32.png',
+          token: 'ΞTH',
+          type: 'Ethereum',
+          value: balance.toString()
+        }];
+
+        return Promise
+          .all(calls)
+          .then((tokenBalances) => {
+            if (tokenBalances && tokenBalances.length) {
+              tokenBalances.forEach((balance, idx) => {
+                const token = this.props.tokens[idx];
+
+                if (token) {
+                  balances.push({
+                    image: token.image,
+                    token: token.token,
+                    type: token.type,
+                    value: balance.toString()
+                  });
+                }
+              });
             }
-          ]
-        }, this.updateParent);
+
+            this.setState({
+              balances
+            }, this.updateParent);
+          });
       });
   }
 }

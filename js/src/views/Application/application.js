@@ -5,7 +5,6 @@ import darkBaseTheme from 'material-ui/styles/baseThemes/darkBaseTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
 import Api from '../../api';
-import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
 import { TooltipOverlay } from '../../ui/Tooltip';
 
 import { FirstRun } from '../../modals';
@@ -70,69 +69,13 @@ export default class Application extends Component {
   }
 
   retrieveInfo () {
-    const contracts = {};
-    const tokens = [];
-
     api.personal
       .listAccounts()
       .then((accounts) => {
         this.setState({
           accounts,
-          contracts,
-          tokens,
           showFirst: accounts.length === 0
         });
-
-        return api.ethcore.registryAddress();
-      })
-      .then((address) => {
-        contracts.registry = api.newContract(registryAbi).at(address);
-        return contracts.registry
-          .getAddress
-          .call({}, [Api.format.sha3('tokenreg'), 'A']);
-      })
-      .then((address) => {
-        contracts.tokenreg = api.newContract(tokenRegAbi).at(address);
-        return contracts.tokenreg
-          .tokenCount
-          .call();
-      })
-      .then((tokenCount) => {
-        const promises = [];
-
-        while (promises.length < tokenCount.toNumber()) {
-          promises.push(contracts.tokenreg.token.call({}, [promises.length]));
-        }
-
-        return Promise.all(promises);
-      })
-      .then((_tokens) => {
-        return Promise.all(_tokens.map((token) => {
-          console.log(token[0], token[1], token[2].toFormat(), token[3]);
-
-          const contract = api.newContract(eip20Abi).at(token[0]);
-
-          tokens.push({
-            address: token[0],
-            image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
-            supply: '0',
-            token: token[1],
-            type: token[3],
-            contract
-          });
-
-          return contract.totalSupply.call();
-        }));
-      })
-      .then((supplies) => {
-        console.log('supplies', supplies.map((supply) => supply.toFormat()));
-
-        supplies.forEach((supply, idx) => {
-          tokens[idx].supply = supply.toString();
-        });
-      })
-      .catch((error) => {
-        console.error(error);
       });
   }
 
