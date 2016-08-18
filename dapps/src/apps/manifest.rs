@@ -14,28 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Block import error related types
+use serde_json;
+pub use api::App as Manifest;
 
-use error::{ImportError, BlockError, Error};
-use std::convert::From;
+pub const MANIFEST_FILENAME: &'static str = "manifest.json";
 
-/// Error dedicated to import block function
-#[derive(Binary, Debug)]
-pub enum BlockImportError {
-	/// Import error
-	Import(ImportError),
-	/// Block error
-	Block(BlockError),
-	/// Other error
-	Other(String),
+pub fn deserialize_manifest(manifest: String) -> Result<Manifest, String> {
+	serde_json::from_str::<Manifest>(&manifest).map_err(|e| format!("{:?}", e))
+	// TODO [todr] Manifest validation (especialy: id (used as path))
 }
 
-impl From<Error> for BlockImportError {
-	fn from(e: Error) -> Self {
-		match e {
-			Error::Block(block_error) => BlockImportError::Block(block_error),
-			Error::Import(import_error) => BlockImportError::Import(import_error),
-			_ => BlockImportError::Other(format!("other block import error: {:?}", e)),
-		}
-	}
+pub fn serialize_manifest(manifest: &Manifest) -> Result<String, String> {
+	serde_json::to_string_pretty(manifest).map_err(|e| format!("{:?}", e))
 }

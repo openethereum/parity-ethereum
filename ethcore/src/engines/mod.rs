@@ -44,6 +44,9 @@ pub trait Engine : Sync + Send {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 
+	/// Additional information.
+	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() } 
+
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams;
 

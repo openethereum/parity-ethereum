@@ -17,9 +17,7 @@
 //! Transaction import result related types
 
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
-use std::collections::VecDeque;
 use error::{TransactionError, Error};
-use std::mem;
 use util::Populatable;
 
 #[derive(Debug, Clone, PartialEq)]

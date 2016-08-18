@@ -23,9 +23,6 @@ use util::bloom::Bloomable;
 use action_params::ActionParams;
 use basic_types::LogBloom;
 use types::executed::CallType;
-use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 /// `Call` result.
 #[derive(Debug, Clone, PartialEq, Default, Binary)]

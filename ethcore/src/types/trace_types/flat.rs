@@ -17,8 +17,6 @@
 //! Flat trace module
 
 use std::collections::VecDeque;
-use std::mem;
-use ipc::binary::BinaryConvertError;
 use util::rlp::*;
 use util::HeapSizeOf;
 use basic_types::LogBloom;

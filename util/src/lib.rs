@@ -27,6 +27,8 @@
 #![cfg_attr(feature="dev", allow(match_same_arms))]
 // Keeps consistency (all lines with `.clone()`).
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
+// Some false positives when doing pattern matching.
+#![cfg_attr(feature="dev", allow(needless_borrow))]
 // TODO [todr] a lot of warnings to be fixed
 #![cfg_attr(feature="dev", allow(assign_op_pattern))]
 

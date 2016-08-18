@@ -73,7 +73,7 @@ impl<'a> Node<'a> {
 				stream.append(value);
 				stream.out()
 			},
-			Node::Extension(ref slice, ref raw_rlp) => {
+			Node::Extension(ref slice, raw_rlp) => {
 				let mut stream = RlpStream::new_list(2);
 				stream.append(&slice.encoded(false));
 				stream.append_raw(raw_rlp, 1);
@@ -108,7 +108,7 @@ impl<'a> Node<'a> {
 				stream.append(&slice.encoded(true));
 				stream.append(value);
 			},
-			Node::Extension(ref slice, ref raw_rlp) => {
+			Node::Extension(ref slice, raw_rlp) => {
 				stream.begin_list(2);
 				stream.append(&slice.encoded(false));
 				stream.append_raw(raw_rlp, 1);

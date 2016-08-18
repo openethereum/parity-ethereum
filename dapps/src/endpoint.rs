@@ -35,11 +35,11 @@ pub struct EndpointInfo {
 	pub icon_url: String,
 }
 
+pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
+pub type Handler = server::Handler<net::HttpStream> + Send;
+
 pub trait Endpoint : Send + Sync {
 	fn info(&self) -> Option<&EndpointInfo> { None }
 
-	fn to_handler(&self, path: EndpointPath) -> Box<server::Handler<net::HttpStream> + Send>;
+	fn to_handler(&self, path: EndpointPath) -> Box<Handler>;
 }
-
-pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
-pub type Handler = server::Handler<net::HttpStream> + Send;
