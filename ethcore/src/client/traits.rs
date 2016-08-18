@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::mem;
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
