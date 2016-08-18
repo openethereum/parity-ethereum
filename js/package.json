@@ -89,6 +89,7 @@
     "sinon-chai": "^2.8.0",
     "style-loader": "^0.13.0",
     "url-loader": "^0.5.7",
+    "web3": "^0.17.0-alpha",
     "webpack": "^1.12.14",
     "webpack-dev-server": "^1.14.1",
     "webpack-error-notification": "0.1.6",
