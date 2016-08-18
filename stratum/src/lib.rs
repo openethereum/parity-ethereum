@@ -23,6 +23,12 @@ extern crate ethcore_util as util;
 
 #[cfg(test)]
 extern crate mio;
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;
+
+mod traits;
+
+pub use traits::{JobDispatcher, PushWorkHandler, Error};
 
 use json_tcp_server::Server as JsonRpcServer;
 use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params};
@@ -39,32 +45,17 @@ pub struct Stratum {
 	/// List of workers supposed to receive job update
 	job_que: RwLock<HashSet<SocketAddr>>,
 	/// Payload manager
-	payload_manager: Arc<JobPayloadManager>,
+	dispatcher: Arc<JobDispatcher>,
 	/// Authorized workers (socket - worker_id)
 	workers: Arc<RwLock<HashMap<SocketAddr, String>>>,
 	/// Secret if any
 	secret: Option<H256>,
 }
 
-#[cfg(test)]
-pub struct VoidManager;
-
-#[cfg(test)]
-impl JobPayloadManager for VoidManager { }
-
-pub trait JobPayloadManager: Send + Sync {
-	// json for initial client handshake
-	fn initial(&self) -> Option<String> { None }
-	// json for difficulty dispatch
-	fn difficulty(&self) -> Option<String> { None }
-	// json for job update given worker_id (payload manager should split job!)
-	fn job(&self, _worker_id: &str) -> Option<String> { None }
-}
-
 impl Stratum {
 	pub fn start(
 		addr: &SocketAddr,
-		payload_manager: Arc<JobPayloadManager>,
+		dispatcher: Arc<JobDispatcher>,
 		secret: Option<H256>,
 	) -> Result<Arc<Stratum>, json_tcp_server::Error> {
 		let handler = Arc::new(IoHandler::new());
@@ -74,7 +65,7 @@ impl Stratum {
 			handler: handler,
 			subscribers: RwLock::new(Vec::new()),
 			job_que: RwLock::new(HashSet::new()),
-			payload_manager: payload_manager,
+			dispatcher: dispatcher,
 			workers: Arc::new(RwLock::new(HashMap::new())),
 			secret: secret,
 		});
@@ -97,7 +88,7 @@ impl Stratum {
 			self.job_que.write().unwrap().insert(context.socket_addr);
 			trace!(target: "stratum", "Subscription request from {:?}", context.socket_addr);
 		}
-		Ok(match self.payload_manager.initial() {
+		Ok(match self.dispatcher.initial() {
 			Some(initial) => match jsonrpc_core::Value::from_str(&initial) {
 				Ok(val) => val,
 				Err(e) => {
@@ -137,7 +128,7 @@ impl Stratum {
 		let workers = self.workers.read().unwrap();
 		for socket_addr in job_que.drain() {
 			if let Some(ref worker_id) = workers.get(&socket_addr) {
-				let job_payload = self.payload_manager.job(worker_id);
+				let job_payload = self.dispatcher.job(worker_id);
 				job_payload.map(
 					|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
 				);
@@ -149,12 +140,52 @@ impl Stratum {
 	}
 }
 
+impl PushWorkHandler for Stratum {
+	fn push_work_all(&self, payload: String) -> Result<(), Error> {
+		let workers = self.workers.read().unwrap();
+		for (ref addr, _) in workers.iter() {
+			try!(self.rpc_server.push_message(addr, payload.as_bytes()));
+		}
+		Ok(())
+	}
+
+	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error>  {
+		if !payloads.len() > 0 {
+			return Err(Error::NoWork);
+		}
+		let workers = self.workers.read().unwrap();
+		let addrs = workers.keys().collect::<Vec<&SocketAddr>>();
+		if !workers.len() > 0 {
+			return Err(Error::NoWorkers);
+		}
+		let mut que = payloads;
+		let mut addr_index = 0;
+		while que.len() > 0 {
+			let next_worker = addrs[addr_index];
+			let mut next_payload = que.drain(0..1);
+			try!(
+				self.rpc_server.push_message(
+					next_worker,
+					next_payload.nth(0).expect("drained successfully of 0..1, so 0-th element should exist").as_bytes()
+				)
+			);
+			addr_index = addr_index + 1;
+		}
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use std::str::FromStr;
 	use std::net::SocketAddr;
-	use std::sync::Arc;
+	use std::sync::{Arc, RwLock};
+	use std::thread;
+
+	pub struct VoidManager;
+
+	impl JobDispatcher for VoidManager { }
 
 	pub fn dummy_request(addr: &SocketAddr, buf: &[u8]) -> Vec<u8> {
 		use std::io::{Read, Write};
@@ -172,6 +203,48 @@ mod tests {
 		let mut buf = Vec::new();
 		sock.read_to_end(&mut buf).unwrap_or_else(|_| { 0 });
 		buf
+	}
+
+	pub fn dummy_async_waiter(addr: &SocketAddr, initial: Vec<String>, result: Arc<RwLock<Vec<String>>>) -> ::devtools::StopGuard {
+		use std::io::{Read, Write};
+		use mio::*;
+		use mio::tcp::*;
+		use std::sync::atomic::Ordering;
+
+		let stop_guard = ::devtools::StopGuard::new();
+		let collector = result.clone();
+		let thread_stop = stop_guard.share();
+		let socket_addr = addr.clone();
+		thread::spawn(move || {
+			let mut poll = Poll::new().unwrap();
+			let mut sock = TcpStream::connect(&socket_addr).unwrap();
+			poll.register(&sock, Token(0), EventSet::writable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
+
+			for initial_req in initial {
+				poll.poll(Some(50)).unwrap();
+				sock.write_all(initial_req.as_bytes()).unwrap();
+				poll.reregister(&sock, Token(0), EventSet::readable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
+				poll.poll(Some(50)).unwrap();
+
+				let mut buf = Vec::new();
+				sock.read_to_end(&mut buf).unwrap_or_else(|_| { 0 });
+				collector.write().unwrap().push(String::from_utf8(buf).unwrap());
+				poll.reregister(&sock, Token(0), EventSet::writable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
+			}
+
+			while !thread_stop.load(Ordering::Relaxed) {
+				poll.reregister(&sock, Token(0), EventSet::readable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
+				poll.poll(Some(50)).unwrap();
+
+				let mut buf = Vec::new();
+				sock.read_to_end(&mut buf).unwrap_or_else(|_| { 0 });
+				if buf.len() > 0 {
+					collector.write().unwrap().push(String::from_utf8(buf).unwrap());
+				}
+			}
+		});
+
+		stop_guard
 	}
 
 	#[test]
@@ -208,7 +281,7 @@ mod tests {
 		}
 	}
 
-	impl JobPayloadManager for DummyManager {
+	impl JobDispatcher for DummyManager {
 		fn initial(&self) -> Option<String> {
 			Some(self.initial_payload.clone())
 		}
@@ -240,5 +313,32 @@ mod tests {
 
 		assert_eq!(r#"{"jsonrpc":"2.0","result":true,"id":1}"#, response);
 		assert_eq!(1, stratum.workers.read().unwrap().len());
+	}
+
+	#[test]
+	fn can_push_work() {
+		let addr = SocketAddr::from_str("0.0.0.0:19965").unwrap();
+		let stratum = Stratum::start(
+			&addr,
+			Arc::new(DummyManager::build().of_initial(r#"["dummy push request payload"]"#)),
+			None
+		).unwrap();
+
+		let result = Arc::new(RwLock::new(Vec::<String>::new()));
+		let _stop = dummy_async_waiter(
+			&addr,
+			vec![
+				r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#.to_owned(),
+				r#"{"jsonrpc": "2.0", "method": "miner.authorize", "params": ["miner1", ""], "id": 1}"#.to_owned(),
+			],
+			result.clone(),
+		);
+
+		stratum.push_work_all(r#"["00040008", "100500"]"#.to_owned()).unwrap();
+
+		::std::thread::park_timeout(::std::time::Duration::from_millis(250));
+
+		assert_eq!(*result.read().unwrap(), Vec::<String>::new());
+		assert_eq!(3, result.read().unwrap().len());
 	}
 }

@@ -454,6 +454,7 @@ dependencies = [
 name = "ethcore-stratum"
 version = "1.4.0"
 dependencies = [
+ "ethcore-devtools 1.4.0",
  "ethcore-util 1.4.0",
  "json-tcp-server 0.1.0 (git+https://github.com/ethcore/json-tcp-server)",
  "jsonrpc-core 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
