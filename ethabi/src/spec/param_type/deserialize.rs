@@ -14,11 +14,11 @@ impl Visitor for ParamTypeVisitor {
 	type Value = ParamType;
 
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-		Reader::read(value).map_err(|e| SerdeError::custom(format!("{:?}", e).as_ref()))
+		Reader::read(value).map_err(|e| SerdeError::custom(format!("{:?}", e).as_str()))
 	}
 
 	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: SerdeError {
-		self.visit_str(value.as_ref())
+		self.visit_str(value.as_str())
 	}
 }
 
