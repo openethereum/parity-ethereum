@@ -725,7 +725,7 @@ dependencies = [
 [[package]]
 name = "json-tcp-server"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/json-tcp-server#75c6df535e92b6741a42f3825b668565665ab7da"
+source = "git+https://github.com/ethcore/json-tcp-server#383ccd296b44f4f718b04d328a18df69c3c4bd36"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
