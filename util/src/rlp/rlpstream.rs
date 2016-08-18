@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use elastic_array::*;
-use rlp::bytes::{ToBytes, VecLike};
+use rlp::bytes::ToBytes;
 use rlp::{Stream, Encoder, Encodable};
 use rlp::rlptraits::{ByteEncodable, RlpEncodable};
+use smallvec::{SmallVec, VecLike};
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {
@@ -38,7 +38,7 @@ impl ListInfo {
 
 /// Appendable rlp encoder.
 pub struct RlpStream {
-	unfinished_lists: ElasticArray16<ListInfo>,
+	unfinished_lists: SmallVec<[ListInfo; 16]>,
 	encoder: BasicEncoder,
 	finished_list: bool,
 }
@@ -52,7 +52,7 @@ impl Default  for RlpStream {
 impl Stream for RlpStream {
 	fn new() -> Self {
 		RlpStream {
-			unfinished_lists: ElasticArray16::new(),
+			unfinished_lists: SmallVec::new(),
 			encoder: BasicEncoder::new(),
 			finished_list: false,
 		}
@@ -105,7 +105,7 @@ impl Stream for RlpStream {
 
 	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
 		// push raw items
-		self.encoder.bytes.append_slice(bytes);
+		self.encoder.bytes.extend(bytes.iter().cloned());
 
 		// try to finish and prepend the length
 		self.note_appended(item_count);
@@ -182,8 +182,8 @@ impl RlpStream {
 		self.finished_list = should_finish;
 	}
 
-	/// Drain the object and return the underlying ElasticArray.
-	pub fn drain(self) -> ElasticArray1024<u8> {
+	/// Drain the object and return the underlying SmallVec.
+	pub fn drain(self) -> SmallVec<[u8; 1024]> {
 		match self.is_finished() {
 			true => self.encoder.bytes,
 			false => panic!()
@@ -192,7 +192,7 @@ impl RlpStream {
 }
 
 struct BasicEncoder {
-	bytes: ElasticArray1024<u8>,
+	bytes: SmallVec<[u8; 1024]>,
 }
 
 impl Default for BasicEncoder {
@@ -203,13 +203,13 @@ impl Default for BasicEncoder {
 
 impl BasicEncoder {
 	fn new() -> Self {
-		BasicEncoder { bytes: ElasticArray1024::new() }
+		BasicEncoder { bytes: SmallVec::new() }
 	}
 
 	/// inserts list prefix at given position
 	/// TODO: optimise it further?
 	fn insert_list_len_at_pos(&mut self, len: usize, pos: usize) -> () {
-		let mut res = ElasticArray16::new();
+		let mut res: SmallVec<[u8; 16]> = SmallVec::new();
 		match len {
 			0...55 => res.push(0xc0u8 + len as u8),
 			_ => {
@@ -218,11 +218,13 @@ impl BasicEncoder {
 			}
 		};
 
-		self.bytes.insert_slice(pos, &res);
+		for (idx, &item) in res.iter().enumerate() {
+			self.bytes.insert(pos + idx, item);
+		}
 	}
 
 	/// get encoded value
-	fn out(self) -> ElasticArray1024<u8> {
+	fn out(self) -> SmallVec<[u8; 1024]> {
 		self.bytes
 	}
 }
@@ -257,7 +259,7 @@ impl Encoder for BasicEncoder {
 	}
 
 	fn emit_raw(&mut self, bytes: &[u8]) -> () {
-		self.bytes.append_slice(bytes);
+		self.bytes.extend(bytes.iter().cloned());
 	}
 }
 
@@ -275,7 +277,9 @@ struct U8Slice<'a>(&'a [u8]);
 
 impl<'a> ByteEncodable for U8Slice<'a> {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.vec_extend(self.0)
+		for &byte in self.0 {
+			out.push(byte);
+		}
 	}
 
 	fn bytes_len(&self) -> usize {
@@ -306,7 +310,7 @@ struct EncodableU8 (u8);
 impl ByteEncodable for EncodableU8 {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
 		if self.0 != 0 {
-			out.vec_push(self.0)
+			out.push(self.0)
 		}
 	}
 
