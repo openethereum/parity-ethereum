@@ -19,3 +19,7 @@
   display: inline-block;
   vertical-align: top;
 }
+
+.value {
+  font-family: monospace;
+}

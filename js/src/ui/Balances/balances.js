@@ -38,7 +38,7 @@ export default class Balances extends Component {
             <img
               src={ balance.image }
               alt={ balance.type } />
-            <div>
+            <div className={ styles.value }>
               { value } { balance.token }
             </div>
           </div>
