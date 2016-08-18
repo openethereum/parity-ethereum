@@ -25,8 +25,6 @@ use sync_io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
 use std::net::{SocketAddr, AddrParseError};
 use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
-use std::mem;
-use std::collections::VecDeque;
 use std::str::FromStr;
 use parking_lot::RwLock;
 

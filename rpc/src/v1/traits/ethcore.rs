@@ -73,6 +73,9 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns whatever address would be derived from the given phrase if it were to seed a brainwallet.
 	fn phrase_to_address(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns the value of the registrar for this network.
+	fn registry_address(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -94,6 +97,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_unsignedTransactionsCount", Ethcore::unsigned_transactions_count);
 		delegate.add_method("ethcore_generateSecretPhrase", Ethcore::generate_secret_phrase);
 		delegate.add_method("ethcore_phraseToAddress", Ethcore::phrase_to_address);
+		delegate.add_method("ethcore_registryAddress", Ethcore::registry_address);
 
 		delegate
 	}

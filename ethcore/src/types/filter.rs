@@ -16,13 +16,10 @@
 
 //! Blockchain filter
 
-use std::mem;
-use std::collections::VecDeque;
 use util::{Address, H256, Hashable, H2048};
 use util::bloom::Bloomable;
 use client::BlockID;
 use log_entry::LogEntry;
-use ipc::binary::BinaryConvertError;
 
 /// Blockchain Filter.
 #[derive(Binary)]

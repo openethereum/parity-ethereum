@@ -419,8 +419,8 @@ impl<'a> TrieDBMut<'a> {
 		where 'x: 'key
 	{
 		match RlpNode::decoded(node) {
-			RlpNode::Leaf(ref slice, ref value) if &key == slice => Ok(Some(value)),
-			RlpNode::Extension(ref slice, ref item) if key.starts_with(slice) => {
+			RlpNode::Leaf(ref slice, value) if &key == slice => Ok(Some(value)),
+			RlpNode::Extension(ref slice, item) if key.starts_with(slice) => {
 				self.get_from_db_node(try!(self.get_raw_or_lookup(item)), key.mid(slice.len()))
 			},
 			RlpNode::Branch(ref nodes, value) => match key.is_empty() {

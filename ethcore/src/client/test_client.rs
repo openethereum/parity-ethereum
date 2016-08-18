@@ -22,9 +22,10 @@ use ethkey::{Generator, Random};
 use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
-	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics,
-	BlockImportError};
+use client::{
+	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
+	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError
+};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -516,6 +517,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn clear_queue(&self) {
+	}
+
+	fn additional_params(&self) -> BTreeMap<String, String> {
+		Default::default()
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {

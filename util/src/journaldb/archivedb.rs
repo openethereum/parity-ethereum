@@ -164,7 +164,7 @@ impl JournalDB for ArchiveDB {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
 				assert!(rc == 1);
-				batch.put(self.column, &key, &value).expect("Low-level database error. Some issue with your hard disk?");
+				batch.put(self.column, &key, &value);
 				inserts += 1;
 			}
 			if rc < 0 {
@@ -175,11 +175,11 @@ impl JournalDB for ArchiveDB {
 
 		for (mut key, value) in self.overlay.drain_aux().into_iter() {
 			key.push(AUX_FLAG);
-			batch.put(self.column, &key, &value).expect("Low-level database error. Some issue with your hard disk?");
+			batch.put(self.column, &key, &value);
 		}
 
 		if self.latest_era.map_or(true, |e| now > e) {
-			try!(batch.put(self.column, &LATEST_ERA_KEY, &encode(&now)));
+			batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
 			self.latest_era = Some(now);
 		}
 		Ok((inserts + deletes) as u32)
@@ -196,7 +196,7 @@ impl JournalDB for ArchiveDB {
 				if try!(self.backing.get(self.column, &key)).is_some() {
 					return Err(BaseDataError::AlreadyExists(key).into());
 				}
-				try!(batch.put(self.column, &key, &value));
+				batch.put(self.column, &key, &value);
 				inserts += 1;
 			}
 			if rc < 0 {
@@ -204,14 +204,14 @@ impl JournalDB for ArchiveDB {
 				if try!(self.backing.get(self.column, &key)).is_none() {
 					return Err(BaseDataError::NegativelyReferencedHash(key).into());
 				}
-				try!(batch.delete(self.column, &key));
+				batch.delete(self.column, &key);
 				deletes += 1;
 			}
 		}
 
 		for (mut key, value) in self.overlay.drain_aux().into_iter() {
 			key.push(AUX_FLAG);
-			try!(batch.put(self.column, &key, &value));
+			batch.put(self.column, &key, &value);
 		}
 
 		Ok((inserts + deletes) as u32)

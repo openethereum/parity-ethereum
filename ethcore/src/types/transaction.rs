@@ -16,8 +16,6 @@
 
 //! Transaction data structure.
 
-use std::mem;
-use std::collections::VecDeque;
 use std::ops::Deref;
 use std::cell::*;
 use util::rlp::*;
@@ -28,7 +26,6 @@ use error::*;
 use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
-use ipc::binary::BinaryConvertError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Binary)]
 /// Transaction action type.

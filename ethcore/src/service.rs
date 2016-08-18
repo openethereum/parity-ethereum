@@ -206,5 +206,7 @@ mod tests {
 			Arc::new(Miner::with_spec(&spec)),
 		);
 		assert!(service.is_ok());
+		drop(service.unwrap());
+		::std::thread::park_timeout(::std::time::Duration::from_millis(100));
 	}
 }

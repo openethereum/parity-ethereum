@@ -72,7 +72,7 @@ fn trie_insertions_32_mir_1k(b: &mut Bencher) {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
-			t.insert(&i.0, &i.1);
+			t.insert(&i.0, &i.1).unwrap();
 		}
 		hash_count = t.hash_count;
 	});
@@ -111,7 +111,7 @@ fn trie_insertions_32_ran_1k(b: &mut Bencher) {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
-			t.insert(&i.0, &i.1);
+			t.insert(&i.0, &i.1).unwrap();
 		}
 		hash_count = t.hash_count;
 		r = t.root().clone();
@@ -149,7 +149,7 @@ fn trie_insertions_six_high(b: &mut Bencher) {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
-			t.insert(&i.0, &i.1);
+			t.insert(&i.0, &i.1).unwrap();
 		}
 	})
 }
@@ -184,7 +184,7 @@ fn trie_insertions_six_mid(b: &mut Bencher) {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
-			t.insert(&i.0, &i.1);
+			t.insert(&i.0, &i.1).unwrap();
 		}
 		debug!("hash_count={:?}", t.hash_count);
 	})
@@ -221,7 +221,7 @@ fn trie_insertions_random_mid(b: &mut Bencher) {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
-			t.insert(&i.0, &i.1);
+			t.insert(&i.0, &i.1).unwrap();
 		}
 	})
 }
@@ -258,7 +258,7 @@ fn trie_insertions_six_low(b: &mut Bencher) {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
-			t.insert(&i.0, &i.1);
+			t.insert(&i.0, &i.1).unwrap();
 		}
 	})
 }
