@@ -31,7 +31,6 @@ extern crate env_logger;
 #[macro_use]
 extern crate lazy_static;
 
-
 mod traits;
 
 pub use traits::{JobDispatcher, PushWorkHandler, Error};
