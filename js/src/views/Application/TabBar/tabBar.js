@@ -4,7 +4,7 @@ import Toolbar from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
-import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
+// import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
 import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
@@ -36,11 +36,6 @@ export default class TabBar extends Component {
               left='6%' top='65%'
               text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           </Tab>
-          <Tab
-            data-route='/tokens'
-            icon={ <ActionDashboard /> }
-            label='tokens'
-            onActive={ this.onActivate } />
           <Tab
             data-route='/apps'
             icon={ <NavigationApps /> }
