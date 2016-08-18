@@ -27,7 +27,7 @@ use node_table::NodeId;
 use error::*;
 use stats::NetworkStats;
 use io::{IoContext, StreamToken};
-use ethkey::{KeyPair, Public, Secret, Signature, recover, sign, Generator, Random};
+use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
 use crypto::{ecdh, ecies};
 
 #[derive(PartialEq, Eq, Debug)]

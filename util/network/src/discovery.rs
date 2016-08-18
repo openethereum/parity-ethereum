@@ -28,7 +28,7 @@ use util::rlp::*;
 use node_table::*;
 use error::NetworkError;
 use io::{StreamToken, IoContext};
-use ethkey::{Secret, KeyPair, sign, Signature, recover};
+use ethkey::{Secret, KeyPair, sign, recover};
 
 use PROTOCOL_VERSION;
 

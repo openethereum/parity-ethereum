@@ -15,15 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-<<<<<<< HEAD
-use util::{RotatingLogger};
-use util::misc::version_data;
-=======
->>>>>>> 57dbdaada9abc1945c8ed66cfc8d62dcef300b59
 use std::sync::{Arc, Weak};
 use std::str::FromStr;
 use std::collections::{BTreeMap};
-use util::{RotatingLogger, KeyPair, Address};
+use util::{RotatingLogger, Address};
 use util::misc::version_data;
 
 use ethkey::{Brain, Generator};
