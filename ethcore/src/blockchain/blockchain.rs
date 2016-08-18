@@ -421,7 +421,7 @@ impl BlockChain {
 				}
 
 				let batch = db.transaction();
-				batch.put(DB_COL_EXTRA, b"first", &hash).unwrap();
+				batch.put(DB_COL_EXTRA, b"first", &hash);
 				db.write(batch).expect("Low level database error.");
 
 				bc.first_block = hash;
