@@ -117,8 +117,8 @@ impl AddressBook {
 
 	pub fn set_name(&mut self, a: Address, name: String) {
 		let mut x = self.cache.get(&a)
-			.map(|a| a.clone())
-			.unwrap_or(AccountMeta {name: Default::default(), meta: "{}".to_owned(), uuid: None});
+			.cloned()
+			.unwrap_or_else(|| AccountMeta {name: Default::default(), meta: "{}".to_owned(), uuid: None});
 		x.name = name;
 		self.cache.insert(a, x);
 		self.save();
@@ -126,8 +126,8 @@ impl AddressBook {
 
 	pub fn set_meta(&mut self, a: Address, meta: String) {
 		let mut x = self.cache.get(&a)
-			.map(|a| a.clone())
-			.unwrap_or(AccountMeta {name: "Anonymous".to_owned(), meta: Default::default(), uuid: None});
+			.cloned()
+			.unwrap_or_else(|| AccountMeta {name: "Anonymous".to_owned(), meta: Default::default(), uuid: None});
 		x.meta = meta;
 		self.cache.insert(a, x);
 		self.save();
@@ -231,7 +231,7 @@ impl AccountProvider {
 	pub fn accounts_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
 		let r: HashMap<Address, AccountMeta> = try!(self.sstore.accounts())
 			.into_iter()
-			.map(|a| (a.clone(), self.account_meta(a).unwrap_or_else(|_| Default::default())))
+			.map(|a| (a.clone(), self.account_meta(a).ok().unwrap_or_default()))
 			.collect();
 		Ok(r)
 	}

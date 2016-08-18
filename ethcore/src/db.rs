@@ -149,10 +149,7 @@ pub trait Readable {
 
 impl Writable for DBTransaction {
 	fn write<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
-		let result = self.put(col, &key.key(), &encode(value));
-		if let Err(err) = result {
-			panic!("db put failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
-		}
+		self.put(col, &key.key(), &encode(value));
 	}
 }
 

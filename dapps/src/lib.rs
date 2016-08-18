@@ -50,12 +50,15 @@ extern crate hyper;
 extern crate unicase;
 extern crate serde;
 extern crate serde_json;
+extern crate zip;
+extern crate rand;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate parity_dapps;
 extern crate ethcore_rpc;
-extern crate ethcore_util;
+extern crate ethcore_util as util;
 extern crate mime_guess;
+extern crate rustc_serialize;
 
 mod endpoint;
 mod apps;
@@ -121,6 +124,7 @@ impl Server {
 	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>, dapps_path: String) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
+		let apps_fetcher = Arc::new(apps::fetcher::AppFetcher::default());
 		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
 		let special = Arc::new({
 			let mut special = HashMap::new();
@@ -132,8 +136,10 @@ impl Server {
 		let bind_address = format!("{}", addr);
 
 		try!(hyper::Server::http(addr))
-			.handle(move |_| router::Router::new(
+			.handle(move |ctrl| router::Router::new(
+				ctrl,
 				apps::main_page(),
+				apps_fetcher.clone(),
 				endpoints.clone(),
 				special.clone(),
 				authorization.clone(),
@@ -182,3 +188,11 @@ impl From<hyper::error::Error> for ServerError {
 		}
 	}
 }
+
+/// Random filename
+pub fn random_filename() -> String {
+	use ::rand::Rng;
+	let mut rng = ::rand::OsRng::new().unwrap();
+	rng.gen_ascii_chars().take(12).collect()
+}
+

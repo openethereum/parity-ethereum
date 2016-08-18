@@ -17,10 +17,10 @@
 //! Diff between two accounts.
 
 use std::cmp::*;
-use std::{fmt, mem};
-use std::collections::{VecDeque, BTreeMap};
+use std::fmt;
+use std::collections::BTreeMap;
 use util::{U256, H256, Uint, Bytes};
-use ipc::binary::{BinaryConvertError, BinaryConvertable};
+use ipc::binary::BinaryConvertable;
 
 #[derive(Debug, PartialEq, Eq, Clone, Binary)]
 /// Diff type for specifying a change (or not).

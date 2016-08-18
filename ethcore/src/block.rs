@@ -352,11 +352,11 @@ impl<'x> OpenBlock<'x> {
 		let unclosed_state = s.block.state.clone();
 
 		s.engine.on_close_block(&mut s.block);
-		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
+		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec()).collect());
 		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		s.block.base.header.uncles_hash = uncle_bytes.sha3();
 		s.block.base.header.state_root = s.block.state.root().clone();
-		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
+		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec()).collect());
 		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b}); //TODO: use |= operator
 		s.block.base.header.gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
 		s.block.base.header.note_dirty();
@@ -375,14 +375,14 @@ impl<'x> OpenBlock<'x> {
 
 		s.engine.on_close_block(&mut s.block);
 		if s.block.base.header.transactions_root.is_zero() || s.block.base.header.transactions_root == SHA3_NULL_RLP {
-			s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
+			s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec()).collect());
 		}
 		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		if s.block.base.header.uncles_hash.is_zero() {
 			s.block.base.header.uncles_hash = uncle_bytes.sha3();
 		}
 		if s.block.base.header.receipts_root.is_zero() || s.block.base.header.receipts_root == SHA3_NULL_RLP {
-			s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
+			s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec()).collect());
 		}
 		s.block.base.header.state_root = s.block.state.root().clone();
 		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b}); //TODO: use |= operator

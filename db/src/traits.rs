@@ -16,9 +16,6 @@
 
 //! Ethcore database trait
 
-use std::mem;
-use ipc::binary::BinaryConvertError;
-use std::collections::VecDeque;
 use std::cell::RefCell;
 
 pub type IteratorHandle = u32;

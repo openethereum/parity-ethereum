@@ -18,9 +18,6 @@
 
 use util::hash::H256;
 use header::BlockNumber;
-use ipc::binary::BinaryConvertError;
-use std::mem;
-use std::collections::VecDeque;
 
 /// Uniquely identifies block.
 #[derive(Debug, PartialEq, Copy, Clone, Hash, Eq, Binary)]

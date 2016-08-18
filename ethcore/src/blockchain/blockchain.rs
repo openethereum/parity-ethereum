@@ -366,12 +366,12 @@ impl BlockChain {
 				};
 
 				let batch = DBTransaction::new(&db);
-				batch.put(DB_COL_HEADERS, &hash, block.header_rlp().as_raw()).unwrap();
-				batch.put(DB_COL_BODIES, &hash, &Self::block_to_body(genesis)).unwrap();
+				batch.put(DB_COL_HEADERS, &hash, block.header_rlp().as_raw());
+				batch.put(DB_COL_BODIES, &hash, &Self::block_to_body(genesis));
 
 				batch.write(DB_COL_EXTRA, &hash, &details);
 				batch.write(DB_COL_EXTRA, &header.number(), &hash);
-				batch.put(DB_COL_EXTRA, b"best", &hash).unwrap();
+				batch.put(DB_COL_EXTRA, b"best", &hash);
 				bc.db.write(batch).expect("Low level database error. Some issue with disk?");
 				hash
 			}
@@ -415,7 +415,7 @@ impl BlockChain {
 			}
 			if let Some(extras) = self.db.read(DB_COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
 				type DetailsKey = Key<BlockDetails, Target=H264>;
-				batch.delete(DB_COL_EXTRA, &(DetailsKey::key(&best_block_hash))).unwrap();
+				batch.delete(DB_COL_EXTRA, &(DetailsKey::key(&best_block_hash)));
 				let hash = extras.parent;
 				let range = extras.number as bc::Number .. extras.number as bc::Number;
 				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
@@ -423,7 +423,7 @@ impl BlockChain {
 				for (k, v) in changes.into_iter() {
 					batch.write(DB_COL_EXTRA, &LogGroupPosition::from(k), &BloomGroup::from(v));
 				}
-				batch.put(DB_COL_EXTRA, b"best", &hash).unwrap();
+				batch.put(DB_COL_EXTRA, b"best", &hash);
 
 				let best_block_total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
 				let best_block_rlp = self.block(&hash).unwrap();
@@ -566,8 +566,8 @@ impl BlockChain {
 		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
 
 		// store block in db
-		batch.put(DB_COL_HEADERS, &hash, &compressed_header).unwrap();
-		batch.put(DB_COL_BODIES, &hash, &compressed_body).unwrap();
+		batch.put(DB_COL_HEADERS, &hash, &compressed_header);
+		batch.put(DB_COL_BODIES, &hash, &compressed_body);
 
 		let maybe_parent = self.block_details(&header.parent_hash());
 
@@ -669,8 +669,8 @@ impl BlockChain {
 		assert!(self.pending_best_block.read().is_none());
 
 		// store block in db
-		batch.put_compressed(DB_COL_HEADERS, &hash, block.header_rlp().as_raw().to_vec()).unwrap();
-		batch.put_compressed(DB_COL_BODIES, &hash, Self::block_to_body(bytes)).unwrap();
+		batch.put_compressed(DB_COL_HEADERS, &hash, block.header_rlp().as_raw().to_vec());
+		batch.put_compressed(DB_COL_BODIES, &hash, Self::block_to_body(bytes));
 
 		let info = self.block_info(&header);
 
@@ -768,7 +768,7 @@ impl BlockChain {
 			match update.info.location {
 				BlockLocation::Branch => (),
 				_ => if is_best {
-					batch.put(DB_COL_EXTRA, b"best", &update.info.hash).unwrap();
+					batch.put(DB_COL_EXTRA, b"best", &update.info.hash);
 					*best_block = Some(BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,

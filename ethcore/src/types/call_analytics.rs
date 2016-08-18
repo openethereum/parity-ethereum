@@ -16,10 +16,6 @@
 
 //! Call analytics related types
 
-use std::mem;
-use ipc::binary::{BinaryConvertError};
-use std::collections::VecDeque;
-
 /// Options concerning what analytics we run on the call.
 #[derive(Eq, PartialEq, Default, Clone, Copy, Debug, Binary)]
 pub struct CallAnalytics {
