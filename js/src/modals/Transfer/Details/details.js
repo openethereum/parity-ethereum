@@ -1,10 +1,10 @@
 import React, { Component, PropTypes } from 'react';
-import { Checkbox, FloatingActionButton } from 'material-ui';
+import { Checkbox, FloatingActionButton, MenuItem } from 'material-ui';
 
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 
 import AddressSelector from '../../AddressSelector';
-import Form, { Input } from '../../../ui/Form';
+import Form, { Input, Select } from '../../../ui/Form';
 
 import styles from '../style.css';
 
@@ -16,14 +16,17 @@ const CHECK_STYLE = {
 
 export default class Details extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    accounts: PropTypes.array
   }
 
   static propTypes = {
+    address: PropTypes.string,
     all: PropTypes.bool,
     extras: PropTypes.bool,
     recipient: PropTypes.string,
     recipientError: PropTypes.string,
+    token: PropTypes.string,
     total: PropTypes.string,
     totalError: PropTypes.string,
     value: PropTypes.string,
@@ -36,8 +39,11 @@ export default class Details extends Component {
   }
 
   render () {
+    const label = `amount to transfer (in ${this.props.token})`;
+
     return (
       <Form>
+        { this.renderTokenSelect() }
         <AddressSelector
           onSelect={ this.onSelectRecipient }
           visible={ this.state.showAddresses } />
@@ -60,7 +66,7 @@ export default class Details extends Component {
           <div>
             <Input
               disabled={ this.props.all }
-              label='amount to transfer (in ΞTH)'
+              label={ label }
               hint='the amount to transfer to the recipient'
               value={ this.props.value }
               onChange={ this.onEditValue } />
@@ -92,6 +98,43 @@ export default class Details extends Component {
         </div>
       </Form>
     );
+  }
+
+  renderTokenSelect () {
+    const account = this.context.accounts.find((acc) => acc.address === this.props.address);
+    const items = account.balances.map((balance) => {
+      const token = balance.token;
+      const label = (
+        <div className={ styles.token }>
+          <img src={ token.image } />
+          <div>{ token.type }</div>
+        </div>
+      );
+
+      return (
+        <MenuItem
+          key={ token.token }
+          primaryText={ token.type }
+          value={ token.token }
+          label={ label }
+          leftIcon={ <img src={ token.image } /> } />
+      );
+    });
+
+    return (
+      <Select
+        label='type of transfer'
+        hint='type of token to transfer'
+        value={ this.props.token }
+        onChange={ this.onChangeToken }>
+        { items }
+      </Select>
+    );
+  }
+
+  onChangeToken = (event, value) => {
+    const account = this.context.accounts.find((acc) => acc.address === this.props.address);
+    this.props.onChange('token', account.balances[value].token.token);
   }
 
   onSelectRecipient = (recipient) => {

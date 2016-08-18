@@ -27,19 +27,21 @@ export default class Balances extends Component {
     const balances = account.balances
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
-        const value = balance.format
-          ? new BigNumber(balance.value).div(new BigNumber(balance.format)).toFormat(3)
+        const token = balance.token;
+        const value = token.format
+          ? new BigNumber(balance.value).div(new BigNumber(token.format)).toFormat(3)
           : Api.format.fromWei(balance.value).toFormat(3);
+
         return (
           <div
             className={ styles.balance }
-            key={ balance.token }>
+            key={ token.token }>
             <div>
-              { value } { balance.token }
+              { value } { token.token }
             </div>
             <img
-              src={ balance.image }
-              alt={ balance.type } />
+              src={ token.image }
+              alt={ token.type } />
           </div>
         );
       });

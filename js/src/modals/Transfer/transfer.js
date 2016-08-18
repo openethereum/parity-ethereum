@@ -49,6 +49,7 @@ export default class Transfer extends Component {
     recipient: '',
     recipientError: ERRORS.requireRecipient,
     sending: false,
+    token: 'ΞTH',
     total: '0.0',
     totalError: null,
     value: '0.0',
@@ -77,10 +78,12 @@ export default class Transfer extends Component {
       case 0:
         return (
           <Details
+            address={ this.props.address }
             all={ this.state.valueAll }
             extras={ this.state.extras }
             recipient={ this.state.recipient }
             recipientError={ this.state.recipientError }
+            token={ this.state.token }
             total={ this.state.total }
             totalError={ this.state.totalError }
             value={ this.state.value }
@@ -252,6 +255,12 @@ export default class Transfer extends Component {
     });
   }
 
+  _onUpdateToken (token) {
+    this.setState({
+      token
+    });
+  }
+
   _onUpdateValue (value) {
     const valueError = this.validatePositiveNumber(value);
 
@@ -280,6 +289,9 @@ export default class Transfer extends Component {
 
       case 'recipient':
         return this._onUpdateRecipient(value);
+
+      case 'token':
+        return this._onUpdateToken(value);
 
       case 'value':
         return this._onUpdateValue(value);

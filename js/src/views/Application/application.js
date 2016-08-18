@@ -27,6 +27,12 @@ muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
 
+const ETH_TOKEN = {
+  image: 'images/tokens/ethereum-32x32.png',
+  token: 'ΞTH',
+  type: 'Ethereum'
+};
+
 export default class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
@@ -102,9 +108,7 @@ export default class Application extends Component {
 
         balances.forEach((balance, idx) => {
           accounts[idx].balances.push({
-            image: 'images/tokens/ethereum-32x32.png',
-            token: 'ΞTH',
-            type: 'Ethereum',
+            token: ETH_TOKEN,
             value: balance.toString()
           });
 
@@ -123,10 +127,7 @@ export default class Application extends Component {
             const balance = balances[idx];
 
             account.balances.push({
-              format: token.format,
-              image: token.image,
-              token: token.token,
-              type: token.type,
+              token,
               value: balance.toString()
             });
 

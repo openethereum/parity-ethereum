@@ -1,8 +1,7 @@
 import React, { Component, PropTypes } from 'react';
+import { SelectField } from 'material-ui';
 
-import { TextField } from 'material-ui';
-
-// TODO: duplicated in Select
+// TODO: duplicated in Input
 const UNDERLINE_DISABLED = {
   borderColor: 'rgba(255, 255, 255, 0.298039)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
 };
@@ -13,18 +12,16 @@ const UNDERLINE_NORMAL = {
 
 const NAME_ID = ' ';
 
-export default class Input extends Component {
+export default class Select extends Component {
   static propTypes = {
     children: PropTypes.node,
     disabled: PropTypes.bool,
     error: PropTypes.string,
     hint: PropTypes.string,
     label: PropTypes.string,
-    multiLine: PropTypes.bool,
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     onKeyDown: PropTypes.func,
-    rows: PropTypes.number,
     type: PropTypes.string,
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
@@ -33,7 +30,7 @@ export default class Input extends Component {
 
   render () {
     return (
-      <TextField
+      <SelectField
         autoComplete='off'
         disabled={ this.props.disabled }
         errorText={ this.props.error }
@@ -41,11 +38,8 @@ export default class Input extends Component {
         floatingLabelText={ this.props.label }
         fullWidth
         hintText={ this.props.hint }
-        multiLine={ this.props.multiLine }
         name={ NAME_ID }
         id={ NAME_ID }
-        rows={ this.props.rows }
-        type={ this.props.type || 'text' }
         underlineDisabledStyle={ UNDERLINE_DISABLED }
         underlineStyle={ UNDERLINE_NORMAL }
         value={ this.props.value }
@@ -53,7 +47,7 @@ export default class Input extends Component {
         onChange={ this.props.onChange }
         onKeyDown={ this.props.onKeyDown }>
         { this.props.children }
-      </TextField>
+      </SelectField>
     );
   }
 }
