@@ -14,32 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! URL Endpoint traits
+//! Hyper Client Handlers
 
-use hyper::{server, net};
-use std::collections::BTreeMap;
+mod fetch_file;
 
-#[derive(Debug, PartialEq, Default, Clone)]
-pub struct EndpointPath {
-	pub app_id: String,
-	pub host: String,
-	pub port: u16,
-}
+pub use self::fetch_file::{Fetch, FetchResult, OnDone};
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct EndpointInfo {
-	pub name: String,
-	pub description: String,
-	pub version: String,
-	pub author: String,
-	pub icon_url: String,
-}
-
-pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
-pub type Handler = server::Handler<net::HttpStream> + Send;
-
-pub trait Endpoint : Send + Sync {
-	fn info(&self) -> Option<&EndpointInfo> { None }
-
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler>;
-}

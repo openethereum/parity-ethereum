@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde_json;
 use std::io;
 use std::io::Read;
 use std::fs;
 use std::path::PathBuf;
 use page::LocalPageEndpoint;
 use endpoint::{Endpoints, EndpointInfo};
-use api::App;
+use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest};
 
 struct LocalDapp {
 	id: String,
@@ -73,7 +72,7 @@ fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
 }
 
 fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
-	path.push("manifest.json");
+	path.push(MANIFEST_FILENAME);
 
 	fs::File::open(path.clone())
 		.map_err(|e| format!("{:?}", e))
@@ -82,15 +81,9 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 			let mut s = String::new();
 			try!(f.read_to_string(&mut s).map_err(|e| format!("{:?}", e)));
 			// Try to deserialize manifest
-			serde_json::from_str::<App>(&s).map_err(|e| format!("{:?}", e))
+			deserialize_manifest(s)
 		})
-		.map(|app| EndpointInfo {
-			name: app.name,
-			description: app.description,
-			version: app.version,
-			author: app.author,
-			icon_url: app.icon_url,
-		})
+		.map(Into::into)
 		.unwrap_or_else(|e| {
 			warn!(target: "dapps", "Cannot read manifest file at: {:?}. Error: {:?}", path, e);
 
