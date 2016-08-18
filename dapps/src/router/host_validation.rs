@@ -16,12 +16,11 @@
 
 
 use DAPPS_DOMAIN;
-use hyper::server;
+use hyper::{server, header};
 use hyper::net::HttpStream;
 
 use jsonrpc_http_server::{is_host_header_valid};
 use handlers::ContentHandler;
-
 
 pub fn is_valid(request: &server::Request<HttpStream>, bind_address: &str, endpoints: Vec<String>) -> bool {
 	let mut endpoints = endpoints.into_iter()
@@ -31,7 +30,13 @@ pub fn is_valid(request: &server::Request<HttpStream>, bind_address: &str, endpo
 	endpoints.push(bind_address.replace("127.0.0.1", "localhost").into());
 	endpoints.push(bind_address.into());
 
-	is_host_header_valid(request, &endpoints)
+	let header_valid = is_host_header_valid(request, &endpoints);
+
+	match (header_valid, request.headers().get::<header::Host>()) {
+		(true, _) => true,
+		(_, Some(host)) => host.hostname.ends_with(DAPPS_DOMAIN),
+		_ => false,
+	}
 }
 
 pub fn host_invalid_response() -> Box<server::Handler<HttpStream> + Send> {
