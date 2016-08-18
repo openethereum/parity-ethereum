@@ -46,24 +46,15 @@ pub struct Stratum {
 pub struct VoidManager;
 
 #[cfg(test)]
-impl JobPayloadManager for VoidManager {
-	fn initial(&self) -> jsonrpc_core::Value {
-		to_value(&0).unwrap()
-	}
-
-	fn difficulty(&self) -> jsonrpc_core::Value {
-		to_value(&0).unwrap()
-	}
-
-	fn job(&self, _worker_id: &str) -> jsonrpc_core::Value {
-		to_value(&0).unwrap()
-	}
-}
+impl JobPayloadManager for VoidManager { }
 
 pub trait JobPayloadManager: Send + Sync {
-	fn initial(&self) -> jsonrpc_core::Value;
-	fn difficulty(&self) -> jsonrpc_core::Value;
-	fn job(&self, worker_id: &str) -> jsonrpc_core::Value;
+	// json for initial client handshake
+	fn initial(&self) -> Option<String> { None }
+	// json for difficulty dispatch
+	fn difficulty(&self) -> Option<String> { None }
+	// json for job update given worker_id (payload manager should split job!)
+	fn job(&self, _worker_id: &str) -> Option<String> { None }
 }
 
 impl Stratum {
@@ -89,12 +80,23 @@ impl Stratum {
 	}
 
 	fn subscribe(&self, _params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
+		use std::str::FromStr;
+
 		if let Some(context) = self.rpc_server.request_context() {
 			self.subscribers.write().unwrap().push(context.socket_addr);
 			self.job_que.write().unwrap().insert(context.socket_addr);
 			trace!(target: "stratum", "Subscription request from {:?}", context.socket_addr);
 		}
-		Ok(self.payload_manager.initial())
+		Ok(match self.payload_manager.initial() {
+			Some(initial) => match jsonrpc_core::Value::from_str(&initial) {
+				Ok(val) => val,
+				Err(e) => {
+					warn!(target: "tcp", "Invalid payload: '{}' ({:?})", &initial, e);
+					try!(to_value(&[0u8; 0]))
+				},
+			},
+			None => try!(to_value(&[0u8; 0])),
+		})
 	}
 
 	pub fn subscribers(&self) -> RwLockReadGuard<Vec<SocketAddr>> {
@@ -105,8 +107,10 @@ impl Stratum {
 		let mut job_que = self.job_que.write().unwrap();
 		for socket_addr in job_que.drain() {
 			if let Some(ref worker_id) = self.workers.get(&socket_addr) {
-				let _job_payload = self.payload_manager.job(worker_id);
-				//self.rpc_server.push(&socket_addr, )
+				let job_payload = self.payload_manager.job(worker_id);
+				job_payload.map(
+					|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
+				);
 			}
 			else {
 				// anauthorized worker
