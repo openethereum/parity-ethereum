@@ -1,6 +1,6 @@
 [package]
 name = "ethabi"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["debris <marek.kotewicz@gmail.com>"]
 build = "build.rs"
 homepage = "https://github.com/ethcore/ethabi"
