@@ -19,15 +19,17 @@
 extern crate json_tcp_server;
 extern crate jsonrpc_core;
 #[macro_use] extern crate log;
+extern crate ethcore_util as util;
 
 #[cfg(test)]
 extern crate mio;
 
 use json_tcp_server::Server as JsonRpcServer;
-use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value};
+use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
+use util::{H256, Hashable};
 
 pub struct Stratum {
 	rpc_server: JsonRpcServer,
@@ -39,7 +41,9 @@ pub struct Stratum {
 	/// Payload manager
 	payload_manager: Arc<JobPayloadManager>,
 	/// Authorized workers (socket - worker_id)
-	workers: Arc<HashMap<SocketAddr, String>>,
+	workers: Arc<RwLock<HashMap<SocketAddr, String>>>,
+	/// Secret if any
+	secret: Option<H256>,
 }
 
 #[cfg(test)]
@@ -58,7 +62,11 @@ pub trait JobPayloadManager: Send + Sync {
 }
 
 impl Stratum {
-	pub fn start(addr: &SocketAddr, payload_manager: Arc<JobPayloadManager>) -> Result<Arc<Stratum>, json_tcp_server::Error> {
+	pub fn start(
+		addr: &SocketAddr,
+		payload_manager: Arc<JobPayloadManager>,
+		secret: Option<H256>,
+	) -> Result<Arc<Stratum>, json_tcp_server::Error> {
 		let handler = Arc::new(IoHandler::new());
 		let server = try!(JsonRpcServer::new(addr, &handler));
 		let stratum = Arc::new(Stratum {
@@ -67,11 +75,13 @@ impl Stratum {
 			subscribers: RwLock::new(Vec::new()),
 			job_que: RwLock::new(HashSet::new()),
 			payload_manager: payload_manager,
-			workers: Arc::new(HashMap::new()),
+			workers: Arc::new(RwLock::new(HashMap::new())),
+			secret: secret,
 		});
 
 		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
 		delegate.add_method("miner.subscribe", Stratum::subscribe);
+		delegate.add_method("miner.authorize", Stratum::authorize);
 		stratum.handler.add_delegate(delegate);
 
 		try!(stratum.rpc_server.run_async());
@@ -99,14 +109,34 @@ impl Stratum {
 		})
 	}
 
+	fn authorize(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
+		from_params::<(String, String)>(params).and_then(|(worker_id, secret)|{
+			if let Some(valid_secret) = self.secret {
+				let hash = secret.sha3();
+				if hash != valid_secret {
+					return to_value(&false);
+				}
+			}
+			if let Some(context) = self.rpc_server.request_context() {
+				self.workers.write().unwrap().insert(context.socket_addr, worker_id);
+				to_value(&true)
+			}
+			else {
+				warn!(target: "tcp", "Authorize without valid context received!");
+				to_value(&false)
+			}
+		})
+	}
+
 	pub fn subscribers(&self) -> RwLockReadGuard<Vec<SocketAddr>> {
 		self.subscribers.read().unwrap()
 	}
 
 	pub fn maintain(&self) {
 		let mut job_que = self.job_que.write().unwrap();
+		let workers = self.workers.read().unwrap();
 		for socket_addr in job_que.drain() {
-			if let Some(ref worker_id) = self.workers.get(&socket_addr) {
+			if let Some(ref worker_id) = workers.get(&socket_addr) {
 				let job_payload = self.payload_manager.job(worker_id);
 				job_payload.map(
 					|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
@@ -146,16 +176,69 @@ mod tests {
 
 	#[test]
 	fn can_be_started() {
-		let stratum = Stratum::start(&SocketAddr::from_str("0.0.0.0:19980").unwrap(), Arc::new(VoidManager));
+		let stratum = Stratum::start(&SocketAddr::from_str("0.0.0.0:19980").unwrap(), Arc::new(VoidManager), None);
 		assert!(stratum.is_ok());
 	}
 
 	#[test]
 	fn records_subscriber() {
 		let addr = SocketAddr::from_str("0.0.0.0:19985").unwrap();
-		let stratum = Stratum::start(&addr, Arc::new(VoidManager)).unwrap();
+		let stratum = Stratum::start(&addr, Arc::new(VoidManager), None).unwrap();
 		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#;
 		dummy_request(&addr, request.as_bytes());
 		assert_eq!(1, stratum.subscribers.read().unwrap().len());
+	}
+
+	struct DummyManager {
+		initial_payload: String
+	}
+
+	impl DummyManager {
+		fn new() -> Arc<DummyManager> {
+			Arc::new(Self::build())
+		}
+
+		fn build() -> DummyManager {
+			DummyManager { initial_payload: r#"[ "dummy payload" ]"#.to_owned() }
+		}
+
+		fn of_initial(mut self, new_initial: &str) -> DummyManager {
+			self.initial_payload = new_initial.to_owned();
+			self
+		}
+	}
+
+	impl JobPayloadManager for DummyManager {
+		fn initial(&self) -> Option<String> {
+			Some(self.initial_payload.clone())
+		}
+	}
+
+	#[test]
+	fn receives_initial_paylaod() {
+		let addr = SocketAddr::from_str("0.0.0.0:19975").unwrap();
+		Stratum::start(&addr, DummyManager::new(), None).unwrap();
+		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#;
+
+		let response = String::from_utf8(dummy_request(&addr, request.as_bytes())).unwrap();
+
+		assert_eq!(r#"{"jsonrpc":"2.0","result":["dummy payload"],"id":1}"#, response);
+	}
+
+	#[test]
+	fn can_authorize() {
+		let addr = SocketAddr::from_str("0.0.0.0:19970").unwrap();
+		let stratum = Stratum::start(
+			&addr,
+			Arc::new(DummyManager::build().of_initial(r#"["dummy autorize payload"]"#)),
+			None
+		).unwrap();
+
+		let request = r#"{"jsonrpc": "2.0", "method": "miner.authorize", "params": ["miner1", ""], "id": 1}"#;
+
+		let response = String::from_utf8(dummy_request(&addr, request.as_bytes())).unwrap();
+
+		assert_eq!(r#"{"jsonrpc":"2.0","result":true,"id":1}"#, response);
+		assert_eq!(1, stratum.workers.read().unwrap().len());
 	}
 }
