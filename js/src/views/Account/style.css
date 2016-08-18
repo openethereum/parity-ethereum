@@ -21,16 +21,15 @@
 .transactions tr {
   line-height: 32px;
   vertical-align: middle;
+  font-family: 'Roboto Mono', monospace;
 }
 
 .transactions .link {
   vertical-align: top;
-  font-family: monospace;
 }
 
 .value {
   text-align: right;
-  font-family: monospace;
 }
 
 .info {
