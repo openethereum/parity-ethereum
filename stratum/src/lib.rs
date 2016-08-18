@@ -32,10 +32,11 @@ pub use traits::{JobDispatcher, PushWorkHandler, Error};
 
 use json_tcp_server::Server as JsonRpcServer;
 use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params};
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::sync::Arc;
+
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
-use util::{H256, Hashable};
+use util::{H256, Hashable, RwLock, RwLockReadGuard};
 
 pub struct Stratum {
 	rpc_server: JsonRpcServer,
@@ -84,8 +85,8 @@ impl Stratum {
 		use std::str::FromStr;
 
 		if let Some(context) = self.rpc_server.request_context() {
-			self.subscribers.write().unwrap().push(context.socket_addr);
-			self.job_que.write().unwrap().insert(context.socket_addr);
+			self.subscribers.write().push(context.socket_addr);
+			self.job_que.write().insert(context.socket_addr);
 			trace!(target: "stratum", "Subscription request from {:?}", context.socket_addr);
 		}
 		Ok(match self.dispatcher.initial() {
@@ -109,7 +110,7 @@ impl Stratum {
 				}
 			}
 			if let Some(context) = self.rpc_server.request_context() {
-				self.workers.write().unwrap().insert(context.socket_addr, worker_id);
+				self.workers.write().insert(context.socket_addr, worker_id);
 				to_value(&true)
 			}
 			else {
@@ -120,12 +121,12 @@ impl Stratum {
 	}
 
 	pub fn subscribers(&self) -> RwLockReadGuard<Vec<SocketAddr>> {
-		self.subscribers.read().unwrap()
+		self.subscribers.read()
 	}
 
 	pub fn maintain(&self) {
-		let mut job_que = self.job_que.write().unwrap();
-		let workers = self.workers.read().unwrap();
+		let mut job_que = self.job_que.write();
+		let workers = self.workers.read();
 		for socket_addr in job_que.drain() {
 			if let Some(ref worker_id) = workers.get(&socket_addr) {
 				let job_payload = self.dispatcher.job(worker_id);
@@ -142,7 +143,7 @@ impl Stratum {
 
 impl PushWorkHandler for Stratum {
 	fn push_work_all(&self, payload: String) -> Result<(), Error> {
-		let workers = self.workers.read().unwrap();
+		let workers = self.workers.read();
 		for (ref addr, _) in workers.iter() {
 			try!(self.rpc_server.push_message(addr, payload.as_bytes()));
 		}
@@ -153,7 +154,7 @@ impl PushWorkHandler for Stratum {
 		if !payloads.len() > 0 {
 			return Err(Error::NoWork);
 		}
-		let workers = self.workers.read().unwrap();
+		let workers = self.workers.read();
 		let addrs = workers.keys().collect::<Vec<&SocketAddr>>();
 		if !workers.len() > 0 {
 			return Err(Error::NoWorkers);
@@ -259,7 +260,7 @@ mod tests {
 		let stratum = Stratum::start(&addr, Arc::new(VoidManager), None).unwrap();
 		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#;
 		dummy_request(&addr, request.as_bytes());
-		assert_eq!(1, stratum.subscribers.read().unwrap().len());
+		assert_eq!(1, stratum.subscribers.read().len());
 	}
 
 	struct DummyManager {
@@ -312,7 +313,7 @@ mod tests {
 		let response = String::from_utf8(dummy_request(&addr, request.as_bytes())).unwrap();
 
 		assert_eq!(r#"{"jsonrpc":"2.0","result":true,"id":1}"#, response);
-		assert_eq!(1, stratum.workers.read().unwrap().len());
+		assert_eq!(1, stratum.workers.read().len());
 	}
 
 	#[test]
