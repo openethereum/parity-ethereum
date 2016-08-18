@@ -454,7 +454,7 @@ impl Client {
 			retracted: route.retracted.len()
 		});
 		// Final commit to the DB
-		self.db.write_buffered(batch).expect("DB write failed.");
+		self.db.write_buffered(batch);
 		self.chain.commit();
 
 		self.update_last_hashes(&parent, hash);
