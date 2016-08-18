@@ -16,11 +16,12 @@
 
 //! Single account in the system.
 
+use std::collections::hash_map::Entry;
 use util::*;
 use pod_account::*;
 use account_db::*;
 
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, Cell};
 
 /// Single account in the system.
 #[derive(Clone)]
@@ -39,6 +40,8 @@ pub struct Account {
 	code_cache: Bytes,
 	// Account is new or has been modified
 	filth: Filth,
+	// Cached address hash.
+	address_hash: Cell<Option<H256>>,
 }
 
 impl Account {
@@ -53,6 +56,7 @@ impl Account {
 			code_hash: Some(code.sha3()),
 			code_cache: code,
 			filth: Filth::Dirty,
+			address_hash: Cell::new(None),
 		}
 	}
 
@@ -66,6 +70,7 @@ impl Account {
 			code_hash: pod.code.as_ref().map(|c| c.sha3()),
 			code_cache: pod.code.as_ref().map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c.clone()),
 			filth: Filth::Dirty,
+			address_hash: Cell::new(None),
 		}
 	}
 
@@ -79,6 +84,7 @@ impl Account {
 			code_hash: Some(SHA3_EMPTY),
 			code_cache: vec![],
 			filth: Filth::Dirty,
+			address_hash: Cell::new(None),
 		}
 	}
 
@@ -93,6 +99,7 @@ impl Account {
 			code_hash: Some(r.val_at(3)),
 			code_cache: vec![],
 			filth: Filth::Clean,
+			address_hash: Cell::new(None),
 		}
 	}
 
@@ -107,6 +114,7 @@ impl Account {
 			code_hash: None,
 			code_cache: vec![],
 			filth: Filth::Dirty,
+			address_hash: Cell::new(None),
 		}
 	}
 
@@ -126,8 +134,17 @@ impl Account {
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
-		self.storage_overlay.borrow_mut().insert(key, (Filth::Dirty, value));
-		self.filth = Filth::Dirty;
+		match self.storage_overlay.borrow_mut().entry(key) {
+			Entry::Occupied(ref mut entry) if entry.get().1 != value => {
+				entry.insert((Filth::Dirty, value));
+				self.filth = Filth::Dirty;
+			},
+			Entry::Vacant(entry) => {
+				entry.insert((Filth::Dirty, value));
+				self.filth = Filth::Dirty;
+			},
+			_ => (),
+		}
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
@@ -156,6 +173,16 @@ impl Account {
 	/// return the code hash associated with this account.
 	pub fn code_hash(&self) -> H256 {
 		self.code_hash.clone().unwrap_or(SHA3_EMPTY)
+	}
+
+	/// return the code hash associated with this account.
+	pub fn address_hash(&self, address: &Address) -> H256 {
+		let hash = self.address_hash.get();
+		hash.unwrap_or_else(|| {
+			let hash = address.sha3();
+			self.address_hash.set(Some(hash.clone()));
+			hash
+		})
 	}
 
 	/// returns the account's code. If `None` then the code cache isn't available -
@@ -233,16 +260,20 @@ impl Account {
 
 	/// Increment the nonce of the account by one.
 	pub fn add_balance(&mut self, x: &U256) {
-		self.balance = self.balance + *x;
-		self.filth = Filth::Dirty;
+		if !x.is_zero() {
+			self.balance = self.balance + *x;
+			self.filth = Filth::Dirty;
+		}
 	}
 
 	/// Increment the nonce of the account by one.
 	/// Panics if balance is less than `x`
 	pub fn sub_balance(&mut self, x: &U256) {
-		assert!(self.balance >= *x);
-		self.balance = self.balance - *x;
-		self.filth = Filth::Dirty;
+		if !x.is_zero() {
+			assert!(self.balance >= *x);
+			self.balance = self.balance - *x;
+			self.filth = Filth::Dirty;
+		}
 	}
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
