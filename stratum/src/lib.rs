@@ -199,10 +199,10 @@ mod tests {
 		let mut poll = Poll::new().unwrap();
 		let mut sock = TcpStream::connect(addr).unwrap();
 		poll.register(&sock, Token(0), EventSet::writable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
-		poll.poll(Some(500)).unwrap();
+		poll.poll(Some(50)).unwrap();
 		sock.write_all(buf).unwrap();
 		poll.reregister(&sock, Token(0), EventSet::readable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
-		poll.poll(Some(500)).unwrap();
+		poll.poll(Some(50)).unwrap();
 
 		let mut buf = Vec::new();
 		sock.read_to_end(&mut buf).unwrap_or_else(|_| { 0 });
@@ -225,10 +225,10 @@ mod tests {
 			poll.register(&sock, Token(0), EventSet::writable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
 
 			for initial_req in initial {
-				poll.poll(Some(50)).unwrap();
+				poll.poll(Some(120)).unwrap();
 				sock.write_all(initial_req.as_bytes()).unwrap();
 				poll.reregister(&sock, Token(0), EventSet::readable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
-				poll.poll(Some(50)).unwrap();
+				poll.poll(Some(120)).unwrap();
 
 				let mut buf = Vec::new();
 				sock.read_to_end(&mut buf).unwrap_or_else(|_| { 0 });
@@ -238,7 +238,7 @@ mod tests {
 
 			while !thread_stop.load(Ordering::Relaxed) {
 				poll.reregister(&sock, Token(0), EventSet::readable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
-				poll.poll(Some(50)).unwrap();
+				poll.poll(Some(120)).unwrap();
 
 				let mut buf = Vec::new();
 				sock.read_to_end(&mut buf).unwrap_or_else(|_| { 0 });
