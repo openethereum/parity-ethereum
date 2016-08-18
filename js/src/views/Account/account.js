@@ -77,10 +77,12 @@ export default class Account extends Component {
                 hint='the account network address'
                 value={ address } />
             </FormWrap>
+            <FormWrap>
+              <Balances
+                account={ account }
+                onChange={ this.onChangeBalances } />
+            </FormWrap>
           </Form>
-          <Balances
-            account={ account }
-            onChange={ this.onChangeBalances } />
         </Container>
         <Transactions
           address={ address } />
