@@ -60,6 +60,18 @@ extern crate isatty;
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
+macro_rules! dependency {
+	($dep_ty:ident, $url:expr) => {
+		{
+			let dep = boot::dependency::<$dep_ty<_>>($url)
+				.unwrap_or_else(|e| panic!("Fatal: error connecting service ({:?})", e));
+			dep.handshake()
+				.unwrap_or_else(|e| panic!("Fatal: error in connected service ({:?})", e));
+			dep
+		}
+	}
+}
+
 mod cache;
 mod upgrade;
 mod rpc;
@@ -83,6 +95,7 @@ mod presale;
 mod run;
 mod sync;
 mod snapshot;
+mod boot;
 
 use std::{process, env};
 use cli::print_version;
