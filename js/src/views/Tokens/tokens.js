@@ -49,7 +49,7 @@ export default class Tokens extends Component {
           this.eip20s.push({
             token: token[1],
             type: token[3],
-            image: `images/${token[3].toLowerCase()}-32x32.png`,
+            image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
             contract
           });
           promises.push(contract.named.totalSupply.call());

@@ -73,7 +73,7 @@ export default class Balances extends Component {
             {
               token: 'ΞTH',
               value: balance.toString(),
-              img: 'images/ethereum-32x32.png',
+              img: 'images/tokens/ethereum-32x32.png',
               type: 'Ethereum'
             }
           ]
