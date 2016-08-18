@@ -15,9 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ipc::IpcConfig;
-use std::mem;
-use ipc::binary::BinaryConvertError;
-use std::collections::VecDeque;
 
 pub struct BadlyNamedService;
 

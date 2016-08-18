@@ -241,7 +241,7 @@ impl State {
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		try!(self.commit());
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
-//		trace!("Transaction receipt: {:?}", receipt);
+		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}
 
@@ -320,7 +320,7 @@ impl State {
 	}
 
 	fn query_pod(&mut self, query: &PodState) {
-		for (ref address, ref pod_account) in query.get() {
+		for (address, pod_account) in query.get() {
 			self.ensure_cached(address, true, |a| {
 				if a.is_some() {
 					for key in pod_account.storage.keys() {

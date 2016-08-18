@@ -25,7 +25,6 @@
 
 extern crate test;
 extern crate bigint;
-extern crate rand;
 
 use test::{Bencher, black_box};
 use bigint::uint::{U256, U512, Uint, U128};
@@ -34,7 +33,8 @@ use bigint::uint::{U256, U512, Uint, U128};
 fn u256_add(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]), |old, new| { old.overflowing_add(U256::from(new)).0 })
+		let zero = black_box(U256::zero());
+		(0..n).fold(zero, |old, new| { old.overflowing_add(U256::from(black_box(new))).0 })
 	});
 }
 
@@ -42,7 +42,8 @@ fn u256_add(b: &mut Bencher) {
 fn u256_sub(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]), |old, new| { old.overflowing_sub(U256::from(new)).0 })
+		let max = black_box(U256::max_value());
+		(0..n).fold(max, |old, new| { old.overflowing_sub(U256::from(black_box(new))).0 })
 	});
 }
 
@@ -50,12 +51,11 @@ fn u256_sub(b: &mut Bencher) {
 fn u512_sub(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
+		let max = black_box(U512::max_value());
 		(0..n).fold(
-			U512([
-				rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(),
-				rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()
-			]),
+			max,
 			|old, new| {
+				let new = black_box(new);
 				let p = new % 2;
 				old.overflowing_sub(U512([p, p, p, p, p, p, p, new])).0
 			}
@@ -67,8 +67,12 @@ fn u512_sub(b: &mut Bencher) {
 fn u512_add(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U512([0, 0, 0, 0, 0, 0, 0, 0]),
-			|old, new| { old.overflowing_add(U512([new, new, new, new, new, new, new, new])).0 })
+		let zero = black_box(U512::zero());
+		(0..n).fold(zero,
+			|old, new| {
+				let new = black_box(new);
+				old.overflowing_add(U512([new, new, new, new, new, new, new, new])).0
+			})
 	});
 }
 
@@ -76,7 +80,8 @@ fn u512_add(b: &mut Bencher) {
 fn u256_mul(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]), |old, new| { old.overflowing_mul(U256::from(new)).0 })
+		let one = black_box(U256::one());
+		(0..n).fold(one, |old, new| { old.overflowing_mul(U256::from(black_box(new))).0 })
 	});
 }
 
@@ -85,9 +90,11 @@ fn u256_mul(b: &mut Bencher) {
 fn u256_full_mul(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]),
-			|old, _new| {
-				let U512(ref u512words) = old.full_mul(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]));
+		let one = black_box(U256::one());
+		(0..n).fold(one,
+			|old, new| {
+				let new = black_box(new);
+				let U512(ref u512words) = old.full_mul(U256([new, new, new, new]));
 				U256([u512words[0], u512words[2], u512words[2], u512words[3]])
 			})
 	});

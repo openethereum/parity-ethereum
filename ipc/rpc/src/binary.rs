@@ -707,7 +707,7 @@ pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryError> {
 macro_rules! binary_fixed_size {
 	($target_ty: ty) => {
 		impl BinaryConvertable for $target_ty {
-			fn from_bytes(bytes: &[u8], _length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+			fn from_bytes(bytes: &[u8], _length_stack: &mut ::std::collections::VecDeque<usize>) -> Result<Self, BinaryConvertError> {
 				match bytes.len().cmp(&::std::mem::size_of::<$target_ty>()) {
 					::std::cmp::Ordering::Equal => (),
 					_ => return Err(BinaryConvertError::size(::std::mem::size_of::<$target_ty>(), bytes.len())),
@@ -717,7 +717,7 @@ macro_rules! binary_fixed_size {
 				Ok(res)
 			}
 
-			fn to_bytes(&self, buffer: &mut [u8], _length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+			fn to_bytes(&self, buffer: &mut [u8], _length_stack: &mut ::std::collections::VecDeque<usize>) -> Result<(), BinaryConvertError> {
 				let sz = ::std::mem::size_of::<$target_ty>();
 				let ip: *const $target_ty = self;
 				let ptr: *const u8 = ip as *const _;

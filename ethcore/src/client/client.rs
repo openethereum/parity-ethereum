@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-use std::collections::{HashSet, HashMap, VecDeque};
+use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::sync::{Arc, Weak};
 use std::path::{Path};
 use std::fmt;
@@ -49,8 +49,11 @@ use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient, MiningBlockChainClient,
-	TraceFilter, CallAnalytics, BlockImportError, Mode, ChainNotify};
+use client::{
+	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
+	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	ChainNotify
+};
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -914,6 +917,10 @@ impl BlockChainClient for Client {
 			best_block_hash: self.chain.best_block_hash(),
 			best_block_number: From::from(self.chain.best_block_number())
 		}
+	}
+
+	fn additional_params(&self) -> BTreeMap<String, String> {
+		self.engine.additional_params().into_iter().collect()
 	}
 
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>> {
