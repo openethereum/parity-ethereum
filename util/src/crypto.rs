@@ -311,6 +311,7 @@ pub mod ecies {
 	use hash::*;
 	use bytes::*;
 	use crypto::*;
+	use sha3::Hashable;
 
 	/// Encrypt a message with a public key
 	pub fn encrypt(public: &Public, shared_mac: &[u8], plain: &[u8]) -> Result<Bytes, CryptoError> {
@@ -366,13 +367,12 @@ pub mod ecies {
 		hasher.result(&mut mkey);
 		let ekey = &key[0..16];
 
-		let mut msgd = vec![0u8; (64 + 16 + plain.len())];
+		let mut msgd = vec![0u8; (64 + plain.len())];
 		{
 			r.public().copy_to(&mut msgd[0..64]);
-			let iv = H128::random();
-			iv.copy_to(&mut msgd[64..(64+16)]);
+			let iv = H128::from_slice(&z.sha3()[0..16]);
 			{
-				let cipher = &mut msgd[(64 + 16)..(64 + 16 + plain.len())];
+				let cipher = &mut msgd[64..(64 + plain.len())];
 				aes::encrypt(ekey, &iv, plain, cipher);
 			}
 		}
@@ -429,7 +429,7 @@ pub mod ecies {
 		use ::rcrypto::digest::Digest;
 		use ::rcrypto::sha2::Sha256;
 
-		let meta_len = 64 + 16;
+		let meta_len = 64;
 		if encrypted.len() < meta_len {
 			return Err(CryptoError::InvalidMessage); //invalid message: publickey
 		}
@@ -447,11 +447,10 @@ pub mod ecies {
 		hasher.result(&mut mkey);
 
 		let clen = encrypted.len() - meta_len;
-		let cipher_with_iv = &e[64..(64+16+clen)];
-		let cipher_iv = &cipher_with_iv[0..16];
-		let cipher_no_iv = &cipher_with_iv[16..];
+		let cipher = &e[64..(64+clen)];
 		let mut msg = vec![0u8; clen];
-		aes::decrypt(ekey, cipher_iv, cipher_no_iv, &mut msg[..]);
+		let iv = H128::from_slice(&z.sha3()[0..16]);
+		aes::decrypt(ekey, &iv, cipher, &mut msg[..]);
 		Ok(msg)
 	}
 
