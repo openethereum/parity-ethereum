@@ -19,6 +19,8 @@
 extern crate json_tcp_server;
 extern crate jsonrpc_core;
 #[macro_use] extern crate log;
+extern crate env_logger;
+#[macro_use] extern crate lazy_static;
 extern crate ethcore_util as util;
 
 #[cfg(test)]
@@ -147,6 +149,7 @@ impl Stratum {
 impl PushWorkHandler for Stratum {
 	fn push_work_all(&self, payload: String) -> Result<(), Error> {
 		let workers = self.workers.read();
+		println!("pushing work for {} workers", workers.len());
 		for (ref addr, _) in workers.iter() {
 			try!(self.rpc_server.push_message(addr, payload.as_bytes()));
 		}
@@ -177,6 +180,32 @@ impl PushWorkHandler for Stratum {
 		}
 		Ok(())
 	}
+}
+
+lazy_static! {
+	static ref LOG_DUMMY: bool = {
+		use log::LogLevelFilter;
+		use env_logger::LogBuilder;
+		use std::env;
+
+		let mut builder = LogBuilder::new();
+		builder.filter(None, LogLevelFilter::Info);
+
+		if let Ok(log) = env::var("RUST_LOG") {
+			builder.parse(&log);
+		}
+
+		if let Ok(_) = builder.init() {
+			println!("logger initialized");
+		}
+		true
+	};
+}
+
+/// Intialize log with default settings
+#[cfg(test)]
+fn init_log() {
+    let _ = *LOG_DUMMY;
 }
 
 #[cfg(test)]
@@ -332,17 +361,15 @@ mod tests {
 		let _stop = dummy_async_waiter(
 			&addr,
 			vec![
-				r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#.to_owned(),
 				r#"{"jsonrpc": "2.0", "method": "miner.authorize", "params": ["miner1", ""], "id": 1}"#.to_owned(),
 			],
 			result.clone(),
 		);
+		::std::thread::park_timeout(::std::time::Duration::from_millis(150));
 
-		stratum.push_work_all(r#"["00040008", "100500"]"#.to_owned()).unwrap();
+		stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned()).unwrap();
+		::std::thread::park_timeout(::std::time::Duration::from_millis(150));
 
-		::std::thread::park_timeout(::std::time::Duration::from_millis(250));
-
-		assert_eq!(*result.read().unwrap(), Vec::<String>::new());
-		assert_eq!(3, result.read().unwrap().len());
+		assert_eq!(2, result.read().unwrap().len());
 	}
 }
