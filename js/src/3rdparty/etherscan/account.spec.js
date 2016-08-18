@@ -32,7 +32,7 @@ describe('etherscan/account', () => {
   });
 
   describe('transactions', () => {
-    it('retrievs a list of transactions (default)', () => {
+    it('retrieves a list of transactions (default)', () => {
       return etherscan.account
         .transactions(TESTADDR)
         .then((transactions) => {
@@ -41,7 +41,7 @@ describe('etherscan/account', () => {
         });
     });
 
-    it('retrievs a list of transactions (page 1)', () => {
+    it('retrieves a list of transactions (page 1)', () => {
       return etherscan.account
         .transactions(TESTADDR, 1)
         .then((transactions) => {
