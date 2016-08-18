@@ -11,6 +11,10 @@ describe('abi/util/pad', () => {
     it('pads to 64 characters', () => {
       expect(padAddress('123')).to.equal(PAD123);
     });
+
+    it('strips leading 0x when passed in', () => {
+      expect(padFixedBytes(`0x${PAD123}`)).to.equal(PAD123);
+    });
   });
 
   describe('padBool', () => {
