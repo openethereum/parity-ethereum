@@ -35,6 +35,8 @@ export function padFixedBytes (input) {
 
   if (isArray(input)) {
     sinput = input.map((code) => code.toString(16)).join('');
+  } else if (input.substr(0, 2) === '0x') {
+    sinput = `${input.substr(2)}`;
   } else {
     sinput = `${input}`;
   }
