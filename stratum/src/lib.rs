@@ -19,14 +19,18 @@
 extern crate json_tcp_server;
 extern crate jsonrpc_core;
 #[macro_use] extern crate log;
-extern crate env_logger;
-#[macro_use] extern crate lazy_static;
 extern crate ethcore_util as util;
 
 #[cfg(test)]
 extern crate mio;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
+#[cfg(test)]
+extern crate env_logger;
+#[cfg(test)]
+#[macro_use]
+extern crate lazy_static;
+
 
 mod traits;
 
