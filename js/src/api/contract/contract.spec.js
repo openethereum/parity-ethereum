@@ -68,11 +68,36 @@ describe('api/contract/Contract', () => {
   });
 
   describe('at', () => {
-    it('sets returns the instance & sets the address', () => {
-      const contract = new Contract(eth, []);
+    it('sets returns the functions, events & sets the address', () => {
+      const contract = new Contract(eth, [
+        {
+          constant: true,
+          inputs: [{
+            name: '_who',
+            type: 'address'
+          }],
+          name: 'balanceOf',
+          outputs: [{
+            name: '',
+            type: 'uint256'
+          }],
+          type: 'function'
+        },
+        {
+          anonymous: false,
+          inputs: [{
+            indexed: false,
+            name: 'amount',
+            type: 'uint256'
+          }],
+          name: 'Drained',
+          type: 'event'
+        }
+      ]);
+      const instance = contract.at('6789');
 
-      expect(contract.at('123')).to.deep.equal(contract);
-      expect(contract.at('456').address).to.equal('456');
+      expect(Object.keys(instance)).to.deep.equal(['Drained', 'balanceOf']);
+      expect(contract.address).to.equal('6789');
     });
   });
 
@@ -248,7 +273,8 @@ describe('api/contract/Contract', () => {
     let func;
 
     beforeEach(() => {
-      contract = new Contract(eth, ABI).at(ADDR);
+      contract = new Contract(eth, ABI);
+      contract.at(ADDR);
       cons = contract.constructors[0];
       func = contract.functions.find((fn) => fn.name === 'test');
     });

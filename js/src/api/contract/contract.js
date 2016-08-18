@@ -18,6 +18,10 @@ export default class Contract {
     this._events = this._abi.events;
 
     this._named = {};
+
+    this._events.forEach((evt) => {
+      this._named[evt.name] = evt;
+    });
     this._functions.forEach((fn) => {
       this._named[fn.name] = fn;
     });
@@ -53,7 +57,7 @@ export default class Contract {
 
   at (address) {
     this._address = address;
-    return this;
+    return this._named;
   }
 
   deploy (code, values) {
