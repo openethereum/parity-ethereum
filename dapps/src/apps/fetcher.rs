@@ -15,27 +15,31 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use zip;
-use zip::result::ZipError;
-use std::fs;
-use std::io::{self, Read};
+use std::{fs, env};
+use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use rustc_serialize::hex::ToHex;
 
 use hyper::Control;
 use hyper::status::StatusCode;
 
+use random_filename;
 use util::{Address, FromHex, Mutex};
-use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, Manifest};
-use handlers::{ContentHandler, AppFetcherHandler};
-use endpoint::{EndpointPath, Handler};
+use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
+
+use page::LocalPageEndpoint;
+use handlers::{ContentHandler, AppFetcherHandler, DappHandler};
+use endpoint::{Endpoint, EndpointPath, Handler};
+
+const COMMIT_LEN: usize = 20;
 
 #[derive(Debug)]
 pub struct GithubApp {
 	pub account: String,
 	pub repo: String,
-	pub commit: [u8;20],
+	pub commit: [u8;COMMIT_LEN],
 	pub owner: Address,
 }
 
@@ -45,35 +49,36 @@ impl GithubApp {
 		format!("http://github.todr.me/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
 	}
 
-	fn commit(bytes: &[u8]) -> [u8;20] {
-		let mut commit = [0; 20];
-		for i in 0..20 {
+	fn commit(bytes: &[u8]) -> Option<[u8;COMMIT_LEN]> {
+		if bytes.len() < COMMIT_LEN {
+			return None;
+		}
+
+		let mut commit = [0; COMMIT_LEN];
+		for i in 0..COMMIT_LEN {
 			commit[i] = bytes[i];
 		}
-		commit
-	}
-}
 
-pub struct AppFetcher {
-	dapps_path: PathBuf,
-	in_progress: Arc<Mutex<HashSet<String>>>,
-}
-
-impl AppFetcher {
-
-	pub fn new(dapps_path: &str) -> Self {
-		AppFetcher {
-			dapps_path: PathBuf::from(dapps_path),
-			in_progress: Arc::new(Mutex::new(HashSet::new())),
-		}
+		Some(commit)
 	}
 
+}
+
+pub trait URLHint {
+	fn resolve(&self, app_id: &str) -> Option<GithubApp>;
+}
+
+pub struct URLHintContract;
+
+impl URLHint for URLHintContract {
 	fn resolve(&self, app_id: &str) -> Option<GithubApp> {
 		// TODO [todr] use GithubHint contract to check the details
 		// For now we are just accepting patterns: <commithash>.<repo>.<account>.parity
-
 		let mut app_parts = app_id.split('.');
-		let hash = app_parts.next().and_then(|h| h.from_hex().ok());
+
+		let hash = app_parts.next()
+			.and_then(|h| h.from_hex().ok())
+			.and_then(|h| GithubApp::commit(&h));
 		let repo = app_parts.next();
 		let account = app_parts.next();
 
@@ -82,51 +87,116 @@ impl AppFetcher {
 				Some(GithubApp {
 					account: account.into(),
 					repo: repo.into(),
-					commit: GithubApp::commit(&hash),
+					commit: hash,
 					owner: Address::default(),
 				})
 			},
 			_ => None,
 		}
 	}
+}
 
-	pub fn can_resolve(&self, app_id: &str) -> bool {
-		self.resolve(app_id).is_some()
+enum AppStatus {
+	Fetching,
+	Ready(LocalPageEndpoint),
+}
+
+pub struct AppFetcher<R: URLHint = URLHintContract> {
+	dapps_path: PathBuf,
+	resolver: R,
+	dapps: Arc<Mutex<HashMap<String, AppStatus>>>,
+}
+
+impl<R: URLHint> Drop for AppFetcher<R> {
+	fn drop(&mut self) {
+		// Clear cache path
+		let _ = fs::remove_dir_all(&self.dapps_path);
+	}
+}
+
+impl Default for AppFetcher<URLHintContract> {
+	fn default() -> Self {
+		AppFetcher::new(URLHintContract)
+	}
+}
+
+impl<R: URLHint> AppFetcher<R> {
+
+	pub fn new(resolver: R) -> Self {
+		let mut dapps_path = env::temp_dir();
+		dapps_path.push(random_filename());
+
+		AppFetcher {
+			dapps_path: dapps_path,
+			resolver: resolver,
+			dapps: Arc::new(Mutex::new(HashMap::new())),
+		}
+	}
+
+	#[cfg(test)]
+	fn set_status(&self, app_id: &str, status: AppStatus) {
+		self.dapps.lock().insert(app_id.to_owned(), status);
+	}
+
+	pub fn contains(&self, app_id: &str) -> bool {
+		let dapps = self.dapps.lock();
+		match dapps.get(app_id) {
+			// Check if we already have the app
+			Some(_) => true,
+			// fallback to resolver
+			None => self.resolver.resolve(app_id).is_some(),
+		}
 	}
 
 	pub fn to_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
-		{
-			let mut in_progress = self.in_progress.lock();
-			if in_progress.contains(&path.app_id) {
-				return Box::new(ContentHandler::html(
-					StatusCode::ServiceUnavailable,
-					"<h1>This dapp is already being downloaded.</h1>".into()
-				));
+		let mut dapps = self.dapps.lock();
+		let app_id = path.app_id.clone();
+
+		let (new_status, handler) = {
+			let status = dapps.get(&app_id);
+			match status {
+				// Just server dapp
+				Some(&AppStatus::Ready(ref endpoint)) => {
+					(None, endpoint.to_handler(path))
+				},
+				// App is already being fetched
+				Some(&AppStatus::Fetching) => {
+					(None, Box::new(ContentHandler::html(
+						StatusCode::ServiceUnavailable,
+						"<h1>This dapp is already being downloaded.</h1>".into()
+					)) as Box<Handler>)
+				},
+				// We need to start fetching app
+				None => {
+					// TODO [todr] Keep only last N dapps available!
+					let app = self.resolver.resolve(&app_id).expect("to_handler is called only when `contains` returns true.");
+					(Some(AppStatus::Fetching), Box::new(AppFetcherHandler::new(
+						app,
+						control,
+						DappInstaller {
+							dapp_id: app_id.clone(),
+							dapps_path: self.dapps_path.clone(),
+							dapps: self.dapps.clone(),
+						}
+					)) as Box<Handler>)
+				},
 			}
-			in_progress.insert(path.app_id.clone());
+		};
+
+		if let Some(status) = new_status {
+			dapps.insert(app_id, status);
 		}
 
-		let app = self.resolve(&path.app_id).expect("to_handler is called only when `can_resolve` returns true.");
-
-		let in_progress = self.in_progress.clone();
-		let app_id = path.app_id.clone();
-		Box::new(AppFetcherHandler::new(
-			app,
-			self.dapps_path.clone(),
-			control,
-			move || {
-				in_progress.lock().remove(&app_id);
-			}
-		))
+		handler
 	}
-
 }
 
 #[derive(Debug)]
 pub enum ValidationError {
 	ManifestNotFound,
+	ManifestSerialization(String),
 	Io(io::Error),
-	Zip(ZipError),
+	Zip(zip::result::ZipError),
 }
 
 impl From<io::Error> for ValidationError {
@@ -135,81 +205,171 @@ impl From<io::Error> for ValidationError {
 	}
 }
 
-impl From<ZipError> for ValidationError {
-	fn from(err: ZipError) -> Self {
+impl From<zip::result::ZipError> for ValidationError {
+	fn from(err: zip::result::ZipError) -> Self {
 		ValidationError::Zip(err)
 	}
 }
 
-fn find_manifest(zip: &mut zip::ZipArchive<fs::File>) -> Result<(Manifest, PathBuf), ValidationError> {
-	for i in 0..zip.len() {
-		let mut file = try!(zip.by_index(i));
+struct DappInstaller {
+	dapp_id: String,
+	dapps_path: PathBuf,
+	dapps: Arc<Mutex<HashMap<String, AppStatus>>>,
+}
 
-		if !file.name().ends_with(MANIFEST_FILENAME) {
-			continue;
-		}
+impl DappInstaller {
+	fn find_manifest(zip: &mut zip::ZipArchive<fs::File>) -> Result<(Manifest, PathBuf), ValidationError> {
+		for i in 0..zip.len() {
+			let mut file = try!(zip.by_index(i));
 
-		// try to read manifest
-		let mut manifest = String::new();
-		let manifest = file
+			if !file.name().ends_with(MANIFEST_FILENAME) {
+				continue;
+			}
+
+			// try to read manifest
+			let mut manifest = String::new();
+			let manifest = file
 				.read_to_string(&mut manifest).ok()
 				.and_then(|_| deserialize_manifest(manifest).ok());
-		if let Some(manifest) = manifest {
-			let mut manifest_location = PathBuf::from(file.name());
-			manifest_location.pop(); // get rid of filename
-			return Ok((manifest, manifest_location));
-		}
-	}
-	return Err(ValidationError::ManifestNotFound);
-}
 
-pub fn validate_and_install_app(mut target: PathBuf, app_path: PathBuf) -> Result<String, ValidationError> {
-	trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
-	let file = try!(fs::File::open(app_path));
-	// Unpack archive
-	let mut zip = try!(zip::ZipArchive::new(file));
-	// First find manifest file
-	let (manifest, manifest_dir) = try!(find_manifest(&mut zip));
-	target.push(&manifest.id);
-
-	// Remove old directory
-	if target.exists() {
-		warn!(target: "dapps", "Overwriting existing dapp: {}", manifest.id);
-		try!(fs::remove_dir_all(target.clone()));
-	}
-
-	// Unpack zip
-	for i in 0..zip.len() {
-		let mut file = try!(zip.by_index(i));
-		// TODO [todr] Check if it's consistent on windows.
-		let is_dir = file.name().chars().rev().next() == Some('/');
-
-		let file_path = PathBuf::from(file.name());
-		let location_in_manifest_base = file_path.strip_prefix(&manifest_dir);
-		// Create files that are inside manifest directory
-		if let Ok(location_in_manifest_base) = location_in_manifest_base {
-			let p = target.join(location_in_manifest_base);
-			// Check if it's a directory
-			if is_dir {
-				try!(fs::create_dir_all(p));
-			} else {
-				let mut target = try!(fs::File::create(p));
-				try!(io::copy(&mut file, &mut target));
+			if let Some(manifest) = manifest {
+				let mut manifest_location = PathBuf::from(file.name());
+				manifest_location.pop(); // get rid of filename
+				return Ok((manifest, manifest_location));
 			}
 		}
+
+		Err(ValidationError::ManifestNotFound)
 	}
 
-	Ok(manifest.id)
+	fn dapp_target_path(&self, manifest: &Manifest) -> PathBuf {
+		let mut target = self.dapps_path.clone();
+		target.push(&manifest.id);
+		target
+	}
 }
 
+impl DappHandler for DappInstaller {
+	type Error = ValidationError;
 
-// 1. [x] Wait for response (with some timeout)
-// 2. Validate (Check hash)
-// 3. [x] Unpack to ~/.parity/dapps
-// 4. [x] Display errors or refresh to load again from memory / FS
-// 5. Mark as volatile?
-//    Keep a list of "installed" apps?
-//    Serve from memory?
-//
-// 6. Hosts validation?
-// 7. [x] Mutex on dapp
+	fn validate_and_install(&self, app_path: PathBuf) -> Result<Manifest, ValidationError> {
+		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
+		// TODO [ToDr] Validate file hash
+		let file = try!(fs::File::open(app_path));
+		// Unpack archive
+		let mut zip = try!(zip::ZipArchive::new(file));
+		// First find manifest file
+		let (mut manifest, manifest_dir) = try!(Self::find_manifest(&mut zip));
+		// Overwrite id to match hash
+		manifest.id = self.dapp_id.clone();
+
+		let target = self.dapp_target_path(&manifest);
+
+		// Remove old directory
+		if target.exists() {
+			warn!(target: "dapps", "Overwriting existing dapp: {}", manifest.id);
+			try!(fs::remove_dir_all(target.clone()));
+		}
+
+		// Unpack zip
+		for i in 0..zip.len() {
+			let mut file = try!(zip.by_index(i));
+			// TODO [todr] Check if it's consistent on windows.
+			let is_dir = file.name().chars().rev().next() == Some('/');
+
+			let file_path = PathBuf::from(file.name());
+			let location_in_manifest_base = file_path.strip_prefix(&manifest_dir);
+			// Create files that are inside manifest directory
+			if let Ok(location_in_manifest_base) = location_in_manifest_base {
+				let p = target.join(location_in_manifest_base);
+				// Check if it's a directory
+				if is_dir {
+					try!(fs::create_dir_all(p));
+				} else {
+					let mut target = try!(fs::File::create(p));
+					try!(io::copy(&mut file, &mut target));
+				}
+			}
+		}
+
+		// Write manifest
+		let manifest_str = try!(serialize_manifest(&manifest).map_err(ValidationError::ManifestSerialization));
+		let manifest_path = target.join(MANIFEST_FILENAME);
+		let mut manifest_file = try!(fs::File::create(manifest_path));
+		try!(manifest_file.write_all(manifest_str.as_bytes()));
+
+		// Return modified app manifest
+		Ok(manifest)
+	}
+
+	fn done(&self, manifest: Option<&Manifest>) {
+		let mut dapps = self.dapps.lock();
+		match manifest {
+			Some(manifest) => {
+				let path = self.dapp_target_path(manifest);
+				let app = LocalPageEndpoint::new(path, manifest.clone().into());
+				dapps.insert(self.dapp_id.clone(), AppStatus::Ready(app));
+			},
+			// In case of error
+			None => {
+				dapps.remove(&self.dapp_id);
+			},
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::path::PathBuf;
+	use super::{GithubApp, AppFetcher, AppStatus, URLHint};
+	use endpoint::EndpointInfo;
+	use page::LocalPageEndpoint;
+	use util::Address;
+
+	struct FakeResolver;
+	impl URLHint for FakeResolver {
+		fn resolve(&self, _app_id: &str) -> Option<GithubApp> {
+			None
+		}
+	}
+
+	#[test]
+	fn should_return_valid_url() {
+		// given
+		let app = GithubApp {
+			account: "test".into(),
+			repo: "xyz".into(),
+			commit: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+			owner: Address::default(),
+		};
+
+		// when
+		let url = app.url();
+
+		// then
+		assert_eq!(url, "http://github.todr.me/test/xyz/zip/000102030405060708090a0b0c0d0e0f10111213".to_owned());
+	}
+
+	#[test]
+	fn should_true_if_contains_the_app() {
+		// given
+		let fetcher = AppFetcher::new(FakeResolver);
+		let handler = LocalPageEndpoint::new(PathBuf::from("/tmp/test"), EndpointInfo {
+			name: "fake".into(),
+			description: "".into(),
+			version: "".into(),
+			author: "".into(),
+			icon_url: "".into(),
+		});
+
+		// when
+		fetcher.set_status("test", AppStatus::Ready(handler));
+		fetcher.set_status("test2", AppStatus::Fetching);
+
+		// then
+		assert_eq!(fetcher.contains("test"), true);
+		assert_eq!(fetcher.contains("test2"), true);
+		assert_eq!(fetcher.contains("test3"), false);
+	}
+}
+

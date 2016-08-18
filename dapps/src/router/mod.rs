@@ -82,7 +82,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 				self.endpoints.get(&path.app_id).unwrap().to_handler(path.clone())
 			},
 			// Try to resolve and fetch dapp
-			(Some(ref path), _) if self.fetch.can_resolve(&path.app_id) => {
+			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
 				let control = self.control.take().expect("on_request is called only once, thus control is always defined.");
 				self.fetch.to_handler(path.clone(), control)
 			},

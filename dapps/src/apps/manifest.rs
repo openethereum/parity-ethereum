@@ -23,3 +23,7 @@ pub fn deserialize_manifest(manifest: String) -> Result<Manifest, String> {
 	serde_json::from_str::<Manifest>(&manifest).map_err(|e| format!("{:?}", e))
 	// TODO [todr] Manifest validation (especialy: id (used as path))
 }
+
+pub fn serialize_manifest(manifest: &Manifest) -> Result<String, String> {
+	serde_json::to_string_pretty(manifest).map_err(|e| format!("{:?}", e))
+}

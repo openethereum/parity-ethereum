@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use std::fs;
+use std::{fs, fmt};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::{Instant, Duration};
@@ -27,7 +27,8 @@ use hyper::status::StatusCode;
 use handlers::ContentHandler;
 use handlers::client::{Fetch, FetchResult};
 use apps::DAPPS_DOMAIN;
-use apps::fetcher::{GithubApp, validate_and_install_app};
+use apps::fetcher::GithubApp;
+use apps::manifest::Manifest;
 
 const FETCH_TIMEOUT: u64 = 30;
 
@@ -38,38 +39,46 @@ enum FetchState {
 		deadline: Instant,
 		receiver: mpsc::Receiver<FetchResult>
 	},
-	Done(String),
+	Done(Manifest),
 }
 
-pub struct AppFetcherHandler<F: Fn() -> ()> {
-	dapps_path: PathBuf,
+pub trait DappHandler {
+	type Error: fmt::Debug;
+
+	fn validate_and_install(&self, app: PathBuf) -> Result<Manifest, Self::Error>;
+	fn done(&self, Option<&Manifest>);
+}
+
+pub struct AppFetcherHandler<H: DappHandler> {
 	control: Option<Control>,
 	status: FetchState,
 	client: Option<Client<Fetch>>,
-	done: Option<F>,
+	dapp: H,
 }
 
-impl<F: Fn() -> ()> Drop for AppFetcherHandler<F> {
+impl<H: DappHandler> Drop for AppFetcherHandler<H> {
 	fn drop(&mut self) {
-		self.done.take().unwrap()();
+		let manifest = match self.status {
+			FetchState::Done(ref manifest) => Some(manifest),
+			_ => None,
+		};
+		self.dapp.done(manifest);
 	}
 }
 
-impl<F: Fn() -> ()> AppFetcherHandler<F> {
+impl<H: DappHandler> AppFetcherHandler<H> {
 
 	pub fn new(
 		app: GithubApp,
-		dapps_path: PathBuf,
 		control: Control,
-		done: F) -> Self {
+		handler: H) -> Self {
 
 		let client = Client::new().expect("Failed to create a Client");
 		AppFetcherHandler {
-			dapps_path: dapps_path,
 			control: Some(control),
 			client: Some(client),
 			status: FetchState::NotStarted(app),
-			done: Some(done),
+			dapp: handler,
 		}
 	}
 
@@ -98,7 +107,7 @@ impl<F: Fn() -> ()> AppFetcherHandler<F> {
 	}
 }
 
-impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
+impl<H: DappHandler> server::Handler<HttpStream> for AppFetcherHandler<H> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
 		let status = if let FetchState::NotStarted(ref app) = self.status {
 			Some(match *request.method() {
@@ -155,7 +164,7 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 						trace!(target: "dapps", "Fetching dapp finished. Starting validation.");
 						Self::close_client(&mut self.client);
 						// Unpack and verify
-						let state = match validate_and_install_app(self.dapps_path.clone(), path.clone()) {
+						let state = match self.dapp.validate_and_install(path.clone()) {
 							Err(e) => {
 								trace!(target: "dapps", "Error while validating dapp: {:?}", e);
 								FetchState::Error(ContentHandler::html(
@@ -163,7 +172,7 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 									format!("<h1>Downloaded bundle does not contain valid app.</h1><pre>{:?}</pre>", e),
 								))
 							},
-							Ok(id) => FetchState::Done(id)
+							Ok(manifest) => FetchState::Done(manifest)
 						};
 						// Remove temporary zip file
 						let _ = fs::remove_file(path);
@@ -194,11 +203,11 @@ impl<F: Fn() -> ()> server::Handler<HttpStream> for AppFetcherHandler<F> {
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		match self.status {
-			FetchState::Done(ref id) => {
-				trace!(target: "dapps", "Fetching dapp finished. Redirecting to {}", id);
+			FetchState::Done(ref manifest) => {
+				trace!(target: "dapps", "Fetching dapp finished. Redirecting to {}", manifest.id);
 				res.set_status(StatusCode::Found);
 				// TODO [todr] should detect if its using nice-urls
-				res.headers_mut().set(header::Location(format!("http://{}{}", id, DAPPS_DOMAIN)));
+				res.headers_mut().set(header::Location(format!("http://{}{}", manifest.id, DAPPS_DOMAIN)));
 				Next::write()
 			},
 			FetchState::Error(ref mut handler) => handler.on_response(res),

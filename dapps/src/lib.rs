@@ -124,7 +124,7 @@ impl Server {
 	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>, dapps_path: String) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let apps_fetcher = Arc::new(apps::fetcher::AppFetcher::new(&dapps_path));
+		let apps_fetcher = Arc::new(apps::fetcher::AppFetcher::default());
 		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
 		let special = Arc::new({
 			let mut special = HashMap::new();
@@ -188,3 +188,11 @@ impl From<hyper::error::Error> for ServerError {
 		}
 	}
 }
+
+/// Random filename
+pub fn random_filename() -> String {
+	use ::rand::Rng;
+	let mut rng = ::rand::OsRng::new().unwrap();
+	rng.gen_ascii_chars().take(12).collect()
+}
+

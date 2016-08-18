@@ -83,13 +83,7 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 			// Try to deserialize manifest
 			deserialize_manifest(s)
 		})
-		.map(|app| EndpointInfo {
-			name: app.name,
-			description: app.description,
-			version: app.version,
-			author: app.author,
-			icon_url: app.icon_url,
-		})
+		.map(Into::into)
 		.unwrap_or_else(|e| {
 			warn!(target: "dapps", "Cannot read manifest file at: {:?}. Error: {:?}", path, e);
 
