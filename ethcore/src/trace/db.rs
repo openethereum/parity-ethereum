@@ -23,10 +23,9 @@ use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, Bloo
 use util::{H256, H264, Database, DBTransaction, RwLock, HeapSizeOf};
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras, Error};
-use db::{Key, Writable, Readable, CacheUpdatePolicy};
+use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
 use blooms;
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
-use client::DB_COL_TRACE;
 use cache_manager::CacheManager;
 
 const TRACE_DB_VER: &'static [u8] = b"1.0";
@@ -119,7 +118,7 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
-		let result = self.tracesdb.read_with_cache(DB_COL_TRACE, &self.blooms, &position).map(Into::into);
+		let result = self.tracesdb.read_with_cache(db::COL_TRACE, &self.blooms, &position).map(Into::into);
 		self.note_used(CacheID::Bloom(position));
 		result
 	}
@@ -129,7 +128,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
 	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Result<Self, Error> {
 		// check if in previously tracing was enabled
-		let old_tracing = match tracesdb.get(DB_COL_TRACE, b"enabled").unwrap() {
+		let old_tracing = match tracesdb.get(db::COL_TRACE, b"enabled").unwrap() {
 			Some(ref value) if value as &[u8] == &[0x1] => Switch::On,
 			Some(ref value) if value as &[u8] == &[0x0] => Switch::Off,
 			Some(_) => { panic!("tracesdb is corrupted") },
@@ -144,8 +143,8 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		};
 
 		let batch = DBTransaction::new(&tracesdb);
-		batch.put(DB_COL_TRACE, b"enabled", &encoded_tracing);
-		batch.put(DB_COL_TRACE, b"version", TRACE_DB_VER);
+		batch.put(db::COL_TRACE, b"enabled", &encoded_tracing);
+		batch.put(db::COL_TRACE, b"version", TRACE_DB_VER);
 		tracesdb.write(batch).unwrap();
 
 		let db = TraceDB {
@@ -197,7 +196,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
-		let result = self.tracesdb.read_with_cache(DB_COL_TRACE, &self.traces, block_hash);
+		let result = self.tracesdb.read_with_cache(db::COL_TRACE, &self.traces, block_hash);
 		self.note_used(CacheID::Trace(block_hash.clone()));
 		result
 	}
@@ -273,7 +272,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let mut traces = self.traces.write();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			batch.write_with_cache(DB_COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+			batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
 			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
 			self.note_used(CacheID::Trace(request.block_hash.clone()));
 		}
@@ -302,7 +301,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 			let blooms_keys: Vec<_> = blooms_to_insert.keys().cloned().collect();
 			let mut blooms = self.blooms.write();
-			batch.extend_with_cache(DB_COL_TRACE, &mut *blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(db::COL_TRACE, &mut *blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
 			// note_used must be called after locking blooms to avoid cache/traces deadlock on garbage collection
 			for key in blooms_keys.into_iter() {
 				self.note_used(CacheID::Bloom(key));
@@ -417,7 +416,6 @@ mod tests {
 	use trace::{Filter, LocalizedTrace, AddressesFilter};
 	use trace::trace::{Call, Action, Res};
 	use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
-	use client::DB_NO_OF_COLUMNS;
 	use types::executed::CallType;
 
 	struct NoopExtras;
@@ -459,7 +457,7 @@ mod tests {
 	}
 
 	fn new_db(path: &str) -> Arc<Database> {
-		Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), path).unwrap())
+		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
 	}
 
 	#[test]
@@ -588,7 +586,7 @@ mod tests {
 	#[test]
 	fn test_import() {
 		let temp = RandomTempPath::new();
-		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(DB_NO_OF_COLUMNS), temp.as_str()).unwrap());
+		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), temp.as_str()).unwrap());
 		let mut config = Config::default();
 		config.enabled = Switch::On;
 		let block_0 = H256::from(0xa1);
