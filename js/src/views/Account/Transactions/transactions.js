@@ -67,6 +67,13 @@ export default class Transactions extends Component {
         const fromLink = `https://etherscan.io/address/${tx.from}`;
         const toLink = `https://etherscan.io/address/${tx.to}`;
 
+        const tosection = (tx.to && tx.to.length)
+          ? (<td className={ styles.center }>
+            <IdentityIcon inline center address={ tx.to } />
+            <a href={ toLink } target='_blank'>{ formatHash(tx.to) }</a>
+          </td>)
+          : (<td className={ `${styles.center}` }></td>);
+
         return (
           <tr key={ tx.hash }>
             <td className={ styles.center }></td>
@@ -74,10 +81,7 @@ export default class Transactions extends Component {
               <IdentityIcon inline center address={ tx.from } />
               <a href={ fromLink } target='_blank'>{ formatHash(tx.from) }</a>
             </td>
-            <td className={ styles.center }>
-              <IdentityIcon inline center address={ tx.to } />
-              <a href={ toLink } target='_blank'>{ formatHash(tx.to) }</a>
-            </td>
+            { tosection }
             <td className={ styles.center }>
               <a href={ hashLink } target='_blank'>{ formatHash(tx.hash) }</a>
             </td>
@@ -97,7 +101,7 @@ export default class Transactions extends Component {
       return (
         <table className={ styles.transactions }>
           <thead>
-            <tr>
+            <tr className={ styles.info }>
               <th>&nbsp;</th>
               <th>from</th>
               <th>to</th>
