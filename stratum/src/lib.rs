@@ -93,7 +93,7 @@ impl Stratum {
 			Some(initial) => match jsonrpc_core::Value::from_str(&initial) {
 				Ok(val) => val,
 				Err(e) => {
-					warn!(target: "tcp", "Invalid payload: '{}' ({:?})", &initial, e);
+					warn!(target: "stratum", "Invalid payload: '{}' ({:?})", &initial, e);
 					try!(to_value(&[0u8; 0]))
 				},
 			},
@@ -114,7 +114,7 @@ impl Stratum {
 				to_value(&true)
 			}
 			else {
-				warn!(target: "tcp", "Authorize without valid context received!");
+				warn!(target: "stratum", "Authorize without valid context received!");
 				to_value(&false)
 			}
 		})
@@ -135,7 +135,10 @@ impl Stratum {
 				);
 			}
 			else {
-				// anauthorized worker
+				trace!(
+					target: "stratum",
+					"Job queued for worker that is still not authorized, skipping ('{:?}')", socket_addr
+				);
 			}
 		}
 	}
