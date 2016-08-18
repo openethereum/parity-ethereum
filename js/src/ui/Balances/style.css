@@ -1,16 +1,21 @@
 .balances {
   margin-top: 1em;
+  display: flex;
+  flex-wrap: wrap;
 }
 
 .balance {
   height: 32px;
   margin-top: 0.25em;
+  flex: 0 1 33%;
+  width: 33%;
+  text-align: right;
 }
 
 .balance img {
-  margin-right: 0.5em;
   height: 32px;
   width: 32px;
+  margin: 0 0.5em;
 }
 
 .balance div {
@@ -18,8 +23,5 @@
   line-height: 32px;
   display: inline-block;
   vertical-align: top;
-}
-
-.value {
   font-family: monospace;
 }
