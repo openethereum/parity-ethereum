@@ -182,32 +182,6 @@ impl PushWorkHandler for Stratum {
 	}
 }
 
-lazy_static! {
-	static ref LOG_DUMMY: bool = {
-		use log::LogLevelFilter;
-		use env_logger::LogBuilder;
-		use std::env;
-
-		let mut builder = LogBuilder::new();
-		builder.filter(None, LogLevelFilter::Info);
-
-		if let Ok(log) = env::var("RUST_LOG") {
-			builder.parse(&log);
-		}
-
-		if let Ok(_) = builder.init() {
-			println!("logger initialized");
-		}
-		true
-	};
-}
-
-/// Intialize log with default settings
-#[cfg(test)]
-fn init_log() {
-    let _ = *LOG_DUMMY;
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -219,6 +193,32 @@ mod tests {
 	pub struct VoidManager;
 
 	impl JobDispatcher for VoidManager { }
+
+	lazy_static! {
+		static ref LOG_DUMMY: bool = {
+			use log::LogLevelFilter;
+			use env_logger::LogBuilder;
+			use std::env;
+
+			let mut builder = LogBuilder::new();
+			builder.filter(None, LogLevelFilter::Info);
+
+			if let Ok(log) = env::var("RUST_LOG") {
+				builder.parse(&log);
+			}
+
+			if let Ok(_) = builder.init() {
+				println!("logger initialized");
+			}
+			true
+		};
+	}
+
+	/// Intialize log with default settings
+	#[cfg(test)]
+	fn init_log() {
+		let _ = *LOG_DUMMY;
+	}
 
 	pub fn dummy_request(addr: &SocketAddr, buf: &[u8]) -> Vec<u8> {
 		use std::io::{Read, Write};
@@ -350,6 +350,8 @@ mod tests {
 
 	#[test]
 	fn can_push_work() {
+		init_log();
+
 		let addr = SocketAddr::from_str("0.0.0.0:19965").unwrap();
 		let stratum = Stratum::start(
 			&addr,
