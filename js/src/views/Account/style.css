@@ -19,8 +19,18 @@
 }
 
 .transactions tr {
-  line-height: 24px;
+  line-height: 32px;
   vertical-align: middle;
+}
+
+.transactions .link {
+  vertical-align: top;
+  font-family: monospace;
+}
+
+.value {
+  text-align: right;
+  font-family: monospace;
 }
 
 .info {

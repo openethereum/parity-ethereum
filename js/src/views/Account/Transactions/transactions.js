@@ -11,11 +11,11 @@ import IdentityIcon from '../../../ui/IdentityIcon';
 import styles from '../style.css';
 
 function formatHash (hash) {
-  if (!hash || hash.length <= 25) {
+  if (!hash || hash.length <= 21) {
     return hash;
   }
 
-  return `${hash.substr(2, 11)}...${hash.slice(-11)}`;
+  return `${hash.substr(2, 9)}...${hash.slice(-9)}`;
 }
 
 function formatNumber (number) {
@@ -30,7 +30,7 @@ function formatEther (value) {
   const ether = Api.format.fromWei(value);
 
   if (ether.gt(0)) {
-    return `${ether.toFormat(8)} ΞTH`;
+    return `${ether.toFormat(5)} ΞTH`;
   }
 
   return null;
@@ -70,7 +70,7 @@ export default class Transactions extends Component {
         const tosection = (tx.to && tx.to.length)
           ? (<td className={ styles.center }>
             <IdentityIcon inline center address={ tx.to } />
-            <a href={ toLink } target='_blank'>{ formatHash(tx.to) }</a>
+            <a href={ toLink } target='_blank' className={ styles.link }>{ formatHash(tx.to) }</a>
           </td>)
           : (<td className={ `${styles.center}` }></td>);
 
@@ -79,11 +79,11 @@ export default class Transactions extends Component {
             <td className={ styles.center }></td>
             <td className={ styles.center }>
               <IdentityIcon inline center address={ tx.from } />
-              <a href={ fromLink } target='_blank'>{ formatHash(tx.from) }</a>
+              <a href={ fromLink } target='_blank' className={ styles.link }>{ formatHash(tx.from) }</a>
             </td>
             { tosection }
             <td className={ styles.center }>
-              <a href={ hashLink } target='_blank'>{ formatHash(tx.hash) }</a>
+              <a href={ hashLink } target='_blank' className={ styles.link }>{ formatHash(tx.hash) }</a>
             </td>
             <td className={ styles.right }>
               { formatNumber(tx.blockNumber) }
@@ -91,7 +91,7 @@ export default class Transactions extends Component {
             <td className={ styles.right }>
               { formatTime(tx.timeStamp) }
             </td>
-            <td className={ styles.right }>
+            <td className={ styles.value }>
               { formatEther(tx.value) }
             </td>
           </tr>
