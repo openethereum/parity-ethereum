@@ -27,21 +27,56 @@ use json_tcp_server::Server as JsonRpcServer;
 use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::net::SocketAddr;
+use std::collections::{HashSet, HashMap};
 
 pub struct Stratum {
 	rpc_server: JsonRpcServer,
 	handler: Arc<IoHandler>,
+	/// Subscribed clients
 	subscribers: RwLock<Vec<SocketAddr>>,
+	/// List of workers supposed to receive job update
+	job_que: RwLock<HashSet<SocketAddr>>,
+	/// Payload manager
+	payload_manager: Arc<JobPayloadManager>,
+	/// Authorized workers (socket - worker_id)
+	workers: Arc<HashMap<SocketAddr, String>>,
+}
+
+#[cfg(test)]
+pub struct VoidManager;
+
+#[cfg(test)]
+impl JobPayloadManager for VoidManager {
+	fn initial(&self) -> jsonrpc_core::Value {
+		to_value(&0).unwrap()
+	}
+
+	fn difficulty(&self) -> jsonrpc_core::Value {
+		to_value(&0).unwrap()
+	}
+
+	fn job(&self, _worker_id: &str) -> jsonrpc_core::Value {
+		to_value(&0).unwrap()
+	}
+}
+
+pub trait JobPayloadManager: Send + Sync {
+	fn initial(&self) -> jsonrpc_core::Value;
+	fn difficulty(&self) -> jsonrpc_core::Value;
+	fn job(&self, worker_id: &str) -> jsonrpc_core::Value;
 }
 
 impl Stratum {
-	pub fn start(addr: &SocketAddr) -> Result<Arc<Stratum>, json_tcp_server::Error> {
+	pub fn start(addr: &SocketAddr, payload_manager: Arc<JobPayloadManager>) -> Result<Arc<Stratum>, json_tcp_server::Error> {
 		let handler = Arc::new(IoHandler::new());
 		let server = try!(JsonRpcServer::new(addr, &handler));
 		let stratum = Arc::new(Stratum {
 			rpc_server: server,
 			handler: handler,
 			subscribers: RwLock::new(Vec::new()),
+			job_que: RwLock::new(HashSet::new()),
+			payload_manager: payload_manager,
+			workers: Arc::new(HashMap::new()),
 		});
 
 		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
@@ -56,13 +91,27 @@ impl Stratum {
 	fn subscribe(&self, _params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
 		if let Some(context) = self.rpc_server.request_context() {
 			self.subscribers.write().unwrap().push(context.socket_addr);
+			self.job_que.write().unwrap().insert(context.socket_addr);
 			trace!(target: "stratum", "Subscription request from {:?}", context.socket_addr);
 		}
-		Ok(try!(to_value(&0)))
+		Ok(self.payload_manager.initial())
 	}
 
 	pub fn subscribers(&self) -> RwLockReadGuard<Vec<SocketAddr>> {
 		self.subscribers.read().unwrap()
+	}
+
+	pub fn maintain(&self) {
+		let mut job_que = self.job_que.write().unwrap();
+		for socket_addr in job_que.drain() {
+			if let Some(ref worker_id) = self.workers.get(&socket_addr) {
+				let _job_payload = self.payload_manager.job(worker_id);
+				//self.rpc_server.push(&socket_addr, )
+			}
+			else {
+				// anauthorized worker
+			}
+		}
 	}
 }
 
@@ -71,6 +120,7 @@ mod tests {
 	use super::*;
 	use std::str::FromStr;
 	use std::net::SocketAddr;
+	use std::sync::Arc;
 
 	pub fn dummy_request(addr: &SocketAddr, buf: &[u8]) -> Vec<u8> {
 		use std::io::{Read, Write};
@@ -92,14 +142,14 @@ mod tests {
 
 	#[test]
 	fn can_be_started() {
-		let stratum = Stratum::start(&SocketAddr::from_str("0.0.0.0:19980").unwrap());
+		let stratum = Stratum::start(&SocketAddr::from_str("0.0.0.0:19980").unwrap(), Arc::new(VoidManager));
 		assert!(stratum.is_ok());
 	}
 
 	#[test]
 	fn records_subscriber() {
 		let addr = SocketAddr::from_str("0.0.0.0:19985").unwrap();
-		let stratum = Stratum::start(&addr).unwrap();
+		let stratum = Stratum::start(&addr, Arc::new(VoidManager)).unwrap();
 		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#;
 		dummy_request(&addr, request.as_bytes());
 		assert_eq!(1, stratum.subscribers.read().unwrap().len());
