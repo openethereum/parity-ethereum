@@ -6,9 +6,11 @@ import styles from '../style.css';
 
 export default class Extras extends Component {
   static propTypes = {
+    isEth: PropTypes.bool,
     extraData: PropTypes.string,
     extraDataError: PropTypes.string,
     gas: PropTypes.string,
+    gasEst: PropTypes.string,
     gasError: PropTypes.string,
     gasPrice: PropTypes.string,
     gasPriceError: PropTypes.string,
@@ -18,21 +20,17 @@ export default class Extras extends Component {
   }
 
   render () {
+    const gasLabel = this.props.isEth
+      ? 'gas amount'
+      : `gas amount (estimated: ${this.props.gasEst})`;
+
     return (
       <Form>
-        <div>
-          <Input
-            hint='the extraData to pass through with the transaction'
-            label='transaction extraData'
-            multiLine
-            rows={ 1 }
-            value={ this.props.extraData }
-            onChange={ this.onEditExtraData } />
-        </div>
+        { this.renderExtraData() }
         <div className={ styles.columns }>
           <div>
             <Input
-              label='gas amount'
+              label={ gasLabel }
               hint='the amount of gas to use for the transaction'
               error={ this.props.gasError }
               value={ this.props.gas }
@@ -51,13 +49,31 @@ export default class Extras extends Component {
           <div>
             <Input
               disabled
-              label='total amount'
+              label='total transaction amount'
               hint='the total amount of the transaction'
               error={ this.props.totalError }
               value={ `${this.props.total} ΞTH` } />
           </div>
         </div>
       </Form>
+    );
+  }
+
+  renderExtraData () {
+    if (!this.props.isEth) {
+      return null;
+    }
+
+    return (
+      <div>
+        <Input
+          hint='the extraData to pass through with the transaction'
+          label='transaction extraData'
+          multiLine
+          rows={ 1 }
+          value={ this.props.extraData }
+          onChange={ this.onEditExtraData } />
+      </div>
     );
   }
 

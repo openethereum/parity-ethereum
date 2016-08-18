@@ -13,8 +13,7 @@ export default class AddressSelector extends Component {
   }
 
   static propTypes = {
-    onSelect: PropTypes.func.isRequired,
-    visible: PropTypes.bool
+    onSelect: PropTypes.func.isRequired
   }
 
   state = {
@@ -30,8 +29,8 @@ export default class AddressSelector extends Component {
     return (
       <Modal
         scroll
-        actions={ this.renderDialogActions() }
-        visible={ this.props.visible }>
+        visible
+        actions={ this.renderDialogActions() }>
         { this.renderAccounts('accounts') }
         { this.renderAccounts('contacts') }
       </Modal>

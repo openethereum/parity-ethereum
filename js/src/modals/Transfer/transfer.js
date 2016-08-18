@@ -16,6 +16,7 @@ import Extras from './Extras';
 import ERRORS from './errors';
 
 const DEFAULT_GAS = '21000';
+const CONTRACT_GAS = '100000';
 const DEFAULT_GASPRICE = '20000000000';
 const TITLES = {
   transfer: 'transfer details',
@@ -31,9 +32,7 @@ export default class Transfer extends Component {
   }
 
   static propTypes = {
-    address: PropTypes.string.isRequired,
-    balance: PropTypes.object,
-    visible: PropTypes.bool.isRequired,
+    account: PropTypes.object,
     onClose: PropTypes.func
   }
 
@@ -43,18 +42,20 @@ export default class Transfer extends Component {
     extraDataError: null,
     extras: false,
     gas: DEFAULT_GAS,
+    gasEst: '0',
     gasError: null,
     gasPrice: DEFAULT_GASPRICE,
     gasPriceError: null,
     recipient: '',
     recipientError: ERRORS.requireRecipient,
     sending: false,
-    token: 'ΞTH',
+    tag: 'ΞTH',
     total: '0.0',
     totalError: null,
     value: '0.0',
     valueAll: false,
-    valueError: null
+    valueError: null,
+    isEth: true
   }
 
   componentDidMount () {
@@ -67,51 +68,61 @@ export default class Transfer extends Component {
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
         steps={ this.state.extras ? STAGES_EXTRA : STAGES_BASIC }
-        visible={ this.props.visible }>
+        visible>
         { this.renderPage() }
       </Modal>
     );
   }
 
   renderPage () {
-    switch (this.state.stage) {
-      case 0:
-        return (
-          <Details
-            address={ this.props.address }
-            all={ this.state.valueAll }
-            extras={ this.state.extras }
-            recipient={ this.state.recipient }
-            recipientError={ this.state.recipientError }
-            token={ this.state.token }
-            total={ this.state.total }
-            totalError={ this.state.totalError }
-            value={ this.state.value }
-            valueError={ this.state.valueError }
-            onChange={ this.onUpdateDetails } />
-        );
-
-      default:
-        if (this.state.stage === 1 && this.state.extras) {
-          return (
-            <Extras
-              extraData={ this.state.extraData }
-              gas={ this.state.gas }
-              gasError={ this.state.gasError }
-              gasPrice={ this.state.gasPrice }
-              gasPriceError={ this.state.gasPriceError }
-              total={ this.state.total }
-              totalError={ this.state.totalError }
-              onChange={ this.onUpdateDetails } />
-          );
-        }
-
-        return (
-          <Complete
-            sending={ this.state.sending }
-            txhash={ this.state.txhash } />
-        );
+    if (this.state.stage === 0) {
+      return this.renderDetailsPage();
+    } else if (this.state.stage === 1 && this.state.extras) {
+      return this.renderExtrasPage();
     }
+
+    return this.renderCompletePage();
+  }
+
+  renderCompletePage () {
+    return (
+      <Complete
+        sending={ this.state.sending }
+        txhash={ this.state.txhash } />
+    );
+  }
+
+  renderDetailsPage () {
+    return (
+      <Details
+        address={ this.props.account.address }
+        all={ this.state.valueAll }
+        extras={ this.state.extras }
+        recipient={ this.state.recipient }
+        recipientError={ this.state.recipientError }
+        tag={ this.state.tag }
+        total={ this.state.total }
+        totalError={ this.state.totalError }
+        value={ this.state.value }
+        valueError={ this.state.valueError }
+        onChange={ this.onUpdateDetails } />
+    );
+  }
+
+  renderExtrasPage () {
+    return (
+      <Extras
+        isEth={ this.state.isEth }
+        extraData={ this.state.extraData }
+        gas={ this.state.gas }
+        gasEst={ this.state.gasEst }
+        gasError={ this.state.gasError }
+        gasPrice={ this.state.gasPrice }
+        gasPriceError={ this.state.gasPriceError }
+        total={ this.state.total }
+        totalError={ this.state.totalError }
+        onChange={ this.onUpdateDetails } />
+    );
   }
 
   renderDialogActions () {
@@ -255,10 +266,11 @@ export default class Transfer extends Component {
     });
   }
 
-  _onUpdateToken (token) {
+  _onUpdateTag (tag) {
     this.setState({
-      token
-    });
+      tag,
+      isEth: tag === this.props.account.balances[0].token.tag
+    }, this.recalculateGas);
   }
 
   _onUpdateValue (value) {
@@ -290,53 +302,50 @@ export default class Transfer extends Component {
       case 'recipient':
         return this._onUpdateRecipient(value);
 
-      case 'token':
-        return this._onUpdateToken(value);
+      case 'tag':
+        return this._onUpdateTag(value);
 
       case 'value':
         return this._onUpdateValue(value);
     }
   }
 
-  onSend = () => {
-    this.onNext();
-
-    this.setState({
-      sending: true
-    });
-
-    this.context.api.eth
+  _sendEth () {
+    return this.context.api.eth
       .sendTransaction({
-        from: this.props.address,
+        from: this.props.account.address,
         to: this.state.recipient,
         gas: this.state.gas,
         gasPrice: this.state.gasPrice,
         value: Api.format.toWei(this.state.value)
-      })
-      .then((txhash) => {
+      });
+  }
+
+  _sendToken () {
+    const token = this.props.account.balances.find((balance) => balance.token.tag === this.state.tag).token;
+
+    return token.contract.transfer
+      .sendTransaction({
+        from: this.props.account.address,
+        to: token.address
+      }, [
+        this.state.recipient,
+        new BigNumber(this.state.value).mul(token.format).toString()
+      ]);
+  }
+
+  onSend = () => {
+    this.onNext();
+    this.setState({
+      sending: true
+    }, () => {
+      (this.state.isEth ? this._sendEth() : this._sendToken()).then((txhash) => {
         console.log('transaction', txhash);
         this.setState({
           sending: false,
           txhash: txhash
         });
-      })
-      .catch((error) => {
-        console.error(error);
       });
-  }
-
-  onChangeDetails = (valid, { value, recipient, total, extras }) => {
-    this.setState({
-      value,
-      extras,
-      recipient,
-      total
-    });
-  }
-
-  onChangePassword = (valid, { password }) => {
-    this.setState({
-      password
     });
   }
 
@@ -348,28 +357,79 @@ export default class Transfer extends Component {
     });
   }
 
-  recalculate = () => {
-    let value = this.state.value;
-    const gas = new BigNumber(this.state.gasPrice || 0).mul(new BigNumber(this.state.gas || 0));
-    const balance = new BigNumber(this.props.balance.value || 0);
+  recalculateGas = () => {
+    const token = this.props.account.balances.find((balance) => balance.token.tag === this.state.tag).token;
 
-    if (this.state.valueAll) {
-      const bn = Api.format.fromWei(balance.minus(gas));
-      value = bn.lt(0) ? '0.0' : bn.toString();
+    if (this.state.isEth) {
+      return this.setState({
+        gas: DEFAULT_GAS
+      }, this.recalculate);
     }
 
-    const amount = Api.format.toWei(value || 0);
-    const total = amount.plus(gas);
+    token.contract.transfer
+      .estimateGas({
+        from: this.props.account.address,
+        to: token.address
+      }, [
+        this.state.recipient,
+        new BigNumber(this.state.value).mul(token.format).toString()
+      ])
+      .then((gas) => {
+        this.setState({
+          gas: gas.add(CONTRACT_GAS).toString(),
+          gasEst: gas.toFormat()
+        }, this.recalculate);
+      });
+  }
+
+  recalculate = () => {
+    if (!this.props.account) {
+      return;
+    }
+
+    const gasTotal = new BigNumber(this.state.gasPrice || 0).mul(new BigNumber(this.state.gas || 0));
+    const balances = this.props.account.balances;
+    const balance = balances.find((balance) => this.state.tag === balance.token.tag);
+    const availableEth = new BigNumber(balances[0].value);
+    const available = new BigNumber(balance.value);
+    const format = new BigNumber(balance.token.format || 1);
+
+    let value = this.state.value;
+    let valueError = this.state.valueError;
+    let totalEth = gasTotal;
     let totalError = null;
 
-    if (total.gt(balance)) {
+    if (this.state.valueAll) {
+      let bn;
+
+      if (this.state.isEth) {
+        bn = Api.format.fromWei(availableEth.minus(gasTotal));
+      } else {
+        bn = available.div(format);
+      }
+
+      value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
+    }
+
+    if (this.state.isEth) {
+      totalEth = totalEth.plus(Api.format.toWei(value || 0));
+    }
+
+    if (new BigNumber(value || 0).gt(available.div(format))) {
+      valueError = ERRORS.largeAmount;
+    } else if (valueError === ERRORS.largeAmount) {
+      valueError = null;
+    }
+
+    if (totalEth.gt(availableEth)) {
       totalError = ERRORS.largeAmount;
     }
 
     this.setState({
-      total: Api.format.fromWei(total).toString(),
+      total: Api.format.fromWei(totalEth).toString(),
       totalError,
-      value
+      value,
+      valueError
     });
   }
 
@@ -378,9 +438,9 @@ export default class Transfer extends Component {
 
     api.eth
       .gasPrice()
-      .then((gasprice) => {
+      .then((gasPrice) => {
         this.setState({
-          gasprice: gasprice.toString()
+          gasPrice: gasPrice.toString()
         }, this.recalculate);
       });
   }

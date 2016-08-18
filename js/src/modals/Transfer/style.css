@@ -35,7 +35,8 @@
 .token img {
   height: 32px;
   width: 32px;
-  margin: 0 0.5em;
+  margin: 0 8px 0 0;
+  z-index: 10;
 }
 
 .token div {
@@ -43,4 +44,21 @@
   line-height: 32px;
   display: inline-block;
   vertical-align: top;
+}
+
+.address input {
+  padding-left: 40px !important;
+}
+
+.floatimg {
+  float: left;
+  margin-right: -100%;
+  margin-top: 34px;
+  z-index: 10;
+}
+
+.grayscale {
+  -webkit-filter: grayscale(1);
+  filter: grayscale(1);
+  opacity: 0.75;
 }

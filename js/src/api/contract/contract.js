@@ -57,6 +57,8 @@ export default class Contract {
 
   at (address) {
     this._address = address;
+    this._named.address = address;
+
     return this._named;
   }
 

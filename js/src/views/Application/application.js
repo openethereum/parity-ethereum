@@ -29,7 +29,7 @@ muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
 
 const ETH_TOKEN = {
   image: 'images/tokens/ethereum-32x32.png',
-  token: 'ΞTH',
+  tag: 'ΞTH',
   type: 'Ethereum'
 };
 
@@ -172,8 +172,6 @@ export default class Application extends Component {
       })
       .then((_tokens) => {
         return Promise.all(_tokens.map((token) => {
-          console.log(token[0], token[1], token[2].toFormat(), token[3]);
-
           const contract = api.newContract(eip20Abi).at(token[0]);
 
           tokens.push({
@@ -181,7 +179,7 @@ export default class Application extends Component {
             format: token[2].toString(),
             image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
             supply: '0',
-            token: token[1],
+            tag: token[1],
             type: token[3],
             contract
           });
@@ -190,8 +188,6 @@ export default class Application extends Component {
         }));
       })
       .then((supplies) => {
-        console.log('supplies', supplies.map((supply) => supply.toFormat()));
-
         supplies.forEach((supply, idx) => {
           tokens[idx].supply = supply.toString();
         });

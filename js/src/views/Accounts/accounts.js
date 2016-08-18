@@ -34,7 +34,7 @@ export default class Accounts extends Component {
   }
 
   renderAccounts () {
-    if (!this.context.accounts.length) {
+    if (!this.context.accounts) {
       return null;
     }
 

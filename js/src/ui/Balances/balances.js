@@ -6,25 +6,17 @@ import Api from '../../api';
 import styles from './style.css';
 
 export default class Balances extends Component {
-  static contextTypes = {
-    api: PropTypes.object,
-    accounts: PropTypes.array,
-    tokens: PropTypes.array
-  }
-
   static propTypes = {
-    address: PropTypes.string.isRequired,
+    account: PropTypes.object,
     onChange: PropTypes.func
   }
 
   render () {
-    const account = this.context.accounts.find((acc) => acc.address === this.props.address);
-
-    if (!account) {
+    if (!this.props.account) {
       return null;
     }
 
-    const balances = account.balances
+    const balances = this.props.account.balances
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
         const token = balance.token;
@@ -35,9 +27,9 @@ export default class Balances extends Component {
         return (
           <div
             className={ styles.balance }
-            key={ token.token }>
+            key={ token.tag }>
             <div>
-              { value } { token.token }
+              { value } { token.tag }
             </div>
             <img
               src={ token.image }

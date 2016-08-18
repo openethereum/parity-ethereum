@@ -5,6 +5,7 @@ import CommunicationContacts from 'material-ui/svg-icons/communication/contacts'
 
 import AddressSelector from '../../AddressSelector';
 import Form, { Input, Select } from '../../../ui/Form';
+import IdentityIcon from '../../../ui/IdentityIcon';
 
 import styles from '../style.css';
 
@@ -26,7 +27,7 @@ export default class Details extends Component {
     extras: PropTypes.bool,
     recipient: PropTypes.string,
     recipientError: PropTypes.string,
-    token: PropTypes.string,
+    tag: PropTypes.string,
     total: PropTypes.string,
     totalError: PropTypes.string,
     value: PropTypes.string,
@@ -39,29 +40,13 @@ export default class Details extends Component {
   }
 
   render () {
-    const label = `amount to transfer (in ${this.props.token})`;
+    const label = `amount to transfer (in ${this.props.tag})`;
 
     return (
       <Form>
         { this.renderTokenSelect() }
-        <AddressSelector
-          onSelect={ this.onSelectRecipient }
-          visible={ this.state.showAddresses } />
-        <div>
-          <Input
-            label='recipient address'
-            hint='the recipient address'
-            error={ this.props.recipientError }
-            value={ this.props.recipient }
-            onChange={ this.onEditRecipient } />
-          <div className={ styles.floatbutton }>
-            <FloatingActionButton
-              primary mini
-              onTouchTap={ this.onContacts }>
-              <CommunicationContacts />
-            </FloatingActionButton>
-          </div>
-        </div>
+        { this.renderAddressSelect() }
+        { this.renderAddress() }
         <div className={ styles.columns }>
           <div>
             <Input
@@ -69,6 +54,7 @@ export default class Details extends Component {
               label={ label }
               hint='the amount to transfer to the recipient'
               value={ this.props.value }
+              error={ this.props.valueError }
               onChange={ this.onEditValue } />
           </div>
           <div>
@@ -83,7 +69,7 @@ export default class Details extends Component {
           <div>
             <Input
               disabled
-              label='total amount'
+              label='total transaction amount'
               hint='the total amount of the transaction'
               error={ this.props.totalError }
               value={ `${this.props.total} ΞTH` } />
@@ -100,6 +86,50 @@ export default class Details extends Component {
     );
   }
 
+  renderAddress () {
+    const iconClass = this.props.recipientError
+      ? `${styles.floatimg} ${styles.grayscale}`
+      : styles.floatimg;
+
+    const iconAddress = this.props.recipientError
+      ? '0x00'
+      : this.props.recipient;
+
+    return (
+      <div className={ styles.address }>
+        <Input
+          label='recipient address'
+          hint='the recipient address'
+          error={ this.props.recipientError }
+          value={ this.props.recipient }
+          onChange={ this.onEditRecipient } />
+        <div className={ iconClass }>
+          <IdentityIcon
+            inline center
+            address={ iconAddress } />
+        </div>
+        <div className={ styles.floatbutton }>
+          <FloatingActionButton
+            primary mini
+            onTouchTap={ this.onContacts }>
+            <CommunicationContacts />
+          </FloatingActionButton>
+        </div>
+      </div>
+    );
+  }
+
+  renderAddressSelect () {
+    if (!this.state.showAddresses) {
+      return null;
+    }
+
+    return (
+      <AddressSelector
+        onSelect={ this.onSelectRecipient } />
+    );
+  }
+
   renderTokenSelect () {
     const account = this.context.accounts.find((acc) => acc.address === this.props.address);
     const items = account.balances.map((balance) => {
@@ -113,9 +143,9 @@ export default class Details extends Component {
 
       return (
         <MenuItem
-          key={ token.token }
+          key={ token.tag }
           primaryText={ token.type }
-          value={ token.token }
+          value={ token.tag }
           label={ label }
           leftIcon={ <img src={ token.image } /> } />
       );
@@ -125,7 +155,7 @@ export default class Details extends Component {
       <Select
         label='type of transfer'
         hint='type of token to transfer'
-        value={ this.props.token }
+        value={ this.props.tag }
         onChange={ this.onChangeToken }>
         { items }
       </Select>
@@ -134,7 +164,7 @@ export default class Details extends Component {
 
   onChangeToken = (event, value) => {
     const account = this.context.accounts.find((acc) => acc.address === this.props.address);
-    this.props.onChange('token', account.balances[value].token.token);
+    this.props.onChange('tag', account.balances[value].token.tag);
   }
 
   onSelectRecipient = (recipient) => {

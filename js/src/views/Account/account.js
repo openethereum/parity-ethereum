@@ -16,7 +16,8 @@ import styles from './style.css';
 
 export default class Account extends Component {
   static contextTypes = {
-    api: React.PropTypes.object
+    api: React.PropTypes.object,
+    accounts: PropTypes.array
   }
 
   static propTypes = {
@@ -25,7 +26,6 @@ export default class Account extends Component {
 
   state = {
     name: 'Unnamed',
-    balances: [],
     fundDialog: false,
     transferDialog: false
   }
@@ -36,6 +36,12 @@ export default class Account extends Component {
 
   render () {
     const address = this.props.params.address;
+    const account = this.context.accounts.find((account) => account.address === address);
+
+    if (!account) {
+      return null;
+    }
+
     const title = (
       <span>
         <span>{ this.state.name || 'Unnamed' }</span>
@@ -47,15 +53,8 @@ export default class Account extends Component {
 
     return (
       <div>
-        <FundAccount
-          address={ address }
-          onClose={ this.onFundAccountClose }
-          visible={ this.state.fundDialog } />
-        <Transfer
-          address={ address }
-          balance={ this.state.balances[0] }
-          onClose={ this.onTransferClose }
-          visible={ this.state.transferDialog } />
+        { this.renderFundDialog() }
+        { this.renderTransferDialog() }
         <Actions
           onFundAccount={ this.onFundAccountClick }
           onTransfer={ this.onTransferClick } />
@@ -80,12 +79,39 @@ export default class Account extends Component {
             </FormWrap>
           </Form>
           <Balances
-            address={ address }
+            account={ account }
             onChange={ this.onChangeBalances } />
         </Container>
         <Transactions
           address={ address } />
       </div>
+    );
+  }
+
+  renderFundDialog () {
+    if (!this.state.fundDialog) {
+      return null;
+    }
+
+    return (
+      <FundAccount
+        address={ this.props.params.address }
+        onClose={ this.onFundAccountClose } />
+    );
+  }
+
+  renderTransferDialog () {
+    if (!this.state.transferDialog) {
+      return null;
+    }
+
+    const address = this.props.params.address;
+    const account = this.context.accounts.find((account) => account.address === address);
+
+    return (
+      <Transfer
+        account={ account }
+        onClose={ this.onTransferClose } />
     );
   }
 

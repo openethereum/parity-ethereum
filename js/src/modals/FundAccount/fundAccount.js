@@ -10,7 +10,6 @@ const STAGE_NAMES = ['fund account'];
 export default class FundAccount extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
-    visible: PropTypes.bool.isRequired,
     onClose: PropTypes.func
   }
 
@@ -24,7 +23,7 @@ export default class FundAccount extends Component {
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
         steps={ STAGE_NAMES }
-        visible={ this.props.visible }>
+        visible>
         <div>
           Placeholder until such time as we have the ShapeShift.io integration going (just time, a scarce commodity)
         </div>

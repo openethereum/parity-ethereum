@@ -19,12 +19,20 @@ export default class IdentityIcon extends Component {
     this.updateIcon(this.props.address);
   }
 
+  componentWillReceiveProps (newProps) {
+    if (newProps.address === this.props.address) {
+      return;
+    }
+
+    this.updateIcon(newProps.address);
+  }
+
   updateIcon (address) {
     this.setState({
       iconsrc: blockies({
         seed: address.toLowerCase(),
         size: 8,
-        scale: this.props.inline ? 3 : 7
+        scale: this.props.inline ? 4 : 7
       }).toDataURL()
     });
   }

@@ -22,6 +22,11 @@ export default class AccountSummary extends Component {
 
   render () {
     const account = this.props.account;
+
+    if (!account) {
+      return null;
+    }
+
     const viewLink = `/account/${account.address}`;
 
     return (
@@ -32,7 +37,7 @@ export default class AccountSummary extends Component {
           title={ <Link to={ viewLink }>{ account.name || 'Unnamed' }</Link> }
           byline={ account.address } />
         <Balances
-          address={ account.address }
+          account={ account }
           tokens={ this.props.tokens } />
         { this.props.children }
       </Container>
