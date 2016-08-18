@@ -122,11 +122,11 @@ pub mod migrations;
 pub mod miner;
 pub mod snapshot;
 pub mod action_params;
+pub mod db;
 #[macro_use] pub mod evm;
 
 mod cache_manager;
 mod blooms;
-mod db;
 mod common;
 mod basic_types;
 mod env_info;
