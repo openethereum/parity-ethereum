@@ -9,22 +9,12 @@ import styles from './style.css';
 
 export default class Accounts extends Component {
   static contextTypes = {
-    api: React.PropTypes.object
+    api: React.PropTypes.object,
+    accounts: React.PropTypes.array
   }
 
   state = {
-    accounts: [],
     newDialog: false
-  }
-
-  componentDidMount () {
-    // TODO: we should be getting data from a provider
-    this._isMounted = true;
-    this.retrieveAccounts();
-  }
-
-  componentWillUnmount () {
-    this._isMounted = false;
   }
 
   render () {
@@ -44,7 +34,7 @@ export default class Accounts extends Component {
   }
 
   renderAccounts () {
-    if (!this.state.accounts.length) {
+    if (!this.context.accounts.length) {
       return null;
     }
 
@@ -54,19 +44,21 @@ export default class Accounts extends Component {
         text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
     );
 
-    return this.state.accounts.map((account, idx) => {
-      return (
-        <div
-          className={ styles.account }
-          key={ account.address }>
-          <AccountSummary
-            account={ account }
-            tokens={ this.state.tokens }>
-            { idx === 0 ? firstTooltip : null }
-          </AccountSummary>
-        </div>
-      );
-    });
+    return this.context.accounts
+      .filter((acc) => acc.uuid)
+      .map((account, idx) => {
+        return (
+          <div
+            className={ styles.account }
+            key={ account.address }>
+            <AccountSummary
+              account={ account }
+              tokens={ this.state.tokens }>
+              { idx === 0 ? firstTooltip : null }
+            </AccountSummary>
+          </div>
+        );
+      });
   }
 
   onNewAccountClick = () => {
@@ -78,37 +70,5 @@ export default class Accounts extends Component {
   }
 
   onNewAccountUpdate = () => {
-  }
-
-  retrieveAccounts () {
-    if (!this._isMounted) {
-      return;
-    }
-
-    const api = this.context.api;
-
-    Promise
-      .all([
-        api.personal.listAccounts(),
-        api.personal.accountsInfo()
-      ])
-      .then(([addresses, infos, registryAddress]) => {
-        this.setState({
-          accounts: addresses
-            .filter((address) => infos[address].uuid)
-            .map((address) => {
-              const info = infos[address];
-
-              return {
-                address: address,
-                name: info.name,
-                uuid: info.uuid,
-                meta: info.meta
-              };
-            })
-        });
-
-        setTimeout(() => this.retrieveAccounts(), 2500);
-      });
   }
 }
