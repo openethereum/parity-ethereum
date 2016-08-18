@@ -5,6 +5,7 @@ import darkBaseTheme from 'material-ui/styles/baseThemes/darkBaseTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
 import Api from '../../api';
+import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
 import { TooltipOverlay } from '../../ui/Tooltip';
 
 import { FirstRun } from '../../modals';
@@ -29,8 +30,8 @@ muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
 export default class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
-    muiTheme: PropTypes.object,
-    tooltips: PropTypes.object
+    tokens: PropTypes.array,
+    muiTheme: PropTypes.object
   }
 
   static propTypes = {
@@ -39,7 +40,8 @@ export default class Application extends Component {
 
   state = {
     showFirst: false,
-    accounts: []
+    accounts: [],
+    tokens: []
   }
 
   componentWillMount () {
@@ -63,19 +65,81 @@ export default class Application extends Component {
 
   getChildContext () {
     return {
-      api: api,
-      muiTheme: muiTheme
+      api,
+      tokens: this.state.tokens,
+      muiTheme
     };
   }
 
   retrieveInfo () {
-    api.personal
-      .listAccounts()
-      .then((accounts) => {
+    const contracts = {};
+    const tokens = [];
+
+    Promise
+      .all([
+        api.personal.listAccounts(),
+        api.ethcore.registryAddress()
+      ])
+      .then(([accounts, registryAddress]) => {
         this.setState({
           accounts,
           showFirst: accounts.length === 0
         });
+
+        contracts.registry = api.newContract(registryAbi).at(registryAddress);
+
+        return contracts.registry
+          .getAddress.call({}, [Api.format.sha3('tokenreg'), 'A']);
+      })
+      .then((tokenregAddress) => {
+        contracts.tokenreg = api.newContract(tokenRegAbi).at(tokenregAddress);
+
+        return contracts.tokenreg
+          .tokenCount.call();
+      })
+      .then((tokenCount) => {
+        const promises = [];
+
+        while (promises.length < tokenCount.toNumber()) {
+          promises.push(contracts.tokenreg.token.call({}, [promises.length]));
+        }
+
+        return Promise.all(promises);
+      })
+      .then((_tokens) => {
+        return Promise
+          .all(_tokens.map((token) => {
+            console.log(token[0], token[1], token[2].toFormat(), token[3]);
+
+            const contract = api.newContract(eip20Abi).at(token[0]);
+
+            tokens.push({
+              address: token[0],
+              format: token[2].toString(),
+              image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
+              supply: '0',
+              token: token[1],
+              type: token[3],
+              contract
+            });
+
+            return contract.totalSupply.call();
+          }));
+      })
+      .then((supplies) => {
+        console.log('supplies', supplies.map((supply) => supply.toFormat()));
+
+        supplies.forEach((supply, idx) => {
+          tokens[idx].supply = supply.toString();
+        });
+
+        this.setState({
+          tokens,
+          contracts
+        });
+      })
+      .catch((error) => {
+        console.error(error);
       });
   }
 

@@ -7,12 +7,12 @@ import styles from './style.css';
 
 export default class Balances extends Component {
   static contextTypes = {
-    api: React.PropTypes.object
+    api: PropTypes.object,
+    tokens: PropTypes.array
   }
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    tokens: PropTypes.array,
     onChange: PropTypes.func
   }
 
@@ -20,7 +20,7 @@ export default class Balances extends Component {
     balances: []
   }
 
-  componentWillMount () {
+  componentDidMount () {
     this.getBalances();
   }
 
@@ -64,13 +64,15 @@ export default class Balances extends Component {
     this.props.onChange(this.state.balances);
   }
 
-  getBalances () {
+  getBalances = () => {
     const api = this.context.api;
-    const calls = (this.props.tokens || []).map((token) => token.contract.balanceOf.call({}, [this.props.address]));
+    const calls = this.context.tokens.map((token) => token.contract.balanceOf.call({}, [this.props.address]));
 
     api.eth
       .getBalance(this.props.address)
       .then((balance) => {
+        setTimeout(this.getBalances, 2500);
+
         const balances = [{
           image: 'images/tokens/ethereum-32x32.png',
           token: 'ΞTH',
@@ -83,7 +85,7 @@ export default class Balances extends Component {
           .then((tokenBalances) => {
             if (tokenBalances && tokenBalances.length) {
               tokenBalances.forEach((balance, idx) => {
-                const token = this.props.tokens[idx];
+                const token = this.context.tokens[idx];
 
                 if (token) {
                   balances.push({

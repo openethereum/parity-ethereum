@@ -1,10 +1,8 @@
 import React, { Component } from 'react';
 
-import Api from '../../api';
 import AccountSummary from './AccountSummary';
 import Actions from './Actions';
 import { CreateAccount } from '../../modals';
-import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
 import Tooltip from '../../ui/Tooltip';
 
 import styles from './style.css';
@@ -16,7 +14,6 @@ export default class Accounts extends Component {
 
   state = {
     accounts: [],
-    tokens: [],
     newDialog: false
   }
 
@@ -89,88 +86,29 @@ export default class Accounts extends Component {
     }
 
     const api = this.context.api;
-    let accounts = [];
-    const contracts = {};
-    const tokens = [];
 
     Promise
       .all([
         api.personal.listAccounts(),
-        api.personal.accountsInfo(),
-        api.ethcore.registryAddress()
+        api.personal.accountsInfo()
       ])
       .then(([addresses, infos, registryAddress]) => {
-        accounts = addresses
-          .filter((address) => infos[address].uuid)
-          .map((address) => {
-            const info = infos[address];
-
-            return {
-              address: address,
-              name: info.name,
-              uuid: info.uuid,
-              meta: info.meta
-            };
-          });
-
-        contracts.registry = api.newContract(registryAbi).at(registryAddress);
-
-        return contracts.registry
-          .getAddress
-          .call({}, [Api.format.sha3('tokenreg'), 'A']);
-      })
-      .then((tokenregAddress) => {
-        contracts.tokenreg = api.newContract(tokenRegAbi).at(tokenregAddress);
-
-        return contracts.tokenreg
-          .tokenCount
-          .call();
-      })
-      .then((tokenCount) => {
-        const promises = [];
-
-        while (promises.length < tokenCount.toNumber()) {
-          promises.push(contracts.tokenreg.token.call({}, [promises.length]));
-        }
-
-        return Promise.all(promises);
-      })
-      .then((_tokens) => {
-        return Promise.all(_tokens.map((token) => {
-          console.log(token[0], token[1], token[2].toFormat(), token[3]);
-
-          const contract = api.newContract(eip20Abi).at(token[0]);
-
-          tokens.push({
-            address: token[0],
-            format: token[2].toString(),
-            image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
-            supply: '0',
-            token: token[1],
-            type: token[3],
-            contract
-          });
-
-          return contract.totalSupply.call();
-        }));
-      })
-      .then((supplies) => {
-        console.log('supplies', supplies.map((supply) => supply.toFormat()));
-
-        supplies.forEach((supply, idx) => {
-          tokens[idx].supply = supply.toString();
-        });
-
         this.setState({
-          accounts,
-          contracts,
-          tokens
+          accounts: addresses
+            .filter((address) => infos[address].uuid)
+            .map((address) => {
+              const info = infos[address];
+
+              return {
+                address: address,
+                name: info.name,
+                uuid: info.uuid,
+                meta: info.meta
+              };
+            })
         });
 
         setTimeout(() => this.retrieveAccounts(), 2500);
-      })
-      .catch((error) => {
-        console.error(error);
       });
   }
 }
