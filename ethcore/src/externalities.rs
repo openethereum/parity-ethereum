@@ -16,11 +16,10 @@
 
 //! Transaction Execution environment.
 use common::*;
-use state::*;
+use state::{State, Substate};
 use engines::Engine;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
-use substate::*;
 use types::executed::CallType;
 use trace::{Tracer, VMTracer};
 
@@ -299,10 +298,9 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 #[cfg(test)]
 mod tests {
 	use common::*;
-	use state::*;
 	use engines::Engine;
-	use evm::{Ext};
-	use substate::*;
+	use evm::Ext;
+	use state::{State, Substate};
 	use tests::helpers::*;
 	use devtools::GuardedTempResult;
 	use super::*;

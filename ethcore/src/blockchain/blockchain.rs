@@ -41,6 +41,16 @@ pub trait BlockProvider {
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool;
 
+	/// Get the first block which this chain holds.
+	/// Any queries of blocks which precede this one are not guaranteed to
+	/// succeed.
+	fn first_block(&self) -> H256;
+
+	/// Get the number of the first block.
+	fn first_block_number(&self) -> BlockNumber {
+		self.block_number(&self.first_block()).expect("First block always stored; qed")
+	}
+
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes>;
 
@@ -144,6 +154,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 pub struct BlockChain {
 	// All locks must be captured in the order declared here.
 	blooms_config: bc::Config,
+	first_block: H256,
 
 	best_block: RwLock<BestBlock>,
 
@@ -172,6 +183,10 @@ impl BlockProvider for BlockChain {
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool {
 		self.db.exists_with_cache(db::COL_EXTRA, &self.block_details, hash)
+	}
+
+	fn first_block(&self) -> H256 {
+		self.first_block
 	}
 
 	/// Get raw block data
@@ -325,11 +340,12 @@ impl BlockChain {
 		// 400 is the avarage size of the key
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
-		let bc = BlockChain {
+		let mut bc = BlockChain {
 			blooms_config: bc::Config {
 				levels: LOG_BLOOMS_LEVELS,
 				elements_per_index: LOG_BLOOMS_ELEMENTS_PER_INDEX,
 			},
+			first_block: H256::zero(),
 			best_block: RwLock::new(BestBlock::default()),
 			block_headers: RwLock::new(HashMap::new()),
 			block_bodies: RwLock::new(HashMap::new()),
@@ -370,7 +386,9 @@ impl BlockChain {
 
 				batch.write(db::COL_EXTRA, &hash, &details);
 				batch.write(db::COL_EXTRA, &header.number(), &hash);
+
 				batch.put(db::COL_EXTRA, b"best", &hash);
+				batch.put(db::COL_EXTRA, b"first", &hash);
 				bc.db.write(batch).expect("Low level database error. Some issue with disk?");
 				hash
 			}
@@ -381,6 +399,34 @@ impl BlockChain {
 			let best_block_number = bc.block_number(&best_block_hash).unwrap();
 			let best_block_total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
 			let best_block_rlp = bc.block(&best_block_hash).unwrap();
+
+			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map_or(Vec::new(), |v| v.to_vec());
+
+			// binary search for the first block.
+			if raw_first.is_empty() {
+				let (mut f, mut hash) = (best_block_number, best_block_hash);
+				let mut l = 0;
+
+				loop {
+					if l >= f { break; }
+
+					let step = (f - l) >> 1;
+					let m = l + step;
+
+					match bc.block_hash(m) {
+						Some(h) => { f = m; hash = h },
+						None => { l = m + 1 },
+					}
+				}
+
+				let batch = db.transaction();
+				batch.put(db::COL_EXTRA, b"first", &hash);
+				db.write(batch).expect("Low level database error.");
+
+				bc.first_block = hash;
+			} else {
+				bc.first_block = H256::from_slice(&raw_first);
+			}
 
 			// and write them
 			let mut best_block = bc.best_block.write();
