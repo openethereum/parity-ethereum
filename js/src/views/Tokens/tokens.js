@@ -12,40 +12,33 @@ export default class Tokens extends Component {
 
   componentDidMount () {
     const api = this.context.api;
+    this.contracts = {};
 
     api.ethcore
       .registryAddress()
       .then((address) => {
-        console.log('registry', address);
-
-        this.registry = api.newContract(registry).at(address);
-        return this.registry.named
+        this.contracts.registry = api.newContract(registry).at(address);
+        return this.contracts.registry.named
           .getAddress
           .call({}, [Api.format.sha3('tokenreg'), 'A']);
       })
       .then((address) => {
-        console.log('tokenreg', address);
-
-        this.tokenreg = api.newContract(tokenreg).at(address);
-        return this.tokenreg.named
+        this.contracts.tokenreg = api.newContract(tokenreg).at(address);
+        return this.contracts.tokenreg.named
           .tokenCount
           .call();
       })
       .then((tokenCount) => {
-        console.log('tokenCount', tokenCount.toNumber());
-
         const promises = [];
 
         while (promises.length < tokenCount.toNumber()) {
-          promises.push(this.tokenreg.named.token.call({}, [promises.length]));
+          promises.push(this.contracts.tokenreg.named.token.call({}, [promises.length]));
         }
 
         return Promise.all(promises);
       })
       .then((tokens) => {
-        console.log('tokens', tokens);
-
-        const eip20s = [];
+        this.eip20s = [];
         const promises = [];
 
         tokens.forEach((token) => {
@@ -53,7 +46,12 @@ export default class Tokens extends Component {
 
           const contract = api.newContract(eip20).at(token[0]);
 
-          eip20s.push(contract);
+          this.eip20s.push({
+            token: token[1],
+            type: token[3],
+            image: `images/${token[3].toLowerCase()}-32x32.png`,
+            contract
+          });
           promises.push(contract.named.totalSupply.call());
         });
 
