@@ -82,7 +82,7 @@
 
 use std::cmp::Ordering;
 use std::cmp;
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
 use util::{Address, H256, Uint, U256};
 use util::table::Table;
 use transaction::*;
@@ -226,6 +226,7 @@ impl VerifiedTransaction {
 struct TransactionSet {
 	by_priority: BTreeSet<TransactionOrder>,
 	by_address: Table<Address, U256, TransactionOrder>,
+	by_gas_price: BTreeMap<U256, HashSet<H256>>,
 	limit: usize,
 }
 
@@ -233,16 +234,19 @@ impl TransactionSet {
 	/// Inserts `TransactionOrder` to this set
 	fn insert(&mut self, sender: Address, nonce: U256, order: TransactionOrder) -> Option<TransactionOrder> {
 		self.by_priority.insert(order.clone());
+		assert!(Self::insert_item(&mut self.by_gas_price, order.gas_price, order.hash.clone()), "transaction of same hash cannot already exist in queue; qed");
 		let r = self.by_address.insert(sender, nonce, order);
 		// If transaction was replaced remove it from priority queue
 		if let Some(ref old_order) = r {
 			self.by_priority.remove(old_order);
+			assert!(Self::remove_item(&mut self.by_gas_price, &old_order.gas_price, &old_order.hash),
+				"hash is in `by_address`; all transactions' gas_prices in `by_address` must be in `by_gas_limit`; qed");
 		}
 		assert_eq!(self.by_priority.len(), self.by_address.len());
 		r
 	}
 
-	/// Remove low priority transactions if there is more then specified by given `limit`.
+	/// Remove low priority transactions if there is more than specified by given `limit`.
 	///
 	/// It drops transactions from this set but also removes associated `VerifiedTransaction`.
 	/// Returns addresses and lowest nonces of transactions removed because of limit.
@@ -267,7 +271,7 @@ impl TransactionSet {
 					.expect("Transaction has just been found in `by_priority`; so it is in `by_address` also.");
 
 				by_hash.remove(&order.hash)
-					.expect("Hash found in `by_priorty` matches the one dropped; so it is included in `by_hash`");
+					.expect("hash is in `by_priorty`; all hashes in `by_priority` must be in `by_hash`; qed");
 
 				let min = removed.get(&sender).map_or(nonce, |val| cmp::min(*val, nonce));
 				removed.insert(sender, min);
@@ -278,6 +282,8 @@ impl TransactionSet {
 	/// Drop transaction from this set (remove from `by_priority` and `by_address`)
 	fn drop(&mut self, sender: &Address, nonce: &U256) -> Option<TransactionOrder> {
 		if let Some(tx_order) = self.by_address.remove(sender, nonce) {
+			assert!(Self::remove_item(&mut self.by_gas_price, &tx_order.gas_price, &tx_order.hash),
+				"hash is in `by_address`; all transactions' gas_prices in `by_address` must be in `by_gas_limit`; qed");
 			self.by_priority.remove(&tx_order);
 			assert_eq!(self.by_priority.len(), self.by_address.len());
 			return Some(tx_order);
@@ -290,12 +296,48 @@ impl TransactionSet {
 	fn clear(&mut self) {
 		self.by_priority.clear();
 		self.by_address.clear();
+		self.by_gas_price.clear();
 	}
 
 	/// Sets new limit for number of transactions in this `TransactionSet`.
 	/// Note the limit is not applied (no transactions are removed) by calling this method.
 	fn set_limit(&mut self, limit: usize) {
 		self.limit = limit;
+	}
+
+	/// Get the minimum gas price that we can accept into this queue that wouldn't cause the transaction to
+	/// immediately be dropped. 0 if the queue isn't at capacity; 1 plus the lowest if it is. 
+	fn gas_price_entry_limit(&self) -> U256 {
+		match self.by_gas_price.keys().next() {
+			Some(k) if self.by_priority.len() >= self.limit => *k + 1.into(),
+			_ => U256::default(),
+		}
+	}
+
+	/// Insert an item into a BTreeMap/HashSet "multimap".
+	fn insert_item(into: &mut BTreeMap<U256, HashSet<H256>>, gas_price: U256, hash: H256) -> bool {
+		into.entry(gas_price).or_insert_with(Default::default).insert(hash)
+	}
+
+	/// Remove an item from a BTreeMap/HashSet "multimap".
+	/// Returns true if the item was removed successfully.
+	fn remove_item(from: &mut BTreeMap<U256, HashSet<H256>>, gas_price: &U256, hash: &H256) -> bool {
+		if let Some(mut hashes) = from.get_mut(gas_price) {
+			let only_one_left = hashes.len() == 1;
+			if !only_one_left {
+				// Operation may be ok: only if hash is in gas-price's Set.
+				return hashes.remove(hash);
+			}
+			if hashes.iter().next().unwrap() != hash {
+				// Operation failed: hash not the single item in gas-price's Set.
+				return false;
+			}
+		} else {
+			// Operation failed: gas-price not found in Map. 
+			return false;
+		}
+		// Operation maybe ok: only if hash not found in gas-price Set.
+		from.remove(gas_price).is_some()
 	}
 }
 
@@ -315,7 +357,6 @@ pub struct AccountDetails {
 	/// Current account balance
 	pub balance: U256,
 }
-
 
 /// Transactions with `gas > (gas_limit + gas_limit * Factor(in percents))` are not imported to the queue.
 const GAS_LIMIT_HYSTERESIS: usize = 10; // %
@@ -355,12 +396,14 @@ impl TransactionQueue {
 		let current = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
+			by_gas_price: Default::default(),
 			limit: limit,
 		};
 
 		let future = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
+			by_gas_price: Default::default(),
 			limit: limit,
 		};
 
@@ -400,6 +443,12 @@ impl TransactionQueue {
 		self.minimal_gas_price = min_gas_price;
 	}
 
+	/// Get one more than the lowest gas price in the queue iff the pool is
+	/// full, otherwise 0.
+	pub fn effective_minimum_gas_price(&self) -> U256 {
+		self.current.gas_price_entry_limit()
+	}
+
 	/// Sets new gas limit. Transactions with gas slightly (`GAS_LIMIT_HYSTERESIS`) above the limit won't be imported.
 	/// Any transaction already imported to the queue is not affected.
 	pub fn set_gas_limit(&mut self, gas_limit: U256) {
@@ -431,7 +480,7 @@ impl TransactionQueue {
 
 		trace!(target: "txqueue", "Importing: {:?}", tx.hash());
 
-		if tx.gas_price < self.minimal_gas_price && origin != TransactionOrigin::Local {
+		if (tx.gas_price < self.minimal_gas_price || tx.gas_price < self.effective_minimum_gas_price()) && origin != TransactionOrigin::Local {
 			trace!(target: "txqueue",
 				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
 				tx.hash(),

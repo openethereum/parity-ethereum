@@ -170,7 +170,7 @@ Sealing/Mining Options:
                            lenient - Same as strict when mining, and cheap
                            when not [default: cheap].
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
-                           [default: 0.005]. The minimum gas price is set
+                           [default: 0]. The minimum gas price is set
                            accordingly.
   --usd-per-eth SOURCE     USD value of a single ETH. SOURCE may be either an
                            amount in USD, a web service or 'auto' to use each
