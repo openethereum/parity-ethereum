@@ -323,7 +323,7 @@ export default class Transfer extends Component {
   _sendToken () {
     const token = this.props.account.balances.find((balance) => balance.token.tag === this.state.tag).token;
 
-    return token.contract.transfer
+    return token.contract.instance.transfer
       .sendTransaction({
         from: this.props.account.address,
         to: token.address
@@ -362,7 +362,7 @@ export default class Transfer extends Component {
   _estimateGasToken () {
     const token = this.props.account.balances.find((balance) => balance.token.tag === this.state.tag).token;
 
-    return token.contract.transfer
+    return token.contract.instance.transfer
       .estimateGas({
         from: this.props.account.address,
         to: token.address

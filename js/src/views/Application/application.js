@@ -128,7 +128,7 @@ export default class Application extends Component {
           });
 
           this.state.tokens.forEach((token) => {
-            promises.push(token.contract.balanceOf.call({}, [accounts[idx].address]));
+            promises.push(token.contract.instance.balanceOf.call({}, [accounts[idx].address]));
           });
         });
 
@@ -166,28 +166,30 @@ export default class Application extends Component {
     api.ethcore
       .registryAddress()
       .then((registryAddress) => {
-        contracts.registry = api.newContract(registryAbi).at(registryAddress);
+        contracts.registry = api.newContract(registryAbi, registryAddress);
+        console.log(contracts.registry);
 
-        return contracts.registry
+        return contracts.registry.instance
           .getAddress.call({}, [Api.format.sha3('tokenreg'), 'A']);
       })
       .then((tokenregAddress) => {
-        contracts.tokenreg = api.newContract(tokenRegAbi).at(tokenregAddress);
+        contracts.tokenreg = api.newContract(tokenRegAbi, tokenregAddress);
 
-        return contracts.tokenreg.tokenCount.call();
+        return contracts.tokenreg.instance.tokenCount.call();
       })
       .then((tokenCount) => {
         const promises = [];
 
         while (promises.length < tokenCount.toNumber()) {
-          promises.push(contracts.tokenreg.token.call({}, [promises.length]));
+          promises.push(contracts.tokenreg.instance.token.call({}, [promises.length]));
         }
 
         return Promise.all(promises);
       })
       .then((_tokens) => {
         return Promise.all(_tokens.map((token) => {
-          const contract = api.newContract(eip20Abi).at(token[0]);
+          const contract = api.newContract(eip20Abi);
+          contract.at(token[0]);
 
           tokens.push({
             address: token[0],
@@ -202,7 +204,7 @@ export default class Application extends Component {
             contract
           });
 
-          return contract.totalSupply.call();
+          return contract.instance.totalSupply.call();
         }));
       })
       .then((supplies) => {

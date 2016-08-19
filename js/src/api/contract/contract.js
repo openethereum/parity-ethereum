@@ -17,13 +17,13 @@ export default class Contract {
     this._functions = this._abi.functions.map((func) => this._bindFunction(func));
     this._events = this._abi.events;
 
-    this._named = {};
+    this._instance = {};
 
     this._events.forEach((evt) => {
-      this._named[evt.name] = evt;
+      this._instance[evt.name] = evt;
     });
     this._functions.forEach((fn) => {
-      this._named[fn.name] = fn;
+      this._instance[fn.name] = fn;
     });
   }
 
@@ -43,8 +43,8 @@ export default class Contract {
     return this._functions;
   }
 
-  get named () {
-    return this._named;
+  get instance () {
+    return this._instance;
   }
 
   get eth () {
@@ -57,9 +57,7 @@ export default class Contract {
 
   at (address) {
     this._address = address;
-    this._named.address = address;
-
-    return this._named;
+    return this;
   }
 
   deploy (code, values) {
