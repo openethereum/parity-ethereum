@@ -31,7 +31,6 @@ ethcore-ipc = { path = "../ipc/rpc" }
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
-syntex = "*"
 
 [features]
 default = ["serde_codegen"]
