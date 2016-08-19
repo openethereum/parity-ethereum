@@ -20,9 +20,7 @@ export default class Extras extends Component {
   }
 
   render () {
-    const gasLabel = this.props.isEth
-      ? 'gas amount'
-      : `gas amount (estimated: ${this.props.gasEst})`;
+    const gasLabel = `gas amount (estimated: ${this.props.gasEst})`;
 
     return (
       <Form>

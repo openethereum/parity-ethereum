@@ -263,7 +263,7 @@ export default class Transfer extends Component {
     this.setState({
       recipient,
       recipientError
-    });
+    }, this.recalculateGas);
   }
 
   _onUpdateTag (tag) {
@@ -279,7 +279,7 @@ export default class Transfer extends Component {
     this.setState({
       value,
       valueError
-    }, this.recalculate);
+    }, this.recalculateGas);
   }
 
   onUpdateDetails = (type, value) => {
@@ -339,7 +339,10 @@ export default class Transfer extends Component {
     this.setState({
       sending: true
     }, () => {
-      (this.state.isEth ? this._sendEth() : this._sendToken()).then((txhash) => {
+      (this.state.isEth
+        ? this._sendEth()
+        : this._sendToken()
+      ).then((txhash) => {
         console.log('transaction', txhash);
         this.setState({
           sending: false,
@@ -357,29 +360,45 @@ export default class Transfer extends Component {
     });
   }
 
-  recalculateGas = () => {
+  _estimateGasToken () {
     const token = this.props.account.balances.find((balance) => balance.token.tag === this.state.tag).token;
 
-    if (this.state.isEth) {
-      return this.setState({
-        gas: DEFAULT_GAS
-      }, this.recalculate);
-    }
-
-    token.contract.transfer
+    return token.contract.transfer
       .estimateGas({
         from: this.props.account.address,
         to: token.address
       }, [
         this.state.recipient,
-        new BigNumber(this.state.value).mul(token.format).toString()
-      ])
-      .then((gas) => {
-        this.setState({
-          gas: gas.add(CONTRACT_GAS).toString(),
-          gasEst: gas.toFormat()
-        }, this.recalculate);
+        new BigNumber(this.state.value || 0).mul(token.format).toString()
+      ]);
+  }
+
+  _estimateGasEth () {
+    return this.context.api.eth
+      .estimateGas({
+        from: this.props.account.address,
+        to: this.state.recipient,
+        value: Api.format.toWei(this.state.value || 0)
       });
+  }
+
+  recalculateGas = () => {
+    (this.state.isEth
+      ? this._estimateGasEth()
+      : this._estimateGasToken()
+    ).then((_value) => {
+      const extraGas = this.state.isEth ? 0 : CONTRACT_GAS;
+      let gas = _value.add(extraGas);
+
+      if (gas.add(extraGas).lt(DEFAULT_GAS)) {
+        gas = new BigNumber(DEFAULT_GAS);
+      }
+
+      this.setState({
+        gas: gas.toString(),
+        gasEst: _value.toFormat()
+      }, this.recalculate);
+    });
   }
 
   recalculate = () => {
