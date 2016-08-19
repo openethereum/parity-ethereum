@@ -29,7 +29,8 @@ muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
 
 const ETH_TOKEN = {
   images: {
-    small: 'images/tokens/ethereum-32x32.png'
+    small: 'images/contracts/ethereum-32.png',
+    normal: 'images/contracts/ethereum-56.png'
   },
   name: 'Ethereum',
   tag: 'ΞTH'
@@ -192,7 +193,8 @@ export default class Application extends Component {
             address: token[0],
             format: token[2].toString(),
             images: {
-              small: `images/tokens/${token[3].toLowerCase()}-32x32.png`
+              small: `images/contracts/${token[3].toLowerCase()}-32.png`,
+              normal: `images/contracts/${token[3].toLowerCase()}-56.png`
             },
             supply: '0',
             tag: token[1],
