@@ -137,14 +137,14 @@ export default class Details extends Component {
       const label = (
         <div className={ styles.token }>
           <img src={ token.image } />
-          <div>{ token.type }</div>
+          <div>{ token.name }</div>
         </div>
       );
 
       return (
         <MenuItem
           key={ token.tag }
-          primaryText={ token.type }
+          primaryText={ token.name }
           value={ token.tag }
           label={ label }
           leftIcon={ <img src={ token.image } /> } />

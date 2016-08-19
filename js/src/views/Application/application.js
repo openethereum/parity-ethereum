@@ -29,8 +29,8 @@ muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
 
 const ETH_TOKEN = {
   image: 'images/tokens/ethereum-32x32.png',
-  tag: 'ΞTH',
-  type: 'Ethereum'
+  name: 'Ethereum',
+  tag: 'ΞTH'
 };
 
 export default class Application extends Component {
@@ -48,6 +48,7 @@ export default class Application extends Component {
   state = {
     showFirst: false,
     accounts: [],
+    contracts: [],
     tokens: []
   }
 
@@ -189,7 +190,7 @@ export default class Application extends Component {
             image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
             supply: '0',
             tag: token[1],
-            type: token[3],
+            name: token[3],
             contract
           });
 
@@ -202,8 +203,16 @@ export default class Application extends Component {
         });
 
         this.setState({
-          contracts,
-          tokens
+          tokens,
+          contracts: Object.keys(contracts).map((name) => {
+            const contract = contracts[name];
+
+            return {
+              name,
+              contract,
+              address: contract.address
+            };
+          })
         });
       });
   }
