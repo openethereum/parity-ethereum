@@ -28,7 +28,9 @@ muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
 
 const ETH_TOKEN = {
-  image: 'images/tokens/ethereum-32x32.png',
+  images: {
+    small: 'images/tokens/ethereum-32x32.png'
+  },
   name: 'Ethereum',
   tag: 'ΞTH'
 };
@@ -37,6 +39,7 @@ export default class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
     accounts: PropTypes.array,
+    contracts: PropTypes.array,
     tokens: PropTypes.array,
     muiTheme: PropTypes.object
   }
@@ -85,6 +88,7 @@ export default class Application extends Component {
     return {
       api,
       accounts: this.state.accounts,
+      contracts: this.state.contracts,
       tokens: this.state.tokens,
       muiTheme
     };
@@ -187,7 +191,9 @@ export default class Application extends Component {
           tokens.push({
             address: token[0],
             format: token[2].toString(),
-            image: `images/tokens/${token[3].toLowerCase()}-32x32.png`,
+            images: {
+              small: `images/tokens/${token[3].toLowerCase()}-32x32.png`
+            },
             supply: '0',
             tag: token[1],
             name: token[3],
@@ -212,7 +218,7 @@ export default class Application extends Component {
               contract,
               address: contract.address
             };
-          })
+          }).concat(tokens)
         });
       });
   }

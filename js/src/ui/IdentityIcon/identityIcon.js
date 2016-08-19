@@ -4,6 +4,10 @@ import blockies from 'blockies';
 import styles from './style.css';
 
 export default class IdentityIcon extends Component {
+  static contextTypes = {
+    contracts: React.PropTypes.array
+  }
+
   static propTypes = {
     address: PropTypes.string,
     center: PropTypes.bool,
@@ -27,10 +31,20 @@ export default class IdentityIcon extends Component {
     this.updateIcon(newProps.address);
   }
 
-  updateIcon (address) {
+  updateIcon (_address) {
+    const address = _address.toLowerCase();
+    const contract = this.context.contracts.find((c) => c.address.toLowerCase() === address);
+
+    if (contract && contract.images) {
+      this.setState({
+        iconsrc: this.props.inline ? contract.images.small : contract.images.normal
+      });
+      return;
+    }
+
     this.setState({
       iconsrc: blockies({
-        seed: address.toLowerCase(),
+        seed: address,
         size: 8,
         scale: this.props.inline ? 4 : 7
       }).toDataURL()

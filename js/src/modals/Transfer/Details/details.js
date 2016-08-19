@@ -136,7 +136,7 @@ export default class Details extends Component {
       const token = balance.token;
       const label = (
         <div className={ styles.token }>
-          <img src={ token.image } />
+          <img src={ token.images.small } />
           <div>{ token.name }</div>
         </div>
       );
@@ -147,7 +147,7 @@ export default class Details extends Component {
           primaryText={ token.name }
           value={ token.tag }
           label={ label }
-          leftIcon={ <img src={ token.image } /> } />
+          leftIcon={ <img src={ token.images.small } /> } />
       );
     });
 

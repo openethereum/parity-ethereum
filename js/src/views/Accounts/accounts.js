@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 
 import AccountSummary from './AccountSummary';
 import Actions from './Actions';
@@ -9,8 +9,8 @@ import styles from './style.css';
 
 export default class Accounts extends Component {
   static contextTypes = {
-    api: React.PropTypes.object,
-    accounts: React.PropTypes.array
+    api: PropTypes.object,
+    accounts: PropTypes.array
   }
 
   state = {
