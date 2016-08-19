@@ -20,10 +20,7 @@ export default class Accounts extends Component {
   render () {
     return (
       <div>
-        <CreateAccount
-          onClose={ this.onNewAccountClose }
-          onUpdate={ this.onNewAccountUpdate }
-          visible={ this.state.newDialog } />
+        { this.renderNewDialog() }
         <Actions
           onNewAccount={ this.onNewAccountClick } />
         <div className={ styles.accounts }>
@@ -59,6 +56,18 @@ export default class Accounts extends Component {
           </div>
         );
       });
+  }
+
+  renderNewDialog () {
+    if (!this.state.newDialog) {
+      return null;
+    }
+
+    return (
+      <CreateAccount
+        onClose={ this.onNewAccountClose }
+        onUpdate={ this.onNewAccountUpdate } />
+    );
   }
 
   onNewAccountClick = () => {

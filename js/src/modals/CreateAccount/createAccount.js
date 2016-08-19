@@ -30,8 +30,7 @@ export default class CreateAccount extends Component {
 
   static propTypes = {
     onClose: PropTypes.func,
-    onUpdate: PropTypes.func,
-    visible: PropTypes.bool.isRequired
+    onUpdate: PropTypes.func
   }
 
   state = {
@@ -48,10 +47,10 @@ export default class CreateAccount extends Component {
   render () {
     return (
       <Modal
+        visible
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
-        steps={ this.state.createType === 'fromNew' ? STAGE_NAMES : STAGE_IMPORT }
-        visible={ this.props.visible }>
+        steps={ this.state.createType === 'fromNew' ? STAGE_NAMES : STAGE_IMPORT }>
         { this.renderPage() }
       </Modal>
     );
