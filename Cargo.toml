@@ -42,6 +42,7 @@ ethcore-logger = { path = "logger" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.82", optional = true}
+ethcore-stratum = { path = "stratum" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
