@@ -93,9 +93,9 @@ Usage:
 
  Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
-						   format as RUST_LOG.
+                           format as RUST_LOG.
   --log-file FILENAME      Specify a filename into which logging should be
-						   directed.
+                           directed.
   --no-color               Don't use terminal color codes in output.
 ", svc_name, svc_name);
 
