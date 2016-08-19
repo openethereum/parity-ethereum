@@ -19,7 +19,7 @@ export default class ParityBar extends Component {
     return (
       <div
         className={ styles.bar }>
-        <div>
+        <div className={ styles.corner }>
           <img
             className={ styles.logo }
             src='images/paritybar.png' />
