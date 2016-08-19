@@ -33,7 +33,6 @@ clippy = { version = "0.0.82", optional = true}
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
-syntex = "*"
 
 [features]
 default = ["serde_codegen", "extra-dapps"]
