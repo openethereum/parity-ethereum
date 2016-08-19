@@ -1,0 +1,20 @@
+[package]
+description = "Ethcore stratum lib"
+name = "ethcore-stratum"
+version = "1.4.0"
+license = "GPL-3.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+log = "0.3"
+json-tcp-server = { git = "https://github.com/ethcore/json-tcp-server" }
+jsonrpc-core = "2.1"
+mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
+ethcore-util = { path = "../util" }
+ethcore-devtools = { path = "../devtools" }
+lazy_static = "0.2"
+env_logger = "0.3"
+
+[profile.release]
+debug = true
+lto = false
