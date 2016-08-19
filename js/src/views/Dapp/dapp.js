@@ -4,6 +4,10 @@ import Container from '../../ui/Container';
 
 import styles from './style.css';
 
+function nicename (name) {
+  return name.split(/(?=[A-Z])/).join(' ');
+}
+
 export default class Dapp extends Component {
   static contextTypes = {
     api: React.PropTypes.object,
@@ -14,63 +18,87 @@ export default class Dapp extends Component {
     params: PropTypes.object
   }
 
+  componentDidMount () {
+    this.queryContract();
+  }
+
   render () {
     const contract = this._findContract();
-    const sort = (a, b) => a.name.localeCompare(b.name);
-    const nicename = (name) => name.split(/(?=[A-Z])/).join(' ');
 
     if (!contract) {
       return null;
     }
 
-    const functions = contract.functions
-      .filter((fn) => !fn.constant)
-      .sort(sort)
-      .map((fn) => {
-        return (
-          <div className={ styles.method }>{ nicename(fn.name) }</div>
-        );
-      });
-
-    const queries = contract.functions
-      .filter((fn) => fn.constant)
-      .sort(sort)
-      .map((fn) => {
-        return (
-          <div className={ styles.method }>{ nicename(fn.name) }</div>
-        );
-      });
-
-    const events = contract.events
-      .sort(sort)
-      .map((fn) => {
-        return (
-          <div className={ styles.method }>{ nicename(fn.name) }</div>
-        );
-      });
-
     return (
       <div>
-        <Container>
-          <h2>queries</h2>
-          <div className={ styles.methods }>
-            { queries }
-          </div>
-        </Container>
-        <Container>
-          <h2>functions</h2>
-          <div className={ styles.methods }>
-            { functions }
-          </div>
-        </Container>
-        <Container>
-          <h2>events</h2>
-          <div className={ styles.methods }>
-            { events }
-          </div>
-        </Container>
+        { this.renderQueries(contract) }
+        { this.renderFunctions(contract) }
+        { this.renderEvents(contract) }
       </div>
     );
+  }
+
+  renderEvents (contract) {
+    const events = this._findEvents(contract).map((fn) => {
+      return (
+        <div key={ fn.signature } className={ styles.method }>{ nicename(fn.name) }</div>
+      );
+    });
+
+    return (
+      <Container>
+        <h2>events</h2>
+        <div className={ styles.methods }>
+          { events }
+        </div>
+      </Container>
+    );
+  }
+
+  renderFunctions (contract) {
+    const functions = this._findFunctions(contract).map((fn) => {
+      return (
+        <div
+          key={ fn.signature }
+          className={ styles.method }>
+          { nicename(fn.name) }
+        </div>
+      );
+    });
+
+    return (
+      <Container>
+        <h2>functions</h2>
+        <div className={ styles.methods }>
+          { functions }
+        </div>
+      </Container>
+    );
+  }
+
+  renderQueries (contract) {
+    const queries = this._findQueries(contract).map((fn) => {
+      return (
+        <div
+          key={ fn.signature }
+          className={ styles.method }>
+          { nicename(fn.name) }
+        </div>
+      );
+    });
+
+    return (
+      <Container>
+        <h2>queries</h2>
+        <div className={ styles.methods }>
+          { queries }
+        </div>
+      </Container>
+    );
+  }
+
+  _sortContracts (a, b) {
+    return a.name.localeCompare(b.name);
   }
 
   _findContract () {
@@ -84,5 +112,48 @@ export default class Dapp extends Component {
     return !contract
       ? null
       : contract.contract;
+  }
+
+  _findEvents (contract) {
+    return !contract
+      ? null
+      : contract.events.sort(this._sortContracts);
+  }
+
+  _findQueries (contract) {
+    return !contract
+      ? null
+      : contract.functions.filter((fn) => fn.constant).sort(this._sortContracts);
+  }
+
+  _findFunctions (contract) {
+    return !contract
+      ? null
+      : contract.functions.filter((fn) => !fn.constant).sort(this._sortContracts);
+  }
+
+  queryContract = () => {
+    const contract = this._findContract();
+    const queries = this._findQueries(contract);
+
+    if (!queries) {
+      setTimeout(this.queryContract, 5000);
+      return;
+    }
+
+    const promises = [];
+
+    queries.forEach((query) => {
+      if (!query.inputs.length) {
+        promises.push(query.call());
+      }
+    });
+
+    Promise
+      .all(promises)
+      .then((returns) => {
+        console.log(returns);
+        setTimeout(this.queryContract, 5000);
+      });
   }
 }

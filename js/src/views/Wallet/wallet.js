@@ -1,31 +1,16 @@
 import React, { Component, PropTypes } from 'react';
 
-import getMuiTheme from 'material-ui/styles/getMuiTheme';
-import darkBaseTheme from 'material-ui/styles/baseThemes/darkBaseTheme';
-import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
-
 import Api from '../../api';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
+import muiTheme from '../../ui/Theme';
 import { TooltipOverlay } from '../../ui/Tooltip';
 
 import { FirstRun } from '../../modals';
 import Status from './Status';
 import TabBar from './TabBar';
-
 import styles from './style.css';
 
-const lightTheme = getMuiTheme(lightBaseTheme);
-const muiTheme = getMuiTheme(darkBaseTheme);
 const api = new Api(new Api.Transport.Http('/rpc/'));
-
-muiTheme.stepper.textColor = '#eee';
-muiTheme.stepper.disabledTextColor = '#777';
-muiTheme.inkBar.backgroundColor = 'rgb(0, 151, 167)';
-muiTheme.tabs = lightTheme.tabs;
-muiTheme.tabs.backgroundColor = 'rgb(65, 65, 65)';
-muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
-muiTheme.toolbar = lightTheme.toolbar;
-muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
 
 const ETH_TOKEN = {
   images: {
@@ -36,7 +21,7 @@ const ETH_TOKEN = {
   tag: 'ΞTH'
 };
 
-export default class Application extends Component {
+export default class Wallet extends Component {
   static childContextTypes = {
     api: PropTypes.object,
     accounts: PropTypes.array,

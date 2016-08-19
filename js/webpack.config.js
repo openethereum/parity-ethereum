@@ -14,7 +14,8 @@ module.exports = {
   devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
   context: path.join(__dirname, './src'),
   entry: {
-    'app': ['./app.js']
+    'parity': ['./parity.js'],
+    'wallet': ['./wallet.js']
   },
   output: {
     path: path.join(__dirname, 'build'),

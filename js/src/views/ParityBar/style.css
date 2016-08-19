@@ -1,0 +1,20 @@
+.bar {
+  background: rgba(0, 0, 0, 0.5);
+  max-height: 36px;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 16px;
+  font-family: 'Roboto', sans-serif;
+  vertical-align: middle;
+  z-index: 10000;
+  display: flex;
+  flex-wrap: wrap;
+  border-top-left-radius: 32px;
+  cursor: pointer;
+}
+
+.logo {
+  padding: 6px 96px 6px 32px;
+}

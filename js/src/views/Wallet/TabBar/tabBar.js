@@ -21,10 +21,6 @@ export default class TabBar extends Component {
     return (
       <Toolbar
         className={ styles.toolbar }>
-        <img
-          className={ styles.logo }
-          src='images/parity-x56.png'
-          alt='Parity' />
         <Tabs
           className={ styles.tabs }>
           <Tab
