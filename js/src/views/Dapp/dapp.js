@@ -14,15 +14,10 @@ export default class Dapp extends Component {
     params: PropTypes.object
   }
 
-  state = {
-    name: 'Unnamed',
-    fundDialog: false,
-    transferDialog: false
-  }
-
   render () {
     const contract = this._findContract();
     const sort = (a, b) => a.name.localeCompare(b.name);
+    const nicename = (name) => name.split(/(?=[A-Z])/).join(' ');
 
     if (!contract) {
       return null;
@@ -33,7 +28,7 @@ export default class Dapp extends Component {
       .sort(sort)
       .map((fn) => {
         return (
-          <div className={ styles.method }>{ fn.name }</div>
+          <div className={ styles.method }>{ nicename(fn.name) }</div>
         );
       });
 
@@ -42,7 +37,7 @@ export default class Dapp extends Component {
       .sort(sort)
       .map((fn) => {
         return (
-          <div className={ styles.method }>{ fn.name }</div>
+          <div className={ styles.method }>{ nicename(fn.name) }</div>
         );
       });
 
@@ -50,7 +45,7 @@ export default class Dapp extends Component {
       .sort(sort)
       .map((fn) => {
         return (
-          <div className={ styles.method }>{ fn.name }</div>
+          <div className={ styles.method }>{ nicename(fn.name) }</div>
         );
       });
 
