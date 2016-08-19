@@ -12,6 +12,7 @@
 ### Running coverage
 
 set -x
+set -e
 
 KCOV=${1:-kcov}
 
