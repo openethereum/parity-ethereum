@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
-import Toolbar from 'material-ui/Toolbar';
+import { IconButton } from 'material-ui';
+import ActionSwapVert from 'material-ui/svg-icons/action/swap-vert';
 
 import Api from '../../api';
 import muiTheme from '../../ui/Theme';
@@ -23,6 +24,9 @@ export default class ParityBar extends Component {
           <img
             className={ styles.logo }
             src='images/paritybar.png' />
+          <IconButton className={ styles.button }>
+            <ActionSwapVert />
+          </IconButton>
         </div>
       </div>
     );

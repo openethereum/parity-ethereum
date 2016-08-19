@@ -19,10 +19,13 @@
   position: absolute;
   bottom: 6px;
   right: 0;
-  border-top-left-radius: 32px;
-  cursor: pointer;
+  border-top-left-radius: 8px;
 }
 
 .logo {
-  padding: 6px 96px 0 32px;
+  padding: 8px 96px 0 8px;
+  cursor: pointer;
+}
+
+.button {
 }
