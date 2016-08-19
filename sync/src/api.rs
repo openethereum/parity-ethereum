@@ -215,8 +215,10 @@ impl ManageNetwork for EthSync {
 #[derive(Binary, Debug, Clone, PartialEq, Eq)]
 /// Network service configuration
 pub struct NetworkConfiguration {
-	/// Directory path to store network configuration. None means nothing will be saved
+	/// Directory path to store general network configuration. None means nothing will be saved
 	pub config_path: Option<String>,
+	/// Directory path to store network-specific configuration. None means nothing will be saved
+	pub net_config_path: Option<String>,
 	/// IP address to listen for incoming connections. Listen to all connections by default
 	pub listen_address: Option<String>,
 	/// IP address to advertise. Detected automatically if none.
@@ -264,6 +266,7 @@ impl NetworkConfiguration {
 
 		Ok(BasicNetworkConfiguration {
 			config_path: self.config_path,
+			net_config_path: self.net_config_path,
 			listen_address: match self.listen_address { None => None, Some(addr) => Some(try!(SocketAddr::from_str(&addr))) },
 			public_address:  match self.public_address { None => None, Some(addr) => Some(try!(SocketAddr::from_str(&addr))) },
 			udp_port: self.udp_port,
@@ -283,6 +286,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 	fn from(other: BasicNetworkConfiguration) -> Self {
 		NetworkConfiguration {
 			config_path: other.config_path,
+			net_config_path: other.net_config_path,
 			listen_address: other.listen_address.and_then(|addr| Some(format!("{}", addr))),
 			public_address: other.public_address.and_then(|addr| Some(format!("{}", addr))),
 			udp_port: other.udp_port,

@@ -1702,6 +1702,7 @@ dependencies = [
 "checksum isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7408a548dc0e406b7912d9f84c261cc533c1866e047644a811c133c56041ac0c"
 "checksum itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)" = "086e1fa5fe48840b1cfdef3a20c7e3115599f8d5c4c87ef32a794a7cdd184d76"
 "checksum json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)" = "<none>"
+"checksum json-tcp-server 0.1.0 (git+https://github.com/ethcore/json-tcp-server)" = "<none>"
 "checksum jsonrpc-core 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ec4477e4e8218da23caa5dd31f4eb39999aa0ea9035660617eccfb19a23bf5ad"
 "checksum jsonrpc-http-server 6.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
