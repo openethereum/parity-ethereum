@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
-import AccountSummary from './AccountSummary';
 import Actions from './Actions';
+import Summary from './Summary';
 import { CreateAccount } from '../../modals';
 import Tooltip from '../../ui/Tooltip';
 
@@ -48,11 +48,11 @@ export default class Accounts extends Component {
           <div
             className={ styles.account }
             key={ account.address }>
-            <AccountSummary
+            <Summary
               account={ account }
               tokens={ this.state.tokens }>
               { idx === 0 ? firstTooltip : null }
-            </AccountSummary>
+            </Summary>
           </div>
         );
       });

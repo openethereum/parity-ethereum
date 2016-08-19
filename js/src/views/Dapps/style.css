@@ -1,0 +1,18 @@
+.contracts {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.contract {
+  flex: 0 1 50%;
+  width: 50%;
+  position: relative;
+}
+
+.contract:nth-child(odd)>div {
+  padding-right: 0.5em !important;
+}
+
+.contract:nth-child(even)>div {
+  padding-left: 0.5em !important;
+}

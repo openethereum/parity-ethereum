@@ -5,7 +5,7 @@ import Balances from '../../../ui/Balances';
 import Container, { Title } from '../../../ui/Container';
 import IdentityIcon from '../../../ui/IdentityIcon';
 
-export default class AccountSummary extends Component {
+export default class Summary extends Component {
   static contextTypes = {
     api: React.PropTypes.object
   }
