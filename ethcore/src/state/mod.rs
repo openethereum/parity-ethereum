@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cell::{RefCell, RefMut};
-
 use common::*;
 use engines::Engine;
 use executive::{Executive, TransactOptions};
@@ -25,6 +24,12 @@ use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
+
+mod account;
+mod substate;
+
+pub use self::account::Account;
+pub use self::substate::Substate;
 
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome {
@@ -181,7 +186,7 @@ impl State {
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
 		self.ensure_cached(address, false,
-			|a| a.as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key)))
+			|a| a.as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key)))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
@@ -260,7 +265,7 @@ impl State {
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
 				&mut&mut Some(ref mut account) if account.is_dirty() => {
-					let mut account_db = AccountDBMut::new(db, address);
+					let mut account_db = AccountDBMut::from_hash(db, account.address_hash(address));
 					account.commit_storage(trie_factory, &mut account_db);
 					account.commit_code(&mut account_db);
 				}
@@ -355,7 +360,8 @@ impl State {
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
-				account.cache_code(&AccountDB::new(self.db.as_hashdb(), a));
+				let addr_hash = account.address_hash(a);
+				account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
 			}
 		}
 
@@ -393,7 +399,8 @@ impl State {
 		RefMut::map(self.cache.borrow_mut(), |c| {
 			let account = c.get_mut(a).unwrap().as_mut().unwrap();
 			if require_code {
-				account.cache_code(&AccountDB::new(self.db.as_hashdb(), a));
+				let addr_hash = account.address_hash(a);
+				account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
 			}
 			account
 		})
@@ -426,7 +433,6 @@ use std::str::FromStr;
 use rustc_serialize::hex::FromHex;
 use super::*;
 use util::{U256, H256, FixedHash, Address, Hashable};
-use account::*;
 use tests::helpers::*;
 use devtools::*;
 use env_info::*;

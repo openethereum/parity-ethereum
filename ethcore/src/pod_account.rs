@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use account::*;
-use account_db::*;
+use state::Account;
+use account_db::AccountDBMut;
 use ethjson;
 use types::account_diff::*;
 

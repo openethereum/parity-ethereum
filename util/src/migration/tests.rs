@@ -37,7 +37,7 @@ fn make_db(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
 	{
 		let transaction = db.transaction();
 		for (k, v) in pairs {
-			transaction.put(None, &k, &v).expect("failed to add pair to transaction");
+			transaction.put(None, &k, &v);
 		}
 
 		db.write(transaction).expect("failed to write db transaction");
