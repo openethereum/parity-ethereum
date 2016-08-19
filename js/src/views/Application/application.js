@@ -60,14 +60,23 @@ export default class Application extends Component {
     return (
       <TooltipOverlay>
         <div className={ styles.container }>
-          <FirstRun
-            onClose={ this.onCloseFirst }
-            visible={ this.state.showFirst } />
+          { this.renderFirstRunDialog() }
           <TabBar />
           { this.props.children }
           <Status />
         </div>
       </TooltipOverlay>
+    );
+  }
+
+  renderFirstRunDialog () {
+    if (!this.state.showFirst) {
+      return null;
+    }
+
+    return (
+      <FirstRun
+        onClose={ this.onCloseFirst } />
     );
   }
 

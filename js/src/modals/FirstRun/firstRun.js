@@ -20,7 +20,6 @@ export default class FirstRun extends Component {
   }
 
   static propTypes = {
-    visible: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -39,7 +38,7 @@ export default class FirstRun extends Component {
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
         steps={ STAGE_NAMES }
-        visible={ this.props.visible }>
+        visible>
         { this.renderStage() }
       </Modal>
     );
