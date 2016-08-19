@@ -5,23 +5,30 @@
 }
 
 .balance {
-  height: 32px;
+  height: 24px;
   margin-top: 0.25em;
-  flex: 0 1 33%;
-  width: 33%;
-  text-align: right;
+  flex: 0 1 30%;
+  width: 30%;
+  margin-right: 3%;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
 }
 
 .balance img {
   height: 32px;
   width: 32px;
-  margin: 0 0.5em;
+  margin: -4px 0.25em;
 }
 
 .balance div {
-  height: 32px;
-  line-height: 32px;
+  height: 24px;
+  line-height: 24px;
   display: inline-block;
   vertical-align: top;
   font-family: 'Roboto Mono', monospace;
+  padding: 0 0.5em;
+  float: right;
+  margin-left: -100%;
+  text-align: right;
+  width: 100%;
 }

@@ -28,12 +28,10 @@ export default class Balances extends Component {
           <div
             className={ styles.balance }
             key={ token.tag }>
-            <div>
-              { value } { token.tag }
-            </div>
             <img
               src={ token.image }
               alt={ token.type } />
+            <div>{ value } { token.tag }</div>
           </div>
         );
       });
