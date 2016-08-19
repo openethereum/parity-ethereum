@@ -35,7 +35,7 @@ fn snap_and_restore() {
 	let mut producer = StateProducer::new();
 	let mut rng = rand::thread_rng();
 	let mut old_db = MemoryDB::new();
-	let db_cfg = DatabaseConfig::with_columns(::client::DB_NO_OF_COLUMNS);
+	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
 	for _ in 0..150 {
 		producer.tick(&mut rng, &mut old_db);
@@ -76,7 +76,7 @@ fn snap_and_restore() {
 		new_db
 	};
 
-	let new_db = journaldb::new(db, Algorithm::Archive, ::client::DB_COL_STATE);
+	let new_db = journaldb::new(db, Algorithm::Archive, ::db::COL_STATE);
 
 	compare_dbs(&old_db, new_db.as_hashdb());
 }

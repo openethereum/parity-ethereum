@@ -24,9 +24,10 @@ use DAPPS_DOMAIN;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::{Url, Host};
-use hyper::{self, server, Next, Encoder, Decoder};
+use hyper::{self, server, Next, Encoder, Decoder, Control};
 use hyper::net::HttpStream;
 use apps;
+use apps::fetcher::AppFetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
 use handlers::{Redirection, extract_url};
 use self::auth::{Authorization, Authorized};
@@ -41,8 +42,10 @@ pub enum SpecialEndpoint {
 }
 
 pub struct Router<A: Authorization + 'static> {
+	control: Option<Control>,
 	main_page: &'static str,
 	endpoints: Arc<Endpoints>,
+	fetch: Arc<AppFetcher>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
 	bind_address: String,
@@ -78,6 +81,11 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
 				self.endpoints.get(&path.app_id).unwrap().to_handler(path.clone())
 			},
+			// Try to resolve and fetch dapp
+			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
+				let control = self.control.take().expect("on_request is called only once, thus control is always defined.");
+				self.fetch.to_handler(path.clone(), control)
+			},
 			// Redirection to main page
 			_ if *req.method() == hyper::method::Method::Get => {
 				Redirection::new(self.main_page)
@@ -110,7 +118,9 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 impl<A: Authorization> Router<A> {
 	pub fn new(
+		control: Control,
 		main_page: &'static str,
+		app_fetcher: Arc<AppFetcher>,
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 		authorization: Arc<A>,
@@ -119,8 +129,10 @@ impl<A: Authorization> Router<A> {
 
 		let handler = special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default());
 		Router {
+			control: Some(control),
 			main_page: main_page,
 			endpoints: endpoints,
+			fetch: app_fetcher,
 			special: special,
 			authorization: authorization,
 			bind_address: bind_address,

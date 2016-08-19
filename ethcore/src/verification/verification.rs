@@ -284,6 +284,10 @@ mod tests {
 			self.blocks.contains_key(hash)
 		}
 
+		fn first_block(&self) -> H256 {
+			unimplemented!()
+		}
+
 		/// Get raw block data
 		fn block(&self, hash: &H256) -> Option<Bytes> {
 			self.blocks.get(hash).cloned()
