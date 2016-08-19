@@ -16,7 +16,6 @@ import Extras from './Extras';
 import ERRORS from './errors';
 
 const DEFAULT_GAS = '21000';
-const CONTRACT_GAS = '100000';
 const DEFAULT_GASPRICE = '20000000000';
 const TITLES = {
   transfer: 'transfer details',
@@ -387,15 +386,14 @@ export default class Transfer extends Component {
       ? this._estimateGasEth()
       : this._estimateGasToken()
     ).then((_value) => {
-      const extraGas = this.state.isEth ? 0 : CONTRACT_GAS;
-      let gas = _value.add(extraGas);
+      let gas = _value;
 
-      if (gas.add(extraGas).lt(DEFAULT_GAS)) {
-        gas = new BigNumber(DEFAULT_GAS);
+      if (gas.gt(DEFAULT_GAS)) {
+        gas = gas.mul(1.2);
       }
 
       this.setState({
-        gas: gas.toString(),
+        gas: gas.toFixed(0),
         gasEst: _value.toFormat()
       }, this.recalculate);
     });
