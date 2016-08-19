@@ -167,7 +167,6 @@ export default class Application extends Component {
       .registryAddress()
       .then((registryAddress) => {
         contracts.registry = api.newContract(registryAbi, registryAddress);
-        console.log(contracts.registry);
 
         return contracts.registry.instance
           .getAddress.call({}, [Api.format.sha3('tokenreg'), 'A']);
