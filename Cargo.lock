@@ -230,6 +230,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethabi"
+version = "0.2.1"
+dependencies = [
+ "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethash"
 version = "1.4.0"
 dependencies = [
@@ -275,6 +287,7 @@ name = "ethcore-dapps"
 version = "1.4.0"
 dependencies = [
  "clippy 0.0.82 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 0.2.1",
  "ethcore-rpc 1.4.0",
  "ethcore-util 1.4.0",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
@@ -518,7 +531,6 @@ dependencies = [
  "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

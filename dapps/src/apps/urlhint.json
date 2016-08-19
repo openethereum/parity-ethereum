@@ -1,0 +1,5 @@
+[
+	{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"entries","outputs":[{"name":"account","type":"string"},{"name":"repo","type":"string"},{"name":"commit","type":"bytes20"},{"name":"owner","type":"address"}],"type":"function"},
+	{"constant":false,"inputs":[{"name":"_content","type":"bytes32"},{"name":"_account","type":"string"},{"name":"_repo","type":"string"},{"name":"_commit","type":"bytes20"}],"name":"hint","outputs":[],"type":"function"},
+	{"constant":false,"inputs":[{"name":"_content","type":"bytes32"}],"name":"unhint","outputs":[],"type":"function"}
+]

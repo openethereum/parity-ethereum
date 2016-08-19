@@ -54,12 +54,6 @@ impl<R: URLHint> Drop for AppFetcher<R> {
 	}
 }
 
-impl Default for AppFetcher<URLHintContract> {
-	fn default() -> Self {
-		AppFetcher::new(URLHintContract)
-	}
-}
-
 impl<R: URLHint> AppFetcher<R> {
 
 	pub fn new(resolver: R) -> Self {
