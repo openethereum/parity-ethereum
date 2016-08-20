@@ -17,7 +17,7 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
 use common::*;
-use elastic_array::*;
+use smallvec::SmallVec;
 use std::default::Default;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
@@ -34,17 +34,17 @@ pub struct DBTransaction {
 enum DBOp {
 	Insert {
 		col: Option<u32>,
-		key: ElasticArray32<u8>,
+		key: SmallVec<[u8; 32]>,
 		value: Bytes,
 	},
 	InsertCompressed {
 		col: Option<u32>,
-		key: ElasticArray32<u8>,
+		key: SmallVec<[u8; 32]>,
 		value: Bytes,
 	},
 	Delete {
 		col: Option<u32>,
-		key: ElasticArray32<u8>,
+		key: SmallVec<[u8; 32]>,
 	}
 }
 
@@ -58,8 +58,8 @@ impl DBTransaction {
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	pub fn put(&self, col: Option<u32>, key: &[u8], value: &[u8]) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
+		let mut ekey = SmallVec::new();
+		ekey.extend(key.iter().cloned());
 		self.ops.lock().push(DBOp::Insert {
 			col: col,
 			key: ekey,
@@ -69,8 +69,8 @@ impl DBTransaction {
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	pub fn put_vec(&self, col: Option<u32>, key: &[u8], value: Bytes) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
+		let mut ekey = SmallVec::new();
+		ekey.extend(key.iter().cloned());
 		self.ops.lock().push(DBOp::Insert {
 			col: col,
 			key: ekey,
@@ -81,8 +81,8 @@ impl DBTransaction {
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	/// Value will be RLP-compressed on  flush
 	pub fn put_compressed(&self, col: Option<u32>, key: &[u8], value: Bytes) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
+		let mut ekey = SmallVec::new();
+		ekey.extend(key.iter().cloned());
 		self.ops.lock().push(DBOp::InsertCompressed {
 			col: col,
 			key: ekey,
@@ -92,8 +92,8 @@ impl DBTransaction {
 
 	/// Delete value by key.
 	pub fn delete(&self, col: Option<u32>, key: &[u8]) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
+		let mut ekey = SmallVec::new();
+		ekey.extend(key.iter().cloned());
 		self.ops.lock().push(DBOp::Delete {
 			col: col,
 			key: ekey,
@@ -194,7 +194,7 @@ pub struct Database {
 	db: DB,
 	write_opts: WriteOptions,
 	cfs: Vec<Column>,
-	overlay: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
+	overlay: RwLock<Vec<HashMap<SmallVec<[u8; 32]>, KeyState>>>,
 }
 
 impl Database {
