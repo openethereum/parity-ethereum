@@ -107,6 +107,7 @@ impl<R: URLHint> AppFetcher<R> {
 					(Some(AppStatus::Fetching), Box::new(AppFetcherHandler::new(
 						app,
 						control,
+						path.using_dapps_domains,
 						DappInstaller {
 							dapp_id: app_id.clone(),
 							dapps_path: self.dapps_path.clone(),

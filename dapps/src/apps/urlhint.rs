@@ -88,7 +88,7 @@ impl URLHintContract {
 		let res = || {
 			let get_address = try!(self.registrar.function("getAddress".into()).map_err(as_string));
 			let params = try!(get_address.encode_call(
-					vec![Token::String("githubhint".sha3().to_hex()), Token::String("A".into())]
+					vec![Token::FixedBytes((*"githubhint".sha3()).to_vec()), Token::String("A".into())]
 			).map_err(as_string));
 			let output = try!(self.client.call(try!(self.client.registrar()), params));
 			let result = try!(get_address.decode_output(output).map_err(as_string));
@@ -141,9 +141,6 @@ impl URLHintContract {
 			let commit = it.next().unwrap();
 			let owner = it.next().unwrap();
 
-
-			trace!(target: "dapps", "Resolved output: {:?}/{:?}/{:?}; owner: {:?}", account, repo, commit, owner);
-
 			match (account, repo, commit, owner) {
 				(Token::String(account), Token::String(repo), Token::FixedBytes(commit), Token::Address(owner)) => {
 					let owner = owner.into();
@@ -170,10 +167,6 @@ impl URLHintContract {
 	}
 }
 
-fn as_string<T: fmt::Debug>(e: T) -> String {
-	format!("{:?}", e)
-}
-
 impl URLHint for URLHintContract {
 	fn resolve(&self, app_id: &str) -> Option<GithubApp> {
 		self.urlhint_address().and_then(|address| {
@@ -189,6 +182,10 @@ impl URLHint for URLHintContract {
 				.and_then(|output| self.decode_urlhint_output(output))
 		})
 	}
+}
+
+fn as_string<T: fmt::Debug>(e: T) -> String {
+	format!("{:?}", e)
 }
 
 #[cfg(test)]

@@ -152,8 +152,6 @@ mod server {
 		}
 
 		fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
-			use util::ToPretty;
-			trace!(target: "dapps", "Making a call: {:?}", data.to_hex());
 			let from = Address::default();
 			let transaction = Transaction {
 				nonce: self.client.latest_nonce(&from),
@@ -167,7 +165,6 @@ mod server {
 			self.client.call(&transaction, BlockID::Latest, Default::default())
 				.map_err(|e| format!("{:?}", e))
 				.map(|executed| {
-					trace!(target: "dapps", "Response: {:?}", executed.output.to_hex());
 					executed.output
 				})
 		}
