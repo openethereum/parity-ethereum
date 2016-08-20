@@ -233,6 +233,7 @@ dependencies = [
 [[package]]
 name = "ethabi"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -288,7 +289,7 @@ name = "ethcore-dapps"
 version = "1.4.0"
 dependencies = [
  "clippy 0.0.82 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 0.2.1",
+ "ethabi 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-rpc 1.4.0",
  "ethcore-util 1.4.0",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
@@ -1699,6 +1700,7 @@ dependencies = [
 "checksum elastic-array 0.4.0 (git+https://github.com/ethcore/elastic-array)" = "<none>"
 "checksum env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "aba65b63ffcc17ffacd6cf5aa843da7c5a25e3bd4bbe0b7def8b214e411250e5"
 "checksum eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)" = "<none>"
+"checksum ethabi 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bc7789d1518abba0c61606826a5229284d47a9d0934feb62a1ee218882780a9b"
 "checksum flate2 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)" = "3eeb481e957304178d2e782f2da1257f1434dfecbae883bafb61ada2a9fea3bb"
 "checksum gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)" = "3da3a2cbaeb01363c8e3704fd9fd0eb2ceb17c6f27abd4c1ef040fb57d20dc79"
 "checksum glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "8be18de09a56b60ed0edf84bc9df007e30040691af7acd1c41874faac5895bfb"
@@ -1714,6 +1716,7 @@ dependencies = [
 "checksum isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7408a548dc0e406b7912d9f84c261cc533c1866e047644a811c133c56041ac0c"
 "checksum itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)" = "086e1fa5fe48840b1cfdef3a20c7e3115599f8d5c4c87ef32a794a7cdd184d76"
 "checksum json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)" = "<none>"
+"checksum json-tcp-server 0.1.0 (git+https://github.com/ethcore/json-tcp-server)" = "<none>"
 "checksum jsonrpc-core 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ec4477e4e8218da23caa5dd31f4eb39999aa0ea9035660617eccfb19a23bf5ad"
 "checksum jsonrpc-http-server 6.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"

@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
 use std::sync::Arc;
 use rustc_serialize::hex::ToHex;
 
 use ethabi::{Interface, Contract, Token};
-use util::{Address, Bytes};
+use util::{Address, Bytes, Hashable};
 
 const COMMIT_LEN: usize = 20;
 
@@ -50,11 +51,13 @@ impl GithubApp {
 	}
 }
 
-/// RAW Registrar Contract interface.
+/// RAW Contract interface.
 /// Should execute transaction using current blockchain state.
-pub trait RegistrarClient: Send + Sync {
-	/// Call Registrar Contract
-	fn call(&self, data: Bytes) -> Result<Bytes, String>;
+pub trait ContractClient: Send + Sync {
+	/// Get registrar address
+	fn registrar(&self) -> Result<Address, String>;
+	/// Call Contract
+	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
 }
 
 /// URLHint Contract interface
@@ -64,38 +67,65 @@ pub trait URLHint {
 }
 
 pub struct URLHintContract {
-	contract: Contract,
-	client: Arc<Box<RegistrarClient>>,
+	urlhint: Contract,
+	registrar: Contract,
+	client: Arc<Box<ContractClient>>,
 }
 
 impl URLHintContract {
-	pub fn new(client: Arc<Box<RegistrarClient>>) -> Self {
-		let iface = Interface::load(include_bytes!("./urlhint.json")).expect("urlhint.json is valid ABI");
-		let contract = Contract::new(iface);
+	pub fn new(client: Arc<Box<ContractClient>>) -> Self {
+		let urlhint = Interface::load(include_bytes!("./urlhint.json")).expect("urlhint.json is valid ABI");
+		let registrar = Interface::load(include_bytes!("./registrar.json")).expect("registrar.json is valid ABI");
 
 		URLHintContract {
-			contract: contract,
+			urlhint: Contract::new(urlhint),
+			registrar: Contract::new(registrar),
 			client: client,
 		}
 	}
 
-	fn encode_call(&self, app_id: &str) -> Option<Bytes> {
-		let call = self.contract
+	fn urlhint_address(&self) -> Option<Address> {
+		let res = || {
+			let get_address = try!(self.registrar.function("getAddress".into()).map_err(as_string));
+			let params = try!(get_address.encode_call(
+					vec![Token::String("githubhint".sha3().to_hex()), Token::String("A".into())]
+			).map_err(as_string));
+			let output = try!(self.client.call(try!(self.client.registrar()), params));
+			let result = try!(get_address.decode_output(output).map_err(as_string));
+
+			match result.get(0) {
+				Some(&Token::Address(address)) if address != *Address::default() => Ok(address.into()),
+				Some(&Token::Address(_)) => Err(format!("Contract not found.")),
+				e => Err(format!("Invalid result: {:?}", e)),
+			}
+		};
+
+		match res() {
+			Ok(res) => Some(res),
+			Err(e) => {
+				warn!(target: "dapps", "Error while calling registrar: {:?}", e);
+				None
+			}
+		}
+	}
+
+	fn encode_urlhint_call(&self, app_id: &str) -> Option<Bytes> {
+		let call = self.urlhint
 			.function("entries".into())
 			.and_then(|f| f.encode_call(vec![Token::FixedBytes(app_id.bytes().collect())]));
 
 		match call {
 			Ok(res) => Some(res),
 			Err(e) => {
-				warn!(target: "dapps", "Error while encoding registrar call: {:?}", e);
+				warn!(target: "dapps", "Error while encoding urlhint call: {:?}", e);
 				None
 			}
 		}
 	}
 
-	fn decode_output(&self, output: Bytes) -> Option<GithubApp> {
+	fn decode_urlhint_output(&self, output: Bytes) -> Option<GithubApp> {
 		trace!(target: "dapps", "Output: {:?}", output);
-		let output = self.contract
+		let output = self.urlhint
 			.function("entries".into())
 			.and_then(|f| f.decode_output(output));
 
@@ -140,19 +170,24 @@ impl URLHintContract {
 	}
 }
 
-impl URLHint for URLHintContract {
+fn as_string<T: fmt::Debug>(e: T) -> String {
+	format!("{:?}", e)
+}
 
+impl URLHint for URLHintContract {
 	fn resolve(&self, app_id: &str) -> Option<GithubApp> {
-		// Prepare contract call
-		self.encode_call(app_id)
-			.and_then(|data| {
-				let call = self.client.call(data);
-				if let Err(ref e) = call {
-					warn!(target: "dapps", "Error while calling registrar: {:?}", e);
-				}
-				call.ok()
-			})
-			.and_then(|output| self.decode_output(output))
+		self.urlhint_address().and_then(|address| {
+			// Prepare contract call
+			self.encode_urlhint_call(app_id)
+				.and_then(|data| {
+					let call = self.client.call(address, data);
+					if let Err(ref e) = call {
+						warn!(target: "dapps", "Error while calling urlhint: {:?}", e);
+					}
+					call.ok()
+				})
+				.and_then(|output| self.decode_urlhint_output(output))
+		})
 	}
 }
 
@@ -160,34 +195,47 @@ impl URLHint for URLHintContract {
 mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_serialize::hex::{ToHex, FromHex};
 
 	use super::*;
 	use util::{Bytes, Address, Mutex, ToPretty};
 
 	struct FakeRegistrar {
-		pub calls: Arc<Mutex<Vec<Bytes>>>,
-		pub response: Result<Bytes, String>,
+		pub calls: Arc<Mutex<Vec<(String, String)>>>,
+		pub responses: Mutex<Vec<Result<Bytes, String>>>,
 	}
+
+	const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
+	const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
 
 	impl FakeRegistrar {
 		fn new() -> Self {
 			FakeRegistrar {
 				calls: Arc::new(Mutex::new(Vec::new())),
-				response: Ok(Vec::new()),
+				responses: Mutex::new(
+					vec![
+						Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
+						Ok(Vec::new())
+					]
+				),
 			}
 		}
 	}
 
-	impl RegistrarClient for FakeRegistrar {
-		fn call(&self, data: Bytes) -> Result<Bytes, String> {
-			self.calls.lock().push(data);
-			self.response.clone()
+	impl ContractClient for FakeRegistrar {
+
+		fn registrar(&self) -> Result<Address, String> {
+			Ok(REGISTRAR.parse().unwrap())
+		}
+
+		fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+			self.calls.lock().push((address.to_hex(), data.to_hex()));
+			self.responses.lock().remove(0)
 		}
 	}
 
 	#[test]
-	fn should_create_urlhint_contract() {
+	fn should_call_registrar_and_urlhint_contracts() {
 		// given
 		let registrar = FakeRegistrar::new();
 		let calls = registrar.calls.clone();
@@ -195,11 +243,18 @@ mod tests {
 
 		// when
 		let res = urlhint.resolve("test");
+		let calls = calls.lock();
+		let call0 = calls.get(0).expect("Registrar resolve called");
+		let call1 = calls.get(1).expect("URLHint Resolve called");
 
 		// then
 		assert!(res.is_none());
-		assert_eq!(
-			calls.lock().get(0).expect("Resolve called").to_hex(),
+		assert_eq!(call0.0, REGISTRAR);
+		assert_eq!(call0.1,
+			"6795dbcd000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000403035383734306565396135613366623966316366613130373532626165633837653039636334356364373032376664353437303832373161636133303063373500000000000000000000000000000000000000000000000000000000000000014100000000000000000000000000000000000000000000000000000000000000".to_owned()
+		);
+		assert_eq!(call1.0, URLHINT);
+		assert_eq!(call1.1,
 			"267b69227465737400000000000000000000000000000000000000000000000000000000".to_owned()
 		);
 	}
@@ -208,9 +263,10 @@ mod tests {
 	fn should_decode_urlhint_output() {
 		// given
 		let mut registrar = FakeRegistrar::new();
-		registrar.response = Ok(
-			"000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0ec4c1fe06c808fe3739858c347109b1f5f1ed4b5000000000000000000000000000000000000000000000000deadcafebeefbeefcafedeaddeedfeedffffffff0000000000000000000000000000000000000000000000000000000000000007657468636f726500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000864616f636c61696d000000000000000000000000000000000000000000000000".from_hex().unwrap()
-		);
+		registrar.responses = Mutex::new(vec![
+			Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
+			Ok("000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0ec4c1fe06c808fe3739858c347109b1f5f1ed4b5000000000000000000000000000000000000000000000000deadcafebeefbeefcafedeaddeedfeedffffffff0000000000000000000000000000000000000000000000000000000000000007657468636f726500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000864616f636c61696d000000000000000000000000000000000000000000000000".from_hex().unwrap()),
+		]);
 		let urlhint = URLHintContract::new(Arc::new(Box::new(registrar)));
 
 		// when

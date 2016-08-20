@@ -101,7 +101,7 @@ mod server {
 	use ethcore::client::{Client, BlockChainClient, BlockID};
 
 	use rpc_apis;
-	use ethcore_dapps::RegistrarClient;
+	use ethcore_dapps::ContractClient;
 
 	pub use ethcore_dapps::Server as WebappServer;
 
@@ -142,18 +142,22 @@ mod server {
 		client: Arc<Client>,
 	}
 
-	impl RegistrarClient for Registrar {
-		fn call(&self, data: Bytes) -> Result<Bytes, String> {
-			let from = Address::default();
-			let registrar = try!(self.client.additional_params().get("registrar")
-				.ok_or_else(|| "Registrar not defined.".into())
-				.and_then(|registrar| {
-					registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e))
-				}));
+	impl ContractClient for Registrar {
+		fn registrar(&self) -> Result<Address, String> {
+			self.client.additional_params().get("registrar")
+				 .ok_or_else(|| "Registrar not defined.".into())
+				 .and_then(|registrar| {
+					 registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e))
+				 })
+		}
 
+		fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+			use util::ToPretty;
+			trace!(target: "dapps", "Making a call: {:?}", data.to_hex());
+			let from = Address::default();
 			let transaction = Transaction {
 				nonce: self.client.latest_nonce(&from),
-				action: Action::Call(registrar),
+				action: Action::Call(address),
 				gas: U256::from(50_000_000),
 				gas_price: U256::default(),
 				value: U256::default(),
@@ -162,7 +166,10 @@ mod server {
 
 			self.client.call(&transaction, BlockID::Latest, Default::default())
 				.map_err(|e| format!("{:?}", e))
-				.map(|executed| executed.output)
+				.map(|executed| {
+					trace!(target: "dapps", "Response: {:?}", executed.output.to_hex());
+					executed.output
+				})
 		}
 	}
 }

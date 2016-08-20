@@ -71,7 +71,7 @@ mod api;
 mod proxypac;
 mod url;
 
-pub use self::apps::urlhint::RegistrarClient;
+pub use self::apps::urlhint::ContractClient;
 
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
@@ -87,7 +87,7 @@ static DAPPS_DOMAIN : &'static str = ".parity";
 pub struct ServerBuilder {
 	dapps_path: String,
 	handler: Arc<IoHandler>,
-	registrar: Arc<Box<RegistrarClient>>,
+	registrar: Arc<Box<ContractClient>>,
 }
 
 impl Extendable for ServerBuilder {
@@ -98,7 +98,7 @@ impl Extendable for ServerBuilder {
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new(dapps_path: String, registrar: Box<RegistrarClient>) -> Self {
+	pub fn new(dapps_path: String, registrar: Box<ContractClient>) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path,
 			handler: Arc::new(IoHandler::new()),
@@ -131,7 +131,7 @@ impl Server {
 		authorization: A,
 		handler: Arc<IoHandler>,
 		dapps_path: String,
-		registrar: Arc<Box<RegistrarClient>>,
+		registrar: Arc<Box<ContractClient>>,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
