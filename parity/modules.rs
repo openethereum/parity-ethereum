@@ -105,7 +105,7 @@ pub fn sync
 	-> Result<SyncModules, NetworkError>
 {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
-	hypervisor = hypervisor.module(SYNC_MODULE_ID, "parity", sync_arguments(sync_cfg, net_cfg, log_settings));
+	hypervisor = hypervisor.module(SYNC_MODULE_ID, sync_arguments(sync_cfg, net_cfg, log_settings));
 
 	hypervisor.start();
 	hypervisor.wait_for_startup();
