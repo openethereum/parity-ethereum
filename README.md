@@ -98,7 +98,7 @@ To start parity as a regular user using systemd init:
 
 1. copy the ```parity/scripts/parity.service``` in your
 systemd user directory (usually ```~/.config/systemd/user```).
-2. to pass any argument to parity, write a ```~/.parity/prity.conf``` file this way:
+2. to pass any argument to parity, write a ```~/.parity/parity.conf``` file this way:
 ```ARGS="ARG1 ARG2 ARG3"```.
 
-	Example: ```ARGS=ui --geth --identity MyMachine"```.
+	Example: ```ARGS="ui --geth --identity MyMachine"```.
