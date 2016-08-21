@@ -25,6 +25,7 @@ use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
+use ethcore::ids::BlockID;
 
 use jsonrpc_core::*;
 use v1::traits::Ethcore;
@@ -214,6 +215,24 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		try!(self.active());
 		from_params::<(String,)>(params).and_then(|(phrase,)|
 			to_value(&H160::from(KeyPair::from_phrase(&phrase).address()))
+		)
+	}
+
+	fn list_accounts(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+		
+		take_weak!(self.client)
+			.list_accounts(BlockID::Latest)
+			.map(|a| to_value(&a.into_iter().map(Into::into).collect::<Vec<H160>>()))
+			.unwrap_or(Ok(Value::Null))
+	}
+
+	fn list_storage_keys(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		
+		from_params::<(H160,)>(params).and_then(|(_addr,)|
+			Ok(Value::Null)
 		)
 	}
 }

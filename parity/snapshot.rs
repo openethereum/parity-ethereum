@@ -55,6 +55,7 @@ pub struct SnapshotCommand {
 	pub logger_config: LogConfig,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub file_path: Option<String>,
 	pub wal: bool,
@@ -89,7 +90,7 @@ impl SnapshotCommand {
 		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, &self.dirs, genesis_hash, self.mode, self.tracing, self.pruning, self.compaction, self.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+		let client_config = to_client_config(&self.cache_config, &self.dirs, genesis_hash, self.mode, self.tracing, self.fat_db, self.pruning, self.compaction, self.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
 
 		let service = try!(ClientService::start(
 			client_config,

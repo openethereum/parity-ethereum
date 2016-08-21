@@ -76,6 +76,14 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns the value of the registrar for this network.
 	fn registry_address(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns all addresses if Fat DB is enabled (`--fat-db`), or null if not.
+	/// Takes no parameters.
+	fn list_accounts(&self, _: Params) -> Result<Value, Error>;
+
+	/// Returns all storage keys of the given address (first parameter) if Fat DB is enabled (`--fat-db`),
+	/// or null if not.
+	fn list_storage_keys(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -98,6 +106,8 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_generateSecretPhrase", Ethcore::generate_secret_phrase);
 		delegate.add_method("ethcore_phraseToAddress", Ethcore::phrase_to_address);
 		delegate.add_method("ethcore_registryAddress", Ethcore::registry_address);
+		delegate.add_method("ethcore_listAccounts", Ethcore::list_accounts);
+		delegate.add_method("ethcore_listStorageKeys", Ethcore::list_storage_keys);
 
 		delegate
 	}

@@ -79,6 +79,7 @@ pub struct ImportBlockchain {
 	pub wal: bool,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub vm_type: VMType,
 }
 
@@ -94,6 +95,7 @@ pub struct ExportBlockchain {
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub mode: Mode,
+	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub from_block: BlockID,
 	pub to_block: BlockID,
@@ -131,7 +133,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), spec.fork_name.as_ref());
+	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.fat_db, cmd.pruning, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), spec.fork_name.as_ref());
 
 	// build client
 	let service = try!(ClientService::start(
@@ -242,7 +244,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.fat_db, cmd.pruning, cmd.compaction, cmd.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
 
 	let service = try!(ClientService::start(
 		client_config,

@@ -91,8 +91,8 @@ pub struct ClientConfig {
 	pub tracing: TraceConfig,
 	/// VM type.
 	pub vm_type: VMType,
-	/// Trie type.
-	pub trie_spec: TrieSpec,
+	/// Fat DB enabled?
+	pub fat_db: Switch,
 	/// The JournalDB ("pruning") algorithm to use.
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.

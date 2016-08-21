@@ -193,6 +193,7 @@ pub fn to_client_config(
 		genesis_hash: H256,
 		mode: Mode,
 		tracing: Switch,
+		fat_db: Switch,
 		pruning: Pruning,
 		compaction: DatabaseCompactionProfile,
 		wal: bool,
@@ -220,6 +221,7 @@ pub fn to_client_config(
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
+	client_config.fat_db = fat_db;
 	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash, fork_name);
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;

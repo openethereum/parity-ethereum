@@ -25,7 +25,8 @@ use time::precise_time_ns;
 use util::{journaldb, rlp, Bytes, View, PerfTimer, Itertools, Mutex, RwLock};
 use util::journaldb::JournalDB;
 use util::rlp::{UntrustedRlp};
-use util::{U256, H256, Address, H2048, Uint};
+use util::{U256, H256, Address, H2048, Uint, FixedHash};
+use util::trie::{TrieSpec};
 use util::sha3::*;
 use util::kvdb::*;
 
@@ -52,7 +53,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify
+	ChainNotify, Switch
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -169,6 +170,11 @@ impl Client {
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
 		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, db.clone(), chain.clone())));
+		let trie_spec = match config.fat_db {
+			Switch::On => TrieSpec::Fat,
+			Switch::Off => TrieSpec::Secure,
+			Switch::Auto => unimplemented!(),
+		};
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
@@ -203,7 +209,7 @@ impl Client {
 			panic_handler: panic_handler,
 			verifier: verification::new(config.verifier_type),
 			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
-			trie_factory: TrieFactory::new(config.trie_spec),
+			trie_factory: TrieFactory::new(trie_spec),
 			miner: miner,
 			io_channel: message_channel,
 			notify: RwLock::new(Vec::new()),
@@ -799,6 +805,21 @@ impl BlockChainClient for Client {
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
 		self.state_at(id).map(|s| s.storage_at(address, position))
+	}
+
+	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>> {
+		if !self.trie_factory.is_fat() {
+			trace!(target: "fatdb", "list_accounts: Not a fat DB");
+			return None;
+		}
+		self.state_at(id).and_then(|s| {
+			let (root, db) = s.drop();
+			let trie = self.trie_factory.readonly(db.as_hashdb(), &root).ok();
+			if trie.is_none() {
+				trace!(target: "fatdb", "list_accounts: Couldn't open the DB");
+			}
+			trie.map(|fat_trie| fat_trie.iter().map(|(addr, _)| Address::from_slice(&addr)).collect())
+		})
 	}
 
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction> {
