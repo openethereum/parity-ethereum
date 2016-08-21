@@ -25,7 +25,7 @@ use evm::Schedule;
 use ethjson;
 
 /// `BFT` params.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct BFTParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
@@ -36,7 +36,7 @@ pub struct BFTParams {
 	/// Number of validators.
 	pub validator_n: usize,
 	/// Precommit step votes.
-	precommits: HashMap<H256, HashSet<H520>>
+	precommits: RwLock<HashMap<H256, HashSet<Signature>>>
 }
 
 impl From<ethjson::spec::BFTParams> for BFTParams {
@@ -45,8 +45,9 @@ impl From<ethjson::spec::BFTParams> for BFTParams {
 		BFTParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			duration_limit: p.duration_limit.into(),
-			validators: auth,
-			validator_n: val.len()
+			validator_n: val.len(),
+			validators: val,
+			precommits: RwLock::new(HashMap::new())
 		}
 	}
 }
@@ -68,17 +69,27 @@ impl BFT {
 		}
 	}
 
-	fn check_precommit(&self, bare_hash: &H256, signature: &H520) -> result::Result<(), Error> {
-		let signer = Address::from(try!(ec::recover(&sig, bare_hash)).sha3());
-		if !self.our_params.validators.contains(&signer) {
-			return try!(Err(BlockError::InvalidSeal));
+	fn add_precommit(&self, bare_hash: &H256, signature: &Signature) {
+		if let Some(mut precommits) = self.our_params.precommits.write().get_mut(bare_hash) {
+			precommits.insert(signature.clone());
+		} else {
+			let mut new = HashSet::new();
+			new.insert(signature.clone());
+			assert!(self.our_params.precommits.write().insert(bare_hash.clone(), new).is_none());
 		}
-		Ok(())
+	}
+
+	fn check_precommit(&self, bare_hash: &H256, signature: &Signature) -> result::Result<(), Error> {
+		let signer = Address::from(try!(ec::recover(&signature, bare_hash)).sha3());
+		match self.our_params.validators.contains(&signer) {
+			false => try!(Err(BlockError::InvalidSeal)),
+			true => Ok(()),
+		}
 	}
 
 	fn supermajority(&self) -> usize { 2*self.our_params.validator_n/3 }
 
-	fn signatures_seal(&self, signatures: &HashSet<H520>) -> Vec<Bytes> {
+	fn signatures_seal(&self, signatures: &HashSet<Signature>) -> Vec<Bytes> {
 		signatures.iter().map(|sig| encode(&(&*sig as &[u8])).to_vec()).collect()
 	}
 }
@@ -121,22 +132,23 @@ impl Engine for BFT {
 	///
 	/// None is returned if not enough signatures can be collected.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		let hash = block.bare_hash();
-		let signatures = self.our_params.precommits.entry(hash).or_insert(HashSet::new());
+		let hash = block.header().bare_hash();
+		let guard = self.our_params.precommits.read();
+		let signatures = guard.get(&hash).unwrap_or(return None);
 		let threshold = self.supermajority();
 		match (signatures.len(), accounts) {
-			(threshold-1, Some(ap)) => {
+			(v, Some(ap)) if v == threshold-1 => {
 				// account should be pernamently unlocked, otherwise signing will fail
 				if let Ok(signature) = ap.sign(*block.header().author(), hash) {
-					*signatures.insert(signature);
-					Some(self.signatures_seal(signatures));
+					self.add_precommit(&hash, &signature.into());
+					Some(self.signatures_seal(signatures))
 				} else {
 					trace!(target: "bft", "generate_seal: FAIL: secret key unavailable");
 					None
 				}
 			},
-			(0..threshold, _) => None,
-			(threshold.., _) => Some(block.header().seal),
+			(v, _) if v < threshold => None,
+			_ => Some(block.header().seal.clone()),
 		}
 	}
 
@@ -154,18 +166,19 @@ impl Engine for BFT {
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		let hash = header.bare_hash();
 		let threshold = self.supermajority();
-		let signatures = self.our_params.precommits.entry(hash).or_insert(HashSet::new());
+		let guard = self.our_params.precommits.read();
+		let mut signatures = guard.get(&hash).unwrap_or(try!(Err(BlockError::InvalidSeal)));
 		if signatures.len() > threshold { return Ok(()) }
 		// Count all valid precommits.
-		for seal_field in header.seal {
-			let sig = try!(UntrustedRlp::new(seal_field).as_val::<H520>());
-			if !signatures.contains(sig) || self.check_precommit(hash, sig).is_ok() {
+		for seal_field in header.seal() {
+			let sig = try!(UntrustedRlp::new(&seal_field).as_val::<Signature>());
+			if !signatures.contains(&sig) || self.check_precommit(&hash, &sig).is_ok() {
 				trace!(target: "bft", "verify_block_unordered: new validator vote found");
-				*signatures.insert(sig);
+				self.add_precommit(&hash, &sig);
 				if signatures.len() > threshold { return Ok(()) }
 			}
 		}
-		Err(BlockError::InvalidSeal)
+		try!(Err(BlockError::InvalidSeal))
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -197,12 +210,6 @@ impl Engine for BFT {
 	}
 }
 
-impl Header {
-	/// Get the none field of the header.
-	pub fn signature(&self) -> H520 {
-		decode(&self.seal()[0])
-	}
-}
 
 #[cfg(test)]
 mod tests {
