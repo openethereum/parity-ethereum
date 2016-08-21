@@ -50,7 +50,7 @@ winapi = "0.2"
 daemonize = "0.2"
 
 [dependencies.hyper]
-version = "0.8"
+version = "0.9"
 default-features = false
 
 [features]
