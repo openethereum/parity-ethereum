@@ -20,13 +20,15 @@ mod null_engine;
 mod instant_seal;
 mod basic_authority;
 mod bft;
+mod signed_vote;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
 pub use self::bft::BFT;
+pub use self::signed_vote::VoteError;
 
-use common::*;
+use common::{HashMap, SemanticVersion, Header, EnvInfo, Address, Builtin, BTreeMap, U256, Bytes, SignedTransaction, Error};
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
