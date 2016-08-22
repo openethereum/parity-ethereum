@@ -956,7 +956,10 @@ mod test {
 		assert_eq!(txq.status().pending, 2);
 		assert_eq!(txq.last_nonce(&sender), Some(nonce));
 		*/
-		assert!(res.is_err());
+		assert_eq!(unwrap_tx_err(res), TransactionError::InsufficientGasPrice {
+			minimal: 2.into(),
+			got: 1.into(),
+		});
 		assert_eq!(txq.status().pending, 2);
 		assert_eq!(txq.last_nonce(&sender), Some(tx2.nonce));
 	}
