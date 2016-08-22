@@ -31,6 +31,7 @@ const CODES_FILENAME: &'static str = "authcodes";
 pub struct Configuration {
 	pub enabled: bool,
 	pub port: u16,
+	pub interface: String,
 	pub signer_path: String,
 	pub skip_origin_validation: bool,
 }
@@ -40,6 +41,7 @@ impl Default for Configuration {
 		Configuration {
 			enabled: true,
 			port: 8180,
+			interface: "127.0.0.1".into(),
 			signer_path: replace_home("$HOME/.parity/signer"),
 			skip_origin_validation: false,
 		}
@@ -82,7 +84,7 @@ fn generate_new_token(path: String) -> io::Result<String> {
 }
 
 fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, String> {
-	let addr = try!(format!("127.0.0.1:{}", conf.port)
+	let addr = try!(format!("{}:{}", conf.interface, conf.port)
 		.parse()
 		.map_err(|_| format!("Invalid port specified: {}", conf.port)));
 
