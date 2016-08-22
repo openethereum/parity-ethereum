@@ -21,7 +21,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-rpc = { path = "../rpc" }
 parity-dapps-signer = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4", optional = true}
 
-clippy = { version = "0.0.82", optional = true}
+clippy = { version = "0.0.85", optional = true}
 
 [features]
 dev = ["clippy"]
