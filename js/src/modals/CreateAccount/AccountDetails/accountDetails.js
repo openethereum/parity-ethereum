@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import Form, { FormWrap, Input } from '../../../ui/Form';
 import IdentityIcon from '../../../ui/IdentityIcon';
 
-export default class RecoverAccount extends Component {
+export default class AccountDetails extends Component {
   static propTypes = {
     address: PropTypes.string,
     name: PropTypes.string,
