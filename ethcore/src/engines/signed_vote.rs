@@ -16,13 +16,7 @@
 
 //! Voting on hashes, where each vote has to come from a set of public keys.
 
-use common::*;
-use account_provider::AccountProvider;
-use block::*;
-use spec::CommonParams;
-use engines::Engine;
-use evm::Schedule;
-use ethjson;
+use common::{HashSet, HashMap, RwLock, H256, Signature, Address, Error, ec, Hashable};
 
 /// Signed voting on hashes.
 #[derive(Debug)]
@@ -39,16 +33,20 @@ pub struct SignedVote {
 	winner: RwLock<Option<H256>>
 }
 
+/// Voting errors.
 #[derive(Debug)]
 pub enum VoteError {
+	/// Voter is not in the voters set.
 	UnauthorisedVoter
 }
 
 impl SignedVote {
 	/// Create a new instance of BFT engine
 	pub fn new(voters: HashSet<Address>, threshold: usize) -> Self {
+		let voters_n = voters.len();
+		assert!(voters_n > threshold);
 		SignedVote {
-			voter_n: voters.len(),
+			voter_n: voters_n,
 			voters: voters,
 			threshold: threshold,
 			votes: RwLock::new(HashMap::new()),
@@ -56,19 +54,23 @@ impl SignedVote {
 		}
 	}
 
+	/// Vote on hash using the signed hash, true if vote counted.
 	pub fn vote(&self, bare_hash: H256, signature: &Signature) -> bool {
 		if !self.can_vote(&bare_hash, signature).is_ok() { return false; }
-		let n = if let Some(mut old) = self.votes.write().get_mut(&bare_hash) {
-			old.insert(signature.clone());
-			old.len()
-		} else {
-			let mut new = HashSet::new();
-			new.insert(signature.clone());
-			assert!(self.votes.write().insert(bare_hash.clone(), new).is_none());
-			1
-		};
-		if self.is_won(n) {
-			let mut guard = self.winner.write();
+		let mut guard = self.votes.try_write().unwrap();
+		let set = guard.entry(bare_hash.clone()).or_insert_with(|| HashSet::new());
+		if !set.insert(signature.clone()) { return false; }
+//		let n = if let Some(mut old) = guard.get_mut(&bare_hash) {
+//			if !old.insert(signature.clone()) { return false; }
+//			old.len()
+//		} else {
+//			let mut new = HashSet::new();
+//			new.insert(signature.clone());
+//			assert!(guard.insert(bare_hash.clone(), new).is_none());
+//			1
+//		};
+		if set.len() >= self.threshold {
+			let mut guard = self.winner.try_write().unwrap();
 			*guard = Some(bare_hash);
 		}
 		true
@@ -82,20 +84,48 @@ impl SignedVote {
 		}
 	}
 
-	fn is_won(&self, valid_votes: usize) -> bool {
-		valid_votes > self.threshold
-	}
-
-	pub fn winner(&self) -> Option<H256> { self.winner.read().clone() }
+	/// Some winner if voting threshold was reached.
+	pub fn winner(&self) -> Option<H256> { self.winner.try_read().unwrap().clone() }
 }
 
 #[cfg(test)]	
 mod tests {
-	use common::{HashSet, Address};
+	use common::*;
 	use engines::signed_vote::SignedVote;
+	use account_provider::AccountProvider;
+
 	#[test]
 	fn simple_vote() {
-		let voters: HashSet<_> = vec![Address::default()].into_iter().collect();
-		let vote = SignedVote::new(voters, 2);
+		let tap = AccountProvider::transient_provider();
+		let addr1 = tap.insert_account("1".sha3(), "1").unwrap();
+		tap.unlock_account_permanently(addr1, "1".into()).unwrap();
+
+		let addr2 = tap.insert_account("2".sha3(), "2").unwrap();
+		tap.unlock_account_permanently(addr2, "2".into()).unwrap();
+
+		let addr3 = tap.insert_account("3".sha3(), "3").unwrap();
+		tap.unlock_account_permanently(addr3, "3".into()).unwrap();
+
+		let voters: HashSet<_> = vec![addr1, addr2].into_iter().map(Into::into).collect();
+		let vote = SignedVote::new(voters.into(), 1);
+		assert!(vote.winner().is_none());
+		let header = Header::default();
+		let bare_hash = header.bare_hash();
+
+		// Unapproved voter.
+		let signature = tap.sign(addr3, bare_hash).unwrap();
+		assert!(!vote.vote(bare_hash, &signature.into()));
+		assert!(vote.winner().is_none());
+		// First good vote.
+		let signature = tap.sign(addr1, bare_hash).unwrap();
+		assert!(vote.vote(bare_hash, &signature.into()));
+		assert_eq!(vote.winner().unwrap(), bare_hash);
+		// Voting again is ineffective.
+		let signature = tap.sign(addr1, bare_hash).unwrap();
+		assert!(!vote.vote(bare_hash, &signature.into()));
+		// Second valid vote.
+		let signature = tap.sign(addr2, bare_hash).unwrap();
+		assert!(vote.vote(bare_hash, &signature.into()));
+		assert_eq!(vote.winner().unwrap(), bare_hash);
 	}
 }

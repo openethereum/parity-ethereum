@@ -261,7 +261,8 @@ impl fmt::Display for Error {
 			Error::StdIo(ref err) => err.fmt(f),
 			Error::Snappy(ref err) => err.fmt(f),
 			Error::Snapshot(ref err) => err.fmt(f),
-			Error::Vote(ref err) => f.write_str("Bad vote."),
+			Error::Vote(ref err) =>
+				f.write_fmt(format_args!("Bad vote: {:?}", err)),
 		}
 	}
 }
