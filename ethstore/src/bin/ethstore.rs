@@ -20,7 +20,6 @@ extern crate ethstore;
 
 use std::{env, process, fs};
 use std::io::Read;
-use std::ops::Deref;
 use docopt::Docopt;
 use ethstore::ethkey::Address;
 use ethstore::dir::{KeyDirectory, ParityDirectory, DiskDirectory, GethDirectory, DirectoryType};
@@ -162,7 +161,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let signature = try!(store.sign(&address, &password, &message));
 		Ok(format!("{}", signature))
 	} else {
-		println!("{}", USAGE);
+		Ok(format!("{}", USAGE))
 	}
 }
 
