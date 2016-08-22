@@ -27,8 +27,10 @@ use types::state_diff::StateDiff;
 
 mod account;
 mod substate;
+mod backend;
 
 pub use self::account::Account;
+pub use self::backend::Backend;
 pub use self::substate::Substate;
 
 /// Used to return information about an `State::apply` operation.
@@ -257,8 +259,7 @@ impl State {
 		trie_factory: &TrieFactory,
 		db: &mut HashDB,
 		root: &mut H256,
-		accounts: &mut HashMap<Address,
-		Option<Account>>
+		accounts: &mut HashMap<Address, Option<Account>>
 	) -> Result<(), Error> {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
