@@ -94,9 +94,9 @@ describe('api/contract/Contract', () => {
           type: 'event'
         }
       ]);
-      const instance = contract.at('6789');
+      contract.at('6789');
 
-      expect(Object.keys(instance)).to.deep.equal(['Drained', 'balanceOf']);
+      expect(Object.keys(contract.instance)).to.deep.equal(['Drained', 'balanceOf']);
       expect(contract.address).to.equal('6789');
     });
   });

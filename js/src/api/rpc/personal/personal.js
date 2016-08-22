@@ -18,6 +18,17 @@ export default class Personal {
       .then((accounts) => (accounts || []).map(outAddress));
   }
 
+  listGethAccounts () {
+    return this._transport
+      .execute('personal_listGethAccounts')
+      .then((accounts) => (accounts || []).map(outAddress));
+  }
+
+  importGethAccounts (accounts) {
+    return this._transport
+      .execute('personal_importGethAccounts', (accounts || []).map(inAddress));
+  }
+
   newAccount (password) {
     return this._transport
       .execute('personal_newAccount', password)

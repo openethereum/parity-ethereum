@@ -33,6 +33,29 @@ export default {
     }
   },
 
+  listGethAccounts: {
+    desc: 'Returns a list of the accounts available from Geth',
+    params: [],
+    returns: {
+      type: Array,
+      desc: '20 Bytes addresses owned by the client.'
+    }
+  },
+
+  importGethAccounts: {
+    desc: 'Imports a list of accounts from geth',
+    params: [
+      {
+        type: Array,
+        desc: 'List of the geth addresses to import'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'The import result'
+    }
+  },
+
   newAccount: {
     desc: 'Creates new account',
     params: [
