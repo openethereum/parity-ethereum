@@ -21,6 +21,9 @@ mod db;
 use util::{Address, H256, Bytes};
 use std::collections::HashMap;
 
+use error::Error;
+use state::Account;
+
 pub use self::db::Database;
 
 /// The state backend trait.
@@ -29,17 +32,20 @@ pub use self::db::Database;
 pub trait Backend: Clone {
 	/// Query an account's contract code.
 	/// Returns `None` if it doesn't exist.
-	fn code(&self, addr_hash: H256) -> Option<Bytes>;
+	fn code(&self, address: Address, code_hash: &H256) -> Option<Bytes>;
 
-	/// Query an account.
+	/// Query an account with the given state root and address.
 	/// Returns the RLP of the account structure or `None` if it doesn't exist.
-	fn account(&self, addr_hash: H256) -> Option<Bytes>;
+	fn account(&self, root: &H256, address: &Address) -> Option<Account>;
 
 	/// Query an account's storage by key.
 	/// Returns `None` if it doesn't exist.
-	fn storage(&self, addr_hash: H256, key: H256) -> Option<H256>;
+	fn storage(&self, address: Address, storage_root: &H256, key: &H256) -> H256;
+
+	// TODO: optimize API to support combining account and storage queries into single
+	// GetProofs packet for LES.
 
 	/// Commit all the accounts and their storage from the given cache, marking them clean
 	/// as it goes.
-	fn commit(&mut self, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>);
+	fn commit(&mut self, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>) -> Result<(), Error>;
 }
