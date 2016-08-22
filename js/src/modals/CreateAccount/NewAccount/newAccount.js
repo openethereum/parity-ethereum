@@ -57,7 +57,7 @@ export default class CreateAccount extends Component {
           label='password hint'
           hint='(optional) a hint to help with remembering the password'
           value={ this.state.passwordHint }
-          onChange={ this.onEditpasswordHint } />
+          onChange={ this.onEditPasswordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
