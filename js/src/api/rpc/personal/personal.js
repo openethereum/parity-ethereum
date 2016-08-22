@@ -26,7 +26,8 @@ export default class Personal {
 
   importGethAccounts (accounts) {
     return this._transport
-      .execute('personal_importGethAccounts', (accounts || []).map(inAddress));
+      .execute('personal_importGethAccounts', (accounts || []).map(inAddress))
+      .then((accounts) => (accounts || []).map(outAddress));
   }
 
   newAccount (password) {

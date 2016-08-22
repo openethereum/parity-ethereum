@@ -51,8 +51,8 @@ export default {
       }
     ],
     returns: {
-      type: Boolean,
-      desc: 'The import result'
+      type: Array,
+      desc: 'Array of the imported addresses'
     }
   },
 
