@@ -289,6 +289,7 @@ version = "1.4.0"
 dependencies = [
  "clippy 0.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-devtools 1.4.0",
  "ethcore-rpc 1.4.0",
  "ethcore-util 1.4.0",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
@@ -305,6 +306,7 @@ dependencies = [
  "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "zip 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",

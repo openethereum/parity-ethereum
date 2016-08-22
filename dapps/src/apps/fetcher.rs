@@ -19,6 +19,7 @@
 //! Uses `URLHint` to resolve addresses into Dapps bundle file location.
 
 use zip;
+use tiny_keccak::Keccak;
 use std::{fs, env};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
@@ -30,7 +31,7 @@ use hyper::Control;
 use hyper::status::StatusCode;
 
 use random_filename;
-use util::Mutex;
+use util::{Mutex, H256};
 use page::LocalPageEndpoint;
 use handlers::{ContentHandler, AppFetcherHandler, DappHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};
@@ -137,10 +138,12 @@ impl<R: URLHint> AppFetcher<R> {
 
 #[derive(Debug)]
 pub enum ValidationError {
-	ManifestNotFound,
-	ManifestSerialization(String),
 	Io(io::Error),
 	Zip(zip::result::ZipError),
+	InvalidDappId,
+	ManifestNotFound,
+	ManifestSerialization(String),
+	HashMismatch { expected: H256, got: H256, },
 }
 
 impl From<io::Error> for ValidationError {
@@ -153,6 +156,45 @@ impl From<zip::result::ZipError> for ValidationError {
 	fn from(err: zip::result::ZipError) -> Self {
 		ValidationError::Zip(err)
 	}
+}
+
+
+fn sha3(file: &mut fs::File) -> Result<H256, io::Error> {
+	let mut output = [0u8; 32];
+	let mut input = [0u8; 1024];
+	let mut sha3 = Keccak::new_keccak256();
+
+	// read file
+	loop {
+		let some = try!(file.read(&mut input));
+		if some == 0 {
+			break;
+		}
+		sha3.update(&input[0..some]);
+	}
+
+	sha3.finalize(&mut output);
+	Ok(output.into())
+}
+
+#[cfg(test)]
+#[test]
+fn should_sha3_a_file() {
+	// given
+	use ethcore_devtools::RandomTempPath;
+	let path = RandomTempPath::new();
+	// Prepare file
+	{
+		let mut file = fs::File::create(&path).unwrap();
+		file.write_all(b"something").unwrap();
+	}
+
+	let mut file = fs::File::open(&path).unwrap();
+	// when
+	let hash = sha3(&mut file).unwrap();
+
+	// then
+	assert_eq!(format!("{:?}", hash), "68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87");
 }
 
 struct DappInstaller {
@@ -198,8 +240,15 @@ impl DappHandler for DappInstaller {
 
 	fn validate_and_install(&self, app_path: PathBuf) -> Result<Manifest, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
-		// TODO [ToDr] Validate file hash
-		let file = try!(fs::File::open(app_path));
+		let mut file = try!(fs::File::open(app_path));
+		let hash = try!(sha3(&mut file));
+		let dapp_id = try!(self.dapp_id.as_str().parse().map_err(|_| ValidationError::InvalidDappId));
+		if dapp_id != hash {
+			return Err(ValidationError::HashMismatch {
+				expected: dapp_id,
+				got: hash,
+			});
+		}
 		// Unpack archive
 		let mut zip = try!(zip::ZipArchive::new(file));
 		// First find manifest file
