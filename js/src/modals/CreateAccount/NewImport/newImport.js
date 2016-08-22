@@ -25,6 +25,7 @@ export default class NewImport extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
+    passwordHint: '',
     password: '',
     passwordError: ERRORS.noPassword,
     walletFile: '',
@@ -48,6 +49,11 @@ export default class NewImport extends Component {
           error={ this.state.accountNameError }
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
+        <Input
+          label='password hint'
+          hint='(optional) a hint to help with remembering the password'
+          value={ this.state.passwordHint }
+          onChange={ this.onEditpasswordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
@@ -116,9 +122,16 @@ export default class NewImport extends Component {
 
     this.props.onChange(valid, {
       name: this.state.accountName,
+      passwordHint: this.state.passwordHint,
       password: this.state.password,
       phrase: null,
       json: this.state.walletJson
+    });
+  }
+
+  onEditPasswordHint = (event, value) => {
+    this.setState({
+      passwordHint: value
     });
   }
 

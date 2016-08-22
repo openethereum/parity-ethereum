@@ -37,6 +37,7 @@ export default class CreateAccount extends Component {
   state = {
     address: null,
     name: null,
+    passwordHint: null,
     password: null,
     phrase: null,
     json: null,
@@ -155,7 +156,11 @@ export default class CreateAccount extends Component {
     if (this.state.createType === 'fromNew') {
       return api.personal
         .newAccountFromPhrase(this.state.phrase, this.state.password)
-        .then((address) => api.personal.setAccountName(address, this.state.name))
+        .then((address) => {
+          return api.personal
+            .setAccountName(address, this.state.name)
+            .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
+        })
         .then(() => {
           this.onNext();
           this.props.onUpdate && this.props.onUpdate();
@@ -175,7 +180,10 @@ export default class CreateAccount extends Component {
         this.setState({
           address: address
         });
-        return api.personal.setAccountName(address, this.state.name);
+
+        return api.personal
+          .setAccountName(address, this.state.name)
+          .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
       })
       .then(() => {
         this.onNext();
@@ -205,22 +213,24 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeDetails = (valid, { name, address, password, phrase }) => {
+  onChangeDetails = (valid, { name, passwordHint, address, password, phrase }) => {
     this.setState({
       canCreate: valid,
-      name: name,
-      address: address,
-      password: password,
-      phrase: phrase
+      name,
+      passwordHint,
+      address,
+      password,
+      phrase
     });
   }
 
-  onChangeWallet = (valid, { name, password, json }) => {
+  onChangeWallet = (valid, { name, passwordHint, password, json }) => {
     this.setState({
       canCreate: valid,
-      name: name,
-      password: password,
-      json: json
+      name,
+      passwordHint,
+      password,
+      json
     });
   }
 }

@@ -28,6 +28,7 @@ export default class CreateAccount extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
+    passwordHint: '',
     password1: '',
     password1Error: ERRORS.invalidPassword,
     password2: '',
@@ -52,6 +53,11 @@ export default class CreateAccount extends Component {
           error={ this.state.accountNameError }
           value={ this.state.accountName }
           onChange={ this.onEditAccountName } />
+        <Input
+          label='password hint'
+          hint='(optional) a hint to help with remembering the password'
+          value={ this.state.passwordHint }
+          onChange={ this.onEditpasswordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
@@ -179,6 +185,7 @@ export default class CreateAccount extends Component {
     this.props.onChange(this.state.isValidName && this.state.isValidPass, {
       address: this.state.selectedAddress,
       name: this.state.accountName,
+      passwordHint: this.state.passwordHint,
       password: this.state.password1,
       phrase: this.state.accounts[this.state.selectedAddress].phrase
     });
@@ -194,6 +201,12 @@ export default class CreateAccount extends Component {
     this.setState({
       selectedAddress: address
     }, this.updateParent);
+  }
+
+  onEditPasswordHint = (event, value) => {
+    this.setState({
+      passwordHint: value
+    });
   }
 
   onEditAccountName = (event) => {
