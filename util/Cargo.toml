@@ -32,8 +32,8 @@ parking_lot = "0.2.6"
 using_queue = { path = "using_queue" }
 table = { path = "table" }
 ansi_term = "0.7"
-# smallvec = "0.1.8"
-smallvec = { git = "https://github.com/servo/rust-smallvec" }
+smallvec = "0.2"
+# smallvec = { git = "https://github.com/servo/rust-smallvec" }
 
 [features]
 default = []

@@ -277,9 +277,7 @@ struct U8Slice<'a>(&'a [u8]);
 
 impl<'a> ByteEncodable for U8Slice<'a> {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		for &byte in self.0 {
-			out.push(byte);
-		}
+		out.extend(self.0.iter().cloned());
 	}
 
 	fn bytes_len(&self) -> usize {

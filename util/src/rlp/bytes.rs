@@ -37,9 +37,7 @@ pub trait ToBytes {
 
 impl <'a> ToBytes for &'a str {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		for &byte in self.as_bytes() {
-			out.push(byte);
-		}
+		out.extend(self.as_bytes().iter().cloned());
 	}
 
 	fn to_bytes_len(&self) -> usize {
@@ -49,9 +47,7 @@ impl <'a> ToBytes for &'a str {
 
 impl ToBytes for String {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		for &byte in self.as_bytes() {
-			out.push(byte);
-		}
+		out.extend(self.as_bytes().iter().cloned());
 	}
 
 	fn to_bytes_len(&self) -> usize {
@@ -117,9 +113,7 @@ macro_rules! impl_hash_to_bytes {
 	($name: ident) => {
 		impl ToBytes for $name {
 			fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-				for &byte in self.0.iter() {
-					out.push(byte);
-				}
+				out.extend(self.iter().cloned());
 			}
 			fn to_bytes_len(&self) -> usize { self.len() }
 		}
