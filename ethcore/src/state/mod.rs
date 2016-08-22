@@ -46,54 +46,57 @@ pub struct ApplyOutcome {
 pub type ApplyResult = Result<ApplyOutcome, Error>;
 
 /// Representation of the entire state of all accounts in the system.
-pub struct State {
-	db: Box<JournalDB>,
-	root: H256,
+pub struct State<B: Backend> {
+	backend: B,
 	cache: RefCell<HashMap<Address, Option<Account>>>,
 	snapshots: RefCell<Vec<HashMap<Address, Option<Option<Account>>>>>,
 	account_start_nonce: U256,
-	trie_factory: TrieFactory,
 }
+
+/// Type alias for a "locally backed" state, which doesn't have to farm out to network
+/// at all. This kind of state is suitable for block enactment whereas lighter states may not be.
+pub type HeavyState = State<backend::Database>;
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
 			 Therefore creating a SecTrieDB with this state's root will not fail.";
 
-impl State {
+impl HeavyState {
 	/// Creates new state with empty state root
 	#[cfg(test)]
-	pub fn new(mut db: Box<JournalDB>, account_start_nonce: U256, trie_factory: TrieFactory) -> State {
-		let mut root = H256::new();
-		{
-			// init trie and reset root too null
-			let _ = trie_factory.create(db.as_hashdb_mut(), &mut root);
-		}
-
+	pub fn new(db: Box<JournalDB>, account_start_nonce: U256, trie_factory: TrieFactory) -> Self {
 		State {
-			db: db,
-			root: root,
+			backend: backend::Database::new(db, trie_factory),
 			cache: RefCell::new(HashMap::new()),
 			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
-			trie_factory: trie_factory,
 		}
 	}
 
-	/// Creates new state with existing state root
-	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, trie_factory: TrieFactory) -> Result<State, TrieError> {
-		if !db.as_hashdb().contains(&root) {
-			return Err(TrieError::InvalidStateRoot(root));
-		}
-
-		let state = State {
-			db: db,
-			root: root,
+	/// Creates a new state from the existing journaldb and state root.
+	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, trie_factory: TrieFactory) -> Result<Self, TrieError> {
+		Ok(State {
+			backend: try!(backend::Database::from_existing(db, root, trie_factory)),
 			cache: RefCell::new(HashMap::new()),
 			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
-			trie_factory: trie_factory,
-		};
+		})
+	}
 
-		Ok(state)
+	/// Destroy the current object and return root and database.
+	pub fn drop(self) -> (H256, Box<JournalDB>) {
+		self.backend.into_inner()
+	}
+}
+
+impl<B: Backend> State<B> {
+	/// Creates new state with the given backend.
+	pub fn from_backend(backend: B, account_start_nonce: U256) -> Self {
+		State {
+			backend: backend,
+			cache: RefCell::new(HashMap::new()),
+			snapshots: RefCell::new(Vec::new()),
+			account_start_nonce: account_start_nonce,
+		}
 	}
 
 	/// Create a recoverable snaphot of this state
@@ -148,14 +151,9 @@ impl State {
 		}
 	}
 
-	/// Destroy the current object and return root and database.
-	pub fn drop(self) -> (H256, Box<JournalDB>) {
-		(self.root, self.db)
-	}
-
 	/// Return reference to root
 	pub fn root(&self) -> &H256 {
-		&self.root
+		&self.backend.root()
 	}
 
 	/// Create a new contract at address `contract`. If there is already an account at the address
@@ -189,13 +187,13 @@ impl State {
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
 		self.ensure_cached(address, false,
-			|a| a.as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key)))
+			|a| a.as_ref().map_or(H256::new(), |a| a.storage_at(&self.backend, address.clone(), key)))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
 		self.ensure_cached(a, true,
-			|a| a.as_ref().map_or(None, |a|a.code().map(|x|x.to_vec())))
+			|a| a.as_ref().map_or(None, |a| a.code().map(|x| x.to_vec())))
 	}
 
 	/// Add `incr` to the balance of account `a`.
@@ -248,59 +246,20 @@ impl State {
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		try!(self.commit());
-		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
+		let receipt = Receipt::new(self.backend.root().clone(), e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}
 
-	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
-	/// `accounts` is mutable because we may need to commit the code or storage and record that.
-	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	pub fn commit_into(
-		trie_factory: &TrieFactory,
-		db: &mut HashDB,
-		root: &mut H256,
-		accounts: &mut HashMap<Address, Option<Account>>
-	) -> Result<(), Error> {
-		// first, commit the sub trees.
-		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
-		for (address, ref mut a) in accounts.iter_mut() {
-			match a {
-				&mut&mut Some(ref mut account) if account.is_dirty() => {
-					let mut account_db = AccountDBMut::from_hash(db, account.address_hash(address));
-					account.commit_storage(trie_factory, &mut account_db);
-					account.commit_code(&mut account_db);
-				}
-				_ => {}
-			}
-		}
-
-		{
-			let mut trie = trie_factory.from_existing(db, root).unwrap();
-			for (address, ref mut a) in accounts.iter_mut() {
-				match **a {
-					Some(ref mut account) if account.is_dirty() => {
-						account.set_clean();
-						try!(trie.insert(address, &account.rlp()))
-					},
-					None => try!(trie.remove(address)),
-					_ => (),
-				}
-			}
-		}
-
-		Ok(())
-	}
-
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
-		assert!(self.snapshots.borrow().is_empty());
-		Self::commit_into(&self.trie_factory, self.db.as_hashdb_mut(), &mut self.root, &mut *self.cache.borrow_mut())
+		assert!(self.snapshots.get_mut().is_empty());
+		self.backend.commit(&mut *self.cache.get_mut())
 	}
 
 	/// Clear state cache
 	pub fn clear(&mut self) {
-		self.cache.borrow_mut().clear();
+		self.cache.get_mut().clear();
 	}
 
 	#[cfg(test)]
@@ -309,7 +268,7 @@ impl State {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
-			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
+			self.cache.get_mut().insert(add, Some(Account::from_pod(acc)));
 		}
 	}
 
@@ -340,7 +299,7 @@ impl State {
 
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
-	pub fn diff_from(&self, orig: State) -> StateDiff {
+	pub fn diff_from<B2: Backend>(&self, orig: State<B2>) -> StateDiff {
 		let pod_state_post = self.to_pod();
 		let mut state_pre = orig;
 		state_pre.query_pod(&pod_state_post);
@@ -353,17 +312,12 @@ impl State {
 		where F: FnOnce(&Option<Account>) -> U {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			let maybe_acc = match db.get(a) {
-				Ok(acc) => acc.map(Account::from_rlp),
-				Err(e) => panic!("Potential DB corruption encountered: {}", e),
-			};
+			let maybe_acc = self.backend.account(a);
 			self.insert_cache(a, maybe_acc);
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
-				let addr_hash = account.address_hash(a);
-				account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+				account.cache_code(&self.backend, a);
 			}
 		}
 
@@ -382,12 +336,7 @@ impl State {
 	{
 		let contains_key = self.cache.borrow().contains_key(a);
 		if !contains_key {
-			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			let maybe_acc = match db.get(a) {
-				Ok(acc) => acc.map(Account::from_rlp),
-				Err(e) => panic!("Potential DB corruption encountered: {}", e),
-			};
-
+			let maybe_acc = self.backend.account(a);
 			self.insert_cache(a, maybe_acc);
 		} else {
 			self.note_cache(a);
@@ -401,29 +350,26 @@ impl State {
 		RefMut::map(self.cache.borrow_mut(), |c| {
 			let account = c.get_mut(a).unwrap().as_mut().unwrap();
 			if require_code {
-				let addr_hash = account.address_hash(a);
-				account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+				account.cache_code(&self.backend, a);
 			}
 			account
 		})
 	}
 }
 
-impl fmt::Debug for State {
+impl<B: Backend> fmt::Debug for State<B> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{:?}", self.cache.borrow())
 	}
 }
 
-impl Clone for State {
-	fn clone(&self) -> State {
+impl<B: Backend> Clone for State<B> {
+	fn clone(&self) -> Self {
 		State {
-			db: self.db.boxed_clone(),
-			root: self.root.clone(),
+			backend: self.backend.clone(),
 			cache: RefCell::new(self.cache.borrow().clone()),
 			snapshots: RefCell::new(self.snapshots.borrow().clone()),
 			account_start_nonce: self.account_start_nonce.clone(),
-			trie_factory: self.trie_factory.clone(),
 		}
 	}
 }

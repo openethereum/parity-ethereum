@@ -29,7 +29,7 @@ pub use self::db::Database;
 /// The state backend trait.
 /// This is intended to provide a generic abstraction over disk-backed state queries as
 /// well as network-backed ones.
-pub trait Backend: Clone {
+pub trait Backend: Clone + Send {
 	/// Query an account's contract code.
 	/// Returns `None` if it doesn't exist.
 	fn code(&self, address: Address, code_hash: &H256) -> Option<Bytes>;

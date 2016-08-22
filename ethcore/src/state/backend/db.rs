@@ -38,15 +38,15 @@ pub struct Database {
 impl Database {
 	/// Create a new database backend with empty state root.
 	#[cfg(test)]
-	pub fn new(mut db: Box<JournalDB>, trie_factory: TrieFactory) -> Self {
+	pub fn new(mut backing: Box<JournalDB>, trie_factory: TrieFactory) -> Self {
 		let mut root = H256::new();
 
 		{
-			let _ = trie_factory.create(db.as_hashdb_mut(), &mut root);
+			let _ = trie_factory.create(backing.as_hashdb_mut(), &mut root);
 		}
 
 		Ok(Database {
-			backing: db,
+			backing: backing,
 			root: root,
 			trie_factory: trie_factory,
 			address_hashes: RefCell::new(HashMap::new()),
@@ -55,7 +55,7 @@ impl Database {
 
 	/// Create a new database backend.
 	pub fn from_existing(backing: Box<JournalDB>, root: H256, factory: TrieFactory) -> Result<Self, TrieError> {
-		if !db.as_hashdb().contains(&root) {
+		if !backing.as_hashdb().contains(&root) {
 			return Err(TrieError::InvalidStateRoot(root));
 		}
 
@@ -65,6 +65,11 @@ impl Database {
 			trie_factory: factory,
 			address_hashes: RefCell::new(HashMap::new()),
 		})
+	}
+
+	/// Consume the backend, turning it into its components.
+	pub fn into_inner(self) -> (H256, Box<JournalDB>) {
+		(self.root, self.backing)
 	}
 
 	// get the mapped address hash for the given address.

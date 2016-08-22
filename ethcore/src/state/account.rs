@@ -20,6 +20,7 @@ use std::collections::hash_map::Entry;
 use util::*;
 use pod_account::*;
 use account_db::*;
+use state;
 
 use std::cell::{Ref, RefCell, Cell};
 
@@ -148,18 +149,9 @@ impl Account {
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
-	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
+	pub fn storage_at<B: state::Backend>(&self, b: &B, a: Address, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			let db = SecTrieDB::new(db, &self.storage_root)
-				.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
-				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
-				using it will not fail.");
-
-			let item: U256 = match db.get(key){
-				Ok(x) => x.map_or_else(U256::zero, decode),
-				Err(e) => panic!("Encountered potential DB corruption: {}", e),
-			};
-			(Filth::Clean, item.into())
+			(Filth::Clean, b.storage(a, &self.storage_root, key))
 		}).1.clone()
 	}
 
@@ -225,12 +217,12 @@ impl Account {
 	}
 
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
-	pub fn cache_code(&mut self, db: &AccountDB) -> bool {
+	pub fn cache_code<B: state::Backend>(&mut self, b: &B, address: &Address) -> bool {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.is_cached() ||
 			match self.code_hash {
-				Some(ref h) => match db.get(h) {
+				Some(ref h) => match b.code(address.clone(), h) {
 					Some(x) => { self.code_cache = x.to_vec(); true },
 					_ => {
 						warn!("Failed reverse get of {}", h);
