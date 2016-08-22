@@ -43,7 +43,7 @@
 //!
 //!		let st1 = t1.sign(&key.secret());
 //!		let st2 = t2.sign(&key.secret());
-//!		let default_nonce = |_a: &Address| AccountDetails {
+//!		let default_account_details = |_a: &Address| AccountDetails {
 //!			nonce: U256::from(10),
 //!			balance: U256::from(1_000_000),
 //!		};
