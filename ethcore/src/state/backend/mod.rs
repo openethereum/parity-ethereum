@@ -36,7 +36,7 @@ pub trait Backend: Clone {
 
 	/// Query an account with the given state root and address.
 	/// Returns the RLP of the account structure or `None` if it doesn't exist.
-	fn account(&self, root: &H256, address: &Address) -> Option<Account>;
+	fn account(&self, address: &Address) -> Option<Account>;
 
 	/// Query an account's storage by key.
 	/// Returns `None` if it doesn't exist.
@@ -47,5 +47,8 @@ pub trait Backend: Clone {
 
 	/// Commit all the accounts and their storage from the given cache, marking them clean
 	/// as it goes.
-	fn commit(&mut self, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>) -> Result<(), Error>;
+	fn commit(&mut self, accounts: &mut HashMap<Address, Option<Account>>) -> Result<(), Error>;
+
+	/// Get the state root.
+	fn root(&self) -> &H256;
 }

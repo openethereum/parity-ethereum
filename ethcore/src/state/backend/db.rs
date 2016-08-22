@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::journaldb::JournalDB;
-use util::trie::TrieFactory;
+use util::trie::{TrieError, TrieFactory};
 use util::rlp::decode;
 use util::{Bytes, H256, Address, Hashable, HashDB, U256, Uint};
 
@@ -30,18 +30,41 @@ use state::{self, Account, SEC_TRIE_DB_UNWRAP_STR};
 /// This is expected to be a full node.
 pub struct Database {
 	backing: Box<JournalDB>,
+	root: H256,
 	trie_factory: TrieFactory,
 	address_hashes: RefCell<HashMap<Address, H256>>,
 }
 
 impl Database {
+	/// Create a new database backend with empty state root.
+	#[cfg(test)]
+	pub fn new(mut db: Box<JournalDB>, trie_factory: TrieFactory) -> Self {
+		let mut root = H256::new();
+
+		{
+			let _ = trie_factory.create(db.as_hashdb_mut(), &mut root);
+		}
+
+		Ok(Database {
+			backing: db,
+			root: root,
+			trie_factory: trie_factory,
+			address_hashes: RefCell::new(HashMap::new()),
+		})
+	}
+
 	/// Create a new database backend.
-	pub fn new(backing: Box<JournalDB>, factory: TrieFactory) -> Self {
-		Database {
+	pub fn from_existing(backing: Box<JournalDB>, root: H256, factory: TrieFactory) -> Result<Self, TrieError> {
+		if !db.as_hashdb().contains(&root) {
+			return Err(TrieError::InvalidStateRoot(root));
+		}
+
+		Ok(Database {
 			backing: backing,
+			root: root,
 			trie_factory: factory,
 			address_hashes: RefCell::new(HashMap::new()),
-		}
+		})
 	}
 
 	// get the mapped address hash for the given address.
@@ -55,6 +78,7 @@ impl Clone for Database {
 	fn clone(&self) -> Self {
 		Database {
 			backing: self.backing.boxed_clone(),
+			root: self.root.clone(),
 			trie_factory: self.trie_factory.clone(),
 			address_hashes: RefCell::new(self.address_hashes.borrow().clone())
 		}
@@ -67,8 +91,8 @@ impl state::Backend for Database {
 		AccountDB::from_hash(self.backing.as_hashdb(), addr_hash).get(code_hash).map(Into::into)
 	}
 
-	fn account(&self, root: &H256, address: &Address) -> Option<Account> {
-		let db = self.trie_factory.readonly(self.backing.as_hashdb(), root)
+	fn account(&self, address: &Address) -> Option<Account> {
+		let db = self.trie_factory.readonly(self.backing.as_hashdb(), &self.root)
 			.expect(SEC_TRIE_DB_UNWRAP_STR);
 
 		// get the account from the backing database, panicking if any nodes aren't there
@@ -92,7 +116,7 @@ impl state::Backend for Database {
 		item.into()
 	}
 
-	fn commit(&mut self, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>)
+	fn commit(&mut self, accounts: &mut HashMap<Address, Option<Account>>)
 		-> Result<(), Error>
 	{
 		// first commit the sub trees.
@@ -109,7 +133,7 @@ impl state::Backend for Database {
 		}
 
 		{
-			let mut trie = try!(self.trie_factory.from_existing(self.backing.as_hashdb_mut(), root));
+			let mut trie = try!(self.trie_factory.from_existing(self.backing.as_hashdb_mut(), &mut self.root));
 			for (address, a) in accounts.iter_mut() {
 				match *a {
 					Some(ref mut account) if account.is_dirty() => {
@@ -124,4 +148,6 @@ impl state::Backend for Database {
 
 		Ok(())
 	}
+
+	fn root(&self) -> &H256 { &self.root }
 }
