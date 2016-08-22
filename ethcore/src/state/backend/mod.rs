@@ -15,33 +15,31 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! State backends. These facilitate querying of state data by the `State` structure.
-use util::{Address, H256, Bytes};
 
+mod db;
+
+use util::{Address, H256, Bytes};
+use std::collections::HashMap;
+
+pub use self::db::Database;
 
 /// The state backend trait.
 /// This is intended to provide a generic abstraction over disk-backed state queries as
 /// well as network-backed ones.
-pub trait Backend {
+pub trait Backend: Clone {
 	/// Query an account's contract code.
 	/// Returns `None` if it doesn't exist.
-	fn code(&self, address: Address) -> Option<Bytes>;
+	fn code(&self, addr_hash: H256) -> Option<Bytes>;
 
 	/// Query an account.
 	/// Returns the RLP of the account structure or `None` if it doesn't exist.
-	fn account(&self, address: Address) -> Option<Bytes>;
+	fn account(&self, addr_hash: H256) -> Option<Bytes>;
 
 	/// Query an account's storage by key.
 	/// Returns `None` if it doesn't exist.
-	fn storage(&self, address: Address, key: H256) -> Option<H256>;
+	fn storage(&self, addr_hash: H256, key: H256) -> Option<H256>;
 
-	/// Commit an account's code.
-	fn commit_code(&mut self, address: Address, code: Bytes);
-
-	/// Commit an account's storage.
-	///
-	/// The iterable provided is a list of storage keys and entries to commit.
-	/// If an entry is equal to the zero hash, this means that the key should
-	/// be removed.
-	fn commit_storage<I>(&mut self, root: &mut H256, iterable: I)
-		where I: IntoIterator<Item=(H256, H256)>;
+	/// Commit all the accounts and their storage from the given cache, marking them clean
+	/// as it goes.
+	fn commit(&mut self, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>);
 }

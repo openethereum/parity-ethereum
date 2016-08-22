@@ -27,7 +27,8 @@ use types::state_diff::StateDiff;
 
 mod account;
 mod substate;
-mod backend;
+
+pub mod backend;
 
 pub use self::account::Account;
 pub use self::backend::Backend;
