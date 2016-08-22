@@ -24,6 +24,9 @@ export default class CreationType extends Component {
             label='Create new account via username & password'
             value='fromNew' />
           <RadioButton
+            label='Import accounts from Geth keystore'
+            value='fromGeth' />
+          <RadioButton
             label='Import account from a backup JSON file'
             value='fromJSON' />
           <RadioButton

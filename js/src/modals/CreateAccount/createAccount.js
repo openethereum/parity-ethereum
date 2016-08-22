@@ -10,8 +10,10 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 import Modal from '../../ui/Modal';
 
 import AccountDetails from './AccountDetails';
+import AccountDetailsGeth from './AccountDetailsGeth';
 import CreationType from './CreationType';
 import NewAccount from './NewAccount';
+import NewGeth from './NewGeth';
 import NewImport from './NewImport';
 
 const TITLES = {
@@ -43,16 +45,19 @@ export default class CreateAccount extends Component {
     json: null,
     canCreate: false,
     createType: null,
+    gethAddresses: [],
     stage: 0
   }
 
   render () {
+    const steps = this.state.createType === 'fromNew' ? STAGE_NAMES : STAGE_IMPORT;
+
     return (
       <Modal
         visible
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
-        steps={ this.state.createType === 'fromNew' ? STAGE_NAMES : STAGE_IMPORT }>
+        steps={ steps }>
         { this.renderPage() }
       </Modal>
     );
@@ -72,6 +77,11 @@ export default class CreateAccount extends Component {
             <NewAccount
               onChange={ this.onChangeDetails } />
           );
+        } else if (this.state.createType === 'fromGeth') {
+          return (
+            <NewGeth
+              onChange={ this.onChangeGeth } />
+          );
         } else {
           return (
             <NewImport
@@ -80,6 +90,13 @@ export default class CreateAccount extends Component {
         }
 
       case 2:
+        if (this.state.createType === 'fromGeth') {
+          return (
+            <AccountDetailsGeth
+              addresses={ this.state.gethAddresses } />
+          );
+        }
+
         return (
           <AccountDetails
             address={ this.state.address }
@@ -105,6 +122,10 @@ export default class CreateAccount extends Component {
             onTouchTap={ this.onNext } />
         ];
       case 1:
+        const createLabel = this.state.createType === 'fromNew'
+          ? 'Create'
+          : 'Import';
+
         return [
           <FlatButton
             icon={ <ContentClear /> }
@@ -118,7 +139,7 @@ export default class CreateAccount extends Component {
             onTouchTap={ this.onPrev } />,
           <FlatButton
             icon={ <ActionDone /> }
-            label='Create'
+            label={ createLabel }
             disabled={ !this.state.canCreate }
             primary
             onTouchTap={ this.onCreate } />
@@ -160,6 +181,26 @@ export default class CreateAccount extends Component {
           return api.personal
             .setAccountName(address, this.state.name)
             .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
+        })
+        .then(() => {
+          this.onNext();
+          this.props.onUpdate && this.props.onUpdate();
+        })
+        .catch((error) => {
+          this.setState({
+            canCreate: true
+          });
+
+          this.context.errorHandler(error);
+        });
+    } else if (this.state.createType === 'fromGeth') {
+      return api.personal
+        .importGethAccounts(this.state.gethAddresses)
+        .then((result) => {
+          console.log('result', result);
+          return Promise.all(this.state.gethAddresses.map((address) => {
+            return api.personal.setAccountName(address, 'Geth Import');
+          }));
         })
         .then(() => {
           this.onNext();
@@ -221,6 +262,13 @@ export default class CreateAccount extends Component {
       address,
       password,
       phrase
+    });
+  }
+
+  onChangeGeth = (valid, gethAddresses) => {
+    this.setState({
+      canCreate: valid,
+      gethAddresses
     });
   }
 
