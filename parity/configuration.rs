@@ -540,6 +540,15 @@ impl Configuration {
 				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
 		}
 
+		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
+			let mut path_buf = PathBuf::from(db_path.clone());
+			path_buf.push("ipc");
+			let ipc_path = path_buf.to_str().unwrap();
+			::std::fs::create_dir_all(ipc_path).unwrap_or_else(
+				|e| warn!("Failed to directory '{}' for ipc sockets: {}", ipc_path, e)
+			);
+		}
+
 		Directories {
 			keys: keys_path,
 			db: db_path,
