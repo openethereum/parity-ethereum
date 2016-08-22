@@ -205,7 +205,7 @@ export default class Transfer extends Component {
   _onUpdateAll (valueAll) {
     this.setState({
       valueAll
-    }, this.recalculate);
+    }, this.recalculateGas);
   }
 
   _onUpdateExtras (extras) {
@@ -312,7 +312,7 @@ export default class Transfer extends Component {
 
   _sendEth () {
     return this.context.api.eth
-      .sendTransaction({
+      .postTransaction({
         from: this.props.account.address,
         to: this.state.recipient,
         gas: this.state.gas,
@@ -325,7 +325,7 @@ export default class Transfer extends Component {
     const token = this.props.account.balances.find((balance) => balance.token.tag === this.state.tag).token;
 
     return token.contract.instance.transfer
-      .sendTransaction({
+      .postTransaction({
         from: this.props.account.address,
         to: token.address
       }, [
@@ -424,15 +424,14 @@ export default class Transfer extends Component {
     let totalError = null;
 
     if (this.state.valueAll) {
-      let bn;
-
       if (this.state.isEth) {
-        bn = Api.format.fromWei(availableEth.minus(gasTotal));
+        const bn = Api.format.fromWei(availableEth.minus(gasTotal));
+        value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
       } else {
-        bn = available.div(format);
+        value = available.div(format).toString();
       }
 
-      value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
+      console.log('isEth', this.state.isEth, value);
     }
 
     if (this.state.isEth) {

@@ -244,6 +244,11 @@ export default class Eth {
       .execute('eth_pendingTransactions');
   }
 
+  postTransaction (options) {
+    return this._transport
+      .execute('eth_postTransaction', inOptions(options));
+  }
+
   protocolVersion () {
     return this._transport
       .execute('eth_protocolVersion');

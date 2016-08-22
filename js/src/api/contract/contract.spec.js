@@ -224,7 +224,7 @@ describe('api/contract/Contract', () => {
     describe('success', () => {
       before(() => {
         scope = mockHttp([
-          { method: 'eth_sendTransaction', reply: { result: '0x678' } },
+          { method: 'eth_postTransaction', reply: { result: '0x678' } },
           { method: 'eth_getTransactionReceipt', reply: { result: null } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT } },
           { method: 'eth_getCode', reply: { result: '0x456' } }
@@ -233,12 +233,12 @@ describe('api/contract/Contract', () => {
         return contract.deploy('0x123', []);
       });
 
-      it('calls sendTransaction, getTransactionReceipt & getCode in order', () => {
+      it('calls postTransaction, getTransactionReceipt & getCode in order', () => {
         expect(scope.isDone()).to.be.true;
       });
 
-      it('passes the options & password through to sendTransaction', () => {
-        expect(scope.body.eth_sendTransaction.params).to.deep.equal([
+      it('passes the options & password through to postTransaction', () => {
+        expect(scope.body.eth_postTransaction.params).to.deep.equal([
           { data: '0x123', gas: '0xdbba0' }
         ]);
       });
@@ -251,7 +251,7 @@ describe('api/contract/Contract', () => {
     describe('error', () => {
       before(() => {
         scope = mockHttp([
-          { method: 'eth_sendTransaction', reply: { result: '0x678' } },
+          { method: 'eth_postTransaction', reply: { result: '0x678' } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT } },
           { method: 'eth_getCode', reply: { result: '0x' } }
         ]);
@@ -280,15 +280,15 @@ describe('api/contract/Contract', () => {
     });
 
     describe('attachments', () => {
-      it('attaches .call, .sendTransaction & .estimateGas to constructors', () => {
+      it('attaches .call, .postTransaction & .estimateGas to constructors', () => {
         expect(isFunction(cons.call)).to.be.true;
-        expect(isFunction(cons.sendTransaction)).to.be.true;
+        expect(isFunction(cons.postTransaction)).to.be.true;
         expect(isFunction(cons.estimateGas)).to.be.true;
       });
 
-      it('attaches .call, .sendTransaction & .estimateGas to functions', () => {
+      it('attaches .call, .postTransaction & .estimateGas to functions', () => {
         expect(isFunction(func.call)).to.be.true;
-        expect(isFunction(func.sendTransaction)).to.be.true;
+        expect(isFunction(func.postTransaction)).to.be.true;
         expect(isFunction(func.estimateGas)).to.be.true;
       });
 
@@ -296,22 +296,22 @@ describe('api/contract/Contract', () => {
         func = (new Contract(eth, [{ type: 'function', name: 'test', constant: true }])).functions[0];
 
         expect(isFunction(func.call)).to.be.true;
-        expect(isFunction(func.sendTransaction)).to.be.false;
+        expect(isFunction(func.postTransaction)).to.be.false;
         expect(isFunction(func.estimateGas)).to.be.false;
       });
     });
 
-    describe('sendTransaction', () => {
+    describe('postTransaction', () => {
       beforeEach(() => {
-        scope = mockHttp([{ method: 'eth_sendTransaction', reply: { result: ['hashId'] } }]);
+        scope = mockHttp([{ method: 'eth_postTransaction', reply: { result: ['hashId'] } }]);
       });
 
-      it('encodes options and mades an eth_sendTransaction call', () => {
+      it('encodes options and mades an eth_postTransaction call', () => {
         return func
-          .sendTransaction({ someExtras: 'foo' }, VALUES)
+          .postTransaction({ someExtras: 'foo' }, VALUES)
           .then(() => {
             expect(scope.isDone()).to.be.true;
-            expect(scope.body.eth_sendTransaction.params[0]).to.deep.equal({
+            expect(scope.body.eth_postTransaction.params[0]).to.deep.equal({
               someExtras: 'foo',
               to: ADDR,
               data: ENCODED

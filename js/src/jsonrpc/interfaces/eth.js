@@ -785,6 +785,21 @@ export default {
     }
   },
 
+  sendTransaction: {
+    desc: 'Creates new message call transaction or a contract creation, if the data field contains code.',
+    params: [
+      {
+        type: Object,
+        desc: 'See eth_sendTransaction for details',
+        format: 'inputTransactionFormatter'
+      }
+    ],
+    returns: {
+      type: Hash,
+      desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
+    }
+  },
+
   protocolVersion: {
     desc: 'Returns the current ethereum protocol version.',
     params: [],

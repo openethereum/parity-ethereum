@@ -67,7 +67,7 @@ export default class Contract {
     };
 
     return this._eth.eth
-      .sendTransaction(this._encodeOptions(this.constructors[0], options, values))
+      .postTransaction(this._encodeOptions(this.constructors[0], options, values))
       .then((txhash) => this.pollTransactionReceipt(txhash))
       .then((receipt) => {
         this._address = receipt.contractAddress;
@@ -154,9 +154,9 @@ export default class Contract {
     };
 
     if (!func.constant) {
-      func.sendTransaction = (options, values) => {
+      func.postTransaction = (options, values) => {
         return this._eth.eth
-          .sendTransaction(this._encodeOptions(func, addAddress(options), values));
+          .postTransaction(this._encodeOptions(func, addAddress(options), values));
       };
 
       func.estimateGas = (options, values) => {
