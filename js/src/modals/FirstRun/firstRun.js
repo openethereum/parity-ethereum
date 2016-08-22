@@ -16,7 +16,8 @@ const STAGE_NAMES = ['welcome', 'new account', 'recovery', 'completed'];
 
 export default class FirstRun extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    errorHandler: PropTypes.func.isRequired
   }
 
   static propTypes = {
@@ -125,11 +126,21 @@ export default class FirstRun extends Component {
   onCreate = () => {
     const api = this.context.api;
 
+    this.setState({
+      canCreate: false
+    });
+
     return api.personal
       .newAccountFromPhrase(this.state.phrase, this.state.password)
       .then((address) => api.personal.setAccountName(address, this.state.name))
       .then(() => {
         this.onNext();
+      })
+      .catch((error) => {
+        this.setState({
+          canCreate: true
+        });
+        this.context.errorHandler(error);
       });
   }
 }

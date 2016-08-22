@@ -18,10 +18,6 @@ const ERRORS = {
 };
 
 export default class NewImport extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
-
   static propTypes = {
     onChange: PropTypes.func.isRequired
   }

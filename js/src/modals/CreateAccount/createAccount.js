@@ -25,7 +25,8 @@ const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 
 export default class CreateAccount extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    errorHandler: PropTypes.func.isRequired
   }
 
   static propTypes = {
@@ -147,6 +148,10 @@ export default class CreateAccount extends Component {
   onCreate = () => {
     const api = this.context.api;
 
+    this.setState({
+      canCreate: false
+    });
+
     if (this.state.createType === 'fromNew') {
       return api.personal
         .newAccountFromPhrase(this.state.phrase, this.state.password)
@@ -154,6 +159,13 @@ export default class CreateAccount extends Component {
         .then(() => {
           this.onNext();
           this.props.onUpdate && this.props.onUpdate();
+        })
+        .catch((error) => {
+          this.setState({
+            canCreate: true
+          });
+
+          this.context.errorHandler(error);
         });
     }
 
@@ -168,6 +180,13 @@ export default class CreateAccount extends Component {
       .then(() => {
         this.onNext();
         this.props.onUpdate && this.props.onUpdate();
+      })
+      .catch((error) => {
+        this.setState({
+          canCreate: true
+        });
+
+        this.context.errorHandler(error);
       });
   }
 

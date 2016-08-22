@@ -17,7 +17,8 @@ const ERRORS = {
 
 export default class CreateAccount extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    errorHandler: PropTypes.func.isRequired
   }
 
   static propTypes = {
@@ -167,6 +168,10 @@ export default class CreateAccount extends Component {
               accounts: accounts
             });
           });
+      })
+      .catch((error) => {
+        setTimeout(this.createIdentities, 1000);
+        this.context.errorHandler(error);
       });
   }
 

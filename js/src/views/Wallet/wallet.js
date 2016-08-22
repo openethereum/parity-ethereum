@@ -1,5 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
+import { Snackbar } from 'material-ui';
+
 import Api from '../../api';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
 import muiTheme from '../../ui/Theme';
@@ -21,11 +23,17 @@ const ETH_TOKEN = {
   tag: 'ΞTH'
 };
 
+const STYLE_ERROR = {
+  backgroundColor: 'rgba(255, 100, 100, 0.9)',
+  color: 'rgba(255, 255, 255, 0.9)'
+};
+
 export default class Wallet extends Component {
   static childContextTypes = {
     api: PropTypes.object,
     accounts: PropTypes.array,
     contracts: PropTypes.array,
+    errorHandler: PropTypes.func,
     tokens: PropTypes.array,
     muiTheme: PropTypes.object
   }
@@ -35,9 +43,11 @@ export default class Wallet extends Component {
   }
 
   state = {
+    showError: false,
     showFirst: false,
     accounts: [],
     contracts: [],
+    errorMessage: null,
     tokens: []
   }
 
@@ -49,6 +59,7 @@ export default class Wallet extends Component {
   render () {
     return (
       <TooltipOverlay>
+        { this.renderSnackbar() }
         <div className={ styles.container }>
           { this.renderFirstRunDialog() }
           <TabBar />
@@ -56,6 +67,20 @@ export default class Wallet extends Component {
           <Status />
         </div>
       </TooltipOverlay>
+    );
+  }
+
+  renderSnackbar () {
+    if (!this.state.errorMessage) {
+      return;
+    }
+
+    return (
+      <Snackbar
+        open={ this.state.showError }
+        message={ this.state.errorMessage }
+        autoHideDuration={ 5000 }
+        onRequestClose={ this.onCloseError } />
     );
   }
 
@@ -75,9 +100,25 @@ export default class Wallet extends Component {
       api,
       accounts: this.state.accounts,
       contracts: this.state.contracts,
+      errorHandler: this.errorHandler,
       tokens: this.state.tokens,
       muiTheme
     };
+  }
+
+  onCloseError = () => {
+    this.setState({
+      showError: false
+    });
+  }
+
+  errorHandler = (error) => {
+    console.error(error);
+
+    this.setState({
+      errorMessage: `ERROR: ${error.message}`,
+      showError: true
+    });
   }
 
   retrieveBalances = () => {
@@ -140,6 +181,9 @@ export default class Wallet extends Component {
           showFirst: accounts.length === 0
         });
 
+        setTimeout(this.retrieveBalances, 2000);
+      })
+      .catch(() => {
         setTimeout(this.retrieveBalances, 2000);
       });
   }

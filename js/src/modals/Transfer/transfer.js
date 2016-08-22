@@ -27,7 +27,8 @@ const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
 
 export default class Transfer extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    errorHandler: PropTypes.func.isRequired
   }
 
   static propTypes = {
@@ -347,6 +348,12 @@ export default class Transfer extends Component {
           sending: false,
           txhash: txhash
         });
+      })
+      .catch((error) => {
+        this.setState({
+          sending: false
+        });
+        this.context.errorHandler(error);
       });
     });
   }
