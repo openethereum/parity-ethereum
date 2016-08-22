@@ -20,8 +20,12 @@
 
 .transactions tr {
   line-height: 32px;
-  vertical-align: middle;
+  vertical-align: top;
   font-family: 'Roboto Mono', monospace;
+}
+
+.transactions tr td {
+  vertical-align: top;
 }
 
 .transactions .link {
