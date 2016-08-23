@@ -19,14 +19,16 @@
 mod null_engine;
 mod instant_seal;
 mod basic_authority;
-mod bft;
+mod tendermint;
 mod signed_vote;
+mod propose_collect;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
-pub use self::bft::BFT;
-pub use self::signed_vote::VoteError;
+pub use self::tendermint::Tendermint;
+pub use self::signed_vote::{SignedVote, VoteError};
+pub use self::propose_collect::{ProposeCollect};
 
 use common::{HashMap, SemanticVersion, Header, EnvInfo, Address, Builtin, BTreeMap, U256, Bytes, SignedTransaction, Error};
 use account_provider::AccountProvider;

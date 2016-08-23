@@ -60,15 +60,7 @@ impl SignedVote {
 		let mut guard = self.votes.try_write().unwrap();
 		let set = guard.entry(bare_hash.clone()).or_insert_with(|| HashSet::new());
 		if !set.insert(signature.clone()) { return false; }
-//		let n = if let Some(mut old) = guard.get_mut(&bare_hash) {
-//			if !old.insert(signature.clone()) { return false; }
-//			old.len()
-//		} else {
-//			let mut new = HashSet::new();
-//			new.insert(signature.clone());
-//			assert!(guard.insert(bare_hash.clone(), new).is_none());
-//			1
-//		};
+		// Set the winner if threshold is reached.
 		if set.len() >= self.threshold {
 			let mut guard = self.winner.try_write().unwrap();
 			*guard = Some(bare_hash);
@@ -86,6 +78,11 @@ impl SignedVote {
 
 	/// Some winner if voting threshold was reached.
 	pub fn winner(&self) -> Option<H256> { self.winner.try_read().unwrap().clone() }
+
+	/// Get signatures backing given hash.
+	pub fn votes(&self, bare_hash: &H256) -> Option<HashSet<Signature>> {
+		self.votes.try_read().unwrap().get(bare_hash).cloned()
+	}
 }
 
 #[cfg(test)]	

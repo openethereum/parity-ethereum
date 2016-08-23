@@ -16,7 +16,9 @@
 
 //! Voting on a hash, where each vote has to come from a set of addresses.
 
-use common::{HashSet, RwLock, H256, Signature, Address, Error, ec, Hashable, AtomicBool};
+use std::sync::atomic::{AtomicBool, Ordering};
+use common::{HashSet, RwLock, H256, Signature, Address, Error, ec, Hashable};
+use engines::VoteError;
 
 /// Collect votes on a hash.
 #[derive(Debug)]
@@ -33,18 +35,11 @@ pub struct ProposeCollect {
 	is_won: AtomicBool
 }
 
-/// Voting errors.
-#[derive(Debug)]
-pub enum VoteError {
-	/// Voter is not in the voters set.
-	UnauthorisedVoter
-}
-
-impl SignedVote {
+impl ProposeCollect {
 	/// Create a new instance of BFT engine
 	pub fn new(hash: H256, voters: HashSet<Address>, threshold: usize) -> Self {
 		assert!(voters.len() > threshold);
-		SignedVote {
+		ProposeCollect {
 			hash: hash,
 			voters: voters,
 			threshold: threshold,
@@ -55,14 +50,14 @@ impl SignedVote {
 
 	/// Vote on hash using the signed hash, true if vote counted.
 	pub fn vote(&self, signature: &Signature) -> bool {
-		if self.votes.contains(signature) { return false; }
+		if self.votes.try_read().unwrap().contains(signature) { return false; }
 		if !self.can_vote(signature).is_ok() { return false; }
-		self.votes.try_write().unwrap().insert(signature);
+		self.votes.try_write().unwrap().insert(signature.clone());
 		true
 	}
 
 	fn can_vote(&self, signature: &Signature) -> Result<(), Error> {
-		let signer = Address::from(try!(ec::recover(&signature, self.hash)).sha3());
+		let signer = Address::from(try!(ec::recover(&signature, &self.hash)).sha3());
 		match self.voters.contains(&signer) {
 			false => try!(Err(VoteError::UnauthorisedVoter)),
 			true => Ok(()),
@@ -71,11 +66,11 @@ impl SignedVote {
 
 	/// Some winner if voting threshold was reached.
 	pub fn winner(&self) -> Option<H256> {
-		let threshold_checker = || match self.votes.len() >= threshold {
+		let threshold_checker = || match self.votes.try_read().unwrap().len() >= self.threshold {
 			true => { self.is_won.store(true, Ordering::Relaxed); true },
 			false => false,
 		};
-		match self.is_won || threshold_checker() {
+		match self.is_won.load(Ordering::Relaxed) || threshold_checker() {
 			true => Some(self.hash),
 			false => None,
 		}

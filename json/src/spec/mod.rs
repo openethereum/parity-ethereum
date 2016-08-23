@@ -26,7 +26,7 @@ pub mod engine;
 pub mod state;
 pub mod ethash;
 pub mod basic_authority;
-pub mod bft;
+pub mod tendermint;
 
 pub use self::account::Account;
 pub use self::builtin::{Builtin, Pricing, Linear};
@@ -38,4 +38,4 @@ pub use self::engine::Engine;
 pub use self::state::State;
 pub use self::ethash::{Ethash, EthashParams};
 pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};
-pub use self::bft::{BFT, BFTParams};
+pub use self::tendermint::{Tendermint, TendermintParams};

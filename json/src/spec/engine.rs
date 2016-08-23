@@ -18,7 +18,7 @@
 
 use spec::Ethash;
 use spec::BasicAuthority;
-use spec::BFT;
+use spec::Tendermint;
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -32,7 +32,7 @@ pub enum Engine {
 	/// BasicAuthority engine.
 	BasicAuthority(BasicAuthority),
 	/// Byzantine Fault Tolerant engine.
-	BFT(BFT)
+	Tendermint(Tendermint)
 }
 
 #[cfg(test)]
