@@ -339,6 +339,10 @@ impl JournalDB for OverlayRecentDB {
 
 		Ok(ops)
 	}
+
+	fn consolidate(&mut self, with: MemoryDB) {
+		self.transaction_overlay.consolidate(with);
+	}
 }
 
 impl HashDB for OverlayRecentDB {
