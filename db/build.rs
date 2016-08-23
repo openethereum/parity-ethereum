@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate syntex;
 extern crate ethcore_ipc_codegen as codegen;
 
 use std::env;
@@ -27,17 +26,13 @@ pub fn main() {
 	{
 		let src = Path::new("src/lib.rs.in");
 		let dst = Path::new(&out_dir).join("lib.intermediate.rs.in");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
+		codegen::expand(&src, &dst);
 	}
 
 	// binary serialization pass
 	{
 		let src = Path::new(&out_dir).join("lib.intermediate.rs.in");
 		let dst = Path::new(&out_dir).join("lib.rs");
-		let mut registry = syntex::Registry::new();
-		codegen::register(&mut registry);
-		registry.expand("", &src, &dst).unwrap();
+		codegen::expand(&src, &dst);
 	}
 }
