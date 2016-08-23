@@ -39,18 +39,18 @@ impl Database {
 	/// Create a new database backend with empty state root.
 	#[cfg(test)]
 	pub fn new(mut backing: Box<JournalDB>, trie_factory: TrieFactory) -> Self {
-		let mut root = H256::new();
+		let mut root = Default::default();
 
 		{
 			let _ = trie_factory.create(backing.as_hashdb_mut(), &mut root);
 		}
 
-		Ok(Database {
+		Database {
 			backing: backing,
 			root: root,
 			trie_factory: trie_factory,
 			address_hashes: RefCell::new(HashMap::new()),
-		})
+		}
 	}
 
 	/// Create a new database backend.

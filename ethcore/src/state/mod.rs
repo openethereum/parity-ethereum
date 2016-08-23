@@ -19,7 +19,6 @@ use common::*;
 use engines::Engine;
 use executive::{Executive, TransactOptions};
 use evm::Factory as EvmFactory;
-use account_db::*;
 use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
@@ -253,13 +252,13 @@ impl<B: Backend> State<B> {
 
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
-		assert!(self.snapshots.get_mut().is_empty());
-		self.backend.commit(&mut *self.cache.get_mut())
+		assert!(self.snapshots.borrow_mut().is_empty());
+		self.backend.commit(&mut *self.cache.borrow_mut())
 	}
 
 	/// Clear state cache
 	pub fn clear(&mut self) {
-		self.cache.get_mut().clear();
+		self.cache.borrow_mut().clear();
 	}
 
 	#[cfg(test)]

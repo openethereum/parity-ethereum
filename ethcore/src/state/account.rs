@@ -22,7 +22,7 @@ use pod_account::*;
 use account_db::*;
 use state;
 
-use std::cell::{Ref, RefCell, Cell};
+use std::cell::{Ref, RefCell};
 
 /// Single account in the system.
 #[derive(Clone)]
@@ -41,8 +41,6 @@ pub struct Account {
 	code_cache: Bytes,
 	// Account is new or has been modified
 	filth: Filth,
-	// Cached address hash.
-	address_hash: Cell<Option<H256>>,
 }
 
 impl Account {
@@ -57,7 +55,6 @@ impl Account {
 			code_hash: Some(code.sha3()),
 			code_cache: code,
 			filth: Filth::Dirty,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -71,7 +68,6 @@ impl Account {
 			code_hash: pod.code.as_ref().map(|c| c.sha3()),
 			code_cache: pod.code.as_ref().map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c.clone()),
 			filth: Filth::Dirty,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -85,7 +81,6 @@ impl Account {
 			code_hash: Some(SHA3_EMPTY),
 			code_cache: vec![],
 			filth: Filth::Dirty,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -100,7 +95,6 @@ impl Account {
 			code_hash: Some(r.val_at(3)),
 			code_cache: vec![],
 			filth: Filth::Clean,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -115,7 +109,6 @@ impl Account {
 			code_hash: None,
 			code_cache: vec![],
 			filth: Filth::Dirty,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -165,16 +158,6 @@ impl Account {
 	/// return the code hash associated with this account.
 	pub fn code_hash(&self) -> H256 {
 		self.code_hash.clone().unwrap_or(SHA3_EMPTY)
-	}
-
-	/// return the code hash associated with this account.
-	pub fn address_hash(&self, address: &Address) -> H256 {
-		let hash = self.address_hash.get();
-		hash.unwrap_or_else(|| {
-			let hash = address.sha3();
-			self.address_hash.set(Some(hash.clone()));
-			hash
-		})
 	}
 
 	/// returns the account's code. If `None` then the code cache isn't available -
@@ -322,10 +305,11 @@ impl fmt::Debug for Account {
 
 #[cfg(test)]
 mod tests {
-
 	use util::*;
 	use super::*;
 	use account_db::*;
+	use state::backend;
+	use tests::helpers;
 
 	#[test]
 	fn account_compress() {
@@ -339,10 +323,13 @@ mod tests {
 
 	#[test]
 	fn storage_at() {
-		let mut db = MemoryDB::new();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		let db = helpers::get_temp_journal_db();
+		let mut db = db.boxed_clone();
+		let addr = Address::new();
+
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into());
+			let mut db = AccountDBMut::new(db.as_hashdb_mut(), &addr);
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
 			a.commit_storage(&Default::default(), &mut db);
 			a.init_code(vec![]);
@@ -351,25 +338,29 @@ mod tests {
 		};
 
 		let a = Account::from_rlp(&rlp);
+		let back = backend::Database::new(db, Default::default());
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
-		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
-		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x01u64))), H256::new());
+		assert_eq!(a.storage_at(&back, addr, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
+		assert_eq!(a.storage_at(&back, addr, &H256::from(&U256::from(0x01u64))), H256::new());
 	}
 
 	#[test]
 	fn note_code() {
-		let mut db = MemoryDB::new();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		let db = helpers::get_temp_journal_db();
+		let mut db = db.boxed_clone();
+		let addr = Address::new();
 
 		let rlp = {
+			let mut db = AccountDBMut::new(db.as_hashdb_mut(), &addr);
 			let mut a = Account::new_contract(69.into(), 0.into());
 			a.init_code(vec![0x55, 0x44, 0xffu8]);
 			a.commit_code(&mut db);
 			a.rlp()
 		};
 
+		let back = backend::Database::new(db, Default::default());
 		let mut a = Account::from_rlp(&rlp);
-		assert!(a.cache_code(&db.immutable()));
+		assert!(a.cache_code(&back, &addr));
 
 		let mut a = Account::from_rlp(&rlp);
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));

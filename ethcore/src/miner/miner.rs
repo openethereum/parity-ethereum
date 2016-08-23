@@ -21,7 +21,7 @@ use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
-use state::{State, HeavyState};
+use state::HeavyState;
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
