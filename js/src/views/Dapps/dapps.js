@@ -6,11 +6,18 @@ import styles from './style.css';
 
 export default class Dapps extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    contracts: PropTypes.array
+    api: PropTypes.object
   }
 
   state = {
+    apps: [
+      {
+        name: 'GAVcoin',
+        address: '0x6C5b287A875298f773225e72ce3fA8B2782e0347',
+        description: 'Mnage your GAVcoins, the hottest new property in crypto',
+        url: '/dapps/gavcoin.html'
+      }
+    ]
   }
 
   render () {
@@ -24,17 +31,13 @@ export default class Dapps extends Component {
   }
 
   renderContracts () {
-    if (!this.context.contracts) {
-      return null;
-    }
-
-    return this.context.contracts.map((contract, idx) => {
+    return this.state.apps.map((app, idx) => {
       return (
         <div
           className={ styles.contract }
-          key={ contract.address }>
+          key={ app.address }>
           <Summary
-            contract={ contract } />
+            app={ app } />
         </div>
       );
     });

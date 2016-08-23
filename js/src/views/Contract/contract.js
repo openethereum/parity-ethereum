@@ -8,7 +8,7 @@ function nicename (name) {
   return name.split(/(?=[A-Z])/).join(' ');
 }
 
-export default class Dapp extends Component {
+export default class Contract extends Component {
   static contextTypes = {
     api: React.PropTypes.object,
     contracts: PropTypes.array

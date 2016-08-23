@@ -1,5 +1,4 @@
 import React, { Component, PropTypes } from 'react';
-import { Link } from 'react-router';
 
 import Container, { Title } from '../../../ui/Container';
 import IdentityIcon from '../../../ui/IdentityIcon';
@@ -10,26 +9,24 @@ export default class Summary extends Component {
   }
 
   static propTypes = {
-    contract: PropTypes.object.isRequired,
+    app: PropTypes.object.isRequired,
     children: PropTypes.node
   }
 
   render () {
-    const contract = this.props.contract;
+    const { app } = this.props;
 
-    if (!contract) {
+    if (!app) {
       return null;
     }
-
-    const viewLink = `/app/${contract.address}`;
 
     return (
       <Container>
         <IdentityIcon
-          address={ contract.address } />
+          address={ app.address } />
         <Title
-          title={ <Link to={ viewLink }>{ contract.name || 'Unnamed' }</Link> }
-          byline={ contract.address } />
+          title={ <a href={ app.url }>{ app.name }</a> }
+          byline={ app.description } />
         { this.props.children }
       </Container>
     );
