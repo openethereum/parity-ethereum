@@ -267,7 +267,7 @@ impl<B: Backend> State<B> {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
-			self.cache.get_mut().insert(add, Some(Account::from_pod(acc)));
+			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
 		}
 	}
 

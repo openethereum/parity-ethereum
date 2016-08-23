@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::test_common::*;
-use state::{State, Substate};
+use state::{self, backend, Substate};
 use executive::*;
 use engines::Engine;
 use evm;
@@ -50,14 +50,14 @@ impl From<ethjson::vm::Call> for CallCreate {
 /// Tiny wrapper around executive externalities.
 /// Stores callcreates.
 struct TestExt<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
-	ext: Externalities<'a, T, V>,
+	ext: Externalities<'a, T, V, backend::Database>,
 	callcreates: Vec<CallCreate>,
 	contract_address: Address
 }
 
 impl<'a, T, V> TestExt<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	fn new(
-		state: &'a mut State,
+		state: &'a mut state::DiskBacked,
 		info: &'a EnvInfo,
 		engine: &'a Engine,
 		vm_factory: &'a Factory,
