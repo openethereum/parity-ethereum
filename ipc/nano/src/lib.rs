@@ -28,7 +28,7 @@ use nanomsg::{Socket, Protocol, Error, Endpoint, PollRequest, PollFd, PollInOut}
 use std::ops::Deref;
 
 const POLL_TIMEOUT: isize = 200;
-const CLIENT_CONNECTION_TIMEOUT: isize = 15000;
+const CLIENT_CONNECTION_TIMEOUT: isize = 120000;
 
 /// Generic worker to handle service (binded) sockets
 pub struct Worker<S: ?Sized> where S: IpcInterface {
