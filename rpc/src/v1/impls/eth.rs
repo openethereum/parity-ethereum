@@ -23,6 +23,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
+use time::get_time;
 use ethsync::{SyncProvider, SyncState};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
@@ -516,7 +517,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn work(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
+		let (no_new_work_timeout,) = from_params::<(u64,)>(params).unwrap_or((0,));
 
 		let client = take_weak!(self.client);
 		// check if we're still syncing and return empty strings in that case
@@ -545,7 +546,9 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 			let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
 
-			if self.options.send_block_number_in_get_work {
+			if no_new_work_timeout > 0 && b.block().header().timestamp() + no_new_work_timeout < get_time().sec as u64 {
+				Err(errors::no_new_work())
+			} else if self.options.send_block_number_in_get_work {
 				let block_number = RpcU256::from(b.block().header().number());
 				to_value(&(RpcH256::from(pow_hash), RpcH256::from(seed_hash), RpcH256::from(target), block_number))
 			} else {
