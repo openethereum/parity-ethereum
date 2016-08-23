@@ -73,7 +73,7 @@ Account Options:
                            Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
-  --signer-interface IP    Specify the hostname portion of the Trusted signer
+  --signer-interface IP    Specify the hostname portion of the Trusted Signer
                            server, IP should be an interface's IP address,
                            or local [default: local].
   --signer-path PATH       Specify directory where Signer UIs tokens should
