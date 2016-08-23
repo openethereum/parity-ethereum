@@ -169,9 +169,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 #[cfg(feature="ipc")]
 fn run_ipc(base_path: &Path, client: Arc<Client>, stop: Arc<AtomicBool>) {
-	let mut path = ::std::path::PathBuf::from(base_path);
+	let mut path = base_path.to_owned();
 	path.push("parity-chain.ipc");
-	let socket_addr = format!("ipc://{}", path.to_str().unwrap());
+	let socket_addr = format!("ipc://{}", path.to_string_lossy());
 	::std::thread::spawn(move || {
 		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
 		worker.add_reqrep(&socket_addr).expect("Ipc expected to initialize with no issues");
