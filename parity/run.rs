@@ -223,6 +223,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let dapps_deps = dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
+		client: client.clone(),
 	};
 
 	// start dapps server
