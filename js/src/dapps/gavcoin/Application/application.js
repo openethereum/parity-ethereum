@@ -3,6 +3,9 @@ import React, { Component, PropTypes } from 'react';
 import registryAbi from '../abi/registry.json';
 import gavcoinAbi from '../abi/gavcoin.json';
 
+import Loading from '../Loading';
+import Status from '../Status';
+
 const { Api } = window.parity;
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
@@ -17,10 +20,10 @@ export default class Application extends Component {
     contract: null,
     instance: null,
     loading: true,
-    blockNumber: 0,
-    totalSupply: 0,
-    remaining: 0,
-    price: 0
+    blockNumber: null,
+    totalSupply: null,
+    remaining: null,
+    price: null
   }
 
   componentDidMount () {
@@ -42,7 +45,7 @@ export default class Application extends Component {
     }
 
     return (
-      <div>GAVcoin is loading ...</div>
+      <Loading />
     );
   }
 
@@ -54,18 +57,12 @@ export default class Application extends Component {
     return (
       <div>
         <div>Welcome to GAVcoin, found at { this.state.address }</div>
-        { this.renderStatus() }
+        <Status
+          blockNumber={ this.state.blockNumber }
+          totalSupply={ this.state.totalSupply }
+          remaining={ this.state.remaining }
+          price={ this.state.price } />
       </div>
-    );
-  }
-
-  renderStatus () {
-    if (!this.state.blockNumber) {
-      return null;
-    }
-
-    return (
-      <div>#{ this.state.blockNumber }: { this.state.remaining } coins remaining ({ this.state.totalSupply } total), price of { this.state.price }</div>
     );
   }
 
