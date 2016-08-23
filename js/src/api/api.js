@@ -2,6 +2,7 @@ import { Http, Ws } from './transport/index';
 import Contract from './contract/index';
 
 import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc/index';
+import Events from './events/index';
 import format from './format/index';
 import { isFunction } from './util/types';
 
@@ -19,6 +20,8 @@ export default class Api {
     this._shh = new Shh(transport);
     this._trace = new Trace(transport);
     this._web3 = new Web3(transport);
+
+    this._events = new Events(this);
   }
 
   get db () {
@@ -51,6 +54,10 @@ export default class Api {
 
   get web3 () {
     return this._web3;
+  }
+
+  get events () {
+    return this._events;
   }
 
   newContract (abi, address) {
