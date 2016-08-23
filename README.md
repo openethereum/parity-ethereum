@@ -86,7 +86,7 @@ This will produce an executable in the `./target/release` subdirectory.
 
 ## Start parity
 ### manually
-To start Manually Parity, just run
+To start Parity manually, just run
 ```bash
 $ ./target/release/parity
 ```
