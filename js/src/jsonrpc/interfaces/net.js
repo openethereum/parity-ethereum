@@ -19,6 +19,7 @@ export default {
       format: 'utils.toDecimal'
     }
   },
+
   version: {
     desc: 'Returns the current network protocol version.',
     params: [],

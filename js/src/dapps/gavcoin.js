@@ -4,9 +4,9 @@ import React from 'react';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
+import Application from './gavcoin/Application';
+
 ReactDOM.render(
-  <div>
-    Welcome to GAVcoin
-  </div>,
+  <Application />,
   document.querySelector('#container')
 );
