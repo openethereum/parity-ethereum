@@ -24,6 +24,7 @@ use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::collections::HashMap;
+use rustc_serialize::hex::FromHex;
 
 use hyper::Control;
 use hyper::status::StatusCode;
@@ -54,12 +55,6 @@ impl<R: URLHint> Drop for AppFetcher<R> {
 	}
 }
 
-impl Default for AppFetcher<URLHintContract> {
-	fn default() -> Self {
-		AppFetcher::new(URLHintContract)
-	}
-}
-
 impl<R: URLHint> AppFetcher<R> {
 
 	pub fn new(resolver: R) -> Self {
@@ -84,7 +79,10 @@ impl<R: URLHint> AppFetcher<R> {
 			// Check if we already have the app
 			Some(_) => true,
 			// fallback to resolver
-			None => self.resolver.resolve(app_id).is_some(),
+			None => match app_id.from_hex() {
+				Ok(app_id) => self.resolver.resolve(app_id).is_some(),
+				_ => false,
+			},
 		}
 	}
 
@@ -103,16 +101,22 @@ impl<R: URLHint> AppFetcher<R> {
 				Some(&AppStatus::Fetching) => {
 					(None, Box::new(ContentHandler::html(
 						StatusCode::ServiceUnavailable,
-						"<h1>This dapp is already being downloaded.</h1>".into()
+						format!(
+							"<html><head>{}</head><body>{}</body></html>",
+							"<meta http-equiv=\"refresh\" content=\"1\">",
+							"<h1>This dapp is already being downloaded.</h1><h2>Please wait...</h2>",
+						)
 					)) as Box<Handler>)
 				},
 				// We need to start fetching app
 				None => {
 					// TODO [todr] Keep only last N dapps available!
-					let app = self.resolver.resolve(&app_id).expect("to_handler is called only when `contains` returns true.");
+					let app_hex = app_id.from_hex().expect("to_handler is called only when `contains` returns true.");
+					let app = self.resolver.resolve(app_hex).expect("to_handler is called only when `contains` returns true.");
 					(Some(AppStatus::Fetching), Box::new(AppFetcherHandler::new(
 						app,
 						control,
+						path.using_dapps_domains,
 						DappInstaller {
 							dapp_id: app_id.clone(),
 							dapps_path: self.dapps_path.clone(),
@@ -265,10 +269,11 @@ mod tests {
 	use apps::urlhint::{GithubApp, URLHint};
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
+	use util::Bytes;
 
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
-		fn resolve(&self, _app_id: &str) -> Option<GithubApp> {
+		fn resolve(&self, _app_id: Bytes) -> Option<GithubApp> {
 			None
 		}
 	}

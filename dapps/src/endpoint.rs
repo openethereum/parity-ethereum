@@ -24,6 +24,7 @@ pub struct EndpointPath {
 	pub app_id: String,
 	pub host: String,
 	pub port: u16,
+	pub using_dapps_domains: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]

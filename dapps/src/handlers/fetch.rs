@@ -27,7 +27,7 @@ use hyper::status::StatusCode;
 
 use handlers::ContentHandler;
 use handlers::client::{Fetch, FetchResult};
-use apps::DAPPS_DOMAIN;
+use apps::redirection_address;
 use apps::urlhint::GithubApp;
 use apps::manifest::Manifest;
 
@@ -54,6 +54,7 @@ pub struct AppFetcherHandler<H: DappHandler> {
 	control: Option<Control>,
 	status: FetchState,
 	client: Option<Client<Fetch>>,
+	using_dapps_domains: bool,
 	dapp: H,
 }
 
@@ -72,6 +73,7 @@ impl<H: DappHandler> AppFetcherHandler<H> {
 	pub fn new(
 		app: GithubApp,
 		control: Control,
+		using_dapps_domains: bool,
 		handler: H) -> Self {
 
 		let client = Client::new().expect("Failed to create a Client");
@@ -79,6 +81,7 @@ impl<H: DappHandler> AppFetcherHandler<H> {
 			control: Some(control),
 			client: Some(client),
 			status: FetchState::NotStarted(app),
+			using_dapps_domains: using_dapps_domains,
 			dapp: handler,
 		}
 	}
@@ -207,8 +210,7 @@ impl<H: DappHandler> server::Handler<HttpStream> for AppFetcherHandler<H> {
 			FetchState::Done(ref manifest) => {
 				trace!(target: "dapps", "Fetching dapp finished. Redirecting to {}", manifest.id);
 				res.set_status(StatusCode::Found);
-				// TODO [todr] should detect if its using nice-urls
-				res.headers_mut().set(header::Location(format!("http://{}{}", manifest.id, DAPPS_DOMAIN)));
+				res.headers_mut().set(header::Location(redirection_address(self.using_dapps_domains, &manifest.id)));
 				Next::write()
 			},
 			FetchState::Error(ref mut handler) => handler.on_response(res),

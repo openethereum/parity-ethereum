@@ -21,6 +21,7 @@ serde = "0.7.0"
 serde_json = "0.7.0"
 serde_macros = { version = "0.7.0", optional = true }
 zip = { version = "0.1", default-features = false }
+ethabi = "0.2.1"
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
