@@ -18,16 +18,15 @@
 use util::*;
 use ethcore::snapshot::ManifestData;
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum ChunkType {
 	State(H256),
 	Block(H256),
 }
 
 pub struct Snapshot {
-	/// Heads of subchains to download
 	pending_state_chunks: Vec<H256>,
 	pending_block_chunks: Vec<H256>,
-	/// Set of snapshot chunks being downloaded.
 	downloading_chunks: HashSet<H256>,
 	completed_chunks: HashSet<H256>,
 	snapshot_hash: Option<H256>,
@@ -117,14 +116,84 @@ impl Snapshot {
 	}
 
 	pub fn is_complete(&self) -> bool {
-		self.is_empty()
-	}
-	pub fn is_empty(&self) -> bool {
-		self.pending_state_chunks.is_empty() && self.pending_block_chunks.is_empty()
+		self.total_chunks() == self.completed_chunks.len()
 	}
 }
 
 #[cfg(test)]
 mod test {
+	use util::*;
+	use super::*;
+	use ethcore::snapshot::ManifestData;
+
+	fn is_empty(snapshot: &Snapshot) -> bool {
+		snapshot.pending_block_chunks.is_empty() &&
+		snapshot.pending_state_chunks.is_empty() &&
+		snapshot.completed_chunks.is_empty() &&
+		snapshot.downloading_chunks.is_empty() &&
+		snapshot.snapshot_hash.is_none()
+	}
+
+	fn test_manifest() -> (ManifestData, H256, Vec<Bytes>, Vec<Bytes>) {
+		let state_chunks: Vec<Bytes> = (0..20).map(|_| H256::random().to_vec()).collect();
+		let block_chunks: Vec<Bytes> = (0..20).map(|_| H256::random().to_vec()).collect();
+		let manifest = ManifestData {
+			state_hashes: state_chunks.iter().map(|data| data.sha3()).collect(),
+			block_hashes: block_chunks.iter().map(|data| data.sha3()).collect(),
+			state_root: H256::new(),
+			block_number: 42,
+			block_hash: H256::new(),
+		};
+		let mhash = manifest.clone().into_rlp().sha3();
+		(manifest, mhash, state_chunks, block_chunks)
+	}
+
+	#[test]
+	fn create_clear() {
+		let mut snapshot = Snapshot::new();
+		assert!(is_empty(&snapshot));
+		let (manifest, mhash, _, _,) = test_manifest();
+		snapshot.reset_to(&manifest, &mhash);
+		assert!(!is_empty(&snapshot));
+		snapshot.clear();
+		assert!(is_empty(&snapshot));
+	}
+
+	#[test]
+	fn validate_chunks() {
+		let mut snapshot = Snapshot::new();
+		let (manifest, mhash, state_chunks, block_chunks) = test_manifest();
+		snapshot.reset_to(&manifest, &mhash);
+		assert!(snapshot.validate_chunk(&H256::random().to_vec()).is_err());
+
+		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk().unwrap()).collect();
+		assert!(snapshot.needed_chunk().is_none());
+		assert_eq!(&requested[0..20], &manifest.state_hashes[..]);
+		assert_eq!(&requested[20..40], &manifest.block_hashes[..]);
+		assert_eq!(snapshot.downloading_chunks.len(), 40);
+
+		assert_eq!(snapshot.validate_chunk(&state_chunks[4]), Ok(ChunkType::State(manifest.state_hashes[4].clone())));
+		assert_eq!(snapshot.completed_chunks.len(), 1);
+		assert_eq!(snapshot.downloading_chunks.len(), 39);
+
+		assert_eq!(snapshot.validate_chunk(&block_chunks[10]), Ok(ChunkType::Block(manifest.block_hashes[10].clone())));
+		assert_eq!(snapshot.completed_chunks.len(), 2);
+		assert_eq!(snapshot.downloading_chunks.len(), 38);
+
+		for (i, data) in state_chunks.iter().enumerate() {
+			if i != 4 {
+				assert!(snapshot.validate_chunk(data).is_ok());
+			}
+		}
+
+		for (i, data) in block_chunks.iter().enumerate() {
+			if i != 10 {
+				assert!(snapshot.validate_chunk(data).is_ok());
+			}
+		}
+
+		assert!(snapshot.is_complete());
+		assert_eq!(snapshot.snapshot_hash(), Some(manifest.into_rlp().sha3()));
+	}
 }
 

@@ -16,22 +16,26 @@
 
 use util::*;
 use network::*;
+use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient};
 use ethcore::header::BlockNumber;
+use ethcore::snapshot::SnapshotService;
 use sync_io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
 
 pub struct TestIo<'p> {
 	pub chain: &'p mut TestBlockChainClient,
+	pub snapshot_service: &'p TestSnapshotService,
 	pub queue: &'p mut VecDeque<TestPacket>,
 	pub sender: Option<PeerId>,
 }
 
 impl<'p> TestIo<'p> {
-	pub fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
+	pub fn new(chain: &'p mut TestBlockChainClient, ss: &'p TestSnapshotService, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
 		TestIo {
 			chain: chain,
+			snapshot_service: ss,
 			queue: queue,
 			sender: sender
 		}
@@ -70,6 +74,14 @@ impl<'p> SyncIo for TestIo<'p> {
 	fn chain(&self) -> &BlockChainClient {
 		self.chain
 	}
+
+	fn snapshot_service(&self) -> &SnapshotService {
+		self.snapshot_service
+	}
+
+	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
+		64
+	}
 }
 
 pub struct TestPacket {
@@ -80,6 +92,7 @@ pub struct TestPacket {
 
 pub struct TestPeer {
 	pub chain: TestBlockChainClient,
+	pub snapshot_service: Arc<TestSnapshotService>,
 	pub sync: RwLock<ChainSync>,
 	pub queue: VecDeque<TestPacket>,
 }
@@ -103,9 +116,11 @@ impl TestNet {
 			let chain = TestBlockChainClient::new();
 			let mut config = SyncConfig::default();
 			config.fork_block = fork;
-			let sync = ChainSync::new(config, &chain);
+			let ss = Arc::new(TestSnapshotService::new());
+			let sync = ChainSync::new(config, &chain, ss.clone());
 			net.peers.push(TestPeer {
 				sync: RwLock::new(sync),
+				snapshot_service: ss,
 				chain: chain,
 				queue: VecDeque::new(),
 			});
@@ -126,7 +141,7 @@ impl TestNet {
 			for client in 0..self.peers.len() {
 				if peer != client {
 					let mut p = self.peers.get_mut(peer).unwrap();
-					p.sync.write().on_peer_connected(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(client as PeerId)), client as PeerId);
+					p.sync.write().on_peer_connected(&mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(client as PeerId)), client as PeerId);
 				}
 			}
 		}
@@ -137,22 +152,22 @@ impl TestNet {
 			if let Some(packet) = self.peers[peer].queue.pop_front() {
 				let mut p = self.peers.get_mut(packet.recipient).unwrap();
 				trace!("--- {} -> {} ---", peer, packet.recipient);
-				ChainSync::dispatch_packet(&p.sync, &mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
+				ChainSync::dispatch_packet(&p.sync, &mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
 				trace!("----------------");
 			}
 			let mut p = self.peers.get_mut(peer).unwrap();
-			p.sync.write().maintain_sync(&mut TestIo::new(&mut p.chain, &mut p.queue, None));
+			p.sync.write().maintain_sync(&mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, None));
 		}
 	}
 
 	pub fn sync_step_peer(&mut self, peer_num: usize) {
 		let mut peer = self.peer_mut(peer_num);
-		peer.sync.write().maintain_sync(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+		peer.sync.write().maintain_sync(&mut TestIo::new(&mut peer.chain, &peer.snapshot_service, &mut peer.queue, None));
 	}
 
 	pub fn restart_peer(&mut self, i: usize) {
 		let peer = self.peer_mut(i);
-		peer.sync.write().restart(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+		peer.sync.write().restart(&mut TestIo::new(&mut peer.chain, &peer.snapshot_service, &mut peer.queue, None));
 	}
 
 	pub fn sync(&mut self) -> u32 {
@@ -181,6 +196,6 @@ impl TestNet {
 
 	pub fn trigger_chain_new_blocks(&mut self, peer_id: usize) {
 		let mut peer = self.peer_mut(peer_id);
-		peer.sync.write().chain_new_blocks(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None), &[], &[], &[], &[], &[]);
+		peer.sync.write().chain_new_blocks(&mut TestIo::new(&mut peer.chain, &peer.snapshot_service, &mut peer.queue, None), &[], &[], &[], &[], &[]);
 	}
 }

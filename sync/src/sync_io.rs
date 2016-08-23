@@ -17,6 +17,7 @@
 use network::{NetworkContext, PeerId, PacketId, NetworkError};
 use ethcore::client::BlockChainClient;
 use ethcore::snapshot::SnapshotService;
+use api::ETH_PROTOCOL;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -38,6 +39,8 @@ pub trait SyncIo {
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
 	}
+	/// Maximum mutuallt supported ETH protocol version
+	fn eth_protocol_version(&self, peer_id: PeerId) -> u8;
 	/// Returns if the chain block queue empty
 	fn is_chain_queue_empty(&self) -> bool {
 		self.chain().queue_info().is_empty()
@@ -95,6 +98,10 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 
 	fn is_expired(&self) -> bool {
 		self.network.is_expired()
+	}
+
+	fn eth_protocol_version(&self, peer_id: PeerId) -> u8 {
+		self.network.protocol_version(peer_id, ETH_PROTOCOL).unwrap_or(0)
 	}
 }
 
