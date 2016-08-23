@@ -21,9 +21,15 @@ export default class ParityBar extends Component {
       <div
         className={ styles.bar }>
         <div className={ styles.corner }>
-          <img
-            className={ styles.logo }
-            src='images/paritybar.png' />
+          <a
+            className={ styles.noshow }
+            href='/'
+          >
+            <img
+              className={ styles.logo }
+              src='/images/paritybar.png'
+            />
+          </a>
           <IconButton className={ styles.button }>
             <ActionSwapVert />
           </IconButton>

@@ -16,16 +16,11 @@ const api = new Api(new Api.Transport.Http('/rpc/'));
 
 const ETH_TOKEN = {
   images: {
-    small: 'images/contracts/ethereum-32.png',
-    normal: 'images/contracts/ethereum-56.png'
+    small: '/images/contracts/ethereum-32.png',
+    normal: '/images/contracts/ethereum-56.png'
   },
   name: 'Ethereum',
   tag: 'ΞTH'
-};
-
-const STYLE_ERROR = {
-  backgroundColor: 'rgba(255, 100, 100, 0.9)',
-  color: 'rgba(255, 255, 255, 0.9)'
 };
 
 export default class Wallet extends Component {
@@ -223,8 +218,8 @@ export default class Wallet extends Component {
             address: token[0],
             format: token[2].toString(),
             images: {
-              small: `images/contracts/${token[3].toLowerCase()}-32.png`,
-              normal: `images/contracts/${token[3].toLowerCase()}-56.png`
+              small: `/images/contracts/${token[3].toLowerCase()}-32.png`,
+              normal: `/images/contracts/${token[3].toLowerCase()}-56.png`
             },
             supply: '0',
             tag: token[1],

@@ -14,6 +14,7 @@ module.exports = {
   devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
   context: path.join(__dirname, './src'),
   entry: {
+    'dapps/gavcoin': ['./dapps/gavcoin.js'],
     'parity': ['./parity.js'],
     'wallet': ['./wallet.js']
   },
@@ -124,6 +125,8 @@ module.exports = {
   }()),
   devServer: {
     contentBase: './src',
+    historyApiFallback: false,
+    quiet: false,
     hot: !isProd,
     proxy: {
       '/rpc/*': {
