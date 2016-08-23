@@ -163,13 +163,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	}
 
 	// create supervisor
-	let mut hypervisor = modules::hypervisor();
+	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
 
 	// create client service.
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
 		Path::new(&client_path),
+		Path::new(&cmd.dirs.ipc_path()),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
