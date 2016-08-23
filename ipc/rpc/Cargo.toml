@@ -8,6 +8,6 @@ license = "GPL-3.0"
 
 [dependencies]
 ethcore-devtools = { path = "../../devtools" }
-nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
+nanomsg = { git = "https://github.com/thehydroimpulse/nanomsg.rs.git", features = ["bundled"] }
 ethcore-util = { path = "../../util" }
 semver = "0.2"

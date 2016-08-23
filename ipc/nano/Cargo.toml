@@ -8,6 +8,6 @@ license = "GPL-3.0"
 
 [dependencies]
 ethcore-ipc = { path = "../rpc" }
-nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
+nanomsg = { git = "https://github.com/thehydroimpulse/nanomsg.rs.git", features = ["bundled"] }
 log = "0.3"
 

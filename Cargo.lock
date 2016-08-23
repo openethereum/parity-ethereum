@@ -154,6 +154,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "cookie"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -320,7 +328,7 @@ version = "1.4.0"
 dependencies = [
  "ethcore-devtools 1.4.0",
  "ethcore-util 1.4.0",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.7.0 (git+https://github.com/thehydroimpulse/nanomsg.rs.git)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -343,7 +351,7 @@ dependencies = [
  "ethcore-ipc-codegen 1.4.0",
  "ethcore-ipc-nano 1.4.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.7.0 (git+https://github.com/thehydroimpulse/nanomsg.rs.git)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -353,7 +361,7 @@ version = "1.4.0"
 dependencies = [
  "ethcore-ipc 1.4.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.7.0 (git+https://github.com/thehydroimpulse/nanomsg.rs.git)",
 ]
 
 [[package]]
@@ -366,7 +374,7 @@ dependencies = [
  "ethcore-ipc-nano 1.4.0",
  "ethcore-util 1.4.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.7.0 (git+https://github.com/thehydroimpulse/nanomsg.rs.git)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -873,20 +881,22 @@ dependencies = [
 
 [[package]]
 name = "nanomsg"
-version = "0.5.1"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
+version = "0.7.0"
+source = "git+https://github.com/thehydroimpulse/nanomsg.rs.git#975a7a9ffe85d570b4095b4f5d8694698ed89c48"
 dependencies = [
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg-sys 0.7.0 (git+https://github.com/thehydroimpulse/nanomsg.rs.git)",
 ]
 
 [[package]]
 name = "nanomsg-sys"
-version = "0.5.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
+version = "0.7.0"
+source = "git+https://github.com/thehydroimpulse/nanomsg.rs.git#975a7a9ffe85d570b4095b4f5d8694698ed89c48"
 dependencies = [
+ "cmake 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pkg-config 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1113,6 +1123,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "pkg-config"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "podio"
@@ -1632,6 +1647,7 @@ dependencies = [
 "checksum cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de1e760d7b6535af4241fca8bd8adf68e2e7edacc6b29f5d399050c5e48cf88c"
 "checksum clippy 0.0.82 (registry+https://github.com/rust-lang/crates.io-index)" = "8be61845840f25e9abc06b930d1211c3207f3eb5db92bc001b0510b7e4f361aa"
 "checksum clippy_lints 0.0.82 (registry+https://github.com/rust-lang/crates.io-index)" = "5de435cbb0abacae719e2424a5702afcdf6b51d99b4d52ed5de86094a30e0a80"
+"checksum cmake 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)" = "dfcf5bcece56ef953b8ea042509e9dcbdfe97820b7e20d86beb53df30ed94978"
 "checksum cookie 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "90266f45846f14a1e986c77d1e9c2626b8c342ed806fe60241ec38cc8697b245"
 "checksum crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)" = "fb974f835e90390c5f9dfac00f05b06dc117299f5ea4e85fbc7bb443af4911cc"
 "checksum ctrlc 1.1.1 (git+https://github.com/ethcore/rust-ctrlc.git)" = "<none>"
@@ -1673,8 +1689,8 @@ dependencies = [
 "checksum mio 0.6.0-dev (git+https://github.com/carllerche/mio?rev=62ec763c9cc34d8a452ed0392c575c50ddd5fc8d)" = "<none>"
 "checksum miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d5bfc6782530ac8ace97af10a540054a37126b63b0702ddaaa243b73b5745b9a"
 "checksum msdos_time 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "c04b68cc63a8480fb2550343695f7be72effdec953a9d4508161c3e69041c7d8"
-"checksum nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"
-"checksum nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"
+"checksum nanomsg 0.7.0 (git+https://github.com/thehydroimpulse/nanomsg.rs.git)" = "<none>"
+"checksum nanomsg-sys 0.7.0 (git+https://github.com/thehydroimpulse/nanomsg.rs.git)" = "<none>"
 "checksum net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)" = "6a816012ca11cb47009693c1e0c6130e26d39e4d97ee2a13c50e868ec83e3204"
 "checksum nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f05c2fc965fc1cd6b73fa57fa7b89f288178737f2f3ce9e63e4a6a141189000e"
 "checksum nix 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7a7bb1da2be7da3cbffda73fc681d509ffd9e665af478d2bee1907cee0bc64b2"
@@ -1700,6 +1716,7 @@ dependencies = [
 "checksum phf_codegen 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "8af7ae7c3f75a502292b491e5cc0a1f69e3407744abe6e57e2a3b712bb82f01d"
 "checksum phf_generator 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "db005608fd99800c8c74106a7c894cf582055b689aa14a79462cefdcb7dc1cc3"
 "checksum phf_shared 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "fee4d039930e4f45123c9b15976cf93a499847b6483dc09c42ea0ec4940f2aa6"
+"checksum pkg-config 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "8cee804ecc7eaf201a4a207241472cc870e825206f6c031e3ee2a72fa425f2fa"
 "checksum podio 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e5422a1ee1bc57cc47ae717b0137314258138f38fd5f3cea083f43a9725383a0"
 "checksum primal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0e31b86efadeaeb1235452171a66689682783149a6249ff334a2c5d8218d00a4"
 "checksum primal-bit 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "464a91febc06166783d4f5ba3577b5ed8dda8e421012df80bfe48a971ed7be8f"
