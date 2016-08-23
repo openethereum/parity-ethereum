@@ -138,6 +138,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		client_config,
 		&spec,
 		Path::new(&client_path),
+		Path::new(&cmd.dirs.ipc_path()),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -248,6 +249,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 		client_config,
 		&spec,
 		Path::new(&client_path),
+		Path::new(&cmd.dirs.ipc_path()),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 

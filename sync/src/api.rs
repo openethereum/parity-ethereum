@@ -306,4 +306,5 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 pub struct ServiceConfiguration {
 	pub sync: SyncConfig,
 	pub net: NetworkConfiguration,
+	pub io_path: String,
 }
