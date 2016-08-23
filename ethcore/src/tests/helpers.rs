@@ -20,7 +20,7 @@ use common::*;
 use spec::*;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
-use state::{State, HeavyState};
+use state::{self, State};
 use evm::Schedule;
 use engines::Engine;
 use ethereum;
@@ -313,7 +313,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	}
 }
 
-pub fn get_temp_state() -> GuardedTempResult<HeavyState> {
+pub fn get_temp_state() -> GuardedTempResult<state::DiskBacked> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_journal_db_in(temp.as_path());
 
@@ -328,7 +328,7 @@ pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
 	journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, None)
 }
 
-pub fn get_temp_state_in(path: &Path) -> HeavyState {
+pub fn get_temp_state_in(path: &Path) -> state::DiskBacked {
 	let journal_db = get_temp_journal_db_in(path);
 	State::new(journal_db, U256::from(0), Default::default())
 }

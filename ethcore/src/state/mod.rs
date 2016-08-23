@@ -54,12 +54,12 @@ pub struct State<B: Backend> {
 
 /// Type alias for a "locally backed" state, which doesn't have to farm out to network
 /// at all. This kind of state is suitable for block enactment whereas lighter states may not be.
-pub type HeavyState = State<backend::Database>;
+pub type DiskBacked = State<backend::Database>;
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
 			 Therefore creating a SecTrieDB with this state's root will not fail.";
 
-impl HeavyState {
+impl DiskBacked {
 	/// Creates new state with empty state root
 	#[cfg(test)]
 	pub fn new(db: Box<JournalDB>, account_start_nonce: U256, trie_factory: TrieFactory) -> Self {

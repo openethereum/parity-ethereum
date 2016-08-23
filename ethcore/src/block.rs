@@ -18,7 +18,7 @@
 
 use common::*;
 use engines::Engine;
-use state::{State, HeavyState};
+use state::{self, State};
 use verification::PreverifiedBlock;
 use trace::FlatTrace;
 use evm::Factory as EvmFactory;
@@ -75,7 +75,7 @@ pub struct ExecutedBlock {
 
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
-	state: HeavyState,
+	state: state::DiskBacked,
 	traces: Option<Vec<Vec<FlatTrace>>>,
 }
 
@@ -90,7 +90,7 @@ pub struct BlockRefMut<'a> {
 	/// Transaction receipts.
 	pub receipts: &'a [Receipt],
 	/// State.
-	pub state: &'a mut HeavyState,
+	pub state: &'a mut state::DiskBacked,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
@@ -106,14 +106,14 @@ pub struct BlockRef<'a> {
 	/// Transaction receipts.
 	pub receipts: &'a [Receipt],
 	/// State.
-	pub state: &'a HeavyState,
+	pub state: &'a state::DiskBacked,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
 
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
-	fn new(state: HeavyState, tracing: bool) -> ExecutedBlock {
+	fn new(state: state::DiskBacked, tracing: bool) -> ExecutedBlock {
 		ExecutedBlock {
 			base: Default::default(),
 			receipts: Default::default(),
@@ -160,7 +160,7 @@ pub trait IsBlock {
 	fn header(&self) -> &Header { &self.block().base.header }
 
 	/// Get the final state associated with this object's block.
-	fn state(&self) -> &HeavyState { &self.block().state }
+	fn state(&self) -> &state::DiskBacked { &self.block().state }
 
 	/// Get all information on transactions in this block.
 	fn transactions(&self) -> &[SignedTransaction] { &self.block().base.transactions }
@@ -205,7 +205,7 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	last_hashes: Arc<LastHashes>,
-	unclosed_state: HeavyState,
+	unclosed_state: state::DiskBacked,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.

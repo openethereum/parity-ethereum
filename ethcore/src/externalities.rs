@@ -306,7 +306,7 @@ mod tests {
 	use common::*;
 	use engines::Engine;
 	use evm::Ext;
-	use state::{HeavyState, Substate};
+	use state::{self, Substate};
 	use tests::helpers::*;
 	use devtools::GuardedTempResult;
 	use super::*;
@@ -335,7 +335,7 @@ mod tests {
 	}
 
 	struct TestSetup {
-		state: GuardedTempResult<HeavyState>,
+		state: GuardedTempResult<state::DiskBacked>,
 		engine: Arc<Engine>,
 		sub_state: Substate,
 		env_info: EnvInfo
