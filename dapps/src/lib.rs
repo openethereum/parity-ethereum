@@ -87,7 +87,7 @@ static DAPPS_DOMAIN : &'static str = ".parity";
 pub struct ServerBuilder {
 	dapps_path: String,
 	handler: Arc<IoHandler>,
-	registrar: Arc<Box<ContractClient>>,
+	registrar: Arc<ContractClient>,
 }
 
 impl Extendable for ServerBuilder {
@@ -98,11 +98,11 @@ impl Extendable for ServerBuilder {
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new(dapps_path: String, registrar: Box<ContractClient>) -> Self {
+	pub fn new(dapps_path: String, registrar: Arc<ContractClient>) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path,
 			handler: Arc::new(IoHandler::new()),
-			registrar: Arc::new(registrar),
+			registrar: registrar,
 		}
 	}
 
@@ -131,7 +131,7 @@ impl Server {
 		authorization: A,
 		handler: Arc<IoHandler>,
 		dapps_path: String,
-		registrar: Arc<Box<ContractClient>>,
+		registrar: Arc<ContractClient>,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);

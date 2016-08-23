@@ -287,6 +287,7 @@ dependencies = [
 name = "ethcore-dapps"
 version = "1.4.0"
 dependencies = [
+ "clippy 0.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-rpc 1.4.0",
  "ethcore-util 1.4.0",

@@ -113,7 +113,7 @@ mod server {
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
 
-		let server = dapps::ServerBuilder::new(dapps_path, Box::new(Registrar {
+		let server = dapps::ServerBuilder::new(dapps_path, Arc::new(Registrar {
 			client: deps.client.clone(),
 		}));
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);

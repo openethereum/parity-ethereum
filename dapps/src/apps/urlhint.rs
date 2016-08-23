@@ -69,11 +69,11 @@ pub trait URLHint {
 pub struct URLHintContract {
 	urlhint: Contract,
 	registrar: Contract,
-	client: Arc<Box<ContractClient>>,
+	client: Arc<ContractClient>,
 }
 
 impl URLHintContract {
-	pub fn new(client: Arc<Box<ContractClient>>) -> Self {
+	pub fn new(client: Arc<ContractClient>) -> Self {
 		let urlhint = Interface::load(include_bytes!("./urlhint.json")).expect("urlhint.json is valid ABI");
 		let registrar = Interface::load(include_bytes!("./registrar.json")).expect("registrar.json is valid ABI");
 
@@ -244,7 +244,7 @@ mod tests {
 		// given
 		let registrar = FakeRegistrar::new();
 		let calls = registrar.calls.clone();
-		let urlhint = URLHintContract::new(Arc::new(Box::new(registrar)));
+		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
 		let res = urlhint.resolve("test".bytes().collect());
@@ -272,7 +272,7 @@ mod tests {
 			Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
 			Ok("0000000000000000000000000000000000000000000000000000000000000060ec4c1fe06c808fe3739858c347109b1f5f1ed4b5000000000000000000000000000000000000000000000000deadcafebeefbeefcafedeaddeedfeedffffffff0000000000000000000000000000000000000000000000000000000000000011657468636f72652f64616f2e636c61696d000000000000000000000000000000".from_hex().unwrap()),
 		]);
-		let urlhint = URLHintContract::new(Arc::new(Box::new(registrar)));
+		let urlhint = URLHintContract::new(Arc::new(registrar));
 
 		// when
 		let res = urlhint.resolve("test".bytes().collect());
