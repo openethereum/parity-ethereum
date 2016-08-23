@@ -42,7 +42,7 @@ pub trait ChainNotify : Send + Sync {
 	}
 
 	/// fires when chain broadcasts a message
-	fn broadcast(&self, _data: Vec<u8>) {
+	fn broadcast(&self, _data: &[u8]) {
 	}
 }
 

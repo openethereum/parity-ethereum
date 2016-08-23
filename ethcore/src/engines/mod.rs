@@ -30,7 +30,7 @@ pub use self::tendermint::Tendermint;
 pub use self::signed_vote::{SignedVote, VoteError};
 pub use self::propose_collect::{ProposeCollect};
 
-use common::{HashMap, SemanticVersion, Header, EnvInfo, Address, Builtin, BTreeMap, U256, Bytes, SignedTransaction, Error};
+use common::{HashMap, SemanticVersion, Header, EnvInfo, Address, Builtin, BTreeMap, U256, Bytes, SignedTransaction, Error, UntrustedRlp};
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
@@ -121,7 +121,7 @@ pub trait Engine : Sync + Send {
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
-	fn handle_message(&self, sender: Address, message: Bytes) -> Option<Vec<u8>> { None }
+	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Option<UntrustedRlp> { None }
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.

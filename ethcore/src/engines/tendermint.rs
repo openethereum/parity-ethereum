@@ -88,6 +88,10 @@ impl Tendermint {
 		let ref p = self.our_params;
 		p.validators.get(p.proposer_nonce%p.validator_n).unwrap().clone()
 	}
+
+	fn propose_message(&self, message: UntrustedRlp) -> Option<UntrustedRlp> {
+		None
+	}
 }
 
 impl Engine for Tendermint {
@@ -140,13 +144,11 @@ impl Engine for Tendermint {
 		})
 	}
 
-	fn handle_message(&self, sender: Address, message: Bytes) -> Option<Vec<u8>> {
-		match message[0] {
-			0 => println!("0"),
-			_ => println!("unknown"),
+	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Option<UntrustedRlp> {
+		match message.val_at(0).unwrap_or(return None) {
+			0u8 if sender == self.proposer() => self.propose_message(message),
+			_ => None,
 		}
-		//let sig: Signature = message.into();
-		None
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
