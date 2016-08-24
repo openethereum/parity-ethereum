@@ -18,6 +18,8 @@ const { Api } = window.parity;
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
 
+const DIVISOR = 10 ** 6;
+
 export default class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
@@ -27,6 +29,7 @@ export default class Application extends Component {
 
   state = {
     address: null,
+    accounts: [],
     contract: null,
     instance: null,
     loading: true,
@@ -72,8 +75,10 @@ export default class Application extends Component {
           totalSupply={ this.state.totalSupply }
           remaining={ this.state.remaining }
           price={ this.state.price } />
-        <Actions />
-        <Accounts />
+        <Actions
+          account={ this.state.accounts } />
+        <Accounts
+          accounts={ this.state.accounts } />
         <Events />
       </div>
     );
@@ -101,7 +106,32 @@ export default class Application extends Component {
           blockNumber: blockNumber.toFormat(),
           totalSupply: totalSupply.toFormat(),
           remaining: remaining.toFormat(),
-          price: price.div(1000000).toFormat()
+          price: price.div(DIVISOR).toFormat()
+        });
+
+        const { accounts } = this.state;
+        const gavQueries = accounts.map((account) => instance.balanceOf.call({}, [account.address]));
+        const ethQueries = accounts.map((account) => api.eth.getBalance(account.address));
+
+        return Promise.all([
+          Promise.all(gavQueries),
+          Promise.all(ethQueries)
+        ]);
+      })
+      .then(([gavBalances, ethBalances]) => {
+        const { accounts } = this.state;
+
+        this.setState({
+          accounts: accounts.map((account, idx) => {
+            const ethBalance = ethBalances[idx];
+            const gavBalance = gavBalances[idx];
+
+            account.ethBalance = Api.format.fromWei(ethBalance).toFormat(3);
+            account.gavBalance = gavBalance.div(DIVISOR).toFormat(6);
+            account.hasGav = gavBalance.gt(0);
+
+            return account;
+          })
         });
       });
   }
@@ -125,8 +155,25 @@ export default class Application extends Component {
         this.setState({
           address,
           contract,
-          instance,
-          loading: false
+          instance
+        });
+
+        return Promise.all([
+          api.personal.listAccounts(),
+          api.personal.accountsInfo()
+        ]);
+      })
+      .then(([addresses, infos]) => {
+        this.setState({
+          loading: false,
+          accounts: addresses.map((address) => {
+            console.log(address, infos[address].name);
+            return {
+              address,
+              name: infos[address].name,
+              balance: 0
+            };
+          })
         });
 
         api.events.subscribe('eth.blockNumber', this.onNewBlockNumber);

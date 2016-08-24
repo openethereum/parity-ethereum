@@ -13,10 +13,30 @@ html, body {
 
 .accounts {
   padding: 1em 2em;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.account {
+  margin-right: 1em !important;
+}
+
+.account img {
+  margin-bottom: -11px;
+  margin-left: -11px;
 }
 
 .actions {
   background: rgba(232, 232, 232, 0.5) !important;
+}
+
+.balance {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.account .name {
+  color: white;
+  margin-right: 1em;
 }
 
 .events {
@@ -27,6 +47,10 @@ html, body {
   width: 100%;
   text-align: center;
   padding-top: 2em;
+}
+
+.name {
+  text-transform: uppercase;
 }
 
 .status {

@@ -12,9 +12,7 @@ injectTapEventPlugin();
 import Api from './api';
 import ParityBar from './views/ParityBar';
 
-const parity = {
-  Api: Api
-};
+import IdentityIcon from './ui/IdentityIcon';
 
 const el = document.createElement('div');
 document.querySelector('html').appendChild(el);
@@ -24,4 +22,9 @@ ReactDOM.render(
   el
 );
 
-window.parity = parity;
+window.parity = {
+  Api: Api,
+  react: {
+    IdentityIcon
+  }
+};

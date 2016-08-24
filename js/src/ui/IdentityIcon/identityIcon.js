@@ -33,7 +33,7 @@ export default class IdentityIcon extends Component {
 
   updateIcon (_address) {
     const address = _address.toLowerCase();
-    const contract = this.context.contracts.find((c) => c.address.toLowerCase() === address);
+    const contract = (this.context.contracts || []).find((c) => c.address.toLowerCase() === address);
 
     if (contract && contract.images) {
       this.setState({
