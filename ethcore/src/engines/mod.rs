@@ -27,14 +27,27 @@ pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
 pub use self::tendermint::Tendermint;
-pub use self::signed_vote::{SignedVote, VoteError};
-pub use self::propose_collect::{ProposeCollect};
+pub use self::signed_vote::SignedVote;
+pub use self::propose_collect::ProposeCollect;
 
 use common::{HashMap, SemanticVersion, Header, EnvInfo, Address, Builtin, BTreeMap, U256, Bytes, SignedTransaction, Error, UntrustedRlp};
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
 use evm::Schedule;
+
+/// Voting errors.
+#[derive(Debug)]
+pub enum EngineError {
+	/// Voter is not in the voters set.
+	UnauthorisedVoter,
+	/// Message pertaining incorrect consensus step.
+	WrongStep,
+	/// Message pertaining unknown consensus step.
+	UnknownStep,
+	/// Message was not expected.
+	UnexpectedMessage
+}
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -121,7 +134,7 @@ pub trait Engine : Sync + Send {
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
-	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Option<Bytes> { None }
+	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> { Err(EngineError::UnexpectedMessage.into()) }
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.

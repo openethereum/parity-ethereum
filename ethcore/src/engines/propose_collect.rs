@@ -18,7 +18,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use common::{HashSet, RwLock, H256, Signature, Address, Error, ec, Hashable};
-use engines::VoteError;
+use super::EngineError;
 
 /// Collect votes on a hash.
 #[derive(Debug)]
@@ -59,7 +59,7 @@ impl ProposeCollect {
 	fn can_vote(&self, signature: &Signature) -> Result<(), Error> {
 		let signer = Address::from(try!(ec::recover(&signature, &self.hash)).sha3());
 		match self.voters.contains(&signer) {
-			false => try!(Err(VoteError::UnauthorisedVoter)),
+			false => try!(Err(EngineError::UnauthorisedVoter)),
 			true => Ok(()),
 		}
 	}

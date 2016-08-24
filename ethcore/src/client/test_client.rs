@@ -38,7 +38,7 @@ use spec::Spec;
 use block_queue::BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
-use error::CallError;
+use error::{Error, CallError};
 use trace::LocalizedTrace;
 
 /// Test client.

@@ -20,7 +20,7 @@ use common::*;
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::{Engine, ProposeCollect};
+use engines::{Engine, EngineError, ProposeCollect};
 use evm::Schedule;
 use ethjson;
 
@@ -89,22 +89,22 @@ impl Tendermint {
 		p.validators.get(p.proposer_nonce%p.validator_n).unwrap().clone()
 	}
 
-	fn propose_message(&self, message: UntrustedRlp) -> Option<Bytes> {
+	fn propose_message(&self, message: UntrustedRlp) -> Result<Bytes, Error> {
 		match *self.our_params.s.try_read().unwrap() {
 			Step::Propose => (),
-			_ => return None,
+			_ => try!(Err(EngineError::WrongStep)),
 		}
-		let proposal = message.val_at(0).unwrap_or_else(|| return None);
+		let proposal = try!(message.val_at(0));
 		let vote = ProposeCollect::new(proposal,
 									   self.our_params.validators.iter().cloned().collect(),
 									   self.threshold());
-		let mut guard = self.our_params.s.try_write().unwrap();
+		let mut guard = self.our_params.s.write();
 		*guard = Step::Prevote(vote);
-		Some(message.as_raw().to_vec())
+		Ok(message.as_raw().to_vec())
 	}
 
-	fn prevote_message(&self, sender: Address, message: UntrustedRlp) -> Option<Bytes> {
-		None
+	fn prevote_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
+		try!(Err(EngineError::WrongStep))
 	}
 
 	fn threshold(&self) -> usize {
@@ -162,11 +162,11 @@ impl Engine for Tendermint {
 		})
 	}
 
-	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Option<Bytes> {
-		match message.val_at(0).unwrap_or_else(|| return None) {
+	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
+		match try!(message.val_at(0)) {
 			0u8 if sender == self.proposer() => self.propose_message(message),
 			1 => self.prevote_message(sender, message),
-			_ => None,
+			_ => try!(Err(EngineError::UnknownStep)),
 		}
 	}
 
@@ -224,18 +224,18 @@ mod tests {
 	use spec::Spec;
 
 	/// Create a new test chain spec with `Tendermint` consensus engine.
-	fn new_test_authority() -> Spec { Spec::load(include_bytes!("../../res/bft.json")) }
+	fn new_test_tendermint() -> Spec { Spec::load(include_bytes!("../../res/tendermint.json")) }
 
 	#[test]
 	fn has_valid_metadata() {
-		let engine = new_test_authority().engine;
+		let engine = new_test_tendermint().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
 	}
 
 	#[test]
 	fn can_return_schedule() {
-		let engine = new_test_authority().engine;
+		let engine = new_test_tendermint().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
 			author: 0.into(),
@@ -251,7 +251,7 @@ mod tests {
 
 	#[test]
 	fn can_do_seal_verification_fail() {
-		let engine = new_test_authority().engine;
+		let engine = new_test_tendermint().engine;
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
@@ -265,7 +265,7 @@ mod tests {
 
 	#[test]
 	fn can_do_signature_verification_fail() {
-		let engine = new_test_authority().engine;
+		let engine = new_test_tendermint().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
 
@@ -284,7 +284,7 @@ mod tests {
 		let addr = tap.insert_account("".sha3(), "").unwrap();
 		tap.unlock_account_permanently(addr, "".into()).unwrap();
 
-		let spec = new_test_authority();
+		let spec = new_test_tendermint();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
@@ -296,6 +296,15 @@ mod tests {
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
+	}
+
+	#[test]
+	fn propose_step(){
+		let engine = new_test_tendermint().engine;
+		let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account("1".sha3(), "1").unwrap();
+		println!("{:?}", addr);
+		false;
 	}
 
 	#[test]

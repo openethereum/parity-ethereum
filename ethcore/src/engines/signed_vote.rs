@@ -16,6 +16,7 @@
 
 //! Voting on hashes, where each vote has to come from a set of public keys.
 
+use super::EngineError;
 use common::{HashSet, HashMap, RwLock, H256, Signature, Address, Error, ec, Hashable};
 
 /// Signed voting on hashes.
@@ -31,13 +32,6 @@ pub struct SignedVote {
 	votes: RwLock<HashMap<H256, HashSet<Signature>>>,
 	/// Winner hash, set after enough votes are reached.
 	winner: RwLock<Option<H256>>
-}
-
-/// Voting errors.
-#[derive(Debug)]
-pub enum VoteError {
-	/// Voter is not in the voters set.
-	UnauthorisedVoter
 }
 
 impl SignedVote {
@@ -71,7 +65,7 @@ impl SignedVote {
 	fn can_vote(&self, bare_hash: &H256, signature: &Signature) -> Result<(), Error> {
 		let signer = Address::from(try!(ec::recover(&signature, bare_hash)).sha3());
 		match self.voters.contains(&signer) {
-			false => try!(Err(VoteError::UnauthorisedVoter)),
+			false => try!(Err(EngineError::UnauthorisedVoter)),
 			true => Ok(()),
 		}
 	}

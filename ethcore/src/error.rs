@@ -24,7 +24,7 @@ use client::Error as ClientError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use types::block_import_error::BlockImportError;
 use snapshot::Error as SnapshotError;
-use engines::VoteError;
+use engines::EngineError;
 
 pub use types::executed::{ExecutionError, CallError};
 
@@ -240,7 +240,7 @@ pub enum Error {
 	/// Snapshot error.
 	Snapshot(SnapshotError),
 	/// Consensus vote error.
-	Vote(VoteError),
+	Engine(EngineError),
 }
 
 impl fmt::Display for Error {
@@ -261,7 +261,7 @@ impl fmt::Display for Error {
 			Error::StdIo(ref err) => err.fmt(f),
 			Error::Snappy(ref err) => err.fmt(f),
 			Error::Snapshot(ref err) => err.fmt(f),
-			Error::Vote(ref err) =>
+			Error::Engine(ref err) =>
 				f.write_fmt(format_args!("Bad vote: {:?}", err)),
 		}
 	}
@@ -366,10 +366,10 @@ impl From<SnapshotError> for Error {
 	}
 }
 
-impl From<VoteError> for Error {
-	fn from(err: VoteError) -> Error {
+impl From<EngineError> for Error {
+	fn from(err: EngineError) -> Error {
 		match err {
-			other => Error::Vote(other),
+			other => Error::Engine(other),
 		}
 	}
 }

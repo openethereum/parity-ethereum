@@ -183,7 +183,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn queue_transactions(&self, transactions: Vec<Bytes>);
 
 	/// Queue packet
-	fn queue_infinity_message(&self, packet: Bytes);
+	fn queue_infinity_message(&self, message: Bytes);
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
