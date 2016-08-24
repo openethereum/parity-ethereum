@@ -268,7 +268,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 		// invalid:	       retracted 1, enacted 0 => true, false,
 		let ret = request.retracted != 0;
 		let ena = !request.enacted.is_empty();
-		assert!((!ret && ena) || (ret == ena));
+		assert!(!(ret && !ena));
 		// fast return if tracing is disabled
 		if !self.tracing_enabled() {
 			return;
