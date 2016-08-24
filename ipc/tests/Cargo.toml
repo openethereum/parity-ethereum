@@ -17,5 +17,4 @@ ethcore-util = { path = "../../util" }
 log = "0.3"
 
 [build-dependencies]
-syntex = "0.33"
 ethcore-ipc-codegen = { path = "../codegen" }

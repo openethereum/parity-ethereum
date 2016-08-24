@@ -86,18 +86,34 @@ pub fn main() {
 	io::stdin().read_to_end(&mut buffer).expect("Failed to read initialisation payload");
 	let service_config = ipc::binary::deserialize::<ServiceConfiguration>(&buffer).expect("Failed deserializing initialisation payload");
 
-	let remote_client = nanoipc::init_client::<RemoteClient<_>>(service_urls::CLIENT).unwrap();
+	let remote_client = nanoipc::init_client::<RemoteClient<_>>(
+		&service_urls::with_base(&service_config.io_path, service_urls::CLIENT),
+	).unwrap();
 
 	remote_client.handshake().unwrap();
 
 	let stop = Arc::new(AtomicBool::new(false));
 	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), service_config.net).unwrap();
 
-	run_service(service_urls::SYNC, stop.clone(), sync.clone() as Arc<SyncProvider>);
-	run_service(service_urls::NETWORK_MANAGER, stop.clone(), sync.clone() as Arc<ManageNetwork>);
-	run_service(service_urls::SYNC_NOTIFY, stop.clone(), sync.clone() as Arc<ChainNotify>);
+	run_service(
+		&service_urls::with_base(&service_config.io_path, service_urls::SYNC),
+		stop.clone(),
+		sync.clone() as Arc<SyncProvider>
+	);
+	run_service(
+		&service_urls::with_base(&service_config.io_path, service_urls::NETWORK_MANAGER),
+		stop.clone(),
+		sync.clone() as Arc<ManageNetwork>
+	);
+	run_service(
+		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_NOTIFY),
+		stop.clone(),
+		sync.clone() as Arc<ChainNotify>
+	);
 
-	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(HYPERVISOR_IPC_URL).unwrap();
+	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(
+		&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL),
+	).unwrap();
 	hypervisor_client.handshake().unwrap();
 	hypervisor_client.module_ready(SYNC_MODULE_ID);
 

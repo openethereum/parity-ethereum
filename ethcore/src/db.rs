@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Extras db utils.
+//! Database utilities and definitions.
 
 use std::ops::Deref;
 use std::hash::Hash;
@@ -22,18 +22,38 @@ use std::collections::HashMap;
 use util::{DBTransaction, Database, RwLock};
 use util::rlp::{encode, Encodable, decode, Decodable};
 
+// database columns
+/// Column for State
+pub const COL_STATE: Option<u32> = Some(0);
+/// Column for Block headers
+pub const COL_HEADERS: Option<u32> = Some(1);
+/// Column for Block bodies
+pub const COL_BODIES: Option<u32> = Some(2);
+/// Column for Extras
+pub const COL_EXTRA: Option<u32> = Some(3);
+/// Column for Traces
+pub const COL_TRACE: Option<u32> = Some(4);
+/// Number of columns in DB
+pub const NUM_COLUMNS: Option<u32> = Some(5);
 
+/// Modes for updating caches.
 #[derive(Clone, Copy)]
 pub enum CacheUpdatePolicy {
+	/// Overwrite entries.
 	Overwrite,
+	/// Remove entries.
 	Remove,
 }
 
+/// A cache for arbitrary key-value pairs.
 pub trait Cache<K, V> {
+	/// Insert an entry into the cache and get the old value.
 	fn insert(&mut self, k: K, v: V) -> Option<V>;
 
+	/// Remove an entry from the cache, getting the old value if it existed.
 	fn remove(&mut self, k: &K) -> Option<V>;
 
+	/// Query the cache for a key's associated value.
 	fn get(&self, k: &K) -> Option<&V>;
 }
 
@@ -53,6 +73,7 @@ impl<K, V> Cache<K, V> for HashMap<K, V> where K: Hash + Eq {
 
 /// Should be used to get database key associated with given value.
 pub trait Key<T> {
+	/// The db key associated with this value.
 	type Target: Deref<Target = [u8]>;
 
 	/// Returns db key.

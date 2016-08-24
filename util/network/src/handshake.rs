@@ -331,12 +331,10 @@ impl Handshake {
 #[cfg(test)]
 mod test {
 	use std::sync::Arc;
-	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use super::*;
 	use util::hash::*;
 	use io::*;
-	use std::net::SocketAddr;
 	use mio::tcp::TcpStream;
 	use stats::NetworkStats;
 	use ethkey::Public;

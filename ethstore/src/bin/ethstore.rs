@@ -20,7 +20,6 @@ extern crate ethstore;
 
 use std::{env, process, fs};
 use std::io::Read;
-use std::ops::Deref;
 use docopt::Docopt;
 use ethstore::ethkey::Address;
 use ethstore::dir::{KeyDirectory, ParityDirectory, DiskDirectory, GethDirectory, DirectoryType};
@@ -142,7 +141,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	} else if args.cmd_import {
 		let src = try!(key_dir(&args.flag_src));
 		let dst = try!(key_dir(&args.flag_dir));
-		let accounts = try!(import_accounts(*src, *dst));
+		let accounts = try!(import_accounts(&*src, &*dst));
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import_wallet {
 		let wallet = try!(PresaleWallet::open(&args.arg_path));
@@ -162,7 +161,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let signature = try!(store.sign(&address, &password, &message));
 		Ok(format!("{}", signature))
 	} else {
-		unreachable!();
+		Ok(format!("{}", USAGE))
 	}
 }
 

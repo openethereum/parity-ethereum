@@ -16,7 +16,7 @@
 
 use ethkey::KeyPair;
 use io::*;
-use client::{self, BlockChainClient, Client, ClientConfig};
+use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;
 use block::{OpenBlock, Drain};
@@ -251,7 +251,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 fn new_db(path: &str) -> Arc<Database> {
 	Arc::new(
-		Database::open(&DatabaseConfig::with_columns(client::DB_NO_OF_COLUMNS), path)
+		Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path)
 		.expect("Opening database for tests should always work.")
 	)
 }

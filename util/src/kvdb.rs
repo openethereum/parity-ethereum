@@ -214,19 +214,28 @@ impl Database {
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
 
+		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
+		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
+
 		// compaction settings
 		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
 		opts.set_target_file_size_base(config.compaction.initial_file_size);
 		opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
 
-		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
-		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
+		let mut cf_options = Vec::with_capacity(config.columns.unwrap_or(0) as usize);
 
-		if let Some(cache_size) = config.cache_size {
-			let mut block_opts = BlockBasedOptions::new();
-			// all goes to read cache
-			block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
-			opts.set_block_based_table_factory(&block_opts);
+		for _ in 0 .. config.columns.unwrap_or(0) {
+			let mut opts = Options::new();
+			opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
+			opts.set_target_file_size_base(config.compaction.initial_file_size);
+			opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
+			if let Some(cache_size) = config.cache_size {
+				let mut block_opts = BlockBasedOptions::new();
+				// all goes to read cache
+				block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
+				opts.set_block_based_table_factory(&block_opts);
+			}
+			cf_options.push(opts);
 		}
 
 		let mut write_opts = WriteOptions::new();
@@ -239,7 +248,7 @@ impl Database {
 			Some(columns) => {
 				let cfnames: Vec<_> = (0..columns).map(|c| format!("col{}", c)).collect();
 				let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
-				match DB::open_cf(&opts, path, &cfnames) {
+				match DB::open_cf(&opts, path, &cfnames, &cf_options) {
 					Ok(db) => {
 						cfs = cfnames.iter().map(|n| db.cf_handle(n).unwrap()).collect();
 						assert!(cfs.len() == columns as usize);
@@ -247,9 +256,9 @@ impl Database {
 					}
 					Err(_) => {
 						// retry and create CFs
-						match DB::open_cf(&opts, path, &[]) {
+						match DB::open_cf(&opts, path, &[], &[]) {
 							Ok(mut db) => {
-								cfs = cfnames.iter().map(|n| db.create_cf(n, &opts).unwrap()).collect();
+								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i]).unwrap()).collect();
 								Ok(db)
 							},
 							err @ Err(_) => err,

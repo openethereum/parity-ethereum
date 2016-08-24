@@ -24,9 +24,10 @@ use DAPPS_DOMAIN;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::{Url, Host};
-use hyper::{self, server, Next, Encoder, Decoder};
+use hyper::{self, server, Next, Encoder, Decoder, Control};
 use hyper::net::HttpStream;
 use apps;
+use apps::fetcher::AppFetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
 use handlers::{Redirection, extract_url};
 use self::auth::{Authorization, Authorized};
@@ -41,8 +42,10 @@ pub enum SpecialEndpoint {
 }
 
 pub struct Router<A: Authorization + 'static> {
+	control: Option<Control>,
 	main_page: &'static str,
 	endpoints: Arc<Endpoints>,
+	fetch: Arc<AppFetcher>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
 	bind_address: String,
@@ -78,9 +81,15 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
 				self.endpoints.get(&path.app_id).unwrap().to_handler(path.clone())
 			},
-			// Redirection to main page
-			_ if *req.method() == hyper::method::Method::Get => {
-				Redirection::new(self.main_page)
+			// Try to resolve and fetch dapp
+			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
+				let control = self.control.take().expect("on_request is called only once, thus control is always defined.");
+				self.fetch.to_handler(path.clone(), control)
+			},
+			// Redirection to main page (maybe 404 instead?)
+			(Some(ref path), _) if *req.method() == hyper::method::Method::Get => {
+				let address = apps::redirection_address(path.using_dapps_domains, self.main_page);
+				Redirection::new(address.as_str())
 			},
 			// RPC by default
 			_ => {
@@ -110,7 +119,9 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 impl<A: Authorization> Router<A> {
 	pub fn new(
+		control: Control,
 		main_page: &'static str,
+		app_fetcher: Arc<AppFetcher>,
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 		authorization: Arc<A>,
@@ -119,8 +130,10 @@ impl<A: Authorization> Router<A> {
 
 		let handler = special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default());
 		Router {
+			control: Some(control),
 			main_page: main_page,
 			endpoints: endpoints,
+			fetch: app_fetcher,
 			special: special,
 			authorization: authorization,
 			bind_address: bind_address,
@@ -153,6 +166,7 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 					app_id: id,
 					host: domain.clone(),
 					port: url.port,
+					using_dapps_domains: true,
 				}), special_endpoint(url))
 			},
 			_ if url.path.len() > 1 => {
@@ -161,6 +175,7 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 					app_id: id.clone(),
 					host: format!("{}", url.host),
 					port: url.port,
+					using_dapps_domains: false,
 				}), special_endpoint(url))
 			},
 			_ => (None, special_endpoint(url)),
@@ -180,6 +195,7 @@ fn should_extract_endpoint() {
 			app_id: "status".to_owned(),
 			host: "localhost".to_owned(),
 			port: 8080,
+			using_dapps_domains: false,
 		}), SpecialEndpoint::None)
 	);
 
@@ -190,6 +206,7 @@ fn should_extract_endpoint() {
 			app_id: "rpc".to_owned(),
 			host: "localhost".to_owned(),
 			port: 8080,
+			using_dapps_domains: false,
 		}), SpecialEndpoint::Rpc)
 	);
 
@@ -199,6 +216,7 @@ fn should_extract_endpoint() {
 			app_id: "my.status".to_owned(),
 			host: "my.status.parity".to_owned(),
 			port: 80,
+			using_dapps_domains: true,
 		}), SpecialEndpoint::Utils)
 	);
 
@@ -209,6 +227,7 @@ fn should_extract_endpoint() {
 			app_id: "my.status".to_owned(),
 			host: "my.status.parity".to_owned(),
 			port: 80,
+			using_dapps_domains: true,
 		}), SpecialEndpoint::None)
 	);
 
@@ -219,6 +238,7 @@ fn should_extract_endpoint() {
 			app_id: "my.status".to_owned(),
 			host: "my.status.parity".to_owned(),
 			port: 80,
+			using_dapps_domains: true,
 		}), SpecialEndpoint::Rpc)
 	);
 
@@ -229,6 +249,7 @@ fn should_extract_endpoint() {
 			app_id: "my.status".to_owned(),
 			host: "my.status.parity".to_owned(),
 			port: 80,
+			using_dapps_domains: true,
 		}), SpecialEndpoint::Api)
 	);
 }
