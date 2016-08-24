@@ -125,4 +125,8 @@ pub fn main() {
 	while !stop.load(Ordering::Relaxed) {
 		thread::park_timeout(std::time::Duration::from_millis(1000));
 	}
+
+	drop(sync);
+
+	trace!(target: "hypervisor", "Sync process terminated gracefully");
 }
