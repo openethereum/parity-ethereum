@@ -995,8 +995,13 @@ impl BlockChain {
 		let log_blooms = match info.location {
 			BlockLocation::Branch => HashMap::new(),
 			BlockLocation::CanonChain => {
-				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-				chain.insert(info.number as bc::Number, Bloom::from(header.log_bloom()).into())
+				let log_bloom = header.log_bloom();
+				if log_bloom.is_zero() {
+					HashMap::new()
+				} else {
+					let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
+					chain.insert(info.number as bc::Number, Bloom::from(log_bloom).into())
+				}
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let ancestor_number = self.block_number(&data.ancestor).unwrap();
