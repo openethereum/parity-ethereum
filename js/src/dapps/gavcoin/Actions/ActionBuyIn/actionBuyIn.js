@@ -6,7 +6,6 @@ import { Dialog, FlatButton, MenuItem, SelectField, TextField } from 'material-u
 const { IdentityIcon } = window.parity.react;
 const { Api } = window.parity;
 
-const DIVISOR = 10 ** 6;
 const NAME_ID = ' ';
 const ERRORS = {
   invalidAccount: 'please select an account to transact from',
