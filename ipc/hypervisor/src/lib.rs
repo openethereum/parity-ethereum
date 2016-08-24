@@ -190,6 +190,8 @@ impl Hypervisor {
 		for (ref mut module, ref mut child) in childs.iter_mut() {
 			trace!(target: "hypervisor", "Stopping process module: {}", module);
 			child.kill().unwrap();
+			child.wait().unwrap();
+			trace!(target: "hypervisor", "Stopped process module: {}", module);
 		}
 	}
 }
