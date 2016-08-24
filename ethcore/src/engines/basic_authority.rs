@@ -134,7 +134,6 @@ impl Engine for BasicAuthority {
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the signature is legit.
 		let sig = try!(UntrustedRlp::new(&header.seal[0]).as_val::<H520>());
-		//let signer = Address::from(try!(ec::recover(&sig, &header.bare_hash())).sha3());
 		let signer = public_to_address(&try!(recover(&sig.into(), &header.bare_hash())));
 		if !self.our_params.authorities.contains(&signer) {
 			return try!(Err(BlockError::InvalidSeal));
