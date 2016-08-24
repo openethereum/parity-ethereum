@@ -60,7 +60,6 @@ extern crate rustc_serialize;
 extern crate parity_dapps;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
-extern crate tiny_keccak;
 #[cfg(test)]
 extern crate ethcore_devtools;
 
