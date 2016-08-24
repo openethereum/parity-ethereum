@@ -201,15 +201,13 @@ impl<'db> TrieDB<'db> {
 	/// value exists for the key.
 	///
 	/// Note: Not a public API; use Trie trait functions.
-	fn get_from_node<'key, R: 'key>
-	(
+	fn get_from_node<'key, R: 'key>(
 		&'db self,
 		node: &'db [u8],
 		key: &NibbleSlice<'key>,
 		r: &'key mut R,
 		d: u32
-	) -> super::Result<Option<&'db [u8]>> where 'db: 'key, R: Recorder
-	{
+	) -> super::Result<Option<&'db [u8]>> where 'db: 'key, R: Recorder {
 		match Node::decoded(node) {
 			Node::Leaf(ref slice, value) if key == slice => Ok(Some(value)),
 			Node::Extension(ref slice, item) if key.starts_with(slice) => {
