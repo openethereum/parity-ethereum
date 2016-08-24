@@ -52,7 +52,7 @@ export default class AddressSelector extends Component {
               className={ styles.name }
               data-address={ acc.address }
               onTouchTap={ this.onSelect }>
-              { acc.name }
+              { acc.name || 'Unnamed' }
             </div>
             <div className={ styles.address }>
               { acc.address }
