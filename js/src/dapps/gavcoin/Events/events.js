@@ -58,19 +58,17 @@ export default class Events extends Component {
 
         console.log(logs);
 
-        const mapped = logs.map((log) => {
-          return {
-            type: eventName,
-            blockNumber: log.blockNumber,
-            transactionHash: log.transactionHash,
-            params: log.params,
-            key: `${eventName}_${log.transactionHash}_${log.logIndex.toString()}`
-          };
-        });
-
         this.setState({
           events: this.state.events
-            .concat(mapped)
+            .concat(logs.map((log) => {
+              return {
+                type: eventName,
+                blockNumber: log.blockNumber,
+                transactionHash: log.transactionHash,
+                params: log.params,
+                key: `${eventName}_${log.transactionHash}_${log.logIndex.toString()}`
+              };
+            }))
             .sort((a, b) => {
               if (a.blockNumber.lt(b.blockNumber)) {
                 return 1;
@@ -78,7 +76,7 @@ export default class Events extends Component {
                 return -1;
               }
 
-              return a.key.localeCompare(b.key);
+              return b.key.localeCompare(a.key);
             })
         });
       });
