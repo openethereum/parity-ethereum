@@ -72,8 +72,10 @@ pub trait SnapshotService {
 	/// Begin snapshot restoration.
 	/// If restoration in-progress, this will reset it.
 	/// From this point on, any previous snapshot may become unavailable.
-	/// Returns true if successful, false otherwise.
-	fn begin_restore(&self, manifest: ManifestData) -> bool;
+	fn begin_restore(&self, manifest: ManifestData);
+
+	/// Abort an in-progress restoration if there is one.
+	fn abort_restore(&self);
 
 	/// Feed a raw state chunk to the service to be processed asynchronously.
 	/// no-op if not currently restoring.
@@ -214,6 +216,7 @@ impl Service {
 		let reader = {
 			let mut snapshot_path = db_path.clone();
 			snapshot_path.push("snapshot");
+			snapshot_path.push("current");
 
 			LooseReader::new(snapshot_path).ok()
 		};
@@ -232,7 +235,7 @@ impl Service {
 			block_chunks: AtomicUsize::new(0),
 		};
 
-		// create the snapshot dir if it doesn't exist.
+		// create the root snapshot dir if it doesn't exist.
 		if let Err(e) = fs::create_dir_all(service.root_dir()) {
 			if e.kind() != ErrorKind::AlreadyExists {
 				return Err(e.into())
@@ -322,6 +325,42 @@ impl Service {
 		}
 	}
 
+	/// Initialize the restoration synchronously.
+	pub fn init_restore(&self, manifest: ManifestData) -> Result<(), Error> {
+		let rest_dir = self.restoration_dir();
+
+		let mut res = self.restoration.lock();
+
+		// tear down existing restoration.
+		*res = None;
+
+		// delete and restore the restoration dir.
+		if let Err(e) = fs::remove_dir_all(&rest_dir) {
+			match e.kind() {
+				ErrorKind::NotFound => {},
+				_ => return Err(e.into()),
+			}
+		}
+
+		try!(fs::create_dir_all(&rest_dir));
+
+		// make new restoration.
+		let writer = try!(LooseWriter::new(self.temp_recovery_dir()));
+
+		let params = RestorationParams {
+			manifest: manifest,
+			pruning: self.pruning,
+			db_path: self.restoration_db(),
+			writer: writer,
+			genesis: &self.genesis_block,
+		};
+
+		*res = Some(try!(Restoration::new(params)));
+
+		*self.status.lock() = RestorationStatus::Ongoing;
+		Ok(())
+	}
+
 	// finalize the restoration. this accepts an already-locked
 	// restoration as an argument -- so acquiring it again _will_
 	// lead to deadlock.
@@ -340,35 +379,43 @@ impl Service {
 
 		let snapshot_dir = self.snapshot_dir();
 
-		// remove the old snapshot and copy over all files from the temporary folder.
-		try!(fs::remove_dir_all(&snapshot_dir).and_then(|_| fs::create_dir(&snapshot_dir)));
+		trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
+		if let Err(e) = fs::remove_dir_all(&snapshot_dir) {
+			match e.kind() {
+				ErrorKind::NotFound => {}
+				_ => return Err(e.into()),
+			}
+		}
 
+		try!(fs::create_dir(&snapshot_dir));
+
+		trace!(target: "snapshot", "copying restored snapshot files over");
 		for maybe_file in try!(fs::read_dir(self.temp_recovery_dir())) {
 			let path = try!(maybe_file).path();
 			if let Some(name) = path.file_name().map(|x| x.to_owned()) {
-				let new_path = snapshot_dir.with_file_name(name);
+				let mut new_path = snapshot_dir.clone();
+				new_path.push(name);
 				try!(fs::rename(path, new_path));
 			}
 		}
 
+		let _ = fs::remove_dir_all(self.restoration_dir());
+
 		*reader = Some(try!(LooseReader::new(snapshot_dir)));
 
 		*self.status.lock() = RestorationStatus::Inactive;
-
-		// TODO: take control of restored snapshot.
-		let _ = fs::remove_dir_all(self.restoration_dir());
 
 		Ok(())
 	}
 
 	/// Feed a chunk of either kind. no-op if no restoration or status is wrong.
 	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
+		// TODO: be able to process block chunks and state chunks at same time?
+		let mut restoration = self.restoration.lock();
+
 		match self.status() {
 			RestorationStatus::Inactive | RestorationStatus::Failed => Ok(()),
 			RestorationStatus::Ongoing => {
-				// TODO: be able to process block chunks and state chunks at same time?
-				let mut restoration = self.restoration.lock();
-
 				let res = {
 					let rest = match *restoration {
 						Some(ref mut r) => r,
@@ -443,52 +490,20 @@ impl SnapshotService for Service {
 		(self.state_chunks.load(Ordering::Relaxed), self.block_chunks.load(Ordering::Relaxed))
 	}
 
-	fn begin_restore(&self, manifest: ManifestData) -> bool {
-		let rest_dir = self.restoration_dir();
+	fn begin_restore(&self, manifest: ManifestData) {
+		self.io_channel.send(ClientIoMessage::BeginRestoration(manifest))
+			.expect("snapshot service and io service are kept alive by client service; qed");
+	}
 
-		let mut res = self.restoration.lock();
-
-		// tear down existing restoration.
-		*res = None;
-
-		// delete and restore the restoration dir.
-		if let Err(e) = fs::remove_dir_all(&rest_dir).and_then(|_| fs::create_dir_all(&rest_dir)) {
+	fn abort_restore(&self) {
+		*self.restoration.lock() = None;
+		*self.status.lock() = RestorationStatus::Inactive;
+		if let Err(e) = fs::remove_dir_all(&self.restoration_dir()) {
 			match e.kind() {
 				ErrorKind::NotFound => {},
-				_ => {
-					warn!("encountered error {} while beginning snapshot restoration.", e);
-					return false;
-				}
+				_ => warn!("encountered error {} while deleting snapshot restoration dir.", e),
 			}
 		}
-
-		// make new restoration.
-		let writer = match LooseWriter::new(self.temp_recovery_dir()) {
-			Ok(w) => w,
-			Err(e) => {
-				warn!("encountered error {} while beginning snapshot restoration.", e);
-				return false;
-			}
-		};
-
-		let params = RestorationParams {
-			manifest: manifest,
-			pruning: self.pruning,
-			db_path: self.restoration_db(),
-			writer: writer,
-			genesis: &self.genesis_block,
-		};
-
-		*res = match Restoration::new(params) {
-				Ok(b) => Some(b),
-				Err(e) => {
-					warn!("encountered error {} while beginning snapshot restoration.", e);
-					return false;
-				}
-		};
-
-		*self.status.lock() = RestorationStatus::Ongoing;
-		true
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
