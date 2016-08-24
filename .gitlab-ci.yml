@@ -92,10 +92,6 @@ linux-armv7:
     - tags
     - stable
   script:
-    - mkdir -p .cargo
-    - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    - cat .cargo/config
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
   tags:
@@ -114,10 +110,6 @@ linux-arm:
     - tags
     - stable
   script:
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
   tags:
@@ -137,10 +129,6 @@ linux-armv6:
     - tags
     - stable
   script:
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
-    - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabi --release --verbose
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
   tags:
@@ -160,10 +148,6 @@ linux-aarch64:
     - tags
     - stable
   script:
-    - mkdir -p .cargo
-    - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
-    - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
-    - cat .cargo/config
     - cargo build --target aarch64-unknown-linux-gnu --release --verbose
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
   tags:
