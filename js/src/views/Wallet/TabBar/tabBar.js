@@ -18,13 +18,19 @@ export default class TabBar extends Component {
   }
 
   render () {
+    const hash = (window.location.hash || '')
+      .replace('#/', '').replace('accounts', 'account').replace('apps', 'app')
+      .split('?')[0].split('/')[0];
+
     return (
       <Toolbar
         className={ styles.toolbar }>
         <Tabs
-          className={ styles.tabs }>
+          className={ styles.tabs }
+          value={ hash }>
           <Tab
             data-route='/accounts'
+            value='account'
             icon={ <ActionAccountBalanceWallet /> }
             label='accounts'
             onActive={ this.onActivate }>
@@ -34,11 +40,13 @@ export default class TabBar extends Component {
           </Tab>
           <Tab
             data-route='/apps'
+            value='app'
             icon={ <NavigationApps /> }
             label='apps'
             onActive={ this.onActivate } />
           <Tab
             data-route='/signer'
+            value='signer'
             icon={ <ActionFingerprint /> }
             label='signer'
             onActive={ this.onActivate } />
