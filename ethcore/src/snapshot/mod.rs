@@ -443,10 +443,10 @@ impl StateRebuilder {
 			}
 
 			// commit all account tries to the db, but only in this thread.
-			let batch = backing.transaction();
+			let mut batch = backing.transaction();
 			for handle in handles {
 				let mut thread_db = try!(handle.join());
-				try!(thread_db.inject(&batch));
+				try!(thread_db.inject(&mut batch));
 			}
 			try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 
@@ -468,8 +468,8 @@ impl StateRebuilder {
 			}
 		}
 
-		let batch = backing.transaction();
-		try!(self.db.inject(&batch));
+		let mut batch = backing.transaction();
+		try!(self.db.inject(&mut batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 		Ok(())
