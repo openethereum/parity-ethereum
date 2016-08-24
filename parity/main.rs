@@ -85,9 +85,23 @@ mod sync;
 mod snapshot;
 
 use std::{process, env};
+use std::io::prelude::*;
+use std::fs::File;
+use util::sha3::Hashable;
 use cli::print_version;
 use configuration::{Cmd, Configuration};
 use deprecated::find_deprecated;
+
+fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
+	if let Some(file) = maybe_file {
+		let mut f = try!(File::open(&file).map_err(|_| "Unable to open file".to_owned()));
+		let mut bytes = vec![];
+		try!(f.read_to_end(&mut bytes).map_err(|_| "Unable to read from file".to_owned()));
+		Ok(bytes.sha3().hex())
+	} else {
+		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
+	}
+}
 
 fn execute(command: Cmd) -> Result<String, String> {
 	match command {
@@ -96,6 +110,7 @@ fn execute(command: Cmd) -> Result<String, String> {
 			Ok("".into())
 		},
 		Cmd::Version => Ok(print_version()),
+		Cmd::Hash(maybe_file) => print_hash_of(maybe_file),
 		Cmd::Account(account_cmd) => account::execute(account_cmd),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
