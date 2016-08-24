@@ -1,7 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 
+import { Toolbar, ToolbarGroup, ToolbarTitle } from 'material-ui/Toolbar';
+
 export default class Status extends Component {
   static propTypes = {
+    address: PropTypes.string,
     blockNumber: PropTypes.string,
     totalSupply: PropTypes.string,
     remaining: PropTypes.string,
@@ -14,7 +17,16 @@ export default class Status extends Component {
     }
 
     return (
-      <div>#{ this.props.blockNumber }: { this.props.remaining } coins remaining ({ this.props.totalSupply } total), price of { this.props.price }</div>
+      <Toolbar className='toolbar'>
+        <ToolbarGroup>
+          <ToolbarTitle text='GAVcoin' />
+        </ToolbarGroup>
+        <ToolbarGroup>
+          <p>
+            #{ this.props.blockNumber }: { this.props.remaining } / { this.props.totalSupply } available
+          </p>
+        </ToolbarGroup>
+      </Toolbar>
     );
   }
 }

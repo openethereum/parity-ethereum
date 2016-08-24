@@ -1,5 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 
+import getMuiTheme from 'material-ui/styles/getMuiTheme';
+import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
+
+const muiTheme = getMuiTheme(lightBaseTheme);
+
 import registryAbi from '../abi/registry.json';
 import gavcoinAbi from '../abi/gavcoin.json';
 
@@ -12,7 +17,8 @@ const api = new Api(new Api.Transport.Http('/rpc/'));
 
 export default class Application extends Component {
   static childContextTypes = {
-    instance: PropTypes.object
+    instance: PropTypes.object,
+    muiTheme: PropTypes.object
   };
 
   state = {
@@ -56,8 +62,8 @@ export default class Application extends Component {
 
     return (
       <div>
-        <div>Welcome to GAVcoin, found at { this.state.address }</div>
         <Status
+          address={ this.state.address }
           blockNumber={ this.state.blockNumber }
           totalSupply={ this.state.totalSupply }
           remaining={ this.state.remaining }
@@ -68,7 +74,8 @@ export default class Application extends Component {
 
   getChildContext () {
     return {
-      instance: this.state.instance
+      instance: this.state.instance,
+      muiTheme
     };
   }
 
