@@ -276,7 +276,6 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
 			engine,
-			self.vm_factory(),
 			Default::default(),
 			false,
 			db,

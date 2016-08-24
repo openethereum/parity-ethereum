@@ -270,7 +270,7 @@ impl Miner {
 				Some(old_block) => {
 					trace!(target: "miner", "Already have previous work; updating and returning");
 					// add transactions to old_block
-					old_block.reopen(&*self.engine, chain.vm_factory())
+					old_block.reopen(&*self.engine)
 				}
 				None => {
 					// block not found - create it.

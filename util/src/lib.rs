@@ -112,6 +112,7 @@ extern crate parking_lot;
 pub extern crate using_queue;
 pub extern crate table;
 extern crate ansi_term;
+extern crate tiny_keccak;
 
 pub mod bloom;
 pub mod standard;

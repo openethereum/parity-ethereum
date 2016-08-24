@@ -30,7 +30,8 @@ use hyper::Control;
 use hyper::status::StatusCode;
 
 use random_filename;
-use util::Mutex;
+use util::{Mutex, H256};
+use util::sha3::sha3;
 use page::LocalPageEndpoint;
 use handlers::{ContentHandler, AppFetcherHandler, DappHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};
@@ -137,10 +138,12 @@ impl<R: URLHint> AppFetcher<R> {
 
 #[derive(Debug)]
 pub enum ValidationError {
-	ManifestNotFound,
-	ManifestSerialization(String),
 	Io(io::Error),
 	Zip(zip::result::ZipError),
+	InvalidDappId,
+	ManifestNotFound,
+	ManifestSerialization(String),
+	HashMismatch { expected: H256, got: H256, },
 }
 
 impl From<io::Error> for ValidationError {
@@ -198,8 +201,15 @@ impl DappHandler for DappInstaller {
 
 	fn validate_and_install(&self, app_path: PathBuf) -> Result<Manifest, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
-		// TODO [ToDr] Validate file hash
-		let file = try!(fs::File::open(app_path));
+		let mut file = try!(fs::File::open(app_path));
+		let hash = try!(sha3(&mut file));
+		let dapp_id = try!(self.dapp_id.as_str().parse().map_err(|_| ValidationError::InvalidDappId));
+		if dapp_id != hash {
+			return Err(ValidationError::HashMismatch {
+				expected: dapp_id,
+				got: hash,
+			});
+		}
 		// Unpack archive
 		let mut zip = try!(zip::ZipArchive::new(file));
 		// First find manifest file

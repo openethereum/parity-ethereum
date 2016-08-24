@@ -139,7 +139,6 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	let mut db_result = get_temp_journal_db();
 	let mut db = db_result.take();
 	test_spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
-	let vm_factory = Default::default();
 	let genesis_header = test_spec.genesis_header();
 
 	let mut rolling_timestamp = 40;
@@ -156,7 +155,6 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 		// forge block.
 		let mut b = OpenBlock::new(
 			test_engine,
-			&vm_factory,
 			Default::default(),
 			false,
 			db,

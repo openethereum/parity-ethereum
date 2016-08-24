@@ -289,6 +289,7 @@ version = "1.4.0"
 dependencies = [
  "clippy 0.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-devtools 1.4.0",
  "ethcore-rpc 1.4.0",
  "ethcore-util 1.4.0",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
@@ -502,6 +503,7 @@ dependencies = [
  "table 0.1.0",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "using_queue 0.1.0",
  "vergen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
