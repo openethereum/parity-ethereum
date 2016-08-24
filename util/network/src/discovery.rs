@@ -59,7 +59,7 @@ pub struct BucketEntry {
 	pub timeout: Option<u64>,
 }
 
-struct NodeBucket {
+pub struct NodeBucket {
 	nodes: VecDeque<BucketEntry>, //sorted by last active
 }
 
@@ -281,12 +281,12 @@ impl Discovery {
 				if count == BUCKET_SIZE {
 					// delete the most distant element
 					let remove = {
-						let (_, last) = found.iter_mut().next_back().unwrap();
+						let (key, last) = found.iter_mut().next_back().unwrap();
 						last.pop();
-						last.is_empty()
+						if last.is_empty() { Some(key.clone()) } else { None }
 					};
-					if remove {
-						found.remove(&distance);
+					if let Some(remove) = remove {
+						found.remove(&remove);
 					}
 				}
 				else {
@@ -603,6 +603,21 @@ mod tests {
 		assert!(Discovery::nearest_node_entries(&NodeId::new(), &discovery.node_buckets).len() <= 16);
 		let removed = discovery.check_expired(true).len();
 		assert!(removed > 0);
+	}
+
+	#[test]
+	fn find_nearest_saturated() {
+		use super::*;
+		let mut buckets: Vec<_> = (0..256).map(|_| NodeBucket::new()).collect();
+		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
+		for _ in 0..(16 + 10) {
+			buckets[0].nodes.push_back(BucketEntry {
+				address: NodeEntry { id: NodeId::new(), endpoint: ep.clone() },
+				timeout: None
+			});
+		}
+		let nearest = Discovery::nearest_node_entries(&NodeId::new(), &buckets);
+		assert_eq!(nearest.len(), 16)
 	}
 
 	#[test]
