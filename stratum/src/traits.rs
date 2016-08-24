@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Stratum ipc interfaces specification
-
 use std;
 use std::error::Error as StdError;
+use util::H256;
+use ipc::IpcConfig;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Binary)]
 pub enum Error {
 	NoWork,
 	NoWorkers,
@@ -32,6 +32,8 @@ impl From<std::io::Error> for Error {
 	}
 }
 
+#[derive(Ipc)]
+#[ipc(client_ident="RemoteJobDispatcher")]
 /// Interface that can provide pow/blockchain-specific responses for the clients
 pub trait JobDispatcher: Send + Sync {
 	// json for initial client handshake
@@ -39,9 +41,11 @@ pub trait JobDispatcher: Send + Sync {
 	// json for difficulty dispatch
 	fn difficulty(&self) -> Option<String> { None }
 	// json for job update given worker_id (payload manager should split job!)
-	fn job(&self, _worker_id: &str) -> Option<String> { None }
+	fn job(&self, _worker_id: String) -> Option<String> { None }
 }
 
+#[derive(Ipc)]
+#[ipc(client_ident="RemoteWorkHandler")]
 /// Interface that can handle requests to push job for workers
 pub trait PushWorkHandler: Send + Sync {
 	/// push the same work package for all workers (`payload`: json of pow-specific set of work specification)
@@ -50,3 +54,12 @@ pub trait PushWorkHandler: Send + Sync {
 	/// push the work packages worker-wise (`payload`: json of pow-specific set of work specification)
 	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error>;
 }
+
+#[derive(Binary)]
+pub struct ServiceConfiguration {
+	pub listen_addr: String,
+	pub secret: Option<H256>,
+}
+
+impl IpcConfig for PushWorkHandler { }
+impl IpcConfig for JobDispatcher { }

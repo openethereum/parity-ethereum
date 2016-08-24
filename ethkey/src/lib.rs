@@ -31,7 +31,7 @@ mod random;
 mod signature;
 
 lazy_static! {
-	static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
+	pub static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
 }
 
 /// Generates new keypair.

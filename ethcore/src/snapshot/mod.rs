@@ -26,7 +26,7 @@ use engines::Engine;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
+use util::{Bytes, Hashable, HashDB, snappy};
 use util::memorydb::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
@@ -34,6 +34,7 @@ use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::Database;
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
 use util::rlp::SHA3_NULL_RLP;
+use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 
 use self::account::Account;
 use self::block::AbridgedBlock;

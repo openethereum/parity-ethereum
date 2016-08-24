@@ -14,33 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! URL Endpoint traits
+use util::trie::TrieFactory;
+use evm::Factory as EvmFactory;
+use account_db::Factory as AccountFactory;
 
-use hyper::{server, net};
-use std::collections::BTreeMap;
-
-#[derive(Debug, PartialEq, Default, Clone)]
-pub struct EndpointPath {
-	pub app_id: String,
-	pub host: String,
-	pub port: u16,
-	pub using_dapps_domains: bool,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct EndpointInfo {
-	pub name: String,
-	pub description: String,
-	pub version: String,
-	pub author: String,
-	pub icon_url: String,
-}
-
-pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
-pub type Handler = server::Handler<net::HttpStream> + Send;
-
-pub trait Endpoint : Send + Sync {
-	fn info(&self) -> Option<&EndpointInfo> { None }
-
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler>;
+/// Collection of factories.
+#[derive(Default, Clone)]
+pub struct Factories {
+	/// factory for evm.
+	pub vm: EvmFactory,
+	/// factory for tries.
+	pub trie: TrieFactory,
+	/// factory for account databases.
+	pub accountdb: AccountFactory,
 }

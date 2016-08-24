@@ -86,9 +86,10 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 				let control = self.control.take().expect("on_request is called only once, thus control is always defined.");
 				self.fetch.to_handler(path.clone(), control)
 			},
-			// Redirection to main page
-			_ if *req.method() == hyper::method::Method::Get => {
-				Redirection::new(self.main_page)
+			// Redirection to main page (maybe 404 instead?)
+			(Some(ref path), _) if *req.method() == hyper::method::Method::Get => {
+				let address = apps::redirection_address(path.using_dapps_domains, self.main_page);
+				Redirection::new(address.as_str())
 			},
 			// RPC by default
 			_ => {
@@ -165,6 +166,7 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 					app_id: id,
 					host: domain.clone(),
 					port: url.port,
+					using_dapps_domains: true,
 				}), special_endpoint(url))
 			},
 			_ if url.path.len() > 1 => {
@@ -173,6 +175,7 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 					app_id: id.clone(),
 					host: format!("{}", url.host),
 					port: url.port,
+					using_dapps_domains: false,
 				}), special_endpoint(url))
 			},
 			_ => (None, special_endpoint(url)),
@@ -192,6 +195,7 @@ fn should_extract_endpoint() {
 			app_id: "status".to_owned(),
 			host: "localhost".to_owned(),
 			port: 8080,
+			using_dapps_domains: false,
 		}), SpecialEndpoint::None)
 	);
 
@@ -202,6 +206,7 @@ fn should_extract_endpoint() {
 			app_id: "rpc".to_owned(),
 			host: "localhost".to_owned(),
 			port: 8080,
+			using_dapps_domains: false,
 		}), SpecialEndpoint::Rpc)
 	);
 
@@ -211,6 +216,7 @@ fn should_extract_endpoint() {
 			app_id: "my.status".to_owned(),
 			host: "my.status.parity".to_owned(),
 			port: 80,
+			using_dapps_domains: true,
 		}), SpecialEndpoint::Utils)
 	);
 
@@ -221,6 +227,7 @@ fn should_extract_endpoint() {
 			app_id: "my.status".to_owned(),
 			host: "my.status.parity".to_owned(),
 			port: 80,
+			using_dapps_domains: true,
 		}), SpecialEndpoint::None)
 	);
 
@@ -231,6 +238,7 @@ fn should_extract_endpoint() {
 			app_id: "my.status".to_owned(),
 			host: "my.status.parity".to_owned(),
 			port: 80,
+			using_dapps_domains: true,
 		}), SpecialEndpoint::Rpc)
 	);
 
@@ -241,6 +249,7 @@ fn should_extract_endpoint() {
 			app_id: "my.status".to_owned(),
 			host: "my.status.parity".to_owned(),
 			port: 80,
+			using_dapps_domains: true,
 		}), SpecialEndpoint::Api)
 	);
 }
