@@ -46,7 +46,7 @@ pub fn open(url: &str) {
 	}
 }
 
-#[cfg(target_os="macos")]
+#[cfg(any(target_os="macos", target_os="freebsd"))]
 pub fn open(url: &str) {
 	use std;
 	let _ = std::process::Command::new("open").arg(url).spawn();

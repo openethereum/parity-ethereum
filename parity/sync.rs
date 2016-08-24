@@ -18,7 +18,7 @@
 
 use std;
 use std::sync::Arc;
-use hypervisor::SYNC_MODULE_ID;
+use hypervisor::{SYNC_MODULE_ID, HYPERVISOR_IPC_URL};
 use ethcore::client::{RemoteClient, ChainNotify};
 use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
 use std::thread;
@@ -31,15 +31,31 @@ pub fn main() {
 	let service_config: ServiceConfiguration = boot::payload()
 		.unwrap_or_else(|e| panic!("Fatal: error reading boot arguments ({:?})", e));
 
-	let remote_client = dependency!(RemoteClient, service_urls::CLIENT);
+	let remote_client = dependency!(RemoteClient, &service_urls::with_base(&service_config.io_path, service_urls::CLIENT));
 
 	let stop = boot::main_thread();
 	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), service_config.net).unwrap();
-	boot::host_service(service_urls::SYNC, stop.clone(), sync.clone() as Arc<SyncProvider>);
-	boot::host_service(service_urls::NETWORK_MANAGER, stop.clone(), sync.clone() as Arc<ManageNetwork>);
-	boot::host_service(service_urls::SYNC_NOTIFY, stop.clone(), sync.clone() as Arc<ChainNotify>);
 
-	let _ = boot::register(SYNC_MODULE_ID);
+	let _ = boot::register(
+		&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL),
+		SYNC_MODULE_ID
+	);
+
+	boot::host_service(
+		&service_urls::with_base(&service_config.io_path, service_urls::SYNC),
+		stop.clone(),
+		sync.clone() as Arc<SyncProvider>
+	);
+	boot::host_service(
+		&service_urls::with_base(&service_config.io_path, service_urls::NETWORK_MANAGER),
+		stop.clone(),
+		sync.clone() as Arc<ManageNetwork>
+	);
+	boot::host_service(
+		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_NOTIFY),
+		stop.clone(),
+		sync.clone() as Arc<ChainNotify>
+	);
 
 	while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
 		thread::park_timeout(std::time::Duration::from_millis(1000));

@@ -723,8 +723,8 @@ impl MinerService for Miner {
 					.position(|t| t == *hash)
 					.map(|index| {
 						let prev_gas = if index == 0 { Default::default() } else { pending.receipts()[index - 1].gas_used };
-						let ref tx = txs[index];
-						let ref receipt = pending.receipts()[index];
+						let tx = &txs[index];
+						let receipt = &pending.receipts()[index];
 						RichReceipt {
 							transaction_hash: hash.clone(),
 							transaction_index: index,

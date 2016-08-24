@@ -20,7 +20,7 @@ use nanoipc;
 use ipc;
 use std;
 use std::sync::Arc;
-use hypervisor::{HypervisorServiceClient, HYPERVISOR_IPC_URL};
+use hypervisor::HypervisorServiceClient;
 use hypervisor::service::IpcModuleId;
 use ctrlc::CtrlC;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -62,8 +62,8 @@ pub fn payload<B: ipc::BinaryConvertable>() -> Result<B, BootError> {
 		.map_err(|binary_error| BootError::DecodeArgs(binary_error))
 }
 
-pub fn register(module_id: IpcModuleId) -> GuardedSocket<HypervisorServiceClient<NanoSocket>>{
-	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(HYPERVISOR_IPC_URL).unwrap();
+pub fn register(hv_url: &str, module_id: IpcModuleId) -> GuardedSocket<HypervisorServiceClient<NanoSocket>>{
+	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(hv_url).unwrap();
 	hypervisor_client.handshake().unwrap();
 	hypervisor_client.module_ready(module_id);
 

@@ -8,11 +8,10 @@ authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
 [build-dependencies]
-syntex = "*"
 ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
-clippy = { version = "0.0.82", optional = true}
+clippy = { version = "0.0.85", optional = true}
 ethcore-devtools = { path = "../devtools" }
 ethcore-ipc = { path = "../ipc/rpc" }
 rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }

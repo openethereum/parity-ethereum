@@ -26,7 +26,7 @@ extern crate semver;
 pub mod service;
 
 /// Default value for hypervisor ipc listener
-pub const HYPERVISOR_IPC_URL: &'static str = "ipc:///tmp/parity-internal-hyper-status.ipc";
+pub const HYPERVISOR_IPC_URL: &'static str = "parity-internal-hyper-status.ipc";
 
 use std::sync::{Arc,RwLock};
 use service::{HypervisorService, IpcModuleId};
@@ -41,8 +41,9 @@ pub struct Hypervisor {
 	ipc_addr: String,
 	service: Arc<HypervisorService>,
 	ipc_worker: RwLock<nanoipc::Worker<HypervisorService>>,
-	processes: RwLock<HashMap<BinaryId, Child>>,
-	modules: HashMap<IpcModuleId, (BinaryId, BootArgs)>,
+	processes: RwLock<HashMap<IpcModuleId, Child>>,
+	modules: HashMap<IpcModuleId, BootArgs>,
+	pub io_path: String,
 }
 
 /// Boot arguments for binary
@@ -79,14 +80,19 @@ impl Hypervisor {
 		Hypervisor::with_url(HYPERVISOR_IPC_URL)
 	}
 
-	pub fn module(mut self, module_id: IpcModuleId, binary_id: BinaryId, args: BootArgs) -> Hypervisor {
-		self.modules.insert(module_id, (binary_id, args));
+	pub fn module(mut self, module_id: IpcModuleId, args: BootArgs) -> Hypervisor {
+		self.modules.insert(module_id, args);
 		self.service.add_module(module_id);
 		self
 	}
 
 	pub fn local_module(self, module_id: IpcModuleId) -> Hypervisor {
 		self.service.add_module(module_id);
+		self
+	}
+
+	pub fn io_path(mut self, directory: &str) -> Hypervisor {
+		self.io_path = directory.to_owned();
 		self
 	}
 
@@ -101,12 +107,13 @@ impl Hypervisor {
 			ipc_worker: RwLock::new(worker),
 			processes: RwLock::new(HashMap::new()),
 			modules: HashMap::new(),
+			io_path: "/tmp".to_owned(),
 		}
 	}
 
 	/// Since one binary can host multiple modules
 	/// we match binaries
-	fn match_module(&self, module_id: &IpcModuleId) -> Option<&(BinaryId, BootArgs)> {
+	fn match_module(&self, module_id: &IpcModuleId) -> Option<&BootArgs> {
 		self.modules.get(module_id)
 	}
 
@@ -126,24 +133,19 @@ impl Hypervisor {
 	fn start_module(&self, module_id: IpcModuleId) {
 		use std::io::Write;
 
-		self.match_module(&module_id).map(|&(ref binary_id, ref binary_args)| {
+		self.match_module(&module_id).map(|boot_args| {
 			let mut processes = self.processes.write().unwrap();
 			{
-				if processes.get(binary_id).is_some() {
+				if processes.get(&module_id).is_some() {
 					// already started for another module
 					return;
 				}
 			}
 
-			let mut executable_path = std::env::current_exe().unwrap();
-			executable_path.pop();
-			executable_path.push(binary_id);
-
-			let executable_path = executable_path.to_str().unwrap();
-			let mut command = Command::new(&executable_path);
+			let mut command = Command::new(&std::env::current_exe().unwrap());
 			command.stderr(std::process::Stdio::inherit());
 
-			if let Some(ref cli_args) = binary_args.cli {
+			if let Some(ref cli_args) = boot_args.cli {
 				for arg in cli_args { command.arg(arg); }
 			}
 
@@ -152,18 +154,18 @@ impl Hypervisor {
 			trace!(target: "hypervisor", "Spawn executable: {:?}", command);
 
 			let mut child = command.spawn().unwrap_or_else(
-				|e| panic!("Hypervisor cannot start binary ({:?}): {}", executable_path, e));
+				|e| panic!("Hypervisor cannot execute command ({:?}): {}", command, e));
 
-			if let Some(ref std_in) = binary_args.stdin {
+			if let Some(ref std_in) = boot_args.stdin {
 				trace!(target: "hypervisor", "Pushing std-in payload...");
 				child.stdin.as_mut()
 					.expect("std-in should be piped above")
 					.write(std_in)
-					.unwrap_or_else(|e| panic!(format!("Error trying to pipe stdin for {}: {:?}", &executable_path, e)));
+					.unwrap_or_else(|e| panic!(format!("Error trying to pipe stdin for {:?}: {:?}", &command, e)));
 				drop(child.stdin.take());
 			}
 
-			processes.insert(binary_id, child);
+			processes.insert(module_id, child);
 		});
 	}
 
@@ -185,8 +187,8 @@ impl Hypervisor {
 		if wait_time.is_some() { std::thread::sleep(wait_time.unwrap()) }
 
 		let mut childs = self.processes.write().unwrap();
-		for (ref mut binary, ref mut child) in childs.iter_mut() {
-			trace!(target: "hypervisor", "Stopping process module: {}", binary);
+		for (ref mut module, ref mut child) in childs.iter_mut() {
+			trace!(target: "hypervisor", "Stopping process module: {}", module);
 			child.kill().unwrap();
 		}
 	}
