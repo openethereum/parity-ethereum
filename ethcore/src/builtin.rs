@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::*;
 use crypto::sha2::Sha256;
 use crypto::ripemd160::Ripemd160;
 use crypto::digest::Digest;
+use util::*;
+use ethkey::{Signature, recover};
 use ethjson;
 
 /// Definition of a contract whose implementation is built-in.
@@ -92,19 +93,19 @@ pub fn new_builtin_exec(name: &str) -> Box<Fn(&[u8], &mut [u8])> {
 		}),
 		"ecrecover" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			#[repr(packed)]
-			#[derive(Debug)]
+			#[derive(Debug, Default)]
 			struct InType {
 				hash: H256,
 				v: H256,
 				r: H256,
 				s: H256,
 			}
-			let mut it: InType = InType { hash: H256::new(), v: H256::new(), r: H256::new(), s: H256::new() };
+			let mut it = InType::default();
 			it.copy_raw(input);
 			if it.v == H256::from(&U256::from(27)) || it.v == H256::from(&U256::from(28)) {
-				let s = signature_from_rsv(&it.r, &it.s, it.v[31] - 27);
-				if ec::is_valid(&s) {
-					if let Ok(p) = ec::recover(&s, &it.hash) {
+				let s = Signature::from_rsv(&it.r, &it.s, it.v[31] - 27);
+				if s.is_valid() {
+					if let Ok(p) = recover(&s, &it.hash) {
 						let r = p.as_slice().sha3();
 						// NICE: optimise and separate out into populate-like function
 						for i in 0..min(32, output.len()) {

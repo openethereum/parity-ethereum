@@ -62,6 +62,7 @@ linux-nightly:
     paths:
     - target/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
@@ -104,6 +105,7 @@ linux-armv7:
     paths:
     - target/armv7-unknown-linux-gnueabihf/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
@@ -126,6 +128,7 @@ linux-arm:
     paths:
     - target/arm-unknown-linux-gnueabihf/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-armv6:
   stage: build
   image: ethcore/rust-arm:latest
@@ -148,6 +151,7 @@ linux-armv6:
     paths:
     - target/arm-unknown-linux-gnueabi/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-aarch64:
   stage: build
   image: ethcore/rust-arm:latest
@@ -170,6 +174,7 @@ linux-aarch64:
     paths:
     - target/aarch64-unknown-linux-gnu/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 darwin:
   stage: build
   only:

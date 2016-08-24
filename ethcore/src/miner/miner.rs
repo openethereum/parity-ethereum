@@ -270,7 +270,7 @@ impl Miner {
 				Some(old_block) => {
 					trace!(target: "miner", "Already have previous work; updating and returning");
 					// add transactions to old_block
-					old_block.reopen(&*self.engine, chain.vm_factory())
+					old_block.reopen(&*self.engine)
 				}
 				None => {
 					// block not found - create it.
@@ -723,8 +723,8 @@ impl MinerService for Miner {
 					.position(|t| t == *hash)
 					.map(|index| {
 						let prev_gas = if index == 0 { Default::default() } else { pending.receipts()[index - 1].gas_used };
-						let ref tx = txs[index];
-						let ref receipt = pending.receipts()[index];
+						let tx = &txs[index];
+						let receipt = &pending.receipts()[index];
 						RichReceipt {
 							transaction_hash: hash.clone(),
 							transaction_index: index,
@@ -911,6 +911,7 @@ mod tests {
 	use super::super::MinerService;
 	use super::*;
 	use util::*;
+	use ethkey::{Generator, Random};
 	use client::{TestBlockChainClient, EachBlockWith};
 	use client::{TransactionImportResult};
 	use types::transaction::{Transaction, Action};
@@ -975,7 +976,7 @@ mod tests {
 		let client = TestBlockChainClient::default();
 		let miner = miner();
 		let transaction = {
-			let keypair = KeyPair::create().unwrap();
+			let keypair = Random.generate().unwrap();
 			Transaction {
 				action: Action::Create,
 				value: U256::zero(),
@@ -1005,7 +1006,7 @@ mod tests {
 		let client = TestBlockChainClient::default();
 		let miner = miner();
 		let transaction = {
-			let keypair = KeyPair::create().unwrap();
+			let keypair = Random.generate().unwrap();
 			Transaction {
 				action: Action::Create,
 				value: U256::zero(),

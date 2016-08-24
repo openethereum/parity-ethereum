@@ -24,7 +24,7 @@ use snapshot::account::Account;
 use util::hash::{FixedHash, H256};
 use util::hashdb::HashDB;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
-use util::trie::{TrieDB, TrieDBMut};
+use util::trie::{TrieDB, TrieDBMut, Trie};
 use util::rlp::SHA3_NULL_RLP;
 
 // the proportion of accounts we will alter each tick.
@@ -51,10 +51,12 @@ impl StateProducer {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
 			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
-			trie.iter()
+			let temp = trie.iter() // binding required due to complicated lifetime stuff
 				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
 				.map(|(k, v)| (H256::from_slice(&k), v.to_owned()))
-				.collect()
+				.collect();
+
+			temp
 		};
 
 		// sweep once to alter storage tries.

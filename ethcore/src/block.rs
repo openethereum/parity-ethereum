@@ -21,7 +21,7 @@ use engines::Engine;
 use state::*;
 use verification::PreverifiedBlock;
 use trace::FlatTrace;
-use evm::Factory as EvmFactory;
+use factory::Factories;
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -192,7 +192,6 @@ impl IsBlock for ExecutedBlock {
 pub struct OpenBlock<'x> {
 	block: ExecutedBlock,
 	engine: &'x Engine,
-	vm_factory: &'x EvmFactory,
 	last_hashes: Arc<LastHashes>,
 }
 
@@ -230,8 +229,7 @@ impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
 	pub fn new(
 		engine: &'x Engine,
-		vm_factory: &'x EvmFactory,
-		trie_factory: TrieFactory,
+		factories: Factories,
 		tracing: bool,
 		db: Box<JournalDB>,
 		parent: &Header,
@@ -240,11 +238,10 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 	) -> Result<Self, Error> {
-		let state = try!(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(), trie_factory));
+		let state = try!(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(), factories));
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(state, tracing),
 			engine: engine,
-			vm_factory: vm_factory,
 			last_hashes: last_hashes,
 		};
 
@@ -332,7 +329,7 @@ impl<'x> OpenBlock<'x> {
 
 		let env_info = self.env_info();
 //		info!("env_info says gas_used={}", env_info.gas_used);
-		match self.block.state.apply(&env_info, self.engine, self.vm_factory, &t, self.block.traces.is_some()) {
+		match self.block.state.apply(&env_info, self.engine, &t, self.block.traces.is_some()) {
 			Ok(outcome) => {
 				self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
 				self.block.base.transactions.push(t);
@@ -421,14 +418,13 @@ impl ClosedBlock {
 	}
 
 	/// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
-	pub fn reopen<'a>(self, engine: &'a Engine, vm_factory: &'a EvmFactory) -> OpenBlock<'a> {
+	pub fn reopen<'a>(self, engine: &'a Engine) -> OpenBlock<'a> {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
 		OpenBlock {
 			block: block,
 			engine: engine,
-			vm_factory: vm_factory,
 			last_hashes: self.last_hashes,
 		}
 	}
@@ -499,17 +495,16 @@ pub fn enact(
 	db: Box<JournalDB>,
 	parent: &Header,
 	last_hashes: Arc<LastHashes>,
-	vm_factory: &EvmFactory,
-	trie_factory: TrieFactory,
+	factories: Factories,
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
-			let s = try!(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(), trie_factory.clone()));
+			let s = try!(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(), factories.clone()));
 			trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
 		}
 	}
 
-	let mut b = try!(OpenBlock::new(engine, vm_factory, trie_factory, tracing, db, parent, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![]));
+	let mut b = try!(OpenBlock::new(engine, factories, tracing, db, parent, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![]));
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -532,12 +527,11 @@ pub fn enact_bytes(
 	db: Box<JournalDB>,
 	parent: &Header,
 	last_hashes: Arc<LastHashes>,
-	vm_factory: &EvmFactory,
-	trie_factory: TrieFactory,
+	factories: Factories,
 ) -> Result<LockedBlock, Error> {
 	let block = BlockView::new(block_bytes);
 	let header = block.header();
-	enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, vm_factory, trie_factory)
+	enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
@@ -549,11 +543,10 @@ pub fn enact_verified(
 	db: Box<JournalDB>,
 	parent: &Header,
 	last_hashes: Arc<LastHashes>,
-	vm_factory: &EvmFactory,
-	trie_factory: TrieFactory,
+	factories: Factories,
 ) -> Result<LockedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
-	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, vm_factory, trie_factory)
+	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, factories)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
@@ -565,11 +558,10 @@ pub fn enact_and_seal(
 	db: Box<JournalDB>,
 	parent: &Header,
 	last_hashes: Arc<LastHashes>,
-	vm_factory: &EvmFactory,
-	trie_factory: TrieFactory,
+	factories: Factories,
 ) -> Result<SealedBlock, Error> {
 	let header = BlockView::new(block_bytes).header_view();
-	Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, vm_factory, trie_factory)).seal(engine, header.seal())))
+	Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)).seal(engine, header.seal())))
 }
 
 #[cfg(test)]
@@ -587,8 +579,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let vm_factory = Default::default();
-		let b = OpenBlock::new(&*spec.engine, &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let _ = b.seal(&*spec.engine, vec![]);
 	}
@@ -603,9 +594,8 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
-		let vm_factory = Default::default();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, &vm_factory, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap()
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap()
 			.close_and_lock().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
@@ -613,7 +603,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
-		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, &Default::default(), Default::default()).unwrap();
+		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 
@@ -632,9 +622,8 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
-		let vm_factory = Default::default();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut open_block = OpenBlock::new(engine, &vm_factory, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.extra_data = b"uncle1".to_vec();
 		let mut uncle2_header = Header::new();
@@ -649,7 +638,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
-		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, &Default::default(), Default::default()).unwrap();
+		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);

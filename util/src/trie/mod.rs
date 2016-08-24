@@ -34,6 +34,9 @@ pub mod triedbmut;
 pub mod sectriedb;
 /// Export the sectriedbmut module.
 pub mod sectriedbmut;
+/// Trie query recording.
+pub mod recorder;
+
 
 mod fatdb;
 mod fatdbmut;
@@ -45,6 +48,7 @@ pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
 pub use self::fatdb::{FatDB, FatDBIterator};
 pub use self::fatdbmut::FatDBMut;
+pub use self::recorder::Recorder;
 
 /// Trie Errors.
 ///
@@ -88,7 +92,14 @@ pub trait Trie {
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<&'a [u8]>> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<&'a [u8]>> where 'a: 'key {
+		self.get_recorded(key, &mut recorder::NoOp)
+	}
+
+	/// Query the value of the given key in this trie while recording visited nodes
+	/// to the given recorder. If the query fails, the nodes passed to the recorder are unspecified.
+	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> Result<Option<&'a [u8]>>
+		where 'a: 'b, R: Recorder;
 
 	/// Returns an iterator over elements of trie.
 	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a>;
@@ -119,7 +130,6 @@ pub trait TrieMut {
 	fn remove(&mut self, key: &[u8]) -> Result<()>;
 }
 
-
 /// Trie types
 #[derive(Debug, PartialEq, Clone)]
 pub enum TrieSpec {
@@ -143,6 +153,51 @@ pub struct TrieFactory {
 	spec: TrieSpec,
 }
 
+/// All different kinds of tries.
+/// This is used to prevent a heap allocation for every created trie.
+pub enum TrieKinds<'db> {
+	/// A generic trie db.
+	Generic(TrieDB<'db>),
+	/// A secure trie db.
+	Secure(SecTrieDB<'db>),
+	/// A fat trie db.
+	Fat(FatDB<'db>),
+}
+
+// wrapper macro for making the match easier to deal with.
+macro_rules! wrapper {
+	($me: ident, $f_name: ident, $($param: ident),*) => {
+		match *$me {
+			TrieKinds::Generic(ref t) => t.$f_name($($param),*),
+			TrieKinds::Secure(ref t) => t.$f_name($($param),*),
+			TrieKinds::Fat(ref t) => t.$f_name($($param),*),
+		}
+	}
+}
+
+impl<'db> Trie for TrieKinds<'db> {
+	fn root(&self) -> &H256 {
+		wrapper!(self, root,)
+	}
+
+	fn is_empty(&self) -> bool {
+		wrapper!(self, is_empty,)
+	}
+
+	fn contains(&self, key: &[u8]) -> Result<bool> {
+		wrapper!(self, contains, key)
+	}
+
+	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], r: &'b mut R) -> Result<Option<&'a [u8]>>
+		where 'a: 'b, R: Recorder {
+		wrapper!(self, get_recorded, key, r)
+	}
+
+	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
+		wrapper!(self, iter,)
+	}
+}
+
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl TrieFactory {
 	/// Creates new factory.
@@ -153,11 +208,11 @@ impl TrieFactory {
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn readonly<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<Box<Trie + 'db>> {
+	pub fn readonly<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<TrieKinds<'db>> {
 		match self.spec {
-			TrieSpec::Generic => Ok(Box::new(try!(TrieDB::new(db, root)))),
-			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDB::new(db, root)))),
-			TrieSpec::Fat => Ok(Box::new(try!(FatDB::new(db, root)))),
+			TrieSpec::Generic => Ok(TrieKinds::Generic(try!(TrieDB::new(db, root)))),
+			TrieSpec::Secure => Ok(TrieKinds::Secure(try!(SecTrieDB::new(db, root)))),
+			TrieSpec::Fat => Ok(TrieKinds::Fat(try!(FatDB::new(db, root)))),
 		}
 	}
 

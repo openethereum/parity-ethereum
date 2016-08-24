@@ -73,6 +73,9 @@ Account Options:
                            Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
+  --signer-interface IP    Specify the hostname portion of the Trusted Signer
+                           server, IP should be an interface's IP address,
+                           or local [default: local].
   --signer-path PATH       Specify directory where Signer UIs tokens should
                            be stored. [default: $HOME/.parity/signer]
   --signer-no-validation   Disable Origin and Host headers validation for
@@ -349,6 +352,7 @@ pub struct Args {
 	pub flag_force_signer: bool,
 	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
+	pub flag_signer_interface: String,
 	pub flag_signer_path: String,
 	pub flag_signer_no_validation: bool,
 	pub flag_force_sealing: bool,
@@ -371,7 +375,7 @@ pub struct Args {
 	pub flag_version: bool,
 	pub flag_from: String,
 	pub flag_to: String,
-  pub flag_at: String,
+	pub flag_at: String,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_log_file: Option<String>,

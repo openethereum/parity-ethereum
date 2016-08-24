@@ -24,6 +24,7 @@ use client::Error as ClientError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use types::block_import_error::BlockImportError;
 use snapshot::Error as SnapshotError;
+use ethkey::Error as EthkeyError;
 
 pub use types::executed::{ExecutionError, CallError};
 
@@ -238,6 +239,8 @@ pub enum Error {
 	Snappy(::util::snappy::InvalidInput),
 	/// Snapshot error.
 	Snapshot(SnapshotError),
+	/// Ethkey error.
+	Ethkey(EthkeyError),
 }
 
 impl fmt::Display for Error {
@@ -258,6 +261,7 @@ impl fmt::Display for Error {
 			Error::StdIo(ref err) => err.fmt(f),
 			Error::Snappy(ref err) => err.fmt(f),
 			Error::Snapshot(ref err) => err.fmt(f),
+			Error::Ethkey(ref err) => err.fmt(f),
 		}
 	}
 }
@@ -295,12 +299,6 @@ impl From<BlockError> for Error {
 impl From<ExecutionError> for Error {
 	fn from(err: ExecutionError) -> Error {
 		Error::Execution(err)
-	}
-}
-
-impl From<CryptoError> for Error {
-	fn from(err: CryptoError) -> Error {
-		Error::Util(UtilError::Crypto(err))
 	}
 }
 
@@ -358,6 +356,12 @@ impl From<SnapshotError> for Error {
 			SnapshotError::Decoder(err) => err.into(),
 			other => Error::Snapshot(other),
 		}
+	}
+}
+
+impl From<EthkeyError> for Error {
+	fn from(err: EthkeyError) -> Error {
+		Error::Ethkey(err)
 	}
 }
 

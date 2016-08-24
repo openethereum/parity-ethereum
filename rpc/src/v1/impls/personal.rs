@@ -17,14 +17,15 @@
 //! Account management (personal) rpc implementation
 use std::sync::{Arc, Weak};
 use std::collections::{BTreeMap};
+use util::{Address};
 use jsonrpc_core::*;
+use ethkey::{Brain, Generator};
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160, TransactionRequest};
 use v1::helpers::{errors, TransactionRequest as TRequest};
 use v1::helpers::params::expect_no_params;
 use v1::helpers::dispatch::unlock_sign_and_dispatch;
 use ethcore::account_provider::AccountProvider;
-use util::{Address, KeyPair};
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 
@@ -94,7 +95,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		from_params::<(String, String, )>(params).and_then(
 			|(phrase, pass, )| {
 				let store = take_weak!(self.accounts);
-				match store.insert_account(*KeyPair::from_phrase(&phrase).secret(), &pass) {
+				match store.insert_account(*Brain::new(phrase).generate().unwrap().secret(), &pass) {
 					Ok(address) => to_value(&RpcH160::from(address)),
 					Err(e) => Err(errors::account("Could not create account.", e)),
 				}

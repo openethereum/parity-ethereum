@@ -95,6 +95,7 @@ impl SnapshotCommand {
 			client_config,
 			&spec,
 			Path::new(&client_path),
+			Path::new(&self.dirs.ipc_path()),
 			Arc::new(Miner::with_spec(&spec))
 		).map_err(|e| format!("Client service error: {:?}", e)));
 
