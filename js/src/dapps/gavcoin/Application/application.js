@@ -135,7 +135,7 @@ export default class Application extends Component {
           blockNumber,
           totalSupply,
           remaining,
-          price: price.div(DIVISOR)
+          price
         });
 
         const { accounts } = this.state;

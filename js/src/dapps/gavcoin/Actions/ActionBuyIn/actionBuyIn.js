@@ -29,7 +29,7 @@ export default class ActionBuyIn extends Component {
     accountError: ERRORS.invalidAccount,
     amount: 0,
     amountError: ERRORS.invalidAmount,
-    maxPrice: this.props.price.mul(1.2).toString(),
+    maxPrice: this.props.price.div(DIVISOR).mul(1.2).toString(),
     maxPriceError: null,
     sending: false,
     complete: false
@@ -78,7 +78,7 @@ export default class ActionBuyIn extends Component {
   }
 
   renderFields () {
-    const maxPriceLabel = `maxium price (current ${this.props.price.toFormat()})`;
+    const maxPriceLabel = `maxium price (current ${this.props.price.div(DIVISOR).toFormat()})`;
 
     return (
       <div>
