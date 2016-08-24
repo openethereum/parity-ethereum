@@ -30,35 +30,15 @@ export default class Events extends Component {
       return null;
     }
 
-    return events
-      .sort((a, b) => {
-        if (a.blockNumber.lt(b.blockNumber)) {
-          return 1;
-        } else if (a.blockNumber.gt(b.blockNumber)) {
-          return -1;
-        }
-
-        return a.key.localeCompare(b.key);
-      })
-      .map((event) => {
-        switch (event.type) {
-          case 'Buyin':
-            return (
-              <EventBuyin
-                key={ event.key }
-                event={ event } />
-            );
-        }
-      });
-  }
-
-  addBuyin = (log) => {
-    this.state.events.push({
-      type: 'Buyin',
-      blockNumber: log.blockNumber,
-      transactionHash: log.transactionHash,
-      params: log.params,
-      key: log.key
+    return events.map((event) => {
+      switch (event.type) {
+        case 'Buyin':
+          return (
+            <EventBuyin
+              key={ event.key }
+              event={ event } />
+          );
+      }
     });
   }
 
@@ -68,19 +48,39 @@ export default class Events extends Component {
     ['Approval', 'Buyin', 'Refund', 'Transfer', 'NewTranch'].forEach((eventName) => {
       const options = {
         fromBlock: 0,
-        toBlock: 'pending'
+        toBlock: 'latest' // 'pending'
       };
 
       instance[eventName].subscribe(options, (logs) => {
+        if (!logs.length) {
+          return;
+        }
+
         console.log(logs);
-        logs.forEach((log) => {
-          log.key = `${eventName}_${log.transactionHash}_${log.logIndex.toString()}`;
+
+        const mapped = logs.map((log) => {
+          return {
+            type: eventName,
+            blockNumber: log.blockNumber,
+            transactionHash: log.transactionHash,
+            params: log.params,
+            key: `${eventName}_${log.transactionHash}_${log.logIndex.toString()}`
+          };
         });
 
-        switch (eventName) {
-          case 'Buyin':
-            return logs.map(this.addBuyin);
-        }
+        this.setState({
+          events: this.state.events
+            .concat(mapped)
+            .sort((a, b) => {
+              if (a.blockNumber.lt(b.blockNumber)) {
+                return 1;
+              } else if (a.blockNumber.gt(b.blockNumber)) {
+                return -1;
+              }
+
+              return a.key.localeCompare(b.key);
+            })
+        });
       });
     });
   }
