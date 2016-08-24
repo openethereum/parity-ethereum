@@ -24,7 +24,6 @@ zip = { version = "0.1", default-features = false }
 ethabi = "0.2.1"
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
-ethcore-devtools = { path = "../devtools" }
 parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 # List of apps
 parity-dapps-status = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
