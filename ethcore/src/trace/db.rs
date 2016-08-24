@@ -262,6 +262,13 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	/// Traces of import request's enacted blocks are expected to be already in database
 	/// or to be the currently inserted trace.
 	fn import(&self, batch: &DBTransaction, request: ImportRequest) {
+		// valid (canon):  retracted 0, enacted 1 => false, true,
+		// valid (branch): retracted 0, enacted 0 => false, false,
+		// valid (bbcc):   retracted 1, enacted 1 => true, true,
+		// invalid:	       retracted 1, enacted 0 => true, false,
+		let ret = request.retracted != 0;
+		let ena = !request.enacted.is_empty();
+		assert!(!(ret && !ena));
 		// fast return if tracing is disabled
 		if !self.tracing_enabled() {
 			return;
@@ -278,7 +285,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 		}
 
 		// now let's rebuild the blooms
-		{
+		if !request.enacted.is_empty() {
 			let range_start = request.block_number as Number + 1 - request.enacted.len();
 			let range_end = range_start + request.retracted;
 			let replaced_range = range_start..range_end;
