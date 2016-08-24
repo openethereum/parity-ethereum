@@ -78,7 +78,7 @@ export default class ActionBuyIn extends Component {
   }
 
   renderFields () {
-    const maxPriceLabel = `maxium price in ΞTH (current ${Api.format.fromWei(this.props.price).toFormat(3)})`;
+    const maxPriceLabel = `maximum price in ΞTH (current ${Api.format.fromWei(this.props.price).toFormat(3)})`;
 
     return (
       <div>
