@@ -96,6 +96,7 @@ extern crate bloomchain;
 extern crate rayon;
 extern crate hyper;
 extern crate ethash;
+extern crate ethkey;
 pub extern crate ethstore;
 extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
@@ -139,6 +140,7 @@ mod externalities;
 mod verification;
 mod blockchain;
 mod types;
+mod factory;
 
 #[cfg(test)]
 mod tests;

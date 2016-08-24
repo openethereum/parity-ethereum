@@ -18,7 +18,7 @@ use std::cell::{RefCell, RefMut};
 use common::*;
 use engines::Engine;
 use executive::{Executive, TransactOptions};
-use evm::Factory as EvmFactory;
+use factory::Factories;
 use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
@@ -50,6 +50,7 @@ pub struct State<B: Backend> {
 	cache: RefCell<HashMap<Address, Option<Account>>>,
 	snapshots: RefCell<Vec<HashMap<Address, Option<Option<Account>>>>>,
 	account_start_nonce: U256,
+	factories: Factories,
 }
 
 /// Type alias for a "locally backed" state, which doesn't have to farm out to network
@@ -62,22 +63,24 @@ const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with v
 impl DiskBacked {
 	/// Creates new state with empty state root
 	#[cfg(test)]
-	pub fn new(db: Box<JournalDB>, account_start_nonce: U256, trie_factory: TrieFactory) -> Self {
+	pub fn new(db: Box<JournalDB>, account_start_nonce: U256, factories: Factories) -> Self {
 		State {
-			backend: backend::Database::new(db, trie_factory),
+			backend: backend::Database::new(db, factories.trie.clone()),
 			cache: RefCell::new(HashMap::new()),
 			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
+			factories: factories,
 		}
 	}
 
 	/// Creates a new state from the existing journaldb and state root.
-	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, trie_factory: TrieFactory) -> Result<Self, TrieError> {
+	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, factories: Factories) -> Result<Self, TrieError> {
 		Ok(State {
-			backend: try!(backend::Database::from_existing(db, root, trie_factory)),
+			backend: try!(backend::Database::from_existing(db, root, factories.trie.clone())),
 			cache: RefCell::new(HashMap::new()),
 			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
+			factories: factories,
 		})
 	}
 
@@ -89,12 +92,13 @@ impl DiskBacked {
 
 impl<B: Backend> State<B> {
 	/// Creates new state with the given backend.
-	pub fn from_backend(backend: B, account_start_nonce: U256) -> Self {
+	pub fn from_backend(backend: B, account_start_nonce: U256, factories: Factories) -> Self {
 		State {
 			backend: backend,
 			cache: RefCell::new(HashMap::new()),
 			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
+			factories: factories,
 		}
 	}
 
@@ -236,11 +240,12 @@ impl<B: Backend> State<B> {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, vm_factory: &EvmFactory, t: &SignedTransaction, tracing: bool) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
-		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
+		let vm_factory = self.factories.vm.clone();
+		let e = try!(Executive::new(self, env_info, engine, &vm_factory).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
@@ -369,6 +374,7 @@ impl<B: Backend> Clone for State<B> {
 			cache: RefCell::new(self.cache.borrow().clone()),
 			snapshots: RefCell::new(self.snapshots.borrow().clone()),
 			account_start_nonce: self.account_start_nonce.clone(),
+			factories: self.factories.clone(),
 		}
 	}
 }
@@ -411,8 +417,7 @@ fn should_apply_create_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 0,
@@ -472,8 +477,7 @@ fn should_trace_failed_create_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		action: trace::Action::Create(trace::Create {
@@ -511,8 +515,7 @@ fn should_trace_call_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
@@ -554,8 +557,7 @@ fn should_trace_basic_call_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
@@ -596,8 +598,7 @@ fn should_trace_call_transaction_to_builtin() {
 		data: vec![],
 	}.sign(&"".sha3());
 
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -640,8 +641,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 	}.sign(&"".sha3());
 
 	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -685,8 +685,7 @@ fn should_not_trace_callcode() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -748,8 +747,7 @@ fn should_not_trace_delegatecall() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -808,8 +806,7 @@ fn should_trace_failed_call_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
@@ -850,8 +847,7 @@ fn should_trace_call_with_subcall_transaction() {
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -910,8 +906,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 1,
@@ -966,8 +961,7 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 0,
@@ -1011,8 +1005,7 @@ fn should_trace_failed_subcall_transaction() {
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 1,
@@ -1069,8 +1062,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
 	state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 1,
@@ -1145,8 +1137,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
 	state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -1218,8 +1209,7 @@ fn should_trace_suicide() {
 	state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
 	state.add_balance(&0xa.into(), &50.into());
 	state.add_balance(t.sender().as_ref().unwrap(), &100.into());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 1,

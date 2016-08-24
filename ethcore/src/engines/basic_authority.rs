@@ -17,6 +17,7 @@
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
 use common::*;
+use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -133,7 +134,7 @@ impl Engine for BasicAuthority {
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the signature is legit.
 		let sig = try!(UntrustedRlp::new(&header.seal[0]).as_val::<H520>());
-		let signer = Address::from(try!(ec::recover(&sig, &header.bare_hash())).sha3());
+		let signer = public_to_address(&try!(recover(&sig.into(), &header.bare_hash())));
 		if !self.our_params.authorities.contains(&signer) {
 			return try!(Err(BlockError::InvalidSeal));
 		}
@@ -228,15 +229,10 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
+		header.set_seal(vec![rlp::encode(&H520::default()).to_vec()]);
 
 		let verify_result = engine.verify_block_unordered(&header, None);
-
-		match verify_result {
-			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => {},
-			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
+		assert!(verify_result.is_err());
 	}
 
 	#[test]
@@ -252,8 +248,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine, &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());

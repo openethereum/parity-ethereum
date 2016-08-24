@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::journaldb::JournalDB;
-use util::trie::{TrieError, TrieFactory};
+use util::trie::{Trie, TrieError, TrieFactory};
 use util::rlp::decode;
 use util::{Bytes, H256, Address, Hashable, HashDB, U256, Uint};
 

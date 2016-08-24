@@ -17,7 +17,9 @@
 //! Wrapper around tiny-keccak crate.
 extern crate sha3 as sha3_ext;
 
+use std::io;
 use std::mem::uninitialized;
+use tiny_keccak::Keccak;
 use bytes::{BytesConvertable, Populatable};
 use hash::{H256, FixedHash};
 use self::sha3_ext::*;
@@ -64,12 +66,56 @@ impl<T> Hashable for T where T: BytesConvertable {
 	}
 }
 
-#[test]
-fn sha3_empty() {
-	assert_eq!([0u8; 0].sha3(), SHA3_EMPTY);
-}
-#[test]
-fn sha3_as() {
-	assert_eq!([0x41u8; 32].sha3(), From::from("59cad5948673622c1d64e2322488bf01619f7ff45789741b15a9f782ce9290a8"));
+/// Calculate SHA3 of given stream.
+pub fn sha3<R: io::Read>(r: &mut R) -> Result<H256, io::Error> {
+	let mut output = [0u8; 32];
+	let mut input = [0u8; 1024];
+	let mut sha3 = Keccak::new_keccak256();
+
+	// read file
+	loop {
+		let some = try!(r.read(&mut input));
+		if some == 0 {
+			break;
+		}
+		sha3.update(&input[0..some]);
+	}
+
+	sha3.finalize(&mut output);
+	Ok(output.into())
 }
 
+#[cfg(test)]
+mod tests {
+	use std::fs;
+	use std::io::Write;
+	use super::*;
+
+	#[test]
+	fn sha3_empty() {
+		assert_eq!([0u8; 0].sha3(), SHA3_EMPTY);
+	}
+	#[test]
+	fn sha3_as() {
+		assert_eq!([0x41u8; 32].sha3(), From::from("59cad5948673622c1d64e2322488bf01619f7ff45789741b15a9f782ce9290a8"));
+	}
+
+	#[test]
+	fn should_sha3_a_file() {
+		// given
+		use devtools::RandomTempPath;
+		let path = RandomTempPath::new();
+		// Prepare file
+		{
+			let mut file = fs::File::create(&path).unwrap();
+			file.write_all(b"something").unwrap();
+		}
+
+		let mut file = fs::File::open(&path).unwrap();
+		// when
+		let hash = sha3(&mut file).unwrap();
+
+		// then
+		assert_eq!(format!("{:?}", hash), "68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87");
+	}
+}

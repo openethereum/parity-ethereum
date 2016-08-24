@@ -21,14 +21,14 @@ use util::hash::*;
 use util::rlp::*;
 use util::sha3::Hashable;
 use util::bytes::Bytes;
-use util::crypto::*;
-use util::crypto;
 use connection::{Connection};
 use host::{HostInfo};
 use node_table::NodeId;
 use error::*;
 use stats::NetworkStats;
 use io::{IoContext, StreamToken};
+use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
+use crypto::{ecdh, ecies};
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -89,7 +89,7 @@ impl Handshake {
 			connection: Connection::new(token, socket, stats),
 			originated: false,
 			state: HandshakeState::New,
-			ecdhe: try!(KeyPair::create()),
+			ecdhe: try!(Random.generate()),
 			nonce: nonce.clone(),
 			remote_ephemeral: Public::new(),
 			remote_nonce: H256::new(),
@@ -166,8 +166,8 @@ impl Handshake {
 		self.remote_nonce.clone_from_slice(remote_nonce);
 		self.remote_version = remote_version;
 		let shared = try!(ecdh::agree(host_secret, &self.id));
-		let signature = Signature::from_slice(sig);
-		self.remote_ephemeral = try!(ec::recover(&signature, &(&shared ^ &self.remote_nonce)));
+		let signature = H520::from_slice(sig);
+		self.remote_ephemeral = try!(recover(&signature.into(), &(&shared ^ &self.remote_nonce)));
 		Ok(())
 	}
 
@@ -208,7 +208,7 @@ impl Handshake {
 		self.auth_cipher.extend_from_slice(data);
 		let auth = try!(ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..]));
 		let rlp = UntrustedRlp::new(&auth);
-		let signature: Signature = try!(rlp.val_at(0));
+		let signature: H520 = try!(rlp.val_at(0));
 		let remote_public: Public = try!(rlp.val_at(1));
 		let remote_nonce: H256 = try!(rlp.val_at(2));
 		let remote_version: u64 = try!(rlp.val_at(3));
@@ -271,13 +271,13 @@ impl Handshake {
 			let (nonce, _) = rest.split_at_mut(32);
 
 			// E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
-			let shared = try!(crypto::ecdh::agree(secret, &self.id));
-			try!(crypto::ec::sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))).copy_to(sig);
+			let shared = try!(ecdh::agree(secret, &self.id));
+			sig.copy_from_slice(&*try!(sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))));
 			self.ecdhe.public().sha3_into(hepubk);
-			public.copy_to(pubk);
-			self.nonce.copy_to(nonce);
+			pubk.copy_from_slice(public);
+			nonce.copy_from_slice(&self.nonce);
 		}
-		let message = try!(crypto::ecies::encrypt(&self.id, &[], &data));
+		let message = try!(ecies::encrypt(&self.id, &[], &data));
 		self.auth_cipher = message.clone();
 		self.connection.send(io, message);
 		self.connection.expect(V4_ACK_PACKET_SIZE);
@@ -297,7 +297,7 @@ impl Handshake {
 			self.ecdhe.public().copy_to(epubk);
 			self.nonce.copy_to(nonce);
 		}
-		let message = try!(crypto::ecies::encrypt(&self.id, &[], &data));
+		let message = try!(ecies::encrypt(&self.id, &[], &data));
 		self.ack_cipher = message.clone();
 		self.connection.send(io, message);
 		self.state = HandshakeState::StartSession;
@@ -319,7 +319,7 @@ impl Handshake {
 		let encoded = rlp.drain();
 		let len = (encoded.len() + ECIES_OVERHEAD) as u16;
 		let prefix = [ (len >> 8) as u8, (len & 0xff) as u8 ];
-		let message = try!(crypto::ecies::encrypt(&self.id, &prefix, &encoded));
+		let message = try!(ecies::encrypt(&self.id, &prefix, &encoded));
 		self.ack_cipher.extend_from_slice(&prefix);
 		self.ack_cipher.extend_from_slice(&message);
 		self.connection.send(io, self.ack_cipher.clone());
@@ -331,31 +331,29 @@ impl Handshake {
 #[cfg(test)]
 mod test {
 	use std::sync::Arc;
-	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use super::*;
-	use util::crypto::*;
 	use util::hash::*;
 	use io::*;
-	use std::net::SocketAddr;
 	use mio::tcp::TcpStream;
 	use stats::NetworkStats;
+	use ethkey::Public;
 
 	fn check_auth(h: &Handshake, version: u64) {
-		assert_eq!(h.id, Public::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap());
-		assert_eq!(h.remote_nonce, H256::from_str("7e968bba13b6c50e2c4cd7f241cc0d64d1ac25c7f5952df231ac6a2bda8ee5d6").unwrap());
-		assert_eq!(h.remote_ephemeral, Public::from_str("654d1044b69c577a44e5f01a1209523adb4026e70c62d1c13a067acabc09d2667a49821a0ad4b634554d330a15a58fe61f8a8e0544b310c6de7b0c8da7528a8d").unwrap());
+		assert_eq!(h.id, "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into());
+		assert_eq!(h.remote_nonce, "7e968bba13b6c50e2c4cd7f241cc0d64d1ac25c7f5952df231ac6a2bda8ee5d6".into());
+		assert_eq!(h.remote_ephemeral, "654d1044b69c577a44e5f01a1209523adb4026e70c62d1c13a067acabc09d2667a49821a0ad4b634554d330a15a58fe61f8a8e0544b310c6de7b0c8da7528a8d".into());
 		assert_eq!(h.remote_version, version);
 	}
 
 	fn check_ack(h: &Handshake, version: u64) {
-		assert_eq!(h.remote_nonce, H256::from_str("559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd").unwrap());
-		assert_eq!(h.remote_ephemeral, Public::from_str("b6d82fa3409da933dbf9cb0140c5dde89f4e64aec88d476af648880f4a10e1e49fe35ef3e69e93dd300b4797765a747c6384a6ecf5db9c2690398607a86181e4").unwrap());
+		assert_eq!(h.remote_nonce, "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd".into());
+		assert_eq!(h.remote_ephemeral, "b6d82fa3409da933dbf9cb0140c5dde89f4e64aec88d476af648880f4a10e1e49fe35ef3e69e93dd300b4797765a747c6384a6ecf5db9c2690398607a86181e4".into());
 		assert_eq!(h.remote_version, version);
 	}
 
 	fn create_handshake(to: Option<&Public>) -> Handshake {
-		let addr = SocketAddr::from_str("127.0.0.1:50556").unwrap();
+		let addr = "127.0.0.1:50556".parse().unwrap();
 		let socket = TcpStream::connect(&addr).unwrap();
 		let nonce = H256::new();
 		Handshake::new(0, to, socket, &nonce, Arc::new(NetworkStats::new())).unwrap()
@@ -368,7 +366,7 @@ mod test {
 	#[test]
 	fn test_handshake_auth_plain() {
 		let mut h = create_handshake(None);
-		let secret = Secret::from_str("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291").unwrap();
+		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".into();
 		let auth =
 			"\
 			048ca79ad18e4b0659fab4853fe5bc58eb83992980f4c9cc147d2aa31532efd29a3d3dc6a3d89eaf\
@@ -389,7 +387,7 @@ mod test {
 	#[test]
 	fn test_handshake_auth_eip8() {
 		let mut h = create_handshake(None);
-		let secret = Secret::from_str("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291").unwrap();
+		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".into();
 		let auth =
 			"\
 			01b304ab7578555167be8154d5cc456f567d5ba302662433674222360f08d5f1534499d3678b513b\
@@ -415,7 +413,7 @@ mod test {
 	#[test]
 	fn test_handshake_auth_eip8_2() {
 		let mut h = create_handshake(None);
-		let secret = Secret::from_str("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291").unwrap();
+		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".into();
 		let auth =
 			"\
 			01b8044c6c312173685d1edd268aa95e1d495474c6959bcdd10067ba4c9013df9e40ff45f5bfd6f7\
@@ -444,9 +442,9 @@ mod test {
 
 	#[test]
 	fn test_handshake_ack_plain() {
-		let remote = Public::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
+		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
 		let mut h = create_handshake(Some(&remote));
-		let secret = Secret::from_str("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee").unwrap();
+		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".into();
 		let ack =
 			"\
 			049f8abcfa9c0dc65b982e98af921bc0ba6e4243169348a236abe9df5f93aa69d99cadddaa387662\
@@ -464,9 +462,9 @@ mod test {
 
 	#[test]
 	fn test_handshake_ack_eip8() {
-		let remote = Public::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
+		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
 		let mut h = create_handshake(Some(&remote));
-		let secret = Secret::from_str("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee").unwrap();
+		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".into();
 		let ack =
 			"\
 			01ea0451958701280a56482929d3b0757da8f7fbe5286784beead59d95089c217c9b917788989470\
@@ -493,9 +491,9 @@ mod test {
 
 	#[test]
 	fn test_handshake_ack_eip8_2() {
-		let remote = Public::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
+		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
 		let mut h = create_handshake(Some(&remote));
-		let secret = Secret::from_str("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee").unwrap();
+		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".into();
 		let ack =
 			"\
 			01f004076e58aae772bb101ab1a8e64e01ee96e64857ce82b1113817c6cdd52c09d26f7b90981cd7\
