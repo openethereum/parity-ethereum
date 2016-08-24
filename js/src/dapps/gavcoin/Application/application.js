@@ -9,6 +9,7 @@ import registryAbi from '../abi/registry.json';
 import gavcoinAbi from '../abi/gavcoin.json';
 
 import Accounts from '../Accounts';
+import Actions from '../Actions';
 import Events from '../Events';
 import Loading from '../Loading';
 import Status from '../Status';
@@ -71,6 +72,7 @@ export default class Application extends Component {
           totalSupply={ this.state.totalSupply }
           remaining={ this.state.remaining }
           price={ this.state.price } />
+        <Actions />
         <Accounts />
         <Events />
       </div>

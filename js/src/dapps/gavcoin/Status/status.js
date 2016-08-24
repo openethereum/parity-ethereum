@@ -17,7 +17,7 @@ export default class Status extends Component {
     }
 
     return (
-      <Toolbar className='toolbar'>
+      <Toolbar className='status'>
         <ToolbarGroup>
           <ToolbarTitle text='GAVcoin' />
         </ToolbarGroup>

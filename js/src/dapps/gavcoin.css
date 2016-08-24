@@ -12,11 +12,15 @@ html, body {
 }
 
 .accounts {
-  padding: 1em;
+  padding: 1em 2em;
+}
+
+.actions {
+  background: rgba(232, 232, 232, 0.5) !important;
 }
 
 .events {
-  padding: 1em;
+  padding: 1em 2em;
 }
 
 .loading {
@@ -25,6 +29,6 @@ html, body {
   padding-top: 2em;
 }
 
-.toolbar {
+.status {
   color: rgba(0, 0, 0, 0.4);
 }
