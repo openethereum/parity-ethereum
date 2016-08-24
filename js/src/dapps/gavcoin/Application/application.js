@@ -9,7 +9,7 @@ import registryAbi from '../abi/registry.json';
 import gavcoinAbi from '../abi/gavcoin.json';
 
 import Accounts from '../Accounts';
-import Actions from '../Actions';
+import Actions, { ActionBuyIn } from '../Actions';
 import Events from '../Events';
 import Loading from '../Loading';
 import Status from '../Status';
@@ -28,6 +28,7 @@ export default class Application extends Component {
   };
 
   state = {
+    action: null,
     address: null,
     accounts: [],
     contract: null,
@@ -69,6 +70,7 @@ export default class Application extends Component {
 
     return (
       <div>
+        { this.renderModals() }
         <Status
           address={ this.state.address }
           blockNumber={ this.state.blockNumber }
@@ -76,12 +78,26 @@ export default class Application extends Component {
           remaining={ this.state.remaining }
           price={ this.state.price } />
         <Actions
-          account={ this.state.accounts } />
+          account={ this.state.accounts }
+          onAction={ this.onAction } />
         <Accounts
           accounts={ this.state.accounts } />
         <Events />
       </div>
     );
+  }
+
+  renderModals () {
+    switch (this.state.action) {
+      case 'BuyIn':
+        return (
+          <ActionBuyIn
+            accounts={ this.state.accounts }
+            onClose={ this.onActionClose } />
+        );
+      default:
+        return null;
+    }
   }
 
   getChildContext () {
@@ -90,6 +106,18 @@ export default class Application extends Component {
       instance: this.state.instance,
       muiTheme
     };
+  }
+
+  onAction = (action) => {
+    this.setState({
+      action
+    });
+  }
+
+  onActionClose = () => {
+    this.setState({
+      action: null
+    });
   }
 
   onNewBlockNumber = (blockNumber) => {
@@ -170,7 +198,7 @@ export default class Application extends Component {
             console.log(address, infos[address].name);
             return {
               address,
-              name: infos[address].name,
+              name: infos[address].name || 'Unnamed',
               balance: 0
             };
           })

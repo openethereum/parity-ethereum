@@ -6,9 +6,7 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 
 export default class Actions extends Component {
   static propTypes = {
-    onBuyin: PropTypes.func,
-    onTransfer: PropTypes.func,
-    onRefund: PropTypes.func
+    onAction: PropTypes.func.isRequired
   }
 
   render () {
@@ -19,19 +17,31 @@ export default class Actions extends Component {
             icon={ <ContentAdd /> }
             label='buy coins'
             primary
-            onTouchTap={ this.props.onBuyin } />
+            onTouchTap={ this.onBuyIn } />
           <FlatButton
             icon={ <ContentAdd /> }
             label='transfer coins'
             primary
-            onTouchTap={ this.props.onTransfer } />
+            onTouchTap={ this.onTransfer } />
           <FlatButton
             icon={ <ContentAdd /> }
             label='claim refund'
             primary
-            onTouchTap={ this.props.onRefund } />
+            onTouchTap={ this.onRefund } />
         </ToolbarGroup>
       </Toolbar>
     );
+  }
+
+  onBuyIn = () => {
+    this.props.onAction('BuyIn');
+  }
+
+  onTransfer = () => {
+    this.props.onAction('Transfer');
+  }
+
+  onRefund = () => {
+    this.props.onAction('Refund');
   }
 }

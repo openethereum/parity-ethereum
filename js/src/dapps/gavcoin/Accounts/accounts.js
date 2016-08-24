@@ -45,7 +45,7 @@ export default class Accounts extends Component {
             <IdentityIcon
               inline center
               address={ account.address } />
-            <span className='name'>{ account.name || 'Unnamed' }</span>
+            <span className='name'>{ account.name }</span>
             <span className='balance'>{ account.gavBalance }</span>
           </Chip>
         );

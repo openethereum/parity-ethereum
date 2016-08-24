@@ -4,7 +4,7 @@ html, body {
   border: 0;
   font-size: 100%;
   font: inherit;
-  vertical-align: baseline;
+  vertical-align: top;
   background: white;
   color: #333;
   font-size: 16px;
@@ -51,6 +51,25 @@ html, body {
 
 .name {
   text-transform: uppercase;
+}
+
+.selectaccount {
+  display: inline-block;
+}
+
+.selectaccount .name {
+  display: inline-block;
+  margin-right: 2em;
+}
+
+.selectaccount .balance {
+  display: inline-block;
+  text-align: right;
+  color: #aaa;
+}
+
+.selectaccount .details {
+  display: inline-block;
 }
 
 .status {
