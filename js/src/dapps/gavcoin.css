@@ -11,6 +11,14 @@ html, body {
   font-family: 'Roboto', sans-serif;
 }
 
+.accounts {
+  padding: 1em;
+}
+
+.events {
+  padding: 1em;
+}
+
 .loading {
   width: 100%;
   text-align: center;

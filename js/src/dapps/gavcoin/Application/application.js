@@ -8,6 +8,8 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 import registryAbi from '../abi/registry.json';
 import gavcoinAbi from '../abi/gavcoin.json';
 
+import Accounts from '../Accounts';
+import Events from '../Events';
 import Loading from '../Loading';
 import Status from '../Status';
 
@@ -17,6 +19,7 @@ const api = new Api(new Api.Transport.Http('/rpc/'));
 
 export default class Application extends Component {
   static childContextTypes = {
+    api: PropTypes.object,
     instance: PropTypes.object,
     muiTheme: PropTypes.object
   };
@@ -68,12 +71,15 @@ export default class Application extends Component {
           totalSupply={ this.state.totalSupply }
           remaining={ this.state.remaining }
           price={ this.state.price } />
+        <Accounts />
+        <Events />
       </div>
     );
   }
 
   getChildContext () {
     return {
+      api,
       instance: this.state.instance,
       muiTheme
     };
