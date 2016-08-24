@@ -55,11 +55,11 @@ extern crate rand;
 extern crate ethabi;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
+extern crate mime_guess;
+extern crate rustc_serialize;
 extern crate parity_dapps;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
-extern crate mime_guess;
-extern crate rustc_serialize;
 
 mod endpoint;
 mod apps;
