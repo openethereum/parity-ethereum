@@ -4,7 +4,9 @@ import React, { Component, PropTypes } from 'react';
 import { Dialog, FlatButton, MenuItem, SelectField, TextField } from 'material-ui';
 
 const { IdentityIcon } = window.parity.react;
+const { Api } = window.parity;
 
+const DIVISOR = 10 ** 6;
 const NAME_ID = ' ';
 const ERRORS = {
   invalidAccount: 'please select an account to transact from',
@@ -18,6 +20,7 @@ export default class ActionBuyIn extends Component {
 
   static propTypes = {
     accounts: PropTypes.array,
+    price: PropTypes.object,
     onClose: PropTypes.func
   }
 
@@ -25,7 +28,9 @@ export default class ActionBuyIn extends Component {
     account: {},
     accountError: ERRORS.invalidAccount,
     amount: 0,
-    amountError: ERRORS.invalidAmount
+    amountError: ERRORS.invalidAmount,
+    maxPrice: this.props.price.mul(1.2).toString(),
+    maxPriceError: null
   }
 
   render () {
@@ -40,7 +45,7 @@ export default class ActionBuyIn extends Component {
   }
 
   renderActions () {
-    const hasError = this.state.amountError || this.state.accountError;
+    const hasError = !!(this.state.amountError || this.state.accountError || this.state.maxPriceError);
 
     return ([
       <FlatButton
@@ -50,12 +55,14 @@ export default class ActionBuyIn extends Component {
       <FlatButton
         label='Buy GAVcoin'
         primary
-        disbaled={ hasError }
+        disabled={ hasError }
         onTouchTap={ this.onSend } />
     ]);
   }
 
   renderFields () {
+    const maxPriceLabel = `maxium price (current ${this.props.price.toFormat()})`;
+
     return (
       <div>
         { this.renderAddressSelect() }
@@ -70,6 +77,17 @@ export default class ActionBuyIn extends Component {
           id={ NAME_ID }
           value={ this.state.amount }
           onChange={ this.onChangeAmount } />
+        <TextField
+          autoComplete='off'
+          floatingLabelFixed
+          floatingLabelText={ maxPriceLabel }
+          fullWidth
+          hintText='the maxium price allowed for buying'
+          errorText={ this.state.maxPriceError }
+          name={ NAME_ID }
+          id={ NAME_ID }
+          value={ this.state.maxPrice }
+          onChange={ this.onChangeMaxPrice } />
       </div>
     );
   }
@@ -129,18 +147,23 @@ export default class ActionBuyIn extends Component {
     });
   }
 
-  onChangeAmount = (event, amount) => {
-    let amountError = null;
+  _isPositiveNumber (value) {
     let bn = null;
 
     try {
-      bn = new BigNumber(amount);
+      bn = new BigNumber(value);
     } catch (e) {
     }
 
     if (!bn || !bn.gt(0)) {
-      amountError = ERRORS.invalidAmount;
+      return ERRORS.invalidAmount;
     }
+
+    return null;
+  }
+
+  onChangeAmount = (event, amount) => {
+    const amountError = this._isPositiveNumber(amount);
 
     this.setState({
       amount,
@@ -148,6 +171,35 @@ export default class ActionBuyIn extends Component {
     });
   }
 
+  onChangeMaxPrice = (event, maxPrice) => {
+    const maxPriceError = this._isPositiveNumber(maxPrice);
+
+    this.setState({
+      maxPrice,
+      maxPriceError
+    });
+  }
+
   onSend = () => {
+    const { instance } = this.context;
+    const values = [this.state.account.address, new BigNumber(this.state.maxPrice).mul(DIVISOR).toString()];
+    const options = {
+      from: this.state.account.address,
+      value: Api.format.toWei(this.state.amount).toString()
+    };
+
+    instance.buyin
+      .estimateGas(options, values)
+      .then((gasEstimate) => {
+        options.gas = gasEstimate.mul(1.2).toFixed(0);
+
+        return instance.buyin.postTransaction(options, values);
+      })
+      .then(() => {
+        console.log('success');
+      })
+      .catch((error) => {
+        console.error('error', error);
+      });
   }
 }

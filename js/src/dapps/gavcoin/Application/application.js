@@ -93,6 +93,7 @@ export default class Application extends Component {
         return (
           <ActionBuyIn
             accounts={ this.state.accounts }
+            price={ this.state.price }
             onClose={ this.onActionClose } />
         );
       default:
@@ -131,10 +132,10 @@ export default class Application extends Component {
       ])
       .then(([totalSupply, remaining, price]) => {
         this.setState({
-          blockNumber: blockNumber.toFormat(),
-          totalSupply: totalSupply.toFormat(),
-          remaining: remaining.toFormat(),
-          price: price.div(DIVISOR).toFormat()
+          blockNumber,
+          totalSupply,
+          remaining,
+          price: price.div(DIVISOR)
         });
 
         const { accounts } = this.state;
