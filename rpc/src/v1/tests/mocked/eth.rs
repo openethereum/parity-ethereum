@@ -861,8 +861,16 @@ fn rpc_get_work_should_timeout() {
 	eth_tester.client.set_latest_block_timestamp(get_time().sec as u64 - 1000);  // Set latest block to 1000 seconds ago
 	let hash = eth_tester.miner.map_sealing_work(&*eth_tester.client, |b| b.hash()).unwrap();
 
-	// Request with timeout of 0 seconds. This should work since we're disabling timeout.
+	// Request without providing timeout. This should work since we're disabling timeout.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
+	let work_response = format!(
+		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}}"#,
+		hash,
+	);
+	assert_eq!(eth_tester.io.handle_request(request), Some(work_response.to_owned()));
+
+	// Request with timeout of 0 seconds. This should work since we're disabling timeout.
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["0"], "id": 1}"#;
 	let work_response = format!(
 		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}}"#,
 		hash,
