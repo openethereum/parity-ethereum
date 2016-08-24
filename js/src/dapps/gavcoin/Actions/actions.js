@@ -21,12 +21,12 @@ export default class Actions extends Component {
           <FlatButton
             icon={ <ContentAdd /> }
             label='transfer coins'
-            primary
+            primary disabled
             onTouchTap={ this.onTransfer } />
           <FlatButton
             icon={ <ContentAdd /> }
             label='claim refund'
-            primary
+            primary disabled
             onTouchTap={ this.onRefund } />
         </ToolbarGroup>
       </Toolbar>

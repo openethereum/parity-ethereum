@@ -30,7 +30,9 @@ export default class ActionBuyIn extends Component {
     amount: 0,
     amountError: ERRORS.invalidAmount,
     maxPrice: this.props.price.mul(1.2).toString(),
-    maxPriceError: null
+    maxPriceError: null,
+    sending: false,
+    complete: false
   }
 
   render () {
@@ -39,12 +41,21 @@ export default class ActionBuyIn extends Component {
         title='Buy In'
         modal open
         actions={ this.renderActions() }>
-        { this.renderFields() }
+        { this.state.complete ? this.renderComplete() : this.renderFields() }
       </Dialog>
     );
   }
 
   renderActions () {
+    if (this.state.complete) {
+      return (
+        <FlatButton
+          label='Done'
+          primary
+          onTouchTap={ this.props.onClose } />
+      );
+    }
+
     const hasError = !!(this.state.amountError || this.state.accountError || this.state.maxPriceError);
 
     return ([
@@ -55,9 +66,15 @@ export default class ActionBuyIn extends Component {
       <FlatButton
         label='Buy GAVcoin'
         primary
-        disabled={ hasError }
+        disabled={ hasError || this.state.sending }
         onTouchTap={ this.onSend } />
     ]);
+  }
+
+  renderComplete () {
+    return (
+      <div>Your transaction has been sent. Please visit the <a href='http://127.0.0.1:8180/' className='link' target='_blank'>Parity Signer</a> to authenticate the transfer.</div>
+    );
   }
 
   renderFields () {
@@ -188,6 +205,10 @@ export default class ActionBuyIn extends Component {
       value: Api.format.toWei(this.state.amount).toString()
     };
 
+    this.setState({
+      sending: true
+    });
+
     instance.buyin
       .estimateGas(options, values)
       .then((gasEstimate) => {
@@ -196,10 +217,16 @@ export default class ActionBuyIn extends Component {
         return instance.buyin.postTransaction(options, values);
       })
       .then(() => {
-        console.log('success');
+        this.setState({
+          sending: false,
+          complete: true
+        });
       })
       .catch((error) => {
         console.error('error', error);
+        this.setState({
+          sending: false
+        });
       });
   }
 }
