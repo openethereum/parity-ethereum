@@ -472,12 +472,16 @@ version = "1.4.0"
 dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
+ "ethcore-ipc 1.4.0",
+ "ethcore-ipc-codegen 1.4.0",
+ "ethcore-ipc-nano 1.4.0",
  "ethcore-util 1.4.0",
  "json-tcp-server 0.1.0 (git+https://github.com/ethcore/json-tcp-server)",
  "jsonrpc-core 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
+ "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

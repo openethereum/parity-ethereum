@@ -18,44 +18,38 @@
 
 use std;
 use std::sync::Arc;
-use hypervisor::{SYNC_MODULE_ID, HYPERVISOR_IPC_URL};
-use ethcore::client::{RemoteClient, ChainNotify};
-use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
+use ethcore_stratum::{Stratum as StratumServer, PushWorkHandler, RemoteJobDispatcher, ServiceConfiguration};
 use std::thread;
 use modules::service_urls;
 use boot;
+use hypervisor::service::IpcModuleId;
+use std::net::SocketAddr;
+use std::str::FromStr;
+
+const STRATUM_MODULE_ID: IpcModuleId = 8000;
 
 pub fn main() {
-	boot::setup_cli_logger("sync");
+	boot::setup_cli_logger("stratum");
 
 	let service_config: ServiceConfiguration = boot::payload()
 		.unwrap_or_else(|e| panic!("Fatal: error reading boot arguments ({:?})", e));
 
-	let remote_client = dependency!(RemoteClient, &service_urls::with_base(&service_config.io_path, service_urls::CLIENT));
+	let job_dispatcher = dependency!(RemoteJobDispatcher, service_urls::MINING_JOB_DISPATCHER);
 
 	let stop = boot::main_thread();
-	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), service_config.net).unwrap();
+	let server =
+		StratumServer::start(
+			&SocketAddr::from_str(&service_config.listen_addr)
+				.unwrap_or_else(|e| panic!("Fatal: invalid listen address ({:?})", e)),
+			job_dispatcher.service().clone(),
+			service_config.secret
+		).unwrap_or_else(
+			|e| panic!("Fatal: cannot start stratum server({:?})", e)
+		);
 
-	let _ = boot::register(
-		&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL),
-		SYNC_MODULE_ID
-	);
+	boot::host_service(service_urls::STRATUM, stop.clone(), server.clone() as Arc<PushWorkHandler>);
 
-	boot::host_service(
-		&service_urls::with_base(&service_config.io_path, service_urls::SYNC),
-		stop.clone(),
-		sync.clone() as Arc<SyncProvider>
-	);
-	boot::host_service(
-		&service_urls::with_base(&service_config.io_path, service_urls::NETWORK_MANAGER),
-		stop.clone(),
-		sync.clone() as Arc<ManageNetwork>
-	);
-	boot::host_service(
-		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_NOTIFY),
-		stop.clone(),
-		sync.clone() as Arc<ChainNotify>
-	);
+	let _ = boot::register(STRATUM_MODULE_ID);
 
 	while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
 		thread::park_timeout(std::time::Duration::from_millis(1000));
