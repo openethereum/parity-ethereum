@@ -2,6 +2,8 @@ import React, { Component, PropTypes } from 'react';
 
 import { Toolbar, ToolbarGroup, ToolbarTitle } from 'material-ui/Toolbar';
 
+const { Api } = window.parity;
+
 const DIVISOR = 10 ** 6;
 
 export default class Status extends Component {
@@ -27,11 +29,15 @@ export default class Status extends Component {
         </ToolbarGroup>
         <ToolbarGroup>
           <p>
-            #{ blockNumber.toFormat() }: { this._formatCoin(remaining) } available @ { this._formatCoin(price, 0) }, { this._formatCoin(totalSupply) } minted
+            #{ blockNumber.toFormat() }: { this._formatCoin(remaining) } available @ { this._formatPrice(price) }ΞTH, { this._formatCoin(totalSupply) } minted
           </p>
         </ToolbarGroup>
       </Toolbar>
     );
+  }
+
+  _formatPrice (value, decimals = 3) {
+    return Api.format.fromWei(value).toFormat(decimals);
   }
 
   _formatCoin (value, decimals = 6) {

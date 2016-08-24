@@ -29,7 +29,7 @@ export default class ActionBuyIn extends Component {
     accountError: ERRORS.invalidAccount,
     amount: 0,
     amountError: ERRORS.invalidAmount,
-    maxPrice: this.props.price.div(DIVISOR).mul(1.2).toString(),
+    maxPrice: Api.format.fromWei(this.props.price.mul(1.2)).toString(),
     maxPriceError: null,
     sending: false,
     complete: false
@@ -78,7 +78,7 @@ export default class ActionBuyIn extends Component {
   }
 
   renderFields () {
-    const maxPriceLabel = `maxium price (current ${this.props.price.div(DIVISOR).toFormat()})`;
+    const maxPriceLabel = `maxium price in ΞTH (current ${Api.format.fromWei(this.props.price).toFormat(3)})`;
 
     return (
       <div>
@@ -86,7 +86,7 @@ export default class ActionBuyIn extends Component {
         <TextField
           autoComplete='off'
           floatingLabelFixed
-          floatingLabelText='amount (in ΞTH)'
+          floatingLabelText='amount in ΞTH'
           fullWidth
           hintText='the amount of ΞTH you wish to spend'
           errorText={ this.state.amountError }
