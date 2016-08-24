@@ -198,8 +198,9 @@ export default class ActionBuyIn extends Component {
   }
 
   onSend = () => {
+    const maxPrice = Api.format.toWei(this.state.maxPrice);
     const { instance } = this.context;
-    const values = [this.state.account.address, new BigNumber(this.state.maxPrice).mul(DIVISOR).toString()];
+    const values = [this.state.account.address, maxPrice.toString()];
     const options = {
       from: this.state.account.address,
       value: Api.format.toWei(this.state.amount).toString()
