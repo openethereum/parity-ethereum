@@ -1024,12 +1024,13 @@ impl BlockChainClient for Client {
 
 	fn queue_infinity_message(&self, message: Bytes) {
 		let full_rlp = UntrustedRlp::new(&message);
-		let signature = full_rlp.val_at(0).unwrap_or(return);
-		let message: Vec<_> = full_rlp.val_at(1).unwrap_or(return);
+		let signature = full_rlp.val_at(0).unwrap_or_else(|| return);
+		let message: Vec<_> = full_rlp.val_at(1).unwrap_or_else(|| return);
 		let message_rlp = UntrustedRlp::new(&message);
-		let pub_key = recover(&signature, &message.sha3()).unwrap_or(return);
-		if let Some(new_message) = self.engine.handle_message(pub_key.sha3().into(), message_rlp) {
-			self.notify(|notify| notify.broadcast(new_message.as_raw()));
+		let pub_key = recover(&signature, &message.sha3()).unwrap_or_else(|| return);
+		if let Some(new_message) = self.engine.handle_message(pub_key.sha3().into(), message_rlp)
+		{
+			self.notify(|notify| notify.broadcast(&new_message));
 		}
 	}
 }

@@ -38,7 +38,7 @@ pub struct TendermintParams {
 	/// Consensus round.
 	r: u64,
 	/// Consensus step.
-	s: Step,
+	s: RwLock<Step>,
 	/// Used to swith proposer.
 	proposer_nonce: usize
 }
@@ -61,7 +61,7 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 			validators: val,
 			validator_n: val_n,
 			r: 0,
-			s: Step::Propose,
+			s: RwLock::new(Step::Propose),
 			proposer_nonce: 0
 		}
 	}
@@ -89,8 +89,26 @@ impl Tendermint {
 		p.validators.get(p.proposer_nonce%p.validator_n).unwrap().clone()
 	}
 
-	fn propose_message(&self, message: UntrustedRlp) -> Option<UntrustedRlp> {
+	fn propose_message(&self, message: UntrustedRlp) -> Option<Bytes> {
+		match *self.our_params.s.try_read().unwrap() {
+			Step::Propose => (),
+			_ => return None,
+		}
+		let proposal = message.val_at(0).unwrap_or_else(|| return None);
+		let vote = ProposeCollect::new(proposal,
+									   self.our_params.validators.iter().cloned().collect(),
+									   self.threshold());
+		let mut guard = self.our_params.s.try_write().unwrap();
+		*guard = Step::Prevote(vote);
+		Some(message.as_raw().to_vec())
+	}
+
+	fn prevote_message(&self, sender: Address, message: UntrustedRlp) -> Option<Bytes> {
 		None
+	}
+
+	fn threshold(&self) -> usize {
+		self.our_params.validator_n*2/3
 	}
 }
 
@@ -144,9 +162,10 @@ impl Engine for Tendermint {
 		})
 	}
 
-	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Option<UntrustedRlp> {
-		match message.val_at(0).unwrap_or(return None) {
+	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Option<Bytes> {
+		match message.val_at(0).unwrap_or_else(|| return None) {
 			0u8 if sender == self.proposer() => self.propose_message(message),
+			1 => self.prevote_message(sender, message),
 			_ => None,
 		}
 	}
