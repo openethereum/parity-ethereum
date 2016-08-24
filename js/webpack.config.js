@@ -16,7 +16,8 @@ module.exports = {
   entry: {
     'dapps/gavcoin': ['./dapps/gavcoin.js'],
     'parity': ['./parity.js'],
-    'wallet': ['./wallet.js']
+    'wallet': ['./wallet.js'],
+    'web3': ['./web3.js']
   },
   output: {
     path: path.join(__dirname, 'build'),

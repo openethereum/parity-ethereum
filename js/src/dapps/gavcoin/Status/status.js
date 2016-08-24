@@ -41,6 +41,6 @@ export default class Status extends Component {
   }
 
   _formatCoin (value, decimals = 6) {
-    return value.div(DIVISOR).toFormat(decimals);
+    return value.div(DIVISOR).toFormat(0);
   }
 }

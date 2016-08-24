@@ -1,5 +1,5 @@
 import { inAddress, inBlockNumber, inData, inFilter, inHex, inNumber16, inOptions } from '../../format/input';
-import { outAddress, outBlock, outNumber, outReceipt, outTransaction } from '../../format/output';
+import { outAddress, outBlock, outLog, outNumber, outReceipt, outTransaction } from '../../format/output';
 
 export default class Eth {
   constructor (transport) {
@@ -108,7 +108,8 @@ export default class Eth {
 
   getFilterChanges (filterId) {
     return this._transport
-      .execute('eth_getFilterChanges', inNumber16(filterId));
+      .execute('eth_getFilterChanges', inNumber16(filterId))
+      .then((logs) => logs.map(outLog));
   }
 
   getFilterChangesEx (filterId) {
@@ -118,7 +119,8 @@ export default class Eth {
 
   getFilterLogs (filterId) {
     return this._transport
-      .execute('eth_getFilterLogs', inNumber16(filterId));
+      .execute('eth_getFilterLogs', inNumber16(filterId))
+      .then((logs) => logs.map(outLog));
   }
 
   getFilterLogsEx (filterId) {

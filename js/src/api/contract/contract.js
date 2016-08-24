@@ -3,19 +3,19 @@ import Api from '../api';
 import { isInstanceOf } from '../util/types';
 
 export default class Contract {
-  constructor (eth, abi) {
-    if (!isInstanceOf(eth, Api)) {
-      throw new Error('EthApi needs to be provided to Contract instance');
+  constructor (api, abi) {
+    if (!isInstanceOf(api, Api)) {
+      throw new Error('Api instance needs to be provided to Contract');
     } else if (!abi) {
-      throw new Error('Object ABI needs to be provided to Contract instance');
+      throw new Error('ABI needs to be provided to Contract instance');
     }
 
-    this._eth = eth;
+    this._api = api;
     this._abi = new Abi(abi);
 
     this._constructors = this._abi.constructors.map((cons) => this._bindFunction(cons));
     this._functions = this._abi.functions.map((func) => this._bindFunction(func));
-    this._events = this._abi.events;
+    this._events = this._abi.events.map((event) => this._bindEvent(event));
 
     this._instance = {};
 
@@ -47,8 +47,8 @@ export default class Contract {
     return this._instance;
   }
 
-  get eth () {
-    return this._eth;
+  get api () {
+    return this._api;
   }
 
   get abi () {
@@ -66,12 +66,12 @@ export default class Contract {
       gas: 900000
     };
 
-    return this._eth.eth
+    return this._api.eth
       .postTransaction(this._encodeOptions(this.constructors[0], options, values))
       .then((txhash) => this.pollTransactionReceipt(txhash))
       .then((receipt) => {
         this._address = receipt.contractAddress;
-        return this._eth.eth.getCode(this._address);
+        return this._api.eth.getCode(this._address);
       })
       .then((code) => {
         if (code === '0x') {
@@ -82,8 +82,8 @@ export default class Contract {
       });
   }
 
-  parseTransactionEvents (receipt) {
-    receipt.logs = receipt.logs.map((log) => {
+  parseEventLogs (logs) {
+    return logs.map((log) => {
       const signature = log.topics[0].substr(2);
       const event = this.events.find((evt) => evt.signature === signature);
 
@@ -102,6 +102,10 @@ export default class Contract {
 
       return log;
     });
+  }
+
+  parseTransactionEvents (receipt) {
+    receipt.logs = this.parseEventLogs(receipt.logs);
 
     return receipt;
   }
@@ -109,7 +113,7 @@ export default class Contract {
   pollTransactionReceipt (txhash) {
     return new Promise((resolve, reject) => {
       const timeout = () => {
-        this._eth.eth
+        this._api.eth
           .getTransactionReceipt(txhash)
           .then((receipt) => {
             if (receipt) {
@@ -146,7 +150,7 @@ export default class Contract {
     };
 
     func.call = (options, values) => {
-      return this._eth.eth
+      return this._api.eth
         .call(this._encodeOptions(func, addAddress(options), values))
         .then((encoded) => func.decodeOutput(encoded))
         .then((tokens) => tokens.map((token) => token.value))
@@ -155,16 +159,71 @@ export default class Contract {
 
     if (!func.constant) {
       func.postTransaction = (options, values) => {
-        return this._eth.eth
+        return this._api.eth
           .postTransaction(this._encodeOptions(func, addAddress(options), values));
       };
 
       func.estimateGas = (options, values) => {
-        return this._eth.eth
+        return this._api.eth
           .estimateGas(this._encodeOptions(func, addAddress(options), values));
       };
     }
 
     return func;
+  }
+
+  _bindEvent (event) {
+    const subscriptions = [];
+
+    const sendChanges = (subscription) => {
+      this._api.eth
+        .getFilterChanges(subscription.filterId)
+        .then((logs) => {
+          try {
+            subscription.callback(this.parseEventLogs(logs));
+          } catch (error) {
+            console.error('pollChanges', error);
+          }
+        });
+    };
+
+    const onBlockNumber = (blockNumber) => {
+      subscriptions.forEach(sendChanges);
+    };
+
+    event.subscribe = (options, callback) => {
+      const subscriptionId = subscriptions.length;
+
+      options.address = this._address;
+      options.topics = [event.signature];
+
+      this._api.eth
+        .newFilter(options)
+        .then((filterId) => {
+          return this._api.eth
+            .getFilterLogs(filterId)
+            .then((logs) => {
+              callback(this.parseEventLogs(logs));
+
+              const subscription = {
+                options,
+                callback,
+                filterId
+              };
+
+              subscriptions.push(subscription);
+            });
+        });
+
+      return subscriptionId;
+    };
+
+    event.unsubscribe = (subscriptionId) => {
+      subscriptions.filter((callback, idx) => idx !== subscriptionId);
+    };
+
+    this._api.events.subscribe('eth.blockNumber', onBlockNumber);
+
+    return event;
   }
 }

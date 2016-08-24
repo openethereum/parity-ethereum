@@ -54,6 +54,24 @@ export function outDate (date) {
   return new Date(outNumber(date).toNumber() * 1000);
 }
 
+export function outLog (log) {
+  Object.keys(log).forEach((key) => {
+    switch (key) {
+      case 'blockNumber':
+      case 'logIndex':
+      case 'transactionIndex':
+        log[key] = outNumber(log[key]);
+        break;
+
+      case 'address':
+        log[key] = outAddress(log[key]);
+        break;
+    }
+  });
+
+  return log;
+}
+
 export function outNumber (number) {
   return new BigNumber(number || 0);
 }

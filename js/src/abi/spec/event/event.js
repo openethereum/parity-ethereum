@@ -56,7 +56,13 @@ export default class Event {
     }
 
     const topicTypes = topicParams.map((param) => param.kind);
-    const flatTopics = topics.filter((topic, idx) => idx >= toSkip).join('');
+    const flatTopics = topics
+      .filter((topic, idx) => idx >= toSkip)
+      .map((topic) => {
+        return (topic.substr(0, 2) === '0x')
+          ? topic.substr(2)
+          : topic;
+      }).join('');
     const topicTokens = Decoder.decode(topicTypes, flatTopics);
 
     if (topicTokens.length !== (topics.length - toSkip)) {

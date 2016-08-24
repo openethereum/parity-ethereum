@@ -196,7 +196,6 @@ export default class Application extends Component {
         this.setState({
           loading: false,
           accounts: addresses.map((address) => {
-            console.log(address, infos[address].name);
             return {
               address,
               name: infos[address].name || 'Unnamed',

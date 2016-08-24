@@ -24,6 +24,18 @@ export function inData (data) {
   return inHex(data);
 }
 
+export function inTopics (_topics) {
+  let topics = (_topics || [])
+    .filter((topic) => topic)
+    .map(inHex);
+
+  while (topics.length < 4) {
+    topics.push(null);
+  }
+
+  return topics;
+}
+
 export function inFilter (options) {
   if (options) {
     Object.keys(options).forEach((key) => {
@@ -36,6 +48,9 @@ export function inFilter (options) {
         case 'toBlock':
           options[key] = inBlockNumber(options[key]);
           break;
+
+        case 'topics':
+          options[key] = inTopics(options[key]);
       }
     });
   }
