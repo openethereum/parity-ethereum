@@ -714,8 +714,7 @@ export default {
 
   newFilter: {
     desc: 'Creates a filter object, based on filter options, to notify when the state changes (logs).\nTo check if the state has changed, call [eth_getFilterChanges](#eth_getfilterchanges).',
-    params: [],
-    returns: {
+    params: [{
       type: Object,
       desc: 'The filter options:',
       details: {
@@ -742,6 +741,10 @@ export default {
           optional: true
         }
       }
+    }],
+    returns: {
+      type: Quantity,
+      desc: 'The filter id'
     }
   },
 
@@ -782,21 +785,6 @@ export default {
     returns: {
       type: Boolean,
       desc: 'whether the call was successful'
-    }
-  },
-
-  sendTransaction: {
-    desc: 'Creates new message call transaction or a contract creation, if the data field contains code.',
-    params: [
-      {
-        type: Object,
-        desc: 'See eth_sendTransaction for details',
-        format: 'inputTransactionFormatter'
-      }
-    ],
-    returns: {
-      type: Hash,
-      desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
     }
   },
 
