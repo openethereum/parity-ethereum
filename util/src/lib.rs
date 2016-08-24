@@ -132,7 +132,6 @@ pub mod migration;
 pub mod overlaydb;
 pub mod journaldb;
 pub mod kvdb;
-pub mod crypto;
 pub mod triehash;
 pub mod trie;
 pub mod nibbleslice;
@@ -150,7 +149,6 @@ pub use hashdb::*;
 pub use memorydb::*;
 pub use overlaydb::*;
 pub use journaldb::JournalDB;
-pub use crypto::*;
 pub use triehash::*;
 pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
 pub use nibbleslice::*;
@@ -162,3 +160,5 @@ pub use timer::*;
 /// 160-bit integer representing account address
 pub type Address = H160;
 
+/// Secret
+pub type Secret = H256;

@@ -269,6 +269,7 @@ dependencies = [
  "ethcore-ipc-nano 1.4.0",
  "ethcore-util 1.4.0",
  "ethjson 0.1.0",
+ "ethkey 0.2.0",
  "ethstore 0.1.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
@@ -406,6 +407,8 @@ dependencies = [
  "ethcore-devtools 1.4.0",
  "ethcore-io 1.4.0",
  "ethcore-util 1.4.0",
+ "ethcrypto 0.1.0",
+ "ethkey 0.2.0",
  "igd 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -431,6 +434,7 @@ dependencies = [
  "ethcore-ipc 1.4.0",
  "ethcore-util 1.4.0",
  "ethjson 0.1.0",
+ "ethkey 0.2.0",
  "ethstore 0.1.0",
  "ethsync 1.4.0",
  "json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)",
@@ -509,6 +513,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcrypto"
+version = "0.1.0"
+dependencies = [
+ "bigint 0.1.0",
+ "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
+ "ethkey 0.2.0",
+ "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethjson"
 version = "0.1.0"
 dependencies = [
@@ -535,6 +550,7 @@ dependencies = [
 name = "ethstore"
 version = "0.1.0"
 dependencies = [
+ "ethcrypto 0.1.0",
  "ethkey 0.2.0",
  "itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",

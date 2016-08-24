@@ -100,7 +100,7 @@ mod tests {
 
 		assert!(engine.verify_block_basic(&header, None).is_ok());
 
-		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
+		header.set_seal(vec![rlp::encode(&H520::default()).to_vec()]);
 
 		assert!(engine.verify_block_unordered(&header, None).is_ok());
 	}
