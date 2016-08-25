@@ -30,7 +30,7 @@ export default class EventRefund extends Component {
         <td className='type'>Refund</td>
         <td className='ethvalue'>@{ formatEth(price) }ΞTH</td>
         <td className='gavvalue'>-{ formatCoins(amount) }GAV</td>
-        <td className='account'>{ buyerIcon }{ buyer }</td>
+        <td className='account'>{ buyerIcon }<div>{ buyer }</div></td>
         <td></td>
       </tr>
     );

@@ -25,7 +25,7 @@ export default class EventBuyin extends Component {
         <td className='type'>Buyin</td>
         <td className='ethvalue'>@{ formatEth(price) }ΞTH</td>
         <td className='gavvalue'>+{ formatCoins(amount) }GAV</td>
-        <td className='account'>{ buyerIcon }{ buyer }</td>
+        <td className='account'>{ buyerIcon }<div>{ buyer }</div></td>
         <td></td>
       </tr>
     );

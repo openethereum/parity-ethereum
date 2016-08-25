@@ -28,8 +28,8 @@ export default class EventTransfer extends Component {
         <td className='type'>Transfer</td>
         <td></td>
         <td className='gavvalue'>-{ formatCoins(value) }GAV</td>
-        <td className='account'>{ fromIcon }{ from }</td>
-        <td className='account'>{ toIcon }{ to }</td>
+        <td className='account'>{ fromIcon }<div>{ from }</div></td>
+        <td className='account'>{ toIcon }<div>{ to }</div></td>
       </tr>
     );
   }
