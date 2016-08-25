@@ -140,12 +140,20 @@ export default class Contract {
 
     options.data = `0x${options.data || ''}${func.encodeCall(tokens)}`;
 
+    console.log(tokens, options);
+
     return options;
   }
 
   _bindFunction (func) {
-    const addAddress = (options = {}) => {
+    const addAddress = (_options = {}) => {
+      const options = {};
+
+      Object.keys(_options).forEach((key) => {
+        options[key] = _options[key];
+      });
       options.to = options.to || this._address;
+
       return options;
     };
 
