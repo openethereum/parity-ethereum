@@ -172,8 +172,8 @@ impl Client {
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
-			let batch = DBTransaction::new(&db);
-			try!(state_db.commit(&batch, 0, &spec.genesis_header().hash(), None));
+			let mut batch = DBTransaction::new(&db);
+			try!(state_db.commit(&mut batch, 0, &spec.genesis_header().hash(), None));
 			try!(db.write(batch).map_err(ClientError::Database));
 		}
 
@@ -431,14 +431,14 @@ impl Client {
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
-		let batch = DBTransaction::new(&self.db);
+		let mut batch = DBTransaction::new(&self.db);
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(&batch, number, hash, ancient).expect("DB commit failed.");
+		block.drain().commit(&mut batch, number, hash, ancient).expect("DB commit failed.");
 
-		let route = self.chain.insert_block(&batch, block_data, receipts);
-		self.tracedb.import(&batch, TraceImportRequest {
+		let route = self.chain.insert_block(&mut batch, block_data, receipts);
+		self.tracedb.import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
 			block_hash: hash.clone(),
 			block_number: number,

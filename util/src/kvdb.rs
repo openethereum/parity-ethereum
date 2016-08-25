@@ -28,7 +28,7 @@ const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
-	ops: Mutex<Vec<DBOp>>,
+	ops: Vec<DBOp>,
 }
 
 enum DBOp {
@@ -52,15 +52,15 @@ impl DBTransaction {
 	/// Create new transaction.
 	pub fn new(_db: &Database) -> DBTransaction {
 		DBTransaction {
-			ops: Mutex::new(Vec::with_capacity(256)),
+			ops: Vec::with_capacity(256),
 		}
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
-	pub fn put(&self, col: Option<u32>, key: &[u8], value: &[u8]) {
+	pub fn put(&mut self, col: Option<u32>, key: &[u8], value: &[u8]) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
-		self.ops.lock().push(DBOp::Insert {
+		self.ops.push(DBOp::Insert {
 			col: col,
 			key: ekey,
 			value: value.to_vec(),
@@ -68,10 +68,10 @@ impl DBTransaction {
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
-	pub fn put_vec(&self, col: Option<u32>, key: &[u8], value: Bytes) {
+	pub fn put_vec(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
-		self.ops.lock().push(DBOp::Insert {
+		self.ops.push(DBOp::Insert {
 			col: col,
 			key: ekey,
 			value: value,
@@ -79,11 +79,11 @@ impl DBTransaction {
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
-	/// Value will be RLP-compressed on  flush
-	pub fn put_compressed(&self, col: Option<u32>, key: &[u8], value: Bytes) {
+	/// Value will be RLP-compressed on flush
+	pub fn put_compressed(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
-		self.ops.lock().push(DBOp::InsertCompressed {
+		self.ops.push(DBOp::InsertCompressed {
 			col: col,
 			key: ekey,
 			value: value,
@@ -91,10 +91,10 @@ impl DBTransaction {
 	}
 
 	/// Delete value by key.
-	pub fn delete(&self, col: Option<u32>, key: &[u8]) {
+	pub fn delete(&mut self, col: Option<u32>, key: &[u8]) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
-		self.ops.lock().push(DBOp::Delete {
+		self.ops.push(DBOp::Delete {
 			col: col,
 			key: ekey,
 		});
@@ -299,7 +299,7 @@ impl Database {
 	/// Commit transaction to database.
 	pub fn write_buffered(&self, tr: DBTransaction) {
 		let mut overlay = self.overlay.write();
-		let ops = tr.ops.into_inner();
+		let ops = tr.ops;
 		for op in ops {
 			match op {
 				DBOp::Insert { col, key, value } => {
@@ -359,7 +359,7 @@ impl Database {
 	/// Commit transaction to database.
 	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
 		let batch = WriteBatch::new();
-		let ops = tr.ops.into_inner();
+		let ops = tr.ops;
 		for op in ops {
 			match op {
 				DBOp::Insert { col, key, value } => {
@@ -425,7 +425,7 @@ mod tests {
 		let key2 = H256::from_str("03c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
 		let key3 = H256::from_str("01c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
 
-		let batch = db.transaction();
+		let mut batch = db.transaction();
 		batch.put(None, &key1, b"cat");
 		batch.put(None, &key2, b"dog");
 		db.write(batch).unwrap();
@@ -439,17 +439,17 @@ mod tests {
 		assert_eq!(&*contents[1].0, &*key2);
 		assert_eq!(&*contents[1].1, b"dog");
 
-		let batch = db.transaction();
+		let mut batch = db.transaction();
 		batch.delete(None, &key1);
 		db.write(batch).unwrap();
 
 		assert!(db.get(None, &key1).unwrap().is_none());
 
-		let batch = db.transaction();
+		let mut batch = db.transaction();
 		batch.put(None, &key1, b"cat");
 		db.write(batch).unwrap();
 
-		let transaction = db.transaction();
+		let mut transaction = db.transaction();
 		transaction.put(None, &key3, b"elephant");
 		transaction.delete(None, &key1);
 		db.write(transaction).unwrap();
@@ -459,7 +459,7 @@ mod tests {
 		assert_eq!(&*db.get_by_prefix(None, &key3).unwrap(), b"elephant");
 		assert_eq!(&*db.get_by_prefix(None, &key2).unwrap(), b"dog");
 
-		let transaction = db.transaction();
+		let mut transaction = db.transaction();
 		transaction.put(None, &key1, b"horse");
 		transaction.delete(None, &key3);
 		db.write_buffered(transaction);

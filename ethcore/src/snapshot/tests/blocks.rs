@@ -43,13 +43,15 @@ fn chunk_and_restore(amount: u64) {
 	let bc = BlockChain::new(Default::default(), &genesis, old_db.clone());
 
 	// build the blockchain.
+	let mut batch = old_db.transaction();
 	for _ in 0..amount {
 		let block = canon_chain.generate(&mut finalizer).unwrap();
-		let batch = old_db.transaction();
-		bc.insert_block(&batch, &block, vec![]);
+		bc.insert_block(&mut batch, &block, vec![]);
 		bc.commit();
-		old_db.write(batch).unwrap();
 	}
+
+	old_db.write(batch).unwrap();
+
 
 	let best_hash = bc.best_block_hash();
 

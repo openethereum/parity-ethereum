@@ -35,7 +35,7 @@ fn db_path(path: &Path) -> PathBuf {
 fn make_db(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
 	let db = Database::open_default(path.to_str().unwrap()).expect("failed to open temp database");
 	{
-		let transaction = db.transaction();
+		let mut transaction = db.transaction();
 		for (k, v) in pairs {
 			transaction.put(None, &k, &v);
 		}

@@ -222,7 +222,7 @@ impl JournalDB for OverlayRecentDB {
 		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
 	}
 
-	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
 		let mut journal_overlay = self.journal_overlay.write();
@@ -314,7 +314,7 @@ impl JournalDB for OverlayRecentDB {
 		self.journal_overlay.write().pending_overlay.clear();
 	}
 
-	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
 		let mut ops = 0;
 		for (key, (value, rc)) in self.transaction_overlay.drain() {
 			if rc != 0 { ops += 1 }

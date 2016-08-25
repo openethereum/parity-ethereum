@@ -37,7 +37,7 @@ pub trait JournalDB: HashDB {
 
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
-	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
+	fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
 
 	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
 	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
@@ -46,7 +46,7 @@ pub trait JournalDB: HashDB {
 	/// by any previous `commit` operations. Essentially, this means that `inject` can be used
 	/// either to restore a state to a fresh database, or to insert data which may only be journalled
 	/// from this point onwards.
-	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError>;
+	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError>;
 
 	/// State data query
 	fn state(&self, _id: &H256) -> Option<Bytes>;
@@ -67,8 +67,8 @@ pub trait JournalDB: HashDB {
 	/// Commit all changes in a single batch
 	#[cfg(test)]
 	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		let batch = self.backing().transaction();
-		let res = try!(self.commit(&batch, now, id, end));
+		let mut batch = self.backing().transaction();
+		let res = try!(self.commit(&mut batch, now, id, end));
 		let result = self.backing().write(batch).map(|_| res).map_err(Into::into);
 		self.flush();
 		result
@@ -77,8 +77,8 @@ pub trait JournalDB: HashDB {
 	/// Inject all changes in a single batch.
 	#[cfg(test)]
 	fn inject_batch(&mut self) -> Result<u32, UtilError> {
-		let batch = self.backing().transaction();
-		let res = try!(self.inject(&batch));
+		let mut batch = self.backing().transaction();
+		let res = try!(self.inject(&mut batch));
 		self.backing().write(batch).map(|_| res).map_err(Into::into)
 	}
 }

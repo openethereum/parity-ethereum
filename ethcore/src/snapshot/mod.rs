@@ -492,8 +492,8 @@ impl StateRebuilder {
 		}
 
 		let backing = self.db.backing().clone();
-		let batch = backing.transaction();
-		try!(self.db.inject(&batch));
+		let mut batch = backing.transaction();
+		try!(self.db.inject(&mut batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 		Ok(())
