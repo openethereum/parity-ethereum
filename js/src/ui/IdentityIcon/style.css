@@ -1,4 +1,6 @@
 .icon {
+  border-radius: 50%;
+  margin: 0;
 }
 
 .center {
@@ -8,10 +10,6 @@
 .right {
   float: right;
   text-align: right;
-}
-
-.icon img {
-  border-radius: 50%;
 }
 
 .padded {

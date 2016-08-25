@@ -56,14 +56,17 @@ export default class IdentityIcon extends Component {
   }
 
   render () {
-    const className = `${styles.icon} ${this.props.center ? styles.center : styles.right} ${this.props.padded ? styles.padded : null} ${this.props.inline ? styles.inline : null}`;
+    const { center, inline, padded } = this.props;
+    const size = inline ? '32px' : '56px';
+    const className = `${styles.icon} ${center ? styles.center : styles.right} ${padded ? styles.padded : null} ${inline ? styles.inline : null}`;
 
     return (
-      <div className={ className }>
-        <img
-          src={ this.state.iconsrc }
-          value={ this.props.address } />
-      </div>
+      <img
+        className={ className }
+        src={ this.state.iconsrc }
+        value={ this.props.address }
+        width={ size }
+        height={ size } />
     );
   }
 }
