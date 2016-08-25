@@ -13,7 +13,7 @@ export default class EventTransfer extends Component {
     const { event } = this.props;
     const { from, to, value } = event.params;
     const { blockNumber } = event;
-    const cls = `event ${event.state}`;
+    const cls = `event ${event.state} ${event.type.toLowerCase()}`;
 
     const fromIcon = (
       <IdentityIcon inline center address={ from } />
@@ -23,14 +23,14 @@ export default class EventTransfer extends Component {
     );
 
     return (
-      <div className={ cls }>
-        <div>{ formatBlockNumber(blockNumber) }</div>
-        <div>Transfer</div>
-        <div>{ fromIcon }{ from }</div>
-        <div>sent</div>
-        <div>{ toIcon }{ to }</div>
-        <div>{ formatCoins(value) }</div>
-      </div>
+      <tr className={ cls }>
+        <td className='blocknumber'>{ formatBlockNumber(blockNumber) }</td>
+        <td className='type'>Transfer</td>
+        <td></td>
+        <td className='gavvalue'>-{ formatCoins(value) }GAV</td>
+        <td className='account'>{ fromIcon }{ from }</td>
+        <td className='account'>{ toIcon }{ to }</td>
+      </tr>
     );
   }
 }

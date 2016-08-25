@@ -4,6 +4,8 @@ import React, { Component, PropTypes } from 'react';
 import { Dialog, FlatButton, TextField } from 'material-ui';
 
 import AccountSelector from '../../AccountSelector';
+import AccountTextField from '../../AccountTextField';
+import { renderComplete } from '../render';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
 const { Api } = window.parity;
@@ -23,23 +25,23 @@ export default class ActionTransfer extends Component {
   }
 
   state = {
-    account: {},
-    accountError: ERRORS.invalidAccount,
+    fromAccount: {},
+    fromAccountError: ERRORS.invalidAccount,
+    toAccount: {},
+    toAccountError: ERRORS.invalidAccount,
     complete: false,
     sending: false,
     amount: 0,
-    amountError: ERRORS.invalidAmount,
-    price: Api.format.fromWei(this.props.price).toString(),
-    priceError: null
+    amountError: ERRORS.invalidAmount
   }
 
   render () {
     return (
       <Dialog
-        title='Refund'
+        title='Transfer'
         modal open
         actions={ this.renderActions() }>
-        { this.state.complete ? this.renderComplete() : this.renderFields() }
+        { this.state.complete ? renderComplete() : this.renderFields() }
       </Dialog>
     );
   }
@@ -54,7 +56,7 @@ export default class ActionTransfer extends Component {
       );
     }
 
-    const hasError = !!(this.state.priceError || this.state.amountError || this.state.accountError);
+    const hasError = !!(true || this.state.priceError || this.state.amountError || this.state.accountError);
 
     return ([
       <FlatButton
@@ -62,29 +64,27 @@ export default class ActionTransfer extends Component {
         primary
         onTouchTap={ this.props.onClose } />,
       <FlatButton
-        label='Refund'
+        label='Transfer'
         primary
         disabled={ hasError || this.state.sending }
         onTouchTap={ this.onSend } />
     ]);
   }
 
-  renderComplete () {
-    return (
-      <div>Your transaction has been sent. Please visit the <a href='http://127.0.0.1:8180/' className='link' target='_blank'>Parity Signer</a> to authenticate the transfer.</div>
-    );
-  }
-
   renderFields () {
-    const priceLabel = `price in ΞTH (current ${Api.format.fromWei(this.props.price).toFormat(3)})`;
     return (
       <div>
         <AccountSelector
           gavBalance
           accounts={ this.props.accounts }
-          account={ this.state.account }
-          accountError={ this.state.accountError }
-          onSelect={ this.onChangeAddress } />
+          account={ this.state.fromAccount }
+          accountError={ this.state.fromAccountError }
+          onSelect={ this.onChangeFromAccount } />
+        <AccountTextField
+          accounts={ this.props.accounts }
+          account={ this.state.toAccount }
+          accountError={ this.state.toAccountError }
+          onSelect={ this.onChangeToAccount } />
         <TextField
           autoComplete='off'
           floatingLabelFixed
@@ -96,25 +96,21 @@ export default class ActionTransfer extends Component {
           id={ NAME_ID }
           value={ this.state.amount }
           onChange={ this.onChangeAmount } />
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText={ priceLabel }
-          fullWidth
-          hintText='the price the refund is requested at'
-          errorText={ this.state.priceError }
-          name={ NAME_ID }
-          id={ NAME_ID }
-          value={ this.state.price }
-          onChange={ this.onChangePrice } />
       </div>
     );
   }
 
-  onChangeAddress = (account) => {
+  onChangeFromAccount = (fromAccount) => {
     this.setState({
-      account,
-      accountError: validateAccount(account)
+      fromAccount,
+      fromAccountError: validateAccount(fromAccount)
+    });
+  }
+
+  onChangeToAccount = (toAccount) => {
+    this.setState({
+      toAccount,
+      toAccountError: validateAccount(toAccount)
     });
   }
 
@@ -145,12 +141,12 @@ export default class ActionTransfer extends Component {
       sending: true
     });
 
-    instance.refund
+    instance.transfer
       .estimateGas(options, values)
       .then((gasEstimate) => {
         options.gas = gasEstimate.mul(1.2).toFixed(0);
 
-        return instance.refund.postTransaction(options, values);
+        return instance.transfer.postTransaction(options, values);
       })
       .then(() => {
         this.setState({

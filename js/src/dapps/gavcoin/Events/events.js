@@ -23,7 +23,11 @@ export default class Events extends Component {
   render () {
     return (
       <div className='events'>
-        { this.renderEvents() }
+        <table className='list'>
+          <tbody>
+            { this.renderEvents() }
+          </tbody>
+        </table>
       </div>
     );
   }

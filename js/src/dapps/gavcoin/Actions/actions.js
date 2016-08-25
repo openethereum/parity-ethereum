@@ -21,7 +21,7 @@ export default class Actions extends Component {
           <FlatButton
             icon={ <ContentAdd /> }
             label='transfer coins'
-            primary disabled
+            primary
             onTouchTap={ this.onTransfer } />
           <FlatButton
             icon={ <ContentAdd /> }

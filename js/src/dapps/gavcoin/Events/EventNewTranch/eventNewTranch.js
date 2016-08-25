@@ -11,14 +11,17 @@ export default class EventNewTranch extends Component {
     const { event } = this.props;
     const { price } = event.params;
     const { blockNumber } = event;
-    const cls = `event ${event.state}`;
+    const cls = `event ${event.state} ${event.type.toLowerCase()}`;
 
     return (
-      <div className={ cls }>
-        <div>{ formatBlockNumber(blockNumber) }</div>
-        <div>NewTranch</div>
-        <div>{ formatEth(price) }</div>
-      </div>
+      <tr className={ cls }>
+        <td className='blocknumber'>{ formatBlockNumber(blockNumber) }</td>
+        <td className='type'>New Tranch</td>
+        <td className='ethvalue'>@{ formatEth(price) }ΞTH</td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
     );
   }
 }

@@ -10,7 +10,7 @@ import registryAbi from '../abi/registry.json';
 import gavcoinAbi from '../abi/gavcoin.json';
 
 import Accounts from '../Accounts';
-import Actions, { ActionBuyIn, ActionRefund } from '../Actions';
+import Actions, { ActionBuyIn, ActionRefund, ActionTransfer } from '../Actions';
 import Events from '../Events';
 import Loading from '../Loading';
 import Status from '../Status';
@@ -105,6 +105,12 @@ export default class Application extends Component {
           <ActionRefund
             accounts={ this.state.accounts }
             price={ this.state.price }
+            onClose={ this.onActionClose } />
+        );
+      case 'Transfer':
+        return (
+          <ActionTransfer
+            accounts={ this.state.accounts }
             onClose={ this.onActionClose } />
         );
       default:

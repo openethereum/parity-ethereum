@@ -3,6 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import { Dialog, FlatButton, TextField } from 'material-ui';
 
 import AccountSelector from '../../AccountSelector';
+import { renderComplete } from '../render';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
 const { Api } = window.parity;
@@ -37,7 +38,7 @@ export default class ActionBuyIn extends Component {
         title='Buy In'
         modal open
         actions={ this.renderActions() }>
-        { this.state.complete ? this.renderComplete() : this.renderFields() }
+        { this.state.complete ? renderComplete() : this.renderFields() }
       </Dialog>
     );
   }
@@ -60,17 +61,11 @@ export default class ActionBuyIn extends Component {
         primary
         onTouchTap={ this.props.onClose } />,
       <FlatButton
-        label='Buy GAVcoin'
+        label='Buy'
         primary
         disabled={ hasError || this.state.sending }
         onTouchTap={ this.onSend } />
     ]);
-  }
-
-  renderComplete () {
-    return (
-      <div>Your transaction has been sent. Please visit the <a href='http://127.0.0.1:8180/' className='link' target='_blank'>Parity Signer</a> to authenticate the transfer.</div>
-    );
   }
 
   renderFields () {

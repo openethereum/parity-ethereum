@@ -17,14 +17,19 @@ html, body {
   flex-wrap: wrap;
 }
 
-.account {
+.accounts .account {
   margin-right: 1em !important;
   background: rgb(224, 224, 124) !important;
 }
 
-.account img {
+.accounts .account img {
   margin-bottom: -11px;
   margin-left: -11px;
+}
+
+.accounts .account .name {
+  color: white;
+  margin-right: 1em;
 }
 
 .actions {
@@ -35,18 +40,35 @@ html, body {
   font-family: 'Roboto Mono', monospace;
 }
 
-.account .name {
-  color: white;
-  margin-right: 1em;
-}
-
 .events {
   padding: 1em 2em;
+}
+
+.events .list {
+  width: 100%;
+  border: none;
+}
+
+.events .list td {
+  vertical-align: top;
+  padding: 0 0.5em;
 }
 
 .event {
   line-height: 32px;
   vertical-align: top;
+}
+
+.event .blocknumber,
+.event .ethvalue,
+.event .gavvalue {
+  text-align: right;
+}
+
+.event .type {
+}
+
+.event .account {
 }
 
 .event div {
@@ -60,6 +82,10 @@ html, body {
 
 .event.pending {
   opacity: 0.5;
+}
+
+.event.newtranch {
+  background: rgba(50, 50, 50, 0.1);
 }
 
 .iconimg img {
