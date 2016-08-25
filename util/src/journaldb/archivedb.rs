@@ -228,6 +228,10 @@ impl JournalDB for ArchiveDB {
 	fn backing(&self) -> &Arc<Database> {
 		&self.backing
 	}
+
+	fn consolidate(&mut self, with: MemoryDB) {
+		self.overlay.consolidate(with);
+	}
 }
 
 #[cfg(test)]

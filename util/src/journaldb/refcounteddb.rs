@@ -20,6 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use overlaydb::OverlayDB;
+use memorydb::MemoryDB;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction};
@@ -191,6 +192,18 @@ impl JournalDB for RefCountedDB {
 			self.forward.remove(&remove);
 		}
 		self.forward.commit_to_batch(batch)
+	}
+
+	fn consolidate(&mut self, mut with: MemoryDB) {
+		for (key, (value, rc)) in with.drain() {
+			for _ in 0..rc {
+				self.emplace(key.clone(), value.clone());
+			}
+
+			for _ in rc..0 {
+				self.remove(&key);
+			}
+		}
 	}
 }
 

@@ -21,6 +21,7 @@ use header::Header;
 
 use views::BlockView;
 use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
+use util::rlp::{Compressible, RlpType};
 use util::{Bytes, Hashable, H256};
 
 const HEADER_FIELDS: usize = 10;
@@ -31,10 +32,10 @@ pub struct AbridgedBlock {
 }
 
 impl AbridgedBlock {
-	/// Create from a vector of bytes. Does no verification.
-	pub fn from_raw(rlp: Bytes) -> Self {
+	/// Create from rlp-compressed bytes. Does no verification.
+	pub fn from_raw(compressed: Bytes) -> Self {
 		AbridgedBlock {
-			rlp: rlp,
+			rlp: compressed,
 		}
 	}
 
@@ -78,7 +79,7 @@ impl AbridgedBlock {
 		}
 
 		AbridgedBlock {
-			rlp: stream.out(),
+			rlp: UntrustedRlp::new(stream.as_raw()).compress(RlpType::Blocks).to_vec(),
 		}
 	}
 
@@ -86,7 +87,8 @@ impl AbridgedBlock {
 	///
 	/// Will fail if contains invalid rlp.
 	pub fn to_block(&self, parent_hash: H256, number: u64) -> Result<Block, DecoderError> {
-		let rlp = UntrustedRlp::new(&self.rlp);
+		let rlp = UntrustedRlp::new(&self.rlp).decompress(RlpType::Blocks);
+		let rlp = UntrustedRlp::new(&rlp);
 
 		let mut header = Header {
 			parent_hash: parent_hash,
