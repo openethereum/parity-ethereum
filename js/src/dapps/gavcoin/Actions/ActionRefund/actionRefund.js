@@ -80,6 +80,7 @@ export default class ActionRefund extends Component {
     return (
       <div>
         <AccountSelector
+          gavBalance
           accounts={ this.props.accounts }
           account={ this.state.account }
           accountError={ this.state.accountError }
@@ -136,7 +137,6 @@ export default class ActionRefund extends Component {
     const price = Api.format.toWei(this.state.price);
     const amount = new BigNumber(this.state.amount).mul(DIVISOR);
     const values = [price.toString(), amount.toFixed(0)];
-    console.log(values);
     const options = {
       from: this.state.account.address
     };

@@ -12,6 +12,7 @@ export default class AccountSelect extends Component {
     accounts: PropTypes.array,
     account: PropTypes.object,
     accountError: PropTypes.string,
+    gavBalance: PropTypes.bool,
     onSelect: PropTypes.func
   }
 
@@ -22,7 +23,12 @@ export default class AccountSelect extends Component {
   render () {
     const { accounts } = this.props;
     const items = accounts.map((account) => {
-      const identityIcon = <IdentityIcon inline center address={ account.address } />;
+      const balance = this.props.gavBalance
+        ? `${account.gavBalance}GAV`
+        : `${account.ethBalance}ΞTH`;
+      const identityIcon = (
+        <IdentityIcon inline center address={ account.address } />
+      );
       const icon = (
         <div className='iconimg'>
           { identityIcon }
@@ -35,7 +41,7 @@ export default class AccountSelect extends Component {
           </div>
           <div className='details'>
             <div className='name'>{ account.name }</div>
-            <div className='balance'>{ account.ethBalance }ΞTH</div>
+            <div className='balance'>{ balance }</div>
           </div>
         </div>
       );
