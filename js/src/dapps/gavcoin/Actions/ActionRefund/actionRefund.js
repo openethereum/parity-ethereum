@@ -37,8 +37,9 @@ export default class ActionRefund extends Component {
   render () {
     return (
       <Dialog
-        title='Refund'
+        title='return coins for a refund'
         modal open
+        className='dialog'
         actions={ this.renderActions() }>
         { this.state.complete ? renderComplete() : this.renderFields() }
       </Dialog>

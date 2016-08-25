@@ -38,8 +38,9 @@ export default class ActionTransfer extends Component {
   render () {
     return (
       <Dialog
-        title='Transfer'
+        title='transfer coins to another account'
         modal open
+        className='dialog'
         actions={ this.renderActions() }>
         { this.state.complete ? renderComplete() : this.renderFields() }
       </Dialog>

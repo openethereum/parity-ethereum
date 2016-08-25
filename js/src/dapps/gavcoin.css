@@ -40,6 +40,14 @@ html, body {
   font-family: 'Roboto Mono', monospace;
 }
 
+.dialog {
+}
+
+.dialog h3 {
+  background: rgba(0, 0, 0, 0.15);
+  color: white !important;
+}
+
 .events {
   padding: 1em 2em;
 }

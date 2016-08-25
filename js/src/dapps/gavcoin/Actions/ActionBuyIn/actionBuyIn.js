@@ -35,8 +35,9 @@ export default class ActionBuyIn extends Component {
   render () {
     return (
       <Dialog
-        title='Buy In'
+        title='buy coins for a specific account'
         modal open
+        className='dialog'
         actions={ this.renderActions() }>
         { this.state.complete ? renderComplete() : this.renderFields() }
       </Dialog>
