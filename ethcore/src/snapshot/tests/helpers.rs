@@ -78,7 +78,7 @@ impl StateProducer {
 		let new_accs = rng.gen::<u32>() % 5;
 
 		for _ in 0..new_accs {
-			let address_hash = H256::random();
+			let address_hash = H256(rng.gen());
 			let balance: usize = rng.gen();
 			let nonce: usize = rng.gen();
 			let acc = ::state::Account::new_basic(balance.into(), nonce.into()).rlp();
