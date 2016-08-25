@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import EventBuyin from './EventBuyin';
+import EventNewTranch from './EventNewTranch';
 
 export default class Events extends Component {
   static contextTypes = {
@@ -8,7 +9,9 @@ export default class Events extends Component {
   }
 
   state = {
-    events: []
+    allEvents: [],
+    minedEvents: [],
+    pendingEvents: []
   }
 
   componentDidMount () {
@@ -24,32 +27,49 @@ export default class Events extends Component {
   }
 
   renderEvents () {
-    const { events } = this.state;
+    const { allEvents } = this.state;
 
-    if (!events.length) {
+    if (!allEvents.length) {
       return null;
     }
 
-    return events.map((event) => {
-      switch (event.type) {
-        case 'Buyin':
-          return (
-            <EventBuyin
-              key={ event.key }
-              event={ event } />
-          );
-      }
-    });
+    return allEvents
+      .map((event) => {
+        switch (event.type) {
+          case 'Buyin':
+            return <EventBuyin key={ event.key } event={ event } />;
+          case 'NewTranch':
+            return <EventNewTranch key={ event.key } event={ event } />;
+        }
+      });
   }
 
   setupFilters () {
     const { instance } = this.context;
+    let key = 0;
 
     ['Approval', 'Buyin', 'Refund', 'Transfer', 'NewTranch'].forEach((eventName) => {
       const options = {
         fromBlock: 0,
-        toBlock: 'latest' // 'pending'
+        toBlock: 'pending'
       };
+
+      const logToEvent = (log) => {
+        const { blockNumber, logIndex, transactionHash, transactionIndex, params, type } = log;
+
+        return {
+          type: eventName,
+          state: type,
+          blockNumber,
+          logIndex,
+          transactionHash,
+          transactionIndex,
+          params,
+          key: ++key
+        };
+      };
+
+      const sortEvents = (a, b) => b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
 
       instance[eventName].subscribe(options, (logs) => {
         if (!logs.length) {
@@ -58,26 +78,24 @@ export default class Events extends Component {
 
         console.log(logs);
 
-        this.setState({
-          events: this.state.events
-            .concat(logs.map((log) => {
-              return {
-                type: eventName,
-                blockNumber: log.blockNumber,
-                transactionHash: log.transactionHash,
-                params: log.params,
-                key: `${eventName}_${log.transactionHash}_${log.logIndex.toString()}`
-              };
-            }))
-            .sort((a, b) => {
-              if (a.blockNumber.lt(b.blockNumber)) {
-                return 1;
-              } else if (a.blockNumber.gt(b.blockNumber)) {
-                return -1;
-              }
+        const minedEvents = this.state.minedEvents
+          .concat(logs.filter((log) => log.type === 'mined').map(logToEvent))
+          .sort(sortEvents);
+        const pendingEvents = this.state.pendingEvents
+          .filter((event) => {
+            return !logs.find((log) => {
+              return (log.type === 'mined') && (log.transactionHash === event.transactionHash);
+            });
+          })
+          .reverse()
+          .concat(logs.filter((log) => log.type === 'pending').map(logToEvent))
+          .reverse();
+        const allEvents = pendingEvents.concat(minedEvents);
 
-              return b.key.localeCompare(a.key);
-            })
+        this.setState({
+          allEvents,
+          minedEvents,
+          pendingEvents
         });
       });
     });

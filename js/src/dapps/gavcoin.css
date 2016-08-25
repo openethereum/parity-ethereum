@@ -43,6 +43,13 @@ html, body {
   padding: 1em 2em;
 }
 
+.event.mined {
+}
+
+.event.pending {
+  color: #aaa;
+}
+
 .link, .link:hover, .link:visited {
   color: rgb(0, 188, 212);
   text-decoration: none;

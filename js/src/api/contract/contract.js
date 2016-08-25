@@ -175,22 +175,6 @@ export default class Contract {
   _bindEvent (event) {
     const subscriptions = [];
 
-    const sendChanges = (subscription) => {
-      this._api.eth
-        .getFilterChanges(subscription.filterId)
-        .then((logs) => {
-          try {
-            subscription.callback(this.parseEventLogs(logs));
-          } catch (error) {
-            console.error('pollChanges', error);
-          }
-        });
-    };
-
-    const onBlockNumber = (blockNumber) => {
-      subscriptions.forEach(sendChanges);
-    };
-
     event.subscribe = (options, callback) => {
       const subscriptionId = subscriptions.length;
 
@@ -222,7 +206,24 @@ export default class Contract {
       subscriptions.filter((callback, idx) => idx !== subscriptionId);
     };
 
-    this._api.events.subscribe('eth.blockNumber', onBlockNumber);
+    const sendChanges = (subscription) => {
+      this._api.eth
+        .getFilterChanges(subscription.filterId)
+        .then((logs) => {
+          try {
+            subscription.callback(this.parseEventLogs(logs));
+          } catch (error) {
+            console.error('pollChanges', error);
+          }
+        });
+    };
+
+    const onTriggerSend = (blockNumber) => {
+      subscriptions.forEach(sendChanges);
+    };
+
+    // this._api.events.subscribe('eth.blockNumber', onTriggerSend);
+    setInterval(onTriggerSend, 1000);
 
     return event;
   }
