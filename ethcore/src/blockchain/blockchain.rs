@@ -380,7 +380,7 @@ impl BlockChain {
 					children: vec![]
 				};
 
-				let batch = DBTransaction::new(&db);
+				let mut batch = DBTransaction::new(&db);
 				batch.put(db::COL_HEADERS, &hash, block.header_rlp().as_raw());
 				batch.put(db::COL_BODIES, &hash, &Self::block_to_body(genesis));
 
@@ -419,7 +419,7 @@ impl BlockChain {
 					}
 				}
 
-				let batch = db.transaction();
+				let mut batch = db.transaction();
 				batch.put(db::COL_EXTRA, b"first", &hash);
 				db.write(batch).expect("Low level database error.");
 
@@ -451,7 +451,7 @@ impl BlockChain {
 	#[cfg(test)]
 	fn rewind(&self) -> Option<H256> {
 		use db::Key;
-		let batch = self.db.transaction();
+		let mut batch =self.db.transaction();
 		// track back to the best block we have in the blocks database
 		if let Some(best_block_hash) = self.db.get(db::COL_EXTRA, b"best").unwrap() {
 			let best_block_hash = H256::from_slice(&best_block_hash);
@@ -604,7 +604,7 @@ impl BlockChain {
 
 		assert!(self.pending_best_block.read().is_none());
 
-		let batch = self.db.transaction();
+		let mut batch = self.db.transaction();
 
 		let block_rlp = UntrustedRlp::new(bytes);
 		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
@@ -625,7 +625,7 @@ impl BlockChain {
 				location: BlockLocation::CanonChain,
 			};
 
-			self.prepare_update(&batch, ExtrasUpdate {
+			self.prepare_update(&mut batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: self.prepare_block_details_update(bytes, &info),
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
@@ -659,7 +659,7 @@ impl BlockChain {
 			let mut update = HashMap::new();
 			update.insert(hash, block_details);
 
-			self.prepare_update(&batch, ExtrasUpdate {
+			self.prepare_update(&mut batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: update,
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
@@ -682,7 +682,7 @@ impl BlockChain {
 		let mut parent_details = self.block_details(&block_hash)
 			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
 
-		let batch = self.db.transaction();
+		let mut batch = self.db.transaction();
 		parent_details.children.push(child_hash);
 
 		let mut update = HashMap::new();
@@ -701,7 +701,7 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, batch: &DBTransaction, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
+	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -782,7 +782,7 @@ impl BlockChain {
 	}
 
 	/// Prepares extras update.
-	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate, is_best: bool) {
+	fn prepare_update(&self, batch: &mut DBTransaction, update: ExtrasUpdate, is_best: bool) {
 		{
 			let block_hashes: Vec<_> = update.block_details.keys().cloned().collect();
 
@@ -995,8 +995,13 @@ impl BlockChain {
 		let log_blooms = match info.location {
 			BlockLocation::Branch => HashMap::new(),
 			BlockLocation::CanonChain => {
-				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-				chain.insert(info.number as bc::Number, Bloom::from(header.log_bloom()).into())
+				let log_bloom = header.log_bloom();
+				if log_bloom.is_zero() {
+					HashMap::new()
+				} else {
+					let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
+					chain.insert(info.number as bc::Number, Bloom::from(log_bloom).into())
+				}
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let ancestor_number = self.block_number(&data.ancestor).unwrap();
@@ -1142,8 +1147,8 @@ mod tests {
 		assert_eq!(bc.best_block_number(), 0);
 
 		// when
-		let batch = db.transaction();
-		bc.insert_block(&batch, &first, vec![]);
+		let mut batch =db.transaction();
+		bc.insert_block(&mut batch, &first, vec![]);
 		assert_eq!(bc.best_block_number(), 0);
 		bc.commit();
 		// NOTE no db.write here (we want to check if best block is cached)
@@ -1172,8 +1177,8 @@ mod tests {
 		assert_eq!(bc.block_hash(1), None);
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
 
-		let batch = db.transaction();
-		bc.insert_block(&batch, &first, vec![]);
+		let mut batch =db.transaction();
+		bc.insert_block(&mut batch, &first, vec![]);
 		db.write(batch).unwrap();
 		bc.commit();
 
@@ -1198,11 +1203,11 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
-		let batch = db.transaction();
+		let mut batch =db.transaction();
 		for _ in 0..10 {
 			let block = canon_chain.generate(&mut finalizer).unwrap();
 			block_hashes.push(BlockView::new(&block).header_view().sha3());
-			bc.insert_block(&batch, &block, vec![]);
+			bc.insert_block(&mut batch, &block, vec![]);
 			bc.commit();
 		}
 		db.write(batch).unwrap();
@@ -1233,20 +1238,20 @@ mod tests {
 		let db = new_db(temp.as_str());
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
-		let batch = db.transaction();
+		let mut batch =db.transaction();
 		for b in &[&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b] {
-			bc.insert_block(&batch, b, vec![]);
+			bc.insert_block(&mut batch, b, vec![]);
 			bc.commit();
 		}
-		bc.insert_block(&batch, &b1b, vec![]);
-		bc.insert_block(&batch, &b2a, vec![]);
-		bc.insert_block(&batch, &b2b, vec![]);
-		bc.insert_block(&batch, &b3a, vec![]);
-		bc.insert_block(&batch, &b3b, vec![]);
-		bc.insert_block(&batch, &b4a, vec![]);
-		bc.insert_block(&batch, &b4b, vec![]);
-		bc.insert_block(&batch, &b5a, vec![]);
-		bc.insert_block(&batch, &b5b, vec![]);
+		bc.insert_block(&mut batch, &b1b, vec![]);
+		bc.insert_block(&mut batch, &b2a, vec![]);
+		bc.insert_block(&mut batch, &b2b, vec![]);
+		bc.insert_block(&mut batch, &b3a, vec![]);
+		bc.insert_block(&mut batch, &b3b, vec![]);
+		bc.insert_block(&mut batch, &b4a, vec![]);
+		bc.insert_block(&mut batch, &b4b, vec![]);
+		bc.insert_block(&mut batch, &b5a, vec![]);
+		bc.insert_block(&mut batch, &b5b, vec![]);
 		db.write(batch).unwrap();
 
 		assert_eq!(
@@ -1281,17 +1286,17 @@ mod tests {
 		let db = new_db(temp.as_str());
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
-		let batch = db.transaction();
-		let ir1 = bc.insert_block(&batch, &b1, vec![]);
+		let mut batch =db.transaction();
+		let ir1 = bc.insert_block(&mut batch, &b1, vec![]);
 		bc.commit();
-		let ir2 = bc.insert_block(&batch, &b2, vec![]);
+		let ir2 = bc.insert_block(&mut batch, &b2, vec![]);
 		bc.commit();
-		let ir3b = bc.insert_block(&batch, &b3b, vec![]);
+		let ir3b = bc.insert_block(&mut batch, &b3b, vec![]);
 		bc.commit();
 		db.write(batch).unwrap();
 		assert_eq!(bc.block_hash(3).unwrap(), b3b_hash);
-		let batch = db.transaction();
-		let ir3a = bc.insert_block(&batch, &b3a, vec![]);
+		let mut batch =db.transaction();
+		let ir3a = bc.insert_block(&mut batch, &b3a, vec![]);
 		bc.commit();
 		db.write(batch).unwrap();
 
@@ -1397,8 +1402,8 @@ mod tests {
 			let db = new_db(temp.as_str());
 			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
-			let batch = db.transaction();
-			bc.insert_block(&batch, &first, vec![]);
+			let mut batch =db.transaction();
+			bc.insert_block(&mut batch, &first, vec![]);
 			db.write(batch).unwrap();
 			bc.commit();
 			assert_eq!(bc.best_block_hash(), first_hash);
@@ -1462,8 +1467,8 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
-		let batch = db.transaction();
-		bc.insert_block(&batch, &b1, vec![]);
+		let mut batch =db.transaction();
+		bc.insert_block(&mut batch, &b1, vec![]);
 		db.write(batch).unwrap();
 		bc.commit();
 
@@ -1475,8 +1480,8 @@ mod tests {
 	}
 
 	fn insert_block(db: &Arc<Database>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
-		let batch = db.transaction();
-		let res = bc.insert_block(&batch, bytes, receipts);
+		let mut batch =db.transaction();
+		let res = bc.insert_block(&mut batch, bytes, receipts);
 		db.write(batch).unwrap();
 		bc.commit();
 		res
@@ -1564,16 +1569,16 @@ mod tests {
 			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
 
-			let batch = db.transaction();
+			let mut batch =db.transaction();
 			// create a longer fork
 			for _ in 0..5 {
 				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
-				bc.insert_block(&batch, &canon_block, vec![]);
+				bc.insert_block(&mut batch, &canon_block, vec![]);
 				bc.commit();
 			}
 
 			assert_eq!(bc.best_block_number(), 5);
-			bc.insert_block(&batch, &uncle, vec![]);
+			bc.insert_block(&mut batch, &uncle, vec![]);
 			db.write(batch).unwrap();
 			bc.commit();
 		}
@@ -1599,10 +1604,10 @@ mod tests {
 		let db = new_db(temp.as_str());
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
-		let batch = db.transaction();
-		bc.insert_block(&batch, &first, vec![]);
+		let mut batch =db.transaction();
+		bc.insert_block(&mut batch, &first, vec![]);
 		bc.commit();
-		bc.insert_block(&batch, &second, vec![]);
+		bc.insert_block(&mut batch, &second, vec![]);
 		bc.commit();
 		db.write(batch).unwrap();
 

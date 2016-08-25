@@ -32,7 +32,7 @@ use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
@@ -345,6 +345,7 @@ impl Configuration {
 		SignerConfiguration {
 			enabled: self.signer_enabled(),
 			port: self.args.flag_signer_port,
+			interface: self.signer_interface(),
 			signer_path: self.directories().signer,
 			skip_origin_validation: self.args.flag_signer_no_validation,
 		}
@@ -440,11 +441,21 @@ impl Configuration {
 		ret.min_peers = self.min_peers();
 		let mut net_path = PathBuf::from(self.directories().db);
 		net_path.push("network");
+		let net_specific_path = net_path.join(&try!(self.network_specific_path()));
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
+		ret.net_config_path = Some(net_specific_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
-
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
 		Ok(ret)
+	}
+
+	fn network_specific_path(&self) -> Result<PathBuf, String> {
+		let spec_type : SpecType = try!(self.chain().parse());
+		let spec = try!(spec_type.spec());
+		let id = try!(self.network_id());
+		let mut path = PathBuf::new();
+		path.push(format!("{}", id.unwrap_or_else(|| spec.network_id())));
+		Ok(path)
 	}
 
 	fn network_id(&self) -> Result<Option<U256>, String> {
@@ -530,6 +541,15 @@ impl Configuration {
 				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
 		}
 
+		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
+			let mut path_buf = PathBuf::from(db_path.clone());
+			path_buf.push("ipc");
+			let ipc_path = path_buf.to_str().unwrap();
+			::std::fs::create_dir_all(ipc_path).unwrap_or_else(
+				|e| warn!("Failed to directory '{}' for ipc sockets: {}", ipc_path, e)
+			);
+		}
+
 		Directories {
 			keys: keys_path,
 			db: db_path,
@@ -552,6 +572,13 @@ impl Configuration {
 		} else {
 			Some(self.args.flag_signer_port)
 		}
+	}
+
+	fn signer_interface(&self) -> String {
+		match self.args.flag_signer_interface.as_str() {
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
 	}
 
 	fn rpc_interface(&self) -> String {
@@ -595,6 +622,7 @@ mod tests {
 	use ethcore::client::{VMType, BlockID};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
+	use signer::Configuration as SignerConfiguration;
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
@@ -857,16 +885,44 @@ mod tests {
 	}
 
 	#[test]
-	fn should_parse_signer_allow_all_flag() {
+	fn should_parse_signer_configration() {
 		// given
 
 		// when
-		let conf0 = parse(&["parity", "--signer-no-validation"]);
-		let conf1 = parse(&["parity"]);
+		let conf0 = parse(&["parity", "--signer-path", "signer"]);
+		let conf1 = parse(&["parity", "--signer-path", "signer", "--signer-no-validation"]);
+		let conf2 = parse(&["parity", "--signer-path", "signer", "--signer-port", "3123"]);
+		let conf3 = parse(&["parity", "--signer-path", "signer", "--signer-interface", "test"]);
 
 		// then
-		assert_eq!(conf0.args.flag_signer_no_validation, true);
-		assert_eq!(conf1.args.flag_signer_no_validation, false);
+		assert_eq!(conf0.signer_config(), SignerConfiguration {
+			enabled: true,
+			port: 8180,
+			interface: "127.0.0.1".into(),
+			signer_path: "signer".into(),
+			skip_origin_validation: false,
+		});
+		assert_eq!(conf1.signer_config(), SignerConfiguration {
+			enabled: true,
+			port: 8180,
+			interface: "127.0.0.1".into(),
+			signer_path: "signer".into(),
+			skip_origin_validation: true,
+		});
+		assert_eq!(conf2.signer_config(), SignerConfiguration {
+			enabled: true,
+			port: 3123,
+			interface: "127.0.0.1".into(),
+			signer_path: "signer".into(),
+			skip_origin_validation: false,
+		});
+		assert_eq!(conf3.signer_config(), SignerConfiguration {
+			enabled: true,
+			port: 8180,
+			interface: "test".into(),
+			signer_path: "signer".into(),
+			skip_origin_validation: false,
+		});
 	}
 
 	#[test]

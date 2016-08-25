@@ -62,6 +62,7 @@ linux-nightly:
     paths:
     - target/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
@@ -91,10 +92,6 @@ linux-armv7:
     - tags
     - stable
   script:
-    - mkdir -p .cargo
-    - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    - cat .cargo/config
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
   tags:
@@ -113,10 +110,6 @@ linux-arm:
     - tags
     - stable
   script:
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
   tags:
@@ -126,6 +119,7 @@ linux-arm:
     paths:
     - target/arm-unknown-linux-gnueabihf/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-armv6:
   stage: build
   image: ethcore/rust-arm:latest
@@ -135,10 +129,6 @@ linux-armv6:
     - tags
     - stable
   script:
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
-    - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabi --release --verbose
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
   tags:
@@ -148,6 +138,7 @@ linux-armv6:
     paths:
     - target/arm-unknown-linux-gnueabi/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-aarch64:
   stage: build
   image: ethcore/rust-arm:latest
@@ -157,10 +148,6 @@ linux-aarch64:
     - tags
     - stable
   script:
-    - mkdir -p .cargo
-    - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
-    - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
-    - cat .cargo/config
     - cargo build --target aarch64-unknown-linux-gnu --release --verbose
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
   tags:
@@ -170,6 +157,7 @@ linux-aarch64:
     paths:
     - target/aarch64-unknown-linux-gnu/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 darwin:
   stage: build
   only:

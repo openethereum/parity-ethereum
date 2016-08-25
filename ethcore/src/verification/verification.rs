@@ -228,6 +228,7 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 #[cfg(test)]
 mod tests {
 	use util::*;
+	use ethkey::{Random, Generator};
 	use header::*;
 	use verification::*;
 	use blockchain::extras::*;
@@ -355,7 +356,7 @@ mod tests {
 		good.timestamp = 40;
 		good.number = 10;
 
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 
 		let tr1 = Transaction {
 			action: Action::Create,

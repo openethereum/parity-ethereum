@@ -18,8 +18,7 @@ use std::cell::{RefCell, RefMut};
 use common::*;
 use engines::Engine;
 use executive::{Executive, TransactOptions};
-use evm::Factory as EvmFactory;
-use account_db::*;
+use factory::Factories;
 use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
@@ -49,7 +48,7 @@ pub struct State {
 	cache: RefCell<HashMap<Address, Option<Account>>>,
 	snapshots: RefCell<Vec<HashMap<Address, Option<Option<Account>>>>>,
 	account_start_nonce: U256,
-	trie_factory: TrieFactory,
+	factories: Factories,
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
@@ -58,11 +57,11 @@ const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with v
 impl State {
 	/// Creates new state with empty state root
 	#[cfg(test)]
-	pub fn new(mut db: Box<JournalDB>, account_start_nonce: U256, trie_factory: TrieFactory) -> State {
+	pub fn new(mut db: Box<JournalDB>, account_start_nonce: U256, factories: Factories) -> State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
-			let _ = trie_factory.create(db.as_hashdb_mut(), &mut root);
+			let _ = factories.trie.create(db.as_hashdb_mut(), &mut root);
 		}
 
 		State {
@@ -71,12 +70,12 @@ impl State {
 			cache: RefCell::new(HashMap::new()),
 			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
-			trie_factory: trie_factory,
+			factories: factories,
 		}
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, trie_factory: TrieFactory) -> Result<State, TrieError> {
+	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, factories: Factories) -> Result<State, TrieError> {
 		if !db.as_hashdb().contains(&root) {
 			return Err(TrieError::InvalidStateRoot(root));
 		}
@@ -87,7 +86,7 @@ impl State {
 			cache: RefCell::new(HashMap::new()),
 			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
-			trie_factory: trie_factory,
+			factories: factories
 		};
 
 		Ok(state)
@@ -185,8 +184,11 @@ impl State {
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.ensure_cached(address, false,
-			|a| a.as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key)))
+		self.ensure_cached(address, false, |a| a.as_ref().map_or(H256::new(), |a| {
+			let addr_hash = a.address_hash(address);
+			let db = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+			a.storage_at(db.as_hashdb(), key)
+		}))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
@@ -236,11 +238,12 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, vm_factory: &EvmFactory, t: &SignedTransaction, tracing: bool) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
-		let e = try!(Executive::new(self, env_info, engine, vm_factory).transact(t, options));
+		let vm_factory = self.factories.vm.clone();
+		let e = try!(Executive::new(self, env_info, engine, &vm_factory).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
@@ -254,27 +257,27 @@ impl State {
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	pub fn commit_into(
-		trie_factory: &TrieFactory,
+		factories: &Factories,
 		db: &mut HashDB,
 		root: &mut H256,
-		accounts: &mut HashMap<Address,
-		Option<Account>>
+		accounts: &mut HashMap<Address, Option<Account>>
 	) -> Result<(), Error> {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
 				&mut&mut Some(ref mut account) if account.is_dirty() => {
-					let mut account_db = AccountDBMut::from_hash(db, account.address_hash(address));
-					account.commit_storage(trie_factory, &mut account_db);
-					account.commit_code(&mut account_db);
+					let addr_hash = account.address_hash(address);
+					let mut account_db = factories.accountdb.create(db, addr_hash);
+					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
+					account.commit_code(account_db.as_hashdb_mut());
 				}
 				_ => {}
 			}
 		}
 
 		{
-			let mut trie = trie_factory.from_existing(db, root).unwrap();
+			let mut trie = factories.trie.from_existing(db, root).unwrap();
 			for (address, ref mut a) in accounts.iter_mut() {
 				match **a {
 					Some(ref mut account) if account.is_dirty() => {
@@ -293,7 +296,7 @@ impl State {
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
 		assert!(self.snapshots.borrow().is_empty());
-		Self::commit_into(&self.trie_factory, self.db.as_hashdb_mut(), &mut self.root, &mut *self.cache.borrow_mut())
+		Self::commit_into(&self.factories, self.db.as_hashdb_mut(), &mut self.root, &mut *self.cache.borrow_mut())
 	}
 
 	/// Clear state cache
@@ -351,7 +354,7 @@ impl State {
 		where F: FnOnce(&Option<Account>) -> U {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 			let maybe_acc = match db.get(a) {
 				Ok(acc) => acc.map(Account::from_rlp),
 				Err(e) => panic!("Potential DB corruption encountered: {}", e),
@@ -361,7 +364,8 @@ impl State {
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
 				let addr_hash = account.address_hash(a);
-				account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+				account.cache_code(accountdb.as_hashdb());
 			}
 		}
 
@@ -380,7 +384,7 @@ impl State {
 	{
 		let contains_key = self.cache.borrow().contains_key(a);
 		if !contains_key {
-			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 			let maybe_acc = match db.get(a) {
 				Ok(acc) => acc.map(Account::from_rlp),
 				Err(e) => panic!("Potential DB corruption encountered: {}", e),
@@ -400,7 +404,8 @@ impl State {
 			let account = c.get_mut(a).unwrap().as_mut().unwrap();
 			if require_code {
 				let addr_hash = account.address_hash(a);
-				account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+				account.cache_code(accountdb.as_hashdb());
 			}
 			account
 		})
@@ -421,7 +426,7 @@ impl Clone for State {
 			cache: RefCell::new(self.cache.borrow().clone()),
 			snapshots: RefCell::new(self.snapshots.borrow().clone()),
 			account_start_nonce: self.account_start_nonce.clone(),
-			trie_factory: self.trie_factory.clone(),
+			factories: self.factories.clone(),
 		}
 	}
 }
@@ -464,8 +469,7 @@ fn should_apply_create_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 0,
@@ -525,8 +529,7 @@ fn should_trace_failed_create_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		action: trace::Action::Create(trace::Create {
@@ -564,8 +567,7 @@ fn should_trace_call_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
@@ -607,8 +609,7 @@ fn should_trace_basic_call_transaction() {
 	}.sign(&"".sha3());
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
@@ -649,8 +650,7 @@ fn should_trace_call_transaction_to_builtin() {
 		data: vec![],
 	}.sign(&"".sha3());
 
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -693,8 +693,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 	}.sign(&"".sha3());
 
 	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -738,8 +737,7 @@ fn should_not_trace_callcode() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -801,8 +799,7 @@ fn should_not_trace_delegatecall() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -861,8 +858,7 @@ fn should_trace_failed_call_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		action: trace::Action::Call(trace::Call {
@@ -903,8 +899,7 @@ fn should_trace_call_with_subcall_transaction() {
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -963,8 +958,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 1,
@@ -1019,8 +1013,7 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 0,
@@ -1064,8 +1057,7 @@ fn should_trace_failed_subcall_transaction() {
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 1,
@@ -1122,8 +1114,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
 	state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 1,
@@ -1198,8 +1189,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
 	state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
@@ -1271,8 +1261,7 @@ fn should_trace_suicide() {
 	state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
 	state.add_balance(&0xa.into(), &50.into());
 	state.add_balance(t.sender().as_ref().unwrap(), &100.into());
-	let vm_factory = Default::default();
-	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
+	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
 		trace_address: Default::default(),
 		subtraces: 1,

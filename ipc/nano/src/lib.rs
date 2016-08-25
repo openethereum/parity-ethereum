@@ -28,7 +28,7 @@ use nanomsg::{Socket, Protocol, Error, Endpoint, PollRequest, PollFd, PollInOut}
 use std::ops::Deref;
 
 const POLL_TIMEOUT: isize = 200;
-const CLIENT_CONNECTION_TIMEOUT: isize = 15000;
+const CLIENT_CONNECTION_TIMEOUT: isize = 120000;
 
 /// Generic worker to handle service (binded) sockets
 pub struct Worker<S: ?Sized> where S: IpcInterface {
@@ -97,6 +97,7 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 		SocketError::RequestLink
 	}));
 
+	trace!(target: "ipc", "Created cleint for {}", socket_addr);
 	Ok(GuardedSocket {
 		client: Arc::new(S::init(socket)),
 		_endpoint: endpoint,
@@ -189,6 +190,8 @@ impl<S: ?Sized> Worker<S> where S: IpcInterface {
 
 		self.rebuild_poll_request();
 
+		trace!(target: "ipc", "Started duplex worker at {}", addr);
+
 		Ok(())
 	}
 
@@ -200,6 +203,7 @@ impl<S: ?Sized> Worker<S> where S: IpcInterface {
 			SocketError::DuplexLink
 		}));
 
+
 		let endpoint = try!(socket.bind(addr).map_err(|e| {
 			warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", addr, e);
 			SocketError::DuplexLink
@@ -209,6 +213,7 @@ impl<S: ?Sized> Worker<S> where S: IpcInterface {
 
 		self.rebuild_poll_request();
 
+		trace!(target: "ipc", "Started request-reply worker at {}", addr);
 		Ok(())
 	}
 }

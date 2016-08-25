@@ -57,8 +57,23 @@ extern crate lazy_static;
 extern crate regex;
 extern crate isatty;
 
+#[cfg(feature="stratum")]
+extern crate ethcore_stratum;
+
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
+
+macro_rules! dependency {
+	($dep_ty:ident, $url:expr) => {
+		{
+			let dep = boot::dependency::<$dep_ty<_>>($url)
+				.unwrap_or_else(|e| panic!("Fatal: error connecting service ({:?})", e));
+			dep.handshake()
+				.unwrap_or_else(|e| panic!("Fatal: error in connected service ({:?})", e));
+			dep
+		}
+	}
+}
 
 mod cache;
 mod upgrade;
@@ -83,6 +98,10 @@ mod presale;
 mod run;
 mod sync;
 mod snapshot;
+mod boot;
+
+#[cfg(feature="stratum")]
+mod stratum;
 
 use std::{process, env};
 use cli::print_version;
@@ -116,12 +135,33 @@ fn start() -> Result<String, String> {
 	execute(cmd)
 }
 
+#[cfg(feature="stratum")]
+mod stratum_optional {
+	pub fn probably_run() -> bool {
+		// just redirect to the stratum::main()
+		if ::std::env::args().nth(1).map_or(false, |arg| arg == "stratum") {
+			super::stratum::main();
+			true
+		}
+		else { false }
+	}
+}
+
+#[cfg(not(feature="stratum"))]
+mod stratum_optional {
+	pub fn probably_run() -> bool {
+		false
+	}
+}
+
 fn main() {
 	// just redirect to the sync::main()
 	if std::env::args().nth(1).map_or(false, |arg| arg == "sync") {
 		sync::main();
 		return;
 	}
+
+	if stratum_optional::probably_run() { return; }
 
 	match start() {
 		Ok(result) => {

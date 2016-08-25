@@ -66,6 +66,7 @@ use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
 use util::TrieFactory;
 use snapshot::{self, io as snapshot_io};
+use factory::Factories;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -131,8 +132,6 @@ pub struct Client {
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
 	verifier: Box<Verifier>,
-	vm_factory: Arc<EvmFactory>,
-	trie_factory: TrieFactory,
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
@@ -140,6 +139,7 @@ pub struct Client {
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	last_hashes: RwLock<VecDeque<H256>>,
+	factories: Factories,
 }
 
 const HISTORY: u64 = 1200;
@@ -173,8 +173,8 @@ impl Client {
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
-			let batch = DBTransaction::new(&db);
-			try!(state_db.commit(&batch, 0, &spec.genesis_header().hash(), None));
+			let mut batch = DBTransaction::new(&db);
+			try!(state_db.commit(&mut batch, 0, &spec.genesis_header().hash(), None));
 			try!(db.write(batch).map_err(ClientError::Database));
 		}
 
@@ -189,6 +189,13 @@ impl Client {
 		panic_handler.forward_from(&block_queue);
 
 		let awake = match config.mode { Mode::Dark(..) => false, _ => true };
+
+		let factories = Factories {
+			vm: EvmFactory::new(config.vm_type),
+			trie: TrieFactory::new(config.trie_spec),
+			accountdb: Default::default(),
+		};
+
 		let client = Client {
 			sleep_state: Mutex::new(SleepState::new(awake)),
 			liveness: AtomicBool::new(awake),
@@ -203,13 +210,12 @@ impl Client {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			verifier: verification::new(config.verifier_type),
-			vm_factory: Arc::new(EvmFactory::new(config.vm_type)),
-			trie_factory: TrieFactory::new(config.trie_spec),
 			miner: miner,
 			io_channel: message_channel,
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
 			last_hashes: RwLock::new(VecDeque::new()),
+			factories: factories,
 		};
 		Ok(Arc::new(client))
 	}
@@ -290,7 +296,7 @@ impl Client {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().boxed_clone();
 
-		let enact_result = enact_verified(block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
+		let enact_result = enact_verified(block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -426,14 +432,14 @@ impl Client {
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
-		let batch = DBTransaction::new(&self.db);
+		let mut batch = DBTransaction::new(&self.db);
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(&batch, number, hash, ancient).expect("DB commit failed.");
+		block.drain().commit(&mut batch, number, hash, ancient).expect("DB commit failed.");
 
-		let route = self.chain.insert_block(&batch, block_data, receipts);
-		self.tracedb.import(&batch, TraceImportRequest {
+		let route = self.chain.insert_block(&mut batch, block_data, receipts);
+		self.tracedb.import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
 			block_hash: hash.clone(),
 			block_number: number,
@@ -494,7 +500,7 @@ impl Client {
 
 			let root = HeaderView::new(&header).state_root();
 
-			State::from_existing(db, root, self.engine.account_start_nonce(), self.trie_factory.clone()).ok()
+			State::from_existing(db, root, self.engine.account_start_nonce(), self.factories.clone()).ok()
 		})
 	}
 
@@ -519,7 +525,7 @@ impl Client {
 			self.state_db.lock().boxed_clone(),
 			HeaderView::new(&self.best_block_header()).state_root(),
 			self.engine.account_start_nonce(),
-			self.trie_factory.clone())
+			self.factories.clone())
 		.expect("State root of best block header always valid.")
 	}
 
@@ -689,7 +695,7 @@ impl BlockChainClient for Client {
 			state.add_balance(&sender, &(needed_balance - balance));
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, options));
+		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options));
 
 		// TODO gav move this into Executive.
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
@@ -721,7 +727,7 @@ impl BlockChainClient for Client {
 			gas_limit: view.gas_limit(),
 		};
 		for t in txs.iter().take(address.index) {
-			match Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, Default::default()) {
+			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
@@ -729,7 +735,7 @@ impl BlockChainClient for Client {
 		let t = &txs[address.index];
 
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, options));
+		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options));
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
@@ -1045,8 +1051,7 @@ impl MiningBlockChainClient for Client {
 
 		let mut open_block = OpenBlock::new(
 			engine,
-			&self.vm_factory,
-			self.trie_factory.clone(),
+			self.factories.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().boxed_clone(),
 			&self.chain.block_header(&h).expect("h is best block hash: so its header must exist: qed"),
@@ -1070,7 +1075,7 @@ impl MiningBlockChainClient for Client {
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {
-		&self.vm_factory
+		&self.factories.vm
 	}
 
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {

@@ -125,6 +125,8 @@ impl Restoration {
 			try!(self.state.feed(&self.snappy_buffer[..len]));
 
 			if self.state_chunks_left.is_empty() {
+				try!(self.state.check_missing());
+
 				let root = self.state.state_root();
 				if root != self.final_state_root {
 					warn!("Final restored state has wrong state root: expected {:?}, got {:?}", root, self.final_state_root);

@@ -23,12 +23,27 @@ use self::no_ipc_deps::*;
 #[cfg(feature="ipc")]
 use self::ipc_deps::*;
 use ethcore_logger::Config as LogConfig;
+use std::path::Path;
 
 pub mod service_urls {
-	pub const CLIENT: &'static str = "ipc:///tmp/parity-chain.ipc";
-	pub const SYNC: &'static str = "ipc:///tmp/parity-sync.ipc";
-	pub const SYNC_NOTIFY: &'static str = "ipc:///tmp/parity-sync-notify.ipc";
-	pub const NETWORK_MANAGER: &'static str = "ipc:///tmp/parity-manage-net.ipc";
+	use std::path::PathBuf;
+
+	pub const CLIENT: &'static str = "parity-chain.ipc";
+	pub const SYNC: &'static str = "parity-sync.ipc";
+	pub const SYNC_NOTIFY: &'static str = "parity-sync-notify.ipc";
+	pub const NETWORK_MANAGER: &'static str = "parity-manage-net.ipc";
+	#[cfg(feature="stratum")]
+	pub const STRATUM: &'static str = "parity-stratum.ipc";
+	#[cfg(feature="stratum")]
+	pub const MINING_JOB_DISPATCHER: &'static str = "parity-mining-jobs.ipc";
+
+
+	pub fn with_base(data_dir: &str, service_path: &str) -> String {
+		let mut path = PathBuf::from(data_dir);
+		path.push(service_path);
+
+		format!("ipc://{}", path.to_str().unwrap())
+	}
 }
 
 #[cfg(not(feature="ipc"))]
@@ -51,27 +66,30 @@ pub type SyncModules = (Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>)
 mod ipc_deps {
 	pub use ethsync::{SyncClient, NetworkManagerClient, ServiceConfiguration};
 	pub use ethcore::client::ChainNotifyClient;
-	pub use hypervisor::{SYNC_MODULE_ID, BootArgs};
+	pub use hypervisor::{SYNC_MODULE_ID, BootArgs, HYPERVISOR_IPC_URL};
 	pub use nanoipc::{GuardedSocket, NanoSocket, init_client};
 	pub use ipc::IpcSocket;
 	pub use ipc::binary::serialize;
 }
 
 #[cfg(feature="ipc")]
-pub fn hypervisor() -> Option<Hypervisor> {
-	Some(Hypervisor::new())
+pub fn hypervisor(base_path: &Path) -> Option<Hypervisor> {
+	Some(Hypervisor
+		::with_url(&service_urls::with_base(base_path.to_str().unwrap(), HYPERVISOR_IPC_URL))
+		.io_path(base_path.to_str().unwrap()))
 }
 
 #[cfg(not(feature="ipc"))]
-pub fn hypervisor() -> Option<Hypervisor> {
+pub fn hypervisor(_: &Path) -> Option<Hypervisor> {
 	None
 }
 
 #[cfg(feature="ipc")]
-fn sync_arguments(sync_cfg: SyncConfig, net_cfg: NetworkConfiguration, log_settings: &LogConfig) -> BootArgs {
+fn sync_arguments(io_path: &str, sync_cfg: SyncConfig, net_cfg: NetworkConfiguration, log_settings: &LogConfig) -> BootArgs {
 	let service_config = ServiceConfiguration {
 		sync: sync_cfg,
 		net: net_cfg,
+		io_path: io_path.to_owned(),
 	};
 
 	// initialisation payload is passed via stdin
@@ -105,14 +123,18 @@ pub fn sync
 	-> Result<SyncModules, NetworkError>
 {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
-	hypervisor = hypervisor.module(SYNC_MODULE_ID, "parity", sync_arguments(sync_cfg, net_cfg, log_settings));
+	let args = sync_arguments(&hypervisor.io_path, sync_cfg, net_cfg, log_settings);
+	hypervisor = hypervisor.module(SYNC_MODULE_ID, args);
 
 	hypervisor.start();
 	hypervisor.wait_for_startup();
 
-	let sync_client = init_client::<SyncClient<_>>(service_urls::SYNC).unwrap();
-	let notify_client = init_client::<ChainNotifyClient<_>>(service_urls::SYNC_NOTIFY).unwrap();
-	let manage_client = init_client::<NetworkManagerClient<_>>(service_urls::NETWORK_MANAGER).unwrap();
+	let sync_client = init_client::<SyncClient<_>>(
+		&service_urls::with_base(&hypervisor.io_path, service_urls::SYNC)).unwrap();
+	let notify_client = init_client::<ChainNotifyClient<_>>(
+		&service_urls::with_base(&hypervisor.io_path, service_urls::SYNC_NOTIFY)).unwrap();
+	let manage_client = init_client::<NetworkManagerClient<_>>(
+		&service_urls::with_base(&hypervisor.io_path, service_urls::NETWORK_MANAGER)).unwrap();
 
 	*hypervisor_ref = Some(hypervisor);
 	Ok((sync_client, manage_client, notify_client))

@@ -16,18 +16,16 @@
 
 //! Transaction data structure.
 
-use util::{H256, Address, U256, H520};
 use std::ops::Deref;
-use util::rlp::*;
-use util::sha3::*;
-use util::{UtilError, CryptoError, Bytes, Signature, Secret, ec};
-use util::crypto::{signature_from_rsv, signature_to_rsv};
 use std::cell::*;
+use util::rlp::*;
+use util::sha3::Hashable;
+use util::{H256, Address, U256, Bytes};
+use ethkey::{Signature, sign, Secret, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
-use ethstore::ethkey::Signature as EthkeySignature;
 
 #[derive(Debug, Clone, PartialEq, Eq, Binary)]
 /// Transaction action type.
@@ -139,19 +137,17 @@ impl Transaction {
 
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(self, secret: &Secret) -> SignedTransaction {
-		let sig = ec::sign(secret, &self.hash()).unwrap();
-		self.with_signature(sig.into())
+		let sig = sign(secret, &self.hash()).unwrap();
+		self.with_signature(sig)
 	}
 
 	/// Signs the transaction with signature.
-	pub fn with_signature(self, sig: EthkeySignature) -> SignedTransaction {
-		let sig: H520 = sig.into();
-		let (r, s, v) = signature_to_rsv(&sig);
+	pub fn with_signature(self, sig: Signature) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
-			r: r,
-			s: s,
-			v: v + 27,
+			r: sig.r().into(),
+			s: sig.s().into(),
+			v: sig.v() + 27,
 			hash: Cell::new(None),
 			sender: Cell::new(None),
 		}
@@ -290,12 +286,14 @@ impl SignedTransaction {
 	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
 
 	/// Construct a signature object from the sig.
-	pub fn signature(&self) -> Signature { signature_from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v()) }
+	pub fn signature(&self) -> Signature {
+		Signature::from_rsv(&self.r.into(), &self.s.into(), self.standard_v())
+	}
 
 	/// Checks whether the signature has a low 's' value.
 	pub fn check_low_s(&self) -> Result<(), Error> {
-		if !ec::is_low_s(&self.s) {
-			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)))
+		if !self.signature().is_low_s() {
+			Err(EthkeyError::InvalidSignature.into())
 		} else {
 			Ok(())
 		}
@@ -307,7 +305,7 @@ impl SignedTransaction {
 		match sender {
 			Some(s) => Ok(s),
 			None => {
-				let s = Address::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3());
+				let s = public_to_address(&try!(recover(&self.signature(), &self.unsigned.hash())));
 				self.sender.set(Some(s));
 				Ok(s)
 			}
@@ -319,8 +317,8 @@ impl SignedTransaction {
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
 	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<SignedTransaction, Error> {
-		if require_low && !ec::is_low_s(&self.s) {
-			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));
+		if require_low && !self.signature().is_low_s() {
+			return Err(EthkeyError::InvalidSignature.into())
 		}
 		try!(self.sender());
 		if self.gas < U256::from(self.gas_required(&schedule)) {
@@ -368,7 +366,9 @@ fn sender_test() {
 
 #[test]
 fn signing() {
-	let key = ::util::crypto::KeyPair::create().unwrap();
+	use ethkey::{Random, Generator};
+
+	let key = Random.generate().unwrap();
 	let t = Transaction {
 		action: Action::Create,
 		nonce: U256::from(42),

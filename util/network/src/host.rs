@@ -23,12 +23,11 @@ use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
-use std::default::Default;
 use std::fs;
+use ethkey::{KeyPair, Secret, Random, Generator};
 use mio::*;
 use mio::tcp::*;
 use util::hash::*;
-use util::crypto::*;
 use util::Hashable;
 use util::rlp::*;
 use util::version;
@@ -53,8 +52,10 @@ const MAINTENANCE_TIMEOUT: u64 = 1000;
 #[derive(Debug, PartialEq, Clone)]
 /// Network service configuration
 pub struct NetworkConfiguration {
-	/// Directory path to store network configuration. None means nothing will be saved
+	/// Directory path to store general network configuration. None means nothing will be saved
 	pub config_path: Option<String>,
+	/// Directory path to store network-specific configuration. None means nothing will be saved
+	pub net_config_path: Option<String>,
 	/// IP address to listen for incoming connections. Listen to all connections by default
 	pub listen_address: Option<SocketAddr>,
 	/// IP address to advertise. Detected automatically if none.
@@ -90,6 +91,7 @@ impl NetworkConfiguration {
 	pub fn new() -> Self {
 		NetworkConfiguration {
 			config_path: None,
+			net_config_path: None,
 			listen_address: None,
 			public_address: None,
 			udp_port: None,
@@ -359,7 +361,7 @@ impl Host {
 		} else {
 			config.config_path.clone().and_then(|ref p| load_key(Path::new(&p)))
 				.map_or_else(|| {
-				let key = KeyPair::create().unwrap();
+				let key = Random.generate().unwrap();
 				if let Some(path) = config.config_path.clone() {
 					save_key(Path::new(&path), key.secret());
 				}
@@ -367,7 +369,7 @@ impl Host {
 			},
 			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
 		};
-		let path = config.config_path.clone();
+		let path = config.net_config_path.clone();
 		// Setup the server socket
 		let tcp_listener = try!(TcpListener::bind(&listen_address));
 		listen_address = SocketAddr::new(listen_address.ip(), try!(tcp_listener.local_addr()).port());

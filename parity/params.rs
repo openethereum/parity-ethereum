@@ -179,7 +179,7 @@ pub enum GasPricerConfig {
 impl Default for GasPricerConfig {
 	fn default() -> Self {
 		GasPricerConfig::Calibrated {
-			usd_per_tx: 0.005,
+			usd_per_tx: 0f32,
 			recalibration_period: Duration::from_secs(3600),
 		}
 	}

@@ -187,7 +187,8 @@ fn should_extract_path_with_appid() {
 		path: EndpointPath {
 			app_id: "app".to_owned(),
 			host: "".to_owned(),
-			port: 8080
+			port: 8080,
+			using_dapps_domains: true,
 		},
 		file: None,
 		safe_to_embed: true,

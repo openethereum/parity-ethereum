@@ -30,11 +30,13 @@ extern crate jsonrpc_http_server;
 extern crate ethcore_util as util;
 extern crate ethcore_io as io;
 extern crate ethcore;
+extern crate ethkey;
 extern crate ethstore;
 extern crate ethsync;
 extern crate transient_hashmap;
 extern crate json_ipc_server as ipc;
 extern crate ethcore_ipc;
+extern crate time;
 
 #[cfg(test)]
 extern crate ethjson;

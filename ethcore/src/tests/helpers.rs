@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
@@ -139,14 +140,13 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	let mut db_result = get_temp_journal_db();
 	let mut db = db_result.take();
 	test_spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
-	let vm_factory = Default::default();
 	let genesis_header = test_spec.genesis_header();
 
 	let mut rolling_timestamp = 40;
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret("".sha3()).unwrap()	;
+	let kp = KeyPair::from_secret("".sha3()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;
@@ -156,7 +156,6 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 		// forge block.
 		let mut b = OpenBlock::new(
 			test_engine,
-			&vm_factory,
 			Default::default(),
 			false,
 			db,
@@ -260,9 +259,9 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 	let db = new_db(temp.as_str());
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
-	let batch = db.transaction();
+	let mut batch = db.transaction();
 	for block_order in 1..block_number {
-		bc.insert_block(&batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
+		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
 		bc.commit();
 	}
 	db.write(batch).unwrap();
@@ -279,9 +278,9 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
 
-	let batch = db.transaction();
+	let mut batch = db.transaction();
 	for block_order in 1..block_number {
-		bc.insert_block(&batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
+		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
 		bc.commit();
 	}
 	db.write(batch).unwrap();

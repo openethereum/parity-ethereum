@@ -24,12 +24,14 @@ use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::collections::HashMap;
+use rustc_serialize::hex::FromHex;
 
 use hyper::Control;
 use hyper::status::StatusCode;
 
 use random_filename;
-use util::Mutex;
+use util::{Mutex, H256};
+use util::sha3::sha3;
 use page::LocalPageEndpoint;
 use handlers::{ContentHandler, AppFetcherHandler, DappHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};
@@ -51,12 +53,6 @@ impl<R: URLHint> Drop for AppFetcher<R> {
 	fn drop(&mut self) {
 		// Clear cache path
 		let _ = fs::remove_dir_all(&self.dapps_path);
-	}
-}
-
-impl Default for AppFetcher<URLHintContract> {
-	fn default() -> Self {
-		AppFetcher::new(URLHintContract)
 	}
 }
 
@@ -84,7 +80,10 @@ impl<R: URLHint> AppFetcher<R> {
 			// Check if we already have the app
 			Some(_) => true,
 			// fallback to resolver
-			None => self.resolver.resolve(app_id).is_some(),
+			None => match app_id.from_hex() {
+				Ok(app_id) => self.resolver.resolve(app_id).is_some(),
+				_ => false,
+			},
 		}
 	}
 
@@ -103,16 +102,22 @@ impl<R: URLHint> AppFetcher<R> {
 				Some(&AppStatus::Fetching) => {
 					(None, Box::new(ContentHandler::html(
 						StatusCode::ServiceUnavailable,
-						"<h1>This dapp is already being downloaded.</h1>".into()
+						format!(
+							"<html><head>{}</head><body>{}</body></html>",
+							"<meta http-equiv=\"refresh\" content=\"1\">",
+							"<h1>This dapp is already being downloaded.</h1><h2>Please wait...</h2>",
+						)
 					)) as Box<Handler>)
 				},
 				// We need to start fetching app
 				None => {
 					// TODO [todr] Keep only last N dapps available!
-					let app = self.resolver.resolve(&app_id).expect("to_handler is called only when `contains` returns true.");
+					let app_hex = app_id.from_hex().expect("to_handler is called only when `contains` returns true.");
+					let app = self.resolver.resolve(app_hex).expect("to_handler is called only when `contains` returns true.");
 					(Some(AppStatus::Fetching), Box::new(AppFetcherHandler::new(
 						app,
 						control,
+						path.using_dapps_domains,
 						DappInstaller {
 							dapp_id: app_id.clone(),
 							dapps_path: self.dapps_path.clone(),
@@ -133,10 +138,12 @@ impl<R: URLHint> AppFetcher<R> {
 
 #[derive(Debug)]
 pub enum ValidationError {
-	ManifestNotFound,
-	ManifestSerialization(String),
 	Io(io::Error),
 	Zip(zip::result::ZipError),
+	InvalidDappId,
+	ManifestNotFound,
+	ManifestSerialization(String),
+	HashMismatch { expected: H256, got: H256, },
 }
 
 impl From<io::Error> for ValidationError {
@@ -194,8 +201,15 @@ impl DappHandler for DappInstaller {
 
 	fn validate_and_install(&self, app_path: PathBuf) -> Result<Manifest, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
-		// TODO [ToDr] Validate file hash
-		let file = try!(fs::File::open(app_path));
+		let mut file = try!(fs::File::open(app_path));
+		let hash = try!(sha3(&mut file));
+		let dapp_id = try!(self.dapp_id.as_str().parse().map_err(|_| ValidationError::InvalidDappId));
+		if dapp_id != hash {
+			return Err(ValidationError::HashMismatch {
+				expected: dapp_id,
+				got: hash,
+			});
+		}
 		// Unpack archive
 		let mut zip = try!(zip::ZipArchive::new(file));
 		// First find manifest file
@@ -265,10 +279,11 @@ mod tests {
 	use apps::urlhint::{GithubApp, URLHint};
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
+	use util::Bytes;
 
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
-		fn resolve(&self, _app_id: &str) -> Option<GithubApp> {
+		fn resolve(&self, _app_id: Bytes) -> Option<GithubApp> {
 			None
 		}
 	}

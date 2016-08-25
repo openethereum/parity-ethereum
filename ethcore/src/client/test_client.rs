@@ -18,6 +18,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
+use ethkey::{Generator, Random};
 use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
@@ -73,6 +74,8 @@ pub struct TestBlockChainClient {
 	pub spec: Spec,
 	/// VM Factory
 	pub vm_factory: EvmFactory,
+	/// Timestamp assigned to latest sealed block
+	pub latest_block_timestamp: RwLock<u64>,
 }
 
 #[derive(Clone)]
@@ -114,6 +117,7 @@ impl TestBlockChainClient {
 			miner: Arc::new(Miner::with_spec(&spec)),
 			spec: spec,
 			vm_factory: EvmFactory::new(VMType::Interpreter),
+			latest_block_timestamp: RwLock::new(10_000_000),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -155,6 +159,11 @@ impl TestBlockChainClient {
 		self.queue_size.store(size, AtomicOrder::Relaxed);
 	}
 
+	/// Set timestamp assigned to latest sealed block
+	pub fn set_latest_block_timestamp(&self, ts: u64) {
+		*self.latest_block_timestamp.write() = ts;
+	}
+
 	/// Add blocks to test client.
 	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().len();
@@ -180,7 +189,7 @@ impl TestBlockChainClient {
 			let txs = match with {
 				EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
 					let mut txs = RlpStream::new_list(1);
-					let keypair = KeyPair::create().unwrap();
+					let keypair = Random.generate().unwrap();
 					// Update nonces value
 					self.nonces.write().insert(keypair.address(), U256::one());
 					let tx = Transaction {
@@ -268,7 +277,6 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
 			engine,
-			self.vm_factory(),
 			Default::default(),
 			false,
 			db,
@@ -279,7 +287,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			extra_data
 		).expect("Opening block for tests will not fail.");
 		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
-		open_block.set_timestamp(10_000_000);
+		open_block.set_timestamp(*self.latest_block_timestamp.read());
 		open_block
 	}
 
