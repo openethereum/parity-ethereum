@@ -16,6 +16,7 @@
 
 //! Tendermint BFT consensus engine with round robin proof-of-authority.
 
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use common::*;
 use account_provider::AccountProvider;
 use block::*;
@@ -40,7 +41,7 @@ pub struct TendermintParams {
 	/// Consensus step.
 	s: RwLock<Step>,
 	/// Used to swith proposer.
-	proposer_nonce: usize
+	proposer_nonce: AtomicUsize
 }
 
 #[derive(Debug)]
@@ -62,7 +63,7 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 			validator_n: val_n,
 			r: 0,
 			s: RwLock::new(Step::Propose),
-			proposer_nonce: 0
+			proposer_nonce: AtomicUsize::new(0)
 		}
 	}
 }
@@ -86,7 +87,7 @@ impl Tendermint {
 
 	fn proposer(&self) -> Address {
 		let ref p = self.our_params;
-		p.validators.get(p.proposer_nonce%p.validator_n).unwrap().clone()
+		p.validators.get(p.proposer_nonce.load(AtomicOrdering::Relaxed)%p.validator_n).unwrap().clone()
 	}
 
 	fn propose_message(&self, message: UntrustedRlp) -> Result<Bytes, Error> {
@@ -94,7 +95,8 @@ impl Tendermint {
 			Step::Propose => (),
 			_ => try!(Err(EngineError::WrongStep)),
 		}
-		let proposal = try!(message.val_at(0));
+		let proposal = try!(message.as_val());
+		self.our_params.proposer_nonce.fetch_add(1, AtomicOrdering::Relaxed);
 		let vote = ProposeCollect::new(proposal,
 									   self.our_params.validators.iter().cloned().collect(),
 									   self.threshold());
@@ -164,8 +166,8 @@ impl Engine for Tendermint {
 
 	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
 		match try!(message.val_at(0)) {
-			0u8 if sender == self.proposer() => self.propose_message(message),
-			1 => self.prevote_message(sender, message),
+			0u8 if sender == self.proposer() => self.propose_message(try!(message.at(1))),
+			1 => self.prevote_message(sender, try!(message.at(1))),
 			_ => try!(Err(EngineError::UnknownStep)),
 		}
 	}
@@ -222,8 +224,10 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
+	use super::Step;
 
 	/// Create a new test chain spec with `Tendermint` consensus engine.
+	/// Account "0".sha3() and "1".sha3() are a validators.
 	fn new_test_tendermint() -> Spec { Spec::load(include_bytes!("../../res/tendermint.json")) }
 
 	#[test]
@@ -299,12 +303,26 @@ mod tests {
 	}
 
 	#[test]
-	fn propose_step(){
+	fn propose_step() {
 		let engine = new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("1".sha3(), "1").unwrap();
-		println!("{:?}", addr);
-		false;
+		let mut s = RlpStream::new_list(2);
+		let header = Header::default();
+		s.append(&0u8).append(&header.bare_hash());
+		let drain = s.out();
+		let propose_rlp = UntrustedRlp::new(&drain);
+
+		let not_validator_addr = tap.insert_account("101".sha3(), "101").unwrap();
+		assert!(engine.handle_message(not_validator_addr, propose_rlp.clone()).is_err());
+
+		let not_proposer_addr = tap.insert_account("0".sha3(), "0").unwrap();
+		assert!(engine.handle_message(not_proposer_addr, propose_rlp.clone()).is_err());
+
+		let proposer_addr = tap.insert_account("1".sha3(), "1").unwrap();
+		assert_eq!(vec![160, 39, 191, 179, 126, 80, 124, 233, 13, 161, 65, 48, 114, 4, 177, 198, 186, 36, 25, 67, 128, 97, 53, 144, 172, 80, 202, 75, 29, 113, 152, 255, 101],
+				   engine.handle_message(proposer_addr, propose_rlp.clone()).unwrap());
+
+		assert!(engine.handle_message(not_proposer_addr, propose_rlp).is_err());
 	}
 
 	#[test]

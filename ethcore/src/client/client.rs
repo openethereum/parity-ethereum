@@ -1022,6 +1022,7 @@ impl BlockChainClient for Client {
 		self.miner.pending_transactions()
 	}
 
+	// TODO: Make it an actual queue, return errors.
 	fn queue_infinity_message(&self, message: Bytes) {
 		let full_rlp = UntrustedRlp::new(&message);
 		if let Ok(signature) = full_rlp.val_at(0) {
