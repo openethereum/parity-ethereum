@@ -122,29 +122,34 @@ html, body {
 }
 
 .selectaccount {
+  padding: 4px 0 !important;
+  text-transform: uppercase;
+}
+
+.selectedaccount {
   display: inline-block;
 }
 
-.selectaccount .name {
+.selectedaccount .name {
   display: inline-block;
   margin-right: 1em;
 }
 
-.selectaccount .balance {
+.selectedaccount .balance {
   display: inline-block;
   text-align: right;
   color: #aaa;
 }
 
-.selectaccount .details {
+.selectedaccount .details {
   display: inline-block;
 }
 
-.selectaccount .image {
+.selectedaccount .image {
   display: inline-block;
 }
 
-.selectaccount .image img {
+.selectedaccount .image img {
   margin: 11px 1em -11px 0;
 }
 

@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 
-import { MenuItem, SelectField } from 'material-ui';
+import { SelectField } from 'material-ui';
 
-const { IdentityIcon } = window.parity.react;
+import { renderAccounts } from './render';
 
 const NAME_ID = ' ';
 let lastSelectedAccount = {};
@@ -21,41 +21,6 @@ export default class AccountSelect extends Component {
   }
 
   render () {
-    const { accounts } = this.props;
-    const items = accounts.map((account) => {
-      const balance = this.props.gavBalance
-        ? `${account.gavBalance}GAV`
-        : `${account.ethBalance}ΞTH`;
-      const identityIcon = (
-        <IdentityIcon inline center address={ account.address } />
-      );
-      const icon = (
-        <div className='iconimg'>
-          { identityIcon }
-        </div>
-      );
-      const label = (
-        <div className='selectaccount'>
-          <div className='image'>
-            { identityIcon }
-          </div>
-          <div className='details'>
-            <div className='name'>{ account.name }</div>
-            <div className='balance'>{ balance }</div>
-          </div>
-        </div>
-      );
-
-      return (
-        <MenuItem
-          key={ account.address }
-          primaryText={ account.name }
-          value={ account }
-          label={ label }
-          leftIcon={ icon } />
-      );
-    });
-
     return (
       <SelectField
         autoComplete='off'
@@ -68,7 +33,7 @@ export default class AccountSelect extends Component {
         id={ NAME_ID }
         value={ this.props.account }
         onChange={ this.onSelect }>
-        { items }
+        { renderAccounts(this.props.accounts, this.props.gavBalance) }
       </SelectField>
     );
   }
