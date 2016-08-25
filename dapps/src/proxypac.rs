@@ -16,7 +16,7 @@
 
 //! Serving ProxyPac file
 
-use endpoint::{Endpoint, Handler, EndpointPath};
+use endpoint::{Endpoint, Handler, EndpointPath, Control};
 use handlers::ContentHandler;
 use apps::DAPPS_DOMAIN;
 
@@ -29,7 +29,7 @@ impl ProxyPac {
 }
 
 impl Endpoint for ProxyPac {
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
+	fn to_handler(&self, path: EndpointPath, _control: Option<Control>) -> Box<Handler> {
 		let content = format!(
 r#"
 function FindProxyForURL(url, host) {{

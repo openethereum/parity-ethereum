@@ -95,7 +95,7 @@ impl<R: URLHint> AppFetcher<R> {
 			match status {
 				// Just server dapp
 				Some(&AppStatus::Ready(ref endpoint)) => {
-					(None, endpoint.to_handler(path))
+					(None, endpoint.to_handler(path, Some(control)))
 				},
 				// App is already being fetched
 				Some(&AppStatus::Fetching) => {

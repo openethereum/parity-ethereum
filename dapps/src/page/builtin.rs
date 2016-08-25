@@ -16,7 +16,7 @@
 
 use page::handler;
 use std::sync::Arc;
-use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
+use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler, Control};
 use parity_dapps::{WebApp, File, Info};
 
 pub struct PageEndpoint<T : WebApp + 'static> {
@@ -74,7 +74,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 		Some(&self.info)
 	}
 
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
+	fn to_handler(&self, path: EndpointPath, _control: Option<Control>) -> Box<Handler> {
 		Box::new(handler::PageHandler {
 			app: BuiltinDapp::new(self.app.clone()),
 			prefix: self.prefix.clone(),

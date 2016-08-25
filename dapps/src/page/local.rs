@@ -19,7 +19,7 @@ use std::io::{Seek, Read, SeekFrom};
 use std::fs;
 use std::path::PathBuf;
 use page::handler;
-use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
+use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler, Control};
 
 pub struct LocalPageEndpoint {
 	path: PathBuf,
@@ -40,7 +40,7 @@ impl Endpoint for LocalPageEndpoint {
 		Some(&self.info)
 	}
 
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
+	fn to_handler(&self, path: EndpointPath, _control: Option<Control>) -> Box<Handler> {
 		Box::new(handler::PageHandler {
 			app: LocalDapp::new(self.path.clone()),
 			prefix: None,

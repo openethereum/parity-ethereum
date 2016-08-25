@@ -19,7 +19,7 @@ use hyper::{server, net, Decoder, Encoder, Next};
 use api::types::{App, ApiError};
 use api::response::{as_json, as_json_error, ping_response};
 use handlers::extract_url;
-use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
+use endpoint::{Endpoint, Endpoints, Handler, EndpointPath, Control};
 
 #[derive(Clone)]
 pub struct RestApi {
@@ -43,7 +43,7 @@ impl RestApi {
 }
 
 impl Endpoint for RestApi {
-	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
+	fn to_handler(&self, _path: EndpointPath, _control: Option<Control>) -> Box<Handler> {
 		Box::new(RestApiRouter {
 			api: self.clone(),
 			handler: as_json_error(&ApiError {
