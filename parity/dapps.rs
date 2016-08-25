@@ -25,6 +25,7 @@ pub struct Configuration {
 	pub enabled: bool,
 	pub interface: String,
 	pub port: u16,
+	pub hosts: Option<Vec<String>>,
 	pub user: Option<String>,
 	pub pass: Option<String>,
 	pub dapps_path: String,
@@ -36,6 +37,7 @@ impl Default for Configuration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8080,
+			hosts: Some(Vec::new()),
 			user: None,
 			pass: None,
 			dapps_path: replace_home("$HOME/.parity/dapps"),
@@ -68,7 +70,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, auth))))
+	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth))))
 }
 
 pub use self::server::WebappServer;
@@ -84,6 +86,7 @@ mod server {
 		_deps: Dependencies,
 		_dapps_path: String,
 		_url: &SocketAddr,
+		_allowed_hosts: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
 	) -> Result<WebappServer, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
@@ -109,6 +112,7 @@ mod server {
 		deps: Dependencies,
 		dapps_path: String,
 		url: &SocketAddr,
+		allowed_hosts: Option<Vec<String>>,
 		auth: Option<(String, String)>
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
@@ -119,10 +123,10 @@ mod server {
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 		let start_result = match auth {
 			None => {
-				server.start_unsecure_http(url)
+				server.start_unsecured_http(url, allowed_hosts)
 			},
 			Some((username, password)) => {
-				server.start_basic_auth_http(url, &username, &password)
+				server.start_basic_auth_http(url, allowed_hosts, &username, &password)
 			},
 		};
 
