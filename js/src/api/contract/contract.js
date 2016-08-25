@@ -140,8 +140,6 @@ export default class Contract {
 
     options.data = `0x${options.data || ''}${func.encodeCall(tokens)}`;
 
-    console.log(tokens, options);
-
     return options;
   }
 
