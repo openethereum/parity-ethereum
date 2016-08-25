@@ -19,6 +19,7 @@ html, body {
 
 .account {
   margin-right: 1em !important;
+  background: rgb(224, 224, 124) !important;
 }
 
 .account img {

@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Dialog, FlatButton, MenuItem, SelectField, TextField } from 'material-ui';
 
-const { createIdentityImgSrc, IdentityIcon } = window.parity.react;
+const { IdentityIcon } = window.parity.react;
 const { Api } = window.parity;
 
 const NAME_ID = ' ';
