@@ -17,6 +17,7 @@ jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.gi
 ethcore-io = { path = "../util/io" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
+ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }

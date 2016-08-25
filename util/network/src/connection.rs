@@ -29,12 +29,12 @@ use error::*;
 use io::{IoContext, StreamToken};
 use handshake::Handshake;
 use stats::NetworkStats;
-use util::crypto;
 use rcrypto::blockmodes::*;
 use rcrypto::aessafe::*;
 use rcrypto::symmetriccipher::*;
 use rcrypto::buffer::*;
 use tiny_keccak::Keccak;
+use crypto;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;

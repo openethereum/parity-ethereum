@@ -18,9 +18,10 @@
 use std::sync::{Arc, Weak};
 use std::str::FromStr;
 use std::collections::{BTreeMap};
-use util::{RotatingLogger, KeyPair, Address};
+use util::{RotatingLogger, Address};
 use util::misc::version_data;
 
+use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
@@ -213,7 +214,7 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 	fn phrase_to_address(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(String,)>(params).and_then(|(phrase,)|
-			to_value(&H160::from(KeyPair::from_phrase(&phrase).address()))
+			to_value(&H160::from(Brain::new(phrase).generate().unwrap().address()))
 		)
 	}
 }

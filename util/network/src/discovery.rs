@@ -24,11 +24,11 @@ use mio::udp::*;
 use util::sha3::*;
 use time;
 use util::hash::*;
-use util::crypto::*;
 use util::rlp::*;
 use node_table::*;
 use error::NetworkError;
 use io::{StreamToken, IoContext};
+use ethkey::{Secret, KeyPair, sign, recover};
 
 use PROTOCOL_VERSION;
 
@@ -59,7 +59,7 @@ pub struct BucketEntry {
 	pub timeout: Option<u64>,
 }
 
-struct NodeBucket {
+pub struct NodeBucket {
 	nodes: VecDeque<BucketEntry>, //sorted by last active
 }
 
@@ -252,7 +252,7 @@ impl Discovery {
 
 		let bytes = rlp.drain();
 		let hash = bytes.as_ref().sha3();
-		let signature = match ec::sign(&self.secret, &hash) {
+		let signature = match sign(&self.secret, &hash) {
 			Ok(s) => s,
 			Err(_) => {
 				warn!("Error signing UDP packet");
@@ -281,12 +281,12 @@ impl Discovery {
 				if count == BUCKET_SIZE {
 					// delete the most distant element
 					let remove = {
-						let (_, last) = found.iter_mut().next_back().unwrap();
+						let (key, last) = found.iter_mut().next_back().unwrap();
 						last.pop();
-						last.is_empty()
+						if last.is_empty() { Some(key.clone()) } else { None }
 					};
-					if remove {
-						found.remove(&distance);
+					if let Some(remove) = remove {
+						found.remove(&remove);
 					}
 				}
 				else {
@@ -361,8 +361,8 @@ impl Discovery {
 		}
 
 		let signed = &packet[(32 + 65)..];
-		let signature = Signature::from_slice(&packet[32..(32 + 65)]);
-		let node_id = try!(ec::recover(&signature, &signed.sha3()));
+		let signature = H520::from_slice(&packet[32..(32 + 65)]);
+		let node_id = try!(recover(&signature.into(), &signed.sha3()));
 
 		let packet_id = signed[0];
 		let rlp = UntrustedRlp::new(&signed[1..]);
@@ -536,9 +536,9 @@ mod tests {
 	use util::hash::*;
 	use std::net::*;
 	use node_table::*;
-	use util::crypto::KeyPair;
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
+	use ethkey::{Random, Generator};
 
 	#[test]
 	fn find_node() {
@@ -559,8 +559,8 @@ mod tests {
 
 	#[test]
 	fn discovery() {
-		let key1 = KeyPair::create().unwrap();
-		let key2 = KeyPair::create().unwrap();
+		let key1 = Random.generate().unwrap();
+		let key2 = Random.generate().unwrap();
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40444").unwrap(), udp_port: 40444 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
 		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0);
@@ -594,7 +594,7 @@ mod tests {
 
 	#[test]
 	fn removes_expired() {
-		let key = KeyPair::create().unwrap();
+		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
 		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
 		for _ in 0..1200 {
@@ -606,8 +606,23 @@ mod tests {
 	}
 
 	#[test]
+	fn find_nearest_saturated() {
+		use super::*;
+		let mut buckets: Vec<_> = (0..256).map(|_| NodeBucket::new()).collect();
+		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
+		for _ in 0..(16 + 10) {
+			buckets[0].nodes.push_back(BucketEntry {
+				address: NodeEntry { id: NodeId::new(), endpoint: ep.clone() },
+				timeout: None
+			});
+		}
+		let nearest = Discovery::nearest_node_entries(&NodeId::new(), &buckets);
+		assert_eq!(nearest.len(), 16)
+	}
+
+	#[test]
 	fn packets() {
-		let key = KeyPair::create().unwrap();
+		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
 		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
 		discovery.check_timestamps = false;

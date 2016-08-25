@@ -26,16 +26,17 @@
 //! ```rust
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
+//! extern crate ethkey;
 //! extern crate rustc_serialize;
 //!
-//!	use util::crypto::KeyPair;
 //! use util::{Uint, U256, Address};
+//! use ethkey::{Random, Generator};
 //!	use ethcore::miner::{TransactionQueue, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
 //!	use rustc_serialize::hex::FromHex;
 //!
 //! fn main() {
-//!		let key = KeyPair::create().unwrap();
+//!		let key = Random.generate().unwrap();
 //!		let t1 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
 //!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(10) };
 //!		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
@@ -233,7 +234,7 @@ struct TransactionSet {
 impl TransactionSet {
 	/// Inserts `TransactionOrder` to this set. Transaction does not need to be unique -
 	/// the same transaction may be validly inserted twice. Any previous transaction that
-	/// it replaces (i.e. with the same `sender` and `nonce`) should be returned. 
+	/// it replaces (i.e. with the same `sender` and `nonce`) should be returned.
 	fn insert(&mut self, sender: Address, nonce: U256, order: TransactionOrder) -> Option<TransactionOrder> {
 		if !self.by_priority.insert(order.clone()) {
 			return Some(order.clone());
@@ -313,7 +314,7 @@ impl TransactionSet {
 	}
 
 	/// Get the minimum gas price that we can accept into this queue that wouldn't cause the transaction to
-	/// immediately be dropped. 0 if the queue isn't at capacity; 1 plus the lowest if it is. 
+	/// immediately be dropped. 0 if the queue isn't at capacity; 1 plus the lowest if it is.
 	fn gas_price_entry_limit(&self) -> U256 {
 		match self.by_gas_price.keys().next() {
 			Some(k) if self.by_priority.len() >= self.limit => *k + 1.into(),
@@ -340,7 +341,7 @@ impl TransactionSet {
 				return false;
 			}
 		} else {
-			// Operation failed: gas-price not found in Map. 
+			// Operation failed: gas-price not found in Map.
 			return false;
 		}
 		// Operation maybe ok: only if hash not found in gas-price Set.
@@ -869,6 +870,7 @@ mod test {
 	extern crate rustc_serialize;
 	use util::table::*;
 	use util::*;
+	use ethkey::{Random, Generator};
 	use transaction::*;
 	use error::{Error, TransactionError};
 	use super::*;
@@ -897,7 +899,7 @@ mod test {
 	}
 
 	fn new_tx(nonce: U256, gas_price: U256) -> SignedTransaction {
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		new_unsigned_tx(nonce, gas_price).sign(keypair.secret())
 	}
 
@@ -916,7 +918,7 @@ mod test {
 		let tx1 = new_unsigned_tx(nonce, gas_price);
 		let tx2 = new_unsigned_tx(nonce + nonce_increment, gas_price + gas_price_increment);
 
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let secret = &keypair.secret();
 		(tx1.sign(secret), tx2.sign(secret))
 	}
@@ -1373,7 +1375,7 @@ mod test {
 	fn should_move_transactions_if_gap_filled() {
 		// given
 		let mut txq = TransactionQueue::new();
-		let kp = KeyPair::create().unwrap();
+		let kp = Random.generate().unwrap();
 		let secret = kp.secret();
 		let tx = new_unsigned_tx(123.into(), 1.into()).sign(secret);
 		let tx1 = new_unsigned_tx(124.into(), 1.into()).sign(secret);
@@ -1397,7 +1399,7 @@ mod test {
 	fn should_remove_transaction() {
 		// given
 		let mut txq2 = TransactionQueue::new();
-		let (tx, tx2) = new_tx_pair_default(3.into(), 0.into()); 
+		let (tx, tx2) = new_tx_pair_default(3.into(), 0.into());
 		txq2.add(tx.clone(), &default_account_details, TransactionOrigin::External).unwrap();
 		txq2.add(tx2.clone(), &default_account_details, TransactionOrigin::External).unwrap();
 		assert_eq!(txq2.status().pending, 1);
@@ -1582,7 +1584,7 @@ mod test {
 		init_log();
 		// given
 		let mut txq = TransactionQueue::new();
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let tx = new_unsigned_tx(123.into(), 1.into()).sign(keypair.secret());
 		let tx2 = {
 			let mut tx2 = (*tx).clone();
@@ -1605,7 +1607,7 @@ mod test {
 	fn should_replace_same_transaction_when_importing_to_futures() {
 		// given
 		let mut txq = TransactionQueue::new();
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let tx0 = new_unsigned_tx(123.into(), 1.into()).sign(keypair.secret());
 		let tx1 = {
 			let mut tx1 = (*tx0).clone();
@@ -1758,7 +1760,7 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::new();
 		let (tx1, tx2, tx2_2, tx3) = {
-			let keypair = KeyPair::create().unwrap();
+			let keypair = Random.generate().unwrap();
 			let secret = &keypair.secret();
 			let nonce = 123.into();
 			let tx = new_unsigned_tx(nonce, 1.into());

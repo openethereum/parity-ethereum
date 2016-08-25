@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
@@ -145,7 +146,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret("".sha3()).unwrap()	;
+	let kp = KeyPair::from_secret("".sha3()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;
