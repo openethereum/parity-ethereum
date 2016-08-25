@@ -121,9 +121,9 @@ impl SnapshotCommand {
 		// drop the client so we don't restore while it has open DB handles.
 		drop(service);
 
-		if !snapshot.begin_restore(manifest.clone()) {
-			return Err("Failed to begin restoration.".into());
-		}
+		try!(snapshot.init_restore(manifest.clone()).map_err(|e| {
+			format!("Failed to begin restoration: {}", e)
+		}));
 
 		let (num_state, num_blocks) = (manifest.state_hashes.len(), manifest.block_hashes.len());
 

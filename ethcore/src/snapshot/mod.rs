@@ -501,7 +501,7 @@ impl StateRebuilder {
 
 	/// Check for accounts missing code. Once all chunks have been fed, there should
 	/// be none.
-	pub fn check_missing(&self) -> Result<(), Error> {
+	pub fn check_missing(self) -> Result<(), Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		match missing.is_empty() {
 			true => Ok(()),
@@ -640,8 +640,8 @@ impl BlockRebuilder {
 	}
 
 	/// Glue together any disconnected chunks. To be called at the end.
-	pub fn glue_chunks(&mut self) {
-		for &(ref first_num, ref first_hash) in &self.disconnected {
+	pub fn glue_chunks(self) {
+		for (first_num, first_hash) in self.disconnected {
 			let parent_num = first_num - 1;
 
 			// check if the parent is even in the chain.
@@ -649,7 +649,7 @@ impl BlockRebuilder {
 			// the first block of the first chunks has nothing to connect to.
 			if let Some(parent_hash) = self.chain.block_hash(parent_num) {
 				// if so, add the child to it.
-				self.chain.add_child(parent_hash, *first_hash);
+				self.chain.add_child(parent_hash, first_hash);
 			}
 		}
 	}

@@ -72,8 +72,9 @@ fn snap_and_restore() {
 			rebuilder.feed(&chunk).unwrap();
 		}
 
-		rebuilder.check_missing().unwrap();
 		assert_eq!(rebuilder.state_root(), state_root);
+		rebuilder.check_missing().unwrap();
+
 		new_db
 	};
 
