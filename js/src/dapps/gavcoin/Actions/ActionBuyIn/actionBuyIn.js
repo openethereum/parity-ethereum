@@ -111,15 +111,16 @@ export default class ActionBuyIn extends Component {
   renderAddressSelect () {
     const { accounts } = this.props;
     const items = accounts.map((account) => {
+      const identityIcon = <IdentityIcon inline center address={ account.address } />;
       const icon = (
-        <img
-          className='iconimg'
-          src={ createIdentityImgSrc(account.address) } />
+        <div className='iconimg'>
+          { identityIcon }
+        </div>
       );
       const label = (
         <div className='selectaccount'>
           <div className='image'>
-            { icon }
+            { identityIcon }
           </div>
           <div className='details'>
             <div className='name'>{ account.name }</div>
