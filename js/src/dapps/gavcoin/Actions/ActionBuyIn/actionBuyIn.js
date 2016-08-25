@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Dialog, FlatButton, MenuItem, SelectField, TextField } from 'material-ui';
 
-const { IdentityIcon } = window.parity.react;
+const { createIdentityImgSrc, IdentityIcon } = window.parity.react;
 const { Api } = window.parity;
 
 const NAME_ID = ' ';
@@ -112,11 +112,13 @@ export default class ActionBuyIn extends Component {
     const { accounts } = this.props;
     const items = accounts.map((account) => {
       const icon = (
-        <IdentityIcon inline center address={ account.address } />
+        <img
+          className='iconimg'
+          src={ createIdentityImgSrc(account.address) } />
       );
       const label = (
         <div className='selectaccount'>
-          { icon }
+          <IdentityIcon center inline address={ account.address } />
           <div className='details'>
             <div className='name'>{ account.name }</div>
             <div className='balance'>{ account.ethBalance }ΞTH</div>

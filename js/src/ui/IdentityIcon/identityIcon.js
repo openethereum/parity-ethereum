@@ -3,6 +3,14 @@ import blockies from 'blockies';
 
 import styles from './style.css';
 
+export function createIdentityImgSrc (address, small = true) {
+  return blockies({
+    seed: address.toLowerCase(),
+    size: 8,
+    scale: small ? 4 : 7
+  }).toDataURL();
+}
+
 export default class IdentityIcon extends Component {
   static contextTypes = {
     contracts: React.PropTypes.array
@@ -43,11 +51,7 @@ export default class IdentityIcon extends Component {
     }
 
     this.setState({
-      iconsrc: blockies({
-        seed: address,
-        size: 8,
-        scale: this.props.inline ? 4 : 7
-      }).toDataURL()
+      iconsrc: createIdentityImgSrc(address, this.props.inline)
     });
   }
 
