@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::net::SocketAddr;
 use io::PanicHandler;
 use rpc_apis;
 use helpers::replace_home;
@@ -30,6 +29,7 @@ pub struct Configuration {
 	pub enabled: bool,
 	pub interface: String,
 	pub port: u16,
+	pub hosts: Option<Vec<String>>,
 	pub user: Option<String>,
 	pub pass: Option<String>,
 	pub dapps_path: String,
@@ -41,6 +41,7 @@ impl Default for Configuration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8080,
+			hosts: Some(Vec::new()),
 			user: None,
 			pass: None,
 			dapps_path: replace_home("$HOME/.parity/dapps"),
@@ -72,48 +73,67 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, auth))))
+	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth))))
 }
 
+pub use self::server::setup_dapps_server;
+
 #[cfg(not(feature = "dapps"))]
-pub fn setup_dapps_server(
-	_deps: Dependencies,
-	_dapps_path: String,
-	_url: &SocketAddr,
-	_auth: Option<(String, String)>,
-) -> Result<WebappServer, String> {
-	Err("Your Parity version has been compiled without WebApps support.".into())
+mod server {
+	use super::Dependencies;
+	use std::net::SocketAddr;
+
+	pub struct WebappServer;
+	pub fn setup_dapps_server(
+		_deps: Dependencies,
+		_dapps_path: String,
+		_url: &SocketAddr,
+		_allowed_hosts: Option<Vec<String>>,
+		_auth: Option<(String, String)>,
+	) -> Result<WebappServer, String> {
+		Err("Your Parity version has been compiled without WebApps support.".into())
+	}
 }
 
 #[cfg(feature = "dapps")]
-pub fn setup_dapps_server(
-	deps: Dependencies,
-	dapps_path: String,
-	url: &SocketAddr,
-	auth: Option<(String, String)>
-) -> Result<WebappServer, String> {
-	use ethcore_dapps as dapps;
+mod server {
+	use super::Dependencies;
+	use std::net::SocketAddr;
 
-	let server = dapps::ServerBuilder::new(dapps_path);
-	let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
-	let start_result = match auth {
-		None => {
-			server.start_unsecure_http(url)
-		},
-		Some((username, password)) => {
-			server.start_basic_auth_http(url, &username, &password)
-		},
-	};
+	use rpc_apis;
 
-	match start_result {
-		Err(dapps::ServerError::IoError(err)) => Err(format!("WebApps io error: {}", err)),
-		Err(e) => Err(format!("WebApps error: {:?}", e)),
-		Ok(server) => {
-			server.set_panic_handler(move || {
-				deps.panic_handler.notify_all("Panic in WebApp thread.".to_owned());
-			});
-			Ok(server)
-		},
+	pub use ethcore_dapps::Server as WebappServer;
+
+	pub fn setup_dapps_server(
+		deps: Dependencies,
+		dapps_path: String,
+		url: &SocketAddr,
+		allowed_hosts: Option<Vec<String>>,
+		auth: Option<(String, String)>
+	) -> Result<WebappServer, String> {
+		use ethcore_dapps as dapps;
+
+		let server = dapps::ServerBuilder::new(dapps_path);
+		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
+		let start_result = match auth {
+			None => {
+				server.start_unsecured_http(url, allowed_hosts)
+			},
+			Some((username, password)) => {
+				server.start_basic_auth_http(url, allowed_hosts, &username, &password)
+			},
+		};
+
+		match start_result {
+			Err(dapps::ServerError::IoError(err)) => Err(format!("WebApps io error: {}", err)),
+			Err(e) => Err(format!("WebApps error: {:?}", e)),
+			Ok(server) => {
+				server.set_panic_handler(move || {
+					deps.panic_handler.notify_all("Panic in WebApp thread.".to_owned());
+				});
+				Ok(server)
+			},
+		}
 	}
 }
 
