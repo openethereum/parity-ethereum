@@ -108,6 +108,7 @@ impl SnapshotCommand {
 		let (service, _panic_handler) = try!(self.start_service());
 
 		warn!("Snapshot restoration is experimental and the format may be subject to change.");
+		warn!("On encountering an unexpected error, please ensure that you have a recent snapshot.");
 
 		let snapshot = service.snapshot_service();
 		let reader = PackedReader::new(Path::new(&file))

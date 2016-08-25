@@ -20,6 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use overlaydb::OverlayDB;
+use memorydb::MemoryDB;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction};
@@ -108,7 +109,7 @@ impl JournalDB for RefCountedDB {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
 	}
 
-	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -181,16 +182,28 @@ impl JournalDB for RefCountedDB {
 			}
 		}
 
-		let r = try!(self.forward.commit_to_batch(&batch));
+		let r = try!(self.forward.commit_to_batch(batch));
 		Ok(r)
 	}
 
-	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
 		self.inserts.clear();
 		for remove in self.removes.drain(..) {
 			self.forward.remove(&remove);
 		}
 		self.forward.commit_to_batch(batch)
+	}
+
+	fn consolidate(&mut self, mut with: MemoryDB) {
+		for (key, (value, rc)) in with.drain() {
+			for _ in 0..rc {
+				self.emplace(key.clone(), value.clone());
+			}
+
+			for _ in rc..0 {
+				self.remove(&key);
+			}
+		}
 	}
 }
 
