@@ -21,9 +21,9 @@ export default class EventBuyin extends Component {
 
     return (
       <div className={ cls }>
-        <div>{ formatBlockNumber(blockNumber) }:</div>
-        <div>Buyin:</div>
-        <div>{ buyerIcon }</div>
+        <div>{ formatBlockNumber(blockNumber) }</div>
+        <div>Buyin</div>
+        <div>{ buyerIcon }{ buyer }</div>
         <div>bought</div>
         <div>{ formatCoins(amount) }</div>
         <div>@</div>
