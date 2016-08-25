@@ -118,7 +118,9 @@ export default class ActionBuyIn extends Component {
       );
       const label = (
         <div className='selectaccount'>
-          <IdentityIcon center inline address={ account.address } />
+          <div className='image'>
+            { icon }
+          </div>
           <div className='details'>
             <div className='name'>{ account.name }</div>
             <div className='balance'>{ account.ethBalance }ΞTH</div>

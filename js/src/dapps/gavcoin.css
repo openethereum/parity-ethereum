@@ -75,7 +75,7 @@ html, body {
 
 .selectaccount .name {
   display: inline-block;
-  margin-right: 2em;
+  margin-right: 1em;
 }
 
 .selectaccount .balance {
@@ -86,6 +86,15 @@ html, body {
 
 .selectaccount .details {
   display: inline-block;
+}
+
+.selectaccount .image {
+  display: inline-block;
+  padding-right: 1em;
+}
+
+.selectaccount .image .iconimg {
+  margin: 11px 0 -11px 0;
 }
 
 .status {
