@@ -9,18 +9,11 @@ export function renderAccounts (accounts, gavBalance) {
     const balance = gavBalance
       ? `${account.gavBalance}GAV`
       : `${account.ethBalance}ΞTH`;
-    const identityIcon = (
-      <IdentityIcon inline center address={ account.address } />
-    );
-    const icon = (
-      <div className='iconimg'>
-        { identityIcon }
-      </div>
-    );
-    const label = (
+
+    const item = (
       <div className='selectedaccount'>
         <div className='image'>
-          { identityIcon }
+          <IdentityIcon inline center address={ account.address } />
         </div>
         <div className='details'>
           <div className='name'>{ account.name }</div>
@@ -33,10 +26,10 @@ export function renderAccounts (accounts, gavBalance) {
       <MenuItem
         className='selectaccount'
         key={ account.address }
-        primaryText={ account.name }
         value={ account }
-        label={ label }
-        leftIcon={ icon } />
+        label={ item }>
+        { item }
+      </MenuItem>
     );
   });
 }
