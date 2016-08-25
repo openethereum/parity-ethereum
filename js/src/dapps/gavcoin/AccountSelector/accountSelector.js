@@ -50,7 +50,7 @@ export default class AccountSelect extends Component {
         <MenuItem
           key={ account.address }
           primaryText={ account.name }
-          value={ account.address }
+          value={ account }
           label={ label }
           leftIcon={ icon } />
       );
@@ -66,15 +66,15 @@ export default class AccountSelect extends Component {
         errorText={ this.props.accountError }
         name={ NAME_ID }
         id={ NAME_ID }
-        value={ this.props.account.address }
+        value={ this.props.account }
         onChange={ this.onSelect }>
         { items }
       </SelectField>
     );
   }
 
-  onSelect = (event, idx) => {
-    lastSelectedAccount = this.props.accounts[idx] || {};
+  onSelect = (event, idx, account) => {
+    lastSelectedAccount = account || {};
     this.props.onSelect(lastSelectedAccount);
   }
 }

@@ -15,8 +15,8 @@ export default class EventNewTranch extends Component {
 
     return (
       <div className={ cls }>
-        <div>{ formatBlockNumber(blockNumber) }:</div>
-        <div>NewTranch:</div>
+        <div>{ formatBlockNumber(blockNumber) }</div>
+        <div>NewTranch</div>
         <div>{ formatEth(price) }</div>
       </div>
     );

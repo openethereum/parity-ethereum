@@ -59,7 +59,7 @@ html, body {
 }
 
 .event.pending {
-  color: #aaa;
+  opacity: 0.5;
 }
 
 .iconimg img {

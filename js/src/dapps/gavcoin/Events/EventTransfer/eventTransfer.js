@@ -24,11 +24,11 @@ export default class EventTransfer extends Component {
 
     return (
       <div className={ cls }>
-        <div>{ formatBlockNumber(blockNumber) }:</div>
-        <div>Transfer:</div>
-        <div>{ fromIcon }</div>
+        <div>{ formatBlockNumber(blockNumber) }</div>
+        <div>Transfer</div>
+        <div>{ fromIcon }{ from }</div>
         <div>sent</div>
-        <div>{ toIcon }</div>
+        <div>{ toIcon }{ to }</div>
         <div>{ formatCoins(value) }</div>
       </div>
     );
