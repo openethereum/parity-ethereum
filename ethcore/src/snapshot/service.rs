@@ -171,6 +171,9 @@ impl Restoration {
 			return Err(TrieError::InvalidStateRoot(root).into());
 		}
 
+		// check for missing code.
+		try!(self.state.check_missing());
+
 		// connect out-of-order chunks.
 		self.blocks.glue_chunks();
 

@@ -61,6 +61,9 @@ pub trait JournalDB: HashDB {
 	/// to the backing strage
 	fn flush(&self) {}
 
+	/// Consolidate all the insertions and deletions in the given memory overlay.
+	fn consolidate(&mut self, overlay: ::memorydb::MemoryDB);
+
 	/// Commit all changes in a single batch
 	#[cfg(test)]
 	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
