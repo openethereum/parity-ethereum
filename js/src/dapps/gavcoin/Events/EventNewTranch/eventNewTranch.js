@@ -1,8 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import { formatBlockNumber } from '../format';
-
-const { Api } = window.parity;
+import { formatBlockNumber, formatEth } from '../../format';
 
 export default class EventNewTranch extends Component {
   static propTypes = {
@@ -12,12 +10,14 @@ export default class EventNewTranch extends Component {
   render () {
     const { event } = this.props;
     const { price } = event.params;
-    const blockNumber = formatBlockNumber(event);
+    const { blockNumber } = event;
     const cls = `event ${event.state}`;
 
     return (
       <div className={ cls }>
-        { blockNumber }: NewTranch: { Api.format.fromWei(price).toFormat(3) }
+        <div>{ formatBlockNumber(blockNumber) }:</div>
+        <div>NewTranch:</div>
+        <div>{ formatEth(price) }</div>
       </div>
     );
   }

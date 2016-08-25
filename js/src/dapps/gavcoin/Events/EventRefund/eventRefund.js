@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 
-import { formatBlockNumber } from '../format';
+import { formatBlockNumber, formatCoins, formatEth } from '../../format';
 
-const { Api } = window.parity;
+const { IdentityIcon } = window.parity.react;
 
 export default class EventRefund extends Component {
   static propTypes = {
@@ -11,12 +11,22 @@ export default class EventRefund extends Component {
 
   render () {
     const { event } = this.props;
-    const blockNumber = formatBlockNumber(event);
+    const { buyer, price, amount } = event.params;
+    const { blockNumber } = event;
     const cls = `event ${event.state}`;
+
+    const buyerIcon = (
+      <IdentityIcon inline center address={ buyer } />
+    );
 
     return (
       <div className={ cls }>
-        { blockNumber }: Refund
+        <div>{ formatBlockNumber(blockNumber) }:</div>
+        <div>Refund:</div>
+        <div>{ buyerIcon }</div>
+        <div>refunded</div>
+        <div>{ formatCoins(amount) }</div>
+        <div>@ { formatEth(price) }</div>
       </div>
     );
   }

@@ -44,6 +44,17 @@ html, body {
   padding: 1em 2em;
 }
 
+.event {
+  line-height: 32px;
+  vertical-align: top;
+}
+
+.event div {
+  display: inline;
+  margin-right: 1em;
+  vertical-align: top;
+}
+
 .event.mined {
 }
 

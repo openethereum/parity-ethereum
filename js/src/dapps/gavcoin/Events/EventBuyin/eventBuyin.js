@@ -1,10 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 
-import { formatBlockNumber } from '../format';
+import { formatBlockNumber, formatCoins, formatEth } from '../../format';
 
-const { Api } = window.parity;
-
-const DIVISOR = 10 ** 6;
+const { IdentityIcon } = window.parity.react;
 
 export default class EventBuyin extends Component {
   static propTypes = {
@@ -14,12 +12,22 @@ export default class EventBuyin extends Component {
   render () {
     const { event } = this.props;
     const { buyer, price, amount } = event.params;
-    const blockNumber = formatBlockNumber(event);
+    const { blockNumber } = event;
     const cls = `event ${event.state}`;
+
+    const buyerIcon = (
+      <IdentityIcon inline center address={ buyer } />
+    );
 
     return (
       <div className={ cls }>
-        { blockNumber }: Buyin: { buyer } bought { amount.div(DIVISOR).toFormat(6) } @ { Api.format.fromWei(price).toFormat(3) }
+        <div>{ formatBlockNumber(blockNumber) }:</div>
+        <div>Buyin:</div>
+        <div>{ buyerIcon }</div>
+        <div>bought</div>
+        <div>{ formatCoins(amount) }</div>
+        <div>@</div>
+        <div>{ formatEth(price) }</div>
       </div>
     );
   }

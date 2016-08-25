@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 
-import { formatBlockNumber } from '../format';
+import { formatBlockNumber, formatCoins } from '../../format';
 
-const { Api } = window.parity;
+const { IdentityIcon } = window.parity.react;
 
 export default class EventTransfer extends Component {
   static propTypes = {
@@ -11,12 +11,25 @@ export default class EventTransfer extends Component {
 
   render () {
     const { event } = this.props;
-    const blockNumber = formatBlockNumber(event);
+    const { from, to, value } = event.params;
+    const { blockNumber } = event;
     const cls = `event ${event.state}`;
+
+    const fromIcon = (
+      <IdentityIcon inline center address={ from } />
+    );
+    const toIcon = (
+      <IdentityIcon inline center address={ to } />
+    );
 
     return (
       <div className={ cls }>
-        { blockNumber }: Transfer
+        <div>{ formatBlockNumber(blockNumber) }:</div>
+        <div>Transfer:</div>
+        <div>{ fromIcon }</div>
+        <div>sent</div>
+        <div>{ toIcon }</div>
+        <div>{ formatCoins(value) }</div>
       </div>
     );
   }
