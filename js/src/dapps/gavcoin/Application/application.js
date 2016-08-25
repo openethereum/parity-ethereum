@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
@@ -9,7 +10,7 @@ import registryAbi from '../abi/registry.json';
 import gavcoinAbi from '../abi/gavcoin.json';
 
 import Accounts from '../Accounts';
-import Actions, { ActionBuyIn } from '../Actions';
+import Actions, { ActionBuyIn, ActionRefund } from '../Actions';
 import Events from '../Events';
 import Loading from '../Loading';
 import Status from '../Status';
@@ -30,6 +31,8 @@ export default class Application extends Component {
   state = {
     action: null,
     address: null,
+    ethBalance: new BigNumber(0),
+    gavBalance: new BigNumber(0),
     accounts: [],
     contract: null,
     instance: null,
@@ -72,6 +75,7 @@ export default class Application extends Component {
       <div>
         { this.renderModals() }
         <Status
+          gavBalance={ this.state.gavBalance }
           address={ this.state.address }
           blockNumber={ this.state.blockNumber }
           totalSupply={ this.state.totalSupply }
@@ -92,6 +96,13 @@ export default class Application extends Component {
       case 'BuyIn':
         return (
           <ActionBuyIn
+            accounts={ this.state.accounts }
+            price={ this.state.price }
+            onClose={ this.onActionClose } />
+        );
+      case 'Refund':
+        return (
+          <ActionRefund
             accounts={ this.state.accounts }
             price={ this.state.price }
             onClose={ this.onActionClose } />
@@ -151,6 +162,8 @@ export default class Application extends Component {
         const { accounts } = this.state;
 
         this.setState({
+          ethBalance: ethBalances.reduce((total, balance) => total.add(balance), new BigNumber(0)),
+          gavBalance: gavBalances.reduce((total, balance) => total.add(balance), new BigNumber(0)),
           accounts: accounts.map((account, idx) => {
             const ethBalance = ethBalances[idx];
             const gavBalance = gavBalances[idx];

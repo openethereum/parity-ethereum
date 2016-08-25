@@ -9,6 +9,7 @@ const DIVISOR = 10 ** 6;
 export default class Status extends Component {
   static propTypes = {
     address: PropTypes.string,
+    gavBalance: PropTypes.object,
     blockNumber: PropTypes.object,
     totalSupply: PropTypes.object,
     remaining: PropTypes.object,

@@ -2,6 +2,8 @@ import React, { Component, PropTypes } from 'react';
 
 import EventBuyin from './EventBuyin';
 import EventNewTranch from './EventNewTranch';
+import EventRefund from './EventRefund';
+import EventTransfer from './EventTransfer';
 
 export default class Events extends Component {
   static contextTypes = {
@@ -40,6 +42,10 @@ export default class Events extends Component {
             return <EventBuyin key={ event.key } event={ event } />;
           case 'NewTranch':
             return <EventNewTranch key={ event.key } event={ event } />;
+          case 'Refund':
+            return <EventRefund key={ event.key } event={ event } />;
+          case 'Transfer':
+            return <EventTransfer key={ event.key } event={ event } />;
         }
       });
   }

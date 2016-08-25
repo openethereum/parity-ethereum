@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import { Dialog, FlatButton, TextField } from 'material-ui';
@@ -7,9 +8,10 @@ import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
 const { Api } = window.parity;
 
+const DIVISOR = 10 ** 6;
 const NAME_ID = ' ';
 
-export default class ActionBuyIn extends Component {
+export default class ActionRefund extends Component {
   static contextTypes = {
     instance: PropTypes.object
   }
@@ -23,18 +25,18 @@ export default class ActionBuyIn extends Component {
   state = {
     account: {},
     accountError: ERRORS.invalidAccount,
+    complete: false,
+    sending: false,
     amount: 0,
     amountError: ERRORS.invalidAmount,
-    maxPrice: Api.format.fromWei(this.props.price.mul(1.2)).toString(),
-    maxPriceError: null,
-    sending: false,
-    complete: false
+    price: Api.format.fromWei(this.props.price).toString(),
+    priceError: null
   }
 
   render () {
     return (
       <Dialog
-        title='Buy In'
+        title='Refund'
         modal open
         actions={ this.renderActions() }>
         { this.state.complete ? this.renderComplete() : this.renderFields() }
@@ -52,7 +54,7 @@ export default class ActionBuyIn extends Component {
       );
     }
 
-    const hasError = !!(this.state.amountError || this.state.accountError || this.state.maxPriceError);
+    const hasError = !!(this.state.priceError || this.state.amountError || this.state.accountError);
 
     return ([
       <FlatButton
@@ -60,7 +62,7 @@ export default class ActionBuyIn extends Component {
         primary
         onTouchTap={ this.props.onClose } />,
       <FlatButton
-        label='Buy GAVcoin'
+        label='Refund'
         primary
         disabled={ hasError || this.state.sending }
         onTouchTap={ this.onSend } />
@@ -74,8 +76,7 @@ export default class ActionBuyIn extends Component {
   }
 
   renderFields () {
-    const maxPriceLabel = `maximum price in ΞTH (current ${Api.format.fromWei(this.props.price).toFormat(3)})`;
-
+    const priceLabel = `price in ΞTH (current ${Api.format.fromWei(this.props.price).toFormat(3)})`;
     return (
       <div>
         <AccountSelector
@@ -86,9 +87,9 @@ export default class ActionBuyIn extends Component {
         <TextField
           autoComplete='off'
           floatingLabelFixed
-          floatingLabelText='amount in ΞTH'
+          floatingLabelText='number of coins'
           fullWidth
-          hintText='the amount of ΞTH you wish to spend'
+          hintText='the number of coins to exchange for an ΞTH refund'
           errorText={ this.state.amountError }
           name={ NAME_ID }
           id={ NAME_ID }
@@ -97,14 +98,14 @@ export default class ActionBuyIn extends Component {
         <TextField
           autoComplete='off'
           floatingLabelFixed
-          floatingLabelText={ maxPriceLabel }
+          floatingLabelText={ priceLabel }
           fullWidth
-          hintText='the maxium price allowed for buying'
-          errorText={ this.state.maxPriceError }
+          hintText='the price the refund is requested at'
+          errorText={ this.state.priceError }
           name={ NAME_ID }
           id={ NAME_ID }
-          value={ this.state.maxPrice }
-          onChange={ this.onChangeMaxPrice } />
+          value={ this.state.price }
+          onChange={ this.onChangePrice } />
       </div>
     );
   }
@@ -123,32 +124,33 @@ export default class ActionBuyIn extends Component {
     });
   }
 
-  onChangeMaxPrice = (event, maxPrice) => {
+  onChangePrice = (event, price) => {
     this.setState({
-      maxPrice,
-      maxPriceError: validatePositiveNumber(maxPrice)
+      price,
+      priceError: validatePositiveNumber(price)
     });
   }
 
   onSend = () => {
-    const maxPrice = Api.format.toWei(this.state.maxPrice);
     const { instance } = this.context;
-    const values = [this.state.account.address, maxPrice.toString()];
+    const price = Api.format.toWei(this.state.price);
+    const amount = new BigNumber(this.state.amount).mul(DIVISOR);
+    const values = [price.toString(), amount.toFixed(0)];
+    console.log(values);
     const options = {
-      from: this.state.account.address,
-      value: Api.format.toWei(this.state.amount).toString()
+      from: this.state.account.address
     };
 
     this.setState({
       sending: true
     });
 
-    instance.buyin
+    instance.refund
       .estimateGas(options, values)
       .then((gasEstimate) => {
         options.gas = gasEstimate.mul(1.2).toFixed(0);
 
-        return instance.buyin.postTransaction(options, values);
+        return instance.refund.postTransaction(options, values);
       })
       .then(() => {
         this.setState({

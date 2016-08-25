@@ -26,7 +26,7 @@ export default class Actions extends Component {
           <FlatButton
             icon={ <ContentAdd /> }
             label='claim refund'
-            primary disabled
+            primary
             onTouchTap={ this.onRefund } />
         </ToolbarGroup>
       </Toolbar>
