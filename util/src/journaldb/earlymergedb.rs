@@ -539,6 +539,10 @@ impl JournalDB for EarlyMergeDB {
 
 		Ok(ops)
 	}
+
+	fn consolidate(&mut self, with: MemoryDB) {
+		self.overlay.consolidate(with);
+	}
 }
 
 #[cfg(test)]

@@ -16,7 +16,7 @@
 
 //! Snapshot creation, restoration, and network service.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
@@ -27,6 +27,7 @@ use ids::BlockID;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, snappy};
+use util::memorydb::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::journaldb::{self, Algorithm, JournalDB};
@@ -332,6 +333,8 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 		progress: progress,
 	};
 
+	let mut used_code = HashSet::new();
+
 	// account_key here is the address' hash.
 	for (account_key, account_data) in account_trie.iter() {
 		let account = Account::from_thin_rlp(account_data);
@@ -339,7 +342,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlp = try!(account.to_fat_rlp(&account_db));
+		let fat_rlp = try!(account.to_fat_rlp(&account_db, &mut used_code));
 		let compressed_rlp = UntrustedRlp::new(&fat_rlp).compress(RlpType::Snapshot).to_vec();
 		try!(chunker.push(account_key, compressed_rlp));
 	}
@@ -403,6 +406,8 @@ impl ManifestData {
 pub struct StateRebuilder {
 	db: Box<JournalDB>,
 	state_root: H256,
+	code_map: HashMap<H256, Bytes>, // maps code hashes to code itself.
+	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
 }
 
 impl StateRebuilder {
@@ -411,6 +416,8 @@ impl StateRebuilder {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
 			state_root: SHA3_NULL_RLP,
+			code_map: HashMap::new(),
+			missing_code: HashMap::new(),
 		}
 	}
 
@@ -419,40 +426,56 @@ impl StateRebuilder {
 		let rlp = UntrustedRlp::new(chunk);
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
-		let backing = self.db.backing().clone();
 
 		// initialize the pairs vector with empty values so we have slots to write into.
 		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
 
 		let chunk_size = account_fat_rlps.len() / ::num_cpus::get() + 1;
 
+		// new code contained within this chunk.
+		let mut chunk_code = HashMap::new();
+
 		// build account tries in parallel.
 		// Todo [rob] keep a thread pool around so we don't do this per-chunk.
 		try!(scope(|scope| {
 			let mut handles = Vec::new();
 			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let mut db = self.db.boxed_clone();
-				let handle: ScopedJoinHandle<Result<Box<JournalDB>, ::error::Error>> = scope.spawn(move || {
-					try!(rebuild_account_trie(db.as_hashdb_mut(), account_chunk, out_pairs_chunk));
+				let code_map = &self.code_map;
+				let handle: ScopedJoinHandle<Result<_, ::error::Error>> = scope.spawn(move || {
+					let mut db = MemoryDB::new();
+					let status = try!(rebuild_accounts(&mut db, account_chunk, out_pairs_chunk, code_map));
 
 					trace!(target: "snapshot", "thread rebuilt {} account tries", account_chunk.len());
-					Ok(db)
+					Ok((db, status))
 				});
 
 				handles.push(handle);
 			}
 
-			// commit all account tries to the db, but only in this thread.
-			let batch = backing.transaction();
+			// consolidate all edits into the main overlay.
 			for handle in handles {
-				let mut thread_db = try!(handle.join());
-				try!(thread_db.inject(&batch));
-			}
-			try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
+				let (thread_db, status): (MemoryDB, _) = try!(handle.join());
+				self.db.consolidate(thread_db);
 
+				chunk_code.extend(status.new_code);
+
+				for (addr_hash, code_hash) in status.missing_code {
+					self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
+				}
+			}
 
 			Ok::<_, ::error::Error>(())
 		}));
+
+		// patch up all missing code. must be done after collecting all new missing code entries.
+		for (code_hash, code) in chunk_code {
+			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
+				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
+				db.emplace(code_hash, code.clone());
+			}
+
+			self.code_map.insert(code_hash, code);
+		}
 
 
 		// batch trie writes
@@ -468,6 +491,7 @@ impl StateRebuilder {
 			}
 		}
 
+		let backing = self.db.backing().clone();
 		let batch = backing.transaction();
 		try!(self.db.inject(&batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
@@ -475,11 +499,36 @@ impl StateRebuilder {
 		Ok(())
 	}
 
+	/// Check for accounts missing code. Once all chunks have been fed, there should
+	/// be none.
+	pub fn check_missing(&self) -> Result<(), Error> {
+		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
+		match missing.is_empty() {
+			true => Ok(()),
+			false => Err(Error::MissingCode(missing)),
+		}
+	}
+
 	/// Get the state root of the rebuilder.
 	pub fn state_root(&self) -> H256 { self.state_root }
 }
 
-fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mut [(H256, Bytes)]) -> Result<(), ::error::Error> {
+#[derive(Default)]
+struct RebuiltStatus {
+	new_code: Vec<(H256, Bytes)>, // new code that's become available.
+	missing_code: Vec<(H256, H256)>, // accounts that are missing code.
+}
+
+// rebuild a set of accounts and their storage.
+// returns
+fn rebuild_accounts(
+	db: &mut HashDB,
+	account_chunk: &[&[u8]],
+	out_chunk: &mut [(H256, Bytes)],
+	code_map: &HashMap<H256, Bytes>
+) -> Result<RebuiltStatus, ::error::Error>
+{
+	let mut status = RebuiltStatus::default();
 	for (account_pair, out) in account_chunk.into_iter().zip(out_chunk) {
 		let account_rlp = UntrustedRlp::new(account_pair);
 
@@ -491,14 +540,24 @@ fn rebuild_account_trie(db: &mut HashDB, account_chunk: &[&[u8]], out_chunk: &mu
 			let mut acct_db = AccountDBMut::from_hash(db, hash);
 
 			// fill out the storage trie and code while decoding.
-			let acc = try!(Account::from_fat_rlp(&mut acct_db, fat_rlp));
+			let (acc, maybe_code) = try!(Account::from_fat_rlp(&mut acct_db, fat_rlp, code_map));
+
+			let code_hash = acc.code_hash().clone();
+			match maybe_code {
+				Some(code) => status.new_code.push((code_hash, code)),
+				None => {
+					if code_hash != ::util::SHA3_EMPTY && !code_map.contains_key(&code_hash) {
+						status.missing_code.push((hash, code_hash));
+					}
+				}
+			}
 
 			acc.to_thin_rlp()
 		};
 
 		*out = (hash, thin_rlp);
 	}
-	Ok(())
+	Ok(status)
 }
 
 /// Proportion of blocks which we will verify `PoW` for.
