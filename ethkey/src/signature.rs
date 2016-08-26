@@ -121,6 +121,12 @@ impl Hash for Signature {
     }
 }
 
+impl Clone for Signature {
+    fn clone(&self) -> Self {
+		Signature(self.0)
+    }
+}
+
 impl From<[u8; 65]> for Signature {
 	fn from(s: [u8; 65]) -> Self {
 		Signature(s)
