@@ -11,9 +11,11 @@ export default class AccountSelect extends Component {
   static propTypes = {
     accounts: PropTypes.array,
     account: PropTypes.object,
-    accountError: PropTypes.string,
     gavBalance: PropTypes.bool,
-    onSelect: PropTypes.func
+    onSelect: PropTypes.func,
+    errorText: PropTypes.string,
+    floatingLabelText: PropTypes.string,
+    hintText: PropTypes.string
   }
 
   componentDidMount () {
@@ -25,10 +27,10 @@ export default class AccountSelect extends Component {
       <SelectField
         autoComplete='off'
         floatingLabelFixed
-        floatingLabelText='from account'
+        floatingLabelText={ this.props.floatingLabelText }
         fullWidth
-        hintText='the account the transaction will be made from'
-        errorText={ this.props.accountError }
+        hintText={ this.props.hintText }
+        errorText={ this.props.errorText }
         name={ NAME_ID }
         id={ NAME_ID }
         value={ this.props.account }

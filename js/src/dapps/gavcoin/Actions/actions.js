@@ -23,7 +23,7 @@ export default class Actions extends Component {
           className='button'
           icon={ <ContentSend /> }
           label='send coins'
-          primary disabled
+          primary
           onTouchTap={ this.onTransfer } />
         <RaisedButton
           className='button'

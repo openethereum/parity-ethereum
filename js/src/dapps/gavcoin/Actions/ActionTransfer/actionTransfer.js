@@ -8,8 +8,6 @@ import AccountTextField from '../../AccountTextField';
 import { renderComplete } from '../render';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
-const { Api } = window.parity;
-
 const DIVISOR = 10 ** 6;
 const NAME_ID = ' ';
 
@@ -57,7 +55,7 @@ export default class ActionTransfer extends Component {
       );
     }
 
-    const hasError = !!(true || this.state.priceError || this.state.amountError || this.state.accountError);
+    const hasError = !!(this.state.amountError || this.state.fromAccountError || this.state.toAccountError);
 
     return ([
       <FlatButton
@@ -79,13 +77,17 @@ export default class ActionTransfer extends Component {
           gavBalance
           accounts={ this.props.accounts }
           account={ this.state.fromAccount }
-          accountError={ this.state.fromAccountError }
+          errorText={ this.state.fromAccountError }
+          floatingLabelText='from account'
+          hintText='the account the transaction will be made from'
           onSelect={ this.onChangeFromAccount } />
         <AccountTextField
           accounts={ this.props.accounts }
           account={ this.state.toAccount }
-          accountError={ this.state.toAccountError }
-          onSelect={ this.onChangeToAccount } />
+          errorText={ this.state.toAccountError }
+          floatingLabelText='to account'
+          hintText='the account the coins will be sent to'
+          onChange={ this.onChangeToAccount } />
         <TextField
           autoComplete='off'
           floatingLabelFixed
@@ -131,11 +133,10 @@ export default class ActionTransfer extends Component {
 
   onSend = () => {
     const { instance } = this.context;
-    const price = Api.format.toWei(this.state.price);
     const amount = new BigNumber(this.state.amount).mul(DIVISOR);
-    const values = [price.toString(), amount.toFixed(0)];
+    const values = [this.state.toAccount.address, amount.toFixed(0)];
     const options = {
-      from: this.state.account.address
+      from: this.state.fromAccount.address
     };
 
     this.setState({
@@ -146,6 +147,7 @@ export default class ActionTransfer extends Component {
       .estimateGas(options, values)
       .then((gasEstimate) => {
         options.gas = gasEstimate.mul(1.2).toFixed(0);
+        console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
 
         return instance.transfer.postTransaction(options, values);
       })

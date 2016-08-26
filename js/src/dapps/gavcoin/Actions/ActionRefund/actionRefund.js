@@ -79,7 +79,9 @@ export default class ActionRefund extends Component {
           gavBalance
           accounts={ this.props.accounts }
           account={ this.state.account }
-          accountError={ this.state.accountError }
+          errorText={ this.state.accountError }
+          floatingLabelText='from account'
+          hintText='the account the transaction will be made from'
           onSelect={ this.onChangeAddress } />
         <TextField
           autoComplete='off'
@@ -145,6 +147,7 @@ export default class ActionRefund extends Component {
       .estimateGas(options, values)
       .then((gasEstimate) => {
         options.gas = gasEstimate.mul(1.2).toFixed(0);
+        console.log(`refund: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
 
         return instance.refund.postTransaction(options, values);
       })
