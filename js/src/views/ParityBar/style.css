@@ -1,5 +1,4 @@
 .bar {
-  background: rgba(0, 0, 0, 0.5);
   position: fixed;
   bottom: 0;
   right: 0;
@@ -10,16 +9,15 @@
   z-index: 10000;
   display: flex;
   flex-wrap: wrap;
-  height: 6px;
   width: 100%;
 }
 
 .corner {
   background: rgba(0, 0, 0, 0.5);
   position: absolute;
-  bottom: 6px;
-  right: 0;
-  border-top-left-radius: 8px;
+  bottom: 0;
+  right: 16px;
+  border-radius: 4px 4px 0 0;
 }
 
 .logo {
@@ -31,5 +29,4 @@
 }
 
 a.noshow {
-
 }

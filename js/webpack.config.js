@@ -18,7 +18,7 @@ module.exports = {
     'dapps/registry': ['./dapps/registry.js'],
     'dapps/tokenreg': ['./dapps/tokenreg.js'],
     'parity': ['./parity.js'],
-    'wallet': ['./wallet.js'] /*,
+    'app': ['./app.js'] /*,
     'web3': ['./web3.js'] */
   },
   output: {

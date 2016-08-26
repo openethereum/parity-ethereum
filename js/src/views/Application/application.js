@@ -23,7 +23,7 @@ const ETH_TOKEN = {
   tag: 'ΞTH'
 };
 
-export default class Wallet extends Component {
+export default class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
     accounts: PropTypes.array,

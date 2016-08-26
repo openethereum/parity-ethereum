@@ -13,7 +13,7 @@ import Contracts from './views/Contracts';
 import Contract from './views/Contract';
 import Dapps from './views/Dapps';
 import Signer from './views/Signer';
-import Wallet from './views/Wallet';
+import Application from './views/Application';
 
 import styles from './reset.css';
 
@@ -22,7 +22,7 @@ const routerHistory = useRouterHistory(createHashHistory)({});
 ReactDOM.render(
   <Router history={ routerHistory } className={ styles.reset }>
     <Redirect from='/' to='/accounts' />
-    <Route path='/' component={ Wallet }>
+    <Route path='/' component={ Application }>
       <Route path='accounts' component={ Accounts } />
       <Route path='account/:address' component={ Account } />
       <Route path='apps' component={ Dapps } />

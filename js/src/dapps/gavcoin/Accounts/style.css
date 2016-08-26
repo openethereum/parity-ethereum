@@ -6,8 +6,9 @@
 
 .account {
   margin: 0.5em !important;
-  background: rgb(50, 150, 255) !important;
+  background: rgb(50, 100, 150) !important;
   display: inline-block !important;
+  font-weight: 300 !important;
 }
 
 .account img {
