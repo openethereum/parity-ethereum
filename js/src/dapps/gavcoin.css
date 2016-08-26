@@ -59,6 +59,7 @@ html, body {
 .button button {
   background-color: rgba(0, 100, 255, 1) !important;
   height: 56px !important;
+  padding: 0 10px !important;
 }
 
 .button button span {

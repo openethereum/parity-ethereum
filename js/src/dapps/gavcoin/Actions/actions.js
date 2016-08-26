@@ -1,7 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 
 import { RaisedButton } from 'material-ui';
-import ContentAdd from 'material-ui/svg-icons/content/add';
+import ActionAddShoppingCart from 'material-ui/svg-icons/action/add-shopping-cart';
+import AvReplay from 'material-ui/svg-icons/av/replay';
+import ContentSend from 'material-ui/svg-icons/content/send';
 
 export default class Actions extends Component {
   static propTypes = {
@@ -13,19 +15,19 @@ export default class Actions extends Component {
       <div className='actions'>
         <RaisedButton
           className='button'
-          icon={ <ContentAdd /> }
+          icon={ <ActionAddShoppingCart /> }
           label='buy coins'
           primary
           onTouchTap={ this.onBuyIn } />
         <RaisedButton
           className='button'
-          icon={ <ContentAdd /> }
-          label='transfer coins'
+          icon={ <ContentSend /> }
+          label='send coins'
           primary
           onTouchTap={ this.onTransfer } />
         <RaisedButton
           className='button'
-          icon={ <ContentAdd /> }
+          icon={ <AvReplay /> }
           label='claim refund'
           primary
           onTouchTap={ this.onRefund } />
