@@ -18,6 +18,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
+use ethkey::{Generator, Random};
 use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
@@ -188,7 +189,7 @@ impl TestBlockChainClient {
 			let txs = match with {
 				EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
 					let mut txs = RlpStream::new_list(1);
-					let keypair = KeyPair::create().unwrap();
+					let keypair = Random.generate().unwrap();
 					// Update nonces value
 					self.nonces.write().insert(keypair.address(), U256::one());
 					let tx = Transaction {
@@ -276,7 +277,6 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
 			engine,
-			self.vm_factory(),
 			Default::default(),
 			false,
 			db,

@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
-use util::{U256, H256, Secret, Populatable};
+use util::{U256, H256, Populatable};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::header::BlockNumber;
@@ -232,7 +232,7 @@ pub struct NetworkConfiguration {
 	/// List of initial node addresses
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
-	pub use_secret: Option<Secret>,
+	pub use_secret: Option<H256>,
 	/// Max number of connected peers to maintain
 	pub max_peers: u32,
 	/// Min number of connected peers to maintain

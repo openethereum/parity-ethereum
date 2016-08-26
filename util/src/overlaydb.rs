@@ -58,13 +58,13 @@ impl OverlayDB {
 	/// Commit all operations in a single batch.
 	#[cfg(test)]
 	pub fn commit(&mut self) -> Result<u32, UtilError> {
-		let batch = self.backing.transaction();
-		let res = try!(self.commit_to_batch(&batch));
+		let mut batch = self.backing.transaction();
+		let res = try!(self.commit_to_batch(&mut batch));
 		self.backing.write(batch).map(|_| res).map_err(|e| e.into())
 	}
 
 	/// Commit all operations to given batch.
-	pub fn commit_to_batch(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+	pub fn commit_to_batch(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
 		let mut ret = 0u32;
 		let mut deletes = 0usize;
 		for i in self.overlay.drain().into_iter() {
@@ -111,7 +111,7 @@ impl OverlayDB {
 	}
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.
-	fn put_payload_in_batch(&self, batch: &DBTransaction, key: &H256, payload: (Bytes, u32)) -> bool {
+	fn put_payload_in_batch(&self, batch: &mut DBTransaction, key: &H256, payload: (Bytes, u32)) -> bool {
 		if payload.1 > 0 {
 			let mut s = RlpStream::new_list(2);
 			s.append(&payload.1);
@@ -195,8 +195,8 @@ impl HashDB for OverlayDB {
 fn overlaydb_revert() {
 	let mut m = OverlayDB::new_temp();
 	let foo = m.insert(b"foo");          // insert foo.
-	let batch = m.backing.transaction();
-	m.commit_to_batch(&batch).unwrap();  // commit - new operations begin here...
+	let mut batch = m.backing.transaction();
+	m.commit_to_batch(&mut batch).unwrap();  // commit - new operations begin here...
 	m.backing.write(batch).unwrap();
 	let bar = m.insert(b"bar");          // insert bar.
 	m.remove(&foo);                      // remove foo.
@@ -300,7 +300,7 @@ fn playpen() {
 	use std::fs;
 	{
 		let db = Database::open_default("/tmp/test").unwrap();
-		let batch = db.transaction();
+		let mut batch = db.transaction();
 		batch.put(None, b"test", b"test2");
 		db.write(batch).unwrap();
 		match db.get(None, b"test") {
@@ -308,7 +308,7 @@ fn playpen() {
 			Ok(None) => println!("No value for that key"),
 			Err(..) => println!("Gah"),
 		}
-		let batch = db.transaction();
+		let mut batch = db.transaction();
 		batch.delete(None, b"test");
 		db.write(batch).unwrap();
 	}

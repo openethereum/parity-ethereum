@@ -64,8 +64,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				state.populate_from(pre);
 				state.commit()
 					.expect(&format!("State test {} failed due to internal error.", name));
-				let vm_factory = Default::default();
-				let res = state.apply(&env, &*engine, &vm_factory, &transaction, false);
+				let res = state.apply(&env, &*engine, &transaction, false);
 
 				if fail_unless(state.root() == &post_state_root) {
 					println!("!!! {}: State mismatch (got: {}, expect: {}):", name, state.root(), post_state_root);
