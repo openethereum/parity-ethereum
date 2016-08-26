@@ -106,18 +106,18 @@ mod tests {
 
 		// Unapproved voter.
 		let signature = tap.sign(addr3, bare_hash).unwrap();
-		assert!(!vote.vote(bare_hash, &signature.into()));
+		assert!(!vote.vote(bare_hash, signature));
 		assert!(vote.winner().is_none());
 		// First good vote.
 		let signature = tap.sign(addr1, bare_hash).unwrap();
-		assert!(vote.vote(bare_hash, &signature.into()));
+		assert!(vote.vote(bare_hash, signature));
 		assert_eq!(vote.winner().unwrap(), bare_hash);
 		// Voting again is ineffective.
 		let signature = tap.sign(addr1, bare_hash).unwrap();
-		assert!(!vote.vote(bare_hash, &signature.into()));
+		assert!(!vote.vote(bare_hash, signature));
 		// Second valid vote.
 		let signature = tap.sign(addr2, bare_hash).unwrap();
-		assert!(vote.vote(bare_hash, &signature.into()));
+		assert!(vote.vote(bare_hash, signature));
 		assert_eq!(vote.winner().unwrap(), bare_hash);
 	}
 }

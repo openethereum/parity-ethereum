@@ -46,7 +46,11 @@ pub enum EngineError {
 	/// Message pertaining unknown consensus step.
 	UnknownStep,
 	/// Message was not expected.
-	UnexpectedMessage
+	UnexpectedMessage,
+	/// Received a vote for a different proposal.
+	WrongVote,
+	/// Received message is from a different consensus round.
+	WrongRound
 }
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.

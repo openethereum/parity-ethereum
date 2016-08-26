@@ -41,7 +41,9 @@ pub struct TendermintParams {
 	/// Consensus step.
 	s: RwLock<Step>,
 	/// Used to swith proposer.
-	proposer_nonce: AtomicUsize
+	proposer_nonce: AtomicUsize,
+	/// Seal collection.
+	seal: Vec<Bytes>
 }
 
 #[derive(Debug)]
@@ -63,7 +65,8 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 			validator_n: val_n,
 			r: 0,
 			s: RwLock::new(Step::Propose),
-			proposer_nonce: AtomicUsize::new(0)
+			proposer_nonce: AtomicUsize::new(0),
+			seal: Vec::new()
 		}
 	}
 }
@@ -90,24 +93,76 @@ impl Tendermint {
 		p.validators.get(p.proposer_nonce.load(AtomicOrdering::Relaxed)%p.validator_n).unwrap().clone()
 	}
 
+	fn is_proposer(&self, address: &Address) -> bool {
+		self.proposer() == *address
+	}
+
+	fn is_validator(&self, address: &Address) -> bool {
+		self.our_params.validators.contains(address)
+	}
+
+	fn new_vote(&self, proposal: H256) -> ProposeCollect {
+		ProposeCollect::new(proposal,
+							self.our_params.validators.iter().cloned().collect(),
+							self.threshold())
+	}
+
 	fn propose_message(&self, message: UntrustedRlp) -> Result<Bytes, Error> {
+		// Check if message is for correct step.
 		match *self.our_params.s.try_read().unwrap() {
 			Step::Propose => (),
 			_ => try!(Err(EngineError::WrongStep)),
 		}
 		let proposal = try!(message.as_val());
 		self.our_params.proposer_nonce.fetch_add(1, AtomicOrdering::Relaxed);
-		let vote = ProposeCollect::new(proposal,
-									   self.our_params.validators.iter().cloned().collect(),
-									   self.threshold());
 		let mut guard = self.our_params.s.write();
-		*guard = Step::Prevote(vote);
+		// Proceed to the prevote step.
+		*guard = Step::Prevote(self.new_vote(proposal));
 		Ok(message.as_raw().to_vec())
 	}
 
 	fn prevote_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
+		// Check if message is for correct step.
 		match *self.our_params.s.try_write().unwrap() {
-			Step::Prevote(ref mut vote) => try!(Err(EngineError::WrongStep)),
+			Step::Prevote(ref mut vote) => {
+				// Vote if message is about the right block.
+				if vote.hash == try!(message.as_val()) {
+					vote.vote(sender);
+					// Move to next step is prevote is won.
+					if vote.is_won() {
+						let mut guard = self.our_params.s.write();
+						*guard = Step::Precommit(self.new_vote(vote.hash));
+						Ok(message.as_raw().to_vec())
+					} else {
+						Ok(message.as_raw().to_vec())
+					}
+				} else {
+					try!(Err(EngineError::WrongVote))
+				}
+			},
+			_ => try!(Err(EngineError::WrongStep)),
+		}
+	}
+
+	fn precommit_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
+		// Check if message is for correct step.
+		match *self.our_params.s.try_write().unwrap() {
+			Step::Prevote(ref mut vote) => {
+				// Vote and accumulate seal if message is about the right block.
+				if vote.hash == try!(message.as_val()) {
+					vote.vote(sender);
+					// Commit if precommit is won.
+					if vote.is_won() {
+						let mut guard = self.our_params.s.write();
+						*guard = Step::Commit;
+						Ok(message.as_raw().to_vec())
+					} else {
+						Ok(message.as_raw().to_vec())
+					}
+				} else {
+					try!(Err(EngineError::WrongVote))
+				}
+			},
 			_ => try!(Err(EngineError::WrongStep)),
 		}
 	}
@@ -168,9 +223,13 @@ impl Engine for Tendermint {
 	}
 
 	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
-		match try!(message.val_at(0)) {
-			0u8 if sender == self.proposer() => self.propose_message(try!(message.at(1))),
-			1 if self.our_params.validators.contains(&sender) => self.prevote_message(sender, try!(message.at(1))),
+		// Check if correct round.
+		if self.our_params.r != try!(message.val_at(0)) { try!(Err(EngineError::WrongRound)) }
+		// Handle according to step.
+		match try!(message.val_at(1)) {
+			0u8 if self.is_proposer(&sender) => self.propose_message(try!(message.at(2))),
+			1 if self.is_validator(&sender) => self.prevote_message(sender, try!(message.at(2))),
+			2 if self.is_validator(&sender) => self.precommit_message(sender, try!(message.at(2))),
 			_ => try!(Err(EngineError::UnknownStep)),
 		}
 	}
@@ -219,7 +278,6 @@ impl Engine for Tendermint {
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 	use common::*;
@@ -227,12 +285,21 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use super::Step;
-	use ethkey::Signature;
+	use engines::Engine;
 
 	/// Create a new test chain spec with `Tendermint` consensus engine.
 	/// Account "0".sha3() and "1".sha3() are a validators.
 	fn new_test_tendermint() -> Spec { Spec::load(include_bytes!("../../res/tendermint.json")) }
+
+	fn propose_default(engine: &Arc<Engine>, proposer: Address) -> Result<Bytes, Error> {
+		let mut s = RlpStream::new_list(3);
+		let header = Header::default();
+		s.append(&0u8).append(&0u8).append(&header.bare_hash());
+		let drain = s.out();
+		let propose_rlp = UntrustedRlp::new(&drain);
+
+		engine.handle_message(proposer, propose_rlp)
+	}
 
 	#[test]
 	fn has_valid_metadata() {
@@ -284,8 +351,7 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine, &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
@@ -295,23 +361,25 @@ mod tests {
 	fn propose_step() {
 		let engine = new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
-		let mut s = RlpStream::new_list(2);
-		let header = Header::default();
-		s.append(&0u8).append(&header.bare_hash());
-		let drain = s.out();
-		let propose_rlp = UntrustedRlp::new(&drain);
 
 		let not_validator_addr = tap.insert_account("101".sha3(), "101").unwrap();
-		assert!(engine.handle_message(not_validator_addr, propose_rlp.clone()).is_err());
+		assert!(propose_default(&engine, not_validator_addr).is_err());
 
 		let not_proposer_addr = tap.insert_account("0".sha3(), "0").unwrap();
-		assert!(engine.handle_message(not_proposer_addr, propose_rlp.clone()).is_err());
+		assert!(propose_default(&engine, not_proposer_addr).is_err());
 
 		let proposer_addr = tap.insert_account("1".sha3(), "1").unwrap();
 		assert_eq!(vec![160, 39, 191, 179, 126, 80, 124, 233, 13, 161, 65, 48, 114, 4, 177, 198, 186, 36, 25, 67, 128, 97, 53, 144, 172, 80, 202, 75, 29, 113, 152, 255, 101],
-				   engine.handle_message(proposer_addr, propose_rlp.clone()).unwrap());
+				   propose_default(&engine, proposer_addr).unwrap());
 
-		assert!(engine.handle_message(not_proposer_addr, propose_rlp).is_err());
+		assert!(propose_default(&engine, proposer_addr).is_err());
+		assert!(propose_default(&engine, not_proposer_addr).is_err());
+	}
+
+	#[test]
+	fn prevote_step() {
+		let engine = new_test_tendermint().engine;
+		propose_default(&engine, Address::default());
 	}
 
 	#[test]
