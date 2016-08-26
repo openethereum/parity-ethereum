@@ -41,25 +41,31 @@ pub struct ModuleState {
 
 
 #[derive(Ipc)]
-trait ControlService {
+pub trait ControlService {
 	fn shutdown(&self);
 }
 
 #[derive(Ipc)]
 impl HypervisorService {
-	fn module_ready(&self, control_url: String, module_id: u64) {
+	// return type for making method synchronous
+	fn module_ready(&self, module_id: u64, control_url: String) -> bool {
 		let mut modules = self.modules.write().unwrap();
 		modules.get_mut(&module_id).map(|mut module| {
 			module.started = true;
 			module.control_url = control_url;
 		});
+		trace!(target: "hypervisor", "Module ready: {}", module_id);
+		true
 	}
 
-	fn module_shutdown(&self, module_id: u64) {
+	// return type for making method synchronous
+	fn module_shutdown(&self, module_id: u64) -> bool {
 		let mut modules = self.modules.write().unwrap();
 		modules.get_mut(&module_id).map(|mut module| {
 			module.shutdown = true;
 		});
+		trace!(target: "hypervisor", "Module shutdown: {}", module_id);
+		true
 	}
 }
 
@@ -103,8 +109,10 @@ impl HypervisorService {
 	pub fn send_shutdown(&self, module_id: IpcModuleId) {
 		let modules = self.modules.read().unwrap();
 		modules.get(&module_id).map(|module| {
+			trace!(target: "hypervisor", "Sending shutdown to {}({})", module_id, &module.control_url);
 			let client = nanoipc::init_client::<ControlServiceClient<_>>(&module.control_url).unwrap();
 			client.shutdown();
+			trace!(target: "hypervisor", "Sent shutdown to {}", module_id);
 		});
 	}
 }
