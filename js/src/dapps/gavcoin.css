@@ -101,9 +101,12 @@ html, body {
 }
 
 .event .blocknumber,
-.event .ethvalue,
 .event .gavvalue {
   text-align: right;
+}
+
+.event .ethvalue {
+  text-align: center;
 }
 
 .event .type {

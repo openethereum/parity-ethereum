@@ -18,7 +18,7 @@ export default class EventNewTranch extends Component {
         <td className='blocknumber'>{ formatBlockNumber(blockNumber) }</td>
         <td className='type'>New Tranch</td>
         <td></td>
-        <td className='ethvalue'>@{ formatEth(price) }ΞTH</td>
+        <td className='ethvalue'>{ formatEth(price) }ΞTH</td>
         <td></td>
         <td></td>
       </tr>
