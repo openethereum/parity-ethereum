@@ -119,7 +119,7 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 {
 
 	fn sign(&self, params: Params, ready: Ready) {
-		let res = self.active().and_then(|_| self.dispatch_transaction(params));
+		let res = self.active().and_then(|_| self.dispatch_sign(params));
 		match res {
 			Ok(DispatchResult::Promise(promise)) => {
 				promise.wait_for_result(move |result| {

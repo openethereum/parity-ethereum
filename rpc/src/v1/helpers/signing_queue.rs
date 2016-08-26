@@ -151,6 +151,7 @@ impl ConfirmationPromise {
 
 	pub fn wait_for_result<F>(self, callback: F) where F: FnOnce(Option<RpcResult>) + Send + 'static {
 		trace!(target: "own_tx", "Signer: Awaiting confirmation... ({:?}).", self.id);
+		let _result = self.result.lock();
 		let mut listeners = self.listeners.lock();
 		// TODO [todr] Overcoming FnBox unstability
 		let callback = RefCell::new(Some(callback));
@@ -312,7 +313,7 @@ impl SigningQueue for ConfirmationsQueue {
 mod test {
 	use std::time::Duration;
 	use std::thread;
-	use std::sync::Arc;
+	use std::sync::{mpsc, Arc};
 	use util::{Address, U256, H256, Mutex};
 	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload};
 	use v1::types::H256 as NH256;
@@ -340,7 +341,11 @@ mod test {
 		let q = queue.clone();
 		let handle = thread::spawn(move || {
 			let v = q.add_request(request).unwrap();
-			v.wait_with_timeout().expect("Should return hash")
+			let (tx, rx) = mpsc::channel();
+			v.wait_for_result(move |res| {
+				tx.send(res).unwrap();
+			});
+			rx.recv().unwrap().expect("Should return hash")
 		});
 
 		let id = U256::from(1);
