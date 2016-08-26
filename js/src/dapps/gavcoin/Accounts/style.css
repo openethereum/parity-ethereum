@@ -8,7 +8,6 @@
   margin: 0.5em !important;
   background: rgb(50, 100, 150) !important;
   display: inline-block !important;
-  font-weight: 300 !important;
 }
 
 .account img {
@@ -19,12 +18,14 @@
 .balance {
   font-family: 'Roboto Mono', monospace;
   color: rgba(255, 255, 255, 1) !important;
+  font-weight: 300;
 }
 
 .name {
   color: rgba(255, 255, 255, 0.7) !important;
   margin-right: 1em;
   text-transform: uppercase;
+  font-weight: 300;
 }
 
 .none {
