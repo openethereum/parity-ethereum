@@ -18,6 +18,7 @@ linux-beta:
     - tags
     - stable
   script:
+    - export
     - cargo build --release --verbose
     - strip target/release/parity
     - cp target/release/parity parity
@@ -82,6 +83,7 @@ linux-armv7:
     - tags
     - stable
   script:
+    - export
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
@@ -105,6 +107,7 @@ linux-arm:
     - tags
     - stable
   script:
+    - export
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
@@ -129,6 +132,7 @@ linux-armv6:
     - tags
     - stable
   script:
+    - export
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
@@ -153,6 +157,7 @@ linux-aarch64:
     - tags
     - stable
   script:
+    - export
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
@@ -212,6 +217,7 @@ linux-stable:
     - tags
     - stable
   script:
+    - export
     - cargo build --release --verbose
     - strip target/release/parity
   tags:
