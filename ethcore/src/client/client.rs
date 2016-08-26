@@ -25,12 +25,12 @@ use time::precise_time_ns;
 use util::{journaldb, rlp, Bytes, View, PerfTimer, Itertools, Mutex, RwLock};
 use util::journaldb::JournalDB;
 use util::rlp::{UntrustedRlp};
-use util::ec::recover;
-use util::{U256, H256, Address, H2048, Uint};
+use util::{U256, H256, H520, Address, H2048, Uint};
 use util::sha3::*;
 use util::kvdb::*;
 
 // other
+use ethkey::recover;
 use io::*;
 use views::{BlockView, HeaderView, BodyView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult};
@@ -1031,12 +1031,11 @@ impl BlockChainClient for Client {
 	// TODO: Make it an actual queue, return errors.
 	fn queue_infinity_message(&self, message: Bytes) {
 		let full_rlp = UntrustedRlp::new(&message);
-		if let Ok(signature) = full_rlp.val_at(0) {
-			if let Ok(message) = full_rlp.val_at::<Vec<_>>(1) {
-				let message_rlp = UntrustedRlp::new(&message);
-				if let Ok(pub_key) = recover(&signature, &message.sha3()) {
-					if let Ok(new_message) = self.engine.handle_message(pub_key.sha3().into(), message_rlp) {
-						self.notify(|notify| notify.broadcast(&new_message));
+		if let Ok(signature) = full_rlp.val_at::<H520>(0) {
+			if let Ok(message) = full_rlp.at(1) {
+				if let Ok(pub_key) = recover(&signature.into(), &message.as_raw().sha3()) {
+					if let Ok(new_message) = self.engine.handle_message(pub_key.sha3().into(), message) {
+						self.notify(|notify| notify.broadcast(new_message.clone()));
 					}
 				}
 			}

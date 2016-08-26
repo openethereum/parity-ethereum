@@ -189,7 +189,7 @@ impl ChainNotify for EthSync {
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 
-	fn broadcast(&self, message: &[u8]) {
+	fn broadcast(&self, message: Vec<u8>) {
 		self.network.with_context(ETH_PROTOCOL, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain);
 			self.inf_handler.sync.write().propagate_packet(&mut sync_io, message.clone());

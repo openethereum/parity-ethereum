@@ -17,8 +17,9 @@
 //! Voting on a hash, where each vote has to come from a set of addresses.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use common::{HashSet, RwLock, H256, Signature, Address, Error, ec, Hashable};
+use common::{HashSet, RwLock, H256, Address, Error, Hashable};
 use super::EngineError;
+use ethkey::{recover, Signature};
 
 /// Collect votes on a hash.
 #[derive(Debug)]
@@ -57,7 +58,7 @@ impl ProposeCollect {
 	}
 
 	fn can_vote(&self, signature: &Signature) -> Result<(), Error> {
-		let signer = Address::from(try!(ec::recover(&signature, &self.hash)).sha3());
+		let signer = Address::from(try!(recover(&signature, &self.hash)).sha3());
 		match self.voters.contains(&signer) {
 			false => try!(Err(EngineError::UnauthorisedVoter)),
 			true => Ok(()),
@@ -108,18 +109,18 @@ mod tests {
 
 		// Unapproved voter.
 		let signature = tap.sign(addr3, bare_hash).unwrap();
-		assert!(!vote.vote(&signature.into()));
+		assert!(!vote.vote(&signature));
 		assert!(vote.winner().is_none());
 		// First good vote.
 		let signature = tap.sign(addr1, bare_hash).unwrap();
-		assert!(vote.vote(&signature.into()));
+		assert!(vote.vote(&signature));
 		assert_eq!(vote.winner().unwrap(), bare_hash);
 		// Voting again is ineffective.
 		let signature = tap.sign(addr1, bare_hash).unwrap();
-		assert!(!vote.vote(&signature.into()));
+		assert!(!vote.vote(&signature));
 		// Second valid vote.
 		let signature = tap.sign(addr2, bare_hash).unwrap();
-		assert!(vote.vote(&signature.into()));
+		assert!(vote.vote(&signature));
 		assert_eq!(vote.winner().unwrap(), bare_hash);
 	}
 }

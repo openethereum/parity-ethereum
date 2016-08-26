@@ -17,7 +17,8 @@
 //! Voting on hashes, where each vote has to come from a set of public keys.
 
 use super::EngineError;
-use common::{HashSet, HashMap, RwLock, H256, Signature, Address, Error, ec, Hashable};
+use common::{HashSet, HashMap, RwLock, H256, Address, Error, Hashable};
+use ethkey::{Signature, recover};
 
 /// Signed voting on hashes.
 #[derive(Debug)]
@@ -49,11 +50,11 @@ impl SignedVote {
 	}
 
 	/// Vote on hash using the signed hash, true if vote counted.
-	pub fn vote(&self, bare_hash: H256, signature: &Signature) -> bool {
-		if !self.can_vote(&bare_hash, signature).is_ok() { return false; }
+	pub fn vote(&self, bare_hash: H256, signature: Signature) -> bool {
+		if !self.can_vote(&bare_hash, &signature).is_ok() { return false; }
 		let mut guard = self.votes.try_write().unwrap();
 		let set = guard.entry(bare_hash.clone()).or_insert_with(|| HashSet::new());
-		if !set.insert(signature.clone()) { return false; }
+		if !set.insert(signature) { return false; }
 		// Set the winner if threshold is reached.
 		if set.len() >= self.threshold {
 			let mut guard = self.winner.try_write().unwrap();
@@ -63,7 +64,7 @@ impl SignedVote {
 	}
 
 	fn can_vote(&self, bare_hash: &H256, signature: &Signature) -> Result<(), Error> {
-		let signer = Address::from(try!(ec::recover(&signature, bare_hash)).sha3());
+		let signer = Address::from(try!(recover(&signature, bare_hash)).sha3());
 		match self.voters.contains(&signer) {
 			false => try!(Err(EngineError::UnauthorisedVoter)),
 			true => Ok(()),

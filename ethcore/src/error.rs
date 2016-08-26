@@ -366,9 +366,10 @@ impl From<SnapshotError> for Error {
 
 impl From<EngineError> for Error {
 	fn from(err: EngineError) -> Error {
-		match err {
-			other => Error::Engine(other),
-		}
+		Error::Engine(err)
+	}
+}
+
 impl From<EthkeyError> for Error {
 	fn from(err: EthkeyError) -> Error {
 		Error::Ethkey(err)

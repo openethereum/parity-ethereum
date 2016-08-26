@@ -106,7 +106,10 @@ impl Tendermint {
 	}
 
 	fn prevote_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
-		try!(Err(EngineError::WrongStep))
+		match *self.our_params.s.try_write().unwrap() {
+			Step::Prevote(ref mut vote) => try!(Err(EngineError::WrongStep)),
+			_ => try!(Err(EngineError::WrongStep)),
+		}
 	}
 
 	fn threshold(&self) -> usize {
@@ -167,7 +170,7 @@ impl Engine for Tendermint {
 	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
 		match try!(message.val_at(0)) {
 			0u8 if sender == self.proposer() => self.propose_message(try!(message.at(1))),
-			1 => self.prevote_message(sender, try!(message.at(1))),
+			1 if self.our_params.validators.contains(&sender) => self.prevote_message(sender, try!(message.at(1))),
 			_ => try!(Err(EngineError::UnknownStep)),
 		}
 	}
@@ -225,6 +228,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use super::Step;
+	use ethkey::Signature;
 
 	/// Create a new test chain spec with `Tendermint` consensus engine.
 	/// Account "0".sha3() and "1".sha3() are a validators.
@@ -263,21 +267,6 @@ mod tests {
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
 			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_do_signature_verification_fail() {
-		let engine = new_test_tendermint().engine;
-		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
-
-		let verify_result = engine.verify_block_unordered(&header, None);
-
-		match verify_result {
-			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => {},
-			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
 	}
