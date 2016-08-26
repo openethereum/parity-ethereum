@@ -174,10 +174,22 @@ impl Hypervisor {
 		self.service.unchecked_count() == 0
 	}
 
+	pub fn modules_shutdown(&self) -> bool {
+		self.service.running_count() == 0
+	}
+
 	/// Waits for every required module to check in
 	pub fn wait_for_startup(&self) {
 		let mut worker = self.ipc_worker.write().unwrap();
 		while !self.modules_ready() {
+			worker.poll()
+		}
+	}
+
+	/// Waits for every required module to check in
+	pub fn wait_for_shutdown(&self) {
+		let mut worker = self.ipc_worker.write().unwrap();
+		while !self.modules_shutdown() {
 			worker.poll()
 		}
 	}
@@ -187,10 +199,12 @@ impl Hypervisor {
 		if wait_time.is_some() { std::thread::sleep(wait_time.unwrap()) }
 
 		let mut childs = self.processes.write().unwrap();
-		for (ref mut module, ref mut child) in childs.iter_mut() {
+		for (ref mut module, _) in childs.iter_mut() {
 			trace!(target: "hypervisor", "Stopping process module: {}", module);
-			child.kill().unwrap();
+			self.service.send_shutdown(**module);
 		}
+
+		self.wait_for_shutdown();
 	}
 }
 
