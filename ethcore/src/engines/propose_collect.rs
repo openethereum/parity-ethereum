@@ -17,9 +17,7 @@
 //! Voting on a hash, where each vote has to come from a set of addresses.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use common::{HashSet, RwLock, H256, Address, Error, Hashable};
-use super::EngineError;
-use ethkey::{recover, Signature};
+use common::{HashSet, RwLock, H256, Address};
 
 /// Collect votes on a hash.
 #[derive(Debug)]
@@ -31,7 +29,7 @@ pub struct ProposeCollect {
 	/// Threshold vote number for success.
 	pub threshold: usize,
 	/// Votes.
-	votes: RwLock<HashSet<Signature>>,
+	votes: RwLock<HashSet<Address>>,
 	/// Was enough votes reached.
 	is_won: AtomicBool
 }
@@ -50,35 +48,24 @@ impl ProposeCollect {
 	}
 
 	/// Vote on hash using the signed hash, true if vote counted.
-	pub fn vote(&self, signature: &Signature) -> bool {
-		if self.votes.try_read().unwrap().contains(signature) { return false; }
-		if !self.can_vote(signature).is_ok() { return false; }
-		self.votes.try_write().unwrap().insert(signature.clone());
+	pub fn vote(&self, voter: Address) -> bool {
+		if self.votes.try_read().unwrap().contains(&voter) { return false; }
+		if !self.voters.contains(&voter) { return false; }
+		self.votes.try_write().unwrap().insert(voter);
 		true
 	}
 
-	fn can_vote(&self, signature: &Signature) -> Result<(), Error> {
-		let signer = Address::from(try!(recover(&signature, &self.hash)).sha3());
-		match self.voters.contains(&signer) {
-			false => try!(Err(EngineError::UnauthorisedVoter)),
-			true => Ok(()),
-		}
-	}
-
 	/// Some winner if voting threshold was reached.
-	pub fn winner(&self) -> Option<H256> {
+	pub fn is_won(&self) -> bool {
 		let threshold_checker = || match self.votes.try_read().unwrap().len() >= self.threshold {
 			true => { self.is_won.store(true, Ordering::Relaxed); true },
 			false => false,
 		};
-		match self.is_won.load(Ordering::Relaxed) || threshold_checker() {
-			true => Some(self.hash),
-			false => None,
-		}
+		self.is_won.load(Ordering::Relaxed) || threshold_checker()
 	}
 
-	/// Get signatures backing given hash.
-	pub fn votes(&self) -> HashSet<Signature> {
+	/// Get addresses backing given hash.
+	pub fn votes(&self) -> HashSet<Address> {
 		self.votes.try_read().unwrap().clone()
 	}
 }
@@ -103,24 +90,21 @@ mod tests {
 
 		let header = Header::default();
 		let bare_hash = header.bare_hash();
-		let voters: HashSet<_> = vec![addr1, addr2].into_iter().map(Into::into).collect();
-		let vote = ProposeCollect::new(bare_hash, voters.into(), 1);
-		assert!(vote.winner().is_none());
+		let voters: HashSet<_> = vec![addr1.clone(), addr2.clone(), Address::default()].into_iter().map(Into::into).collect();
+		let vote = ProposeCollect::new(bare_hash, voters.into(), 2);
+		assert!(!vote.is_won());
 
 		// Unapproved voter.
-		let signature = tap.sign(addr3, bare_hash).unwrap();
-		assert!(!vote.vote(&signature));
-		assert!(vote.winner().is_none());
+		assert!(!vote.vote(addr3));
+		assert!(!vote.is_won());
 		// First good vote.
-		let signature = tap.sign(addr1, bare_hash).unwrap();
-		assert!(vote.vote(&signature));
-		assert_eq!(vote.winner().unwrap(), bare_hash);
+		assert!(vote.vote(addr1.clone()));
+		assert!(!vote.is_won());
 		// Voting again is ineffective.
-		let signature = tap.sign(addr1, bare_hash).unwrap();
-		assert!(!vote.vote(&signature));
-		// Second valid vote.
-		let signature = tap.sign(addr2, bare_hash).unwrap();
-		assert!(vote.vote(&signature));
-		assert_eq!(vote.winner().unwrap(), bare_hash);
+		assert!(!vote.vote(addr1));
+		assert!(!vote.is_won());
+		// Second valid vote thus win.
+		assert!(vote.vote(addr2));
+		assert!(vote.is_won());
 	}
 }
