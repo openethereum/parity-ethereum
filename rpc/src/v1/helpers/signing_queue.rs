@@ -47,14 +47,23 @@ pub enum QueueError {
 	ReceiverError(mpsc::RecvError),
 }
 
+/// Defines possible errors when inserting to queue
+#[derive(Debug, PartialEq)]
+pub enum QueueAddError {
+	LimitReached,
+}
+
 /// Message Receiver type
 pub type QueueEventReceiver = mpsc::Receiver<QueueEvent>;
+
+// TODO [todr] to consider: timeout instead of limit?
+const QUEUE_LIMIT: usize = 50;
 
 /// A queue of transactions awaiting to be confirmed and signed.
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
 	/// Returns a `ConfirmationPromise` that can be used to await for resolution of given request.
-	fn add_request(&self, request: ConfirmationPayload) -> ConfirmationPromise;
+	fn add_request(&self, request: ConfirmationPayload) -> Result<ConfirmationPromise, QueueAddError>;
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
@@ -236,7 +245,11 @@ impl Drop for ConfirmationsQueue {
 }
 
 impl SigningQueue for ConfirmationsQueue {
-	fn add_request(&self, request: ConfirmationPayload) -> ConfirmationPromise {
+	fn add_request(&self, request: ConfirmationPayload) -> Result<ConfirmationPromise, QueueAddError> {
+		if self.len() > QUEUE_LIMIT {
+			return Err(QueueAddError::LimitReached);
+		}
+
 		// Increment id
 		let id = {
 			let mut last_id = self.id.lock();
@@ -261,8 +274,7 @@ impl SigningQueue for ConfirmationsQueue {
 		};
 		// Notify listeners
 		self.notify(QueueEvent::NewRequest(id));
-		res
-
+		Ok(res)
 	}
 
 	fn peek(&self, id: &U256) -> Option<ConfirmationRequest> {
@@ -327,7 +339,7 @@ mod test {
 		// when
 		let q = queue.clone();
 		let handle = thread::spawn(move || {
-			let v = q.add_request(request);
+			let v = q.add_request(request).unwrap();
 			v.wait_with_timeout().expect("Should return hash")
 		});
 
@@ -358,7 +370,7 @@ mod test {
 				*v = Some(notification);
 			}).expect("Should be closed nicely.")
 		});
-		queue.add_request(request);
+		queue.add_request(request).unwrap();
 		queue.finish();
 
 		// then
@@ -374,7 +386,7 @@ mod test {
 		let request = request();
 
 		// when
-		queue.add_request(request.clone());
+		queue.add_request(request.clone()).unwrap();
 		let all = queue.requests();
 
 		// then

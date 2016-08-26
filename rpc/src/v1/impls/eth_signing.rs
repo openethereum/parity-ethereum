@@ -87,8 +87,9 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 			}
 
 			let queue = take_weak!(self.queue);
-			let promise = queue.add_request(ConfirmationPayload::Sign(address, msg));
-			Ok(DispatchResult::Promise(promise))
+			queue.add_request(ConfirmationPayload::Sign(address, msg))
+				.map(DispatchResult::Promise)
+				.map_err(|_| errors::request_rejected_limit())
 		})
 	}
 
@@ -106,8 +107,9 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 
 				let queue = take_weak!(self.queue);
 				let request = fill_optional_fields(request, &*client, &*miner);
-				let promise = queue.add_request(ConfirmationPayload::Transaction(request));
-				Ok(DispatchResult::Promise(promise))
+				queue.add_request(ConfirmationPayload::Transaction(request))
+					.map(DispatchResult::Promise)
+					.map_err(|_| errors::request_rejected_limit())
 			})
 	}
 }
