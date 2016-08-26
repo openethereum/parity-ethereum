@@ -48,7 +48,7 @@ pub fn main() {
 	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), service_config.net).unwrap();
 
 	let _ = boot::main_thread();
-	let stop = Arc::new(AtomicBool::new(false));
+	let service_stop = Arc::new(AtomicBool::new(false));
 
 	let hypervisor = boot::register(
 		&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL),
@@ -58,30 +58,31 @@ pub fn main() {
 
 	boot::host_service(
 		&service_urls::with_base(&service_config.io_path, service_urls::SYNC),
-		stop.clone(),
+		service_stop.clone(),
 		sync.clone() as Arc<SyncProvider>
 	);
 	boot::host_service(
 		&service_urls::with_base(&service_config.io_path, service_urls::NETWORK_MANAGER),
-		stop.clone(),
+		service_stop.clone(),
 		sync.clone() as Arc<ManageNetwork>
 	);
 	boot::host_service(
 		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_NOTIFY),
-		stop.clone(),
+		service_stop.clone(),
 		sync.clone() as Arc<ChainNotify>
 	);
 
-	let control_service = Arc::new(SyncControlService { stop: stop.clone() });
+	let control_service = Arc::new(SyncControlService::default());
 	let as_control = control_service.clone() as Arc<ControlService>;
 	let mut worker = nanoipc::Worker::<ControlService>::new(&as_control);
 	worker.add_reqrep(
 		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_CONTROL)
 	).unwrap();
 
-	while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
+	while !control_service.stop.load(::std::sync::atomic::Ordering::Relaxed) {
 		worker.poll();
 	}
+	service_stop.store(true, ::std::sync::atomic::Ordering::Relaxed);
 
 	hypervisor.module_shutdown(SYNC_MODULE_ID);
 	trace!(target: "hypervisor", "Sync process terminated gracefully");
