@@ -1,0 +1,42 @@
+.actions {
+  text-align: center;
+  padding: 2em 2em 0 2em;
+  width: 100%;
+}
+
+.button {
+  margin: 0 0.5em;
+}
+
+.button button {
+  background-color: rgba(0, 100, 255, 1) !important;
+  height: 56px !important;
+  padding: 0 10px !important;
+}
+
+.button button[disabled] {
+  background-color: rgba(50, 50, 50, 0.25) !important;
+}
+
+.button button span {
+  font-weight: 300 !important;
+}
+
+.dialog {
+}
+
+.dialog h3 {
+  background: rgba(0, 100, 255, 0.7);
+  color: white !important;
+  font-weight: 300 !important;
+  text-transform: uppercase;
+}
+
+.dialogtext {
+  padding-top: 1em;
+}
+
+.link, .link:hover, .link:visited {
+  color: rgb(0, 188, 212);
+  text-decoration: none;
+}

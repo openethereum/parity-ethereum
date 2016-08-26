@@ -5,6 +5,8 @@ import ActionAddShoppingCart from 'material-ui/svg-icons/action/add-shopping-car
 import AvReplay from 'material-ui/svg-icons/av/replay';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
+import styles from './style.css';
+
 export default class Actions extends Component {
   static propTypes = {
     onAction: PropTypes.func.isRequired
@@ -12,21 +14,21 @@ export default class Actions extends Component {
 
   render () {
     return (
-      <div className='actions'>
+      <div className={ styles.actions }>
         <RaisedButton
-          className='button'
+          className={ styles.button }
           icon={ <ActionAddShoppingCart /> }
           label='buy coins'
           primary
           onTouchTap={ this.onBuyIn } />
         <RaisedButton
-          className='button'
+          className={ styles.button }
           icon={ <ContentSend /> }
           label='send coins'
           primary
           onTouchTap={ this.onTransfer } />
         <RaisedButton
-          className='button'
+          className={ styles.button }
           icon={ <AvReplay /> }
           label='claim refund'
           primary

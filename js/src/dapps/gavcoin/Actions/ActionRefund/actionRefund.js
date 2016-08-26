@@ -4,8 +4,10 @@ import React, { Component, PropTypes } from 'react';
 import { Dialog, FlatButton, TextField } from 'material-ui';
 
 import AccountSelector from '../../AccountSelector';
-import { renderComplete } from '../render';
+import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
+
+import styles from '../style.css';
 
 const { Api } = window.parity;
 
@@ -39,9 +41,9 @@ export default class ActionRefund extends Component {
       <Dialog
         title='return coins for a refund'
         modal open
-        className='dialog'
+        className={ styles.dialog }
         actions={ this.renderActions() }>
-        { this.state.complete ? renderComplete() : this.renderFields() }
+        { this.state.complete ? <StepComplete /> : this.renderFields() }
       </Dialog>
     );
   }

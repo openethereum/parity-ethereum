@@ -4,6 +4,8 @@ import { Chip } from 'material-ui';
 
 const { IdentityIcon } = window.parity.react;
 
+import styles from './style.css';
+
 export default class Accounts extends Component {
   static contextTypes = {
     api: PropTypes.object,
@@ -18,7 +20,7 @@ export default class Accounts extends Component {
     const has = this._hasAccounts();
 
     return (
-      <div className='accounts'>
+      <div className={ styles.accounts }>
         { has ? this.renderAccounts() : this.renderEmpty() }
       </div>
     );
@@ -26,7 +28,7 @@ export default class Accounts extends Component {
 
   renderEmpty () {
     return (
-      <div className='none'>
+      <div className={ styles.none }>
         You currently do not have any GAVcoin in any of your addresses, buy some
       </div>
     );
@@ -40,13 +42,17 @@ export default class Accounts extends Component {
       .map((account) => {
         return (
           <Chip
-            className='account'
+            className={ styles.account }
             key={ account.address }>
             <IdentityIcon
               inline center
               address={ account.address } />
-            <span className='name'>{ account.name }</span>
-            <span className='balance'>{ account.gavBalance }</span>
+            <span className={ styles.name }>
+              { account.name }
+            </span>
+            <span className={ styles.balance }>
+              { account.gavBalance }
+            </span>
           </Chip>
         );
       });

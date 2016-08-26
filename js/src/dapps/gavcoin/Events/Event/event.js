@@ -2,6 +2,8 @@ import React, { Component, PropTypes } from 'react';
 
 import { formatBlockNumber, formatCoins, formatEth } from '../../format';
 
+import styles from '../style.css';
+
 const { IdentityIcon } = window.parity.react;
 
 const EMPTY_COLUMN = (
@@ -24,7 +26,7 @@ export default class Event extends Component {
   render () {
     const { event, fromAddress, toAddress, price, value } = this.props;
     const { blockNumber, state, type } = event;
-    const cls = `event ${state} ${type.toLowerCase()}`;
+    const cls = `${styles.event} ${styles[state]} ${styles[type.toLowerCase()]}`;
 
     return (
       <tr className={ cls }>
@@ -40,7 +42,7 @@ export default class Event extends Component {
 
   renderBlockNumber (blockNumber) {
     return (
-      <td className='blocknumber'>
+      <td className={ styles.blocknumber }>
         { formatBlockNumber(blockNumber) }
       </td>
     );
@@ -52,7 +54,7 @@ export default class Event extends Component {
     }
 
     return (
-      <td className='account'>
+      <td className={ styles.account }>
         <IdentityIcon inline center address={ address } />
         { this.renderAddressName(address) }
       </td>
@@ -64,14 +66,14 @@ export default class Event extends Component {
 
     if (account) {
       return (
-        <div className='name'>
+        <div className={ styles.name }>
           { account.name }
         </div>
       );
     }
 
     return (
-      <div className='address'>
+      <div className={ styles.address }>
         { address }
       </div>
     );
@@ -83,7 +85,7 @@ export default class Event extends Component {
     }
 
     return (
-      <td className='ethvalue'>
+      <td className={ styles.ethvalue }>
         { formatEth(price) }ΞTH
       </td>
     );
@@ -95,7 +97,7 @@ export default class Event extends Component {
     }
 
     return (
-      <td className='gavvalue'>
+      <td className={ styles.gavvalue }>
         { formatCoins(value) }GAV
       </td>
     );
@@ -103,7 +105,7 @@ export default class Event extends Component {
 
   renderType (type) {
     return (
-      <td className='type'>
+      <td className={ styles.type }>
         { type }
       </td>
     );

@@ -5,8 +5,10 @@ import { Dialog, FlatButton, TextField } from 'material-ui';
 
 import AccountSelector from '../../AccountSelector';
 import AccountTextField from '../../AccountTextField';
-import { renderComplete } from '../render';
+import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
+
+import styles from '../style.css';
 
 const DIVISOR = 10 ** 6;
 const NAME_ID = ' ';
@@ -38,9 +40,9 @@ export default class ActionTransfer extends Component {
       <Dialog
         title='send coins to another account'
         modal open
-        className='dialog'
+        className={ styles.dialog }
         actions={ this.renderActions() }>
-        { this.state.complete ? renderComplete() : this.renderFields() }
+        { this.state.complete ? <StepComplete /> : this.renderFields() }
       </Dialog>
     );
   }

@@ -1,0 +1,31 @@
+.status {
+  background: rgba(0, 100, 255, 1);
+  color: rgba(255, 255, 255, 1);
+  font-weight: 300;
+  padding: 3em 0 2em 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.item {
+  flex: 0 1 30%;
+  width: 30%;
+  margin: 0 1.5%;
+  text-align: center;
+}
+
+.byline {
+  font-size: 1.25em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.heading {
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  font-size: 1.5em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hero {
+  font-size: 4em;
+}

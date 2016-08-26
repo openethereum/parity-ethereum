@@ -1,0 +1,31 @@
+.accounts {
+  padding: 2em 2em 0 2em;
+  text-align: center;
+  width: 100%;
+}
+
+.account {
+  margin: 0.5em !important;
+  background: rgb(50, 150, 255) !important;
+  display: inline-block !important;
+}
+
+.account img {
+  margin-bottom: -11px;
+  margin-left: -11px;
+}
+
+.balance {
+  font-family: 'Roboto Mono', monospace;
+  color: rgba(255, 255, 255, 1) !important;
+}
+
+.name {
+  color: rgba(255, 255, 255, 0.7) !important;
+  margin-right: 1em;
+  text-transform: uppercase;
+}
+
+.none {
+  color: rgba(255, 255, 255, 0.7);
+}

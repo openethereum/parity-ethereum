@@ -5,6 +5,8 @@ import EventNewTranch from './EventNewTranch';
 import EventRefund from './EventRefund';
 import EventTransfer from './EventTransfer';
 
+import styles from './style.css';
+
 export default class Events extends Component {
   static childContextTypes = {
     accounts: PropTypes.array
@@ -30,8 +32,8 @@ export default class Events extends Component {
 
   render () {
     return (
-      <div className='events'>
-        <table className='list'>
+      <div className={ styles.events }>
+        <table className={ styles.list }>
           <tbody>
             { this.renderEvents() }
           </tbody>
