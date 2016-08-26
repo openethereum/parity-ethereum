@@ -34,24 +34,6 @@ linux-beta:
     - rust-beta
   script:
     - ./deploy.sh
-linux-stable:
-  stage: build
-  image: ethcore/rust:stable
-  only:
-    - master
-    - beta
-    - tags
-    - stable
-  script:
-    - cargo build --release --verbose
-    - strip target/release/parity
-  tags:
-    - rust
-    - rust-stable
-  artifacts:
-    paths:
-    - target/release/parity
-    name: "${CI_BUILD_NAME}_parity"
 linux-nightly:
   stage: build
   image: ethcore/rust:nightly
@@ -220,6 +202,24 @@ windows:
     paths:
     - target/release/parity.exe
     - target/release/parity.pdb
+    name: "${CI_BUILD_NAME}_parity"
+linux-stable:
+  stage: build
+  image: ethcore/rust:stable
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - cargo build --release --verbose
+    - strip target/release/parity
+  tags:
+    - rust
+    - rust-stable
+  artifacts:
+    paths:
+    - target/release/parity
     name: "${CI_BUILD_NAME}_parity"
 test-linux:
   stage: test
