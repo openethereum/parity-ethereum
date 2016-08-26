@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
-import { formatBlockNumber, formatEth } from '../../format';
+import { formatEth } from '../../format';
+import ColumnBlockNumber from '../ColumnBlockNumber';
 
 export default class EventNewTranch extends Component {
   static propTypes = {
@@ -15,7 +16,8 @@ export default class EventNewTranch extends Component {
 
     return (
       <tr className={ cls }>
-        <td className='blocknumber'>{ formatBlockNumber(blockNumber) }</td>
+        <ColumnBlockNumber
+          blockNumber={ blockNumber } />
         <td className='type'>New Tranch</td>
         <td></td>
         <td className='ethvalue'>{ formatEth(price) }ΞTH</td>

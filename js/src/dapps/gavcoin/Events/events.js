@@ -6,8 +6,16 @@ import EventRefund from './EventRefund';
 import EventTransfer from './EventTransfer';
 
 export default class Events extends Component {
+  static childContextTypes = {
+    accounts: PropTypes.array
+  }
+
   static contextTypes = {
     instance: PropTypes.object
+  }
+
+  static propTypes = {
+    accounts: PropTypes.array
   }
 
   state = {
@@ -52,6 +60,14 @@ export default class Events extends Component {
             return <EventTransfer key={ event.key } event={ event } />;
         }
       });
+  }
+
+  getChildContext () {
+    const { accounts } = this.props;
+
+    return {
+      accounts
+    };
   }
 
   setupFilters () {

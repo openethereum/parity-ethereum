@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 
-import { formatBlockNumber, formatCoins, formatEth } from '../../format';
-
-const { IdentityIcon } = window.parity.react;
+import { formatCoins, formatEth } from '../../format';
+import ColumnAddress from '../ColumnAddress';
+import ColumnBlockNumber from '../ColumnBlockNumber';
 
 export default class EventRefund extends Component {
   static propTypes = {
@@ -20,17 +20,15 @@ export default class EventRefund extends Component {
     const { blockNumber } = event;
     const cls = `event ${event.state} ${event.type.toLowerCase()}`;
 
-    const buyerIcon = (
-      <IdentityIcon inline center address={ buyer } />
-    );
-
     return (
       <tr className={ cls }>
-        <td className='blocknumber'>{ formatBlockNumber(blockNumber) }</td>
+        <ColumnBlockNumber
+          blockNumber={ blockNumber } />
         <td className='type'>Refund</td>
         <td className='gavvalue'>-{ formatCoins(amount) }GAV</td>
         <td className='ethvalue'>{ formatEth(price) }ΞTH</td>
-        <td className='account'>{ buyerIcon }<div>{ buyer }</div></td>
+        <ColumnAddress
+          address={ buyer } />
         <td></td>
       </tr>
     );

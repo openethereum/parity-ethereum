@@ -120,6 +120,13 @@ html, body {
 .event .account {
 }
 
+.event .account .address {
+}
+
+.event .account .name {
+  text-transform: uppercase;
+}
+
 .event .account img {
   margin-bottom: -11px;
 }

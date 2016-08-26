@@ -85,9 +85,9 @@ export default class Application extends Component {
             accounts={ this.state.accounts } />
         </Status>
         <Actions
-          account={ this.state.accounts }
           onAction={ this.onAction } />
-        <Events />
+        <Events
+          accounts={ this.state.accounts } />
       </div>
     );
   }
