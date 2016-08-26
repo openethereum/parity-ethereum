@@ -22,25 +22,23 @@ export default class Event extends Component {
   }
 
   render () {
-    const { event, fromAddress, toAddress } = this.props;
-    const { state, type } = event;
+    const { event, fromAddress, toAddress, price, value } = this.props;
+    const { blockNumber, state, type } = event;
     const cls = `event ${state} ${type.toLowerCase()}`;
 
     return (
       <tr className={ cls }>
-        { this.renderBlockNumber() }
-        <td className='type'>{ type }</td>
-        { this.renderValue() }
-        { this.renderPrice() }
+        { this.renderBlockNumber(blockNumber) }
+        { this.renderType(type) }
+        { this.renderValue(value) }
+        { this.renderPrice(price) }
         { this.renderAddress(fromAddress) }
         { this.renderAddress(toAddress) }
       </tr>
     );
   }
 
-  renderBlockNumber () {
-    const { blockNumber } = this.props.event;
-
+  renderBlockNumber (blockNumber) {
     return (
       <td className='blocknumber'>
         { formatBlockNumber(blockNumber) }
@@ -66,36 +64,48 @@ export default class Event extends Component {
 
     if (account) {
       return (
-        <div className='name'>{ account.name }</div>
+        <div className='name'>
+          { account.name }
+        </div>
       );
     }
 
     return (
-      <div className='address'>{ address }</div>
+      <div className='address'>
+        { address }
+      </div>
     );
   }
 
-  renderPrice () {
-    const { price } = this.props;
-
+  renderPrice (price) {
     if (!price) {
       return EMPTY_COLUMN;
     }
 
     return (
-      <td className='ethvalue'>{ formatEth(price) }ΞTH</td>
+      <td className='ethvalue'>
+        { formatEth(price) }ΞTH
+      </td>
     );
   }
 
-  renderValue () {
-    const { value } = this.props;
-
+  renderValue (value) {
     if (!value) {
       return EMPTY_COLUMN;
     }
 
     return (
-      <td className='gavvalue'>{ formatCoins(value) }GAV</td>
+      <td className='gavvalue'>
+        { formatCoins(value) }GAV
+      </td>
+    );
+  }
+
+  renderType (type) {
+    return (
+      <td className='type'>
+        { type }
+      </td>
     );
   }
 }
