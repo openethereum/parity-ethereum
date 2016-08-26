@@ -26,7 +26,7 @@ export default class Accounts extends Component {
 
   renderEmpty () {
     return (
-      <div className='light'>
+      <div className='none'>
         You currently do not have any GAVcoin in any of your addresses, buy some
       </div>
     );

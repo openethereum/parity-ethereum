@@ -15,11 +15,12 @@ html, body {
 .accounts {
   padding: 2em 2em 0 2em;
   text-align: center;
+  width: 100%;
 }
 
 .accounts .account {
   margin: 0.5em !important;
-  background: rgb(224, 224, 124) !important;
+  background: rgb(50, 150, 255) !important;
   display: inline-block !important;
 }
 
@@ -28,8 +29,16 @@ html, body {
   margin-left: -11px;
 }
 
+.accounts .none {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.accounts .account .balance {
+  color: rgba(255, 255, 255, 1) !important;
+}
+
 .accounts .account .name {
-  color: white;
+  color: rgba(255, 255, 255, 0.7) !important;
   margin-right: 1em;
 }
 
@@ -60,8 +69,10 @@ html, body {
 }
 
 .dialog h3 {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 100, 255, 0.7);
   color: white !important;
+  font-weight: 300 !important;
+  text-transform: uppercase;
 }
 
 .events {
@@ -122,10 +133,6 @@ html, body {
   margin-top: -4px;
 }
 
-.light {
-  color: #aaa;
-}
-
 .link, .link:hover, .link:visited {
   color: rgb(0, 188, 212);
   text-decoration: none;
@@ -176,7 +183,7 @@ html, body {
   background: rgba(0, 100, 255, 1);
   color: rgba(255, 255, 255, 1);
   font-weight: 300;
-  padding: 3em 0;
+  padding: 3em 0 2em 0;
   display: flex;
   flex-wrap: wrap;
 }

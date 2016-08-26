@@ -9,7 +9,8 @@ export default class Status extends Component {
     blockNumber: PropTypes.object,
     totalSupply: PropTypes.object,
     remaining: PropTypes.object,
-    price: PropTypes.object
+    price: PropTypes.object,
+    children: PropTypes.node
   }
 
   render () {
@@ -48,6 +49,7 @@ export default class Status extends Component {
             coin balance
           </div>
         </div>
+        { this.props.children }
       </div>
     );
   }

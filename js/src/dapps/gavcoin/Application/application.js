@@ -80,9 +80,10 @@ export default class Application extends Component {
           blockNumber={ this.state.blockNumber }
           totalSupply={ this.state.totalSupply }
           remaining={ this.state.remaining }
-          price={ this.state.price } />
-        <Accounts
-          accounts={ this.state.accounts } />
+          price={ this.state.price }>
+          <Accounts
+            accounts={ this.state.accounts } />
+        </Status>
         <Actions
           account={ this.state.accounts }
           onAction={ this.onAction } />
