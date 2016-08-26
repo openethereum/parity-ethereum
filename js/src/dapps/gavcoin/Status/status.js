@@ -23,27 +23,27 @@ export default class Status extends Component {
     return (
       <div className='status'>
         <div className='item'>
-          <div className='byline'>&nbsp;</div>
+          <div className='heading'>&nbsp;</div>
           <div className='hero'>
-            { formatCoins(remaining, 3) }
+            { formatCoins(remaining, -1) }
           </div>
           <div className='byline'>
             available for { formatEth(price) }ΞTH
           </div>
         </div>
         <div className='item'>
-          <div className='byline'>GAVcoin</div>
+          <div className='heading'>GAVcoin</div>
           <div className='hero'>
-            { formatCoins(totalSupply, 0) }
+            { formatCoins(totalSupply, -1) }
           </div>
           <div className='byline'>
             total at { formatBlockNumber(blockNumber) }
           </div>
         </div>
         <div className='item'>
-          <div className='byline'>&nbsp;</div>
+          <div className='heading'>&nbsp;</div>
           <div className='hero'>
-            { formatCoins(gavBalance, 3) }
+            { formatCoins(gavBalance, -1) }
           </div>
           <div className='byline'>
             coin balance

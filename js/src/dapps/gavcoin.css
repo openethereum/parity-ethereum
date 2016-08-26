@@ -75,6 +75,10 @@ html, body {
   text-transform: uppercase;
 }
 
+.dialog .text {
+  padding-top: 1em;
+}
+
 .events {
   padding: 2em;
 }
@@ -195,11 +199,18 @@ html, body {
   text-align: center;
 }
 
-.status .hero {
-  font-size: 4em;
+.status .byline {
+  font-size: 1.25em;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.status .byline {
+.status .heading {
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
   font-size: 1.5em;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.status .hero {
+  font-size: 4em;
 }

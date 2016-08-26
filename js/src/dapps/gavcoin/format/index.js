@@ -9,7 +9,23 @@ export function formatBlockNumber (blockNumber) {
 }
 
 export function formatCoins (amount, decimals = 6) {
-  return amount.div(DIVISOR).toFormat(decimals);
+  const adjusted = amount.div(DIVISOR);
+
+  if (decimals === -1) {
+    if (adjusted.gte(10000)) {
+      decimals = 0;
+    } else if (adjusted.gte(1000)) {
+      decimals = 1;
+    } else if (adjusted.gte(100)) {
+      decimals = 2;
+    } else if (adjusted.gte(10)) {
+      decimals = 3;
+    } else {
+      decimals = 4;
+    }
+  }
+
+  return adjusted.toFormat(decimals);
 }
 
 export function formatEth (eth, decimals = 3) {
