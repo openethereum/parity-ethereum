@@ -15,9 +15,11 @@ module.exports = {
   context: path.join(__dirname, './src'),
   entry: {
     'dapps/gavcoin': ['./dapps/gavcoin.js'],
+    'dapps/registry': ['./dapps/registry.js'],
+    'dapps/tokenreg': ['./dapps/tokenreg.js'],
     'parity': ['./parity.js'],
-    'wallet': ['./wallet.js'],
-    'web3': ['./web3.js']
+    'wallet': ['./wallet.js'] /*,
+    'web3': ['./web3.js'] */
   },
   output: {
     path: path.join(__dirname, 'build'),
