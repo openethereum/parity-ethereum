@@ -62,6 +62,10 @@ html, body {
   padding: 0 10px !important;
 }
 
+.button button[disabled] {
+  background-color: rgba(50, 50, 50, 0.25) !important;
+}
+
 .button button span {
   font-weight: 300 !important;
 }
