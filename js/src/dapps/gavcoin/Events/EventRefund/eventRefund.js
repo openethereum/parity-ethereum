@@ -28,8 +28,8 @@ export default class EventRefund extends Component {
       <tr className={ cls }>
         <td className='blocknumber'>{ formatBlockNumber(blockNumber) }</td>
         <td className='type'>Refund</td>
-        <td className='ethvalue'>@{ formatEth(price) }ΞTH</td>
         <td className='gavvalue'>-{ formatCoins(amount) }GAV</td>
+        <td className='ethvalue'>@{ formatEth(price) }ΞTH</td>
         <td className='account'>{ buyerIcon }<div>{ buyer }</div></td>
         <td></td>
       </tr>

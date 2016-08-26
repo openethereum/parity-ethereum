@@ -26,8 +26,8 @@ export default class EventTransfer extends Component {
       <tr className={ cls }>
         <td className='blocknumber'>{ formatBlockNumber(blockNumber) }</td>
         <td className='type'>Transfer</td>
-        <td></td>
         <td className='gavvalue'>-{ formatCoins(value) }GAV</td>
+        <td></td>
         <td className='account'>{ fromIcon }<div>{ from }</div></td>
         <td className='account'>{ toIcon }<div>{ to }</div></td>
       </tr>
