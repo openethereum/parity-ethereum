@@ -9,17 +9,18 @@ html, body {
   color: #333;
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
+  font-weight: 300;
 }
 
 .accounts {
-  padding: 1em 2em;
-  display: flex;
-  flex-wrap: wrap;
+  padding: 2em 2em 0 2em;
+  text-align: center;
 }
 
 .accounts .account {
-  margin-right: 1em !important;
+  margin: 0.5em !important;
   background: rgb(224, 224, 124) !important;
+  display: inline-block !important;
 }
 
 .accounts .account img {
@@ -33,11 +34,26 @@ html, body {
 }
 
 .actions {
-  background: rgba(232, 232, 232, 0.5) !important;
+  text-align: center;
+  padding: 2em 2em 0 2em;
+  width: 100%;
 }
 
 .balance {
   font-family: 'Roboto Mono', monospace;
+}
+
+.button {
+  margin: 0 0.5em;
+}
+
+.button button {
+  background-color: rgba(0, 100, 255, 1) !important;
+  height: 56px !important;
+}
+
+.button button span {
+  font-weight: 300 !important;
 }
 
 .dialog {
@@ -49,7 +65,7 @@ html, body {
 }
 
 .events {
-  padding: 1em 2em;
+  padding: 2em;
 }
 
 .events .list {
@@ -106,6 +122,10 @@ html, body {
   margin-top: -4px;
 }
 
+.light {
+  color: #aaa;
+}
+
 .link, .link:hover, .link:visited {
   color: rgb(0, 188, 212);
   text-decoration: none;
@@ -153,5 +173,26 @@ html, body {
 }
 
 .status {
-  color: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 100, 255, 1);
+  color: rgba(255, 255, 255, 1);
+  font-weight: 300;
+  padding: 3em 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.status .item {
+  flex: 0 1 30%;
+  width: 30%;
+  margin: 0 1.5%;
+  text-align: center;
+}
+
+.status .hero {
+  font-size: 4em;
+}
+
+.status .byline {
+  font-size: 1.5em;
+  color: rgba(255, 255, 255, 0.7);
 }

@@ -81,11 +81,11 @@ export default class Application extends Component {
           totalSupply={ this.state.totalSupply }
           remaining={ this.state.remaining }
           price={ this.state.price } />
+        <Accounts
+          accounts={ this.state.accounts } />
         <Actions
           account={ this.state.accounts }
           onAction={ this.onAction } />
-        <Accounts
-          accounts={ this.state.accounts } />
         <Events />
       </div>
     );

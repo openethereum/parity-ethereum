@@ -1,8 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import { Toolbar, ToolbarGroup, ToolbarTitle } from 'material-ui/Toolbar';
-
-import { formatCoins, formatEth } from '../format';
+import { formatBlockNumber, formatCoins, formatEth } from '../format';
 
 export default class Status extends Component {
   static propTypes = {
@@ -19,19 +17,38 @@ export default class Status extends Component {
       return null;
     }
 
-    const { blockNumber, totalSupply, remaining, price } = this.props;
+    const { blockNumber, gavBalance, totalSupply, remaining, price } = this.props;
 
     return (
-      <Toolbar className='status'>
-        <ToolbarGroup>
-          <ToolbarTitle text='GAVcoin' />
-        </ToolbarGroup>
-        <ToolbarGroup>
-          <p>
-            #{ blockNumber.toFormat() }: { formatCoins(remaining, 0) } available @ { formatEth(price) }ΞTH, { formatCoins(totalSupply, 0) } minted
-          </p>
-        </ToolbarGroup>
-      </Toolbar>
+      <div className='status'>
+        <div className='item'>
+          <div className='byline'>&nbsp;</div>
+          <div className='hero'>
+            { formatCoins(remaining, 3) }
+          </div>
+          <div className='byline'>
+            available for { formatEth(price) }ΞTH
+          </div>
+        </div>
+        <div className='item'>
+          <div className='byline'>GAVcoin</div>
+          <div className='hero'>
+            { formatCoins(totalSupply, 0) }
+          </div>
+          <div className='byline'>
+            total at { formatBlockNumber(blockNumber) }
+          </div>
+        </div>
+        <div className='item'>
+          <div className='byline'>&nbsp;</div>
+          <div className='hero'>
+            { formatCoins(gavBalance, 3) }
+          </div>
+          <div className='byline'>
+            coin balance
+          </div>
+        </div>
+      </div>
     );
   }
 }

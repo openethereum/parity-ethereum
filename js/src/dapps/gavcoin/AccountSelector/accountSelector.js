@@ -25,7 +25,7 @@ export default class AccountSelect extends Component {
       <SelectField
         autoComplete='off'
         floatingLabelFixed
-        floatingLabelText='transaction account'
+        floatingLabelText='from account'
         fullWidth
         hintText='the account the transaction will be made from'
         errorText={ this.props.accountError }
