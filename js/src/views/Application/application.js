@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import { Snackbar } from 'material-ui';
@@ -39,6 +40,9 @@ export default class Application extends Component {
   }
 
   state = {
+    blockNumber: new BigNumber(0),
+    clientVersion: '',
+    peerCount: new BigNumber(0),
     showError: false,
     showFirst: false,
     accounts: [],
@@ -50,9 +54,11 @@ export default class Application extends Component {
   componentWillMount () {
     this.retrieveBalances();
     this.retrieveTokens();
+    this.pollStatus();
   }
 
   render () {
+    const { blockNumber, clientVersion, peerCount } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
     if (root === 'app') {
@@ -71,7 +77,10 @@ export default class Application extends Component {
           { this.renderFirstRunDialog() }
           <TabBar />
           { this.props.children }
-          <Status />
+          <Status
+            blockNumber={ blockNumber }
+            clientVersion={ clientVersion }
+            peerCount={ peerCount } />
         </div>
       </TooltipOverlay>
     );
@@ -259,6 +268,28 @@ export default class Application extends Component {
             };
           }).concat(tokens)
         });
+      });
+  }
+
+  pollStatus () {
+    const nextTimeout = () => setTimeout(() => this.pollStatus(), 2500);
+    Promise
+      .all([
+        api.web3.clientVersion(),
+        api.net.peerCount(),
+        api.eth.blockNumber(),
+        api.eth.syncing()
+      ])
+      .then(([clientVersion, peerCount, blockNumber, syncing]) => {
+        this.setState({
+          blockNumber,
+          clientVersion,
+          peerCount,
+          syncing
+        }, nextTimeout);
+      })
+      .catch(() => {
+        nextTimeout();
       });
   }
 
