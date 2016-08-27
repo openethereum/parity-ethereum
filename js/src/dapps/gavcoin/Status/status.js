@@ -16,11 +16,11 @@ export default class Status extends Component {
   }
 
   render () {
-    if (!this.props.totalSupply) {
+    const { blockNumber, gavBalance, totalSupply, remaining, price } = this.props;
+
+    if (!totalSupply) {
       return null;
     }
-
-    const { blockNumber, gavBalance, totalSupply, remaining, price } = this.props;
 
     return (
       <div className={ styles.status }>

@@ -31,15 +31,15 @@ export default class Application extends Component {
   state = {
     action: null,
     address: null,
+    accounts: [],
+    blockNumber: null,
     ethBalance: new BigNumber(0),
     gavBalance: new BigNumber(0),
-    accounts: [],
     instance: null,
     loading: true,
-    blockNumber: null,
-    totalSupply: null,
+    price: null,
     remaining: null,
-    price: null
+    totalSupply: null
   }
 
   componentDidMount () {
@@ -47,70 +47,57 @@ export default class Application extends Component {
   }
 
   render () {
-    return (
-      <div>
-        { this.renderLoading() }
-        { this.renderInterface() }
-      </div>
-    );
-  }
+    const { accounts, address, blockNumber, gavBalance, loading, price, remaining, totalSupply } = this.state;
 
-  renderLoading () {
-    if (!this.state.loading) {
-      return null;
-    }
-
-    return (
-      <Loading />
-    );
-  }
-
-  renderInterface () {
-    if (this.state.loading) {
-      return null;
+    if (loading) {
+      return (
+        <Loading />
+      );
     }
 
     return (
       <div>
         { this.renderModals() }
         <Status
-          gavBalance={ this.state.gavBalance }
-          address={ this.state.address }
-          blockNumber={ this.state.blockNumber }
-          totalSupply={ this.state.totalSupply }
-          remaining={ this.state.remaining }
-          price={ this.state.price }>
+          address={ address }
+          blockNumber={ blockNumber }
+          gavBalance={ gavBalance }
+          price={ price }
+          remaining={ remaining }
+          totalSupply={ totalSupply }>
           <Accounts
-            accounts={ this.state.accounts } />
+            accounts={ accounts } />
         </Status>
         <Actions
           onAction={ this.onAction } />
         <Events
-          accounts={ this.state.accounts } />
+          accounts={ accounts } />
       </div>
     );
   }
 
   renderModals () {
-    switch (this.state.action) {
+    const { action, accounts, price } = this.state;
+
+    switch (action) {
       case 'BuyIn':
         return (
           <ActionBuyIn
-            accounts={ this.state.accounts }
-            price={ this.state.price }
+            accounts={ accounts }
+            price={ price }
             onClose={ this.onActionClose } />
         );
       case 'Refund':
         return (
           <ActionRefund
-            accounts={ this.state.accounts }
-            price={ this.state.price }
+            accounts={ accounts }
+            price={ price }
             onClose={ this.onActionClose } />
         );
       case 'Transfer':
         return (
           <ActionTransfer
-            accounts={ this.state.accounts }
+            accounts={ accounts }
             onClose={ this.onActionClose } />
         );
       default:
