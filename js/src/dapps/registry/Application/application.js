@@ -3,8 +3,6 @@ import React, { Component, PropTypes } from 'react';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
-const muiTheme = getMuiTheme(lightBaseTheme);
-
 import registryAbi from '../abi/registry.json';
 import Loading from '../Loading';
 import Status from '../Status';
@@ -12,6 +10,7 @@ import Status from '../Status';
 const { Api } = window.parity;
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
+const muiTheme = getMuiTheme(lightBaseTheme);
 
 export default class Application extends Component {
   static childContextTypes = {
@@ -35,7 +34,7 @@ export default class Application extends Component {
   render () {
     const { address, fee, loading, owner } = this.state;
 
-    if (!loading) {
+    if (loading) {
       return (
         <Loading />
       );
@@ -75,6 +74,7 @@ export default class Application extends Component {
     api.ethcore
       .registryAddress()
       .then((address) => {
+        console.log(`registry found at ${address}`);
         const { instance } = api.newContract(registryAbi, address);
 
         return Promise
@@ -83,6 +83,7 @@ export default class Application extends Component {
             instance.fee.call()
           ])
           .then(([owner, fee]) => {
+            console.log(`owner as ${owner}, fee set at ${fee.toFormat()}`);
             this.setState({
               address,
               fee,
