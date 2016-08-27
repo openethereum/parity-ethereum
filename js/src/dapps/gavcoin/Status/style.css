@@ -1,7 +1,6 @@
 .status {
   background: rgba(25, 75, 125, 1);
   color: rgba(255, 255, 255, 1);
-  font-weight: 300;
   padding: 4em 0 2em 0;
   display: flex;
   flex-wrap: wrap;

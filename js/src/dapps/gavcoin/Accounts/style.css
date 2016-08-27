@@ -18,14 +18,12 @@
 .balance {
   font-family: 'Roboto Mono', monospace;
   color: rgba(255, 255, 255, 1) !important;
-  font-weight: 300;
 }
 
 .name {
   color: rgba(255, 255, 255, 0.7) !important;
   margin-right: 1em;
   text-transform: uppercase;
-  font-weight: 300;
 }
 
 .none {

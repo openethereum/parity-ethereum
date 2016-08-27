@@ -18,17 +18,12 @@
   background-color: rgba(50, 50, 50, 0.25) !important;
 }
 
-.button button span {
-  font-weight: 300 !important;
-}
-
 .dialog {
 }
 
 .dialog h3 {
   background: rgba(50, 100, 150, 1);
   color: white !important;
-  font-weight: 300 !important;
   text-transform: uppercase;
 }
 
