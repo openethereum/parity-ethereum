@@ -75,7 +75,7 @@ export default class NewImport extends Component {
             value={ this.state.walletFile } />
           <div className={ styles.upload }>
             <FloatingActionButton
-              primary mini
+              mini
               onTouchTap={ this.openFileDialog }>
               <EditorAttachFile />
             </FloatingActionButton>

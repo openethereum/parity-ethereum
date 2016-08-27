@@ -109,7 +109,7 @@ export default class Details extends Component {
         </div>
         <div className={ styles.floatbutton }>
           <FloatingActionButton
-            primary mini
+            mini
             onTouchTap={ this.onContacts }>
             <CommunicationContacts />
           </FloatingActionButton>

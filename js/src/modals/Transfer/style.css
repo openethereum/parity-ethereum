@@ -60,5 +60,5 @@
 .grayscale {
   -webkit-filter: grayscale(1);
   filter: grayscale(1);
-  opacity: 0.75;
+  opacity: 0;
 }
