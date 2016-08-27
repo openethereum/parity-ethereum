@@ -6,7 +6,8 @@ export default class Status extends Component {
   static propTypes = {
     blockNumber: PropTypes.object,
     clientVersion: PropTypes.string,
-    peerCount: PropTypes.object
+    peerCount: PropTypes.object,
+    network: PropTypes.string
   }
 
   render () {
@@ -14,9 +15,15 @@ export default class Status extends Component {
 
     return (
       <div className={ styles.status }>
-        <div className={ styles.version }>{ clientVersion }</div>
-        <div> className={ styles.block }{ blockNumber.toFormat() } blocks</div>
-        <div className={ styles.peers }>{ peerCount.toFormat() } peers</div>
+        <div className={ styles.version }>
+          { clientVersion }
+        </div>
+        <div className={ styles.block }>
+          { blockNumber.toFormat() } blocks
+        </div>
+        <div className={ styles.peers }>
+          { peerCount.toFormat() } peers
+        </div>
       </div>
     );
   }
