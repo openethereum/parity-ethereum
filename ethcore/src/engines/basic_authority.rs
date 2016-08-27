@@ -153,7 +153,7 @@ impl Engine for BasicAuthority {
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
-		if header.gas_limit().clone() <= min_gas || header.gas_limit().clone() >= max_gas {
+		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 		Ok(())

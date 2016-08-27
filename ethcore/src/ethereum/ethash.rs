@@ -131,8 +131,8 @@ impl Engine for Ethash {
 		};
 		header.set_difficulty(difficulty);
 		header.set_gas_limit(gas_limit);
-		if header.number().clone() >= self.ethash_params.dao_hardfork_transition &&
-			header.number().clone() <= self.ethash_params.dao_hardfork_transition + 9 {
+		if header.number() >= self.ethash_params.dao_hardfork_transition &&
+			header.number() <= self.ethash_params.dao_hardfork_transition + 9 {
 			header.set_extra_data(b"dao-hard-fork"[..].to_owned());
 		}
 		header.note_dirty();
@@ -183,7 +183,7 @@ impl Engine for Ethash {
 
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
-		if header.difficulty().clone() < min_difficulty {
+		if header.difficulty() < &min_difficulty {
 			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
 		}
 
@@ -192,7 +192,7 @@ impl Engine for Ethash {
 			header.nonce().low_u64(),
 			&Ethash::to_ethash(header.mix_hash())
 		)));
-		if difficulty < header.difficulty().clone() {
+		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
 		}
 
@@ -202,7 +202,7 @@ impl Engine for Ethash {
 			return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: None, found: 0 })));
 		}
 
-		if header.gas_limit().clone() > 0x7fffffffffffffffu64.into() {
+		if header.gas_limit() > &0x7fffffffffffffffu64.into() {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
 		}
 
@@ -218,10 +218,10 @@ impl Engine for Ethash {
 		let result = self.pow.compute_light(header.number() as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
-		if mix != header.mix_hash().clone() {
+		if mix != header.mix_hash() {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
 		}
-		if difficulty < header.difficulty().clone() {
+		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
 		}
 		Ok(())
@@ -235,13 +235,13 @@ impl Engine for Ethash {
 
 		// Check difficulty is correct given the two timestamps.
 		let expected_difficulty = self.calculate_difficulty(header, parent);
-		if header.difficulty().clone() != expected_difficulty {
+		if header.difficulty() != &expected_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
 		}
 		let gas_limit_divisor = self.ethash_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
-		if header.gas_limit().clone() <= min_gas || header.gas_limit().clone() >= max_gas {
+		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 		Ok(())
