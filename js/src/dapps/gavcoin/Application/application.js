@@ -34,7 +34,6 @@ export default class Application extends Component {
     ethBalance: new BigNumber(0),
     gavBalance: new BigNumber(0),
     accounts: [],
-    contract: null,
     instance: null,
     loading: true,
     blockNumber: null,
@@ -193,28 +192,22 @@ export default class Application extends Component {
 
         const registry = api.newContract(registryAbi, registryAddress).instance;
 
-        return registry.getAddress.call({}, [Api.format.sha3('gavcoin'), 'A']);
+        return Promise
+          .all([
+            registry.getAddress.call({}, [Api.format.sha3('gavcoin'), 'A']),
+            api.personal.listAccounts(),
+            api.personal.accountsInfo()
+          ]);
       })
-      .then((address) => {
+      .then(([address, addresses, infos]) => {
         console.log(`gavcoin was found at ${address}`);
 
-        const contract = api.newContract(gavcoinAbi, address);
-        const instance = contract.instance;
+        const { instance } = api.newContract(gavcoinAbi, address);
 
-        this.setState({
-          address,
-          contract,
-          instance
-        });
-
-        return Promise.all([
-          api.personal.listAccounts(),
-          api.personal.accountsInfo()
-        ]);
-      })
-      .then(([addresses, infos]) => {
         this.setState({
           loading: false,
+          address,
+          instance,
           accounts: addresses.map((address) => {
             return {
               address,

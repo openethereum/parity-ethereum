@@ -24,6 +24,7 @@ export default class Application extends Component {
     address: null,
     fee: null,
     instance: null,
+    loading: true,
     owner: null
   }
 
@@ -32,9 +33,9 @@ export default class Application extends Component {
   }
 
   render () {
-    const { address, fee, owner } = this.state;
+    const { address, fee, loading, owner } = this.state;
 
-    if (!address) {
+    if (!loading) {
       return (
         <Loading />
       );
@@ -58,6 +59,18 @@ export default class Application extends Component {
     };
   }
 
+  onNewBlockNumber = (blockNumber) => {
+    const { instance } = this.state;
+
+    instance.fee
+      .call()
+      .then((fee) => {
+        this.setState({
+          fee
+        });
+      });
+  }
+
   attachInterface = () => {
     api.ethcore
       .registryAddress()
@@ -70,10 +83,13 @@ export default class Application extends Component {
             instance.fee.call()
           ])
           .then(([owner, fee]) => {
+            api.events.subscribe('eth.blockNumber', this.onNewBlockNumber);
+
             this.setState({
               address,
               fee,
               instance,
+              loading: false,
               owner
             });
           });
