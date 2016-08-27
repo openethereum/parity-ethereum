@@ -1,0 +1,213 @@
+[
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_id",
+        "type": "uint256"
+      }
+    ],
+    "name": "token",
+    "outputs": [
+      {
+        "name": "o_addr",
+        "type": "address"
+      },
+      {
+        "name": "o_tla",
+        "type": "string"
+      },
+      {
+        "name": "o_base",
+        "type": "uint256"
+      },
+      {
+        "name": "o_name",
+        "type": "string"
+      }
+    ],
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_new",
+        "type": "address"
+      }
+    ],
+    "name": "setOwner",
+    "outputs": [],
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_addr",
+        "type": "address"
+      },
+      {
+        "name": "_tla",
+        "type": "string"
+      },
+      {
+        "name": "_base",
+        "type": "uint256"
+      },
+      {
+        "name": "_name",
+        "type": "string"
+      }
+    ],
+    "name": "register",
+    "outputs": [],
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_fee",
+        "type": "uint256"
+      }
+    ],
+    "name": "setFee",
+    "outputs": [],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_id",
+        "type": "uint256"
+      },
+      {
+        "name": "_key",
+        "type": "bytes32"
+      }
+    ],
+    "name": "meta",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_tla",
+        "type": "string"
+      }
+    ],
+    "name": "fromTLA",
+    "outputs": [
+      {
+        "name": "o_id",
+        "type": "uint256"
+      },
+      {
+        "name": "o_addr",
+        "type": "address"
+      },
+      {
+        "name": "o_base",
+        "type": "uint256"
+      },
+      {
+        "name": "o_name",
+        "type": "string"
+      }
+    ],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "drain",
+    "outputs": [],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "tokenCount",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_id",
+        "type": "uint256"
+      }
+    ],
+    "name": "unregister",
+    "outputs": [],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "fromAddress",
+    "outputs": [
+      {
+        "name": "o_id",
+        "type": "uint256"
+      },
+      {
+        "name": "o_tla",
+        "type": "string"
+      },
+      {
+        "name": "o_base",
+        "type": "uint256"
+      },
+      {
+        "name": "o_name",
+        "type": "string"
+      }
+    ],
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "fee",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "type": "function"
+  }
+]
