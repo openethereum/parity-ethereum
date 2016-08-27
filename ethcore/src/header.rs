@@ -133,6 +133,8 @@ impl Header {
 
 	/// Get the extra data field of the header.
 	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
+	/// Get a mutable reference to extra_data
+	pub fn extra_data_mut(&mut self) -> &mut Bytes { self.note_dirty(); &mut self.extra_data }
 
 	/// Get the state root field of the header.
 	pub fn state_root(&self) -> &H256 { &self.state_root }

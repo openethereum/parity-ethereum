@@ -623,9 +623,9 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
-		uncle1_header.extra_data = b"uncle1".to_vec();
+		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();
-		uncle2_header.extra_data = b"uncle2".to_vec();
+		uncle2_header.set_extra_data(b"uncle2".to_vec());
 		open_block.push_uncle(uncle1_header).unwrap();
 		open_block.push_uncle(uncle2_header).unwrap();
 		let b = open_block.close_and_lock().seal(engine, vec![]).unwrap();
@@ -641,7 +641,7 @@ mod tests {
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
 		let uncles = BlockView::new(&bytes).uncles();
-		assert_eq!(uncles[1].extra_data, b"uncle2");
+		assert_eq!(uncles[1].extra_data(), b"uncle2");
 
 		let db = e.drain();
 		assert_eq!(orig_db.keys(), db.keys());

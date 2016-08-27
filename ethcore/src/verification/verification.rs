@@ -308,8 +308,8 @@ mod tests {
 				let header = BlockView::new(bytes).header();
 				BlockDetails {
 					number: header.number(),
-					total_difficulty: header.difficulty(),
-					parent: header.parent_hash(),
+					total_difficulty: header.difficulty().clone(),
+					parent: header.parent_hash().clone(),
 					children: Vec::new(),
 				}
 			})
@@ -352,9 +352,9 @@ mod tests {
 		let engine = &*spec.engine;
 
 		let min_gas_limit = engine.params().min_gas_limit;
-		good.gas_limit = min_gas_limit;
-		good.timestamp = 40;
-		good.number = 10;
+		good.set_gas_limit(min_gas_limit);
+		good.set_timestamp(40);
+		good.set_number(10);
 
 		let keypair = Random.generate().unwrap();
 
@@ -381,31 +381,31 @@ mod tests {
 		let diff_inc = U256::from(0x40);
 
 		let mut parent6 = good.clone();
-		parent6.number = 6;
+		parent6.set_number(6);
 		let mut parent7 = good.clone();
-		parent7.number = 7;
-		parent7.parent_hash = parent6.hash();
-		parent7.difficulty = parent6.difficulty + diff_inc;
-		parent7.timestamp = parent6.timestamp + 10;
+		parent7.set_number(7);
+		parent7.set_parent_hash(parent6.hash());
+		parent7.set_difficulty(parent6.difficulty().clone() + diff_inc);
+		parent7.set_timestamp(parent6.timestamp() + 10);
 		let mut parent8 = good.clone();
-		parent8.number = 8;
-		parent8.parent_hash = parent7.hash();
-		parent8.difficulty = parent7.difficulty + diff_inc;
-		parent8.timestamp = parent7.timestamp + 10;
+		parent8.set_number(8);
+		parent8.set_parent_hash(parent7.hash());
+		parent8.set_difficulty(parent7.difficulty().clone() + diff_inc);
+		parent8.set_timestamp(parent7.timestamp() + 10);
 
 		let mut good_uncle1 = good.clone();
-		good_uncle1.number = 9;
-		good_uncle1.parent_hash = parent8.hash();
-		good_uncle1.difficulty = parent8.difficulty + diff_inc;
-		good_uncle1.timestamp = parent8.timestamp + 10;
-		good_uncle1.extra_data.push(1u8);
+		good_uncle1.set_number(9);
+		good_uncle1.set_parent_hash(parent8.hash());
+		good_uncle1.set_difficulty(parent8.difficulty().clone() + diff_inc);
+		good_uncle1.set_timestamp(parent8.timestamp() + 10);
+		good_uncle1.extra_data_mut().push(1u8);
 
 		let mut good_uncle2 = good.clone();
-		good_uncle2.number = 8;
-		good_uncle2.parent_hash = parent7.hash();
-		good_uncle2.difficulty = parent7.difficulty + diff_inc;
-		good_uncle2.timestamp = parent7.timestamp + 10;
-		good_uncle2.extra_data.push(2u8);
+		good_uncle2.set_number(8);
+		good_uncle2.set_parent_hash(parent7.hash());
+		good_uncle2.set_difficulty(parent7.difficulty().clone() + diff_inc);
+		good_uncle2.set_timestamp(parent7.timestamp() + 10);
+		good_uncle2.extra_data_mut().push(2u8);
 
 		let good_uncles = vec![ good_uncle1.clone(), good_uncle2.clone() ];
 		let mut uncles_rlp = RlpStream::new();
@@ -415,13 +415,13 @@ mod tests {
 
 		let mut parent = good.clone();
 		parent.set_number(9);
-		parent.set_timestamp(parent8.timestamp + 10);
+		parent.set_timestamp(parent8.timestamp() + 10);
 		parent.set_parent_hash(parent8.hash());
-		parent.set_difficulty(parent8.difficulty + diff_inc);
+		parent.set_difficulty(parent8.difficulty().clone() + diff_inc);
 
-		good.parent_hash = parent.hash();
-		good.difficulty = parent.difficulty() + diff_inc;
-		good.timestamp = parent.timestamp() + 10;
+		good.set_parent_hash(parent.hash());
+		good.set_difficulty(parent.difficulty().clone() + diff_inc);
+		good.set_timestamp(parent.timestamp() + 10);
 
 		let mut bc = TestBlockChain::new();
 		bc.insert(create_test_block(&good));
@@ -439,7 +439,7 @@ mod tests {
 
 		header.set_gas_limit(min_gas_limit - From::from(1));
 		check_fail(basic_test(&create_test_block(&header), engine),
-			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit() }));
+			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit().clone() }));
 
 		header = good.clone();
 		header.set_number(BlockNumber::max_value());
@@ -447,29 +447,30 @@ mod tests {
 			RidiculousNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number() }));
 
 		header = good.clone();
-		header.set_gas_used(header.gas_limit() + From::from(1));
+		let gas_used = header.gas_limit().clone() + 1.into();
+		header.set_gas_used(gas_used);
 		check_fail(basic_test(&create_test_block(&header), engine),
-			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit()), min: None, found: header.gas_used() }));
+			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit().clone()), min: None, found: header.gas_used().clone() }));
 
 		header = good.clone();
-		header.extra_data().resize(engine.maximum_extra_data_size() + 1, 0u8);
-		check_fail(basic_test(&create_test_block(&header), engine),
-			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data().len() }));
-
-		header = good.clone();
-		header.extra_data().resize(engine.maximum_extra_data_size() + 1, 0u8);
+		header.extra_data_mut().resize(engine.maximum_extra_data_size() + 1, 0u8);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data().len() }));
 
 		header = good.clone();
-		header.uncles_hash = good_uncles_hash.clone();
+		header.extra_data_mut().resize(engine.maximum_extra_data_size() + 1, 0u8);
+		check_fail(basic_test(&create_test_block(&header), engine),
+			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data().len() }));
+
+		header = good.clone();
+		header.set_uncles_hash(good_uncles_hash.clone());
 		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine),
-			InvalidTransactionsRoot(Mismatch { expected: good_transactions_root.clone(), found: header.transactions_root() }));
+			InvalidTransactionsRoot(Mismatch { expected: good_transactions_root.clone(), found: header.transactions_root().clone() }));
 
 		header = good.clone();
 		header.set_transactions_root(good_transactions_root.clone());
 		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine),
-			InvalidUnclesHash(Mismatch { expected: good_uncles_hash.clone(), found: header.uncles_hash() }));
+			InvalidUnclesHash(Mismatch { expected: good_uncles_hash.clone(), found: header.uncles_hash().clone() }));
 
 		check_ok(family_test(&create_test_block(&good), engine, &bc));
 		check_ok(family_test(&create_test_block_with_data(&good, &good_transactions, &good_uncles), engine, &bc));
@@ -477,7 +478,7 @@ mod tests {
 		header = good.clone();
 		header.set_parent_hash(H256::random());
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc),
-			UnknownParent(header.parent_hash()));
+			UnknownParent(header.parent_hash().clone()));
 
 		header = good.clone();
 		header.set_timestamp(10);

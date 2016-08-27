@@ -44,21 +44,22 @@ impl Encodable for Block {
 
 impl Forkable for Block {
 	fn fork(mut self, fork_number: usize) -> Self where Self: Sized {
-		self.header.difficulty = self.header.difficulty - U256::from(fork_number);
+		let difficulty = self.header.difficulty().clone() - U256::from(fork_number);
+		self.header.set_difficulty(difficulty);
 		self
 	}
 }
 
 impl WithBloom for Block {
 	fn with_bloom(mut self, bloom: H2048) -> Self where Self: Sized {
-		self.header.log_bloom = bloom;
+		self.header.set_log_bloom(bloom);
 		self
 	}
 }
 
 impl CompleteBlock for Block {
 	fn complete(mut self, parent_hash: H256) -> Bytes {
-		self.header.parent_hash = parent_hash;
+		self.header.set_parent_hash(parent_hash);
 		encode(&self).to_vec()
 	}
 }

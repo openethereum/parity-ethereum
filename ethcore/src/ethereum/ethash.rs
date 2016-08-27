@@ -376,7 +376,7 @@ mod tests {
 		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();
 		let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
-		uncle.author = uncle_author.clone();
+		uncle.set_author(uncle_author);
 		b.push_uncle(uncle).unwrap();
 
 		let b = b.close();
