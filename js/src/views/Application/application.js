@@ -15,6 +15,7 @@ import TabBar from './TabBar';
 import styles from './style.css';
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
+const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
 const ETH_TOKEN = {
   images: {
@@ -61,7 +62,13 @@ export default class Application extends Component {
     const { blockNumber, clientVersion, peerCount } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
-    if (root === 'app') {
+    if (inFrame) {
+      return (
+        <div className={ styles.apperror }>
+          ERROR: This application cannot and should not be loaded in an embedded iFrame
+        </div>
+      );
+    } else if (root === 'app') {
       return (
         <div className={ styles.container }>
           { this.props.children }

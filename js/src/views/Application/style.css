@@ -3,6 +3,12 @@
   width: 100%;
 }
 
+.apperror {
+  padding: 2em;
+  background: red;
+  color: white;
+}
+
 .toolbar {
   background: rgb(65, 65, 65) !important;
   height: 72px !important;
