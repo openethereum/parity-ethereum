@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import { Link } from 'react-router';
 
 import Container, { Title } from '../../../ui/Container';
 import IdentityIcon from '../../../ui/IdentityIcon';
@@ -20,12 +21,14 @@ export default class Summary extends Component {
       return null;
     }
 
+    const url = `/app/${app.url}`;
+
     return (
       <Container>
         <IdentityIcon
           address={ app.address } />
         <Title
-          title={ <a href={ app.url }>{ app.name }</a> }
+          title={ <Link to={ url }>{ app.name }</Link> }
           byline={ app.description } />
         { this.props.children }
       </Container>

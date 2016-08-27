@@ -30,7 +30,7 @@ export default class TooltipOverlay extends Component {
     const overlay = this.state.currentId === -1 ? null : (<div className={ styles.overlay } />);
 
     return (
-      <div>
+      <div className={ styles.container }>
         { overlay }
         { this.props.children }
       </div>

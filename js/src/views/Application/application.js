@@ -5,6 +5,7 @@ import { Snackbar } from 'material-ui';
 import Api from '../../api';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
 import muiTheme from '../../ui/Theme';
+import ParityBar from '../ParityBar';
 import { TooltipOverlay } from '../../ui/Tooltip';
 
 import { FirstRun } from '../../modals';
@@ -52,14 +53,27 @@ export default class Application extends Component {
   }
 
   render () {
+    let body = null;
+
+    if (this.isOnApp()) {
+      body = [
+        this.props.children,
+        <ParityBar />
+      ];
+    } else {
+      body = [
+        this.renderFirstRunDialog(),
+        <TabBar />,
+        this.props.children,
+        <Status />
+      ];
+    }
+
     return (
       <TooltipOverlay>
         { this.renderSnackbar() }
         <div className={ styles.container }>
-          { this.renderFirstRunDialog() }
-          <TabBar />
-          { this.props.children }
-          <Status />
+          { body }
         </div>
       </TooltipOverlay>
     );
@@ -99,6 +113,13 @@ export default class Application extends Component {
       tokens: this.state.tokens,
       muiTheme
     };
+  }
+
+  isOnApp () {
+    const [root] = (window.location.hash || '')
+      .replace('#/', '').split('?')[0].split('/');
+
+    return root === 'app';
   }
 
   onCloseError = () => {

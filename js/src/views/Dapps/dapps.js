@@ -15,7 +15,7 @@ export default class Dapps extends Component {
         name: 'GAVcoin',
         address: '0x6C5b287A875298f773225e72ce3fA8B2782e0347',
         description: 'Manage your GAVcoins, the hottest new property in crypto',
-        url: '/dapps/gavcoin.html'
+        url: 'gavcoin'
       }
     ]
   }
