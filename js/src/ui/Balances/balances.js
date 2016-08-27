@@ -12,11 +12,7 @@ export default class Balances extends Component {
   }
 
   render () {
-    if (!this.props.account) {
-      return null;
-    }
-
-    const balances = this.props.account.balances
+    let body = this.props.account.balances
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
         const token = balance.token;
@@ -36,13 +32,17 @@ export default class Balances extends Component {
         );
       });
 
-    if (!balances.length) {
-      return null;
+    if (!body.length) {
+      body = (
+        <div className={ styles.empty }>
+          There are no balances associated with this account
+        </div>
+      );
     }
 
     return (
       <div className={ styles.balances }>
-        { balances }
+        { body }
       </div>
     );
   }
