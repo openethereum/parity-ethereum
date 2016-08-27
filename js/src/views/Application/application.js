@@ -53,27 +53,25 @@ export default class Application extends Component {
   }
 
   render () {
-    let body = null;
+    const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
-    if (this.isOnApp()) {
-      body = [
-        this.props.children,
-        <ParityBar />
-      ];
-    } else {
-      body = [
-        this.renderFirstRunDialog(),
-        <TabBar />,
-        this.props.children,
-        <Status />
-      ];
+    if (root === 'app') {
+      return (
+        <div className={ styles.container }>
+          { this.props.children }
+          <ParityBar />
+        </div>
+      );
     }
 
     return (
       <TooltipOverlay>
         { this.renderSnackbar() }
         <div className={ styles.container }>
-          { body }
+          { this.renderFirstRunDialog() }
+          <TabBar />
+          { this.props.children }
+          <Status />
         </div>
       </TooltipOverlay>
     );
@@ -113,13 +111,6 @@ export default class Application extends Component {
       tokens: this.state.tokens,
       muiTheme
     };
-  }
-
-  isOnApp () {
-    const [root] = (window.location.hash || '')
-      .replace('#/', '').split('?')[0].split('/');
-
-    return root === 'app';
   }
 
   onCloseError = () => {

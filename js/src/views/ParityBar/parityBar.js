@@ -1,28 +1,18 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 
 import { IconButton } from 'material-ui';
 import ActionSwapVert from 'material-ui/svg-icons/action/swap-vert';
 
-import Api from '../../api';
-import muiTheme from '../../ui/Theme';
-
 import styles from './style.css';
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
-
 export default class ParityBar extends Component {
-  static childContextTypes = {
-    api: PropTypes.object,
-    muiTheme: PropTypes.object
-  }
-
   render () {
     return (
       <div className={ styles.bar }>
         <div className={ styles.corner }>
           <a
             className={ styles.noshow }
-            href='/'>
+            href='/#/apps'>
             <img
               className={ styles.logo }
               src='/images/paritybar.png' />
@@ -33,12 +23,5 @@ export default class ParityBar extends Component {
         </div>
       </div>
     );
-  }
-
-  getChildContext () {
-    return {
-      api,
-      muiTheme
-    };
   }
 }

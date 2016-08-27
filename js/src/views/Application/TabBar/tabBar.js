@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import Toolbar from 'material-ui/Toolbar';
+import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
@@ -25,6 +25,11 @@ export default class TabBar extends Component {
     return (
       <Toolbar
         className={ styles.toolbar }>
+        <ToolbarGroup>
+          <img
+            className={ styles.logo }
+            src='/images/paritybar.png' />
+        </ToolbarGroup>
         <Tabs
           className={ styles.tabs }
           value={ hash }>
