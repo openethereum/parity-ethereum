@@ -83,8 +83,6 @@ export default class Application extends Component {
             instance.fee.call()
           ])
           .then(([owner, fee]) => {
-            api.events.subscribe('eth.blockNumber', this.onNewBlockNumber);
-
             this.setState({
               address,
               fee,
@@ -92,6 +90,8 @@ export default class Application extends Component {
               loading: false,
               owner
             });
+
+            api.events.subscribe('eth.blockNumber', this.onNewBlockNumber);
           });
       })
       .catch((error) => {
