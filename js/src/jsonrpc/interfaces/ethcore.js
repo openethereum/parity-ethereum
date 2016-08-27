@@ -107,6 +107,15 @@ export default {
     }
   },
 
+  netPeers: {
+    desc: 'Returns number of peers.',
+    params: [],
+    returns: {
+      type: Quantity,
+      desc: 'Number of peers'
+    }
+  },
+
   netMaxPeers: {
     desc: 'Returns maximal number of peers.',
     params: [],

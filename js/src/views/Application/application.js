@@ -43,7 +43,12 @@ export default class Application extends Component {
   state = {
     blockNumber: new BigNumber(0),
     clientVersion: '',
-    peerCount: new BigNumber(0),
+    netChain: '',
+    netPeers: {
+      active: new BigNumber(0),
+      connected: new BigNumber(0),
+      max: new BigNumber(0)
+    },
     showError: false,
     showFirst: false,
     accounts: [],
@@ -59,7 +64,7 @@ export default class Application extends Component {
   }
 
   render () {
-    const { blockNumber, clientVersion, peerCount } = this.state;
+    const { blockNumber, clientVersion, netChain, netPeers } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
     if (inFrame) {
@@ -87,7 +92,8 @@ export default class Application extends Component {
           <Status
             blockNumber={ blockNumber }
             clientVersion={ clientVersion }
-            peerCount={ peerCount } />
+            netChain={ netChain }
+            netPeers={ netPeers } />
         </div>
       </TooltipOverlay>
     );
@@ -279,19 +285,21 @@ export default class Application extends Component {
   }
 
   pollStatus () {
-    const nextTimeout = () => setTimeout(() => this.pollStatus(), 2500);
+    const nextTimeout = () => setTimeout(() => this.pollStatus(), 1000);
     Promise
       .all([
-        api.web3.clientVersion(),
-        api.net.peerCount(),
         api.eth.blockNumber(),
+        api.web3.clientVersion(),
+        api.ethcore.netChain(),
+        api.ethcore.netPeers(),
         api.eth.syncing()
       ])
-      .then(([clientVersion, peerCount, blockNumber, syncing]) => {
+      .then(([blockNumber, clientVersion, netChain, netPeers, syncing]) => {
         this.setState({
           blockNumber,
           clientVersion,
-          peerCount,
+          netChain,
+          netPeers,
           syncing
         }, nextTimeout);
       })

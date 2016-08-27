@@ -13,6 +13,35 @@
 .block {
 }
 
+.netinfo {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-top: 0.25em;
+}
+
+.netinfo>div {
+  display: inline-block;
+  margin-left: 1em;
+}
+
+.network {
+  padding: 0.25em 0.5em;
+  display: inline-block;
+  border-radius: 4px;
+  text-transform: uppercase;
+  height: 1.25em;
+  margin-top: 0.25em;
+}
+
+.networklive {
+  background: rgb(75, 255, 75);
+}
+
+.networktest {
+  background: rgb(255, 75, 75);
+}
+
 .peers {
 }
 
