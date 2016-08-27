@@ -20,6 +20,12 @@
 }
 
 .blocknumber,
+.ethvalue,
+.gavvalue {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.blocknumber,
 .gavvalue {
   text-align: right;
 }
