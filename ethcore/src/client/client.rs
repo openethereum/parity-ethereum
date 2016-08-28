@@ -168,7 +168,7 @@ impl Client {
 
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
-		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, db.clone(), chain.clone())));
+		let tracedb = Arc::new(TraceDB::new(config.tracing, db.clone(), chain.clone()));
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {

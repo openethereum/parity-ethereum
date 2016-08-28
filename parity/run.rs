@@ -24,7 +24,7 @@ use ethcore_rpc::NetworkSettings;
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -35,10 +35,11 @@ use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
+use user_defaults::UserDefaults;
 use dapps;
 use signer;
 use modules;
@@ -83,6 +84,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// increase max number of open files
 	raise_fd_limit();
 
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
+
 	// set up logger
 	let logger = try!(setup_log(&cmd.logger_config));
 
@@ -100,7 +104,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let genesis_hash = spec.genesis_header().hash();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// prepare client_path
 	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
@@ -144,16 +148,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		&cmd.dirs,
-		genesis_hash,
 		cmd.mode,
-		cmd.tracing,
-		cmd.pruning,
+		try!(cmd.tracing.to_bool(&user_defaults)),
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
 		cmd.name,
-		fork_name.as_ref(),
+		algorithm,
 	);
 
 	// set up bootnodes
@@ -256,6 +257,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		}
 		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
 	}
+
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = { unimplemented!(); };
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);

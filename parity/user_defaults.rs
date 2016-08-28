@@ -14,33 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces config.
-use bloomchain::Config as BloomConfig;
+use std::path::Path;
+use util::journaldb::Algorithm;
 
-/// Traces config.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: bool,
-	/// Traces blooms configuration.
-	pub blooms: BloomConfig,
-	/// Preferef cache-size.
-	pub pref_cache_size: usize,
-	/// Max cache-size.
-	pub max_cache_size: usize,
+pub struct UserDefaults {
+	pub pruning: Algorithm,
+	pub tracing: bool,
 }
 
-impl Default for Config {
+impl Default for UserDefaults {
 	fn default() -> Self {
-		Config {
-			enabled: false,
-			blooms: BloomConfig {
-				levels: 3,
-				elements_per_index: 16,
-			},
-			pref_cache_size: 15 * 1024 * 1024,
-			max_cache_size: 20 * 1024 * 1024,
+		UserDefaults {
+			pruning: Algorithm::default(),
+			tracing: false,
 		}
+	}
+}
+
+impl UserDefaults {
+	pub fn load<P>(_path: P) -> Result<Self, String> where P: AsRef<Path> {
+		unimplemented!();
+	}
+
+	pub fn save<P>(self, _path: P) -> Result<(), String> where P: AsRef<Path> {
+		unimplemented!();
 	}
 }

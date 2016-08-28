@@ -18,7 +18,7 @@ use std::str::FromStr;
 pub use std::time::Duration;
 pub use block_queue::BlockQueueConfig;
 pub use blockchain::Config as BlockChainConfig;
-pub use trace::{Config as TraceConfig, Switch};
+pub use trace::Config as TraceConfig;
 pub use evm::VMType;
 pub use verification::VerifierType;
 use util::{journaldb, CompactionProfile};
@@ -102,7 +102,7 @@ pub struct ClientConfig {
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
 	/// Should db have WAL enabled?
-	pub db_wal: bool, 
+	pub db_wal: bool,
 	/// Operating mode
 	pub mode: Mode,
 	/// Type of block verifier used by client.

@@ -24,14 +24,15 @@ use ethcore_logger::{setup_log, Config as LogConfig};
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
 use ethcore::ids::BlockID;
 
 use cache::CacheConfig;
-use params::{SpecType, Pruning};
+use params::{SpecType, Pruning, Switch};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
+use user_defaults::UserDefaults;
 use fdlimit;
 
 use io::PanicHandler;
@@ -68,6 +69,9 @@ impl SnapshotCommand {
 		// Setup panic handler
 		let panic_handler = PanicHandler::new_in_arc();
 
+		// load user defaults
+		let user_defaults = try!(UserDefaults::load(self.dirs.user_defaults_path()));
+
 		// load spec file
 		let spec = try!(self.spec.spec());
 
@@ -80,7 +84,7 @@ impl SnapshotCommand {
 		fdlimit::raise_fd_limit();
 
 		// select pruning algorithm
-		let algorithm = self.pruning.to_algorithm(&self.dirs, genesis_hash, spec.fork_name.as_ref());
+		let algorithm = self.pruning.to_algorithm(&user_defaults);
 
 		// prepare client_path
 		let client_path = self.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
@@ -89,7 +93,7 @@ impl SnapshotCommand {
 		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, &self.dirs, genesis_hash, self.mode, self.tracing, self.pruning, self.compaction, self.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+		let client_config = to_client_config(&self.cache_config, self.mode, try!(self.tracing.to_bool(&user_defaults)), self.compaction, self.wal, VMType::default(), "".into(), algorithm);
 
 		let service = try!(ClientService::start(
 			client_config,

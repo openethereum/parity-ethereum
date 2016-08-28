@@ -99,6 +99,7 @@ mod run;
 mod sync;
 mod snapshot;
 mod boot;
+mod user_defaults;
 
 #[cfg(feature="stratum")]
 mod stratum;

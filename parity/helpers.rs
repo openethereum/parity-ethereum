@@ -21,11 +21,10 @@ use std::path::Path;
 use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, H256, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
+use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::PendingSet;
 use cache::CacheConfig;
 use dir::Directories;
-use params::Pruning;
 use upgrade::upgrade;
 use migration::migrate;
 use ethsync::is_valid_node_url;
@@ -190,16 +189,13 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 #[cfg_attr(feature = "dev", allow(too_many_arguments))]
 pub fn to_client_config(
 		cache_config: &CacheConfig,
-		dirs: &Directories,
-		genesis_hash: H256,
 		mode: Mode,
-		tracing: Switch,
-		pruning: Pruning,
+		tracing: bool,
 		compaction: DatabaseCompactionProfile,
 		wal: bool,
 		vm_type: VMType,
 		name: String,
-		fork_name: Option<&String>,
+		pruning: Algorithm,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -221,7 +217,7 @@ pub fn to_client_config(
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
-	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash, fork_name);
+	client_config.pruning = pruning;
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;

@@ -73,6 +73,13 @@ impl Directories {
 		dir.push("ipc");
 		dir
 	}
+
+	/// Get user defaults path
+	pub fn user_defaults_path(&self) -> PathBuf {
+		let mut dir = Path::new(&self.db).to_path_buf();
+		dir.push("user_defaults");
+		dir
+	}
 }
 
 #[cfg(test)]

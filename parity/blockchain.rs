@@ -26,14 +26,15 @@ use ethcore_logger::{setup_log, Config as LogConfig};
 use io::{PanicHandler, ForwardPanic};
 use util::{PayloadInfo, ToPretty};
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
 use informant::Informant;
-use params::{SpecType, Pruning};
+use params::{SpecType, Pruning, Switch};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
+use user_defaults::UserDefaults;
 use fdlimit;
 
 #[derive(Debug, PartialEq)]
@@ -107,6 +108,9 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -122,7 +126,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// prepare client_path
 	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
@@ -131,7 +135,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), spec.fork_name.as_ref());
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, try!(cmd.tracing.to_bool(&user_defaults)), cmd.compaction, cmd.wal, cmd.vm_type, "".into(), algorithm);
 
 	// build client
 	let service = try!(ClientService::start(
@@ -213,10 +217,18 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	}
 	client.flush_queue();
 
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = { unimplemented!() };
+	try!(user_defaults.save(cmd.dirs.user_defaults_path()));
+
 	Ok("Import completed.".into())
 }
 
 fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
+	// load user defaults
+	let user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -234,7 +246,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// prepare client_path
 	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
@@ -243,7 +255,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, try!(cmd.tracing.to_bool(&user_defaults)), cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm);
 
 	let service = try!(ClientService::start(
 		client_config,
