@@ -237,9 +237,12 @@ impl FromStr for Switch {
 	}
 }
 
-impl Switch {
-	pub fn to_bool(&self, _user_defaults: &UserDefaults) -> Result<bool, String> {
-		unimplemented!();
+pub fn tracing_switch_to_bool(switch: Switch, user_defaults: &UserDefaults) -> Result<bool, String> {
+	match (user_defaults.is_first_launch, switch, user_defaults.tracing) {
+		(false, Switch::On, false) => Err("TraceDB resync required".into()),
+		(_, Switch::On, _) => Ok(true),
+		(_, Switch::Off, _) => Ok(false),
+		(_, Switch::Auto, def) => Ok(def),
 	}
 }
 

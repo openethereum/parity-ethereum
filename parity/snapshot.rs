@@ -29,7 +29,7 @@ use ethcore::miner::Miner;
 use ethcore::ids::BlockID;
 
 use cache::CacheConfig;
-use params::{SpecType, Pruning, Switch};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -72,6 +72,9 @@ impl SnapshotCommand {
 		// load user defaults
 		let user_defaults = try!(UserDefaults::load(self.dirs.user_defaults_path()));
 
+		// check if tracing is on
+		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
+
 		// load spec file
 		let spec = try!(self.spec.spec());
 
@@ -93,7 +96,7 @@ impl SnapshotCommand {
 		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, self.mode, try!(self.tracing.to_bool(&user_defaults)), self.compaction, self.wal, VMType::default(), "".into(), algorithm);
+		let client_config = to_client_config(&self.cache_config, self.mode, tracing, self.compaction, self.wal, VMType::default(), "".into(), algorithm);
 
 		let service = try!(ClientService::start(
 			client_config,

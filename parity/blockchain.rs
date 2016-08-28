@@ -31,7 +31,7 @@ use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
 use informant::Informant;
-use params::{SpecType, Pruning, Switch};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -108,11 +108,17 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
+	// Setup panic handler
+	let panic_handler = PanicHandler::new_in_arc();
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs());
+
 	// load user defaults
 	let mut user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
 
-	// Setup panic handler
-	let panic_handler = PanicHandler::new_in_arc();
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
@@ -135,7 +141,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, cmd.mode, try!(cmd.tracing.to_bool(&user_defaults)), cmd.compaction, cmd.wal, cmd.vm_type, "".into(), algorithm);
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), algorithm);
 
 	// build client
 	let service = try!(ClientService::start(
@@ -219,18 +225,24 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	// save user defaults
 	user_defaults.pruning = algorithm;
-	user_defaults.tracing = { unimplemented!() };
+	user_defaults.tracing = tracing;
 	try!(user_defaults.save(cmd.dirs.user_defaults_path()));
 
 	Ok("Import completed.".into())
 }
 
 fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
+	// Setup panic handler
+	let panic_handler = PanicHandler::new_in_arc();
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs());
+
 	// load user defaults
 	let user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
 
-	// Setup panic handler
-	let panic_handler = PanicHandler::new_in_arc();
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
 	let format = cmd.format.unwrap_or_else(Default::default);
 
@@ -255,7 +267,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, cmd.mode, try!(cmd.tracing.to_bool(&user_defaults)), cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm);
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm);
 
 	let service = try!(ClientService::start(
 		client_config,

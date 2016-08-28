@@ -35,7 +35,7 @@ use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch};
+use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch, tracing_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
@@ -81,20 +81,23 @@ pub struct RunCmd {
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
+	// set up panic handler
+	let panic_handler = PanicHandler::new_in_arc();
+
 	// increase max number of open files
 	raise_fd_limit();
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs());
 
 	// load user defaults
 	let mut user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
 
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
 	// set up logger
 	let logger = try!(setup_log(&cmd.logger_config));
-
-	// set up panic handler
-	let panic_handler = PanicHandler::new_in_arc();
-
-	// create dirs used by parity
-	try!(cmd.dirs.create_dirs());
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
@@ -149,7 +152,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let client_config = to_client_config(
 		&cmd.cache_config,
 		cmd.mode,
-		try!(cmd.tracing.to_bool(&user_defaults)),
+		tracing,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
@@ -260,7 +263,8 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// save user defaults
 	user_defaults.pruning = algorithm;
-	user_defaults.tracing = { unimplemented!(); };
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(cmd.dirs.user_defaults_path()));
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);

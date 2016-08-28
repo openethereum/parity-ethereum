@@ -36,6 +36,8 @@ dependencies = [
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -202,6 +204,11 @@ dependencies = [
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "strsim 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "dtoa"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "elastic-array"
@@ -717,6 +724,11 @@ dependencies = [
 [[package]]
 name = "itertools"
 version = "0.4.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "itoa"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -1343,6 +1355,11 @@ version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "serde"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "serde_codegen"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1361,6 +1378,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "num-traits 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.9 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "serde_json"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "dtoa 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itoa 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num-traits 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
