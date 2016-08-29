@@ -37,6 +37,10 @@ function formatEther (value) {
 }
 
 export default class Transactions extends Component {
+  static contextTypes = {
+    api: PropTypes.object
+  }
+
   static propTypes = {
     address: PropTypes.string.isRequired
   }
@@ -60,12 +64,15 @@ export default class Transactions extends Component {
 
   renderTransactions () {
     let transactions = null;
+    const prefix = this.state.isTest
+      ? 'https://testnet.etherscan.io/'
+      : 'https://etherscan.io/';
 
     if (this.state.transactions && this.state.transactions.length) {
       transactions = (this.state.transactions || []).map((tx) => {
-        const hashLink = `https://etherscan.io/tx/${tx.hash}`;
-        const fromLink = `https://etherscan.io/address/${tx.from}`;
-        const toLink = `https://etherscan.io/address/${tx.to}`;
+        const hashLink = `${prefix}tx/${tx.hash}`;
+        const fromLink = `${prefix}address/${tx.from}`;
+        const toLink = `${prefix}address/${tx.to}`;
 
         const tosection = (tx.to && tx.to.length)
           ? (<td className={ styles.center }>
@@ -123,20 +130,27 @@ export default class Transactions extends Component {
     }
 
     return (
-      <div className={ styles.info }>
+      <div className={ styles.infonone }>
         No transactions were found for this account
       </div>
     );
   }
 
   getTransactions = () => {
-    etherscan.account
-      .transactions(this.props.address)
-      .then((transactions) => {
-        this.setState({
-          transactions: transactions,
-          loading: false
-        });
+    this.context.api.ethcore
+      .netChain()
+      .then((netChain) => {
+        const isTest = netChain === 'morden';
+
+        return etherscan.account
+          .transactions(this.props.address, 0, isTest)
+          .then((transactions) => {
+            this.setState({
+              transactions,
+              isTest,
+              loading: false
+            });
+          });
       });
   }
 }

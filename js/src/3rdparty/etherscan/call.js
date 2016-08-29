@@ -1,5 +1,3 @@
-const HOST = 'api.etherscan.io';
-
 const options = {
   method: 'GET',
   headers: {
@@ -7,8 +5,11 @@ const options = {
   }
 };
 
-export function call (module, action, _params) {
+export function call (module, action, _params, test) {
   let params = '';
+  console.log(module, action, _params, test);
+  const host = test ? 'testnet.etherscan.io' : 'api.etherscan.io';
+  console.log(host);
 
   if (_params) {
     Object.keys(_params).map((param) => {
@@ -18,7 +19,7 @@ export function call (module, action, _params) {
     });
   }
 
-  return fetch(`http://${HOST}/api?module=${module}&action=${action}${params}`, options)
+  return fetch(`http://${host}/api?module=${module}&action=${action}${params}`, options)
     .then((response) => {
       if (response.status !== 200) {
         throw { code: response.status, message: response.statusText }; // eslint-disable-line

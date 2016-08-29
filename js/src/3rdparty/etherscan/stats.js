@@ -1,15 +1,15 @@
 import { call } from './call';
 
-function _call (action) {
-  return call('stats', action);
+function _call (action, test) {
+  return call('stats', action, null, test);
 }
 
-function price () {
-  return _call('ethprice');
+function price (test = false) {
+  return _call('ethprice', test);
 }
 
-function supply () {
-  return _call('ethsupply');
+function supply (test = false) {
+  return _call('ethsupply', test);
 }
 
 const stats = {
