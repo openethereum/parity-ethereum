@@ -48,7 +48,7 @@ pub struct Router<A: Authorization + 'static> {
 	fetch: Arc<AppFetcher>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
-	bind_address: String,
+	allowed_hosts: Option<Vec<String>>,
 	handler: Box<server::Handler<HttpStream> + Send>,
 }
 
@@ -56,9 +56,11 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
 		// Validate Host header
-		if !host_validation::is_valid(&req, &self.bind_address, self.endpoints.keys().cloned().collect()) {
-			self.handler = host_validation::host_invalid_response();
-			return self.handler.on_request(req);
+		if let Some(ref hosts) = self.allowed_hosts {
+			if !host_validation::is_valid(&req, hosts, self.endpoints.keys().cloned().collect()) {
+				self.handler = host_validation::host_invalid_response();
+				return self.handler.on_request(req);
+			}
 		}
 
 		// Check authorization
@@ -125,7 +127,7 @@ impl<A: Authorization> Router<A> {
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 		authorization: Arc<A>,
-		bind_address: String,
+		allowed_hosts: Option<Vec<String>>,
 		) -> Self {
 
 		let handler = special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default());
@@ -136,7 +138,7 @@ impl<A: Authorization> Router<A> {
 			fetch: app_fetcher,
 			special: special,
 			authorization: authorization,
-			bind_address: bind_address,
+			allowed_hosts: allowed_hosts,
 			handler: handler,
 		}
 	}
