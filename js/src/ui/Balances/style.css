@@ -6,40 +6,29 @@
 }
 
 .empty {
-  line-height: 32px;
-  margin: 0.5em 0.5em 0 0;
+  line-height: 24px;
+  margin: 0.75em 0.5em 0 0;
   opacity: 0.25;
 }
 
 .balance {
   background: rgba(255, 255, 255, 0.07);
   border-radius: 16px;
-  margin: 0.5em 0.5em 0 0;
-  max-height: 32px;
+  margin: 0.75em 0.5em 0 0;
+  max-height: 24px;
 }
 
 .balance img {
   display: inline-block;
   height: 32px;
-  margin-right: 1em;
+  margin: -4px 1em 0 0;
   width: 32px;
 }
 
 .balance div {
   display: inline-block;
   font-family: 'Roboto Mono', monospace;
-  line-height: 32px;
-  vertical-align: top;
-  margin-right: 1em;
-}
-
-/*  height: 24px;
   line-height: 24px;
-  display: inline-block;
+  margin: 0 1em 0 0;
   vertical-align: top;
-  padding: 0 0.5em;
-  float: right;
-  margin-left: -100%;
-  text-align: right;
-  width: 100%;
-}*/
+}
