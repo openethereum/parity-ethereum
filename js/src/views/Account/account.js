@@ -14,6 +14,8 @@ import Transactions from './Transactions';
 
 import styles from './style.css';
 
+const DEFAULT_NAME = 'Unnamed';
+
 export default class Account extends Component {
   static contextTypes = {
     api: React.PropTypes.object,
@@ -25,7 +27,7 @@ export default class Account extends Component {
   }
 
   state = {
-    name: 'Unnamed',
+    name: DEFAULT_NAME,
     fundDialog: false,
     transferDialog: false
   }
@@ -35,7 +37,7 @@ export default class Account extends Component {
   }
 
   render () {
-    const address = this.props.params.address;
+    const { address, name } = this.props.params;
     const account = this.context.accounts.find((account) => account.address === address);
 
     if (!account) {
@@ -44,7 +46,7 @@ export default class Account extends Component {
 
     const title = (
       <span>
-        <span>{ this.state.name || 'Unnamed' }</span>
+        <span>{ name || DEFAULT_NAME }</span>
         <ContentCreate
           className={ styles.editicon }
           color='rgb(0, 151, 167)' />
@@ -66,7 +68,7 @@ export default class Account extends Component {
               <InputInline
                 label='account name'
                 hint='a descriptive name for the account'
-                value={ this.state.name }
+                value={ name }
                 static={ <Title title={ title } byline={ address } /> }
                 onChange={ this.onEditName } />
             </FormWrap>
@@ -84,24 +86,30 @@ export default class Account extends Component {
   }
 
   renderFundDialog () {
-    if (!this.state.fundDialog) {
+    const { fundDialog } = this.state;
+
+    if (!fundDialog) {
       return null;
     }
 
+    const { address } = this.props.params;
+
     return (
       <FundAccount
-        address={ this.props.params.address }
+        address={ address }
         onClose={ this.onFundAccountClose } />
     );
   }
 
   renderTransferDialog () {
-    if (!this.state.transferDialog) {
+    const { transferDialog } = this.state;
+
+    if (!transferDialog) {
       return null;
     }
 
-    const address = this.props.params.address;
-    const account = this.context.accounts.find((account) => account.address === address);
+    const { address } = this.props.params;
+    const account = this.context.accounts.find((_account) => _account.address === address);
 
     return (
       <Transfer
@@ -111,7 +119,9 @@ export default class Account extends Component {
   }
 
   onFundAccountClick = () => {
-    this.setState({ fundDialog: !this.state.fundDialog });
+    this.setState({
+      fundDialog: !this.state.fundDialog
+    });
   }
 
   onFundAccountClose = () => {
@@ -119,7 +129,9 @@ export default class Account extends Component {
   }
 
   onTransferClick = () => {
-    this.setState({ transferDialog: !this.state.transferDialog });
+    this.setState({
+      transferDialog: !this.state.transferDialog
+    });
   }
 
   onTransferClose = () => {
@@ -132,12 +144,11 @@ export default class Account extends Component {
     });
   }
 
-  onEditName = (event) => {
-    const api = this.context.api;
-    const name = event.target.value;
+  onEditName = (event, name) => {
+    const { api } = this.context.api;
 
     this.setState({
-      name: name
+      name
     }, () => {
       api.personal.setAccountName(this.props.params.address, name);
     });

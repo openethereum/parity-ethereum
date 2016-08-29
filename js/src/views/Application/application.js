@@ -125,12 +125,14 @@ export default class Application extends Component {
   }
 
   getChildContext () {
+    const { accounts, contracts, tokens } = this.state;
+
     return {
       api,
-      accounts: this.state.accounts,
-      contracts: this.state.contracts,
+      accounts,
+      contracts,
       errorHandler: this.errorHandler,
-      tokens: this.state.tokens,
+      tokens,
       muiTheme
     };
   }
@@ -152,6 +154,7 @@ export default class Application extends Component {
 
   retrieveBalances = () => {
     const accounts = [];
+    const nextRetrieval = () => setTimeout(this.retrieveBalances, 2000);
 
     Promise
       .all([
@@ -210,10 +213,10 @@ export default class Application extends Component {
           showFirst: accounts.length === 0
         });
 
-        setTimeout(this.retrieveBalances, 2000);
+        nextRetrieval();
       })
       .catch(() => {
-        setTimeout(this.retrieveBalances, 2000);
+        nextRetrieval();
       });
   }
 

@@ -36,6 +36,6 @@
   text-align: right;
 }
 
-.info {
-  color: #aaa;
+.infonone {
+  opacity: 0.25;
 }
