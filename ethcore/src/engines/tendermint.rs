@@ -17,6 +17,7 @@
 //! Tendermint BFT consensus engine with round robin proof-of-authority.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::time::Duration;
 use common::*;
 use account_provider::AccountProvider;
 use block::*;
@@ -36,23 +37,35 @@ pub struct TendermintParams {
 	pub validators: Vec<Address>,
 	/// Number of validators.
 	pub validator_n: usize,
+	/// Timeout durations for different steps.
+	timeouts: Timeouts,
 	/// Consensus round.
 	r: u64,
 	/// Consensus step.
 	s: RwLock<Step>,
 	/// Used to swith proposer.
 	proposer_nonce: AtomicUsize,
-	/// Seal collection.
-	seal: Vec<Bytes>
 }
 
 #[derive(Debug)]
 enum Step {
 	Propose,
 	Prevote(ProposeCollect),
-	Precommit(ProposeCollect, Vec<Bytes>),
-	Commit
+	/// Precommit step storing the precommit vote and accumulating seal.
+	Precommit(ProposeCollect, Seal),
+	/// Commit step storing a complete valid seal.
+	Commit(Seal)
 }
+
+#[derive(Debug)]
+struct Timeouts {
+	propose: Duration,
+	prevote: Duration,
+	precommit: Duration,
+	commit: Duration
+}
+
+type Seal = Vec<Bytes>;
 
 impl From<ethjson::spec::TendermintParams> for TendermintParams {
 	fn from(p: ethjson::spec::TendermintParams) -> Self {
@@ -63,10 +76,10 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 			duration_limit: p.duration_limit.into(),
 			validators: val,
 			validator_n: val_n,
+			timeouts: Timeouts { propose: Duration::from_secs(3), prevote: Duration::from_secs(3), precommit: Duration::from_secs(3), commit: Duration::from_secs(3) },
 			r: 0,
 			s: RwLock::new(Step::Propose),
-			proposer_nonce: AtomicUsize::new(0),
-			seal: Vec::new()
+			proposer_nonce: AtomicUsize::new(0)
 		}
 	}
 }
@@ -154,7 +167,7 @@ impl Tendermint {
 					// Commit if precommit is won.
 					if vote.is_won() {
 						let mut guard = self.our_params.s.write();
-						*guard = Step::Commit;
+						*guard = Step::Commit(seal.clone());
 						Ok(message.as_raw().to_vec())
 					} else {
 						Ok(message.as_raw().to_vec())
@@ -245,7 +258,7 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		Ok(())
 	}
 
