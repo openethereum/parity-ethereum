@@ -196,10 +196,13 @@ export default class Application extends Component {
           address,
           instance,
           accounts: addresses.map((address) => {
+            const info = infos[address];
+
             return {
               address,
-              name: infos[address].name || 'Unnamed',
-              balance: 0
+              balance: 0,
+              name: info.name || 'Unnamed',
+              uuid: info.uuid
             };
           })
         });

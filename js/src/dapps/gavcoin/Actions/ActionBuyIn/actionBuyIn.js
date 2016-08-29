@@ -35,19 +35,23 @@ export default class ActionBuyIn extends Component {
   }
 
   render () {
+    const { complete } = this.state;
+
     return (
       <Dialog
         title='buy coins for a specific account'
         modal open
         className={ styles.dialog }
         actions={ this.renderActions() }>
-        { this.state.complete ? <StepComplete /> : this.renderFields() }
+        { complete ? <StepComplete /> : this.renderFields() }
       </Dialog>
     );
   }
 
   renderActions () {
-    if (this.state.complete) {
+    const { complete } = this.state;
+
+    if (complete) {
       return (
         <FlatButton
           label='Done'
@@ -56,7 +60,8 @@ export default class ActionBuyIn extends Component {
       );
     }
 
-    const hasError = !!(this.state.amountError || this.state.accountError || this.state.maxPriceError);
+    const { accountError, amountError, maxPriceError, sending } = this.state;
+    const hasError = !!(amountError || accountError || maxPriceError);
 
     return ([
       <FlatButton
@@ -66,7 +71,7 @@ export default class ActionBuyIn extends Component {
       <FlatButton
         label='Buy'
         primary
-        disabled={ hasError || this.state.sending }
+        disabled={ hasError || sending }
         onTouchTap={ this.onSend } />
     ]);
   }

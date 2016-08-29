@@ -23,19 +23,21 @@ export default class AccountSelect extends Component {
   }
 
   render () {
+    const { account, accounts, errorText, floatingLabelText, gavBalance, hintText } = this.props;
+
     return (
       <SelectField
         autoComplete='off'
         floatingLabelFixed
-        floatingLabelText={ this.props.floatingLabelText }
+        floatingLabelText={ floatingLabelText }
         fullWidth
-        hintText={ this.props.hintText }
-        errorText={ this.props.errorText }
+        hintText={ hintText }
+        errorText={ errorText }
         name={ NAME_ID }
         id={ NAME_ID }
-        value={ this.props.account }
+        value={ account }
         onChange={ this.onSelect }>
-        { renderAccounts(this.props.accounts, this.props.gavBalance) }
+        { renderAccounts(accounts, { gavBalance }) }
       </SelectField>
     );
   }

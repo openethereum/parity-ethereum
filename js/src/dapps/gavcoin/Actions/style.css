@@ -22,8 +22,7 @@
 }
 
 .dialog h3 {
-  background: rgba(50, 100, 150, 1);
-  color: white !important;
+  color: rgba(50, 100, 150, 1) !important;
   text-transform: uppercase;
 }
 
