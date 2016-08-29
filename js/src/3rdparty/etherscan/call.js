@@ -6,10 +6,8 @@ const options = {
 };
 
 export function call (module, action, _params, test) {
-  let params = '';
-  console.log(module, action, _params, test);
   const host = test ? 'testnet.etherscan.io' : 'api.etherscan.io';
-  console.log(host);
+  let params = '';
 
   if (_params) {
     Object.keys(_params).map((param) => {
