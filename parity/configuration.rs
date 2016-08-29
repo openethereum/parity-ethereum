@@ -356,6 +356,7 @@ impl Configuration {
 			enabled: self.dapps_enabled(),
 			interface: self.dapps_interface(),
 			port: self.args.flag_dapps_port,
+			hosts: self.dapps_hosts(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: self.directories().dapps,
@@ -482,6 +483,16 @@ impl Configuration {
 			_ => {}
 		}
 		let hosts = self.args.flag_jsonrpc_hosts.split(',').map(|h| h.into()).collect();
+		Some(hosts)
+	}
+
+	fn dapps_hosts(&self) -> Option<Vec<String>> {
+		match self.args.flag_dapps_hosts.as_ref() {
+			"none" => return Some(Vec::new()),
+			"all" => return None,
+			_ => {}
+		}
+		let hosts = self.args.flag_dapps_hosts.split(',').map(|h| h.into()).collect();
 		Some(hosts)
 	}
 
@@ -858,6 +869,23 @@ mod tests {
 		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.rpc_hosts(), None);
 		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_parse_dapps_hosts() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--dapps-hosts", "none"]);
+		let conf2 = parse(&["parity", "--dapps-hosts", "all"]);
+		let conf3 = parse(&["parity", "--dapps-hosts", "ethcore.io,something.io"]);
+
+		// then
+		assert_eq!(conf0.dapps_hosts(), Some(Vec::new()));
+		assert_eq!(conf1.dapps_hosts(), Some(Vec::new()));
+		assert_eq!(conf2.dapps_hosts(), None);
+		assert_eq!(conf3.dapps_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
 	}
 
 	#[test]
