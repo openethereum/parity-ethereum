@@ -4,6 +4,10 @@ name = "ethcore-stratum"
 version = "1.4.0"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
+
+[build-dependencies]
+ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
@@ -14,6 +18,9 @@ ethcore-util = { path = "../util" }
 ethcore-devtools = { path = "../devtools" }
 lazy_static = "0.2"
 env_logger = "0.3"
+ethcore-ipc = { path = "../ipc/rpc" }
+semver = "0.2"
+ethcore-ipc-nano = { path = "../ipc/nano" }
 
 [profile.release]
 debug = true

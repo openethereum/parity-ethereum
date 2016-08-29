@@ -81,7 +81,7 @@ fn should_add_sign_to_queue() {
 	let async_result = tester.io.handle_request(&request).unwrap();
 	assert_eq!(tester.queue.requests().len(), 1);
 	// respond
-	tester.queue.request_confirmed(U256::from(1), to_value(&RpcH520::from(H520::default())));
+	tester.queue.request_confirmed(U256::from(1), Ok(to_value(&RpcH520::from(H520::default()))));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));
@@ -155,7 +155,7 @@ fn should_check_status_of_request_when_its_resolved() {
 		"id": 1
 	}"#;
 	tester.io.handle_request_sync(&request).expect("Sent");
-	tester.queue.request_confirmed(U256::from(1), to_value(&"Hello World!"));
+	tester.queue.request_confirmed(U256::from(1), Ok(to_value(&"Hello World!")));
 
 	// when
 	let request = r#"{
@@ -221,7 +221,7 @@ fn should_add_transaction_to_queue() {
 	let async_result = tester.io.handle_request(&request).unwrap();
 	assert_eq!(tester.queue.requests().len(), 1);
 	// respond
-	tester.queue.request_confirmed(U256::from(1), to_value(&RpcH256::from(H256::default())));
+	tester.queue.request_confirmed(U256::from(1), Ok(to_value(&RpcH256::from(H256::default()))));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));

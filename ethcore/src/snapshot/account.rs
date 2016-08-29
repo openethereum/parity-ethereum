@@ -17,9 +17,38 @@
 //! Account state encoding and decoding
 
 use account_db::{AccountDB, AccountDBMut};
-use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY, TrieDB};
+use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY};
 use util::rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
+use util::trie::{TrieDB, Trie};
 use snapshot::Error;
+
+use std::collections::{HashMap, HashSet};
+
+// whether an encoded account has code and how it is referred to.
+#[repr(u8)]
+enum CodeState {
+	// the account has no code.
+	Empty = 0,
+	// raw code is encoded.
+	Inline = 1,
+	// the code is referred to by hash.
+	Hash = 2,
+}
+
+impl CodeState {
+	fn from(x: u8) -> Result<Self, Error> {
+		match x {
+			0 => Ok(CodeState::Empty),
+			1 => Ok(CodeState::Inline),
+			2 => Ok(CodeState::Hash),
+			_ => Err(Error::UnrecognizedCodeState(x))
+		}
+	}
+
+	fn raw(self) -> u8 {
+		self as u8
+	}
+}
 
 // An alternate account structure from ::account::Account.
 #[derive(PartialEq, Clone, Debug)]
@@ -57,7 +86,7 @@ impl Account {
 
 	// walk the account's storage trie, returning an RLP item containing the
 	// account properties and the storage.
-	pub fn to_fat_rlp(&self, acct_db: &AccountDB) -> Result<Bytes, Error> {
+	pub fn to_fat_rlp(&self, acct_db: &AccountDB, used_code: &mut HashSet<H256>) -> Result<Bytes, Error> {
 		let db = try!(TrieDB::new(acct_db, &self.storage_root));
 
 		let mut pairs = Vec::new();
@@ -80,11 +109,14 @@ impl Account {
 
 		// [has_code, code_hash].
 		if self.code_hash == SHA3_EMPTY {
-			account_stream.append(&false).append_empty_data();
+			account_stream.append(&CodeState::Empty.raw()).append_empty_data();
+		} else if used_code.contains(&self.code_hash) {
+			account_stream.append(&CodeState::Hash.raw()).append(&self.code_hash);
 		} else {
 			match acct_db.get(&self.code_hash) {
 				Some(c) => {
-					account_stream.append(&true).append(&c);
+					used_code.insert(self.code_hash.clone());
+					account_stream.append(&CodeState::Inline.raw()).append(&c);
 				}
 				None => {
 					warn!("code lookup failed during snapshot");
@@ -99,16 +131,39 @@ impl Account {
 	}
 
 	// decode a fat rlp, and rebuild the storage trie as we go.
-	pub fn from_fat_rlp(acct_db: &mut AccountDBMut, rlp: UntrustedRlp) -> Result<Self, Error> {
+	// returns the account structure along with its newly recovered code,
+	// if it exists.
+	pub fn from_fat_rlp(
+		acct_db: &mut AccountDBMut,
+		rlp: UntrustedRlp,
+		code_map: &HashMap<H256, Bytes>,
+	) -> Result<(Self, Option<Bytes>), Error> {
 		use util::{TrieDBMut, TrieMut};
 
 		let nonce = try!(rlp.val_at(0));
 		let balance = try!(rlp.val_at(1));
-		let code_hash = if try!(rlp.val_at(2)) {
-			let code: Bytes = try!(rlp.val_at(3));
-			acct_db.insert(&code)
-		} else {
-			SHA3_EMPTY
+		let code_state: CodeState = {
+			let raw: u8 = try!(rlp.val_at(2));
+			try!(CodeState::from(raw))
+		};
+
+		// load the code if it exists.
+		let (code_hash, new_code) = match code_state {
+			CodeState::Empty => (SHA3_EMPTY, None),
+			CodeState::Inline => {
+				let code: Bytes = try!(rlp.val_at(3));
+				let code_hash = acct_db.insert(&code);
+
+				(code_hash, Some(code))
+			}
+			CodeState::Hash => {
+				let code_hash = try!(rlp.val_at(3));
+				if let Some(code) = code_map.get(&code_hash) {
+					acct_db.emplace(code_hash.clone(), code.clone());
+				}
+
+				(code_hash, None)
+			}
 		};
 
 		let mut storage_root = H256::zero();
@@ -123,12 +178,20 @@ impl Account {
 				try!(storage_trie.insert(&k, &v));
 			}
 		}
-		Ok(Account {
+
+		let acc = Account {
 			nonce: nonce,
 			balance: balance,
 			storage_root: storage_root,
 			code_hash: code_hash,
-		})
+		};
+
+		Ok((acc, new_code))
+	}
+
+	/// Get the account's code hash.
+	pub fn code_hash(&self) -> &H256 {
+		&self.code_hash
 	}
 
 	#[cfg(test)]
@@ -144,8 +207,10 @@ mod tests {
 	use snapshot::tests::helpers::fill_storage;
 
 	use util::{SHA3_NULL_RLP, SHA3_EMPTY};
-	use util::{Address, FixedHash, H256};
+	use util::{Address, FixedHash, H256, HashDB};
 	use util::rlp::{UntrustedRlp, View};
+
+	use std::collections::{HashSet, HashMap};
 
 	use super::Account;
 
@@ -165,9 +230,9 @@ mod tests {
 		let thin_rlp = account.to_thin_rlp();
 		assert_eq!(Account::from_thin_rlp(&thin_rlp), account);
 
-		let fat_rlp = account.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr)).unwrap();
+		let fat_rlp = account.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr), &mut Default::default()).unwrap();
 		let fat_rlp = UntrustedRlp::new(&fat_rlp);
-		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp).unwrap(), account);
+		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp, &Default::default()).unwrap().0, account);
 	}
 
 	#[test]
@@ -191,8 +256,59 @@ mod tests {
 		let thin_rlp = account.to_thin_rlp();
 		assert_eq!(Account::from_thin_rlp(&thin_rlp), account);
 
-		let fat_rlp = account.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr)).unwrap();
+		let fat_rlp = account.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr), &mut Default::default()).unwrap();
 		let fat_rlp = UntrustedRlp::new(&fat_rlp);
-		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp).unwrap(), account);
+		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp, &Default::default()).unwrap().0, account);
+	}
+
+	#[test]
+	fn encoding_code() {
+		let mut db = get_temp_journal_db();
+		let mut db = &mut **db;
+
+		let addr1 = Address::random();
+		let addr2 = Address::random();
+
+		let code_hash = {
+			let mut acct_db = AccountDBMut::new(db.as_hashdb_mut(), &addr1);
+			acct_db.insert(b"this is definitely code")
+		};
+
+		{
+			let mut acct_db = AccountDBMut::new(db.as_hashdb_mut(), &addr2);
+			acct_db.emplace(code_hash.clone(), b"this is definitely code".to_vec());
+		}
+
+		let account1 = Account {
+			nonce: 50.into(),
+			balance: 123456789.into(),
+			storage_root: SHA3_NULL_RLP,
+			code_hash: code_hash,
+		};
+
+		let account2 = Account {
+			nonce: 400.into(),
+			balance: 98765432123456789usize.into(),
+			storage_root: SHA3_NULL_RLP,
+			code_hash: code_hash,
+		};
+
+		let mut used_code = HashSet::new();
+
+		let fat_rlp1 = account1.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr1), &mut used_code).unwrap();
+		let fat_rlp2 = account2.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr2), &mut used_code).unwrap();
+		assert_eq!(used_code.len(), 1);
+
+		let fat_rlp1 = UntrustedRlp::new(&fat_rlp1);
+		let fat_rlp2 = UntrustedRlp::new(&fat_rlp2);
+
+		let code_map = HashMap::new();
+		let (acc, maybe_code) = Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr2), fat_rlp2, &code_map).unwrap();
+		assert!(maybe_code.is_none());
+		assert_eq!(acc, account2);
+
+		let (acc, maybe_code) = Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr1), fat_rlp1, &code_map).unwrap();
+		assert_eq!(maybe_code, Some(b"this is definitely code".to_vec()));
+		assert_eq!(acc, account1);
 	}
 }

@@ -270,7 +270,7 @@ impl BlockCollection {
 		match self.head {
 			None if hash == self.heads[0] => {
 				trace!("New head {}", hash);
-				self.head = Some(info.parent_hash);
+				self.head = Some(info.parent_hash().clone());
 			},
 			_ => ()
 		}
@@ -280,8 +280,8 @@ impl BlockCollection {
 			body: None,
 		};
 		let header_id = HeaderId {
-			transactions_root: info.transactions_root,
-			uncles: info.uncles_hash
+			transactions_root: info.transactions_root().clone(),
+			uncles: info.uncles_hash().clone(),
 		};
 		if header_id.transactions_root == rlp::SHA3_NULL_RLP && header_id.uncles == rlp::SHA3_EMPTY_LIST_RLP {
 			// empty body, just mark as downloaded
@@ -294,7 +294,7 @@ impl BlockCollection {
 			self.header_ids.insert(header_id, hash.clone());
 		}
 
-		self.parents.insert(info.parent_hash.clone(), hash.clone());
+		self.parents.insert(info.parent_hash().clone(), hash.clone());
 		self.blocks.insert(hash.clone(), block);
 		trace!(target: "sync", "New header: {}", hash.hex());
 		Ok(hash)

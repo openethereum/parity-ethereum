@@ -20,6 +20,8 @@ extern crate json_tcp_server;
 extern crate jsonrpc_core;
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
+extern crate ethcore_ipc as ipc;
+extern crate semver;
 
 #[cfg(test)]
 extern crate mio;
@@ -31,9 +33,16 @@ extern crate env_logger;
 #[macro_use]
 extern crate lazy_static;
 
-mod traits;
+mod traits {
+	//! Stratum ipc interfaces specification
+	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
+	include!(concat!(env!("OUT_DIR"), "/traits.rs"));
+}
 
-pub use traits::{JobDispatcher, PushWorkHandler, Error};
+pub use traits::{
+	JobDispatcher, PushWorkHandler, Error, ServiceConfiguration,
+	RemoteWorkHandler, RemoteJobDispatcher,
+};
 
 use json_tcp_server::Server as JsonRpcServer;
 use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params};
@@ -133,8 +142,8 @@ impl Stratum {
 		let mut job_que = self.job_que.write();
 		let workers = self.workers.read();
 		for socket_addr in job_que.drain() {
-			if let Some(ref worker_id) = workers.get(&socket_addr) {
-				let job_payload = self.dispatcher.job(worker_id);
+			if let Some(worker_id) = workers.get(&socket_addr) {
+				let job_payload = self.dispatcher.job(worker_id.to_owned());
 				job_payload.map(
 					|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
 				);

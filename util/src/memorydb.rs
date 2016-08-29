@@ -174,6 +174,24 @@ impl MemoryDB {
 			}
 		}
 	}
+
+	/// Consolidate all the entries of `other` into `self`.
+	pub fn consolidate(&mut self, mut other: Self) {
+		for (key, (value, rc)) in other.drain() {
+			match self.data.entry(key) {
+				Entry::Occupied(mut entry) => {
+					if entry.get().1 < 0 {
+						entry.get_mut().0 = value;
+					}
+
+					entry.get_mut().1 += rc;
+				}
+				Entry::Vacant(entry) => {
+					entry.insert((value, rc));
+				}
+			}
+		}
+	}
 }
 
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
@@ -309,4 +327,22 @@ fn memorydb_remove_and_purge() {
 	assert_eq!(m.raw(&hello_key).unwrap().1, 1);
 	m.remove_and_purge(&hello_key);
 	assert_eq!(m.raw(&hello_key), None);
+}
+
+#[test]
+fn consolidate() {
+	let mut main = MemoryDB::new();
+	let mut other = MemoryDB::new();
+	let remove_key = other.insert(b"doggo");
+	main.remove(&remove_key);
+
+	let insert_key = other.insert(b"arf");
+	main.emplace(insert_key, b"arf".to_vec());
+
+	main.consolidate(other);
+
+	let overlay = main.drain();
+
+	assert_eq!(overlay.get(&remove_key).unwrap(), &(b"doggo".to_vec(), 0));
+	assert_eq!(overlay.get(&insert_key).unwrap(), &(b"arf".to_vec(), 2));
 }

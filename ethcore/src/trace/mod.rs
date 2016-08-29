@@ -121,7 +121,7 @@ pub trait Database {
 	fn tracing_enabled(&self) -> bool;
 
 	/// Imports new block traces.
-	fn import(&self, batch: &DBTransaction, request: ImportRequest);
+	fn import(&self, batch: &mut DBTransaction, request: ImportRequest);
 
 	/// Returns localized trace at given position.
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace>;
