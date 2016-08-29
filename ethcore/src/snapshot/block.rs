@@ -90,27 +90,26 @@ impl AbridgedBlock {
 		let rlp = UntrustedRlp::new(&self.rlp).decompress(RlpType::Blocks);
 		let rlp = UntrustedRlp::new(&rlp);
 
-		let mut header = Header {
-			parent_hash: parent_hash,
-			author: try!(rlp.val_at(0)),
-			state_root: try!(rlp.val_at(1)),
-			transactions_root: try!(rlp.val_at(2)),
-			receipts_root: try!(rlp.val_at(3)),
-			log_bloom: try!(rlp.val_at(4)),
-			difficulty: try!(rlp.val_at(5)),
-			number: number,
-			gas_limit: try!(rlp.val_at(6)),
-			gas_used: try!(rlp.val_at(7)),
-			timestamp: try!(rlp.val_at(8)),
-			extra_data: try!(rlp.val_at(9)),
-			..Default::default()
-		};
+		let mut header: Header = Default::default();
+		header.set_parent_hash(parent_hash);
+		header.set_author(try!(rlp.val_at(0)));
+		header.set_state_root(try!(rlp.val_at(1)));
+		header.set_transactions_root(try!(rlp.val_at(2)));
+		header.set_receipts_root(try!(rlp.val_at(3)));
+		header.set_log_bloom(try!(rlp.val_at(4)));
+		header.set_difficulty(try!(rlp.val_at(5)));
+		header.set_number(number);
+		header.set_gas_limit(try!(rlp.val_at(6)));
+		header.set_gas_used(try!(rlp.val_at(7)));
+		header.set_timestamp(try!(rlp.val_at(8)));
+		header.set_extra_data(try!(rlp.val_at(9)));
+		
 		let transactions = try!(rlp.val_at(10));
 		let uncles: Vec<Header> = try!(rlp.val_at(11));
 
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&uncles);
-		header.uncles_hash = uncles_rlp.as_raw().sha3();
+		header.set_uncles_hash(uncles_rlp.as_raw().sha3());
 
 		let mut seal_fields = Vec::new();
 		for i in (HEADER_FIELDS + BLOCK_FIELDS)..rlp.item_count() {
