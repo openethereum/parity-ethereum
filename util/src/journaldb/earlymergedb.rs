@@ -101,13 +101,13 @@ impl EarlyMergeDB {
 	}
 
 	// The next three are valid only as long as there is an insert operation of `key` in the journal.
-	fn set_already_in(batch: &DBTransaction, col: Option<u32>, key: &H256) { batch.put(col, &Self::morph_key(key, 0), &[1u8]); }
-	fn reset_already_in(batch: &DBTransaction, col: Option<u32>, key: &H256) { batch.delete(col, &Self::morph_key(key, 0)); }
+	fn set_already_in(batch: &mut DBTransaction, col: Option<u32>, key: &H256) { batch.put(col, &Self::morph_key(key, 0), &[1u8]); }
+	fn reset_already_in(batch: &mut DBTransaction, col: Option<u32>, key: &H256) { batch.delete(col, &Self::morph_key(key, 0)); }
 	fn is_already_in(backing: &Database, col: Option<u32>, key: &H256) -> bool {
 		backing.get(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &[(H256, Bytes)], backing: &Database, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &DBTransaction, trace: bool) {
+	fn insert_keys(inserts: &[(H256, Bytes)], backing: &Database, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
 		for &(ref h, ref d) in inserts {
 			if let Some(c) = refs.get_mut(h) {
 				// already counting. increment.
@@ -156,7 +156,7 @@ impl EarlyMergeDB {
 		trace!(target: "jdb.fine", "replay_keys: (end) refs={:?}", refs);
 	}
 
-	fn remove_keys(deletes: &[H256], refs: &mut HashMap<H256, RefInfo>, batch: &DBTransaction, col: Option<u32>, from: RemoveFrom, trace: bool) {
+	fn remove_keys(deletes: &[H256], refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, col: Option<u32>, from: RemoveFrom, trace: bool) {
 		// with a remove on {queue_refs: 1, in_archive: true}, we have two options:
 		// - convert to {queue_refs: 1, in_archive: false} (i.e. remove it from the conceptual archive)
 		// - convert to {queue_refs: 0, in_archive: true} (i.e. remove it from the conceptual queue)
@@ -337,7 +337,7 @@ impl JournalDB for EarlyMergeDB {
 	}
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
-	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -514,7 +514,7 @@ impl JournalDB for EarlyMergeDB {
 		Ok(0)
 	}
 
-	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
 		let mut ops = 0;
 		for (key, (value, rc)) in self.overlay.drain() {
 			if rc != 0 { ops += 1 }
@@ -538,6 +538,10 @@ impl JournalDB for EarlyMergeDB {
 		}
 
 		Ok(ops)
+	}
+
+	fn consolidate(&mut self, with: MemoryDB) {
+		self.overlay.consolidate(with);
 	}
 }
 

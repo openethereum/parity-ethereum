@@ -23,12 +23,11 @@ use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
-use std::default::Default;
 use std::fs;
+use ethkey::{KeyPair, Secret, Random, Generator};
 use mio::*;
 use mio::tcp::*;
 use util::hash::*;
-use util::crypto::*;
 use util::Hashable;
 use util::rlp::*;
 use util::version;
@@ -362,7 +361,7 @@ impl Host {
 		} else {
 			config.config_path.clone().and_then(|ref p| load_key(Path::new(&p)))
 				.map_or_else(|| {
-				let key = KeyPair::create().unwrap();
+				let key = Random.generate().unwrap();
 				if let Some(path) = config.config_path.clone() {
 					save_key(Path::new(&path), key.secret());
 				}

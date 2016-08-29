@@ -32,6 +32,11 @@ pub mod service_urls {
 	pub const SYNC: &'static str = "parity-sync.ipc";
 	pub const SYNC_NOTIFY: &'static str = "parity-sync-notify.ipc";
 	pub const NETWORK_MANAGER: &'static str = "parity-manage-net.ipc";
+	#[cfg(feature="stratum")]
+	pub const STRATUM: &'static str = "parity-stratum.ipc";
+	#[cfg(feature="stratum")]
+	pub const MINING_JOB_DISPATCHER: &'static str = "parity-mining-jobs.ipc";
+
 
 	pub fn with_base(data_dir: &str, service_path: &str) -> String {
 		let mut path = PathBuf::from(data_dir);

@@ -142,7 +142,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			false => [0x0]
 		};
 
-		let batch = DBTransaction::new(&tracesdb);
+		let mut batch = DBTransaction::new(&tracesdb);
 		batch.put(db::COL_TRACE, b"enabled", &encoded_tracing);
 		batch.put(db::COL_TRACE, b"version", TRACE_DB_VER);
 		tracesdb.write(batch).unwrap();
@@ -261,7 +261,14 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 	/// Traces of import request's enacted blocks are expected to be already in database
 	/// or to be the currently inserted trace.
-	fn import(&self, batch: &DBTransaction, request: ImportRequest) {
+	fn import(&self, batch: &mut DBTransaction, request: ImportRequest) {
+		// valid (canon):  retracted 0, enacted 1 => false, true,
+		// valid (branch): retracted 0, enacted 0 => false, false,
+		// valid (bbcc):   retracted 1, enacted 1 => true, true,
+		// invalid:	       retracted 1, enacted 0 => true, false,
+		let ret = request.retracted != 0;
+		let ena = !request.enacted.is_empty();
+		assert!(!(ret && !ena));
 		// fast return if tracing is disabled
 		if !self.tracing_enabled() {
 			return;
@@ -278,7 +285,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 		}
 
 		// now let's rebuild the blooms
-		{
+		if !request.enacted.is_empty() {
 			let range_start = request.block_number as Number + 1 - request.enacted.len();
 			let range_end = range_start + request.retracted;
 			let replaced_range = range_start..range_end;
@@ -604,8 +611,8 @@ mod tests {
 
 		// import block 0
 		let request = create_simple_import_request(0, block_0.clone());
-		let batch = DBTransaction::new(&db);
-		tracedb.import(&batch, request);
+		let mut batch = DBTransaction::new(&db);
+		tracedb.import(&mut batch, request);
 		db.write(batch).unwrap();
 
 		let filter = Filter {
@@ -620,8 +627,8 @@ mod tests {
 
 		// import block 1
 		let request = create_simple_import_request(1, block_1.clone());
-		let batch = DBTransaction::new(&db);
-		tracedb.import(&batch, request);
+		let mut batch = DBTransaction::new(&db);
+		tracedb.import(&mut batch, request);
 		db.write(batch).unwrap();
 
 		let filter = Filter {
@@ -679,8 +686,8 @@ mod tests {
 
 			// import block 0
 			let request = create_simple_import_request(0, block_0.clone());
-			let batch = DBTransaction::new(&db);
-			tracedb.import(&batch, request);
+			let mut batch = DBTransaction::new(&db);
+			tracedb.import(&mut batch, request);
 			db.write(batch).unwrap();
 		}
 

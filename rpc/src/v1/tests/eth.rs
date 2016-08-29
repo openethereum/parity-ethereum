@@ -16,7 +16,6 @@
 
 //! rpc integration tests.
 use std::sync::Arc;
-use std::str::FromStr;
 use std::time::Duration;
 
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
@@ -286,9 +285,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 
 #[test]
 fn eth_transaction_count() {
-	use util::crypto::Secret;
-
-	let secret = Secret::from_str("8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2").unwrap();
+	let secret = "8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2".into();
 	let tester = EthTester::from_spec(Spec::load(TRANSACTION_COUNT_SPEC));
 	let address = tester.accounts.insert_account(secret, "").unwrap();
 	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
