@@ -2,7 +2,10 @@ import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 
 import AccountSelector from '../AccountSelector';
-import AccountItem from '../AccountSelector/AccountItem';
+
+const { IdentityIcon } = window.parity.react;
+
+import styles from './style.css';
 
 const NAME_ID = ' ';
 
@@ -42,28 +45,47 @@ export default class AccountSelectorText extends Component {
   }
 
   renderTextField () {
-    const { account, errorText, gavBalance, hintText, floatingLabelText } = this.props;
+    const { account, errorText, hintText, floatingLabelText } = this.props;
+
+    console.log(account.address);
 
     return (
-      <TextField
-        autoComplete='off'
-        floatingLabelFixed
-        floatingLabelText={ floatingLabelText }
-        fullWidth
-        hintText={ hintText }
-        errorText={ errorText }
-        name={ NAME_ID }
-        id={ NAME_ID }
-        value={ account.address || '' }
-        onChange={ this.onChangeAddress }>
-        <AccountItem
-          account={ account }
-          gavBalance={ gavBalance } />
-      </TextField>
+      <div className={ styles.addrtext }>
+        <TextField
+          className={ styles.input }
+          autoComplete='off'
+          floatingLabelFixed
+          floatingLabelText={ floatingLabelText }
+          fullWidth
+          hintText={ hintText }
+          errorText={ errorText }
+          name={ NAME_ID }
+          id={ NAME_ID }
+          value={ account.address || '' }
+          onChange={ this.onChangeAddress } />
+        { this.renderAddressIcon() }
+      </div>
+    );
+  }
+
+  renderAddressIcon () {
+    const { account } = this.props;
+
+    if (!account.address) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.addricon }>
+        <IdentityIcon
+          inline center
+          address={ account.address } />
+      </div>
     );
   }
 
   onChangeAddress = (event, address) => {
+    console.log('onChange', address);
     const lower = address.toLowerCase();
     const account = this.props.accounts.find((_account) => _account.address.toLowerCase() === lower);
 

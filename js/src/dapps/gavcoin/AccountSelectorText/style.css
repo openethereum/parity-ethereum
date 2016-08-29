@@ -1,0 +1,12 @@
+.addrtext {
+  position: relative;
+}
+
+.input input {
+  padding-left: 48px !important;
+}
+
+.addricon {
+  position: absolute;
+  top: 37px;
+}
