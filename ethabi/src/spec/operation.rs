@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Deserializer, Error as SerdeError};
 use serde_json::Value;
-use serde_json::value;
+use serde_json::value::from_value;
 use super::{Function, Event, Constructor};
 
 /// Operation type.
@@ -22,11 +22,11 @@ impl Deserialize for Operation {
 		let v: Value = try!(Value::deserialize(deserializer));
 		let cloned = v.clone();
 		let map = try!(cloned.as_object().ok_or_else(|| SerdeError::custom("Invalid operation")));
-		let s = try!(map.get("type").and_then(Value::as_string).ok_or_else(|| SerdeError::custom("Invalid operation type")));
+		let s = try!(map.get("type").and_then(Value::as_str).ok_or_else(|| SerdeError::custom("Invalid operation type")));
 		let result = match s {
-			"constructor" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Constructor),
-			"function" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Function),
-			"event" => Deserialize::deserialize(&mut value::Deserializer::new(v)).map(Operation::Event),
+			"constructor" => from_value(v).map(Operation::Constructor),
+			"function" => from_value(v).map(Operation::Function),
+			"event" => from_value(v).map(Operation::Event),
 			_ => Err(SerdeError::custom("Invalid operation type.")),
 		};
 		result.map_err(|e| D::Error::custom(e.to_string()))
