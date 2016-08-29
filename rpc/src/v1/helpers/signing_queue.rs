@@ -353,10 +353,10 @@ mod test {
 			// Just wait for the other thread to start
 			thread::sleep(Duration::from_millis(100));
 		}
-		queue.request_confirmed(id, to_value(&NH256::from(H256::from(1))));
+		queue.request_confirmed(id, Ok(to_value(&NH256::from(H256::from(1)))));
 
 		// then
-		assert_eq!(handle.join().expect("Thread should finish nicely"), to_value(&NH256::from(H256::from(1))));
+		assert_eq!(handle.join().expect("Thread should finish nicely"), Ok(to_value(&NH256::from(H256::from(1)))));
 	}
 
 	#[test]
