@@ -84,26 +84,26 @@ pub fn create_test_block(header: &Header) -> Bytes {
 
 fn create_unverifiable_block_header(order: u32, parent_hash: H256) -> Header {
 	let mut header = Header::new();
-	header.gas_limit = 0.into();
-	header.difficulty = (order * 100).into();
-	header.timestamp = (order * 10) as u64;
-	header.number = order as u64;
-	header.parent_hash = parent_hash;
-	header.state_root = H256::zero();
+	header.set_gas_limit(0.into());
+	header.set_difficulty((order * 100).into());
+	header.set_timestamp((order * 10) as u64);
+	header.set_number(order as u64);
+	header.set_parent_hash(parent_hash);
+	header.set_state_root(H256::zero());
 
 	header
 }
 
 fn create_unverifiable_block_with_extra(order: u32, parent_hash: H256, extra: Option<Bytes>) -> Bytes {
 	let mut header = create_unverifiable_block_header(order, parent_hash);
-	header.extra_data = match extra {
+	header.set_extra_data(match extra {
 		Some(extra_data) => extra_data,
 		None => {
 			let base = (order & 0x000000ff) as u8;
 			let generated: Vec<u8> = vec![base + 1, base + 2, base + 3];
 			generated
 		}
-	};
+	});
 	create_test_block(&header)
 }
 
@@ -204,7 +204,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
 	//let test_engine = test_spec.to_engine().unwrap();
-	let state_root = test_spec.genesis_header().state_root;
+	let state_root = test_spec.genesis_header().state_root().clone();
 	let mut rolling_hash = client.chain_info().best_block_hash;
 	let mut rolling_block_number = starting_number as u64;
 	let mut rolling_timestamp = timestamp_salt + starting_number as u64 * 10;
@@ -212,12 +212,12 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 	for _ in 0..block_number {
 		let mut header = Header::new();
 
-		header.gas_limit = test_engine.params().min_gas_limit;
-		header.difficulty = U256::from(0x20000);
-		header.timestamp = rolling_timestamp;
-		header.number = rolling_block_number;
-		header.parent_hash = rolling_hash;
-		header.state_root = state_root.clone();
+		header.set_gas_limit(test_engine.params().min_gas_limit);
+		header.set_difficulty(U256::from(0x20000));
+		header.set_timestamp(rolling_timestamp);
+		header.set_number(rolling_block_number);
+		header.set_parent_hash(rolling_hash);
+		header.set_state_root(state_root);
 
 		rolling_hash = header.hash();
 		rolling_block_number = rolling_block_number + 1;
@@ -345,12 +345,12 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 	let mut r = Vec::new();
 	for i in start_number .. start_number + count + 1 {
 		let mut block_header = Header::new();
-		block_header.gas_limit = test_engine.params().min_gas_limit;
-		block_header.difficulty = U256::from(i).mul(U256([0, 1, 0, 0]));
-		block_header.timestamp = rolling_timestamp;
-		block_header.number = i as u64;
-		block_header.parent_hash = parent;
-		block_header.state_root = test_spec.genesis_header().state_root;
+		block_header.set_gas_limit(test_engine.params().min_gas_limit);
+		block_header.set_difficulty(U256::from(i).mul(U256([0, 1, 0, 0])));
+		block_header.set_timestamp(rolling_timestamp);
+		block_header.set_number(i as u64);
+		block_header.set_parent_hash(parent);
+		block_header.set_state_root(test_spec.genesis_header().state_root().clone());
 
 		parent = block_header.hash();
 		rolling_timestamp = rolling_timestamp + 10;
@@ -365,12 +365,12 @@ pub fn get_good_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
-	block_header.gas_limit = test_engine.params().min_gas_limit;
-	block_header.difficulty = U256::from(0x20000);
-	block_header.timestamp = 40;
-	block_header.number = 1;
-	block_header.parent_hash = test_spec.genesis_header().hash();
-	block_header.state_root = test_spec.genesis_header().state_root;
+	block_header.set_gas_limit(test_engine.params().min_gas_limit);
+	block_header.set_difficulty(U256::from(0x20000));
+	block_header.set_timestamp(40);
+	block_header.set_number(1);
+	block_header.set_parent_hash(test_spec.genesis_header().hash());
+	block_header.set_state_root(test_spec.genesis_header().state_root().clone());
 
 	create_test_block(&block_header)
 }
@@ -379,12 +379,12 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
-	block_header.gas_limit = test_engine.params().min_gas_limit;
-	block_header.difficulty = U256::from(0x20000);
-	block_header.timestamp = 40;
-	block_header.number = 1;
-	block_header.parent_hash = test_spec.genesis_header().hash();
-	block_header.state_root = 0xbad.into();
+	block_header.set_gas_limit(test_engine.params().min_gas_limit);
+	block_header.set_difficulty(U256::from(0x20000));
+	block_header.set_timestamp(40);
+	block_header.set_number(1);
+	block_header.set_parent_hash(test_spec.genesis_header().hash());
+	block_header.set_state_root(0xbad.into());
 
 	create_test_block(&block_header)
 }
