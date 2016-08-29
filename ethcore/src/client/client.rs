@@ -1034,7 +1034,8 @@ impl BlockChainClient for Client {
 		if let Ok(signature) = full_rlp.val_at::<H520>(0) {
 			if let Ok(message) = full_rlp.at(1) {
 				if let Ok(pub_key) = recover(&signature.into(), &message.as_raw().sha3()) {
-					if let Ok(new_message) = self.engine.handle_message(pub_key.sha3().into(), message) {
+					if let Ok(new_message) = self.engine.handle_message(pub_key.sha3().into(), signature, message)
+					{
 						self.notify(|notify| notify.broadcast(new_message.clone()));
 					}
 				}

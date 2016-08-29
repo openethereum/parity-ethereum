@@ -50,7 +50,7 @@ pub struct TendermintParams {
 enum Step {
 	Propose,
 	Prevote(ProposeCollect),
-	Precommit(ProposeCollect),
+	Precommit(ProposeCollect, Vec<Bytes>),
 	Commit
 }
 
@@ -131,7 +131,7 @@ impl Tendermint {
 					// Move to next step is prevote is won.
 					if vote.is_won() {
 						let mut guard = self.our_params.s.write();
-						*guard = Step::Precommit(self.new_vote(vote.hash));
+						*guard = Step::Precommit(self.new_vote(vote.hash), Vec::new());
 						Ok(message.as_raw().to_vec())
 					} else {
 						Ok(message.as_raw().to_vec())
@@ -144,13 +144,13 @@ impl Tendermint {
 		}
 	}
 
-	fn precommit_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
+	fn precommit_message(&self, sender: Address, signature: H520, message: UntrustedRlp) -> Result<Bytes, Error> {
 		// Check if message is for correct step.
 		match *self.our_params.s.try_write().unwrap() {
-			Step::Prevote(ref mut vote) => {
+			Step::Precommit(ref mut vote, ref mut seal) => {
 				// Vote and accumulate seal if message is about the right block.
 				if vote.hash == try!(message.as_val()) {
-					vote.vote(sender);
+					if vote.vote(sender) { seal.push(encode(&signature).to_vec()); }
 					// Commit if precommit is won.
 					if vote.is_won() {
 						let mut guard = self.our_params.s.write();
@@ -222,14 +222,14 @@ impl Engine for Tendermint {
 		})
 	}
 
-	fn handle_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
+	fn handle_message(&self, sender: Address, signature: H520, message: UntrustedRlp) -> Result<Bytes, Error> {
 		// Check if correct round.
 		if self.our_params.r != try!(message.val_at(0)) { try!(Err(EngineError::WrongRound)) }
 		// Handle according to step.
 		match try!(message.val_at(1)) {
 			0u8 if self.is_proposer(&sender) => self.propose_message(try!(message.at(2))),
 			1 if self.is_validator(&sender) => self.prevote_message(sender, try!(message.at(2))),
-			2 if self.is_validator(&sender) => self.precommit_message(sender, try!(message.at(2))),
+			2 if self.is_validator(&sender) => self.precommit_message(sender, signature, try!(message.at(2))),
 			_ => try!(Err(EngineError::UnknownStep)),
 		}
 	}
@@ -298,7 +298,7 @@ mod tests {
 		let drain = s.out();
 		let propose_rlp = UntrustedRlp::new(&drain);
 
-		engine.handle_message(proposer, propose_rlp)
+		engine.handle_message(proposer, H520::default(), propose_rlp)
 	}
 
 	#[test]
