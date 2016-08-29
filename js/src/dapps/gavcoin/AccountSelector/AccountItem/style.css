@@ -1,11 +1,5 @@
-.selectaccount {
-}
-
-.selectedaccount {
+.account {
   padding: 4px 0 !important;
-}
-
-.selectedaccount {
   display: inline-block;
 }
 

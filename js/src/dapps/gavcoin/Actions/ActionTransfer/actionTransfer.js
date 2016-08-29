@@ -1,10 +1,10 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import { Dialog, FlatButton, TextField } from 'material-ui';
+import { Dialog, FlatButton, TextField, Toggle } from 'material-ui';
 
 import AccountSelector from '../../AccountSelector';
-import AccountTextField from '../../AccountTextField';
+import AccountSelectorText from '../../AccountSelectorText';
 import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
@@ -29,6 +29,7 @@ export default class ActionTransfer extends Component {
     fromAccountError: ERRORS.invalidAccount,
     toAccount: {},
     toAccountError: ERRORS.invalidAccount,
+    inputAccount: false,
     complete: false,
     sending: false,
     amount: 0,
@@ -48,7 +49,9 @@ export default class ActionTransfer extends Component {
   }
 
   renderActions () {
-    if (this.state.complete) {
+    const { complete, sending, amountError, fromAccountError, toAccountError } = this.state;
+
+    if (complete) {
       return (
         <FlatButton
           label='Done'
@@ -57,7 +60,7 @@ export default class ActionTransfer extends Component {
       );
     }
 
-    const hasError = !!(this.state.amountError || this.state.fromAccountError || this.state.toAccountError);
+    const hasError = !!(amountError || fromAccountError || toAccountError);
 
     return ([
       <FlatButton
@@ -67,26 +70,36 @@ export default class ActionTransfer extends Component {
       <FlatButton
         label='Transfer'
         primary
-        disabled={ hasError || this.state.sending }
+        disabled={ hasError || sending }
         onTouchTap={ this.onSend } />
     ]);
   }
 
   renderFields () {
+    const { accounts } = this.props;
+    const { fromAccount, fromAccountError, toAccount, toAccountError, inputAccount, amount, amountError } = this.state;
+
     return (
       <div>
         <AccountSelector
           gavBalance
-          accounts={ this.props.accounts }
-          account={ this.state.fromAccount }
-          errorText={ this.state.fromAccountError }
+          accounts={ accounts }
+          account={ fromAccount }
+          errorText={ fromAccountError }
           floatingLabelText='from account'
           hintText='the account the transaction will be made from'
           onSelect={ this.onChangeFromAccount } />
-        <AccountTextField
-          accounts={ this.props.accounts }
-          account={ this.state.toAccount }
-          errorText={ this.state.toAccountError }
+        <Toggle
+          label='Input "to" address manually'
+          labelPosition='right'
+          toggled={ inputAccount }
+          onToggle={ this.onChangeToInput } />
+        <AccountSelectorText
+          gavBalance
+          selector={ !inputAccount }
+          accounts={ accounts }
+          account={ toAccount }
+          errorText={ toAccountError }
           floatingLabelText='to account'
           hintText='the account the coins will be sent to'
           onChange={ this.onChangeToAccount } />
@@ -96,10 +109,10 @@ export default class ActionTransfer extends Component {
           floatingLabelText='number of coins'
           fullWidth
           hintText='the number of coins to exchange for an ΞTH refund'
-          errorText={ this.state.amountError }
+          errorText={ amountError }
           name={ NAME_ID }
           id={ NAME_ID }
-          value={ this.state.amount }
+          value={ amount }
           onChange={ this.onChangeAmount } />
       </div>
     );
@@ -116,6 +129,12 @@ export default class ActionTransfer extends Component {
     this.setState({
       toAccount,
       toAccountError: validateAccount(toAccount)
+    });
+  }
+
+  onChangeToInput = () => {
+    this.setState({
+      inputAccount: !this.state.inputAccount
     });
   }
 

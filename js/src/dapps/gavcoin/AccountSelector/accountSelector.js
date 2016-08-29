@@ -1,8 +1,8 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { MenuItem, SelectField } from 'material-ui';
 
-import { SelectField } from 'material-ui';
-
-import { renderAccounts } from './render';
+import AccountItem from './AccountItem';
 
 const NAME_ID = ' ';
 let lastSelectedAccount = {};
@@ -46,4 +46,40 @@ export default class AccountSelect extends Component {
     lastSelectedAccount = account || {};
     this.props.onSelect(lastSelectedAccount);
   }
+}
+
+function isPositive (numberStr) {
+  return new BigNumber(numberStr.replace(',', '')).gt(0);
+}
+
+export function renderAccounts (accounts, options = {}) {
+  return accounts
+    .filter((account) => {
+      if (options.all) {
+        return true;
+      }
+
+      if (account.uuid) {
+        return isPositive(account[options.gavBalance ? 'gavBalance' : 'ethBalance']);
+      }
+
+      return false;
+    })
+    .map((account) => {
+      const item = (
+        <AccountItem
+          account={ account }
+          key={ account.address }
+          gavBalance={ options.gavBalance || false } />
+      );
+
+      return (
+        <MenuItem
+          key={ account.address }
+          value={ account }
+          label={ item }>
+          { item }
+        </MenuItem>
+      );
+    });
 }
