@@ -6,7 +6,7 @@ import { FundAccount, Transfer } from '../../modals';
 
 import Balances from '../../ui/Balances';
 import Container, { Title } from '../../ui/Container';
-import Form, { FormWrap, Input, InputInline } from '../../ui/Form';
+import Form, { FormWrap, InputInline } from '../../ui/Form';
 import IdentityIcon from '../../ui/IdentityIcon';
 
 import Actions from './Actions';
@@ -67,15 +67,8 @@ export default class Account extends Component {
                 label='account name'
                 hint='a descriptive name for the account'
                 value={ this.state.name }
-                static={ <Title title={ title } /> }
+                static={ <Title title={ title } byline={ address } /> }
                 onChange={ this.onEditName } />
-            </FormWrap>
-            <FormWrap>
-              <Input
-                disabled
-                label='account address'
-                hint='the account network address'
-                value={ address } />
             </FormWrap>
             <FormWrap>
               <Balances
