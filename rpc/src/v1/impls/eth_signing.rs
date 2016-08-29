@@ -83,7 +83,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 
 			let accounts = take_weak!(self.accounts);
 			if accounts.is_unlocked(address) {
-				return to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into)).map(DispatchResult::Value)
+				return Ok(DispatchResult::Value(to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))))
 			}
 
 			let queue = take_weak!(self.queue);
@@ -133,8 +133,8 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 
 	fn post_sign(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch_sign(params).and_then(|result| match result {
-			DispatchResult::Value(v) => Ok(v),
+		self.dispatch_sign(params).map(|result| match result {
+			DispatchResult::Value(v) => v,
 			DispatchResult::Promise(promise) => {
 				let id = promise.id();
 				self.pending.lock().insert(id, promise);
@@ -158,8 +158,8 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 
 	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch_transaction(params).and_then(|result| match result {
-			DispatchResult::Value(v) => Ok(v),
+		self.dispatch_transaction(params).map(|result| match result {
+			DispatchResult::Value(v) => v,
 			DispatchResult::Promise(promise) => {
 				let id = promise.id();
 				self.pending.lock().insert(id, promise);
@@ -227,7 +227,7 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 			.and_then(|(address, msg)| {
 				let address: Address = address.into();
 				let msg: H256 = msg.into();
-				to_value(&take_weak!(self.accounts).sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))
+				Ok(to_value(&take_weak!(self.accounts).sign(address, msg).ok().map_or_else(RpcH520::default, Into::into)))
 			}))
 	}
 

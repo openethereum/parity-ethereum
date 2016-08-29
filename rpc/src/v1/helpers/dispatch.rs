@@ -50,13 +50,13 @@ pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: Sig
 
 	import
 		.map_err(errors::from_transaction_error)
-		.and_then(|_| to_value(&hash))
+		.map(|_| to_value(&hash))
 }
 
 pub fn signature_with_password(accounts: &AccountProvider, address: Address, hash: H256, pass: String) -> Result<Value, Error> {
 	accounts.sign_with_password(address, pass, hash)
 		.map_err(errors::from_password_error)
-		.and_then(|hash| to_value(&RpcH520::from(hash)))
+		.map(|hash| to_value(&RpcH520::from(hash)))
 }
 
 pub fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, password: String) -> Result<Value, Error>
