@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import { Dialog, FlatButton, TextField } from 'material-ui';
@@ -118,14 +119,14 @@ export default class ActionBuyIn extends Component {
     this.setState({
       account,
       accountError: validateAccount(account)
-    });
+    }, this.validateTotal);
   }
 
   onChangeAmount = (event, amount) => {
     this.setState({
       amount,
       amountError: validatePositiveNumber(amount)
-    });
+    }, this.validateTotal);
   }
 
   onChangeMaxPrice = (event, maxPrice) => {
@@ -133,6 +134,20 @@ export default class ActionBuyIn extends Component {
       maxPrice,
       maxPriceError: validatePositiveNumber(maxPrice)
     });
+  }
+
+  validateTotal = () => {
+    const { account, accountError, amount, amountError } = this.state;
+
+    if (accountError || amountError) {
+      return;
+    }
+
+    if (new BigNumber(amount).gt(account.ethBalance.replace(',', ''))) {
+      this.setState({
+        amountError: ERRORS.invalidTotal
+      });
+    }
   }
 
   onSend = () => {

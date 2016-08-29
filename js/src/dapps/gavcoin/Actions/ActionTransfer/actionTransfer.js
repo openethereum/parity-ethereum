@@ -109,7 +109,7 @@ export default class ActionTransfer extends Component {
     this.setState({
       fromAccount,
       fromAccountError: validateAccount(fromAccount)
-    });
+    }, this.validateTotal);
   }
 
   onChangeToAccount = (toAccount) => {
@@ -123,14 +123,21 @@ export default class ActionTransfer extends Component {
     this.setState({
       amount,
       amountError: validatePositiveNumber(amount)
-    });
+    }, this.validateTotal);
   }
 
-  onChangePrice = (event, price) => {
-    this.setState({
-      price,
-      priceError: validatePositiveNumber(price)
-    });
+  validateTotal = () => {
+    const { fromAccount, fromAccountError, amount, amountError } = this.state;
+
+    if (fromAccountError || amountError) {
+      return;
+    }
+
+    if (new BigNumber(amount).gt(fromAccount.gavBalance.replace(',', ''))) {
+      this.setState({
+        amountError: ERRORS.invalidTotal
+      });
+    }
   }
 
   onSend = () => {
