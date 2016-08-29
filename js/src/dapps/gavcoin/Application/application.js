@@ -200,7 +200,6 @@ export default class Application extends Component {
 
             return {
               address,
-              balance: 0,
               name: info.name || 'Unnamed',
               uuid: info.uuid
             };
