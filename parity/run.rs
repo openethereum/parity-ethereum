@@ -90,8 +90,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
+	// load spec
+	let spec = try!(cmd.spec.spec());
+
+	// user defaults path
+	let user_defaults_path = cmd.dirs.user_defaults_path(&spec.fork_name);
+
 	// load user defaults
-	let mut user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 	// check if tracing is on
 	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
@@ -99,8 +105,6 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// set up logger
 	let logger = try!(setup_log(&cmd.logger_config));
 
-	// load spec
-	let spec = try!(cmd.spec.spec());
 	let fork_name = spec.fork_name.clone();
 
 	// load genesis hash
@@ -264,7 +268,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// save user defaults
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
-	try!(user_defaults.save(cmd.dirs.user_defaults_path()));
+	try!(user_defaults.save(&user_defaults_path));
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);

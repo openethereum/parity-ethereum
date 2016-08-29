@@ -69,14 +69,17 @@ impl SnapshotCommand {
 		// Setup panic handler
 		let panic_handler = PanicHandler::new_in_arc();
 
+		// load spec file
+		let spec = try!(self.spec.spec());
+
+		// user defaults path
+		let user_defaults_path = self.dirs.user_defaults_path(&spec.fork_name);
+
 		// load user defaults
-		let user_defaults = try!(UserDefaults::load(self.dirs.user_defaults_path()));
+		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 		// check if tracing is on
 		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
-
-		// load spec file
-		let spec = try!(self.spec.spec());
 
 		// load genesis hash
 		let genesis_hash = spec.genesis_header().hash();

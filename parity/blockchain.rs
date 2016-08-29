@@ -114,14 +114,17 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
+	// load spec file
+	let spec = try!(cmd.spec.spec());
+
+	// user defaults path
+	let user_defaults_path = cmd.dirs.user_defaults_path(&spec.fork_name);
+
 	// load user defaults
-	let mut user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 	// check if tracing is on
 	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
-
-	// load spec file
-	let spec = try!(cmd.spec.spec());
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -226,7 +229,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// save user defaults
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
-	try!(user_defaults.save(cmd.dirs.user_defaults_path()));
+	try!(user_defaults.save(&user_defaults_path));
 
 	Ok("Import completed.".into())
 }
@@ -238,16 +241,19 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
+	// load spec file
+	let spec = try!(cmd.spec.spec());
+
+	// user defaults path
+	let user_defaults_path = cmd.dirs.user_defaults_path(&spec.fork_name);
+
 	// load user defaults
-	let user_defaults = try!(UserDefaults::load(cmd.dirs.user_defaults_path()));
+	let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 	// check if tracing is on
 	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
 	let format = cmd.format.unwrap_or_else(Default::default);
-
-	// load spec file
-	let spec = try!(cmd.spec.spec());
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();

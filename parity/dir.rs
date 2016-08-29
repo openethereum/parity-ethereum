@@ -75,9 +75,12 @@ impl Directories {
 	}
 
 	/// Get user defaults path
-	pub fn user_defaults_path(&self) -> PathBuf {
+	pub fn user_defaults_path(&self, fork_name: &Option<String>) -> PathBuf {
 		let mut dir = Path::new(&self.db).to_path_buf();
-		dir.push("user_defaults");
+		match *fork_name {
+			Some(ref name) => dir.push(format!("user_defaults_{}", name)),
+			None => dir.push("user_defaults"),
+		}
 		dir
 	}
 }
