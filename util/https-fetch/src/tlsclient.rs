@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::io::{self, Read, Cursor, BufReader};
 
 use mio;
@@ -43,7 +43,7 @@ pub struct TlsClient {
 	writer: Box<io::Write>,
 	error: Option<TlsClientError>,
 	closing: bool,
-	listener: mpsc::Sender<FetchResult>,
+	callback: Box<FnMut(FetchResult) + Send>,
 }
 
 impl io::Write for TlsClient {
@@ -81,7 +81,7 @@ impl TlsClient {
 		token: mio::Token,
 		url: &Url,
 		writer: Box<io::Write + Send>,
-		sender: mpsc::Sender<FetchResult>,
+		mut callback: Box<FnMut(FetchResult) + Send>,
 		) -> Result<Self, FetchError> {
 			let res = TlsClient::make_config().and_then(|cfg| {
 				TcpStream::connect(url.address()).map(|sock| {
@@ -97,10 +97,10 @@ impl TlsClient {
 					closing: false,
 					error: None,
 					tls_session: rustls::ClientSession::new(&cfg, url.hostname()),
-					listener: sender,
+					callback: callback,
 				}),
 				Err(e) => {
-					sender.send(Err(e)).unwrap_or_else(|e| warn!("Client initialization error: {:?}", e));
+					callback(Err(e));
 					Err(FetchError::Client(TlsClientError::Initialization))
 				}
 			}
@@ -121,14 +121,12 @@ impl TlsClient {
 
 		if self.is_closed() {
 			trace!("Connection closed");
-			let res = self.listener.send(match self.error.take() {
+			let callback = &mut self.callback;
+			callback(match self.error.take() {
 				Some(err) => Err(err.into()),
 				None => Ok(()),
 			});
 
-			if let Err(e) = res {
-				warn!("Finished fetching but listener is not available: {:?}", e);
-			}
 			return true;
 		}
 
@@ -207,6 +205,7 @@ impl TlsClient {
 	fn do_write(&mut self) {
 		self.tls_session.write_tls(&mut self.socket).unwrap_or_else(|e| {
 			warn!("TLS write error: {:?}", e);
+			0
 		});
 	}
 

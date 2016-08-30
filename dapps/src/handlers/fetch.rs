@@ -21,12 +21,12 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::{Instant, Duration};
 
-use hyper::{header, server, Decoder, Encoder, Next, Method, Control, Client};
+use hyper::{header, server, Decoder, Encoder, Next, Method, Control};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
 use handlers::ContentHandler;
-use handlers::client::{Fetch, FetchResult};
+use handlers::client::{Client, FetchResult};
 use apps::redirection_address;
 use apps::urlhint::GithubApp;
 use apps::manifest::Manifest;
@@ -53,7 +53,7 @@ pub trait DappHandler {
 pub struct AppFetcherHandler<H: DappHandler> {
 	control: Option<Control>,
 	status: FetchState,
-	client: Option<Client<Fetch>>,
+	client: Option<Client>,
 	using_dapps_domains: bool,
 	dapp: H,
 }
@@ -76,7 +76,7 @@ impl<H: DappHandler> AppFetcherHandler<H> {
 		using_dapps_domains: bool,
 		handler: H) -> Self {
 
-		let client = Client::new().expect("Failed to create a Client");
+		let client = Client::new();
 		AppFetcherHandler {
 			control: Some(control),
 			client: Some(client),
@@ -86,7 +86,7 @@ impl<H: DappHandler> AppFetcherHandler<H> {
 		}
 	}
 
-	fn close_client(client: &mut Option<Client<Fetch>>) {
+	fn close_client(client: &mut Option<Client>) {
 		client.take()
 			.expect("After client is closed we are going into write, hence we can never close it again")
 			.close();
@@ -94,20 +94,12 @@ impl<H: DappHandler> AppFetcherHandler<H> {
 
 
 	// TODO [todr] https support
-	fn fetch_app(client: &mut Client<Fetch>, app: &GithubApp, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
-		let url = try!(app.url().parse().map_err(|e| format!("{:?}", e)));
-		trace!(target: "dapps", "Fetching from: {:?}", url);
-
-		let (tx, rx) = mpsc::channel();
-		let res = client.request(url, Fetch::new(tx, Box::new(move || {
+	fn fetch_app(client: &mut Client, app: &GithubApp, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
+		client.request(app.url(), Box::new(move || {
 			trace!(target: "dapps", "Fetching finished.");
 			// Ignoring control errors
 			let _ = control.ready(Next::read());
-		})));
-		match res {
-			Ok(_) => Ok(rx),
-			Err(e) => Err(format!("{:?}", e)),
-		}
+		})).map_err(|e| format!("{:?}", e))
 	}
 }
 

@@ -24,6 +24,7 @@ zip = { version = "0.1", default-features = false }
 ethabi = "0.2.1"
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
+https-fetch = { path = "../util/https-fetch" }
 parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 # List of apps
 parity-dapps-status = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
@@ -36,7 +37,7 @@ clippy = { version = "0.0.85", optional = true}
 serde_codegen = { version = "0.7.0", optional = true }
 
 [features]
-default = ["serde_codegen", "extra-dapps"]
+default = ["serde_codegen", "extra-dapps", "https-fetch/ca-github-only"]
 extra-dapps = ["parity-dapps-wallet"]
 nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]

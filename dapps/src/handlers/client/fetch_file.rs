@@ -27,6 +27,8 @@ use hyper::client::{Request, Response, DefaultTransport as HttpStream};
 use hyper::header::Connection;
 use hyper::{self, Decoder, Encoder, Next};
 
+use super::FetchError;
+
 #[derive(Debug)]
 pub enum Error {
 	NotStarted,
@@ -35,7 +37,7 @@ pub enum Error {
 	HyperError(hyper::Error),
 }
 
-pub type FetchResult = Result<PathBuf, Error>;
+pub type FetchResult = Result<PathBuf, FetchError>;
 pub type OnDone = Box<Fn() + Send>;
 
 pub struct Fetch {
@@ -54,7 +56,7 @@ impl fmt::Debug for Fetch {
 
 impl Drop for Fetch {
     fn drop(&mut self) {
-		let res = self.result.take().unwrap_or(Err(Error::NotStarted));
+		let res = self.result.take().unwrap_or(Err(Error::NotStarted.into()));
 		// Remove file if there was an error
 		if res.is_err() {
 			if let Some(file) = self.file.take() {
@@ -98,7 +100,7 @@ impl hyper::client::Handler<HttpStream> for Fetch {
 
     fn on_response(&mut self, res: Response) -> Next {
 		if *res.status() != StatusCode::Ok {
-			self.result = Some(Err(Error::UnexpectedStatus(*res.status())));
+			self.result = Some(Err(Error::UnexpectedStatus(*res.status()).into()));
 			return Next::end();
 		}
 
@@ -110,7 +112,7 @@ impl hyper::client::Handler<HttpStream> for Fetch {
 				read()
 			},
 			Err(err) => {
-				self.result = Some(Err(Error::IoError(err)));
+				self.result = Some(Err(Error::IoError(err).into()));
 				Next::end()
 			},
 		}
@@ -123,7 +125,7 @@ impl hyper::client::Handler<HttpStream> for Fetch {
             Err(e) => match e.kind() {
                 io::ErrorKind::WouldBlock => Next::read(),
                 _ => {
-					self.result = Some(Err(Error::IoError(e)));
+					self.result = Some(Err(Error::IoError(e).into()));
                     Next::end()
                 }
             }
@@ -131,7 +133,7 @@ impl hyper::client::Handler<HttpStream> for Fetch {
     }
 
     fn on_error(&mut self, err: hyper::Error) -> Next {
-		self.result = Some(Err(Error::HyperError(err)));
+		self.result = Some(Err(Error::HyperError(err).into()));
         Next::remove()
     }
 }

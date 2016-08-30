@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str;
-use std::thread;
-use std::sync::mpsc;
+use std::cell::RefCell;
+use std::{fs, str, thread};
+use std::path::PathBuf;
 use std::io::{self, Write};
 use std::collections::HashMap;
 
@@ -56,7 +56,7 @@ impl From<TlsClientError> for FetchError {
 pub type FetchResult = Result<(), FetchError>;
 
 pub enum ClientMessage {
-	Fetch(Url, Box<io::Write + Send>, mpsc::Sender<FetchResult>),
+	Fetch(Url, Box<io::Write + Send>, Box<FnMut(FetchResult) + Send>),
 	Shutdown,
 }
 
@@ -67,9 +67,7 @@ pub struct Client {
 
 impl Drop for Client {
 	fn drop(&mut self) {
-		if let Err(e) = self.channel.send(ClientMessage::Shutdown) {
-			warn!("Error while closing client: {:?}. Already stopped?", e);
-		}
+		self.close_internal();
 		if let Some(thread) = self.thread.take() {
 			thread.join().expect("Clean shutdown.");
 		}
@@ -95,10 +93,33 @@ impl Client {
 		})
 	}
 
-	pub fn fetch(&self, url: Url, writer: Box<io::Write + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
-		let (tx, rx) = mpsc::channel();
-		try!(self.channel.send(ClientMessage::Fetch(url, writer, tx)));
-		Ok(rx)
+	pub fn fetch_to_file<F: FnOnce(FetchResult) + Send + 'static>(&self, url: Url, path: PathBuf, callback: F) -> Result<(), FetchError> {
+		let file = try!(fs::File::create(&path));
+		self.fetch(url, Box::new(file), move |result| {
+			if let Err(_) = result {
+				// remove temporary file
+				let _ = fs::remove_file(&path);
+			}
+			callback(result);
+		})
+	}
+
+	pub fn fetch<F: FnOnce(FetchResult) + Send + 'static>(&self, url: Url, writer: Box<io::Write + Send>, callback: F) -> Result<(), FetchError> {
+		let cell = RefCell::new(Some(callback));
+		try!(self.channel.send(ClientMessage::Fetch(url, writer, Box::new(move |res| {
+			cell.borrow_mut().take().expect("Called only once.")(res);
+		}))));
+		Ok(())
+	}
+
+	pub fn close(mut self) {
+		self.close_internal()
+	}
+
+	fn close_internal(&mut self) {
+		if let Err(e) = self.channel.send(ClientMessage::Shutdown) {
+			warn!("Error while closing client: {:?}. Already stopped?", e);
+		}
 	}
 }
 
@@ -127,11 +148,11 @@ impl mio::Handler for ClientLoop {
 	fn notify(&mut self, event_loop: &mut mio::EventLoop<Self>, msg: Self::Message) {
 		match msg {
 			ClientMessage::Shutdown => event_loop.shutdown(),
-			ClientMessage::Fetch(url, writer, sender) => {
+			ClientMessage::Fetch(url, writer, callback) => {
 				let token = self.next_token;
 				self.next_token += 1;
 
-				if let Ok(mut tlsclient) = TlsClient::new(mio::Token(token), &url, writer, sender) {
+				if let Ok(mut tlsclient) = TlsClient::new(mio::Token(token), &url, writer, callback) {
 					let httpreq = format!(
 						"GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n",
 						url.path(),
@@ -183,3 +204,4 @@ fn should_successfuly_fetch_a_page() {
 	assert!(result.is_ok());
 	assert!(wrote.load(Ordering::Relaxed) > 0);
 }
+
