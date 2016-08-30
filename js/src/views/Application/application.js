@@ -64,6 +64,7 @@ export default class Application extends Component {
   }
 
   render () {
+    const { children } = this.props;
     const { blockNumber, clientVersion, netChain, netPeers } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
@@ -76,7 +77,7 @@ export default class Application extends Component {
     } else if (root === 'app') {
       return (
         <div className={ styles.container }>
-          { this.props.children }
+          { children }
           <ParityBar />
         </div>
       );
@@ -88,7 +89,7 @@ export default class Application extends Component {
         <div className={ styles.container }>
           { this.renderFirstRunDialog() }
           <TabBar />
-          { this.props.children }
+          { children }
           <Status
             blockNumber={ blockNumber }
             clientVersion={ clientVersion }
@@ -100,21 +101,25 @@ export default class Application extends Component {
   }
 
   renderSnackbar () {
-    if (!this.state.errorMessage) {
+    const { errorMessage, showError } = this.state;
+
+    if (!errorMessage || !showError) {
       return;
     }
 
     return (
       <Snackbar
-        open={ this.state.showError }
-        message={ this.state.errorMessage }
+        open
+        message={ errorMessage }
         autoHideDuration={ 5000 }
         onRequestClose={ this.onCloseError } />
     );
   }
 
   renderFirstRunDialog () {
-    if (!this.state.showFirst) {
+    const { showFirst } = this.state;
+
+    if (!showFirst) {
       return null;
     }
 
@@ -195,7 +200,8 @@ export default class Application extends Component {
 
             return Promise.all(
               this.state.tokens.map((token) => {
-                return token.contract.instance.balanceOf.call({}, [account.address]);
+                return token.contract.instance
+                  .balanceOf.call({}, [account.address]);
               })
             );
           })
@@ -240,13 +246,15 @@ export default class Application extends Component {
       .then((tokenregAddress) => {
         contracts.tokenreg = api.newContract(tokenRegAbi, tokenregAddress);
 
-        return contracts.tokenreg.instance.tokenCount.call();
+        return contracts.tokenreg.instance
+          .tokenCount.call();
       })
       .then((tokenCount) => {
         const promises = [];
 
         while (promises.length < tokenCount.toNumber()) {
-          promises.push(contracts.tokenreg.instance.token.call({}, [promises.length]));
+          promises.push(contracts.tokenreg.instance
+            .token.call({}, [promises.length]));
         }
 
         return Promise.all(promises);
@@ -269,7 +277,8 @@ export default class Application extends Component {
             contract
           });
 
-          return contract.instance.totalSupply.call();
+          return contract.instance
+            .totalSupply.call();
         }));
       })
       .then((supplies) => {
@@ -294,6 +303,7 @@ export default class Application extends Component {
 
   pollStatus () {
     const nextTimeout = () => setTimeout(() => this.pollStatus(), 1000);
+
     Promise
       .all([
         api.eth.blockNumber(),

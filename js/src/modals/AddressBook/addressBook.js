@@ -27,14 +27,14 @@ export default class AddressBook extends Component {
     return (
       <FlatButton
         icon={ <ContentClear /> }
-        label='Cancel'
+        label='Close'
         primary
         onTouchTap={ this.onClose } />
     );
   }
 
   renderPage () {
-    return null;
+    return <div>content</div>;
   }
 
   onClose = () => {
