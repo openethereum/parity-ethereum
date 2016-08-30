@@ -249,7 +249,8 @@ pub fn tracing_switch_to_bool(switch: Switch, user_defaults: &UserDefaults) -> R
 #[cfg(test)]
 mod tests {
 	use util::journaldb::Algorithm;
-	use super::{SpecType, Pruning, ResealPolicy, Switch};
+	use user_defaults::UserDefaults;
+	use super::{SpecType, Pruning, ResealPolicy, Switch, tracing_switch_to_bool};
 
 	#[test]
 	fn test_spec_type_parsing() {
@@ -308,5 +309,25 @@ mod tests {
 	#[test]
 	fn test_switch_default() {
 		assert_eq!(Switch::default(), Switch::Auto);
+	}
+
+	fn user_defaults_with_tracing(first_launch: bool, tracing: bool) -> UserDefaults {
+		let mut ud = UserDefaults::default();
+		ud.is_first_launch = first_launch;
+		ud.tracing = tracing;
+		ud
+	}
+
+	#[test]
+	fn test_switch_to_bool() {
+		assert!(!tracing_switch_to_bool(Switch::Off, &user_defaults_with_tracing(true, true)).unwrap());
+		assert!(!tracing_switch_to_bool(Switch::Off, &user_defaults_with_tracing(true, false)).unwrap());
+		assert!(!tracing_switch_to_bool(Switch::Off, &user_defaults_with_tracing(false, true)).unwrap());
+		assert!(!tracing_switch_to_bool(Switch::Off, &user_defaults_with_tracing(false, false)).unwrap());
+
+		assert!(tracing_switch_to_bool(Switch::On, &user_defaults_with_tracing(true, true)).unwrap());
+		assert!(tracing_switch_to_bool(Switch::On, &user_defaults_with_tracing(true, false)).unwrap());
+		assert!(tracing_switch_to_bool(Switch::On, &user_defaults_with_tracing(false, true)).unwrap());
+		assert!(tracing_switch_to_bool(Switch::On, &user_defaults_with_tracing(false, false)).is_err());
 	}
 }

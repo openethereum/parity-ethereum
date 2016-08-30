@@ -84,6 +84,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// set up panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// set up logger
+	let logger = try!(setup_log(&cmd.logger_config));
+
 	// increase max number of open files
 	raise_fd_limit();
 
@@ -101,9 +104,6 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// check if tracing is on
 	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
-
-	// set up logger
-	let logger = try!(setup_log(&cmd.logger_config));
 
 	let fork_name = spec.fork_name.clone();
 

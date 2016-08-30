@@ -111,6 +111,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log(&cmd.logger_config);
+
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
@@ -128,9 +131,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
-
-	// Setup logging
-	let _logger = setup_log(&cmd.logger_config);
 
 	fdlimit::raise_fd_limit();
 
@@ -238,6 +238,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// Setup logging
+	let _logger = setup_log(&cmd.logger_config);
+
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
@@ -257,9 +260,6 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
-
-	// Setup logging
-	let _logger = setup_log(&cmd.logger_config);
 
 	fdlimit::raise_fd_limit();
 
