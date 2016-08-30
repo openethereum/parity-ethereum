@@ -821,12 +821,7 @@ impl ChainSync {
 			Ok(manifest) => manifest,
 		};
 		self.snapshot.reset_to(&manifest, &r.as_raw().sha3());
-		if !self.snapshot_service.begin_restore(manifest) {
-			trace!(target: "sync", "{}: Error starting snapshot restoration process", peer_id);
-			self.snapshot.clear();
-			self.continue_sync(io);
-			return Ok(());
-		}
+		self.snapshot_service.begin_restore(manifest);
 		self.state = SyncState::SnapshotData;
 
 		// give a task to the same peer first.

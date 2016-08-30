@@ -31,6 +31,7 @@ use engines::Engine;
 use error::Error;
 use service::ClientIoMessage;
 use spec::Spec;
+use client::Client;
 
 use io::IoChannel;
 
@@ -75,9 +76,6 @@ pub trait SnapshotService : Sync + Send {
 	fn begin_restore(&self, manifest: ManifestData);
 
 	/// Abort an in-progress restoration if there is one.
-	fn abort_restore(&self);
-
-	/// Abort restoration process.
 	fn abort_restore(&self);
 
 	/// Feed a raw state chunk to the service to be processed asynchronously.
@@ -211,11 +209,12 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
+	client: Arc<Client>,
 }
 
 impl Service {
 	/// Create a new snapshot service.
-	pub fn new(spec: &Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel) -> Result<Self, Error> {
+	pub fn new(spec: &Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel, client: Arc<Client>) -> Result<Self, Error> {
 		let db_path = try!(client_db.parent().and_then(Path::parent)
 			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.".into()))).to_owned();
 
@@ -239,6 +238,7 @@ impl Service {
 			genesis_block: spec.genesis_block(),
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
+			client: client,
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -298,37 +298,8 @@ impl Service {
 		let our_db = self.restoration_db();
 
 		trace!(target: "snapshot", "replacing {:?} with {:?}", self.client_db, our_db);
-
-		let mut backup_db = self.restoration_dir();
-		backup_db.push("backup_db");
-
-		let _ = fs::remove_dir_all(&backup_db);
-
-		let existed = match fs::rename(&self.client_db, &backup_db) {
-			Ok(_) => true,
-			Err(e) => if let ErrorKind::NotFound = e.kind() {
-				false
-			} else {
-				return Err(e.into());
-			}
-		};
-
-		match fs::rename(&our_db, &self.client_db) {
-			Ok(_) => {
-				// clean up the backup.
-				if existed {
-					try!(fs::remove_dir_all(&backup_db));
-				}
-				Ok(())
-			}
-			Err(e) => {
-				// restore the backup.
-				if existed {
-					try!(fs::rename(&backup_db, &self.client_db));
-				}
-				Err(e.into())
-			}
-		}
+		try!(self.client.restore_db(our_db.to_str().unwrap()));
+		Ok(())
 	}
 
 	/// Initialize the restoration synchronously.
@@ -499,17 +470,6 @@ impl SnapshotService for Service {
 	fn begin_restore(&self, manifest: ManifestData) {
 		self.io_channel.send(ClientIoMessage::BeginRestoration(manifest))
 			.expect("snapshot service and io service are kept alive by client service; qed");
-	}
-
-	fn abort_restore(&self) {
-		*self.restoration.lock() = None;
-		*self.status.lock() = RestorationStatus::Inactive;
-		if let Err(e) = fs::remove_dir_all(&self.restoration_dir()) {
-			match e.kind() {
-				ErrorKind::NotFound => {},
-				_ => warn!("encountered error {} while deleting snapshot restoration dir.", e),
-			}
-		}
 	}
 
 	fn abort_restore(&self) {

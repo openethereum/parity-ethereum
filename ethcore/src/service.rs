@@ -78,7 +78,7 @@ impl ClientService {
 
 		let pruning = config.pruning;
 		let client = try!(Client::new(config, &spec, db_path, miner, io_service.channel()));
-		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel()));
+		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel(), client.clone()));
 
 		let snapshot = Arc::new(snapshot);
 
