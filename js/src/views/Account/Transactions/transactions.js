@@ -38,7 +38,11 @@ function formatEther (value) {
 
 export default class Transactions extends Component {
   static contextTypes = {
-    api: PropTypes.object
+    api: PropTypes.object,
+    accounts: PropTypes.array,
+    contacts: PropTypes.array,
+    contracts: PropTypes.array,
+    tokens: PropTypes.array
   }
 
   static propTypes = {
@@ -62,6 +66,40 @@ export default class Transactions extends Component {
     );
   }
 
+  renderAddress (prefix, address) {
+    const cmp = (_account) => _account.address === address;
+
+    let account = this.context.accounts.find(cmp);
+    if (!account) {
+      account = this.context.contacts.find(cmp);
+      if (!account) {
+        account = this.context.contracts.find(cmp);
+        if (!account) {
+          account = this.context.tokens.find(cmp);
+        }
+      }
+    }
+
+    const link = `${prefix}address/${address}`;
+    const name = account
+      ? account.name.toUpperCase()
+      : formatHash(address);
+
+    return (
+      <td className={ styles.left }>
+        <IdentityIcon
+          inline center
+          address={ address } />
+        <a
+          href={ link }
+          target='_blank'
+          className={ styles.link }>
+          { name }
+        </a>
+      </td>
+    );
+  }
+
   renderTransactions () {
     let transactions = null;
     const prefix = this.state.isTest
@@ -71,23 +109,15 @@ export default class Transactions extends Component {
     if (this.state.transactions && this.state.transactions.length) {
       transactions = (this.state.transactions || []).map((tx) => {
         const hashLink = `${prefix}tx/${tx.hash}`;
-        const fromLink = `${prefix}address/${tx.from}`;
-        const toLink = `${prefix}address/${tx.to}`;
 
         const tosection = (tx.to && tx.to.length)
-          ? (<td className={ styles.center }>
-            <IdentityIcon inline center address={ tx.to } />
-            <a href={ toLink } target='_blank' className={ styles.link }>{ formatHash(tx.to) }</a>
-          </td>)
+          ? this.renderAddress(prefix, tx.to)
           : (<td className={ `${styles.center}` }></td>);
 
         return (
           <tr key={ tx.hash }>
             <td className={ styles.center }></td>
-            <td className={ styles.center }>
-              <IdentityIcon inline center address={ tx.from } />
-              <a href={ fromLink } target='_blank' className={ styles.link }>{ formatHash(tx.from) }</a>
-            </td>
+            { this.renderAddress(prefix, tx.from) }
             { tosection }
             <td className={ styles.center }>
               <a href={ hashLink } target='_blank' className={ styles.link }>{ formatHash(tx.hash) }</a>
@@ -110,9 +140,9 @@ export default class Transactions extends Component {
           <thead>
             <tr className={ styles.info }>
               <th>&nbsp;</th>
-              <th>from</th>
-              <th>to</th>
-              <th>txhash</th>
+              <th className={ styles.left }>from</th>
+              <th className={ styles.left }>to</th>
+              <th className={ styles.center }>txhash</th>
               <th className={ styles.right }>block</th>
               <th className={ styles.right }>age</th>
               <th className={ styles.right }>value</th>
