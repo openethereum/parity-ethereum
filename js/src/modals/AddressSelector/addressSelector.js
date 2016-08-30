@@ -59,10 +59,14 @@ export default class AddressSelector extends Component {
       );
     });
 
+    const title = type === 'contacts'
+      ? 'address book'
+      : type;
+
     return (
       <div>
         <div className={ styles.header }>
-          <h3>{ type }</h3>
+          <h3>{ title }</h3>
         </div>
         <div className={ styles.body }>
           { list.length ? list : nothing }
