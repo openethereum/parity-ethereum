@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import Actions from './Actions';
 import Summary from './Summary';
-import { CreateAccount } from '../../modals';
+import { AddressBook, CreateAccount } from '../../modals';
 import Tooltip from '../../ui/Tooltip';
 
 import styles from './style.css';
@@ -14,14 +14,17 @@ export default class Accounts extends Component {
   }
 
   state = {
+    addressBook: false,
     newDialog: false
   }
 
   render () {
     return (
       <div>
+        { this.renderAddressBook() }
         { this.renderNewDialog() }
         <Actions
+          onAddressBook={ this.onAddressBookClick }
           onNewAccount={ this.onNewAccountClick } />
         <div className={ styles.accounts }>
           { this.renderAccounts() }
@@ -59,7 +62,9 @@ export default class Accounts extends Component {
   }
 
   renderNewDialog () {
-    if (!this.state.newDialog) {
+    const { newDialog } = this.state;
+
+    if (!newDialog) {
       return null;
     }
 
@@ -70,8 +75,33 @@ export default class Accounts extends Component {
     );
   }
 
+  renderAddressBook () {
+    const { addressBook } = this.state;
+
+    if (!addressBook) {
+      return null;
+    }
+
+    return (
+      <AddressBook
+        onClose={ this.onAddressBookClose } />
+    );
+  }
+
+  onAddressBookClick = () => {
+    this.setState({
+      addressBook: !this.state.addressBook
+    });
+  }
+
   onNewAccountClick = () => {
-    this.setState({ newDialog: !this.state.newDialog });
+    this.setState({
+      newDialog: !this.state.newDialog
+    });
+  }
+
+  onAddressBookClose = () => {
+    this.onAddressBookClick();
   }
 
   onNewAccountClose = () => {
