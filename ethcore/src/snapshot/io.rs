@@ -341,3 +341,13 @@ impl SnapshotReader for LooseReader {
 		Ok(buf)
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader};
+
+	#[test]
+	fn packed_write_and_read() {
+
+	}
+}
