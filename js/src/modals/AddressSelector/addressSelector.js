@@ -9,20 +9,12 @@ import styles from './style.css';
 
 export default class AddressSelector extends Component {
   static contextTypes = {
-    api: React.PropTypes.object
+    accounts: PropTypes.array,
+    contacts: PropTypes.array
   }
 
   static propTypes = {
     onSelect: PropTypes.func.isRequired
-  }
-
-  state = {
-    accounts: [],
-    contacts: []
-  }
-
-  componentDidMount () {
-    this.retrieveAccounts();
   }
 
   render () {
@@ -38,8 +30,13 @@ export default class AddressSelector extends Component {
   }
 
   renderAccounts (type) {
-    const nothing = (<div className={ styles.nothing }>There are no addresses available</div>);
-    const list = this.state[type].map((acc) => {
+    const nothing = (
+      <div className={ styles.nothing }>
+        There are no addresses available
+      </div>
+    );
+
+    const list = this.context[type].map((acc) => {
       return (
         <div
           key={ acc.address }
@@ -94,29 +91,5 @@ export default class AddressSelector extends Component {
 
   onClose = () => {
     this.props.onSelect(null);
-  }
-
-  retrieveAccounts () {
-    const api = this.context.api;
-
-    api.personal
-      .accountsInfo()
-      .then((infos) => {
-        const all = Object.keys(infos).map((address) => {
-          const info = infos[address];
-
-          return {
-            address: address,
-            name: info.name,
-            uuid: info.uuid,
-            meta: info.meta
-          };
-        });
-
-        this.setState({
-          accounts: all.filter((acc) => acc.uuid),
-          contacts: all.filter((acc) => !acc.uuid)
-        });
-      });
   }
 }

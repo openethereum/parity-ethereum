@@ -30,6 +30,7 @@ export default class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
     accounts: PropTypes.array,
+    contacts: PropTypes.array,
     contracts: PropTypes.array,
     errorHandler: PropTypes.func,
     tokens: PropTypes.array,
@@ -52,6 +53,7 @@ export default class Application extends Component {
     showError: false,
     showFirst: false,
     accounts: [],
+    contacts: [],
     contracts: [],
     errorMessage: null,
     tokens: []
@@ -130,11 +132,12 @@ export default class Application extends Component {
   }
 
   getChildContext () {
-    const { accounts, contracts, tokens } = this.state;
+    const { accounts, contacts, contracts, tokens } = this.state;
 
     return {
       api,
       accounts,
+      contacts,
       contracts,
       errorHandler: this.errorHandler,
       tokens,
@@ -167,6 +170,27 @@ export default class Application extends Component {
         api.personal.accountsInfo()
       ])
       .then(([addresses, infos]) => {
+        const contacts = [];
+
+        Object.keys(infos).forEach((address) => {
+          const { name, meta, uuid } = infos[address];
+
+          if (uuid) {
+            return;
+          }
+
+          contacts.push({
+            address,
+            meta,
+            name,
+            uuid
+          });
+        });
+
+        this.setState({
+          contacts
+        });
+
         return Promise.all(
           addresses.map((address) => {
             const { name, meta, uuid } = infos[address];
