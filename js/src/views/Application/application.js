@@ -162,49 +162,54 @@ export default class Application extends Component {
         api.personal.accountsInfo()
       ])
       .then(([addresses, infos]) => {
-        return Promise.all(addresses.map((address) => {
-          const info = infos[address];
+        return Promise.all(
+          addresses.map((address) => {
+            const info = infos[address];
 
-          accounts.push({
-            address: address,
-            balances: [],
-            name: info.name,
-            uuid: info.uuid,
-            meta: info.meta
-          });
+            accounts.push({
+              address: address,
+              balances: [],
+              txCount: 0,
+              name: info.name,
+              uuid: info.uuid,
+              meta: info.meta
+            });
 
-          return api.eth.getBalance(address);
-        }));
+            return Promise.all([
+              api.eth.getBalance(address),
+              api.eth.getTransactionCount(address)
+            ]);
+          })
+        );
       })
-      .then((balances) => {
-        const promises = [];
+      .then((balancesTxCounts) => {
+        return Promise.all(
+          balancesTxCounts.map(([balance, txCount], idx) => {
+            const account = accounts[idx];
 
-        balances.forEach((balance, idx) => {
-          accounts[idx].balances.push({
-            token: ETH_TOKEN,
-            value: balance.toString()
-          });
-
-          this.state.tokens.forEach((token) => {
-            promises.push(token.contract.instance.balanceOf.call({}, [accounts[idx].address]));
-          });
-        });
-
-        return Promise.all(promises);
-      })
-      .then((balances) => {
-        let idx = 0;
-
-        accounts.forEach((account) => {
-          this.state.tokens.forEach((token) => {
-            const balance = balances[idx];
-
+            account.txCount = txCount;
             account.balances.push({
-              token,
+              token: ETH_TOKEN,
               value: balance.toString()
             });
 
-            idx++;
+            return Promise.all(
+              this.state.tokens.map((token) => {
+                return token.contract.instance.balanceOf.call({}, [account.address]);
+              })
+            );
+          })
+        );
+      })
+      .then((balances) => {
+        accounts.forEach((account, idx) => {
+          const balanceOf = balances[idx];
+
+          this.state.tokens.forEach((token, tidx) => {
+            account.balances.push({
+              token,
+              value: balanceOf[tidx].toString()
+            });
           });
         });
 
