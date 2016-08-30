@@ -26,6 +26,8 @@ export default class Account extends Component {
     params: PropTypes.object
   }
 
+  propName = null
+
   state = {
     name: null,
     fundDialog: false,
@@ -156,13 +158,12 @@ export default class Account extends Component {
   }
 
   onEditName = (event, name) => {
-    const { api } = this.context.api;
+    const { api } = this.context;
+    const { address } = this.props.params;
 
-    this.setState({
-      name
-    }, () => {
+    this.setState({ name }, () => {
       api.personal
-        .setAccountName(this.props.params.address, name)
+        .setAccountName(address, name)
         .catch((error) => {
           console.error(error);
         });
@@ -173,7 +174,8 @@ export default class Account extends Component {
     const { address } = this.props.params;
     const account = this.context.accounts.find((account) => account.address === address);
 
-    if (account) {
+    if (account && account.name !== this.propName) {
+      this.propName = account.name;
       this.setState({
         name: account.name
       });

@@ -9,6 +9,7 @@ export default class InputInline extends Component {
     error: PropTypes.string,
     hint: PropTypes.string,
     label: PropTypes.string,
+    onBlur: PropTypes.func,
     onChange: PropTypes.func,
     type: PropTypes.string,
     value: PropTypes.oneOfType([
@@ -24,30 +25,41 @@ export default class InputInline extends Component {
   }
 
   render () {
-    if (!this.state.editing) {
+    const { editing } = this.state;
+    const { error, label, hint, type, value } = this.props;
+
+    if (!editing) {
       return (
         <div
           className={ styles.inlineedit }
-          onClick={ this.onEdit }>
-          { this.props.static || this.props.value }
+          onClick={ this.onToggle }>
+          { this.props.static || value }
         </div>
       );
     }
 
     return (
       <Input
-        error={ this.props.error }
-        label={ this.props.label }
-        hint={ this.props.hint }
-        type={ this.props.type }
-        value={ this.props.value }
-        onBlur={ this.onEdit }
+        error={ error }
+        label={ label }
+        hint={ hint }
+        type={ type }
+        value={ value }
+        onBlur={ this.onBlur }
         onChange={ this.props.onChange }
         onKeyDown={ this.onKeyDown } />
     );
   }
 
-  onEdit = () => {
+  onBlur = () => {
+    this.onToggle();
+
+    if (this.props.onBlur) {
+      this.props.onBlur();
+    }
+  }
+
+  onToggle = () => {
     this.setState({
       editing: !this.state.editing
     });
@@ -55,7 +67,7 @@ export default class InputInline extends Component {
 
   onKeyDown = (event) => {
     if (event.keyCode === 13) {
-      this.onEdit();
+      this.onToggle();
     }
   }
 }
