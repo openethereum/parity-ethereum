@@ -33,6 +33,10 @@ impl LocalPageEndpoint {
 			info: info,
 		}
 	}
+
+	pub fn path(&self) -> PathBuf {
+		self.path.clone()
+	}
 }
 
 impl Endpoint for LocalPageEndpoint {
