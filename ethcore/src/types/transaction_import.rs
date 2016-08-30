@@ -18,9 +18,8 @@
 
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use error::{TransactionError, Error};
-use util::Populatable;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Represents the result of importing transaction.
 pub enum TransactionImportResult {
 	/// Transaction was imported to current queue.

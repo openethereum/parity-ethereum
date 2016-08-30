@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
-use util::{U256, H256, Populatable};
+use util::{U256, H256};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::header::BlockNumber;
@@ -32,7 +32,7 @@ use parking_lot::RwLock;
 pub const ETH_PROTOCOL: &'static str = "eth";
 
 /// Sync configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SyncConfig {
 	/// Max blocks to download ahead
 	pub max_download_ahead_blocks: usize,

@@ -76,7 +76,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 			instructions::SSTORE => {
 				let address = H256::from(stack.peek(0));
 				let newval = stack.peek(1);
-				let val = U256::from(ext.storage_at(&address).as_slice());
+				let val = U256::from(&*ext.storage_at(&address));
 
 				let gas = if val.is_zero() && !newval.is_zero() {
 					schedule.sstore_set_gas
