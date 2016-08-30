@@ -4,16 +4,17 @@ import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import Api from '../../../api';
-import IdentityIcon from '../../../ui/IdentityIcon';
 import Modal from '../../../ui/Modal';
-import Form, { Input } from '../../../ui/Form';
-
-import { ERRORS } from '../errors';
+import Form, { Input, InputAddress } from '../../../ui/Form';
+import { ERRORS, validateAddress, validateName } from '../../../services/validation';
 
 import styles from '../style.css';
 
 export default class AddEntry extends Component {
+  static contextTypes = {
+    contacts: PropTypes.array
+  };
+
   static propTypes = {
     onClose: PropTypes.func
   };
@@ -61,19 +62,18 @@ export default class AddEntry extends Component {
   renderFields () {
     return (
       <Form>
+        <InputAddress
+          label='contact address'
+          hint='the network address for the contact'
+          error={ this.state.addressError }
+          value={ this.state.address }
+          onChange={ this.onEditAddress } />
         <Input
           label='contact name'
           hint='a descriptive name for the contact'
           error={ this.state.nameError }
           value={ this.state.name }
           onChange={ this.onEditName } />
-        <Input
-          className={ styles.input }
-          label='contact address'
-          hint='the network address for the contact'
-          error={ this.state.addressError }
-          value={ this.state.address }
-          onChange={ this.onEditAddress } />
         <Input
           multiLine
           rows={ 2 }
@@ -85,31 +85,16 @@ export default class AddEntry extends Component {
     );
   }
 
-  renderAddressIcon () {
-    const { address, addressError } = this.state;
+  onEditAddress = (event, _address) => {
+    const { contacts } = this.context;
+    let { address, addressError } = validateAddress(_address);
 
-    if (addressError) {
-      return null;
-    }
+    if (!addressError) {
+      const contact = contacts.find((contact) => contact.address === address);
 
-    return (
-      <div className={ styles.addricon }>
-        <IdentityIcon
-          inline center
-          address={ address } />
-      </div>
-    );
-  }
-
-  onEditAddress = (event, address) => {
-    let addressError = null;
-
-    if (!address) {
-      addressError = ERRORS.invalidAddress;
-    } else if (!Api.format.isAddressValid(address)) {
-      addressError = ERRORS.invalidAddress;
-    } else {
-      address = Api.format.toChecksumAddress(address);
+      if (contact) {
+        addressError = ERRORS.duplicateAddress;
+      }
     }
 
     this.setState({
@@ -124,8 +109,8 @@ export default class AddEntry extends Component {
     });
   }
 
-  onEditName = (event, name) => {
-    const nameError = !name || name.length < 2 ? ERRORS.invalidName : null;
+  onEditName = (event, _name) => {
+    const { name, nameError } = validateName(_name);
 
     this.setState({
       name,

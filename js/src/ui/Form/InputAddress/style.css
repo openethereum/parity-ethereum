@@ -1,0 +1,12 @@
+.container {
+  position: relative;
+}
+
+.input input {
+  padding-left: 48px !important;
+}
+
+.icon {
+  position: absolute;
+  top: 37px;
+}

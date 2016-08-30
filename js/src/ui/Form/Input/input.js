@@ -16,6 +16,7 @@ const NAME_ID = ' ';
 export default class Input extends Component {
   static propTypes = {
     children: PropTypes.node,
+    className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
     hint: PropTypes.string,
@@ -35,6 +36,7 @@ export default class Input extends Component {
     return (
       <TextField
         autoComplete='off'
+        className={ this.props.className }
         disabled={ this.props.disabled }
         errorText={ this.props.error }
         floatingLabelFixed

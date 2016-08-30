@@ -127,10 +127,20 @@ export default class AddressBook extends Component {
   }
 
   onAdd = () => {
-    console.log('onAdd');
     this.setState({
       showAdd: true
     });
+  }
+
+  updateDetails (address, name, description) {
+    const { api } = this.context;
+
+    Promise.all(
+      api.personal.setAccountName(address, name),
+      api.personal.setAccountMeta(address, {
+        description: description || null
+      })
+    );
   }
 
   onCloseAdd = (address, name, description) => {
@@ -142,18 +152,19 @@ export default class AddressBook extends Component {
       return;
     }
 
-    const { api } = this.context;
-
-    Promise.all(
-      api.personal.setAccountName(address, name),
-      api.personal.setAccountMeta(address, { description })
-    );
+    this.updateDetails(address, name, description);
   }
 
-  onCloseEdit = () => {
+  onCloseEdit = (address, name, description) => {
     this.setState({
-      showAdd: false
+      showEdit: false
     });
+
+    if (!address) {
+      return;
+    }
+
+    this.updateDetails(address, name, description);
   }
 
   onClose = () => {
@@ -163,9 +174,9 @@ export default class AddressBook extends Component {
   wrapOnEdit (editing) {
     return () => {
       this.setState({
-        editing
+        editing,
+        showEdit: true
       });
-      console.log('editing', editing);
     };
   }
 }
