@@ -16,9 +16,8 @@
 
 //! URL Endpoint traits
 
-use hyper::{server, net};
+use hyper::{self, server, net};
 use std::collections::BTreeMap;
-pub use hyper::Control;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct EndpointPath {
@@ -43,5 +42,9 @@ pub type Handler = server::Handler<net::HttpStream> + Send;
 pub trait Endpoint : Send + Sync {
 	fn info(&self) -> Option<&EndpointInfo> { None }
 
-	fn to_handler(&self, path: EndpointPath, control: Option<Control>) -> Box<Handler>;
+	fn to_handler(&self, path: EndpointPath) -> Box<Handler>;
+
+	fn to_async_handler(&self, path: EndpointPath, _control: hyper::Control) -> Box<Handler> {
+		self.to_handler(path)
+	}
 }

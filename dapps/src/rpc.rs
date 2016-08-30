@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex};
+use hyper;
 use jsonrpc_core::IoHandler;
 use jsonrpc_http_server::{ServerHandler, PanicHandler, AccessControlAllowOrigin};
-use endpoint::{Endpoint, EndpointPath, Handler, Control};
+use endpoint::{Endpoint, EndpointPath, Handler};
 
 pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
@@ -37,9 +38,12 @@ struct RpcEndpoint {
 }
 
 impl Endpoint for RpcEndpoint {
-	fn to_handler(&self, _path: EndpointPath, control: Option<Control>) -> Box<Handler> {
+	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
+		panic!("RPC Endpoint is asynchronous and requires Control object.");
+	}
+
+	fn to_async_handler(&self, _path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
-		let control = control.expect("Control is required for RPC endpoint");
 		Box::new(ServerHandler::new(
 				self.handler.clone(),
 				self.cors_domain.clone(),
