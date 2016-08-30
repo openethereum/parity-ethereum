@@ -84,8 +84,8 @@ $ cargo build --release
 
 This will produce an executable in the `./target/release` subdirectory.
 
-## Start parity
-### manually
+## Start Parity
+### Manually
 To start Parity manually, just run
 ```bash
 $ ./target/release/parity
@@ -93,12 +93,12 @@ $ ./target/release/parity
 
 and Parity will begin syncing the Ethereum blockchain.
 
-### systemd service file
+### Using systemd service file
 To start Parity as a regular user using systemd init:
 
-1. Copy the ```parity/scripts/parity.service``` in your
+1. Copy ```parity/scripts/parity.service``` to your
 systemd user directory (usually ```~/.config/systemd/user```).
-2. To pass any argument to parity, write a ```~/.parity/parity.conf``` file this way:
+2. To pass any argument to Parity, write a ```~/.parity/parity.conf``` file this way:
 ```ARGS="ARG1 ARG2 ARG3"```.
 
 	Example: ```ARGS="ui --geth --identity MyMachine"```.
