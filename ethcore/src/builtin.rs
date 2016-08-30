@@ -14,283 +14,350 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use crypto::sha2::Sha256;
-use crypto::ripemd160::Ripemd160;
+use crypto::sha2::Sha256 as Sha256Digest;
+use crypto::ripemd160::Ripemd160 as Ripemd160Digest;
 use crypto::digest::Digest;
 use util::*;
-use ethkey::{Signature, recover};
+use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
-/// Definition of a contract whose implementation is built-in.
-pub struct Builtin {
-	/// The gas cost of running this built-in for the given size of input data.
-	pub cost: Box<Fn(usize) -> U256>,	// TODO: U256 should be bignum.
-	/// Run this built-in function with the input being the first argument and the output
-	/// being placed into the second.
-	pub execute: Box<Fn(&[u8], &mut [u8])>,
+/// Native implementation of a built-in contract.
+pub trait Impl: Send + Sync {
+	/// execute this built-in on the given input, writing to the given output.
+	fn execute(&self, input: &[u8], out: &mut [u8]);
 }
 
-// Rust does not mark closurer that do not capture as Sync
-// We promise that all builtins are thread safe since they only operate on given input.
-unsafe impl Sync for Builtin {}
-unsafe impl Send for Builtin {}
+/// A gas pricing scheme for built-in contracts.
+pub trait Pricer: Send + Sync {
+	/// The gas cost of running this built-in for the given size of input data.
+	fn cost(&self, in_size: usize) -> U256;
+}
 
-impl fmt::Debug for Builtin {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "<Builtin>")
+/// A linear pricing model. This computes a price using a base cost and a cost per-word.
+struct Linear {
+	base: usize,
+	word: usize,
+}
+
+impl Pricer for Linear {
+	fn cost(&self, in_size: usize) -> U256 {
+		U256::from(self.base) + U256::from(self.word) * U256::from((in_size + 31) / 32)
 	}
+}
+
+/// Pricing scheme and execution definition for a built-in contract.
+pub struct Builtin {
+	pricer: Box<Pricer>,
+	native: Box<Impl>,
 }
 
 impl Builtin {
-	/// Create a new object from components.
-	pub fn new(cost: Box<Fn(usize) -> U256>, execute: Box<Fn(&[u8], &mut [u8])>) -> Builtin {
-		Builtin {cost: cost, execute: execute}
-	}
-
-	/// Create a new object from a builtin-function name with a linear cost associated with input size.
-	pub fn from_named_linear(name: &str, base_cost: usize, word_cost: usize) -> Builtin {
-		let cost = Box::new(move|s: usize| -> U256 {
-			U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)
-		});
-
-		Self::new(cost, new_builtin_exec(name))
-	}
-
 	/// Simple forwarder for cost.
-	pub fn cost(&self, s: usize) -> U256 { (*self.cost)(s) }
+	pub fn cost(&self, s: usize) -> U256 { self.pricer.cost(s) }
 
 	/// Simple forwarder for execute.
-	pub fn execute(&self, input: &[u8], output: &mut[u8]) { (*self.execute)(input, output); }
+	pub fn execute(&self, input: &[u8], output: &mut[u8]) { self.native.execute(input, output) }
 }
 
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
-		match b.pricing {
+		let pricer = match b.pricing {
 			ethjson::spec::Pricing::Linear(linear) => {
-				Self::from_named_linear(b.name.as_ref(), linear.base, linear.word)
+				Box::new(Linear {
+					base: linear.base,
+					word: linear.word,
+				})
 			}
+		};
+
+		Builtin {
+			pricer: pricer,
+			native: ethereum_builtin(&b.name),
 		}
 	}
 }
 
-/// Copy a bunch of bytes to a destination; if the `src` is too small to fill `dest`,
-/// leave the rest unchanged.
-pub fn copy_to(src: &[u8], dest: &mut[u8]) {
-	// NICE: optimise
-	for i in 0..min(src.len(), dest.len()) {
-		dest[i] = src[i];
+// Ethereum builtin creator.
+fn ethereum_builtin(name: &str) -> Box<Impl> {
+	match name {
+		"identity" => Box::new(Identity) as Box<Impl>,
+		"ecrecover" => Box::new(EcRecover) as Box<Impl>,
+		"sha256" => Box::new(Sha256) as Box<Impl>,
+		"ripemd160" => Box::new(Ripemd160) as Box<Impl>,
+		_ => panic!("invalid builtin name: {}", name),
 	}
 }
 
-/// Create a new builtin executor according to `name`.
-/// TODO: turn in to a factory with dynamic registration.
-pub fn new_builtin_exec(name: &str) -> Box<Fn(&[u8], &mut [u8])> {
-	match name {
-		"identity" => Box::new(move|input: &[u8], output: &mut[u8]| {
-			for i in 0..min(input.len(), output.len()) {
-				output[i] = input[i];
-			}
-		}),
-		"ecrecover" => Box::new(move|input: &[u8], output: &mut[u8]| {
-			#[repr(packed)]
-			#[derive(Debug, Default)]
-			struct InType {
-				hash: H256,
-				v: H256,
-				r: H256,
-				s: H256,
-			}
-			let mut it = InType::default();
-			it.copy_raw(input);
-			if it.v == H256::from(&U256::from(27)) || it.v == H256::from(&U256::from(28)) {
-				let s = Signature::from_rsv(&it.r, &it.s, it.v[31] - 27);
-				if s.is_valid() {
-					if let Ok(p) = recover(&s, &it.hash) {
-						let r = p.as_slice().sha3();
-						// NICE: optimise and separate out into populate-like function
-						for i in 0..min(32, output.len()) {
-							output[i] = if i < 12 {0} else {r[i]};
-						}
-					}
+// Ethereum builtins:
+//
+// - The identity function
+// - ec recovery
+// - sha256
+// - ripemd160
+
+#[derive(Debug)]
+struct Identity;
+
+#[derive(Debug)]
+struct EcRecover;
+
+#[derive(Debug)]
+struct Sha256;
+
+#[derive(Debug)]
+struct Ripemd160;
+
+impl Impl for Identity {
+	fn execute(&self, input: &[u8], output: &mut [u8]) {
+		let len = min(input.len(), output.len());
+		output[..len].copy_from_slice(&input[..len]);
+	}
+}
+
+impl Impl for EcRecover {
+	fn execute(&self, i: &[u8], output: &mut [u8]) {
+		let len = min(i.len(), 128);
+
+		let mut input = [0; 128];
+		input[..len].copy_from_slice(&i[..len]);
+
+		let hash = H256::from_slice(&input[0..32]);
+		let v = H256::from_slice(&input[32..64]);
+		let r = H256::from_slice(&input[64..96]);
+		let s = H256::from_slice(&input[96..128]);
+
+		let bit = match v[31] {
+			27 | 28 if &v.as_slice()[..31] == &[0; 31] => v[31] - 27,
+			_ => return,
+		};
+
+		let s = Signature::from_rsv(&r, &s, bit);
+		if s.is_valid() {
+			if let Ok(p) = ec_recover(&s, &hash) {
+				let r = p.as_slice().sha3();
+
+				let out_len = min(output.len(), 32);
+
+				for x in &mut output[0.. min(12, out_len)] {
+					*x = 0;
+				}
+
+				if out_len > 12 {
+					output[12..out_len].copy_from_slice(&r[12..out_len]);
 				}
 			}
-		}),
-		"sha256" => Box::new(move|input: &[u8], output: &mut[u8]| {
-			let mut sha = Sha256::new();
-			sha.input(input);
-			if output.len() >= 32 {
-				sha.result(output);
-			} else {
-				let mut ret = H256::new();
-				sha.result(ret.as_slice_mut());
-				copy_to(&ret, output);
-			}
-		}),
-		"ripemd160" => Box::new(move|input: &[u8], output: &mut[u8]| {
-			let mut sha = Ripemd160::new();
-			sha.input(input);
-			let mut ret = H256::new();
-			sha.result(&mut ret.as_slice_mut()[12..32]);
-			copy_to(&ret, output);
-		}),
-		_ => {
-			panic!("invalid builtin name {}", name);
 		}
 	}
 }
 
-#[test]
-fn identity() {
-	let f = new_builtin_exec("identity");
-	let i = [0u8, 1, 2, 3];
+impl Impl for Sha256 {
+	fn execute(&self, input: &[u8], output: &mut [u8]) {
+		let out_len = min(output.len(), 32);
 
-	let mut o2 = [255u8; 2];
-	f(&i[..], &mut o2[..]);
-	assert_eq!(i[0..2], o2);
+		let mut sha = Sha256Digest::new();
+		sha.input(input);
 
-	let mut o4 = [255u8; 4];
-	f(&i[..], &mut o4[..]);
-	assert_eq!(i, o4);
+		if out_len == 32 {
+			sha.result(&mut output[0..32]);
+		} else {
+			let mut out = [0; 32];
+			sha.result(&mut out);
 
-	let mut o8 = [255u8; 8];
-	f(&i[..], &mut o8[..]);
-	assert_eq!(i, o8[..4]);
-	assert_eq!([255u8; 4], o8[4..]);
+			output.copy_from_slice(&out[..out_len])
+		}
+	}
 }
 
-#[test]
-fn sha256() {
-	use rustc_serialize::hex::FromHex;
-	let f = new_builtin_exec("sha256");
-	let i = [0u8; 0];
+impl Impl for Ripemd160 {
+	fn execute(&self, input: &[u8], output: &mut [u8]) {
+		let out_len = min(output.len(), 32);
 
-	let mut o = [255u8; 32];
-	f(&i[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
+		let mut sha = Ripemd160Digest::new();
+		sha.input(input);
 
-	let mut o8 = [255u8; 8];
-	f(&i[..], &mut o8[..]);
-	assert_eq!(&o8[..], &(FromHex::from_hex("e3b0c44298fc1c14").unwrap())[..]);
+		for x in &mut output[0.. min(12, out_len)] {
+			*x = 0;
+		}
 
-	let mut o34 = [255u8; 34];
-	f(&i[..], &mut o34[..]);
-	assert_eq!(&o34[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff").unwrap())[..]);
+		if out_len >= 32 {
+			sha.result(&mut output[12..32]);
+		} else if out_len > 12 {
+			let mut out = [0; 20];
+			sha.result(&mut out);
+
+			output.copy_from_slice(&out[12..out_len])
+		}
+	}
 }
 
-#[test]
-fn ripemd160() {
-	use rustc_serialize::hex::FromHex;
-	let f = new_builtin_exec("ripemd160");
-	let i = [0u8; 0];
+#[cfg(test)]
+mod tests {
+	use super::{Builtin, Linear, ethereum_builtin, Pricer};
+	use ethjson;
+	use util::U256;
 
-	let mut o = [255u8; 32];
-	f(&i[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap())[..]);
+	#[test]
+	fn identity() {
+		let f = ethereum_builtin("identity");
 
-	let mut o8 = [255u8; 8];
-	f(&i[..], &mut o8[..]);
-	assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
+		let i = [0u8, 1, 2, 3];
 
-	let mut o34 = [255u8; 34];
-	f(&i[..], &mut o34[..]);
-	assert_eq!(&o34[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31ffff").unwrap())[..]);
-}
+		let mut o2 = [255u8; 2];
+		f.execute(&i[..], &mut o2[..]);
+		assert_eq!(i[0..2], o2);
 
-#[test]
-fn ecrecover() {
-	use rustc_serialize::hex::FromHex;
-	/*let k = KeyPair::from_secret(b"test".sha3()).unwrap();
-	let a: Address = From::from(k.public().sha3());
-	println!("Address: {}", a);
-	let m = b"hello world".sha3();
-	println!("Message: {}", m);
-	let s = k.sign(&m).unwrap();
-	println!("Signed: {}", s);*/
+		let mut o4 = [255u8; 4];
+		f.execute(&i[..], &mut o4[..]);
+		assert_eq!(i, o4);
 
-	let f = new_builtin_exec("ecrecover");
-	let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+		let mut o8 = [255u8; 8];
+		f.execute(&i[..], &mut o8[..]);
+		assert_eq!(i, o8[..4]);
+		assert_eq!([255u8; 4], o8[4..]);
+	}
 
-	let mut o = [255u8; 32];
-	f(&i[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddb").unwrap())[..]);
+	#[test]
+	fn sha256() {
+		use rustc_serialize::hex::FromHex;
+		let f = ethereum_builtin("sha256");
 
-	let mut o8 = [255u8; 8];
-	f(&i[..], &mut o8[..]);
-	assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
+		let i = [0u8; 0];
 
-	let mut o34 = [255u8; 34];
-	f(&i[..], &mut o34[..]);
-	assert_eq!(&o34[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddbffff").unwrap())[..]);
+		let mut o = [255u8; 32];
+		f.execute(&i[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
 
-	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001a650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
-	let mut o = [255u8; 32];
-	f(&i_bad[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		let mut o8 = [255u8; 8];
+		f.execute(&i[..], &mut o8[..]);
+		assert_eq!(&o8[..], &(FromHex::from_hex("e3b0c44298fc1c14").unwrap())[..]);
 
-	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000").unwrap();
-	let mut o = [255u8; 32];
-	f(&i_bad[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		let mut o34 = [255u8; 34];
+		f.execute(&i[..], &mut o34[..]);
+		assert_eq!(&o34[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff").unwrap())[..]);
+	}
 
-	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b").unwrap();
-	let mut o = [255u8; 32];
-	f(&i_bad[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+	#[test]
+	fn ripemd160() {
+		use rustc_serialize::hex::FromHex;
+		let f = ethereum_builtin("ripemd160");
 
-	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000001b").unwrap();
-	let mut o = [255u8; 32];
-	f(&i_bad[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		let i = [0u8; 0];
 
-	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
-	let mut o = [255u8; 32];
-	f(&i_bad[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+		let mut o = [255u8; 32];
+		f.execute(&i[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap())[..]);
 
-	// TODO: Should this (corrupted version of the above) fail rather than returning some address?
-/*	let i_bad = FromHex::from_hex("48173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
-	let mut o = [255u8; 32];
-	f(&i_bad[..], &mut o[..]);
-	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);*/
-}
+		let mut o8 = [255u8; 8];
+		f.execute(&i[..], &mut o8[..]);
+		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
 
-#[test]
-#[should_panic]
-fn from_unknown_linear() {
-	let _ = Builtin::from_named_linear("dw", 10, 20);
-}
+		let mut o34 = [255u8; 34];
+		f.execute(&i[..], &mut o34[..]);
+		assert_eq!(&o34[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31ffff").unwrap())[..]);
+	}
 
-#[test]
-fn from_named_linear() {
-	let b = Builtin::from_named_linear("identity", 10, 20);
-	assert_eq!((*b.cost)(0), U256::from(10));
-	assert_eq!((*b.cost)(1), U256::from(30));
-	assert_eq!((*b.cost)(32), U256::from(30));
-	assert_eq!((*b.cost)(33), U256::from(50));
+	#[test]
+	fn ecrecover() {
+		use rustc_serialize::hex::FromHex;
+		/*let k = KeyPair::from_secret(b"test".sha3()).unwrap();
+		let a: Address = From::from(k.public().sha3());
+		println!("Address: {}", a);
+		let m = b"hello world".sha3();
+		println!("Message: {}", m);
+		let s = k.sign(&m).unwrap();
+		println!("Signed: {}", s);*/
 
-	let i = [0u8, 1, 2, 3];
-	let mut o = [255u8; 4];
-	(*b.execute)(&i[..], &mut o[..]);
-	assert_eq!(i, o);
-}
+		let f = ethereum_builtin("ecrecover");
 
-#[test]
-fn from_json() {
-	let b = Builtin::from(ethjson::spec::Builtin {
-		name: "identity".to_owned(),
-		pricing: ethjson::spec::Pricing::Linear(ethjson::spec::Linear {
-			base: 10,
-			word: 20,
-		})
-	});
+		let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 
-	assert_eq!((*b.cost)(0), U256::from(10));
-	assert_eq!((*b.cost)(1), U256::from(30));
-	assert_eq!((*b.cost)(32), U256::from(30));
-	assert_eq!((*b.cost)(33), U256::from(50));
+		let mut o = [255u8; 32];
+		f.execute(&i[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddb").unwrap())[..]);
 
-	let i = [0u8, 1, 2, 3];
-	let mut o = [255u8; 4];
-	(*b.execute)(&i[..], &mut o[..]);
-	assert_eq!(i, o);
+		let mut o8 = [255u8; 8];
+		f.execute(&i[..], &mut o8[..]);
+		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
+
+		let mut o34 = [255u8; 34];
+		f.execute(&i[..], &mut o34[..]);
+		assert_eq!(&o34[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddbffff").unwrap())[..]);
+
+		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001a650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+		let mut o = [255u8; 32];
+		f.execute(&i_bad[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+		let mut o = [255u8; 32];
+		f.execute(&i_bad[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b").unwrap();
+		let mut o = [255u8; 32];
+		f.execute(&i_bad[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000001b").unwrap();
+		let mut o = [255u8; 32];
+		f.execute(&i_bad[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
+		let mut o = [255u8; 32];
+		f.execute(&i_bad[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+		// TODO: Should this (corrupted version of the above) fail rather than returning some address?
+	/*	let i_bad = FromHex::from_hex("48173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+		let mut o = [255u8; 32];
+		f.execute(&i_bad[..], &mut o[..]);
+		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);*/
+	}
+
+	#[test]
+	#[should_panic]
+	fn from_unknown_linear() {
+		let _ = ethereum_builtin("foo");
+	}
+
+	#[test]
+	fn from_named_linear() {
+		let pricer = Box::new(Linear { base: 10, word: 20 });
+		let b = Builtin {
+			pricer: pricer as Box<Pricer>,
+			native: ethereum_builtin("identity"),
+		};
+
+		assert_eq!(b.cost(0), U256::from(10));
+		assert_eq!(b.cost(1), U256::from(30));
+		assert_eq!(b.cost(32), U256::from(30));
+		assert_eq!(b.cost(33), U256::from(50));
+
+		let i = [0u8, 1, 2, 3];
+		let mut o = [255u8; 4];
+		b.execute(&i[..], &mut o[..]);
+		assert_eq!(i, o);
+	}
+
+	#[test]
+	fn from_json() {
+		let b = Builtin::from(ethjson::spec::Builtin {
+			name: "identity".to_owned(),
+			pricing: ethjson::spec::Pricing::Linear(ethjson::spec::Linear {
+				base: 10,
+				word: 20,
+			})
+		});
+
+		assert_eq!(b.cost(0), U256::from(10));
+		assert_eq!(b.cost(1), U256::from(30));
+		assert_eq!(b.cost(32), U256::from(30));
+		assert_eq!(b.cost(33), U256::from(50));
+
+		let i = [0u8, 1, 2, 3];
+		let mut o = [255u8; 4];
+		b.execute(&i[..], &mut o[..]);
+		assert_eq!(i, o);
+	}
 }
