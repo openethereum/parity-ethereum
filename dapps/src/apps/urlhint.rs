@@ -33,8 +33,7 @@ pub struct GithubApp {
 
 impl GithubApp {
 	pub fn url(&self) -> String {
-		// format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
-		format!("http://github.todr.me/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
+		format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
 	}
 
 	fn commit(bytes: &[u8]) -> Option<[u8;COMMIT_LEN]> {

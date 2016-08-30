@@ -57,7 +57,7 @@ impl Client {
 		}
 	}
 
-	pub fn close(mut self) {
+	pub fn close(self) {
 		self.http_client.close();
 		self.https_client.close();
 	}

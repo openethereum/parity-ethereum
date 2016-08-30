@@ -44,7 +44,7 @@ enum FetchState {
 }
 
 pub trait DappHandler {
-	type Error: fmt::Debug;
+	type Error: fmt::Debug + fmt::Display;
 
 	fn validate_and_install(&self, app: PathBuf) -> Result<Manifest, Self::Error>;
 	fn done(&self, Option<&Manifest>);
@@ -165,7 +165,7 @@ impl<H: DappHandler> server::Handler<HttpStream> for AppFetcherHandler<H> {
 								trace!(target: "dapps", "Error while validating dapp: {:?}", e);
 								FetchState::Error(ContentHandler::html(
 									StatusCode::BadGateway,
-									format!("<h1>Downloaded bundle does not contain valid app.</h1><pre>{:?}</pre>", e),
+									format!("<h1>Downloaded bundle does not contain valid app.</h1><pre>{}</pre>", e),
 								))
 							},
 							Ok(manifest) => FetchState::Done(manifest)
