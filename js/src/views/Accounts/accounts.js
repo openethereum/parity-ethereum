@@ -34,17 +34,20 @@ export default class Accounts extends Component {
   }
 
   renderAccounts () {
-    if (!this.context.accounts) {
+    const { accounts } = this.context;
+
+    if (!accounts) {
       return null;
     }
 
+    const { tokens } = this.state;
     const firstTooltip = (
       <Tooltip
         top='80%'
         text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
     );
 
-    return this.context.accounts
+    return accounts
       .filter((acc) => acc.uuid)
       .map((account, idx) => {
         return (
@@ -53,7 +56,7 @@ export default class Accounts extends Component {
             key={ account.address }>
             <Summary
               account={ account }
-              tokens={ this.state.tokens }>
+              tokens={ tokens }>
               { idx === 0 ? firstTooltip : null }
             </Summary>
           </div>

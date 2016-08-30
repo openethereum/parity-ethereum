@@ -16,6 +16,18 @@ export default class Dapps extends Component {
         address: '0x6C5b287A875298f773225e72ce3fA8B2782e0347',
         description: 'Manage your GAVcoins, the hottest new property in crypto',
         url: 'gavcoin'
+      },
+      {
+        name: 'Registry',
+        address: '0x8E4e9B13D4b45Cb0befC93c3061b1408f67316B2',
+        description: 'A global registry of addresses on the network',
+        url: 'registry'
+      },
+      {
+        name: 'Token Registry',
+        address: '0x1AE76cf6Ee3955F773C429801a203f08c84B7cc5',
+        description: 'A registry of transactable tokens on the network',
+        url: 'tokenreg'
       }
     ]
   }
@@ -24,14 +36,16 @@ export default class Dapps extends Component {
     return (
       <div>
         <div className={ styles.contracts }>
-          { this.renderContracts() }
+          { this.renderApps() }
         </div>
       </div>
     );
   }
 
-  renderContracts () {
-    return this.state.apps.map((app, idx) => {
+  renderApps () {
+    const { apps } = this.state;
+
+    return apps.map((app, idx) => {
       return (
         <div
           className={ styles.contract }
