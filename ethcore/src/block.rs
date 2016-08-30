@@ -245,11 +245,11 @@ impl<'x> OpenBlock<'x> {
 			last_hashes: last_hashes,
 		};
 
-		r.block.base.header.parent_hash = parent.hash();
-		r.block.base.header.number = parent.number + 1;
-		r.block.base.header.author = author;
+		r.block.base.header.set_parent_hash(parent.hash());
+		r.block.base.header.set_number(parent.number() + 1);
+		r.block.base.header.set_author(author);
 		r.block.base.header.set_timestamp_now(parent.timestamp());
-		r.block.base.header.extra_data = extra_data;
+		r.block.base.header.set_extra_data(extra_data);
 		r.block.base.header.note_dirty();
 
 		engine.populate_from_parent(&mut r.block.base.header, parent, gas_range_target.0, gas_range_target.1);
@@ -309,13 +309,13 @@ impl<'x> OpenBlock<'x> {
 	pub fn env_info(&self) -> EnvInfo {
 		// TODO: memoise.
 		EnvInfo {
-			number: self.block.base.header.number,
-			author: self.block.base.header.author.clone(),
-			timestamp: self.block.base.header.timestamp,
-			difficulty: self.block.base.header.difficulty.clone(),
+			number: self.block.base.header.number(),
+			author: self.block.base.header.author().clone(),
+			timestamp: self.block.base.header.timestamp(),
+			difficulty: self.block.base.header.difficulty().clone(),
 			last_hashes: self.last_hashes.clone(),
 			gas_used: self.block.receipts.last().map_or(U256::zero(), |r| r.gas_used),
-			gas_limit: self.block.base.header.gas_limit.clone(),
+			gas_limit: self.block.base.header.gas_limit().clone(),
 		}
 	}
 
@@ -349,14 +349,13 @@ impl<'x> OpenBlock<'x> {
 		let unclosed_state = s.block.state.clone();
 
 		s.engine.on_close_block(&mut s.block);
-		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec()).collect());
+		s.block.base.header.set_transactions_root(ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec()).collect()));
 		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		s.block.base.header.uncles_hash = uncle_bytes.sha3();
-		s.block.base.header.state_root = s.block.state.root().clone();
-		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec()).collect());
-		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b}); //TODO: use |= operator
-		s.block.base.header.gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
-		s.block.base.header.note_dirty();
+		s.block.base.header.set_uncles_hash(uncle_bytes.sha3());
+		s.block.base.header.set_state_root(s.block.state.root().clone());
+		s.block.base.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec()).collect()));
+		s.block.base.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
+		s.block.base.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
 		ClosedBlock {
 			block: s.block,
@@ -371,20 +370,19 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		s.engine.on_close_block(&mut s.block);
-		if s.block.base.header.transactions_root.is_zero() || s.block.base.header.transactions_root == SHA3_NULL_RLP {
-			s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec()).collect());
+		if s.block.base.header.transactions_root().is_zero() || s.block.base.header.transactions_root() == &SHA3_NULL_RLP {
+			s.block.base.header.set_transactions_root(ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec()).collect()));
 		}
 		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		if s.block.base.header.uncles_hash.is_zero() {
-			s.block.base.header.uncles_hash = uncle_bytes.sha3();
+		if s.block.base.header.uncles_hash().is_zero() {
+			s.block.base.header.set_uncles_hash(uncle_bytes.sha3());
 		}
-		if s.block.base.header.receipts_root.is_zero() || s.block.base.header.receipts_root == SHA3_NULL_RLP {
-			s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec()).collect());
+		if s.block.base.header.receipts_root().is_zero() || s.block.base.header.receipts_root() == &SHA3_NULL_RLP {
+			s.block.base.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec()).collect()));
 		}
-		s.block.base.header.state_root = s.block.state.root().clone();
-		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b}); //TODO: use |= operator
-		s.block.base.header.gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
-		s.block.base.header.note_dirty();
+		s.block.base.header.set_state_root(s.block.state.root().clone());
+		s.block.base.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
+		s.block.base.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
 		LockedBlock {
 			block: s.block,
@@ -625,9 +623,9 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
-		uncle1_header.extra_data = b"uncle1".to_vec();
+		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();
-		uncle2_header.extra_data = b"uncle2".to_vec();
+		uncle2_header.set_extra_data(b"uncle2".to_vec());
 		open_block.push_uncle(uncle1_header).unwrap();
 		open_block.push_uncle(uncle2_header).unwrap();
 		let b = open_block.close_and_lock().seal(engine, vec![]).unwrap();
@@ -643,7 +641,7 @@ mod tests {
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
 		let uncles = BlockView::new(&bytes).uncles();
-		assert_eq!(uncles[1].extra_data, b"uncle2");
+		assert_eq!(uncles[1].extra_data(), b"uncle2");
 
 		let db = e.drain();
 		assert_eq!(orig_db.keys(), db.keys());

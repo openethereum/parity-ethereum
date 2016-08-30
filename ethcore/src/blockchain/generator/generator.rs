@@ -73,8 +73,8 @@ pub struct ChainGenerator {
 impl ChainGenerator {
 	fn prepare_block(&self) -> Block {
 		let mut block = Block::default();
-		block.header.number = self.number;
-		block.header.difficulty = self.difficulty;
+		block.header.set_number(self.number);
+		block.header.set_difficulty(self.difficulty);
 		block
 	}
 }
