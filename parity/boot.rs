@@ -62,10 +62,10 @@ pub fn payload<B: ipc::BinaryConvertable>() -> Result<B, BootError> {
 		.map_err(|binary_error| BootError::DecodeArgs(binary_error))
 }
 
-pub fn register(hv_url: &str, module_id: IpcModuleId) -> GuardedSocket<HypervisorServiceClient<NanoSocket>>{
+pub fn register(hv_url: &str, control_url: &str, module_id: IpcModuleId) -> GuardedSocket<HypervisorServiceClient<NanoSocket>>{
 	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(hv_url).unwrap();
 	hypervisor_client.handshake().unwrap();
-	hypervisor_client.module_ready(module_id);
+	hypervisor_client.module_ready(module_id, control_url.to_owned());
 
 	hypervisor_client
 }
