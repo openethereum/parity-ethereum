@@ -71,6 +71,8 @@ mod rpc;
 mod api;
 mod proxypac;
 mod url;
+#[cfg(test)]
+mod tests;
 
 pub use self::apps::urlhint::ContractClient;
 
@@ -205,6 +207,11 @@ impl Server {
 	pub fn set_panic_handler<F>(&self, handler: F) where F : Fn() -> () + Send + 'static {
 		*self.panic_handler.lock().unwrap() = Some(Box::new(handler));
 	}
+
+	/// Returns address that this server is bound to.
+	pub fn addr(&self) -> &SocketAddr {
+		self.server.as_ref().unwrap().addr()
+	}
 }
 
 impl Drop for Server {
@@ -239,7 +246,7 @@ pub fn random_filename() -> String {
 }
 
 #[cfg(test)]
-mod tests {
+mod util_tests {
 	use super::Server;
 
 	#[test]
