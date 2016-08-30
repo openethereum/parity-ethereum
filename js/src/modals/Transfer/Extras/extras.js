@@ -13,6 +13,7 @@ export default class Extras extends Component {
     gasEst: PropTypes.string,
     gasError: PropTypes.string,
     gasPrice: PropTypes.string,
+    gasPriceDefault: PropTypes.string,
     gasPriceError: PropTypes.string,
     total: PropTypes.string,
     totalError: PropTypes.string,
@@ -21,6 +22,7 @@ export default class Extras extends Component {
 
   render () {
     const gasLabel = `gas amount (estimated: ${this.props.gasEst})`;
+    const priceLabel = `gas price (current: ${this.props.gasPriceDefault})`;
 
     return (
       <Form>
@@ -36,7 +38,7 @@ export default class Extras extends Component {
           </div>
           <div>
             <Input
-              label='gas price'
+              label={ priceLabel }
               hint='the price of gas to use for the transaction'
               error={ this.props.gasPriceError }
               value={ this.props.gasPrice }

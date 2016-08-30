@@ -118,6 +118,7 @@ export default class Transfer extends Component {
         gasEst={ this.state.gasEst }
         gasError={ this.state.gasError }
         gasPrice={ this.state.gasPrice }
+        gasPriceDefault={ this.state.gasPriceDefault }
         gasPriceError={ this.state.gasPriceError }
         total={ this.state.total }
         totalError={ this.state.totalError }
@@ -463,7 +464,8 @@ export default class Transfer extends Component {
       .gasPrice()
       .then((gasPrice) => {
         this.setState({
-          gasPrice: gasPrice.toString()
+          gasPrice: gasPrice.toString(),
+          gasPriceDefault: gasPrice.toFormat()
         }, this.recalculate);
       });
   }
