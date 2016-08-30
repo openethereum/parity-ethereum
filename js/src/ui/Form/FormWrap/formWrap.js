@@ -4,7 +4,7 @@ import styles from './style.css';
 
 export default class FormWrap extends Component {
   static propTypes = {
-    children: PropTypes.object
+    children: PropTypes.node
   }
 
   render () {

@@ -164,15 +164,15 @@ export default class Application extends Component {
       .then(([addresses, infos]) => {
         return Promise.all(
           addresses.map((address) => {
-            const info = infos[address];
+            const { name, meta, uuid } = infos[address];
 
             accounts.push({
-              address: address,
+              address,
+              meta,
+              name,
+              uuid,
               balances: [],
-              txCount: 0,
-              name: info.name,
-              uuid: info.uuid,
-              meta: info.meta
+              txCount: 0
             });
 
             return Promise.all([
@@ -187,7 +187,7 @@ export default class Application extends Component {
           balancesTxCounts.map(([balance, txCount], idx) => {
             const account = accounts[idx];
 
-            account.txCount = txCount;
+            account.txCount = txCount.sub(0x100000); // WHY?
             account.balances.push({
               token: ETH_TOKEN,
               value: balance.toString()

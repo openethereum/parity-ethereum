@@ -69,10 +69,16 @@ export default class Account extends Component {
                 label='account name'
                 hint='a descriptive name for the account'
                 value={ name }
-                static={ <Title title={ title } byline={ address } /> }
+                static={ <Title title={ title } /> }
                 onChange={ this.onEditName } />
             </FormWrap>
             <FormWrap>
+              <div className={ styles.infoline }>
+                { address }
+              </div>
+              <div className={ styles.infoline }>
+                { account.txCount.toFormat() } outgoing transactions
+              </div>
               <Balances
                 account={ account }
                 onChange={ this.onChangeBalances } />
