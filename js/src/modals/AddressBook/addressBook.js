@@ -3,29 +3,48 @@ import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
+import ContentCreate from 'material-ui/svg-icons/content/create';
 
+import IdentityIcon from '../../ui/IdentityIcon';
 import Modal from '../../ui/Modal';
 
 import AddEntry from './AddEntry';
 import EditEntry from './EditEntry';
 
+import styles from './style.css';
+
+const editIconStyle = {
+  color: 'rgb(0, 151, 167)',
+  width: '16px',
+  height: '16px'
+};
+
 export default class AddressBook extends Component {
+  static contextTypes = {
+    api: PropTypes.object,
+    contacts: PropTypes.array
+  };
+
   static propTypes = {
     onClose: PropTypes.func
   };
 
   state = {
     showAdd: false,
-    showEdit: false
+    showEdit: false,
+    editing: null
   };
 
   render () {
     return (
       <Modal
-        visible
+        scroll visible
         actions={ this.renderDialogActions() }>
         { this.renderModals() }
-        { this.renderPage() }
+        <div className={ styles.header }>
+          <h3>address book entries</h3>
+        </div>
+        { this.renderEntries() }
       </Modal>
     );
   }
@@ -45,12 +64,51 @@ export default class AddressBook extends Component {
     ]);
   }
 
-  renderPage () {
-    return <div>content</div>;
+  renderEntries () {
+    const { contacts } = this.context;
+
+    if (!contacts.length) {
+      return (
+        <div className={ styles.noentries }>
+          There are currently no address book entries.
+        </div>
+      );
+    }
+
+    const list = contacts.map((contact) => {
+      return (
+        <div
+          key={ contact.address }
+          className={ styles.account }>
+          <IdentityIcon
+            center inline
+            address={ contact.address } />
+          <div className={ styles.details }>
+            <div
+              className={ styles.name }
+              onTouchTap={ this.wrapOnEdit(contact) }>
+              <span>{ contact.name || 'Unnamed' }</span>
+              <ContentCreate
+                style={ editIconStyle }
+                className={ styles.editicon } />
+            </div>
+            <div className={ styles.address }>
+              { contact.address }
+            </div>
+          </div>
+        </div>
+      );
+    });
+
+    return (
+      <div>
+        { list }
+      </div>
+    );
   }
 
   renderModals () {
-    const { showAdd, showEdit } = this.state;
+    const { showAdd, showEdit, editing } = this.state;
 
     if (showAdd) {
       return (
@@ -60,6 +118,7 @@ export default class AddressBook extends Component {
     } else if (showEdit) {
       return (
         <EditEntry
+          contact={ editing }
           onClose={ this.onCloseEdit } />
       );
     }
@@ -74,10 +133,21 @@ export default class AddressBook extends Component {
     });
   }
 
-  onCloseAdd = () => {
+  onCloseAdd = (address, name, description) => {
     this.setState({
       showAdd: false
     });
+
+    if (!address) {
+      return;
+    }
+
+    const { api } = this.context;
+
+    Promise.all(
+      api.personal.setAccountName(address, name),
+      api.personal.setAccountMeta(address, { description })
+    );
   }
 
   onCloseEdit = () => {
@@ -88,5 +158,14 @@ export default class AddressBook extends Component {
 
   onClose = () => {
     this.props.onClose();
+  }
+
+  wrapOnEdit (editing) {
+    return () => {
+      this.setState({
+        editing
+      });
+      console.log('editing', editing);
+    };
   }
 }
