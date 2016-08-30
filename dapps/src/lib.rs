@@ -208,9 +208,10 @@ impl Server {
 		*self.panic_handler.lock().unwrap() = Some(Box::new(handler));
 	}
 
+	#[cfg(test)]
 	/// Returns address that this server is bound to.
 	pub fn addr(&self) -> &SocketAddr {
-		self.server.as_ref().unwrap().addr()
+		self.server.as_ref().expect("server is always Some at the start; it's consumed only when object is dropped; qed").addr()
 	}
 }
 
