@@ -27,17 +27,22 @@ export default class Account extends Component {
   }
 
   state = {
-    name: DEFAULT_NAME,
+    name: null,
     fundDialog: false,
     transferDialog: false
   }
 
   componentWillMount () {
-    this.retrieveMeta();
+    this.setName();
+  }
+
+  componentWillReceiveProps () {
+    this.setName();
   }
 
   render () {
-    const { address, name } = this.props.params;
+    const { address } = this.props.params;
+    const { name } = this.state;
     const account = this.context.accounts.find((account) => account.address === address);
 
     if (!account) {
@@ -156,20 +161,22 @@ export default class Account extends Component {
     this.setState({
       name
     }, () => {
-      api.personal.setAccountName(this.props.params.address, name);
+      api.personal
+        .setAccountName(this.props.params.address, name)
+        .catch((error) => {
+          console.error(error);
+        });
     });
   }
 
-  retrieveMeta () {
-    this.context.api.personal
-      .accountsInfo()
-      .then((infos) => {
-        const info = infos[this.props.params.address];
-        this.setState({
-          name: info.name,
-          uuid: info.uuid,
-          meta: info.meta
-        });
+  setName () {
+    const { address } = this.props.params;
+    const account = this.context.accounts.find((account) => account.address === address);
+
+    if (account) {
+      this.setState({
+        name: account.name
       });
+    }
   }
 }
