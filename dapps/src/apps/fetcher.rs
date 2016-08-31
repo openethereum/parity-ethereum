@@ -98,13 +98,11 @@ impl<R: URLHint> AppFetcher<R> {
 				},
 				// App is already being fetched
 				Some(&mut ContentStatus::Fetching(_)) => {
-					(None, Box::new(ContentHandler::html(
+					(None, Box::new(ContentHandler::error_with_refresh(
 						StatusCode::ServiceUnavailable,
-						format!(
-							"<html><head>{}</head><body>{}</body></html>",
-							"<meta http-equiv=\"refresh\" content=\"1\">",
-							"<h1>This dapp is already being downloaded.</h1><h2>Please wait...</h2>",
-						)
+						"Download In Progress",
+						"This dapp is already being downloaded. Please wait...",
+						None,
 					)) as Box<Handler>)
 				},
 				// We need to start fetching app

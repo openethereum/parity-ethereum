@@ -55,10 +55,9 @@ impl Authorization for HttpBasicAuth {
 
 		match auth {
 			Access::Denied => {
-				Authorized::No(Box::new(ContentHandler::new(
+				Authorized::No(Box::new(ContentHandler::error(
 					status::StatusCode::Unauthorized,
-					"<h1>Unauthorized</h1>".into(),
-					"text/html".into(),
+					"Unauthorized", "You need to provide valid credentials to access this page.", None
 				)))
 			},
 			Access::AuthRequired => {

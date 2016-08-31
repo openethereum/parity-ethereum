@@ -16,7 +16,7 @@
 
 
 use DAPPS_DOMAIN;
-use hyper::{server, header};
+use hyper::{server, header, StatusCode};
 use hyper::net::HttpStream;
 
 use jsonrpc_http_server::{is_host_header_valid};
@@ -38,11 +38,9 @@ pub fn is_valid(request: &server::Request<HttpStream>, allowed_hosts: &[String],
 }
 
 pub fn host_invalid_response() -> Box<server::Handler<HttpStream> + Send> {
-	Box::new(ContentHandler::forbidden(
-		r#"
-		<h1>Request with disallowed <code>Host</code> header has been blocked.</h1>
-		<p>Check the URL in your browser address bar.</p>
-		"#.into(),
-		"text/html".into()
+	Box::new(ContentHandler::error(StatusCode::Forbidden,
+		"Current host is disallowed",
+		"You are trying to access your node using incorrect address.",
+		Some("Use allowed URL or specify different <code>hosts</code> CLI options.")
 	))
 }
