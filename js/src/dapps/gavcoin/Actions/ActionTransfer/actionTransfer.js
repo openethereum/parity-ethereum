@@ -89,20 +89,23 @@ export default class ActionTransfer extends Component {
           floatingLabelText='from account'
           hintText='the account the transaction will be made from'
           onSelect={ this.onChangeFromAccount } />
-        <Toggle
-          label='Input "to" address manually'
-          labelPosition='right'
-          toggled={ inputAccount }
-          onToggle={ this.onChangeToInput } />
-        <AccountSelectorText
-          gavBalance
-          selector={ !inputAccount }
-          accounts={ accounts }
-          account={ toAccount }
-          errorText={ toAccountError }
-          floatingLabelText='to account'
-          hintText='the account the coins will be sent to'
-          onChange={ this.onChangeToAccount } />
+        <div className={ styles.overlay }>
+          <AccountSelectorText
+            gavBalance
+            selector={ !inputAccount }
+            accounts={ accounts }
+            account={ toAccount }
+            errorText={ toAccountError }
+            floatingLabelText='to account'
+            hintText='the account the coins will be sent to'
+            onChange={ this.onChangeToAccount } />
+          <Toggle
+            className={ styles.overlaytoggle }
+            label='Edit'
+            labelPosition='right'
+            toggled={ inputAccount }
+            onToggle={ this.onChangeToInput } />
+        </div>
         <TextField
           autoComplete='off'
           floatingLabelFixed

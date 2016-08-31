@@ -34,3 +34,19 @@
   color: rgb(0, 188, 212);
   text-decoration: none;
 }
+
+.overlay {
+  position: relative;
+}
+
+.toggle {
+  text-align: right;
+}
+
+.overlaytoggle {
+  position: absolute !important;
+  top: 40px;
+  right: 0;
+  display: inline-block !important;
+  width: auto !important;
+}
