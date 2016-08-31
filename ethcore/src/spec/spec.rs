@@ -25,8 +25,6 @@ use super::seal::Generic as GenericSeal;
 use ethereum;
 use ethjson;
 
-use std::cell::RefCell;
-
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(test, derive(Default))]
@@ -161,32 +159,30 @@ impl Spec {
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
-		Header {
-			parent_hash: self.parent_hash.clone(),
-			timestamp: self.timestamp,
-			number: 0,
-			author: self.author.clone(),
-			transactions_root: self.transactions_root.clone(),
-			uncles_hash: RlpStream::new_list(0).out().sha3(),
-			extra_data: self.extra_data.clone(),
-			state_root: self.state_root().clone(),
-			receipts_root: self.receipts_root.clone(),
-			log_bloom: H2048::new().clone(),
-			gas_used: self.gas_used.clone(),
-			gas_limit: self.gas_limit.clone(),
-			difficulty: self.difficulty.clone(),
-			seal: {
-				let seal = {
-					let mut s = RlpStream::new_list(self.seal_fields);
-					s.append_raw(&self.seal_rlp, self.seal_fields);
-					s.out()
-				};
-				let r = Rlp::new(&seal);
-				(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
-			},
-			hash: RefCell::new(None),
-			bare_hash: RefCell::new(None),
-		}
+		let mut header: Header = Default::default();
+		header.set_parent_hash(self.parent_hash.clone());
+		header.set_timestamp(self.timestamp);
+		header.set_number(0);
+		header.set_author(self.author.clone());
+		header.set_transactions_root(self.transactions_root.clone());
+		header.set_uncles_hash(RlpStream::new_list(0).out().sha3());
+		header.set_extra_data(self.extra_data.clone());
+		header.set_state_root(self.state_root().clone());
+		header.set_receipts_root(self.receipts_root.clone());
+		header.set_log_bloom(H2048::new().clone());
+		header.set_gas_used(self.gas_used.clone());
+		header.set_gas_limit(self.gas_limit.clone());
+		header.set_difficulty(self.difficulty.clone());
+		header.set_seal({
+			let seal = {
+				let mut s = RlpStream::new_list(self.seal_fields);
+				s.append_raw(&self.seal_rlp, self.seal_fields);
+				s.out()
+			};
+			let r = Rlp::new(&seal);
+			(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
+		});
+		return header;
 	}
 
 	/// Compose the genesis block for this chain.

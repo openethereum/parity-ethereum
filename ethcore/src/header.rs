@@ -33,43 +33,42 @@ pub type BlockNumber = u64;
 /// Doesn't do all that much on its own.
 #[derive(Debug, Clone, Eq)]
 pub struct Header {
-	// TODO: make all private.
 	/// Parent hash.
-	pub parent_hash: H256,
+	parent_hash: H256,
 	/// Block timestamp.
-	pub timestamp: u64,
+	timestamp: u64,
 	/// Block number.
-	pub number: BlockNumber,
+	number: BlockNumber,
 	/// Block author.
-	pub author: Address,
+	author: Address,
 
 	/// Transactions root.
-	pub transactions_root: H256,
+	transactions_root: H256,
 	/// Block uncles hash.
-	pub uncles_hash: H256,
+	uncles_hash: H256,
 	/// Block extra data.
-	pub extra_data: Bytes,
+	extra_data: Bytes,
 
 	/// State root.
-	pub state_root: H256,
+	state_root: H256,
 	/// Block receipts root.
-	pub receipts_root: H256,
+	receipts_root: H256,
 	/// Block bloom.
-	pub log_bloom: LogBloom,
+	log_bloom: LogBloom,
 	/// Gas used for contracts execution.
-	pub gas_used: U256,
+	gas_used: U256,
 	/// Block gas limit.
-	pub gas_limit: U256,
+	gas_limit: U256,
 
 	/// Block difficulty.
-	pub difficulty: U256,
+	difficulty: U256,
 	/// Vector of post-RLP-encoded fields.
-	pub seal: Vec<Bytes>,
+	seal: Vec<Bytes>,
 
 	/// The memoized hash of the RLP representation *including* the seal fields.
-	pub hash: RefCell<Option<H256>>,
+	hash: RefCell<Option<H256>>,
 	/// The memoized hash of the RLP representation *without* the seal fields.
-	pub bare_hash: RefCell<Option<H256>>,
+	bare_hash: RefCell<Option<H256>>,
 }
 
 impl PartialEq for Header {
@@ -134,15 +133,21 @@ impl Header {
 
 	/// Get the extra data field of the header.
 	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
+	/// Get a mutable reference to extra_data
+	pub fn extra_data_mut(&mut self) -> &mut Bytes { self.note_dirty(); &mut self.extra_data }
 
 	/// Get the state root field of the header.
 	pub fn state_root(&self) -> &H256 { &self.state_root }
 	/// Get the receipts root field of the header.
 	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
+	/// Get the log bloom field of the header.
+	pub fn log_bloom(&self) -> &LogBloom { &self.log_bloom }
 	/// Get the transactions root field of the header.
 	pub fn transactions_root(&self) -> &H256 { &self.transactions_root }
 	/// Get the uncles hash field of the header.
 	pub fn uncles_hash(&self) -> &H256 { &self.uncles_hash }
+	/// Get the gas used field of the header.
+	pub fn gas_used(&self) -> &U256 { &self.gas_used }
 	/// Get the gas limit field of the header.
 	pub fn gas_limit(&self) -> &U256 { &self.gas_limit }
 

@@ -134,6 +134,11 @@ API and Console Options:
   --dapps-interface IP     Specify the hostname portion of the Dapps
                            server, IP should be an interface's IP address,
                            or local [default: local].
+  --dapps-hosts HOSTS      List of allowed Host header values. This option will
+                           validate the Host header sent by the browser, it
+                           is additional security against some attack
+                           vectors. Special options: "all", "none",
+                           [default: none].
   --dapps-user USERNAME    Specify username for Dapps server. It will be
                            used in HTTP Basic Authentication Scheme.
                            If --dapps-pass is not specified you will be
@@ -346,6 +351,7 @@ pub struct Args {
 	pub flag_no_dapps: bool,
 	pub flag_dapps_port: u16,
 	pub flag_dapps_interface: String,
+	pub flag_dapps_hosts: String,
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,

@@ -45,9 +45,9 @@ fn returns_state_root_basic() {
 	let client_result = generate_dummy_client(6);
 	let client = client_result.reference();
 	let test_spec = get_test_spec();
-	let state_root = test_spec.genesis_header().state_root;
+	let genesis_header = test_spec.genesis_header();
 
-	assert!(client.state_data(&state_root).is_some());
+	assert!(client.state_data(genesis_header.state_root()).is_some());
 }
 
 #[test]

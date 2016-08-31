@@ -18,7 +18,8 @@
 
 use std::fmt;
 use std::path::PathBuf;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
+use std::sync::atomic::AtomicBool;
 use std::time::{Instant, Duration};
 
 use hyper::{header, server, Decoder, Encoder, Next, Method, Control};
@@ -38,19 +39,20 @@ enum FetchState {
 	Error(ContentHandler),
 	InProgress {
 		deadline: Instant,
-		receiver: mpsc::Receiver<FetchResult>
+		receiver: mpsc::Receiver<FetchResult>,
 	},
 	Done(Manifest),
 }
 
-pub trait DappHandler {
+pub trait ContentValidator {
 	type Error: fmt::Debug + fmt::Display;
 
 	fn validate_and_install(&self, app: PathBuf) -> Result<Manifest, Self::Error>;
 	fn done(&self, Option<&Manifest>);
 }
 
-pub struct AppFetcherHandler<H: DappHandler> {
+pub struct ContentFetcherHandler<H: ContentValidator> {
+	abort: Arc<AtomicBool>,
 	control: Option<Control>,
 	status: FetchState,
 	client: Option<Client>,
@@ -58,7 +60,7 @@ pub struct AppFetcherHandler<H: DappHandler> {
 	dapp: H,
 }
 
-impl<H: DappHandler> Drop for AppFetcherHandler<H> {
+impl<H: ContentValidator> Drop for ContentFetcherHandler<H> {
 	fn drop(&mut self) {
 		let manifest = match self.status {
 			FetchState::Done(ref manifest) => Some(manifest),
@@ -68,16 +70,18 @@ impl<H: DappHandler> Drop for AppFetcherHandler<H> {
 	}
 }
 
-impl<H: DappHandler> AppFetcherHandler<H> {
+impl<H: ContentValidator> ContentFetcherHandler<H> {
 
 	pub fn new(
 		app: GithubApp,
+		abort: Arc<AtomicBool>,
 		control: Control,
 		using_dapps_domains: bool,
 		handler: H) -> Self {
 
 		let client = Client::new();
-		AppFetcherHandler {
+		ContentFetcherHandler {
+			abort: abort,
 			control: Some(control),
 			client: Some(client),
 			status: FetchState::NotStarted(app),
@@ -93,9 +97,8 @@ impl<H: DappHandler> AppFetcherHandler<H> {
 	}
 
 
-	// TODO [todr] https support
-	fn fetch_app(client: &mut Client, app: &GithubApp, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
-		client.request(app.url(), Box::new(move || {
+	fn fetch_app(client: &mut Client, app: &GithubApp, abort: Arc<AtomicBool>, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
+		client.request(app.url(), abort, Box::new(move || {
 			trace!(target: "dapps", "Fetching finished.");
 			// Ignoring control errors
 			let _ = control.ready(Next::read());
@@ -103,7 +106,7 @@ impl<H: DappHandler> AppFetcherHandler<H> {
 	}
 }
 
-impl<H: DappHandler> server::Handler<HttpStream> for AppFetcherHandler<H> {
+impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<H> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
 		let status = if let FetchState::NotStarted(ref app) = self.status {
 			Some(match *request.method() {
@@ -112,7 +115,7 @@ impl<H: DappHandler> server::Handler<HttpStream> for AppFetcherHandler<H> {
 					trace!(target: "dapps", "Fetching dapp: {:?}", app);
 					let control = self.control.take().expect("on_request is called only once, thus control is always Some");
 					let client = self.client.as_mut().expect("on_request is called before client is closed.");
-					let fetch = Self::fetch_app(client, app, control);
+					let fetch = Self::fetch_app(client, app, self.abort.clone(), control);
 					match fetch {
 						Ok(receiver) => FetchState::InProgress {
 							deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),

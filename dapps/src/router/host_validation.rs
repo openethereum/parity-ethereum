@@ -22,13 +22,11 @@ use hyper::net::HttpStream;
 use jsonrpc_http_server::{is_host_header_valid};
 use handlers::ContentHandler;
 
-pub fn is_valid(request: &server::Request<HttpStream>, bind_address: &str, endpoints: Vec<String>) -> bool {
-	let mut endpoints = endpoints.into_iter()
+pub fn is_valid(request: &server::Request<HttpStream>, allowed_hosts: &[String], endpoints: Vec<String>) -> bool {
+	let mut endpoints = endpoints.iter()
 		.map(|endpoint| format!("{}{}", endpoint, DAPPS_DOMAIN))
 		.collect::<Vec<String>>();
-	// Add localhost domain as valid too if listening on loopback interface.
-	endpoints.push(bind_address.replace("127.0.0.1", "localhost").into());
-	endpoints.push(bind_address.into());
+	endpoints.extend_from_slice(allowed_hosts);
 
 	let header_valid = is_host_header_valid(request, &endpoints);
 
