@@ -975,8 +975,8 @@ impl BlockChain {
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let addresses = data.enacted.iter()
-					.map(|hash| (hash, self.block_body(hash).unwrap()))
-					.flat_map(|(hash, bytes)| {
+					.flat_map(|hash| {
+						let bytes = self.block_body(hash).expect("Enacted block must be in database.");
 						let hashes = BodyView::new(&bytes).transaction_hashes();
 						hashes.into_iter()
 							.enumerate()
