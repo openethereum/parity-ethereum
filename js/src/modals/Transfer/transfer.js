@@ -359,6 +359,8 @@ export default class Transfer extends Component {
         });
       })
       .catch((error) => {
+        console.log('send', error);
+
         this.setState({
           sending: false
         });
@@ -424,7 +426,7 @@ export default class Transfer extends Component {
       }, this.recalculate);
     })
     .catch((error) => {
-      console.error(error);
+      console.error('etimateGas', error);
     });
   }
 

@@ -1,11 +1,9 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-import { Checkbox, FloatingActionButton, MenuItem } from 'material-ui';
-import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
+import { Checkbox, MenuItem } from 'material-ui';
 
 import Api from '../../../api';
-import AddressSelector from '../../AddressSelector';
-import Form, { Input, Select } from '../../../ui/Form';
+import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
 import IdentityIcon from '../../../ui/IdentityIcon';
 
 import styles from '../style.css';
@@ -35,10 +33,6 @@ export default class Details extends Component {
     onChange: PropTypes.func.isRequired
   }
 
-  state = {
-    showAddresses: false
-  }
-
   render () {
     const { all, extras, tag, total, totalError, value, valueError } = this.props;
     const label = `amount to transfer (in ${tag})`;
@@ -46,8 +40,6 @@ export default class Details extends Component {
     return (
       <Form>
         { this.renderTokenSelect() }
-        { this.renderFromAddress() }
-        { this.renderAddressSelect() }
         { this.renderToAddress() }
         <div className={ styles.columns }>
           <div>
@@ -130,48 +122,15 @@ export default class Details extends Component {
   renderToAddress () {
     const { recipient, recipientError } = this.props;
 
-    const iconClass = recipientError
-      ? `${styles.icon} ${styles.grayscale}`
-      : styles.icon;
-
-    const iconAddress = recipientError
-      ? '0x00'
-      : recipient;
-
     return (
       <div className={ styles.address }>
-        <Input
+        <InputAddressSelect
           label='recipient address'
           hint='the recipient address'
           error={ recipientError }
           value={ recipient }
           onChange={ this.onEditRecipient } />
-        <div className={ iconClass }>
-          <IdentityIcon
-            inline center
-            address={ iconAddress } />
-        </div>
-        <div className={ styles.floatbutton }>
-          <FloatingActionButton
-            mini
-            onTouchTap={ this.onContacts }>
-            <CommunicationContacts />
-          </FloatingActionButton>
-        </div>
       </div>
-    );
-  }
-
-  renderAddressSelect () {
-    const { showAddresses } = this.state;
-
-    if (!showAddresses) {
-      return null;
-    }
-
-    return (
-      <AddressSelector
-        onSelect={ this.onSelectRecipient } />
     );
   }
 
@@ -233,13 +192,8 @@ export default class Details extends Component {
     this.props.onChange('tag', account.balances[value].token.tag);
   }
 
-  onSelectRecipient = (recipient) => {
-    this.setState({ showAddresses: false });
+  onEditRecipient = (event, recipient) => {
     this.props.onChange('recipient', recipient);
-  }
-
-  onEditRecipient = (event) => {
-    this.onSelectRecipient(event.target.value);
   }
 
   onEditValue = (event) => {
