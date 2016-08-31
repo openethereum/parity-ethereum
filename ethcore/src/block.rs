@@ -505,7 +505,7 @@ pub fn enact(
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
 			let s = try!(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(), trie_factory.clone()));
-			trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
+			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n", header.number(), s.root(), header.author(), s.balance(&header.author()));
 		}
 	}
 
