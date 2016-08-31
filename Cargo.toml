@@ -61,7 +61,7 @@ dapps = ["ethcore-dapps"]
 ipc = ["ethcore/ipc"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 json-tests = ["ethcore/json-tests"]
-stratum = ["ipc"]
+stratum = ["ipc", "ethcore/stratum"]
 
 [[bin]]
 path = "parity/main.rs"
