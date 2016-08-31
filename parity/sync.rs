@@ -31,9 +31,10 @@ struct SyncControlService {
 }
 
 impl ControlService for SyncControlService {
-	fn shutdown(&self) {
+	fn shutdown(&self) -> bool {
 		trace!(target: "hypervisor", "Received shutdown from control service");
 		self.stop.store(true, ::std::sync::atomic::Ordering::SeqCst);
+		true
 	}
 }
 
@@ -83,7 +84,7 @@ pub fn main() {
 	while !thread_stop.load(::std::sync::atomic::Ordering::SeqCst) {
 		worker.poll();
 	}
-	service_stop.store(true, ::std::sync::atomic::Ordering::Relaxed);
+	service_stop.store(true, ::std::sync::atomic::Ordering::SeqCst);
 
 	hypervisor.module_shutdown(SYNC_MODULE_ID);
 	trace!(target: "hypervisor", "Sync process terminated gracefully");

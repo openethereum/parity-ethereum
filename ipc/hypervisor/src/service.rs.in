@@ -42,7 +42,7 @@ pub struct ModuleState {
 
 #[derive(Ipc)]
 pub trait ControlService {
-	fn shutdown(&self);
+	fn shutdown(&self) -> bool;
 }
 
 #[derive(Ipc)]
