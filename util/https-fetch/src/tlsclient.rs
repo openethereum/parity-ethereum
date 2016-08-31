@@ -66,14 +66,15 @@ impl io::Read for TlsClient {
 	}
 }
 
+#[cfg(feature = "ca-github-only")]
+static CA_CERTS: &'static [u8] = include_bytes!("./ca-github.crt");
+#[cfg(not(feature = "ca-github-only"))]
+static CA_CERTS: &'static [u8] = include_bytes!("./ca-certificates.crt");
+
 impl TlsClient {
 	pub fn make_config() -> Result<Arc<rustls::ClientConfig>, FetchError> {
 		let mut config = rustls::ClientConfig::new();
-		let mut cursor = Cursor::new(if cfg!(feature = "ca-github-only") {
-			include_bytes!("./ca-github.crt").to_vec()
-		} else {
-			include_bytes!("./ca-certificates.crt").to_vec()
-		});
+		let mut cursor = Cursor::new(CA_CERTS.to_vec());
 		let mut reader = BufReader::new(&mut cursor);
 		try!(config.root_store.add_pem_file(&mut reader).map_err(|_| FetchError::ReadingCaCertificates));
 		// TODO [ToDr] client certificate?

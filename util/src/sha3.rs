@@ -17,7 +17,7 @@
 //! Wrapper around tiny-keccak crate.
 extern crate sha3 as sha3_ext;
 
-use std::io::{self, Read};
+use std::io;
 use std::mem::uninitialized;
 use tiny_keccak::Keccak;
 use bytes::{BytesConvertable, Populatable};
@@ -67,7 +67,7 @@ impl<T> Hashable for T where T: BytesConvertable {
 }
 
 /// Calculate SHA3 of given stream.
-pub fn sha3<R: io::Read>(r: &mut io::BufReader<R>) -> Result<H256, io::Error> {
+pub fn sha3(r: &mut io::BufRead) -> Result<H256, io::Error> {
 	let mut output = [0u8; 32];
 	let mut input = [0u8; 1024];
 	let mut sha3 = Keccak::new_keccak256();
@@ -88,7 +88,7 @@ pub fn sha3<R: io::Read>(r: &mut io::BufReader<R>) -> Result<H256, io::Error> {
 #[cfg(test)]
 mod tests {
 	use std::fs;
-	use std::io::Write;
+	use std::io::{Write, BufReader};
 	use super::*;
 
 	#[test]
@@ -111,7 +111,7 @@ mod tests {
 			file.write_all(b"something").unwrap();
 		}
 
-		let mut file = fs::File::open(&path).unwrap();
+		let mut file = BufReader::new(fs::File::open(&path).unwrap());
 		// when
 		let hash = sha3(&mut file).unwrap();
 

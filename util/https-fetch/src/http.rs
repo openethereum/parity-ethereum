@@ -101,7 +101,7 @@ impl HttpProcessor {
 	}
 	fn set_state(&mut self, state: State) {
 		self.state = state;
-		debug!("Changing state to {:?}", state);
+		trace!("Changing state to {:?}", state);
 	}
 
 	fn process_buffer(&mut self) -> io::Result<()> {
@@ -111,7 +111,7 @@ impl HttpProcessor {
 				State::WaitingForStatus => {
 					if let Some(break_index) = self.find_break_index() {
 						let status = self.buffer_to_string(break_index);
-						trace!("Read status: {:?}", status);
+						debug!("Read status: {:?}", status);
 						self.status = Some(status);
 						self.set_state(State::WaitingForHeaders);
 					} else {
@@ -132,7 +132,7 @@ impl HttpProcessor {
 						},
 						Some(break_index) => {
 							let header = self.buffer_to_string(break_index);
-							trace!("Found header: {:?}", header);
+							debug!("Found header: {:?}", header);
 							self.headers.push(header);
 						},
 						None => return Ok(()),
@@ -161,6 +161,9 @@ impl HttpProcessor {
 							});
 						}
 					}
+				},
+				State::WritingChunk(0) => {
+					self.set_state(State::Finished);
 				},
 				// Buffers the data until we have a full chunk
 				State::WritingChunk(left) if self.buffer.get_ref().len() >= left => {
@@ -236,6 +239,7 @@ mod tests {
 				Server: Pari
 			";
 		http.write_all(out.as_bytes()).unwrap();
+		http.flush().unwrap();
 
 		// then
 		assert_eq!(http.status().unwrap(), "HTTP/1.1 200 OK");
@@ -258,6 +262,7 @@ mod tests {
 				\r\n\
 			";
 		http.write_all(out.as_bytes()).unwrap();
+		http.flush().unwrap();
 
 		// then
 		assert_eq!(http.status().unwrap(), "HTTP/1.1 200 OK");
@@ -283,6 +288,7 @@ mod tests {
 				Some data\
 			";
 		http.write_all(out.as_bytes()).unwrap();
+		http.flush().unwrap();
 
 		// then
 		assert_eq!(http.status().unwrap(), "HTTP/1.1 200 OK");
@@ -317,11 +323,12 @@ mod tests {
 				\r\n\
 			";
 		http.write_all(out.as_bytes()).unwrap();
+		http.flush().unwrap();
 
 		// then
 		assert_eq!(http.status().unwrap(), "HTTP/1.1 200 OK");
 		assert_eq!(http.headers().len(), 3);
 		assert_eq!(data.borrow().get_ref()[..], b"Parity in\r\n\r\nchunks."[..]);
-		assert_eq!(http.state(), State::WaitingForChunk);
+		assert_eq!(http.state(), State::Finished);
 	}
 }

@@ -301,6 +301,6 @@ mod tests {
 		let url = app.url();
 
 		// then
-		assert_eq!(url, "http://github.todr.me/test/xyz/zip/000102030405060708090a0b0c0d0e0f10111213".to_owned());
+		assert_eq!(url, "https://codeload.github.com/test/xyz/zip/000102030405060708090a0b0c0d0e0f10111213".to_owned());
 	}
 }

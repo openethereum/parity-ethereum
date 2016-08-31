@@ -174,7 +174,7 @@ impl mio::Handler for ClientLoop {
 fn should_successfuly_fetch_a_page() {
 	use std::io::{self, Cursor};
 	use std::sync::{mpsc, Arc};
-	use std::sync::atomic::{AtomicUsize, Ordering};
+	use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 
 	struct Writer {
 		wrote: Arc<AtomicUsize>,
@@ -200,11 +200,11 @@ fn should_successfuly_fetch_a_page() {
 		data: Cursor::new(Vec::new()),
 	};
 	let (tx, rx) = mpsc::channel();
-	client.fetch(Url::new("github.com", 443, "/").unwrap(), Box::new(writer), move |result| {
+	client.fetch(Url::new("github.com", 443, "/").unwrap(), Box::new(writer), Arc::new(AtomicBool::new(false)), move |result| {
 		assert!(result.is_ok());
 		assert!(wrote.load(Ordering::Relaxed) > 0);
 		tx.send(result).unwrap();
-	});
+	}).unwrap();
 	let _ = rx.recv().unwrap();
 }
 
