@@ -42,7 +42,8 @@ impl server::Handler<HttpStream> for Redirection {
 	}
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		res.set_status(StatusCode::MovedPermanently);
+		// Don't use `MovedPermanently` here to prevent browser from caching the redirections.
+		res.set_status(StatusCode::Found);
 		res.headers_mut().set(header::Location(self.to_url.to_owned()));
 		Next::write()
 	}
