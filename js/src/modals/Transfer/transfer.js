@@ -38,8 +38,8 @@ export default class Transfer extends Component {
 
   state = {
     stage: 0,
-    extraData: '',
-    extraDataError: null,
+    data: '',
+    dataError: null,
     extras: false,
     gas: DEFAULT_GAS,
     gasEst: '0',
@@ -113,7 +113,8 @@ export default class Transfer extends Component {
     return (
       <Extras
         isEth={ this.state.isEth }
-        extraData={ this.state.extraData }
+        data={ this.state.data }
+        dataError={ this.state.dataError }
         gas={ this.state.gas }
         gasEst={ this.state.gasEst }
         gasError={ this.state.gasError }
@@ -215,10 +216,10 @@ export default class Transfer extends Component {
     });
   }
 
-  _onUpdateExtraData (extraData) {
+  _onUpdateData (data) {
     this.setState({
-      extraData
-    });
+      data
+    }, this.recalculateGas);
   }
 
   validatePositiveNumber (num) {
@@ -291,8 +292,8 @@ export default class Transfer extends Component {
       case 'extras':
         return this._onUpdateExtras(value);
 
-      case 'extraData':
-        return this._onUpdateExtraData(value);
+      case 'data':
+        return this._onUpdateData(value);
 
       case 'gas':
         return this._onUpdateGas(value);
@@ -312,81 +313,98 @@ export default class Transfer extends Component {
   }
 
   _sendEth () {
-    return this.context.api.eth
-      .postTransaction({
-        from: this.props.account.address,
-        to: this.state.recipient,
-        gas: this.state.gas,
-        gasPrice: this.state.gasPrice,
-        value: Api.format.toWei(this.state.value)
-      });
+    const { account } = this.props;
+    const { data, gas, gasPrice, recipient, value } = this.state;
+    const options = {
+      from: account.address,
+      to: recipient,
+      gas,
+      gasPrice,
+      value: Api.format.toWei(value || 0)
+    };
+
+    if (data && data.length) {
+      options.data = data;
+    }
+
+    return this.context.api.eth.postTransaction(options);
   }
 
   _sendToken () {
-    const token = this.props.account.balances.find((balance) => balance.token.tag === this.state.tag).token;
+    const { account } = this.props;
+    const { recipient, value } = this.state;
+    const token = account.balances.find((balance) => balance.token.tag === this.state.tag).token;
 
     return token.contract.instance.transfer
       .postTransaction({
-        from: this.props.account.address,
+        from: account.address,
         to: token.address
       }, [
-        this.state.recipient,
-        new BigNumber(this.state.value).mul(token.format).toString()
+        recipient,
+        new BigNumber(value).mul(token.format).toString()
       ]);
   }
 
   onSend = () => {
     this.onNext();
-    this.setState({
-      sending: true
-    }, () => {
+
+    this.setState({ sending: true }, () => {
       (this.state.isEth
         ? this._sendEth()
         : this._sendToken()
       ).then((txhash) => {
-        console.log('transaction', txhash);
         this.setState({
           sending: false,
-          txhash: txhash
+          txhash
         });
       })
       .catch((error) => {
         this.setState({
           sending: false
         });
+
         this.context.errorHandler(error);
       });
     });
   }
 
   onClose = () => {
-    this.setState({
-      stage: 0
-    }, () => {
+    this.setState({ stage: 0 }, () => {
       this.props.onClose && this.props.onClose();
     });
   }
 
   _estimateGasToken () {
-    const token = this.props.account.balances.find((balance) => balance.token.tag === this.state.tag).token;
+    const { account } = this.props;
+    const { recipient, value } = this.state;
+    const token = account.balances.find((balance) => balance.token.tag === this.state.tag).token;
 
     return token.contract.instance.transfer
       .estimateGas({
-        from: this.props.account.address,
+        from: account.address,
         to: token.address
       }, [
-        this.state.recipient,
-        new BigNumber(this.state.value || 0).mul(token.format).toString()
+        recipient,
+        new BigNumber(value || 0).mul(token.format).toString()
       ]);
   }
 
   _estimateGasEth () {
-    return this.context.api.eth
-      .estimateGas({
-        from: this.props.account.address,
-        to: this.state.recipient,
-        value: Api.format.toWei(this.state.value || 0)
-      });
+    const { account } = this.props;
+    const { data, gas, gasPrice, recipient, value } = this.state;
+    const options = {
+      from: account.address,
+      to: recipient,
+      gas,
+      gasPrice,
+      value: Api.format.toWei(value || 0)
+    };
+
+    if (data && data.length) {
+      options.data = data;
+    }
+
+    return this.context.api.eth.estimateGas(options);
   }
 
   recalculateGas = () => {
@@ -404,38 +422,41 @@ export default class Transfer extends Component {
         gas: gas.toFixed(0),
         gasEst: _value.toFormat()
       }, this.recalculate);
+    })
+    .catch((error) => {
+      console.error(error);
     });
   }
 
   recalculate = () => {
-    if (!this.props.account) {
+    const { account } = this.props;
+
+    if (!account) {
       return;
     }
 
-    const gasTotal = new BigNumber(this.state.gasPrice || 0).mul(new BigNumber(this.state.gas || 0));
-    const balances = this.props.account.balances;
-    const balance = balances.find((balance) => this.state.tag === balance.token.tag);
+    const { gas, gasPrice, tag, valueAll, isEth } = this.state;
+    const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
+    const balances = account.balances;
+    const balance = balances.find((balance) => tag === balance.token.tag);
     const availableEth = new BigNumber(balances[0].value);
     const available = new BigNumber(balance.value);
     const format = new BigNumber(balance.token.format || 1);
 
-    let value = this.state.value;
-    let valueError = this.state.valueError;
+    let { value, valueError } = this.state;
     let totalEth = gasTotal;
     let totalError = null;
 
-    if (this.state.valueAll) {
-      if (this.state.isEth) {
+    if (valueAll) {
+      if (isEth) {
         const bn = Api.format.fromWei(availableEth.minus(gasTotal));
         value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
       } else {
         value = available.div(format).toString();
       }
-
-      console.log('isEth', this.state.isEth, value);
     }
 
-    if (this.state.isEth) {
+    if (isEth) {
       totalEth = totalEth.plus(Api.format.toWei(value || 0));
     }
 

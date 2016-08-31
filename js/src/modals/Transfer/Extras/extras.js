@@ -7,8 +7,8 @@ import styles from '../style.css';
 export default class Extras extends Component {
   static propTypes = {
     isEth: PropTypes.bool,
-    extraData: PropTypes.string,
-    extraDataError: PropTypes.string,
+    data: PropTypes.string,
+    dataError: PropTypes.string,
     gas: PropTypes.string,
     gasEst: PropTypes.string,
     gasError: PropTypes.string,
@@ -21,27 +21,28 @@ export default class Extras extends Component {
   }
 
   render () {
-    const gasLabel = `gas amount (estimated: ${this.props.gasEst})`;
-    const priceLabel = `gas price (current: ${this.props.gasPriceDefault})`;
+    const { gas, gasError, gasEst, gasPrice, gasPriceDefault, gasPriceError, total, totalError } = this.props;
+    const gasLabel = `gas amount (estimated: ${gasEst})`;
+    const priceLabel = `gas price (current: ${gasPriceDefault})`;
 
     return (
       <Form>
-        { this.renderExtraData() }
+        { this.renderData() }
         <div className={ styles.columns }>
           <div>
             <Input
               label={ gasLabel }
               hint='the amount of gas to use for the transaction'
-              error={ this.props.gasError }
-              value={ this.props.gas }
+              error={ gasError }
+              value={ gas }
               onChange={ this.onEditGas } />
           </div>
           <div>
             <Input
               label={ priceLabel }
               hint='the price of gas to use for the transaction'
-              error={ this.props.gasPriceError }
-              value={ this.props.gasPrice }
+              error={ gasPriceError }
+              value={ gasPrice }
               onChange={ this.onEditGasPrice } />
           </div>
         </div>
@@ -51,28 +52,29 @@ export default class Extras extends Component {
               disabled
               label='total transaction amount'
               hint='the total amount of the transaction'
-              error={ this.props.totalError }
-              value={ `${this.props.total} ΞTH` } />
+              error={ totalError }
+              value={ `${total} ΞTH` } />
           </div>
         </div>
       </Form>
     );
   }
 
-  renderExtraData () {
-    if (!this.props.isEth) {
+  renderData () {
+    const { isEth, data, dataError } = this.props;
+
+    if (!isEth) {
       return null;
     }
 
     return (
       <div>
         <Input
-          hint='the extraData to pass through with the transaction'
-          label='transaction extraData'
-          multiLine
-          rows={ 1 }
-          value={ this.props.extraData }
-          onChange={ this.onEditExtraData } />
+          hint='the data to pass through with the transaction'
+          label='transaction data'
+          value={ data }
+          error={ dataError }
+          onChange={ this.onEditData } />
       </div>
     );
   }
@@ -85,7 +87,7 @@ export default class Extras extends Component {
     this.props.onChange('gasPrice', event.target.value);
   }
 
-  onEditExtraData = (event) => {
-    this.props.onChange('extraData', event.target.value);
+  onEditData = (event) => {
+    this.props.onChange('data', event.target.value);
   }
 }
