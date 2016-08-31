@@ -4,7 +4,6 @@ import { Checkbox, MenuItem } from 'material-ui';
 
 import Api from '../../../api';
 import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
-import IdentityIcon from '../../../ui/IdentityIcon';
 
 import styles from '../style.css';
 
@@ -77,45 +76,6 @@ export default class Details extends Component {
           </div>
         </div>
       </Form>
-    );
-  }
-
-  renderFromAddress () {
-    const { accounts } = this.context;
-    const { address, tag } = this.props;
-    const account = accounts.find((acc) => acc.address === address);
-    const balance = account.balances.find((balance) => balance.token.tag === tag);
-    const isEth = account.balances[0].token.tag === balance.token.tag;
-    let value = 0;
-
-    if (isEth) {
-      value = Api.format.fromWei(balance.value).toFormat(3);
-    } else {
-      value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
-    }
-
-    return (
-      <div className={ styles.address }>
-        <Input
-          disabled
-          label='from address'
-          value={ account.name || 'Unnamed' }>
-          <div className={ styles.from }>
-            <div className={ styles.fromaddress }>
-              { account.name || 'Unnamed' }
-            </div>
-            <div className={ styles.frombalance }>
-              { value } { balance.token.tag }
-            </div>
-          </div>
-        </Input>
-        <div className={ styles.icon }>
-          <IdentityIcon
-            className={ styles.icon }
-            inline center
-            address={ address } />
-        </div>
-      </div>
     );
   }
 
