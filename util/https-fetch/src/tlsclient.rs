@@ -16,6 +16,7 @@
 
 use std::str;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::io::{self, Write, Read, Cursor, BufReader};
 
 use mio;
@@ -28,6 +29,7 @@ use client::{FetchError, ClientLoop, FetchResult};
 
 #[derive(Debug)]
 pub enum TlsClientError {
+	Aborted,
 	Initialization,
 	UnexpectedEof,
 	Connection(io::Error),
@@ -38,6 +40,7 @@ pub enum TlsClientError {
 /// This encapsulates the TCP-level connection, some connection
 /// state, and the underlying TLS-level session.
 pub struct TlsClient {
+	abort: Arc<AtomicBool>,
 	token: mio::Token,
 	socket: TcpStream,
 	tls_session: rustls::ClientSession,
@@ -81,6 +84,7 @@ impl TlsClient {
 		token: mio::Token,
 		url: &Url,
 		writer: Box<io::Write + Send>,
+		abort: Arc<AtomicBool>,
 		mut callback: Box<FnMut(FetchResult) + Send>,
 		) -> Result<Self, FetchError> {
 			let res = TlsClient::make_config().and_then(|cfg| {
@@ -91,6 +95,7 @@ impl TlsClient {
 
 			match res {
 				Ok((cfg, sock)) => Ok(TlsClient {
+					abort: abort,
 					token: token,
 					writer: HttpProcessor::new(writer),
 					socket: sock,
@@ -111,6 +116,13 @@ impl TlsClient {
 	pub fn ready(&mut self, event_loop: &mut mio::EventLoop<ClientLoop>, token: mio::Token, events: mio::EventSet) -> bool {
 		assert_eq!(token, self.token);
 
+		let aborted = self.is_aborted();
+		if aborted {
+			// do_write needs to be invoked after that
+			self.tls_session.send_close_notify();
+			self.error = Some(TlsClientError::Aborted);
+		}
+
 		if events.is_readable() {
 			self.do_read();
 		}
@@ -119,7 +131,7 @@ impl TlsClient {
 			self.do_write();
 		}
 
-		if self.is_closed() {
+		if self.is_closed() || aborted {
 			trace!("Connection closed");
 			let callback = &mut self.callback;
 			callback(match self.error.take() {
@@ -225,6 +237,10 @@ impl TlsClient {
 
 	fn is_closed(&self) -> bool {
 		self.closing
+	}
+
+	fn is_aborted(&self) -> bool {
+		self.abort.load(Ordering::Relaxed)
 	}
 }
 

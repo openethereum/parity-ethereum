@@ -19,7 +19,8 @@
 pub mod fetch_file;
 
 use std::env;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
+use std::sync::atomic::AtomicBool;
 use std::path::PathBuf;
 
 use hyper;
@@ -62,7 +63,7 @@ impl Client {
 		self.https_client.close();
 	}
 
-	pub fn request(&mut self, url: String, on_done: Box<Fn() + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
+	pub fn request(&mut self, url: String, abort: Arc<AtomicBool>, on_done: Box<Fn() + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
 		let is_https = url.starts_with("https://");
 		let url = try!(url.parse().map_err(|_| FetchError::InvalidUrl));
 		trace!(target: "dapps", "Fetching from: {:?}", url);
@@ -71,7 +72,7 @@ impl Client {
 
 			let (tx, rx) = mpsc::channel();
 			let temp_path = Self::temp_path();
-			let res = self.https_client.fetch_to_file(url, temp_path.clone(), move |result| {
+			let res = self.https_client.fetch_to_file(url, temp_path.clone(), abort, move |result| {
 				let res = tx.send(
 					result.map(|_| temp_path).map_err(FetchError::Https)
 				);
@@ -87,7 +88,7 @@ impl Client {
 			}
 		} else {
 			let (tx, rx) = mpsc::channel();
-			let res = self.http_client.request(url, Fetch::new(tx, on_done));
+			let res = self.http_client.request(url, Fetch::new(tx, abort, on_done));
 
 			match res {
 				Ok(_) => Ok(rx),

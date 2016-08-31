@@ -16,6 +16,8 @@
 
 use std::cell::RefCell;
 use std::{fs, str, thread};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::path::PathBuf;
 use std::io::{self, Write};
 use std::collections::HashMap;
@@ -56,7 +58,7 @@ impl From<TlsClientError> for FetchError {
 pub type FetchResult = Result<(), FetchError>;
 
 pub enum ClientMessage {
-	Fetch(Url, Box<io::Write + Send>, Box<FnMut(FetchResult) + Send>),
+	Fetch(Url, Box<io::Write + Send>, Arc<AtomicBool>, Box<FnMut(FetchResult) + Send>),
 	Shutdown,
 }
 
@@ -93,9 +95,9 @@ impl Client {
 		})
 	}
 
-	pub fn fetch_to_file<F: FnOnce(FetchResult) + Send + 'static>(&self, url: Url, path: PathBuf, callback: F) -> Result<(), FetchError> {
+	pub fn fetch_to_file<F: FnOnce(FetchResult) + Send + 'static>(&self, url: Url, path: PathBuf, abort: Arc<AtomicBool>, callback: F) -> Result<(), FetchError> {
 		let file = try!(fs::File::create(&path));
-		self.fetch(url, Box::new(file), move |result| {
+		self.fetch(url, Box::new(file), abort, move |result| {
 			if let Err(_) = result {
 				// remove temporary file
 				let _ = fs::remove_file(&path);
@@ -104,9 +106,9 @@ impl Client {
 		})
 	}
 
-	pub fn fetch<F: FnOnce(FetchResult) + Send + 'static>(&self, url: Url, writer: Box<io::Write + Send>, callback: F) -> Result<(), FetchError> {
+	pub fn fetch<F: FnOnce(FetchResult) + Send + 'static>(&self, url: Url, writer: Box<io::Write + Send>, abort: Arc<AtomicBool>, callback: F) -> Result<(), FetchError> {
 		let cell = RefCell::new(Some(callback));
-		try!(self.channel.send(ClientMessage::Fetch(url, writer, Box::new(move |res| {
+		try!(self.channel.send(ClientMessage::Fetch(url, writer, abort, Box::new(move |res| {
 			cell.borrow_mut().take().expect("Called only once.")(res);
 		}))));
 		Ok(())
@@ -148,11 +150,11 @@ impl mio::Handler for ClientLoop {
 	fn notify(&mut self, event_loop: &mut mio::EventLoop<Self>, msg: Self::Message) {
 		match msg {
 			ClientMessage::Shutdown => event_loop.shutdown(),
-			ClientMessage::Fetch(url, writer, callback) => {
+			ClientMessage::Fetch(url, writer, abort, callback) => {
 				let token = self.next_token;
 				self.next_token += 1;
 
-				if let Ok(mut tlsclient) = TlsClient::new(mio::Token(token), &url, writer, callback) {
+				if let Ok(mut tlsclient) = TlsClient::new(mio::Token(token), &url, writer, abort, callback) {
 					let httpreq = format!(
 						"GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n",
 						url.path(),
