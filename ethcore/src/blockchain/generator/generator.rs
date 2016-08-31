@@ -16,10 +16,12 @@
 
 use util::{U256, H2048, Bytes};
 use header::BlockNumber;
+use transaction::SignedTransaction;
 use super::fork::Fork;
 use super::bloom::Bloom;
 use super::complete::{BlockFinalizer, CompleteBlock, Complete};
 use super::block::Block;
+use super::transaction::Transaction;
 
 /// Chain iterator interface.
 pub trait ChainIterator: Iterator + Sized {
@@ -28,6 +30,8 @@ pub trait ChainIterator: Iterator + Sized {
 	fn fork(&self, fork_number: usize) -> Fork<Self> where Self: Clone;
 	/// Should be called to make every consecutive block have given bloom.
 	fn with_bloom(&mut self, bloom: H2048) -> Bloom<Self>;
+	/// Should be called to make every consecutive block have given transaction.
+	fn with_transaction(&mut self, transaction: SignedTransaction) -> Transaction<Self>;
 	/// Should be called to complete block. Without complete, block may have incorrect hash.
 	fn complete<'a>(&'a mut self, finalizer: &'a mut BlockFinalizer) -> Complete<'a, Self>;
 	/// Completes and generates block.
@@ -46,6 +50,13 @@ impl<I> ChainIterator for I where I: Iterator + Sized {
 		Bloom {
 			iter: self,
 			bloom: bloom
+		}
+	}
+
+	fn with_transaction(&mut self, transaction: SignedTransaction) -> Transaction<Self> {
+		Transaction {
+			iter: self,
+			transaction: transaction,
 		}
 	}
 
@@ -83,7 +94,7 @@ impl Default for ChainGenerator {
 	fn default() -> Self {
 		ChainGenerator {
 			number: 0,
-			difficulty: U256::from(1000),
+			difficulty: 1000.into(),
 		}
 	}
 }
