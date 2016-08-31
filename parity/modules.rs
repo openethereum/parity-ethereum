@@ -32,6 +32,7 @@ pub mod service_urls {
 	pub const SYNC: &'static str = "parity-sync.ipc";
 	pub const SYNC_NOTIFY: &'static str = "parity-sync-notify.ipc";
 	pub const NETWORK_MANAGER: &'static str = "parity-manage-net.ipc";
+	pub const SYNC_CONTROL: &'static str = "parity-sync-control.ipc";
 	#[cfg(feature="stratum")]
 	pub const STRATUM: &'static str = "parity-stratum.ipc";
 	#[cfg(feature="stratum")]
