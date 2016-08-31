@@ -1,0 +1,18 @@
+:root body,
+:root html {
+  background: #fff;
+  border: 0;
+  color: #333;
+  font-size: 16px;
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+  vertical-align: top;
+}
+
+:root body,
+:root html,
+:root #container {
+  height: 100%;
+  width: 100%;
+}

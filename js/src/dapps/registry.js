@@ -6,6 +6,9 @@ injectTapEventPlugin();
 
 import Application from './registry/Application';
 
+import './style.css';
+import './registry.html';
+
 ReactDOM.render(
   <Application />,
   document.querySelector('#container')
