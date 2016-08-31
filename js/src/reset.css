@@ -1,4 +1,5 @@
-:root html, :root body {
+:root,
+:root body {
   margin: 0;
   padding: 0;
   border: 0;
@@ -11,7 +12,8 @@
   font-family: 'Roboto', sans-serif;
 }
 
-:root a, :root a:visited {
+:root a,
+:root a:visited {
   text-decoration: none;
   cursor: pointer;
   color: rgb(0, 151, 167); /* #f80 */

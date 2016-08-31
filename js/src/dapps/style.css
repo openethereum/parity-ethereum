@@ -1,5 +1,5 @@
-:root body,
-:root html {
+:root,
+:root body {
   background: #fff;
   border: 0;
   color: #333;
@@ -10,8 +10,8 @@
   vertical-align: top;
 }
 
+:root,
 :root body,
-:root html,
 :root #container {
   height: 100%;
   width: 100%;
