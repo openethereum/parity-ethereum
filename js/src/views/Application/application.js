@@ -42,7 +42,7 @@ export default class Application extends Component {
   }
 
   state = {
-    blockNumber: new BigNumber(0),
+    blockNumber: new BigNumber(-1),
     clientVersion: '',
     netChain: '',
     netPeers: {
@@ -60,7 +60,6 @@ export default class Application extends Component {
   }
 
   componentWillMount () {
-    this.retrieveBalances();
     this.retrieveTokens();
     this.pollStatus();
   }
@@ -152,7 +151,7 @@ export default class Application extends Component {
   }
 
   errorHandler = (error) => {
-    console.error(error);
+    console.error('errorHandler', error);
 
     this.setState({
       errorMessage: `ERROR: ${error.message}`,
@@ -162,7 +161,6 @@ export default class Application extends Component {
 
   retrieveBalances = () => {
     const accounts = [];
-    const nextRetrieval = () => setTimeout(this.retrieveBalances, 2000);
 
     Promise
       .all([
@@ -247,11 +245,9 @@ export default class Application extends Component {
           accounts,
           showFirst: accounts.length === 0
         });
-
-        nextRetrieval();
       })
-      .catch(() => {
-        nextRetrieval();
+      .catch((error) => {
+        console.error('retrieveBalances', error);
       });
   }
 
@@ -264,46 +260,44 @@ export default class Application extends Component {
       .then((registryAddress) => {
         contracts.registry = api.newContract(registryAbi, registryAddress);
 
-        return contracts.registry.instance
-          .getAddress.call({}, [Api.format.sha3('tokenreg'), 'A']);
+        return contracts.registry.instance.getAddress.call({}, [Api.format.sha3('tokenreg'), 'A']);
       })
       .then((tokenregAddress) => {
         contracts.tokenreg = api.newContract(tokenRegAbi, tokenregAddress);
 
-        return contracts.tokenreg.instance
-          .tokenCount.call();
+        return contracts.tokenreg.instance.tokenCount.call();
       })
       .then((tokenCount) => {
         const promises = [];
 
         while (promises.length < tokenCount.toNumber()) {
-          promises.push(contracts.tokenreg.instance
-            .token.call({}, [promises.length]));
+          promises.push(contracts.tokenreg.instance.token.call({}, [promises.length]));
         }
 
         return Promise.all(promises);
       })
       .then((_tokens) => {
-        return Promise.all(_tokens.map((token) => {
-          const contract = api.newContract(eip20Abi);
-          contract.at(token[0]);
+        return Promise.all(
+          _tokens.map((token) => {
+            const contract = api.newContract(eip20Abi);
+            contract.at(token[0]);
 
-          tokens.push({
-            address: token[0],
-            format: token[2].toString(),
-            images: {
-              small: `/images/contracts/${token[3].toLowerCase()}-32.png`,
-              normal: `/images/contracts/${token[3].toLowerCase()}-56.png`
-            },
-            supply: '0',
-            tag: token[1],
-            name: token[3],
-            contract
-          });
+            tokens.push({
+              address: token[0],
+              format: token[2].toString(),
+              images: {
+                small: `/images/contracts/${token[3].toLowerCase()}-32.png`,
+                normal: `/images/contracts/${token[3].toLowerCase()}-56.png`
+              },
+              supply: '0',
+              tag: token[1],
+              name: token[3],
+              contract
+            });
 
-          return contract.instance
-            .totalSupply.call();
-        }));
+            return contract.instance.totalSupply.call();
+          })
+        );
       })
       .then((supplies) => {
         supplies.forEach((supply, idx) => {
@@ -321,7 +315,10 @@ export default class Application extends Component {
               address: contract.address
             };
           }).concat(tokens)
-        });
+        }, this.retrieveBalances);
+      })
+      .catch((error) => {
+        console.error('retrieveTokens', error);
       });
   }
 
@@ -337,6 +334,10 @@ export default class Application extends Component {
         api.eth.syncing()
       ])
       .then(([blockNumber, clientVersion, netChain, netPeers, syncing]) => {
+        if (blockNumber.gt(this.state.blockNumber)) {
+          this.retrieveBalances();
+        }
+
         this.setState({
           blockNumber,
           clientVersion,
@@ -345,7 +346,9 @@ export default class Application extends Component {
           syncing
         }, nextTimeout);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('pollStatus', error);
+
         nextTimeout();
       });
   }
