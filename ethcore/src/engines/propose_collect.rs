@@ -49,10 +49,13 @@ impl ProposeCollect {
 
 	/// Vote on hash using the signed hash, true if vote counted.
 	pub fn vote(&self, voter: Address) -> bool {
-		if self.votes.try_read().unwrap().contains(&voter) { return false; }
-		if !self.voters.contains(&voter) { return false; }
-		self.votes.try_write().unwrap().insert(voter);
-		true
+		match self.votes.try_read().unwrap().contains(&voter) || !self.voters.contains(&voter) {
+			true => false,
+		 	false => {
+		 		self.votes.try_write().unwrap().insert(voter);
+		 		true
+			},
+		}
 	}
 
 	/// Some winner if voting threshold was reached.
