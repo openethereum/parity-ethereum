@@ -33,7 +33,7 @@ struct SyncControlService {
 impl ControlService for SyncControlService {
 	fn shutdown(&self) {
 		trace!(target: "hypervisor", "Received shutdown from control service");
-		self.stop.store(true, ::std::sync::atomic::Ordering::Relaxed);
+		self.stop.store(true, ::std::sync::atomic::Ordering::SeqCst);
 	}
 }
 
@@ -75,11 +75,12 @@ pub fn main() {
 	let control_service = Arc::new(SyncControlService::default());
 	let as_control = control_service.clone() as Arc<ControlService>;
 	let mut worker = nanoipc::Worker::<ControlService>::new(&as_control);
+	let thread_stop = control_service.stop.clone();
 	worker.add_reqrep(
 		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_CONTROL)
 	).unwrap();
 
-	while !control_service.stop.load(::std::sync::atomic::Ordering::Relaxed) {
+	while !thread_stop.load(::std::sync::atomic::Ordering::SeqCst) {
 		worker.poll();
 	}
 	service_stop.store(true, ::std::sync::atomic::Ordering::Relaxed);
