@@ -30,7 +30,7 @@ function formatEther (value) {
   const ether = Api.format.fromWei(value);
 
   if (ether.gt(0)) {
-    return `${ether.toFormat(5)} ΞTH`;
+    return `${ether.toFormat(5)}ΞTH`;
   }
 
   return null;

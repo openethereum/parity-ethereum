@@ -35,7 +35,7 @@
 .token img {
   height: 32px;
   width: 32px;
-  margin: 0 8px 0 0;
+  margin: 0 16px 0 0;
   z-index: 10;
 }
 
@@ -46,15 +46,33 @@
   vertical-align: top;
 }
 
-.address input {
-  padding-left: 40px !important;
+.address {
+  position: relative;
 }
 
-.floatimg {
-  float: left;
-  margin-right: -100%;
-  margin-top: 34px;
-  z-index: 10;
+.address input {
+  padding-left: 48px !important;
+}
+
+.from {
+  padding: 25px 0 0 48px !important;
+  line-height: 32px;
+}
+
+.fromaddress {
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.frombalance {
+  display: inline-block;
+  color: #aaa;
+  padding-left: 1em;
+}
+
+.icon {
+  position: absolute;
+  top: 37px;
 }
 
 .grayscale {

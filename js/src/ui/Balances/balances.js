@@ -27,7 +27,7 @@ export default class Balances extends Component {
             <img
               src={ token.images.small }
               alt={ token.name } />
-            <div>{ value } { token.tag }</div>
+            <div>{ value }{ token.tag }</div>
           </div>
         );
       });

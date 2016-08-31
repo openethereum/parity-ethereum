@@ -1,8 +1,9 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Checkbox, FloatingActionButton, MenuItem } from 'material-ui';
-
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 
+import Api from '../../../api';
 import AddressSelector from '../../AddressSelector';
 import Form, { Input, Select } from '../../../ui/Form';
 import IdentityIcon from '../../../ui/IdentityIcon';
@@ -39,26 +40,28 @@ export default class Details extends Component {
   }
 
   render () {
-    const label = `amount to transfer (in ${this.props.tag})`;
+    const { all, extras, tag, total, totalError, value, valueError } = this.props;
+    const label = `amount to transfer (in ${tag})`;
 
     return (
       <Form>
         { this.renderTokenSelect() }
+        { this.renderFromAddress() }
         { this.renderAddressSelect() }
-        { this.renderAddress() }
+        { this.renderToAddress() }
         <div className={ styles.columns }>
           <div>
             <Input
-              disabled={ this.props.all }
+              disabled={ all }
               label={ label }
               hint='the amount to transfer to the recipient'
-              value={ this.props.value }
-              error={ this.props.valueError }
+              value={ value }
+              error={ valueError }
               onChange={ this.onEditValue } />
           </div>
           <div>
             <Checkbox
-              checked={ this.props.all }
+              checked={ all }
               label='full account balance'
               onCheck={ this.onCheckAll }
               style={ CHECK_STYLE } />
@@ -70,12 +73,12 @@ export default class Details extends Component {
               disabled
               label='total transaction amount'
               hint='the total amount of the transaction'
-              error={ this.props.totalError }
-              value={ `${this.props.total} ΞTH` } />
+              error={ totalError }
+              value={ `${total} ΞTH` } />
           </div>
           <div>
             <Checkbox
-              checked={ this.props.extras }
+              checked={ extras }
               label='advanced sending options'
               onCheck={ this.onCheckExtras }
               style={ CHECK_STYLE } />
@@ -85,22 +88,65 @@ export default class Details extends Component {
     );
   }
 
-  renderAddress () {
-    const iconClass = this.props.recipientError
-      ? `${styles.floatimg} ${styles.grayscale}`
-      : styles.floatimg;
+  renderFromAddress () {
+    const { accounts } = this.context;
+    const { address, tag } = this.props;
+    const account = accounts.find((acc) => acc.address === address);
+    const balance = account.balances.find((balance) => balance.token.tag === tag);
+    const isEth = account.balances[0].token.tag === balance.token.tag;
+    let value = 0;
 
-    const iconAddress = this.props.recipientError
+    console.log(balance);
+
+    if (isEth) {
+      value = Api.format.fromWei(balance.value).toFormat(3);
+    } else {
+      value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
+    }
+
+    return (
+      <div className={ styles.address }>
+        <Input
+          disabled
+          label='from address'
+          value={ account.name || 'Unnamed' }>
+          <div className={ styles.from }>
+            <div className={ styles.fromaddress }>
+              { account.name || 'Unnamed' }
+            </div>
+            <div className={ styles.frombalance }>
+              { value }{ balance.token.tag }
+            </div>
+          </div>
+        </Input>
+        <div className={ styles.icon }>
+          <IdentityIcon
+            className={ styles.icon }
+            inline center
+            address={ address } />
+        </div>
+      </div>
+    );
+  }
+
+  renderToAddress () {
+    const { recipient, recipientError } = this.props;
+
+    const iconClass = recipientError
+      ? `${styles.icon} ${styles.grayscale}`
+      : styles.icon;
+
+    const iconAddress = recipientError
       ? '0x00'
-      : this.props.recipient;
+      : recipient;
 
     return (
       <div className={ styles.address }>
         <Input
           label='recipient address'
           hint='the recipient address'
-          error={ this.props.recipientError }
-          value={ this.props.recipient }
+          error={ recipientError }
+          value={ recipient }
           onChange={ this.onEditRecipient } />
         <div className={ iconClass }>
           <IdentityIcon
@@ -119,7 +165,9 @@ export default class Details extends Component {
   }
 
   renderAddressSelect () {
-    if (!this.state.showAddresses) {
+    const { showAddresses } = this.state;
+
+    if (!showAddresses) {
       return null;
     }
 
@@ -130,7 +178,10 @@ export default class Details extends Component {
   }
 
   renderTokenSelect () {
-    const account = this.context.accounts.find((acc) => acc.address === this.props.address);
+    const { accounts } = this.context;
+    const { address, tag } = this.props;
+
+    const account = accounts.find((acc) => acc.address === address);
     const items = account.balances.map((balance) => {
       const token = balance.token;
       const label = (
@@ -154,7 +205,7 @@ export default class Details extends Component {
       <Select
         label='type of transfer'
         hint='type of token to transfer'
-        value={ this.props.tag }
+        value={ tag }
         onChange={ this.onChangeToken }>
         { items }
       </Select>
@@ -162,7 +213,11 @@ export default class Details extends Component {
   }
 
   onChangeToken = (event, value) => {
-    const account = this.context.accounts.find((acc) => acc.address === this.props.address);
+    const { accounts } = this.context;
+    const { address } = this.props;
+
+    const account = accounts.find((acc) => acc.address === address);
+
     this.props.onChange('tag', account.balances[value].token.tag);
   }
 

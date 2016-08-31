@@ -60,26 +60,28 @@ export default class AddEntry extends Component {
   }
 
   renderFields () {
+    const { address, addressError, description, name, nameError } = this.state;
+
     return (
       <Form>
         <InputAddress
           label='contact address'
           hint='the network address for the contact'
-          error={ this.state.addressError }
-          value={ this.state.address }
+          error={ addressError }
+          value={ address }
           onChange={ this.onEditAddress } />
         <Input
           label='contact name'
           hint='a descriptive name for the contact'
-          error={ this.state.nameError }
-          value={ this.state.name }
+          error={ nameError }
+          value={ name }
           onChange={ this.onEditName } />
         <Input
           multiLine
           rows={ 2 }
           label='(optional) contact description'
           hint='a expanded description for the contact'
-          value={ this.state.description }
+          value={ description }
           onChange={ this.onEditDescription } />
       </Form>
     );

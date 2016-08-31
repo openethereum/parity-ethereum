@@ -332,8 +332,8 @@ export default class Transfer extends Component {
 
   _sendToken () {
     const { account } = this.props;
-    const { recipient, value } = this.state;
-    const token = account.balances.find((balance) => balance.token.tag === this.state.tag).token;
+    const { recipient, value, tag } = this.state;
+    const token = account.balances.find((balance) => balance.token.tag === tag).token;
 
     return token.contract.instance.transfer
       .postTransaction({
