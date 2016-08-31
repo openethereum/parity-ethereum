@@ -52,7 +52,6 @@ pub fn payload<B: ipc::BinaryConvertable>() -> Result<B, BootError> {
 	use std::io;
 	use std::io::Read;
 
-
 	let mut buffer = Vec::new();
 	try!(
 		io::stdin().read_to_end(&mut buffer)
