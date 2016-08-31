@@ -9,7 +9,7 @@ export default class Dapp extends Component {
 
   render () {
     const { name } = this.props.params;
-    const src = `dapps/${name}.html`;
+    const src = `${name}.html`;
 
     return (
       <iframe

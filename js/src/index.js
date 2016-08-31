@@ -17,6 +17,7 @@ import Signer from './views/Signer';
 import Application from './views/Application';
 
 import styles from './reset.css';
+import './index.html';
 
 const routerHistory = useRouterHistory(createHashHistory)({});
 

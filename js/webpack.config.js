@@ -14,12 +14,15 @@ module.exports = {
   devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
   context: path.join(__dirname, './src'),
   entry: {
-    'dapps/gavcoin': ['./dapps/gavcoin.js'],
-    'dapps/registry': ['./dapps/registry.js'],
-    'dapps/tokenreg': ['./dapps/tokenreg.js'],
+    // dapps
+    'gavcoin': ['./dapps/gavcoin.js'],
+    'registry': ['./dapps/registry.js'],
+    'tokenreg': ['./dapps/tokenreg.js'],
+    // library
     'parity': ['./parity.js'],
-    'app': ['./app.js'] /*,
-    'web3': ['./web3.js'] */
+    // 'web3': ['./web3.js'],
+    // app
+    'index': ['./index.js']
   },
   output: {
     path: path.join(__dirname, 'build'),
