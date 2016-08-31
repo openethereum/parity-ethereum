@@ -108,7 +108,7 @@ impl IoHandler<ClientIoMessage> for Tendermint {
 				Step::Precommit(_, _) => self.to_propose(),
 				Step::Commit(_) => self.to_propose(),
 			};
-			io.register_timer(ENGINE_TIMEOUT_TOKEN, 3000).expect("Failed to start new consensus timer.")
+			//io.register_timer(ENGINE_TIMEOUT_TOKEN, 3000).expect("Failed to start new consensus timer.")
 		}
 	}
 
@@ -271,17 +271,16 @@ impl Engine for Tendermint {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.difficulty = parent.difficulty;
-		header.gas_limit = {
-			let gas_limit = parent.gas_limit;
+		header.set_difficulty(parent.difficulty().clone());
+		header.set_gas_limit({
+			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.our_params.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
 				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
-		};
-		header.note_dirty();
+		});
 	}
 
 	/// Apply the block reward on finalisation of the block.
@@ -319,9 +318,9 @@ impl Engine for Tendermint {
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the seal fields.
 		// TODO: pull this out into common code.
-		if header.seal.len() != self.seal_fields() {
+		if header.seal().len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
+				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)));
 		}
 		Ok(())
@@ -342,10 +341,10 @@ impl Engine for Tendermint {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
 		}
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
-		let min_gas = parent.gas_limit - parent.gas_limit / gas_limit_divisor;
-		let max_gas = parent.gas_limit + parent.gas_limit / gas_limit_divisor;
-		if header.gas_limit <= min_gas || header.gas_limit >= max_gas {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit })));
+		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
+		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
+		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 		Ok(())
 	}
