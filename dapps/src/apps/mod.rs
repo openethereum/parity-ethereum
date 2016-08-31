@@ -19,6 +19,7 @@ use page::PageEndpoint;
 use proxypac::ProxyPac;
 use parity_dapps::WebApp;
 
+mod cache;
 mod fs;
 pub mod urlhint;
 pub mod fetcher;

@@ -503,7 +503,7 @@ impl ChainSync {
 		let mut valid_response = item_count == 0; //empty response is valid
 		for i in 0..item_count {
 			let info: BlockHeader = try!(r.val_at(i));
-			let number = BlockNumber::from(info.number);
+			let number = BlockNumber::from(info.number());
 			// Check if any of the headers matches the hash we requested
 			if !valid_response {
 				if let Some(expected) = expected_hash {
@@ -645,11 +645,11 @@ impl ChainSync {
 				trace!(target: "sync", "New block already queued {:?}", h);
 			},
 			Ok(_) => {
-				if header.number == self.last_imported_block + 1 {
-					self.last_imported_block = header.number;
+				if header.number() == self.last_imported_block + 1 {
+					self.last_imported_block = header.number();
 					self.last_imported_hash = header.hash();
 				}
-				trace!(target: "sync", "New block queued {:?} ({})", h, header.number);
+				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
 			},
 			Err(BlockImportError::Block(BlockError::UnknownParent(p))) => {
 				unknown = true;
@@ -1539,12 +1539,12 @@ mod tests {
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
-		header.gas_limit = 0.into();
-		header.difficulty = (order * 100).into();
-		header.timestamp = (order * 10) as u64;
-		header.number = order as u64;
-		header.parent_hash = parent_hash;
-		header.state_root = H256::zero();
+		header.set_gas_limit(0.into());
+		header.set_difficulty((order * 100).into());
+		header.set_timestamp((order * 10) as u64);
+		header.set_number(order as u64);
+		header.set_parent_hash(parent_hash);
+		header.set_state_root(H256::zero());
 
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
