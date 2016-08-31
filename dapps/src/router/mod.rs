@@ -48,7 +48,7 @@ pub struct Router<A: Authorization + 'static> {
 	fetch: Arc<AppFetcher>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
-	bind_address: String,
+	allowed_hosts: Option<Vec<String>>,
 	handler: Box<server::Handler<HttpStream> + Send>,
 }
 
@@ -56,9 +56,11 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
 		// Validate Host header
-		if !host_validation::is_valid(&req, &self.bind_address, self.endpoints.keys().cloned().collect()) {
-			self.handler = host_validation::host_invalid_response();
-			return self.handler.on_request(req);
+		if let Some(ref hosts) = self.allowed_hosts {
+			if !host_validation::is_valid(&req, hosts, self.endpoints.keys().cloned().collect()) {
+				self.handler = host_validation::host_invalid_response();
+				return self.handler.on_request(req);
+			}
 		}
 
 		// Check authorization
@@ -81,7 +83,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
 				self.endpoints.get(&path.app_id).unwrap().to_handler(path.clone())
 			},
-			// Try to resolve and fetch dapp
+			// Try to resolve and fetch the dapp
 			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
 				let control = self.control.take().expect("on_request is called only once, thus control is always defined.");
 				self.fetch.to_handler(path.clone(), control)
@@ -89,6 +91,11 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			// Redirection to main page (maybe 404 instead?)
 			(Some(ref path), _) if *req.method() == hyper::method::Method::Get => {
 				let address = apps::redirection_address(path.using_dapps_domains, self.main_page);
+				Redirection::new(address.as_str())
+			},
+			// Redirect any GET request to home.
+			_ if *req.method() == hyper::method::Method::Get => {
+				let address = apps::redirection_address(false, self.main_page);
 				Redirection::new(address.as_str())
 			},
 			// RPC by default
@@ -125,7 +132,7 @@ impl<A: Authorization> Router<A> {
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 		authorization: Arc<A>,
-		bind_address: String,
+		allowed_hosts: Option<Vec<String>>,
 		) -> Self {
 
 		let handler = special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default());
@@ -136,7 +143,7 @@ impl<A: Authorization> Router<A> {
 			fetch: app_fetcher,
 			special: special,
 			authorization: authorization,
-			bind_address: bind_address,
+			allowed_hosts: allowed_hosts,
 			handler: handler,
 		}
 	}

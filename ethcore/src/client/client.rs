@@ -100,7 +100,7 @@ impl ClientReport {
 	pub fn accrue_block(&mut self, block: &PreverifiedBlock) {
 		self.blocks_imported += 1;
 		self.transactions_applied += block.transactions.len();
-		self.gas_processed = self.gas_processed + block.header.gas_used;
+		self.gas_processed = self.gas_processed + block.header.gas_used().clone();
 	}
 }
 
@@ -285,15 +285,15 @@ impl Client {
 		};
 
 		// Check if Parent is in chain
-		let chain_has_parent = self.chain.block_header(&header.parent_hash);
+		let chain_has_parent = self.chain.block_header(header.parent_hash());
 		if let None = chain_has_parent {
-			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
+			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
 			return Err(());
 		};
 
 		// Enact Verified Block
 		let parent = chain_has_parent.unwrap();
-		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
+		let last_hashes = self.build_last_hashes(header.parent_hash().clone());
 		let db = self.state_db.lock().boxed_clone();
 
 		let enact_result = enact_verified(block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
@@ -353,7 +353,7 @@ impl Client {
 
 			for block in blocks {
 				let header = &block.header;
-				if invalid_blocks.contains(&header.parent_hash) {
+				if invalid_blocks.contains(header.parent_hash()) {
 					invalid_blocks.insert(header.hash());
 					continue;
 				}

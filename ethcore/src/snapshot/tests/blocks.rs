@@ -79,7 +79,6 @@ fn chunk_and_restore(amount: u64) {
 	}
 
 	rebuilder.glue_chunks();
-	drop(rebuilder);
 
 	// and test it.
 	let new_chain = BlockChain::new(Default::default(), &genesis, new_db);
