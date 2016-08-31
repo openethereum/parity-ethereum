@@ -8,12 +8,14 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import Api from '../../api';
+import IdentityIcon from '../../ui/IdentityIcon';
 import Modal from '../../ui/Modal';
 
 import Complete from './Complete';
 import Details from './Details';
 import Extras from './Extras';
 import ERRORS from './errors';
+import styles from './style.css';
 
 const DEFAULT_GAS = '21000';
 const DEFAULT_GASPRICE = '20000000000';
@@ -68,9 +70,32 @@ export default class Transfer extends Component {
         actions={ this.renderDialogActions() }
         current={ this.state.stage }
         steps={ this.state.extras ? STAGES_EXTRA : STAGES_BASIC }
+        title={ this.renderAccount() }
         visible>
         { this.renderPage() }
       </Modal>
+    );
+  }
+
+  renderAccount () {
+    const { account } = this.props;
+
+    return (
+      <div className={ styles.hdraccount }>
+        <div className={ styles.hdrimage }>
+          <IdentityIcon
+            inline center
+            address={ account.address } />
+        </div>
+        <div className={ styles.hdrdetails }>
+          <div className={ styles.hdrname }>
+            { account.name || 'Unnamed' }
+          </div>
+          <div className={ styles.hdraddress }>
+            { account.address }
+          </div>
+        </div>
+      </div>
     );
   }
 

@@ -23,24 +23,32 @@ export default class Modal extends Component {
   }
 
   render () {
-    const title = this.props.steps
-      ? (<ModalSteps current={ this.props.current } steps={ this.props.steps } />)
-      : this.props.title;
+    const { actions, current, children, scroll, steps, title, visible } = this.props;
+    let header = title;
+
+    if (steps) {
+      header = (
+        <ModalSteps
+          current={ current }
+          steps={ steps }
+          title={ title } />
+      );
+    }
 
     return (
       <Dialog
-        actions={ this.props.actions }
+        actions={ actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
-        autoScrollBodyContent={ !!this.props.scroll }
+        autoScrollBodyContent={ !!scroll }
         contentStyle={ CONTENT_STYLE }
         modal
-        open={ this.props.visible }
+        open={ visible }
         repositionOnUpdate={ false }
         style={ DIALOG_STYLE }
-        title={ title }
+        title={ header }
         titleStyle={ TITLE_STYLE }>
-        { this.props.children }
+        { children }
       </Dialog>
     );
   }

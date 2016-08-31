@@ -7,11 +7,15 @@ import styles from './style.css';
 export default class ModalSteps extends Component {
   static propTypes = {
     current: PropTypes.number,
-    steps: PropTypes.array.isRequired
+    steps: PropTypes.array.isRequired,
+    title: React.PropTypes.oneOfType([
+      PropTypes.node, PropTypes.string
+    ])
   }
 
   render () {
-    const steps = this.props.steps.map((label) => {
+    const { current, steps, title } = this.props;
+    const timeline = steps.map((label) => {
       return (
         <Step
           key={ label }>
@@ -25,12 +29,11 @@ export default class ModalSteps extends Component {
     return (
       <div
         className={ styles.title }>
-        <h3>
-          { this.props.steps[this.props.current] }
-        </h3>
+        <h3>{ steps[current] }</h3>
+        <div>{ title }</div>
         <Stepper
-          activeStep={ this.props.current }>
-          { steps }
+          activeStep={ current }>
+          { timeline }
         </Stepper>
       </div>
     );
