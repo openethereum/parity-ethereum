@@ -105,6 +105,7 @@ extern crate rand;
 extern crate bit_set;
 
 #[cfg(feature = "jit" )] extern crate evmjit;
+#[cfg(feature = "stratum")] extern crate ethcore_stratum;
 
 pub mod account_provider;
 pub mod engines;
