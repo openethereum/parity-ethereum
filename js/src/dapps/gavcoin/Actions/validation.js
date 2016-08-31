@@ -30,8 +30,6 @@ export function validateAccount (account) {
     return ERRORS.invalidAccount;
   }
 
-  // 0x7b4983739f097f1d4fa18460826ec6828014b633
-
   if (!Api.format.isAddressValid(account.address)) {
     return ERRORS.invalidAddress;
   }
