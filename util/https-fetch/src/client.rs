@@ -171,7 +171,7 @@ impl mio::Handler for ClientLoop {
 #[test]
 fn should_successfuly_fetch_a_page() {
 	use std::io::{self, Cursor};
-	use std::sync::Arc;
+	use std::sync::{mpsc, Arc};
 	use std::sync::atomic::{AtomicUsize, Ordering};
 
 	struct Writer {
@@ -197,11 +197,12 @@ fn should_successfuly_fetch_a_page() {
 		wrote: wrote.clone(),
 		data: Cursor::new(Vec::new()),
 	};
-	let rx = client.fetch(Url::new("github.com", 443, "/").unwrap(), Box::new(writer)).unwrap();
-
-	let result = rx.recv().unwrap();
-
-	assert!(result.is_ok());
-	assert!(wrote.load(Ordering::Relaxed) > 0);
+	let (tx, rx) = mpsc::channel();
+	client.fetch(Url::new("github.com", 443, "/").unwrap(), Box::new(writer), move |result| {
+		assert!(result.is_ok());
+		assert!(wrote.load(Ordering::Relaxed) > 0);
+		tx.send(result).unwrap();
+	});
+	let _ = rx.recv().unwrap();
 }
 

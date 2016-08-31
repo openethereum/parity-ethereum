@@ -218,8 +218,8 @@ impl DappHandler for DappInstaller {
 
 	fn validate_and_install(&self, app_path: PathBuf) -> Result<Manifest, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
-		let mut file = try!(fs::File::open(app_path));
-		let hash = try!(sha3(&mut file));
+		let mut file_reader = io::BufReader::new(try!(fs::File::open(app_path)));
+		let hash = try!(sha3(&mut file_reader));
 		let dapp_id = try!(self.dapp_id.as_str().parse().map_err(|_| ValidationError::InvalidDappId));
 		if dapp_id != hash {
 			return Err(ValidationError::HashMismatch {
@@ -227,6 +227,7 @@ impl DappHandler for DappInstaller {
 				got: hash,
 			});
 		}
+		let file = file_reader.into_inner();
 		// Unpack archive
 		let mut zip = try!(zip::ZipArchive::new(file));
 		// First find manifest file

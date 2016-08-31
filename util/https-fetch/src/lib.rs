@@ -21,6 +21,7 @@ extern crate mio;
 mod tlsclient;
 mod client;
 mod url;
+mod http;
 
 pub use self::client::{Client, FetchError, FetchResult};
 pub use self::url::{Url, UrlError};

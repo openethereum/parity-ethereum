@@ -16,7 +16,7 @@
 
 //! Hyper Server Handler that fetches a file during a request (proxy).
 
-use std::{fs, fmt};
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::{Instant, Duration};
@@ -171,7 +171,8 @@ impl<H: DappHandler> server::Handler<HttpStream> for AppFetcherHandler<H> {
 							Ok(manifest) => FetchState::Done(manifest)
 						};
 						// Remove temporary zip file
-						let _ = fs::remove_file(path);
+						// TODO [todr] Uncomment me
+						// let _ = fs::remove_file(path);
 						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {

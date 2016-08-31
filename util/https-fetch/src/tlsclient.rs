@@ -16,14 +16,15 @@
 
 use std::str;
 use std::sync::Arc;
-use std::io::{self, Read, Cursor, BufReader};
+use std::io::{self, Write, Read, Cursor, BufReader};
 
 use mio;
 use mio::tcp::TcpStream;
 use rustls::{self, Session};
 
-use client::{FetchError, ClientLoop, FetchResult};
 use url::Url;
+use http::HttpProcessor;
+use client::{FetchError, ClientLoop, FetchResult};
 
 #[derive(Debug)]
 pub enum TlsClientError {
@@ -40,7 +41,7 @@ pub struct TlsClient {
 	token: mio::Token,
 	socket: TcpStream,
 	tls_session: rustls::ClientSession,
-	writer: Box<io::Write>,
+	writer: HttpProcessor,
 	error: Option<TlsClientError>,
 	closing: bool,
 	callback: Box<FnMut(FetchResult) + Send>,
@@ -65,7 +66,6 @@ impl io::Read for TlsClient {
 impl TlsClient {
 	pub fn make_config() -> Result<Arc<rustls::ClientConfig>, FetchError> {
 		let mut config = rustls::ClientConfig::new();
-		// TODO [ToDr] Windows / MacOs support!
 		let mut cursor = Cursor::new(if cfg!(feature = "ca-github-only") {
 			include_bytes!("./ca-github.crt").to_vec()
 		} else {
@@ -92,7 +92,7 @@ impl TlsClient {
 			match res {
 				Ok((cfg, sock)) => Ok(TlsClient {
 					token: token,
-					writer: writer,
+					writer: HttpProcessor::new(writer),
 					socket: sock,
 					closing: false,
 					error: None,
