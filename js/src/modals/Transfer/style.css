@@ -46,6 +46,14 @@
   vertical-align: top;
 }
 
+.tokenbalance {
+  display: inline-block;
+  color: #aaa;
+  padding-left: 1em;
+}
+
+.tokenname {}
+
 .address {
   position: relative;
 }
@@ -72,7 +80,7 @@
 
 .icon {
   position: absolute;
-  top: 37px;
+  top: 35px;
 }
 
 .grayscale {

@@ -96,8 +96,6 @@ export default class Details extends Component {
     const isEth = account.balances[0].token.tag === balance.token.tag;
     let value = 0;
 
-    console.log(balance);
-
     if (isEth) {
       value = Api.format.fromWei(balance.value).toFormat(3);
     } else {
@@ -115,7 +113,7 @@ export default class Details extends Component {
               { account.name || 'Unnamed' }
             </div>
             <div className={ styles.frombalance }>
-              { value }{ balance.token.tag }
+              { value } { balance.token.tag }
             </div>
           </div>
         </Input>
@@ -182,22 +180,36 @@ export default class Details extends Component {
     const { address, tag } = this.props;
 
     const account = accounts.find((acc) => acc.address === address);
-    const items = account.balances.map((balance) => {
+    const items = account.balances.map((balance, idx) => {
       const token = balance.token;
+      const isEth = idx === 0;
+      let value = 0;
+
+      if (isEth) {
+        value = Api.format.fromWei(balance.value).toFormat(3);
+      } else {
+        value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
+      }
+
       const label = (
         <div className={ styles.token }>
           <img src={ token.images.small } />
-          <div>{ token.name }</div>
+          <div className={ styles.tokenname }>
+            { token.name }
+          </div>
+          <div className={ styles.tokenbalance }>
+            { value } { token.tag }
+          </div>
         </div>
       );
 
       return (
         <MenuItem
           key={ token.tag }
-          primaryText={ token.name }
           value={ token.tag }
-          label={ label }
-          leftIcon={ <img src={ token.images.small } /> } />
+          label={ label }>
+          { label }
+        </MenuItem>
       );
     });
 
