@@ -28,7 +28,7 @@ export default class ActionTransfer extends Component {
     fromAccount: {},
     fromAccountError: ERRORS.invalidAccount,
     toAccount: {},
-    toAccountError: ERRORS.invalidAccount,
+    toAccountError: ERRORS.invalidRecipient,
     inputAccount: false,
     complete: false,
     sending: false,

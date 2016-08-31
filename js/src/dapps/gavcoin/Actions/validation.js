@@ -3,7 +3,8 @@ import BigNumber from 'bignumber.js';
 const { Api } = window.parity;
 
 export const ERRORS = {
-  invalidAccount: 'please select an account to transact from',
+  invalidAccount: 'please select an account to transact with',
+  invalidRecipient: 'please select an account to send to',
   invalidAddress: 'the address is not in the correct format',
   invalidAmount: 'please enter a positive amount > 0',
   invalidTotal: 'the amount is greater than the availale balance'
@@ -25,7 +26,7 @@ export function validatePositiveNumber (value) {
 }
 
 export function validateAccount (account) {
-  if (!account && !account.address) {
+  if (!account || !account.address) {
     return ERRORS.invalidAccount;
   }
 

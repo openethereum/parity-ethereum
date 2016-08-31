@@ -39,6 +39,10 @@
   position: relative;
 }
 
+.overlay svg {
+  opacity: 0;
+}
+
 .toggle {
   text-align: right;
 }
