@@ -34,7 +34,7 @@ fn should_reject_invalid_host() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 403 Forbidden".to_owned());
-	assert_eq!(response.body, "85\n\n\t\t<h1>Request with disallowed <code>Host</code> header has been blocked.</h1>\n\t\t<p>Check the URL in your browser address bar.</p>\n\t\t\n0\n\n".to_owned());
+	assert!(response.body.contains("Current host is disallowed"));
 }
 
 #[test]
@@ -67,6 +67,27 @@ fn should_serve_dapps_domains() {
 		"\
 			GET / HTTP/1.1\r\n\
 			Host: home.parity\r\n\
+			Connection: close\r\n\
+			\r\n\
+			{}
+		"
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+}
+
+#[test]
+// NOTE [todr] This is required for error pages to be styled properly.
+fn should_allow_parity_utils_even_on_invalid_domain() {
+	// given
+	let server = serve_hosts(Some(vec!["localhost:8080".into()]));
+
+	// when
+	let response = request(server,
+		"\
+			GET /parity-utils/styles.css HTTP/1.1\r\n\
+			Host: 127.0.0.1:8080\r\n\
 			Connection: close\r\n\
 			\r\n\
 			{}

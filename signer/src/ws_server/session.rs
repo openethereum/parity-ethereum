@@ -107,10 +107,15 @@ impl ws::Handler for Session {
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		let origin = req.header("origin").or_else(|| req.header("Origin")).map(|x| &x[..]);
 		let host = req.header("host").or_else(|| req.header("Host")).map(|x| &x[..]);
+		// Styles file is allowed for error pages to display nicely.
+		let is_styles_file = req.resource() == "/styles.css";
 
 		// Check request origin and host header.
 		if !self.skip_origin_validation {
-			if !origin_is_allowed(&self.self_origin, origin) && !(origin.is_none() && origin_is_allowed(&self.self_origin, host)) {
+			let is_valid = origin_is_allowed(&self.self_origin, origin) || (origin.is_none() && origin_is_allowed(&self.self_origin, host));
+			let is_valid = is_styles_file || is_valid;
+
+			if !is_valid {
 				warn!(target: "signer", "Blocked connection to Signer API from untrusted origin.");
 				return Ok(error(
 						ErrorType::Forbidden,
@@ -121,8 +126,9 @@ impl ws::Handler for Session {
 			}
 		}
 
-		// Detect if it's a websocket request.
-		if req.header("sec-websocket-key").is_some() {
+		// Detect if it's a websocket request
+		// (styles file skips origin validation, so make sure to prevent WS connections on this resource)
+		if req.header("sec-websocket-key").is_some() && !is_styles_file {
 			// Check authorization
 			if !auth_is_valid(&self.authcodes_path, req.protocols()) {
 				info!(target: "signer", "Unauthorized connection to Signer API blocked.");
@@ -198,7 +204,7 @@ enum ErrorType {
 
 fn error(error: ErrorType, title: &str, message: &str, details: Option<&str>) -> ws::Response {
 	let content = format!(
-		include_str!("../../../dapps/src/error_tpl.html"),
+		include_str!("./error_tpl.html"),
 		title=title,
 		meta="",
 		message=message,

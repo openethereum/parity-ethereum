@@ -14,66 +14,68 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve_with_auth, request};
+use std::env;
+use std::thread;
+use std::time::Duration;
+use std::sync::Arc;
+use devtools::http_client;
+use rpc::ConfirmationsQueue;
+use rand;
+
+use ServerBuilder;
+use Server;
+
+pub fn serve() -> Server {
+	let queue = Arc::new(ConfirmationsQueue::default());
+	let builder = ServerBuilder::new(queue, env::temp_dir());
+	let port = 35000 + rand::random::<usize>() % 10000;
+	let res = builder.start(format!("127.0.0.1:{}", port).parse().unwrap()).unwrap();
+	thread::sleep(Duration::from_millis(25));
+	res
+}
+
+pub fn request(server: Server, request: &str) -> http_client::Response {
+	http_client::request(server.addr(), request)
+}
 
 #[test]
-fn should_require_authorization() {
+fn should_reject_invalid_host() {
 	// given
-	let server = serve_with_auth("test", "test");
+	let server = serve();
 
 	// when
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: 127.0.0.1:8080\r\n\
+			Host: test:8180\r\n\
 			Connection: close\r\n\
 			\r\n\
+			{}
 		"
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 401 Unauthorized".to_owned());
-	assert_eq!(response.headers.get(0).unwrap(), "WWW-Authenticate: Basic realm=\"Parity\"");
+	assert_eq!(response.status, "HTTP/1.1 403 FORBIDDEN".to_owned());
+	assert!(response.body.contains("URL Blocked"));
 }
 
 #[test]
-fn should_reject_on_invalid_auth() {
+fn should_serve_styles_even_on_disallowed_domain() {
 	// given
-	let server = serve_with_auth("test", "test");
+	let server = serve();
 
 	// when
 	let response = request(server,
 		"\
-			GET / HTTP/1.1\r\n\
-			Host: 127.0.0.1:8080\r\n\
+			GET /styles.css HTTP/1.1\r\n\
+			Host: test:8180\r\n\
 			Connection: close\r\n\
-			Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l\r\n
 			\r\n\
-		"
-	);
-
-	// then
-	assert_eq!(response.status, "HTTP/1.1 401 Unauthorized".to_owned());
-	assert!(response.body.contains("Unauthorized"));
-	assert_eq!(response.headers_raw.contains("WWW-Authenticate"), false);
-}
-
-#[test]
-fn should_allow_on_valid_auth() {
-	// given
-	let server = serve_with_auth("Aladdin", "OpenSesame");
-
-	// when
-	let response = request(server,
-		"\
-			GET /home/ HTTP/1.1\r\n\
-			Host: 127.0.0.1:8080\r\n\
-			Connection: close\r\n\
-			Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l\r\n
-			\r\n\
+			{}
 		"
 	);
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 }
+

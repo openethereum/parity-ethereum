@@ -15,16 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::env;
-use std::io::{Read, Write};
-use std::str::{self, Lines};
+use std::str;
 use std::sync::Arc;
-use std::net::TcpStream;
 use rustc_serialize::hex::{ToHex, FromHex};
 
 use ServerBuilder;
 use Server;
 use apps::urlhint::ContractClient;
 use util::{Bytes, Address, Mutex, ToPretty};
+use devtools::http_client;
 
 const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
 const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
@@ -77,47 +76,6 @@ pub fn serve() -> Server {
 	serve_hosts(None)
 }
 
-pub struct Response {
-	pub status: String,
-	pub headers: Vec<String>,
-	pub headers_raw: String,
-	pub body: String,
+pub fn request(server: Server, request: &str) -> http_client::Response {
+	http_client::request(server.addr(), request)
 }
-
-pub fn read_block(lines: &mut Lines, all: bool) -> String {
-	let mut block = String::new();
-	loop {
-		let line = lines.next();
-		match line {
-			None => break,
-			Some("") if !all => break,
-			Some(v) => {
-				block.push_str(v);
-				block.push_str("\n");
-			},
-		}
-	}
-	block
-}
-
-pub fn request(server: Server, request: &str) -> Response {
-	let mut req = TcpStream::connect(server.addr()).unwrap();
-	req.write_all(request.as_bytes()).unwrap();
-
-	let mut response = String::new();
-	req.read_to_string(&mut response).unwrap();
-
-	let mut lines = response.lines();
-	let status = lines.next().unwrap().to_owned();
-	let headers_raw = read_block(&mut lines, false);
-	let headers = headers_raw.split('\n').map(|v| v.to_owned()).collect();
-	let body = read_block(&mut lines, true);
-
-	Response {
-		status: status,
-		headers: headers,
-		headers_raw: headers_raw,
-		body: body,
-	}
-}
-

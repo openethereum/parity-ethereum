@@ -61,6 +61,8 @@ extern crate parity_dapps;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate linked_hash_map;
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;
 
 mod endpoint;
 mod apps;

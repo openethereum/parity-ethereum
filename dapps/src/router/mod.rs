@@ -55,9 +55,16 @@ pub struct Router<A: Authorization + 'static> {
 impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
+
+		// Choose proper handler depending on path / domain
+		let url = extract_url(&req);
+		let endpoint = extract_endpoint(&url);
+		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
+
 		// Validate Host header
 		if let Some(ref hosts) = self.allowed_hosts {
-			if !host_validation::is_valid(&req, hosts, self.endpoints.keys().cloned().collect()) {
+			let is_valid = is_utils || host_validation::is_valid(&req, hosts, self.endpoints.keys().cloned().collect());
+			if !is_valid {
 				self.handler = host_validation::host_invalid_response();
 				return self.handler.on_request(req);
 			}
@@ -69,10 +76,6 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			self.handler = handler;
 			return self.handler.on_request(req);
 		}
-
-		// Choose proper handler depending on path / domain
-		let url = extract_url(&req);
-		let endpoint = extract_endpoint(&url);
 
 		self.handler = match endpoint {
 			// First check special endpoints
