@@ -22,6 +22,7 @@ use state::*;
 use verification::PreverifiedBlock;
 use trace::FlatTrace;
 use factory::Factories;
+use rlp::*;
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]

@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use util::Bytes;
 use util::hash::H256;
-use util::rlp::{self, Encodable, RlpStream, UntrustedRlp, Stream, View};
+use rlp::{self, Encodable, RlpStream, UntrustedRlp, Stream, View};
 
 use super::ManifestData;
 

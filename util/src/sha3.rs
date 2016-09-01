@@ -20,7 +20,7 @@ extern crate sha3 as sha3_ext;
 use std::io;
 use std::mem::uninitialized;
 use tiny_keccak::Keccak;
-use bytes::{BytesConvertable, Populatable};
+use bytes::{Populatable};
 use hash::{H256, FixedHash};
 use self::sha3_ext::*;
 
@@ -55,7 +55,7 @@ pub trait Hashable {
 	}
 }
 
-impl<T> Hashable for T where T: BytesConvertable {
+impl<T> Hashable for T where T: AsRef<[u8]> {
 	fn sha3(&self) -> H256 {
 		unsafe {
 			let mut ret: H256 = uninitialized();
@@ -65,7 +65,7 @@ impl<T> Hashable for T where T: BytesConvertable {
 	}
 	fn sha3_into(&self, dest: &mut [u8]) {
 		unsafe {
-			let input: &[u8] = self.as_slice();
+			let input: &[u8] = self.as_ref();
 			sha3_256(dest.as_mut_ptr(), dest.len(), input.as_ptr(), input.len());
 		}
 	}

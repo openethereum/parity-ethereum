@@ -24,6 +24,7 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
 use ethjson;
+use rlp::{Rlp, RlpStream, View, Stream};
 
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone)]
