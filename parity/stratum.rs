@@ -35,9 +35,10 @@ struct StratumControlService {
 }
 
 impl ControlService for StratumControlService {
-	fn shutdown(&self) {
+	fn shutdown(&self) -> bool {
 		trace!(target: "hypervisor", "Received shutdown from control service");
 		self.stop.store(true, ::std::sync::atomic::Ordering::Relaxed);
+		true
 	}
 }
 
@@ -86,7 +87,7 @@ pub fn main() {
 	let as_control = control_service.clone() as Arc<ControlService>;
 	let mut worker = nanoipc::Worker::<ControlService>::new(&as_control);
 	worker.add_reqrep(
-		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_CONTROL)
+		&service_urls::with_base(&service_config.io_path, service_urls::STRATUM_CONTROL)
 	).unwrap();
 
 	while !control_service.stop.load(Ordering::SeqCst) {
