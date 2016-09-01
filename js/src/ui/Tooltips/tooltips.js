@@ -3,7 +3,6 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { nextTooltip } from './actions';
-import { LS_KEY } from './reducers';
 
 import styles from './style.css';
 
@@ -19,11 +18,7 @@ class Tooltips extends Component {
   }
 
   componentDidMount () {
-    const hideTips = false && window.localStorage.getItem(LS_KEY);
-
-    if (!hideTips) {
-      this.props.onNextTooltip();
-    }
+    this.props.onNextTooltip();
   }
 
   render () {
@@ -40,7 +35,7 @@ class Tooltips extends Component {
 }
 
 function mapStateToProps (state) {
-  const { currentId } = state.tooltipReducer;
+  const { currentId } = state.tooltip;
 
   return { currentId };
 }

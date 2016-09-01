@@ -1,30 +1,18 @@
-let currentId = -1;
-let maxId = 0;
-
-export function newTooltip (id) {
-  maxId = Math.max(id, maxId);
-
+export function newTooltip (newId) {
   return {
     type: 'newTooltip',
-    maxId,
-    currentId
+    newId
   };
 }
 
 export function nextTooltip () {
-  currentId++;
-
   return {
-    type: 'nextTooltip',
-    currentId
+    type: 'nextTooltip'
   };
 }
 
 export function closeTooltips () {
-  currentId = -1;
-
   return {
-    type: 'closeTooltips',
-    currentId
+    type: 'closeTooltips'
   };
 }

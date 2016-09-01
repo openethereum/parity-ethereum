@@ -1,9 +1,12 @@
-export const LS_KEY = 'tooltips';
+const LS_KEY = 'tooltips';
+
+let currentId = -1;
+let maxId = 0;
 
 function closeTooltips (state, action) {
-  const { currentId } = action;
-
   window.localStorage.setItem(LS_KEY, '{"state":"off"}');
+
+  currentId = -1;
 
   return Object.assign({}, state, {
     currentId
@@ -11,7 +14,9 @@ function closeTooltips (state, action) {
 }
 
 function newTooltip (state, action) {
-  const { currentId, maxId } = action;
+  const { newId } = action;
+
+  maxId = Math.max(newId, maxId);
 
   return Object.assign({}, state, {
     currentId,
@@ -20,7 +25,11 @@ function newTooltip (state, action) {
 }
 
 function nextTooltip (state, action) {
-  const { currentId } = action;
+  const hideTips = window.localStorage.getItem(LS_KEY);
+
+  currentId = hideTips
+    ? -1
+    : currentId + 1;
 
   return Object.assign({}, state, {
     currentId
