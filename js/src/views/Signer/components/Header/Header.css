@@ -1,0 +1,11 @@
+.bar {
+  padding: 0 !important;
+}
+.bar h1 {
+  box-sizing: border-box;
+  max-width: 800px !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  flex: none !important;
+  padding: 0 25px !important;
+}

@@ -1,0 +1,19 @@
+.container {
+  padding: 0;
+}
+
+.lead {
+  margin-bottom: 2rem;
+}
+
+.toggleToken {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.code {
+  background: #e4e4e4;
+  padding: 4px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+}
