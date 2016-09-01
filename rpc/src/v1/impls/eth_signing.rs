@@ -53,6 +53,11 @@ pub struct EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 
 const MAX_PENDING_DURATION: u64 = 60 * 60;
 
+pub enum DispatchResult {
+	Promise(ConfirmationPromise),
+	Value(Value),
+}
+
 impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates a new signing queue client given shared signing queue.
 	pub fn new(queue: &Arc<ConfirmationsQueue>, client: &Arc<C>, miner: &Arc<M>, accounts: &Arc<AccountProvider>) -> Self {
@@ -71,23 +76,24 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 		Ok(())
 	}
 
-	fn dispatch_sign<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
+	fn dispatch_sign(&self, params: Params) -> Result<DispatchResult, Error> {
 		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
 			let address: Address = address.into();
 			let msg: H256 = msg.into();
 
 			let accounts = take_weak!(self.accounts);
 			if accounts.is_unlocked(address) {
-				return to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into));
+				return Ok(DispatchResult::Value(to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))))
 			}
 
 			let queue = take_weak!(self.queue);
-			let promise = queue.add_request(ConfirmationPayload::Sign(address, msg));
-			f(promise)
+			queue.add_request(ConfirmationPayload::Sign(address, msg))
+				.map(DispatchResult::Promise)
+				.map_err(|_| errors::request_rejected_limit())
 		})
 	}
 
-	fn dispatch_transaction<F: FnOnce(ConfirmationPromise) -> Result<Value, Error>>(&self, params: Params, f: F) -> Result<Value, Error> {
+	fn dispatch_transaction(&self, params: Params) -> Result<DispatchResult, Error> {
 		from_params::<(TransactionRequest, )>(params)
 			.and_then(|(request, )| {
 				let request: TRequest = request.into();
@@ -96,13 +102,14 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 
 				if accounts.is_unlocked(request.from) {
 					let sender = request.from;
-					return sign_and_dispatch(&*client, &*miner, request, &*accounts, sender);
+					return sign_and_dispatch(&*client, &*miner, request, &*accounts, sender).map(DispatchResult::Value);
 				}
 
 				let queue = take_weak!(self.queue);
 				let request = fill_optional_fields(request, &*client, &*miner);
-				let promise = queue.add_request(ConfirmationPayload::Transaction(request));
-				f(promise)
+				queue.add_request(ConfirmationPayload::Transaction(request))
+					.map(DispatchResult::Promise)
+					.map_err(|_| errors::request_rejected_limit())
 			})
 	}
 }
@@ -111,35 +118,53 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
 {
 
-	fn sign(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		self.dispatch_sign(params, |promise| {
-			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH520::default()))
-		})
+	fn sign(&self, params: Params, ready: Ready) {
+		let res = self.active().and_then(|_| self.dispatch_sign(params));
+		match res {
+			Ok(DispatchResult::Promise(promise)) => {
+				promise.wait_for_result(move |result| {
+					ready.ready(result.unwrap_or_else(|| Err(errors::request_rejected())))
+				})
+			},
+			Ok(DispatchResult::Value(v)) => ready.ready(Ok(v)),
+			Err(e) => ready.ready(Err(e)),
+		}
 	}
 
 	fn post_sign(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch_sign(params, |promise| {
-			let id = promise.id();
-			self.pending.lock().insert(id, promise);
-			to_value(&RpcU256::from(id))
+		self.dispatch_sign(params).map(|result| match result {
+			DispatchResult::Value(v) => v,
+			DispatchResult::Promise(promise) => {
+				let id = promise.id();
+				self.pending.lock().insert(id, promise);
+				to_value(&RpcU256::from(id))
+			},
 		})
 	}
 
-	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		self.dispatch_transaction(params, |promise| {
-			promise.wait_with_timeout().unwrap_or_else(|| to_value(&RpcH256::default()))
-		})
+	fn send_transaction(&self, params: Params, ready: Ready) {
+		let res = self.active().and_then(|_| self.dispatch_transaction(params));
+		match res {
+			Ok(DispatchResult::Promise(promise)) => {
+				promise.wait_for_result(move |result| {
+					ready.ready(result.unwrap_or_else(|| Err(errors::request_rejected())))
+				})
+			},
+			Ok(DispatchResult::Value(v)) => ready.ready(Ok(v)),
+			Err(e) => ready.ready(Err(e)),
+		}
 	}
 
 	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		self.dispatch_transaction(params, |promise| {
-			let id = promise.id();
-			self.pending.lock().insert(id, promise);
-			to_value(&RpcU256::from(id))
+		self.dispatch_transaction(params).map(|result| match result {
+			DispatchResult::Value(v) => v,
+			DispatchResult::Promise(promise) => {
+				let id = promise.id();
+				self.pending.lock().insert(id, promise);
+				to_value(&RpcU256::from(id))
+			},
 		})
 	}
 
@@ -196,23 +221,24 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient + 'static,
 	M: MinerService + 'static {
 
-	fn sign(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
-			let address: Address = address.into();
-			let msg: H256 = msg.into();
-			to_value(&take_weak!(self.accounts).sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))
-		})
+	fn sign(&self, params: Params, ready: Ready) {
+		ready.ready(self.active()
+			.and_then(|_| from_params::<(RpcH160, RpcH256)>(params))
+			.and_then(|(address, msg)| {
+				let address: Address = address.into();
+				let msg: H256 = msg.into();
+				Ok(to_value(&take_weak!(self.accounts).sign(address, msg).ok().map_or_else(RpcH520::default, Into::into)))
+			}))
 	}
 
-	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(TransactionRequest, )>(params)
+	fn send_transaction(&self, params: Params, ready: Ready) {
+		ready.ready(self.active()
+			.and_then(|_| from_params::<(TransactionRequest, )>(params))
 			.and_then(|(request, )| {
 				let request: TRequest = request.into();
 				let sender = request.from;
 				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender)
-			})
+			}))
 	}
 
 	fn post_sign(&self, _: Params) -> Result<Value, Error> {

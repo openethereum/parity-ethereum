@@ -74,7 +74,7 @@ impl fmt::Display for UtilError {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// Error indicating an expected value was not found.
 pub struct Mismatch<T: fmt::Debug> {
 	/// Value expected.
@@ -89,7 +89,7 @@ impl<T: fmt::Debug + fmt::Display> fmt::Display for Mismatch<T> {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// Error indicating value found is outside of a valid range.
 pub struct OutOfBounds<T: fmt::Debug> {
 	/// Minimum allowed value.

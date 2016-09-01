@@ -28,7 +28,7 @@ use ethkey::Error as EthkeyError;
 
 pub use types::executed::{ExecutionError, CallError};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 /// Errors concerning transaction processing.
 pub enum TransactionError {
 	/// Transaction is already imported to the queue
@@ -87,7 +87,7 @@ impl fmt::Display for TransactionError {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
 /// Errors concerning block processing.
 pub enum BlockError {
 	/// Block has too many uncles.
@@ -185,7 +185,7 @@ impl fmt::Display for BlockError {
 	}
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Import to the block queue result
 pub enum ImportError {
 	/// Already in the block chain.

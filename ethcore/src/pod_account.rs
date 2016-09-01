@@ -58,7 +58,7 @@ impl PodAccount {
 		let mut stream = RlpStream::new_list(4);
 		stream.append(&self.nonce);
 		stream.append(&self.balance);
-		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k.to_vec(), rlp::encode(&U256::from(v.as_slice())).to_vec())).collect()));
+		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k.to_vec(), rlp::encode(&U256::from(&**v)).to_vec())).collect()));
 		stream.append(&self.code.as_ref().unwrap_or(&vec![]).sha3());
 		stream.out()
 	}
@@ -72,7 +72,7 @@ impl PodAccount {
 		let mut r = H256::new();
 		let mut t = SecTrieDBMut::new(db, &mut r);
 		for (k, v) in &self.storage {
-			if let Err(e) = t.insert(k, &rlp::encode(&U256::from(v.as_slice()))) {
+			if let Err(e) = t.insert(k, &rlp::encode(&U256::from(&**v))) {
 				warn!("Encountered potential DB corruption: {}", e);
 			}
 		}
