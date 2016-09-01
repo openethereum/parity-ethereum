@@ -33,7 +33,7 @@ use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::{Factory as EvmFactory, VMType};
-use miner::{Miner, MinerService};
+use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 
 use block_queue::BlockQueueInfo;
@@ -253,6 +253,24 @@ impl TestBlockChainClient {
 			BlockID::Earliest => self.numbers.read().get(&0).cloned(),
 			BlockID::Latest | BlockID::Pending => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
 		}
+	}
+
+	/// Inserts a transaction to miners transactions queue.
+	pub fn insert_transaction_to_queue(&self) {
+		let keypair = Random.generate().unwrap();
+		let tx = Transaction {
+			action: Action::Create,
+			value: U256::from(100),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::one(),
+			nonce: U256::zero()
+		};
+		let signed_tx = tx.sign(keypair.secret());
+		self.set_balance(signed_tx.sender().unwrap(), 10_000_000.into());
+		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
+		let res = res.into_iter().next().unwrap().expect("Successful import");
+		assert_eq!(res, TransactionImportResult::Current);
 	}
 }
 
