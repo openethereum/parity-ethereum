@@ -80,7 +80,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 				let client = take_weak!(self.client);
 				let traces = client.filter_traces(filter.into());
 				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
-				to_value(&traces)
+				Ok(to_value(&traces))
 			})
 	}
 
@@ -91,7 +91,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 				let client = take_weak!(self.client);
 				let traces = client.block_traces(block_number.into());
 				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
-				to_value(&traces)
+				Ok(to_value(&traces))
 			})
 	}
 
@@ -102,7 +102,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 				let client = take_weak!(self.client);
 				let traces = client.transaction_traces(TransactionID::Hash(transaction_hash.into()));
 				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
-				to_value(&traces)
+				Ok(to_value(&traces))
 			})
 	}
 
@@ -117,7 +117,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 				};
 				let trace = client.trace(id);
 				let trace = trace.map(LocalizedTrace::from);
-				to_value(&trace)
+				Ok(to_value(&trace))
 			})
 	}
 
@@ -128,7 +128,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 				let request = CallRequest::into(request);
 				let signed = try!(self.sign_call(request));
 				match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
-					Ok(e) => to_value(&TraceResults::from(e)),
+					Ok(e) => Ok(to_value(&TraceResults::from(e))),
 					_ => Ok(Value::Null),
 				}
 			})
@@ -141,7 +141,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 				let raw_transaction = Bytes::to_vec(raw_transaction);
 				match UntrustedRlp::new(&raw_transaction).as_val() {
 					Ok(signed) => match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
-						Ok(e) => to_value(&TraceResults::from(e)),
+						Ok(e) => Ok(to_value(&TraceResults::from(e))),
 						_ => Ok(Value::Null),
 					},
 					Err(e) => Err(errors::invalid_params("Transaction is not valid RLP", e)),
@@ -154,7 +154,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		from_params::<(H256, _)>(params)
 			.and_then(|(transaction_hash, flags)| {
 				match take_weak!(self.client).replay(TransactionID::Hash(transaction_hash.into()), to_call_analytics(flags)) {
-					Ok(e) => to_value(&TraceResults::from(e)),
+					Ok(e) => Ok(to_value(&TraceResults::from(e))),
 					_ => Ok(Value::Null),
 				}
 			})

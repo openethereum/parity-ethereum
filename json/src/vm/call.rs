@@ -39,9 +39,8 @@ pub struct Call {
 mod tests {
 	use serde_json;
 	use vm::Call;
-	use util::U256;
+	use util::{U256, H160 as Hash160};
 	use uint::Uint;
-	use util::hash::Address as Hash160;
 	use hash::Address;
 	use maybe::MaybeEmpty;
 	use std::str::FromStr;

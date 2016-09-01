@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool};
 use rustc_serialize::hex::FromHex;
 
-use hyper::Control;
+use hyper;
 use hyper::status::StatusCode;
 
 use random_filename;
@@ -94,7 +94,7 @@ impl<R: URLHint> AppFetcher<R> {
 		}
 	}
 
-	pub fn to_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
+	pub fn to_async_handler(&self, path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let mut dapps = self.dapps.lock();
 		let app_id = path.app_id.clone();
 
@@ -112,7 +112,7 @@ impl<R: URLHint> AppFetcher<R> {
 			match status {
 				// Just server dapp
 				Some(&mut ContentStatus::Ready(ref endpoint)) => {
-					(None, endpoint.to_handler(path))
+					(None, endpoint.to_async_handler(path, control))
 				},
 				// App is already being fetched
 				Some(&mut ContentStatus::Fetching(_)) => {

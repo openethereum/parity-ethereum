@@ -163,7 +163,6 @@ impl JournalDB for ArchiveDB {
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
-				assert!(rc == 1);
 				batch.put(self.column, &key, &value);
 				inserts += 1;
 			}
@@ -192,7 +191,6 @@ impl JournalDB for ArchiveDB {
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
-				assert!(rc == 1);
 				if try!(self.backing.get(self.column, &key)).is_some() {
 					return Err(BaseDataError::AlreadyExists(key).into());
 				}

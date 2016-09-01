@@ -79,8 +79,8 @@ fn should_return_list_of_items_to_confirm() {
 		value: U256::from(1),
 		data: vec![],
 		nonce: None,
-	}));
-	tester.queue.add_request(ConfirmationPayload::Sign(1.into(), 5.into()));
+	})).unwrap();
+	tester.queue.add_request(ConfirmationPayload::Sign(1.into(), 5.into())).unwrap();
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"personal_requestsToConfirm","params":[],"id":1}"#;
@@ -92,7 +92,7 @@ fn should_return_list_of_items_to_confirm() {
 	);
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 }
 
 
@@ -108,7 +108,7 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 		value: U256::from(1),
 		data: vec![],
 		nonce: None,
-	}));
+	})).unwrap();
 	assert_eq!(tester.queue.requests().len(), 1);
 
 	// when
@@ -116,7 +116,7 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 0);
 	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
 }
@@ -133,7 +133,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 		value: U256::from(1),
 		data: vec![],
 		nonce: None,
-	}));
+	})).unwrap();
 	assert_eq!(tester.queue.requests().len(), 1);
 
 	// when
@@ -141,7 +141,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidAccount)"},"id":1}"#;
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 1);
 }
 
@@ -149,7 +149,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 fn should_not_remove_sign_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.queue.add_request(ConfirmationPayload::Sign(0.into(), 5.into()));
+	tester.queue.add_request(ConfirmationPayload::Sign(0.into(), 5.into())).unwrap();
 	assert_eq!(tester.queue.requests().len(), 1);
 
 	// when
@@ -157,7 +157,7 @@ fn should_not_remove_sign_if_password_is_invalid() {
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidAccount)"},"id":1}"#;
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 1);
 }
 
@@ -175,7 +175,7 @@ fn should_confirm_transaction_and_dispatch() {
 		value: U256::from(1),
 		data: vec![],
 		nonce: None,
-	}));
+	})).unwrap();
 
 	let t = Transaction {
 		nonce: U256::zero(),
@@ -201,7 +201,7 @@ fn should_confirm_transaction_and_dispatch() {
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 	assert_eq!(tester.queue.requests().len(), 0);
 	assert_eq!(tester.miner.imported_transactions.lock().len(), 1);
 }

@@ -12,7 +12,7 @@ rustc_version = "0.1"
 
 [dependencies]
 rand = "0.3.14"
-jsonrpc-core = "2.1"
+jsonrpc-core = "3.0"
 log = "0.3"
 env_logger = "0.3"
 ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "mio-upstream-stable" }
