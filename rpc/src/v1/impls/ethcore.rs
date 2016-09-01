@@ -82,50 +82,50 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 	fn transactions_limit(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&take_weak!(self.miner).transactions_limit())
+		Ok(to_value(&take_weak!(self.miner).transactions_limit()))
 	}
 
 	fn min_gas_price(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&U256::from(take_weak!(self.miner).minimal_gas_price()))
+		Ok(to_value(&U256::from(take_weak!(self.miner).minimal_gas_price())))
 	}
 
 	fn extra_data(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&Bytes::new(take_weak!(self.miner).extra_data()))
+		Ok(to_value(&Bytes::new(take_weak!(self.miner).extra_data())))
 	}
 
 	fn gas_floor_target(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&U256::from(take_weak!(self.miner).gas_floor_target()))
+		Ok(to_value(&U256::from(take_weak!(self.miner).gas_floor_target())))
 	}
 
 	fn gas_ceil_target(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&U256::from(take_weak!(self.miner).gas_ceil_target()))
+		Ok(to_value(&U256::from(take_weak!(self.miner).gas_ceil_target())))
 	}
 
 	fn dev_logs(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
 		let logs = self.logger.logs();
-		to_value(&logs.as_slice())
+		Ok(to_value(&logs.as_slice()))
 	}
 
 	fn dev_logs_levels(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&self.logger.levels())
+		Ok(to_value(&self.logger.levels()))
 	}
 
 	fn net_chain(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&self.settings.chain)
+		Ok(to_value(&self.settings.chain))
 	}
 
 	fn net_peers(&self, params: Params) -> Result<Value, Error> {
@@ -135,23 +135,23 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		let sync_status = take_weak!(self.sync).status();
 		let net_config = take_weak!(self.net).network_config();
 
-		to_value(&Peers {
+		Ok(to_value(&Peers {
 			active: sync_status.num_active_peers,
 			connected: sync_status.num_peers,
 			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
-		})
+		}))
 	}
 
 	fn net_port(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&self.settings.network_port)
+		Ok(to_value(&self.settings.network_port))
 	}
 
 	fn node_name(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&self.settings.name)
+		Ok(to_value(&self.settings.name))
 	}
 
 	fn registry_address(&self, params: Params) -> Result<Value, Error> {
@@ -162,7 +162,7 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 			.get("registrar")
 			.and_then(|s| Address::from_str(s).ok())
 			.map(|s| H160::from(s));
-		to_value(&r)
+		Ok(to_value(&r))
 	}
 
 	fn rpc_settings(&self, params: Params) -> Result<Value, Error> {
@@ -178,7 +178,7 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 	fn default_extra_data(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		to_value(&Bytes::new(version_data()))
+		Ok(to_value(&Bytes::new(version_data())))
 	}
 
 	fn gas_price_statistics(&self, params: Params) -> Result<Value, Error> {
@@ -186,10 +186,10 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		try!(expect_no_params(params));
 
 		match take_weak!(self.client).gas_price_statistics(100, 8) {
-			Ok(stats) => to_value(&stats
+			Ok(stats) => Ok(to_value(&stats
 				.into_iter()
-				.map(|x| to_value(&U256::from(x)).expect("x must be U256; qed"))
-				.collect::<Vec<_>>()),
+				.map(|x| to_value(&U256::from(x)))
+				.collect::<Vec<_>>())),
 			_ => Err(Error::internal_error()),
 		}
 	}
@@ -200,7 +200,7 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 
 		match self.confirmations_queue {
 			None => Err(errors::signer_disabled()),
-			Some(ref queue) => to_value(&queue.len()),
+			Some(ref queue) => Ok(to_value(&queue.len())),
 		}
 	}
 
@@ -208,12 +208,12 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		try!(self.active());
 		try!(expect_no_params(params));
 
-		to_value(&random_phrase(12))
+		Ok(to_value(&random_phrase(12)))
 	}
 
 	fn phrase_to_address(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(String,)>(params).and_then(|(phrase,)|
+		from_params::<(String,)>(params).map(|(phrase,)|
 			to_value(&H160::from(Brain::new(phrase).generate().unwrap().address()))
 		)
 	}

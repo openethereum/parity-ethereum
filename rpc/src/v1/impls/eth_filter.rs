@@ -70,7 +70,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 				let mut polls = self.polls.lock();
 				let block_number = take_weak!(self.client).chain_info().best_block_number;
 				let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
-				to_value(&RpcU256::from(id))
+				Ok(to_value(&RpcU256::from(id)))
 			})
 	}
 
@@ -80,7 +80,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 
 		let mut polls = self.polls.lock();
 		let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
-		to_value(&RpcU256::from(id))
+		Ok(to_value(&RpcU256::from(id)))
 	}
 
 	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
@@ -91,7 +91,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 		let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
 		let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
 
-		to_value(&RpcU256::from(id))
+		Ok(to_value(&RpcU256::from(id)))
 	}
 
 	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
@@ -114,7 +114,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 
 							*block_number = current_number;
 
-							to_value(&hashes)
+							Ok(to_value(&hashes))
 						},
 						PollFilter::PendingTransaction(ref mut previous_hashes) => {
 							// get hashes of pending transactions
@@ -137,7 +137,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							*previous_hashes = current_hashes;
 
 							// return new hashes
-							to_value(&new_hashes)
+							Ok(to_value(&new_hashes))
 						},
 						PollFilter::Logs(ref mut block_number, ref mut previous_logs, ref filter) => {
 							// retrive the current block number
@@ -178,7 +178,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							// we want to get logs
 							*block_number = current_number + 1;
 
-							to_value(&logs)
+							Ok(to_value(&logs))
 						}
 					}
 				}
@@ -203,7 +203,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							logs.extend(pending_logs(&*take_weak!(self.miner), &filter));
 						}
 
-						to_value(&logs)
+						Ok(to_value(&logs))
 					},
 					// just empty array
 					_ => Ok(Value::Array(vec![] as Vec<Value>)),
@@ -214,7 +214,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
+			.map(|(index,)| {
 				self.polls.lock().remove_poll(&index.value());
 				to_value(&true)
 			})

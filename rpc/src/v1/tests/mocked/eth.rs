@@ -97,7 +97,7 @@ fn rpc_eth_protocol_version() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_protocolVersion", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"63","id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn rpc_eth_syncing() {
 	let tester = EthTester::default();
 
 	let false_res = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
-	assert_eq!(tester.io.handle_request(request), Some(false_res.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(false_res.to_owned()));
 
 	{
 		let mut status = tester.sync.status.write();
@@ -123,7 +123,7 @@ fn rpc_eth_syncing() {
 	}
 
 	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x03e8","highestBlock":"0x09c4","startingBlock":"0x00"},"id":1}"#;
-	assert_eq!(tester.io.handle_request(request), Some(true_res.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(true_res.to_owned()));
 
 	{
 		// finish "syncing"
@@ -133,7 +133,7 @@ fn rpc_eth_syncing() {
 		}
 	}
 
-	assert_eq!(tester.io.handle_request(request), Some(false_res.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(false_res.to_owned()));
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn rpc_eth_hashrate() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_hashrate", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0xfffc","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn rpc_eth_submit_hashrate() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 	assert_eq!(tester.hashrates.lock().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned().unwrap().1,
 		U256::from(0x500_000));
 }
@@ -188,7 +188,7 @@ fn rpc_eth_sign() {
 	}"#;
 	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{}", signed) + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(&req), Some(res));
+	assert_eq!(tester.io.handle_request_sync(&req), Some(res));
 }
 
 #[test]
@@ -203,13 +203,13 @@ fn rpc_eth_author() {
 		"id": 1
 	}"#;
 
-	assert_eq!(tester.io.handle_request(req), Some(make_res(Address::zero())));
+	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(Address::zero())));
 
 	for i in 0..20 {
 		let addr = tester.accounts_provider.new_account(&format!("{}", i)).unwrap();
 		tester.miner.set_author(addr.clone());
 
-		assert_eq!(tester.io.handle_request(req), Some(make_res(addr)));
+		assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
 	}
 }
 
@@ -220,7 +220,7 @@ fn rpc_eth_mining() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_mining", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -228,7 +228,7 @@ fn rpc_eth_gas_price() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_gasPrice", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x04a817c800","id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -239,7 +239,7 @@ fn rpc_eth_accounts() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -250,7 +250,7 @@ fn rpc_eth_block_number() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x0a","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn rpc_eth_balance() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x05","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -286,7 +286,7 @@ fn rpc_eth_balance_pending() {
 	// miner.
 	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -302,7 +302,7 @@ fn rpc_eth_storage_at() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000007","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -315,7 +315,7 @@ fn rpc_eth_transaction_count() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -328,7 +328,7 @@ fn rpc_eth_block_transaction_count_by_hash() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -341,7 +341,7 @@ fn rpc_eth_transaction_count_by_number() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -354,7 +354,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -375,7 +375,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 		"params": ["0x0000000000000000000000000000000000000000000000000000000000000000"],
 		"id": 1
 	}"#;
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 
@@ -389,7 +389,7 @@ fn rpc_eth_uncle_count_by_block_hash() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -402,7 +402,7 @@ fn rpc_eth_uncle_count_by_block_number() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -418,7 +418,7 @@ fn rpc_eth_code() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0xff21","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -453,7 +453,7 @@ fn rpc_eth_call_latest() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x1234ff","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -488,7 +488,7 @@ fn rpc_eth_call() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x1234ff","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -522,7 +522,7 @@ fn rpc_eth_call_default_block() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x1234ff","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -557,7 +557,7 @@ fn rpc_eth_estimate_gas() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0xff35","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -591,7 +591,7 @@ fn rpc_eth_estimate_gas_default_block() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0xff35","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -625,7 +625,7 @@ fn rpc_eth_send_transaction() {
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(&request), Some(response));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 
 	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
 
@@ -642,7 +642,7 @@ fn rpc_eth_send_transaction() {
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(&request), Some(response));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 }
 #[test]
 fn rpc_eth_send_transaction_with_bad_to() {
@@ -663,7 +663,7 @@ fn rpc_eth_send_transaction_with_bad_to() {
 
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params","data":null},"id":1}"#;
 
-	assert_eq!(tester.io.handle_request(&request), Some(response.into()));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 }
 
 
@@ -685,7 +685,7 @@ fn rpc_eth_send_transaction_error() {
 	}"#;
 
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32020,"message":"Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.","data":"NotUnlocked"},"id":1}"#;
-	assert_eq!(tester.io.handle_request(&request), Some(response.into()));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 }
 
 #[test]
@@ -718,7 +718,7 @@ fn rpc_eth_send_raw_transaction() {
 
 	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", t.hash()) + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(&req), Some(res));
+	assert_eq!(tester.io.handle_request_sync(&req), Some(res));
 }
 
 #[test]
@@ -760,7 +760,7 @@ fn rpc_eth_transaction_receipt() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","contractAddress":null,"cumulativeGasUsed":"0x20","gasUsed":"0x10","logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","data":"0x","logIndex":"0x01","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00","type":"mined"}],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00"},"id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -775,7 +775,7 @@ fn rpc_eth_transaction_receipt_null() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 // These tests are incorrect: their output is undefined as long as eth_getCompilers is [].
@@ -788,7 +788,7 @@ fn rpc_eth_compilers() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getCompilers", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[ignore]
@@ -797,7 +797,7 @@ fn rpc_eth_compile_lll() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileLLL", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[ignore]
@@ -806,7 +806,7 @@ fn rpc_eth_compile_solidity() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSolidity", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[ignore]
@@ -815,7 +815,7 @@ fn rpc_eth_compile_serpent() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSerpent", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
 
-	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -826,7 +826,7 @@ fn rpc_get_work_returns_no_work_if_cant_mine() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32001,"message":"Still syncing.","data":null},"id":1}"#;
 
-	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(eth_tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -837,7 +837,7 @@ fn rpc_get_work_returns_correct_work_package() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}"#;
 
-	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(eth_tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -851,7 +851,7 @@ fn rpc_get_work_should_not_return_block_number() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000"],"id":1}"#;
 
-	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(eth_tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -867,7 +867,7 @@ fn rpc_get_work_should_timeout() {
 		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}}"#,
 		hash,
 	);
-	assert_eq!(eth_tester.io.handle_request(request), Some(work_response.to_owned()));
+	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
 
 	// Request with timeout of 0 seconds. This should work since we're disabling timeout.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["0"], "id": 1}"#;
@@ -875,14 +875,14 @@ fn rpc_get_work_should_timeout() {
 		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}}"#,
 		hash,
 	);
-	assert_eq!(eth_tester.io.handle_request(request), Some(work_response.to_owned()));
+	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
 
 	// Request with timeout of 10K seconds. This should work.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["10000"], "id": 1}"#;
-	assert_eq!(eth_tester.io.handle_request(request), Some(work_response.to_owned()));
+	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
 
 	// Request with timeout of 10 seconds. This should fail.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["10"], "id": 1}"#;
 	let err_response = r#"{"jsonrpc":"2.0","error":{"code":-32003,"message":"Work has not changed.","data":null},"id":1}"#;
-	assert_eq!(eth_tester.io.handle_request(request), Some(err_response.to_owned()));
+	assert_eq!(eth_tester.io.handle_request_sync(request), Some(err_response.to_owned()));
 }
