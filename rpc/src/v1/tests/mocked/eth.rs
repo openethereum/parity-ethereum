@@ -122,7 +122,7 @@ fn rpc_eth_syncing() {
 		}
 	}
 
-	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x03e8","highestBlock":"0x09c4","startingBlock":"0x00"},"id":1}"#;
+	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0"},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(true_res.to_owned()));
 
 	{
@@ -226,7 +226,7 @@ fn rpc_eth_mining() {
 #[test]
 fn rpc_eth_gas_price() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_gasPrice", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x04a817c800","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x4a817c800","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -248,7 +248,7 @@ fn rpc_eth_block_number() {
 	tester.client.add_blocks(10, EachBlockWith::Nothing);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x0a","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xa","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -264,7 +264,7 @@ fn rpc_eth_balance() {
 		"params": ["0x0000000000000000000000000000000000000001", "latest"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x05","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x5","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -284,7 +284,7 @@ fn rpc_eth_balance_pending() {
 	// the TestMinerService doesn't communicate with the the TestBlockChainClient in any way.
 	// if this returns zero, we know that the "pending" call is being properly forwarded to the
 	// miner.
-	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -313,7 +313,7 @@ fn rpc_eth_transaction_count() {
 		"params": ["0x0000000000000000000000000000000000000001", "latest"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -339,7 +339,7 @@ fn rpc_eth_transaction_count_by_number() {
 		"params": ["latest"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -352,7 +352,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 		"params": ["pending"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x1","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -368,7 +368,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 		tester.miner.pending_transactions.lock().insert(H256::zero(), tx);
 	}
 
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x01","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x00","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0x0a"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x0","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0xa"},"id":1}"#;
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionByHash",
@@ -400,7 +400,7 @@ fn rpc_eth_uncle_count_by_block_number() {
 		"params": ["latest"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -758,7 +758,7 @@ fn rpc_eth_transaction_receipt() {
 		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","contractAddress":null,"cumulativeGasUsed":"0x20","gasUsed":"0x10","logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","data":"0x","logIndex":"0x01","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00","type":"mined"}],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","contractAddress":null,"cumulativeGasUsed":"0x20","gasUsed":"0x10","logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","data":"0x","logIndex":"0x1","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0","type":"mined"}],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0"},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -835,7 +835,7 @@ fn rpc_get_work_returns_correct_work_package() {
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}"#;
 
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -864,7 +864,7 @@ fn rpc_get_work_should_timeout() {
 	// Request without providing timeout. This should work since we're disabling timeout.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let work_response = format!(
-		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}}"#,
+		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}}"#,
 		hash,
 	);
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
@@ -872,7 +872,7 @@ fn rpc_get_work_should_timeout() {
 	// Request with timeout of 0 seconds. This should work since we're disabling timeout.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["0"], "id": 1}"#;
 	let work_response = format!(
-		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}}"#,
+		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}}"#,
 		hash,
 	);
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
