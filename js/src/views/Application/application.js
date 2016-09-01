@@ -69,7 +69,8 @@ class Application extends Component {
       );
     } else if (root === 'app') {
       return (
-        <AppContainer />
+        <AppContainer
+          children={ children } />
       );
     }
 

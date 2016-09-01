@@ -4,7 +4,7 @@ import ParityBar from '../../ParityBar';
 
 import styles from '../style.css';
 
-export default class Clazz extends Component {
+export default class AppContainer extends Component {
   static propTypes = {
     children: PropTypes.node
   };
