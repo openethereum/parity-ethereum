@@ -7,7 +7,7 @@ const initialState = {
   isLoading: true,
   isNodeRunning: true,
   isConnected: false,
-  logging: !isProd,
+  logging: false && !isProd,
   token: '',
   url: window.location.host,
   proxyUrl: 'http://localhost:8080/proxy/proxy.pac'

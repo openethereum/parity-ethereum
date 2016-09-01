@@ -1,5 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
+import { Actionbar } from '../../ui';
+
 import Summary from './Summary';
 
 import styles from './style.css';
@@ -35,6 +37,8 @@ export default class Dapps extends Component {
   render () {
     return (
       <div>
+        <Actionbar
+          title='Decentralized Applications' />
         <div className={ styles.contracts }>
           { this.renderApps() }
         </div>
