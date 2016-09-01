@@ -20,3 +20,16 @@
 .toolbar {
   position: relative;
 }
+
+.tooltitle {
+  text-transform: uppercase;
+}
+
+.toolbutton {
+  color: white !important;
+  background: rgb(0, 151, 167);
+}
+
+.toolbutton svg {
+  fill: white !important;
+}

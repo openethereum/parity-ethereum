@@ -1,12 +1,12 @@
 import React, { Component, PropTypes } from 'react';
-
+import { FlatButton } from 'material-ui';
+import ActionAccountBalance from 'material-ui/svg-icons/action/account-balance';
 import ContentCreate from 'material-ui/svg-icons/content/create';
+import ContentSend from 'material-ui/svg-icons/content/send';
 
 import { FundAccount, Transfer } from '../../modals';
+import { Actionbar, Balances, Container, ContainerTitle, Form, FormWrap, InputInline, IdentityIcon } from '../../ui';
 
-import { Balances, Container, ContainerTitle, Form, FormWrap, InputInline, IdentityIcon } from '../../ui';
-
-import Actions from './Actions';
 import Transactions from './Transactions';
 
 import styles from './style.css';
@@ -61,9 +61,7 @@ export default class Account extends Component {
       <div>
         { this.renderFundDialog() }
         { this.renderTransferDialog() }
-        <Actions
-          onFundAccount={ this.onFundAccountClick }
-          onTransfer={ this.onTransferClick } />
+        { this.renderActionbar() }
         <Container>
           <IdentityIcon
             address={ address } />
@@ -92,6 +90,29 @@ export default class Account extends Component {
         <Transactions
           address={ address } />
       </div>
+    );
+  }
+
+  renderActionbar () {
+    const buttons = [
+      <FlatButton
+        key='transferFunds'
+        icon={ <ContentSend /> }
+        label='transfer'
+        primary
+        onTouchTap={ this.onTransferClick } />,
+      <FlatButton
+        key='fundAccount'
+        icon={ <ActionAccountBalance /> }
+        label='fund account'
+        primary
+        onTouchTap={ this.onFundAccountClick } />
+    ];
+
+    return (
+      <Actionbar
+        title='Account Management'
+        buttons={ buttons } />
     );
   }
 

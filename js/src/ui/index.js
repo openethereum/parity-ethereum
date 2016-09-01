@@ -1,3 +1,4 @@
+import Actionbar from './Actionbar';
 import Balances from './Balances';
 import Container, { Title as ContainerTitle } from './Container';
 import Errors from './Errors';
@@ -8,6 +9,7 @@ import muiTheme from './Theme';
 import Tooltips, { Tooltip } from './Tooltips';
 
 export {
+  Actionbar,
   Balances,
   Container,
   ContainerTitle,

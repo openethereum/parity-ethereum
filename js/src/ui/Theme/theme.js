@@ -14,6 +14,6 @@ muiTheme.tabs = lightTheme.tabs;
 muiTheme.tabs.backgroundColor = 'rgb(65, 65, 65)';
 muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
-muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)';
+muiTheme.toolbar.backgroundColor = 'rgba(255, 136, 0, 0.6)'; // 'rgb(80, 80, 80)';
 
 export default muiTheme;

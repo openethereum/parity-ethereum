@@ -1,9 +1,11 @@
 import React, { Component, PropTypes } from 'react';
+import { FlatButton } from 'material-ui';
+import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
+import ContentAdd from 'material-ui/svg-icons/content/add';
 
-import Actions from './Actions';
 import Summary from './Summary';
 import { AddressBook, CreateAccount } from '../../modals';
-import { Tooltip } from '../../ui';
+import { Actionbar, Tooltip } from '../../ui';
 
 import styles from './style.css';
 
@@ -23,13 +25,38 @@ export default class Accounts extends Component {
       <div>
         { this.renderAddressBook() }
         { this.renderNewDialog() }
-        <Actions
-          onAddressBook={ this.onAddressBookClick }
-          onNewAccount={ this.onNewAccountClick } />
+        { this.renderActionbar() }
         <div className={ styles.accounts }>
           { this.renderAccounts() }
         </div>
       </div>
+    );
+  }
+
+  renderActionbar () {
+    const buttons = [
+      <FlatButton
+        key='newAccount'
+        icon={ <ContentAdd /> }
+        label='new account'
+        primary
+        onTouchTap={ this.onNewAccountClick } />,
+      <FlatButton
+        key='addressBook'
+        icon={ <CommunicationContacts /> }
+        label='address book'
+        primary
+        onTouchTap={ this.onAddressBookClick } />
+    ];
+
+    return (
+      <Actionbar
+        title='Accounts Overview'
+        buttons={ buttons }>
+        <Tooltip
+          left='5%' top='85%'
+          text='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item' />
+      </Actionbar>
     );
   }
 
