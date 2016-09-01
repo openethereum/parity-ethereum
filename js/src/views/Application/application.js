@@ -16,7 +16,7 @@ import styles from './style.css';
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
 const store = createStore(combineReducers({
-  tooltipReducer
+  tooltip: tooltipReducer
 }), {});
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
@@ -65,6 +65,7 @@ export default class Application extends Component {
   }
 
   componentWillMount () {
+    this.retrieveAccounts();
     this.retrieveTokens();
     this.pollStatus();
   }
@@ -164,8 +165,8 @@ export default class Application extends Component {
     });
   }
 
-  retrieveBalances = () => {
-    const accounts = [];
+  retrieveAccounts = () => {
+    const nextTimeout = () => setTimeout(this.retrieveAccounts, 1000);
 
     Promise
       .all([
@@ -174,61 +175,77 @@ export default class Application extends Component {
       ])
       .then(([addresses, infos]) => {
         const contacts = [];
+        const accounts = [];
 
         Object.keys(infos).forEach((address) => {
           const { name, meta, uuid } = infos[address];
 
           if (uuid) {
-            return;
-          }
-
-          contacts.push({
-            address,
-            meta,
-            name,
-            uuid
-          });
-        });
-
-        this.setState({
-          contacts
-        });
-
-        return Promise.all(
-          addresses.map((address) => {
-            const { name, meta, uuid } = infos[address];
-
-            accounts.push({
+            const account = this.state.accounts.find((_account) => _account.uuid === uuid) || {
               address,
-              meta,
-              name,
               uuid,
               balances: [],
               txCount: 0
-            });
+            };
 
-            return Promise.all([
-              api.eth.getBalance(address),
-              api.eth.getTransactionCount(address)
-            ]);
-          })
-        );
+            accounts.push(Object.assign(account, {
+              meta,
+              name
+            }));
+          } else {
+            const contact = this.state.contacts.find((_contact) => _contact.address === address) || {
+              address
+            };
+
+            contacts.push(Object.assign(contact, {
+              meta,
+              name
+            }));
+          }
+        });
+
+        this.setState({
+          accounts,
+          contacts
+        });
+
+        nextTimeout();
       })
+      .catch((error) => {
+        console.error('retrieveAccounts', error);
+
+        nextTimeout();
+      });
+  }
+
+  retrieveBalances = () => {
+    const { accounts, tokens } = this.state;
+
+    return Promise
+      .all(
+        accounts.map((account) => {
+          const { address } = account;
+
+          return Promise.all([
+            api.eth.getBalance(address),
+            api.eth.getTransactionCount(address)
+          ]);
+        })
+      )
       .then((balancesTxCounts) => {
         return Promise.all(
           balancesTxCounts.map(([balance, txCount], idx) => {
             const account = accounts[idx];
 
             account.txCount = txCount.sub(0x100000); // WHY?
-            account.balances.push({
+            account.balances = [{
               token: ETH_TOKEN,
               value: balance.toString()
-            });
+            }];
 
             return Promise.all(
-              this.state.tokens.map((token) => {
-                return token.contract.instance
-                  .balanceOf.call({}, [account.address]);
+              tokens.map((token) => {
+                return token.contract.instance.balanceOf.call({}, [account.address]);
               })
             );
           })
@@ -238,7 +255,7 @@ export default class Application extends Component {
         accounts.forEach((account, idx) => {
           const balanceOf = balances[idx];
 
-          this.state.tokens.forEach((token, tidx) => {
+          tokens.forEach((token, tidx) => {
             account.balances.push({
               token,
               value: balanceOf[tidx].toString()
