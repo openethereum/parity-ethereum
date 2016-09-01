@@ -16,8 +16,7 @@
 
 use std::{fmt, cmp};
 use std::str::FromStr;
-use rlp;
-use rlp::{UntrustedRlp, RlpStream, View, Stream, DecoderError};
+use ::{Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, Stream, DecoderError};
 use bigint::uint::U256;
 
 #[test]
@@ -26,26 +25,22 @@ fn rlp_at() {
 	{
 		let rlp = UntrustedRlp::new(&data);
 		assert!(rlp.is_list());
-		//let animals = <Vec<String> as rlp::RlpDecodable>::decode_untrusted(&rlp).unwrap();
 		let animals: Vec<String> = rlp.as_val().unwrap();
 		assert_eq!(animals, vec!["cat".to_owned(), "dog".to_owned()]);
 
 		let cat = rlp.at(0).unwrap();
 		assert!(cat.is_data());
 		assert_eq!(cat.as_raw(), &[0x83, b'c', b'a', b't']);
-		//assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_owned());
 		assert_eq!(cat.as_val::<String>().unwrap(), "cat".to_owned());
 
 		let dog = rlp.at(1).unwrap();
 		assert!(dog.is_data());
 		assert_eq!(dog.as_raw(), &[0x83, b'd', b'o', b'g']);
-		//assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_owned());
 		assert_eq!(dog.as_val::<String>().unwrap(), "dog".to_owned());
 
 		let cat_again = rlp.at(0).unwrap();
 		assert!(cat_again.is_data());
 		assert_eq!(cat_again.as_raw(), &[0x83, b'c', b'a', b't']);
-		//assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_owned());
 		assert_eq!(cat_again.as_val::<String>().unwrap(), "cat".to_owned());
 	}
 }
@@ -58,10 +53,10 @@ fn rlp_at_err() {
 		assert!(rlp.is_list());
 
 		let cat_err = rlp.at(0).unwrap_err();
-		assert_eq!(cat_err, rlp::DecoderError::RlpIsTooShort);
+		assert_eq!(cat_err, DecoderError::RlpIsTooShort);
 
 		let dog_err = rlp.at(1).unwrap_err();
-		assert_eq!(dog_err, rlp::DecoderError::RlpIsTooShort);
+		assert_eq!(dog_err, DecoderError::RlpIsTooShort);
 	}
 }
 
@@ -89,13 +84,13 @@ fn rlp_iter() {
 	}
 }
 
-struct ETestPair<T>(T, Vec<u8>) where T: rlp::Encodable;
+struct ETestPair<T>(T, Vec<u8>) where T: Encodable;
 
 fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
-	where T: rlp::Encodable
+	where T: Encodable
 {
 	for t in &tests {
-		let res = rlp::encode(&t.0);
+		let res = super::encode(&t.0);
 		assert_eq!(&res[..], &t.1[..]);
 	}
 }
@@ -165,7 +160,7 @@ fn encode_str() {
 
 #[test]
 fn encode_address() {
-	use hash::*;
+	use bigint::hash::H160;
 
 	let tests = vec![
 		ETestPair(H160::from("ef2d6d194084c2de36e0dabfce45d046b37d1106"),
@@ -206,11 +201,11 @@ fn encode_vector_str() {
 	run_encode_tests(tests);
 }
 
-struct DTestPair<T>(T, Vec<u8>) where T: rlp::RlpDecodable + fmt::Debug + cmp::Eq;
+struct DTestPair<T>(T, Vec<u8>) where T: RlpDecodable + fmt::Debug + cmp::Eq;
 
-fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::RlpDecodable + fmt::Debug + cmp::Eq {
+fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: RlpDecodable + fmt::Debug + cmp::Eq {
 	for t in &tests {
-		let res: T = rlp::decode(&t.1);
+		let res: T = super::decode(&t.1);
 		assert_eq!(res, t.0);
 	}
 }
@@ -301,7 +296,7 @@ fn decode_untrusted_str() {
 
 #[test]
 fn decode_untrusted_address() {
-	use hash::*;
+	use bigint::hash::H160;
 
 	let tests = vec![
 		DTestPair(H160::from("ef2d6d194084c2de36e0dabfce45d046b37d1106"),
@@ -340,8 +335,8 @@ fn decode_untrusted_vector_of_vectors_str() {
 #[test]
 fn test_decoding_array() {
 	let v = vec![5u16, 2u16];
-	let res = rlp::encode(&v);
-	let arr: [u16; 2] = rlp::decode(&res);
+	let res = super::encode(&v);
+	let arr: [u16; 2] = super::decode(&res);
 	assert_eq!(arr[0], 5);
 	assert_eq!(arr[1], 2);
 }

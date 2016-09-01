@@ -79,12 +79,9 @@
 //!   cargo build --release
 //!   ```
 
-#[macro_use] extern crate log;
-#[macro_use] extern crate ethcore_util as util;
+
 extern crate ethcore_io as io;
-#[macro_use] extern crate lazy_static;
 extern crate rustc_serialize;
-#[macro_use] extern crate heapsize;
 extern crate crypto;
 extern crate time;
 extern crate env_logger;
@@ -92,19 +89,32 @@ extern crate num_cpus;
 extern crate crossbeam;
 extern crate ethjson;
 extern crate bloomchain;
-#[macro_use] extern crate ethcore_ipc as ipc;
 extern crate rayon;
 extern crate hyper;
 extern crate ethash;
 extern crate ethkey;
-pub extern crate ethstore;
 extern crate semver;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_devtools as devtools;
 extern crate rand;
 extern crate bit_set;
+extern crate rlp;
 
-#[cfg(feature = "jit" )] extern crate evmjit;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate ethcore_util as util;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate heapsize;
+#[macro_use]
+extern crate ethcore_ipc as ipc;
+
+#[cfg(feature = "jit" )]
+extern crate evmjit;
+
+pub extern crate ethstore;
 
 pub mod account_provider;
 pub mod engines;

@@ -16,6 +16,7 @@
 
 //! DB backend wrapper for Account trie
 use util::*;
+use util::sha3::SHA3_NULL_RLP;
 
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
 
