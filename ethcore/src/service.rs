@@ -22,6 +22,7 @@ use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
+use snapshot::ManifestData;
 use snapshot::service::Service as SnapshotService;
 use std::sync::atomic::AtomicBool;
 
@@ -39,6 +40,8 @@ pub enum ClientIoMessage {
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
 	NewTransactions(Vec<Bytes>),
+	/// Begin snapshot restoration
+	BeginRestoration(ManifestData),
 	/// Feed a state chunk to the snapshot service
 	FeedStateChunk(H256, Bytes),
 	/// Feed a block chunk to the snapshot service
@@ -160,6 +163,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
 			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
+			ClientIoMessage::BeginRestoration(ref manifest) => {
+				if let Err(e) = self.snapshot.init_restore(manifest.clone()) {
+					warn!("Failed to initialize snapshot restoration: {}", e);
+				}
+			}
 			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
 			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
 			_ => {} // ignore other messages

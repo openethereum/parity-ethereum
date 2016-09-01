@@ -260,6 +260,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
 
+	// hypervisor should be shutdown first while everything still works and can be
+	// terminated gracefully
+	drop(hypervisor);
+
 	Ok(())
 }
 

@@ -37,7 +37,7 @@ impl Web3 for Web3Client {
 	}
 
 	fn sha3(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Bytes,)>(params).and_then(
+		from_params::<(Bytes,)>(params).map(
 			|(data,)| {
 				let Bytes(ref vec) = data;
 				let sha3 = vec.sha3();

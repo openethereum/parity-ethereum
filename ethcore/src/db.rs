@@ -83,10 +83,10 @@ pub trait Key<T> {
 /// Should be used to write value into database.
 pub trait Writable {
 	/// Writes the value into the database.
-	fn write<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]>;
+	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]>;
 
 	/// Writes the value into the database and updates the cache.
-	fn write_with_cache<K, T, R>(&self, col: Option<u32>, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
+	fn write_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: Encodable,
 	R: Deref<Target = [u8]> {
@@ -102,7 +102,7 @@ pub trait Writable {
 	}
 
 	/// Writes the values into the database and updates the cache.
-	fn extend_with_cache<K, T, R>(&self, col: Option<u32>, cache: &mut Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
+	fn extend_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: Encodable,
 	R: Deref<Target = [u8]> {
@@ -169,7 +169,7 @@ pub trait Readable {
 }
 
 impl Writable for DBTransaction {
-	fn write<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
+	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
 		self.put(col, &key.key(), &encode(value));
 	}
 }

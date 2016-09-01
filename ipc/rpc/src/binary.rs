@@ -16,7 +16,6 @@
 
 //! Binary representation of types
 
-use util::bytes::Populatable;
 use util::{U256, U512, H256, H2048, Address};
 use std::mem;
 use std::collections::{VecDeque, BTreeMap};
@@ -706,14 +705,21 @@ pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryError> {
 #[macro_export]
 macro_rules! binary_fixed_size {
 	($target_ty: ty) => {
-		impl BinaryConvertable for $target_ty {
+		impl BinaryConvertable for $target_ty where $target_ty: Copy {
 			fn from_bytes(bytes: &[u8], _length_stack: &mut ::std::collections::VecDeque<usize>) -> Result<Self, BinaryConvertError> {
-				match bytes.len().cmp(&::std::mem::size_of::<$target_ty>()) {
+				let size = ::std::mem::size_of::<$target_ty>();
+				match bytes.len().cmp(&size) {
 					::std::cmp::Ordering::Equal => (),
-					_ => return Err(BinaryConvertError::size(::std::mem::size_of::<$target_ty>(), bytes.len())),
+					_ => return Err(BinaryConvertError::size(size, bytes.len())),
 				};
-				let mut res: Self = unsafe { ::std::mem::uninitialized() };
-				res.copy_raw(bytes);
+				let res: Self = unsafe {
+					let mut temp = ::std::mem::zeroed();
+					let temp_ptr = &mut temp as *mut _ as *mut u8;
+					::std::ptr::copy_nonoverlapping(bytes.as_ptr(), temp_ptr, size);
+
+					temp
+				};
+
 				Ok(res)
 			}
 
@@ -731,14 +737,14 @@ macro_rules! binary_fixed_size {
 }
 
 /// Fixed-sized version of Handshake struct
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BinHandshake {
 	api_version: BinVersion,
 	protocol_version: BinVersion,
 }
 
 /// Shorten version of semver Version without `pre` and `build` information
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BinVersion {
 	pub major: u64,
 	pub minor: u64,

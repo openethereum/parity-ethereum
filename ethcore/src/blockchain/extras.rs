@@ -176,7 +176,7 @@ impl Encodable for BlockDetails {
 }
 
 /// Represents address of certain transaction within block
-#[derive(Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TransactionAddress {
 	/// Block hash
 	pub block_hash: H256,

@@ -16,7 +16,6 @@
 
 use util::rlp::*;
 use util::{H256, H2048};
-use util::U256;
 use util::bytes::Bytes;
 use header::Header;
 use transaction::SignedTransaction;
@@ -24,6 +23,7 @@ use transaction::SignedTransaction;
 use super::fork::Forkable;
 use super::bloom::WithBloom;
 use super::complete::CompleteBlock;
+use super::transaction::WithTransaction;
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default)]
@@ -44,21 +44,29 @@ impl Encodable for Block {
 
 impl Forkable for Block {
 	fn fork(mut self, fork_number: usize) -> Self where Self: Sized {
-		self.header.difficulty = self.header.difficulty - U256::from(fork_number);
+		let difficulty = self.header.difficulty().clone() - fork_number.into();
+		self.header.set_difficulty(difficulty);
 		self
 	}
 }
 
 impl WithBloom for Block {
 	fn with_bloom(mut self, bloom: H2048) -> Self where Self: Sized {
-		self.header.log_bloom = bloom;
+		self.header.set_log_bloom(bloom);
+		self
+	}
+}
+
+impl WithTransaction for Block {
+	fn with_transaction(mut self, transaction: SignedTransaction) -> Self where Self: Sized {
+		self.transactions.push(transaction);
 		self
 	}
 }
 
 impl CompleteBlock for Block {
 	fn complete(mut self, parent_hash: H256) -> Bytes {
-		self.header.parent_hash = parent_hash;
+		self.header.set_parent_hash(parent_hash);
 		encode(&self).to_vec()
 	}
 }

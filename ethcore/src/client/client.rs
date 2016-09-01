@@ -99,7 +99,7 @@ impl ClientReport {
 	pub fn accrue_block(&mut self, block: &PreverifiedBlock) {
 		self.blocks_imported += 1;
 		self.transactions_applied += block.transactions.len();
-		self.gas_processed = self.gas_processed + block.header.gas_used;
+		self.gas_processed = self.gas_processed + block.header.gas_used().clone();
 	}
 }
 
@@ -172,8 +172,8 @@ impl Client {
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
-			let batch = DBTransaction::new(&db);
-			try!(state_db.commit(&batch, 0, &spec.genesis_header().hash(), None));
+			let mut batch = DBTransaction::new(&db);
+			try!(state_db.commit(&mut batch, 0, &spec.genesis_header().hash(), None));
 			try!(db.write(batch).map_err(ClientError::Database));
 		}
 
@@ -284,15 +284,15 @@ impl Client {
 		};
 
 		// Check if Parent is in chain
-		let chain_has_parent = self.chain.block_header(&header.parent_hash);
+		let chain_has_parent = self.chain.block_header(header.parent_hash());
 		if let None = chain_has_parent {
-			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
+			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
 			return Err(());
 		};
 
 		// Enact Verified Block
 		let parent = chain_has_parent.unwrap();
-		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
+		let last_hashes = self.build_last_hashes(header.parent_hash().clone());
 		let db = self.state_db.lock().boxed_clone();
 
 		let enact_result = enact_verified(block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
@@ -352,7 +352,7 @@ impl Client {
 
 			for block in blocks {
 				let header = &block.header;
-				if invalid_blocks.contains(&header.parent_hash) {
+				if invalid_blocks.contains(header.parent_hash()) {
 					invalid_blocks.insert(header.hash());
 					continue;
 				}
@@ -431,14 +431,14 @@ impl Client {
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
-		let batch = DBTransaction::new(&self.db);
+		let mut batch = DBTransaction::new(&self.db);
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(&batch, number, hash, ancient).expect("DB commit failed.");
+		block.drain().commit(&mut batch, number, hash, ancient).expect("DB commit failed.");
 
-		let route = self.chain.insert_block(&batch, block_data, receipts);
-		self.tracedb.import(&batch, TraceImportRequest {
+		let route = self.chain.insert_block(&mut batch, block_data, receipts);
+		self.tracedb.import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
 			block_hash: hash.clone(),
 			block_number: number,
