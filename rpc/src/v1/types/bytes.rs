@@ -70,7 +70,9 @@ impl Visitor for BytesVisitor {
 	type Value = Bytes;
 
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
-		if value.len() >= 2 && &value[0..2] == "0x" {
+		if value.is_empty() {
+			Ok(Bytes::new(Vec::new()))
+		} else if value.len() >= 2 && &value[0..2] == "0x" {
 			Ok(Bytes::new(FromHex::from_hex(&value[2..]).unwrap_or_else(|_| vec![])))
 		} else {
 			Err(Error::custom("invalid hex"))
@@ -94,6 +96,21 @@ mod tests {
 		let bytes = Bytes("0123456789abcdef".from_hex().unwrap());
 		let serialized = serde_json::to_string(&bytes).unwrap();
 		assert_eq!(serialized, r#""0x0123456789abcdef""#);
+	}
+
+	#[test]
+	fn test_bytes_deserialize() {
+		let deserialized: Bytes = serde_json::from_str(r#""0x""#).unwrap();
+		let deserialized2: Bytes = serde_json::from_str(r#""0x0123456789abcdef""#).unwrap();
+
+		assert_eq!(deserialized, Bytes(Vec::new()));
+		assert_eq!(deserialized2, "0123456789abcdef".from_hex().unwrap().into());
+	}
+
+	#[test]
+	fn test_bytes_lenient_against_the_spec_deserialize_for_empty_string_for_geth_compatibility() {
+		let deserialized: Bytes = serde_json::from_str(r#""""#).unwrap();
+		assert_eq!(deserialized, Bytes(Vec::new()));
 	}
 }
 
