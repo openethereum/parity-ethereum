@@ -1,8 +1,6 @@
 function newError (state, action) {
   const { error } = action;
 
-  console.log('newError', state, action);
-
   return Object.assign({}, state, {
     visible: true,
     message: error.message
