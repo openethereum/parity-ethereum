@@ -287,7 +287,7 @@ impl Account {
 				// so we can call overloaded `to_bytes` method
 				let res = match v.is_zero() {
 					true => t.remove(k),
-					false => t.insert(k, &encode(&U256::from(v.as_slice()))),
+					false => t.insert(k, &encode(&U256::from(&*v))),
 				};
 
 				if let Err(e) = res {
