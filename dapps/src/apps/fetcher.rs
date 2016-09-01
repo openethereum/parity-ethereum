@@ -101,9 +101,9 @@ impl<R: URLHint> AppFetcher<R> {
 		if self.sync.is_major_syncing() {
 			return Box::new(ContentHandler::error(
 				StatusCode::ServiceUnavailable,
-				"Sync in progress",
+				"Sync In Progress",
 				"Your node is still syncing. We cannot resolve any content before it's fully synced.",
-				None
+				Some("<a href=\"javascript:window.location.reload()\">Refresh</a>")
 			));
 		}
 

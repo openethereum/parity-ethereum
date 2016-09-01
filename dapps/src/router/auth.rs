@@ -57,7 +57,9 @@ impl Authorization for HttpBasicAuth {
 			Access::Denied => {
 				Authorized::No(Box::new(ContentHandler::error(
 					status::StatusCode::Unauthorized,
-					"Unauthorized", "You need to provide valid credentials to access this page.", None
+					"Unauthorized",
+					"You need to provide valid credentials to access this page.",
+					None
 				)))
 			},
 			Access::AuthRequired => {

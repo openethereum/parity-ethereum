@@ -133,7 +133,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 						Err(e) => FetchState::Error(ContentHandler::error(
 							StatusCode::BadGateway,
 							"Unable To Start Dapp Download",
-							"Could not initialize download of the dapp. It might be a problem with remote server.",
+							"Could not initialize download of the dapp. It might be a problem with the remote server.",
 							Some(&format!("{}", e)),
 						)),
 					}

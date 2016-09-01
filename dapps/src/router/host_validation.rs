@@ -39,7 +39,7 @@ pub fn is_valid(request: &server::Request<HttpStream>, allowed_hosts: &[String],
 
 pub fn host_invalid_response() -> Box<server::Handler<HttpStream> + Send> {
 	Box::new(ContentHandler::error(StatusCode::Forbidden,
-		"Current host is disallowed",
+		"Current Host Is Disallowed",
 		"You are trying to access your node using incorrect address.",
 		Some("Use allowed URL or specify different <code>hosts</code> CLI options.")
 	))
