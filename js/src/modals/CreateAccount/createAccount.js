@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
-
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
@@ -26,15 +27,15 @@ const TITLES = {
 const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 
-export default class CreateAccount extends Component {
+class CreateAccount extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     onClose: PropTypes.func,
-    onUpdate: PropTypes.func
+    onUpdate: PropTypes.func,
+    onNewError: PropTypes.func
   }
 
   state = {
@@ -300,8 +301,21 @@ export default class CreateAccount extends Component {
   }
 
   newError = (error) => {
-    const { store } = this.context;
-
-    store.dispatch(newError(error));
+    this.props.onNewError(error);
   }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    onNewError: newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(CreateAccount);

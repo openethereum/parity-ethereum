@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
-
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
@@ -15,14 +16,14 @@ import Welcome from './Welcome';
 
 const STAGE_NAMES = ['welcome', 'new account', 'recovery', 'completed'];
 
-export default class FirstRun extends Component {
+class FirstRun extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    onClose: PropTypes.func.isRequired
+    onClose: PropTypes.func.isRequired,
+    onNewError: PropTypes.func
   }
 
   state = {
@@ -149,8 +150,21 @@ export default class FirstRun extends Component {
   }
 
   newError = (error) => {
-    const { store } = this.context;
-
-    store.dispatch(newError(error));
+    this.props.onNewError(error);
   }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    onNewError: newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(FirstRun);

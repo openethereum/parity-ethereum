@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
-
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import IconButton from 'material-ui/IconButton';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
@@ -16,14 +17,14 @@ const ERRORS = {
   noMatchPassword: 'the supplied passwords does not match'
 };
 
-export default class CreateAccount extends Component {
+class CreateAccount extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    onNewError: PropTypes.func
   }
 
   state = {
@@ -264,8 +265,21 @@ export default class CreateAccount extends Component {
   }
 
   newError = (error) => {
-    const { store } = this.context;
-
-    store.dispatch(newError(error));
+    this.props.onNewError(error);
   }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    onNewError: newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(CreateAccount);

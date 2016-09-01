@@ -1,5 +1,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
@@ -28,15 +30,15 @@ const TITLES = {
 const STAGES_BASIC = [TITLES.transfer, TITLES.complete];
 const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
 
-export default class Transfer extends Component {
+class Transfer extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     account: PropTypes.object,
-    onClose: PropTypes.func
+    onClose: PropTypes.func,
+    onNewError: PropTypes.func
   }
 
   state = {
@@ -523,8 +525,21 @@ export default class Transfer extends Component {
   }
 
   newError = (error) => {
-    const { store } = this.context;
-
-    store.dispatch(newError(error));
+    this.props.onNewError(error);
   }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    onNewError: newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Transfer);
