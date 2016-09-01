@@ -30,6 +30,7 @@ use hyper::Control;
 use hyper::status::StatusCode;
 
 use random_filename;
+use SyncStatus;
 use util::{Mutex, H256};
 use util::sha3::sha3;
 use page::LocalPageEndpoint;
@@ -44,6 +45,7 @@ const MAX_CACHED_DAPPS: usize = 10;
 pub struct AppFetcher<R: URLHint = URLHintContract> {
 	dapps_path: PathBuf,
 	resolver: R,
+	sync: Arc<SyncStatus>,
 	dapps: Arc<Mutex<ContentCache>>,
 }
 
@@ -56,13 +58,14 @@ impl<R: URLHint> Drop for AppFetcher<R> {
 
 impl<R: URLHint> AppFetcher<R> {
 
-	pub fn new(resolver: R) -> Self {
+	pub fn new(resolver: R, sync_status: Arc<SyncStatus>) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
 
 		AppFetcher {
 			dapps_path: dapps_path,
 			resolver: resolver,
+			sync: sync_status,
 			dapps: Arc::new(Mutex::new(ContentCache::default())),
 		}
 	}
@@ -74,20 +77,35 @@ impl<R: URLHint> AppFetcher<R> {
 
 	pub fn contains(&self, app_id: &str) -> bool {
 		let mut dapps = self.dapps.lock();
-		match dapps.get(app_id) {
-			// Check if we already have the app
-			Some(_) => true,
-			// fallback to resolver
-			None => match app_id.from_hex() {
-				Ok(app_id) => self.resolver.resolve(app_id).is_some(),
-				_ => false,
-			},
+		// Check if we already have the app
+		if dapps.get(app_id).is_some() {
+			return true;
+		}
+		// fallback to resolver
+		if let Ok(app_id) = app_id.from_hex() {
+			// if app_id is valid, but we are syncing always return true.
+			if self.sync.is_major_syncing() {
+				return true;
+			}
+			// else try to resolve the app_id
+			self.resolver.resolve(app_id).is_some()
+		} else {
+			false
 		}
 	}
 
 	pub fn to_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
 		let mut dapps = self.dapps.lock();
 		let app_id = path.app_id.clone();
+
+		if self.sync.is_major_syncing() {
+			return Box::new(ContentHandler::error(
+				StatusCode::ServiceUnavailable,
+				"Sync in progress",
+				"Your node is still syncing. We cannot resolve any content before it's fully synced.",
+				None
+			));
+		}
 
 		let (new_status, handler) = {
 			let status = dapps.get(&app_id);
@@ -108,20 +126,32 @@ impl<R: URLHint> AppFetcher<R> {
 				// We need to start fetching app
 				None => {
 					let app_hex = app_id.from_hex().expect("to_handler is called only when `contains` returns true.");
-					let app = self.resolver.resolve(app_hex).expect("to_handler is called only when `contains` returns true.");
-					let abort = Arc::new(AtomicBool::new(false));
+					let app = self.resolver.resolve(app_hex);
 
-					(Some(ContentStatus::Fetching(abort.clone())), Box::new(ContentFetcherHandler::new(
-						app,
-						abort,
-						control,
-						path.using_dapps_domains,
-						DappInstaller {
-							dapp_id: app_id.clone(),
-							dapps_path: self.dapps_path.clone(),
-							dapps: self.dapps.clone(),
-						}
-					)) as Box<Handler>)
+					if let Some(app) = app {
+						let abort = Arc::new(AtomicBool::new(false));
+
+						(Some(ContentStatus::Fetching(abort.clone())), Box::new(ContentFetcherHandler::new(
+							app,
+							abort,
+							control,
+							path.using_dapps_domains,
+							DappInstaller {
+								dapp_id: app_id.clone(),
+								dapps_path: self.dapps_path.clone(),
+								dapps: self.dapps.clone(),
+							}
+						)) as Box<Handler>)
+					} else {
+						// This may happen when sync status changes in between
+						// `contains` and `to_handler`
+						(None, Box::new(ContentHandler::error(
+							StatusCode::NotFound,
+							"Resource Not Found",
+							"Requested resource was not found.",
+							None
+						)) as Box<Handler>)
+					}
 				},
 			}
 		};
@@ -274,6 +304,7 @@ impl ContentValidator for DappInstaller {
 #[cfg(test)]
 mod tests {
 	use std::env;
+	use std::sync::Arc;
 	use util::Bytes;
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
@@ -292,7 +323,7 @@ mod tests {
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = AppFetcher::new(FakeResolver);
+		let fetcher = AppFetcher::new(FakeResolver, Arc::new(|| false));
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),

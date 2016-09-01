@@ -58,22 +58,35 @@ impl ContractClient for FakeRegistrar {
 	}
 }
 
-pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
+pub fn init_server(hosts: Option<Vec<String>>) -> (Server, Arc<FakeRegistrar>) {
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar);
-	builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap()
+	let builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone());
+	(
+		builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap(),
+		registrar,
+	)
 }
 
 pub fn serve_with_auth(user: &str, pass: &str) -> Server {
 	let registrar = Arc::new(FakeRegistrar::new());
-	let builder = ServerBuilder::new(env::temp_dir().to_str().unwrap().into(), registrar);
+	let mut dapps_path = env::temp_dir();
+	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
+	let builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar);
 	builder.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
 }
 
+pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
+	init_server(hosts).0
+}
+
+pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
+	init_server(None)
+}
+
 pub fn serve() -> Server {
-	serve_hosts(None)
+	init_server(None).0
 }
 
 pub fn request(server: Server, request: &str) -> http_client::Response {

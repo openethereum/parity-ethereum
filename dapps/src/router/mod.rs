@@ -24,12 +24,12 @@ use DAPPS_DOMAIN;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::{Url, Host};
-use hyper::{self, server, Next, Encoder, Decoder, Control};
+use hyper::{self, server, Next, Encoder, Decoder, Control, StatusCode};
 use hyper::net::HttpStream;
 use apps;
 use apps::fetcher::AppFetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
-use handlers::{Redirection, extract_url};
+use handlers::{Redirection, extract_url, ContentHandler};
 use self::auth::{Authorization, Authorized};
 
 /// Special endpoints are accessible on every domain (every dapp)
@@ -94,7 +94,12 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			// Redirection to main page (maybe 404 instead?)
 			(Some(ref path), _) if *req.method() == hyper::method::Method::Get => {
 				let address = apps::redirection_address(path.using_dapps_domains, self.main_page);
-				Redirection::new(address.as_str())
+				Box::new(ContentHandler::error(
+					StatusCode::NotFound,
+					"404 Not Found",
+					"Requested content was not found on a server.",
+					Some(&format!("Go back to the <a href=\"{}\">Home Page</a>.", address))
+				))
 			},
 			// Redirect any GET request to home.
 			_ if *req.method() == hyper::method::Method::Get => {
