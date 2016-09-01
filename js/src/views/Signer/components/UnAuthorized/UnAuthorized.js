@@ -8,7 +8,7 @@ import styles from './UnAuthorized.css';
 export default class UnAuthorized extends Component {
 
   static propTypes = {
-    app: PropTypes.shape({
+    signer: PropTypes.shape({
       token: PropTypes.string.isRequired
     }).isRequired,
     actions: PropTypes.shape({
@@ -17,17 +17,17 @@ export default class UnAuthorized extends Component {
   }
 
   state = {
-    token: this.props.app.token,
+    token: this.props.signer.token,
     tokenInvalid: null,
     processing: false
   };
 
   componentWillReceiveProps (nextProps) {
-    if (this.props.app.token === nextProps.app.token) {
+    if (this.props.signer.token === nextProps.signer.token) {
       return;
     }
     this.setState({
-      token: nextProps.app.token
+      token: nextProps.signer.token
     });
   }
 

@@ -2,8 +2,7 @@ import { isEqual } from 'lodash';
 import logger from '../utils/logger';
 import { updatePendingRequests, updateCompatibilityMode } from '../actions/requests';
 
-export default class WsProvider {
-
+export default class WsDataProvider {
   constructor (store, ws) {
     this.store = store;
     this.ws = ws;

@@ -16,7 +16,7 @@ class OfflinePage extends Component {
 
 function mapStateToProps (state) {
   return {
-    parityUrl: state.app.url
+    parityUrl: state.signer.url
   };
 }
 

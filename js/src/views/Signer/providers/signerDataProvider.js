@@ -3,8 +3,7 @@ import { updateIsConnected, updateIsNodeRunning } from '../actions/app';
 
 import { isParityRunning } from '../utils/parity';
 
-export default class appProvider {
-
+export default class SignerDataProvider {
   constructor (store, ws) {
     this.store = store;
     this.ws = ws;
@@ -16,8 +15,7 @@ export default class appProvider {
   }
 
   checkIfIsRunning () {
-    const url = this.store.getState().app.url;
-    const { isNodeRunning, isLoading } = this.store.getState().signer;
+    const { isNodeRunning, isLoading, url } = this.store.getState().signer;
 
     isParityRunning(url).then(isRunning => {
       if (isRunning !== isNodeRunning || isLoading) {

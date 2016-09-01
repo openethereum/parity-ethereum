@@ -1,7 +1,9 @@
 import logger from '../utils/logger';
 
 export default store => next => action => {
-  if (store.getState().app.logging) {
+  console.log(store.getState());
+
+  if (store.getState().signer.logging) {
     const msg = [`[${now()}] action:`, `${action.type};`, 'payload: ', action.payload];
     // const logMethod = action.type.indexOf('error') > -1 ? 'error' : 'log';
     logger.log(...msg); // todo [adgo] - implement error logs

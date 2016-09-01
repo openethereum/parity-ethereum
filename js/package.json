@@ -30,7 +30,7 @@
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "eslint --ignore-path .gitignore ./src/",
     "release": "./scripts/release.sh",
-    "start": "npm run startApp",
+    "start": "npm install && npm run startApp",
     "startApp": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
     "test": "mocha 'src/**/*.spec.js'",
     "testCoverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
@@ -38,6 +38,7 @@
     "watch": "npm run test -- -w"
   },
   "devDependencies": {
+    "axios": "^0.14.0",
     "babel-cli": "^6.10.1",
     "babel-core": "^6.10.4",
     "babel-eslint": "^6.1.2",
@@ -86,8 +87,7 @@
     "rollup-plugin-node-resolve": "^2.0.0",
     "rollup-plugin-replace": "^1.1.1",
     "rollup-plugin-uglify": "^1.0.1",
-    "rucksack-css": "^0.8.5",
-    "sass-loader": "^4.0.0",
+    "rucksack-css": "^0.8.6",
     "sinon": "^1.17.4",
     "sinon-chai": "^2.8.0",
     "style-loader": "^0.13.0",

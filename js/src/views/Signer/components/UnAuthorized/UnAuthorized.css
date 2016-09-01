@@ -12,8 +12,7 @@
 }
 
 .code {
-  background: #e4e4e4;
+  background: rgba(80, 80, 80, 1);
   padding: 4px;
   border-radius: 3px;
-  border: 1px solid #ccc;
 }

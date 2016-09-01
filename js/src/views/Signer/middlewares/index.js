@@ -1,19 +1,19 @@
 // Middleware classes (except logger)
 import Ws from './ws';
-import App from './app';
+import Signer from './signer';
 import Toastr from './toastr';
 import logger from './logger';
 
 export default function middlewares (ws, setToken) {
   // Middleware instances
   const wsMiddleware = new Ws(ws, setToken);
-  const app = new App();
+  const signer = new Signer();
   const toastr = new Toastr();
 
   return [
     logger,
     wsMiddleware.toMiddleware(),
     toastr.toMiddleware(),
-    app.toMiddleware()
+    signer.toMiddleware()
   ];
 }
