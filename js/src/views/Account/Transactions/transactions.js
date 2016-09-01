@@ -5,8 +5,7 @@ import LinearProgress from 'material-ui/LinearProgress';
 
 import Api from '../../../api';
 import etherscan from '../../../3rdparty/etherscan';
-import Container from '../../../ui/Container';
-import IdentityIcon from '../../../ui/IdentityIcon';
+import { Container, IdentityIcon } from '../../../ui';
 
 import styles from '../style.css';
 

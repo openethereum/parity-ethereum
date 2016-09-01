@@ -5,8 +5,7 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 
-import IdentityIcon from '../../ui/IdentityIcon';
-import Modal from '../../ui/Modal';
+import { IdentityIcon, Modal } from '../../ui';
 
 import AddEntry from './AddEntry';
 import EditEntry from './EditEntry';
@@ -135,12 +134,12 @@ export default class AddressBook extends Component {
   updateDetails (address, name, description) {
     const { api } = this.context;
 
-    Promise.all(
+    Promise.all([
       api.personal.setAccountName(address, name),
-      api.personal.setAccountMeta(address, {
-        description: description || null
-      })
-    );
+      api.personal.setAccountMeta(address, { description })
+    ]).catch((error) => {
+      console.error('updateDetails', error);
+    });
   }
 
   onCloseAdd = (address, name, description) => {

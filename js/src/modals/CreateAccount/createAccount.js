@@ -8,7 +8,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import Modal from '../../ui/Modal';
+import { Modal } from '../../ui';
 import { newError } from '../../ui/Errors';
 
 import AccountDetails from './AccountDetails';

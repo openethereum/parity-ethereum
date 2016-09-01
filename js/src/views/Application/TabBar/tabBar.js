@@ -7,7 +7,7 @@ import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-bal
 import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
-import { Tooltip } from '../../../ui/Tooltips';
+import { Tooltip } from '../../../ui';
 
 import styles from '../style.css';
 

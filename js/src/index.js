@@ -10,15 +10,8 @@ import { combineReducers, createStore } from 'redux';
 import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
-import muiTheme from './ui/Theme';
-import Accounts from './views/Accounts';
-import Account from './views/Account';
-import Contracts from './views/Contracts';
-import Contract from './views/Contract';
-import Dapps from './views/Dapps';
-import Dapp from './views/Dapp';
-import Signer from './views/Signer';
-import Application from './views/Application';
+import { muiTheme } from './ui';
+import { Accounts, Account, Application, Contract, Contracts, Dapp, Dapps, Signer } from './views';
 
 import { errorReducer } from './ui/Errors';
 import { tooltipReducer } from './ui/Tooltips';

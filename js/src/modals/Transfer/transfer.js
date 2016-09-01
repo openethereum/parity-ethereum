@@ -11,8 +11,7 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 
 import Api from '../../api';
 import { newError } from '../../ui/Errors';
-import IdentityIcon from '../../ui/IdentityIcon';
-import Modal from '../../ui/Modal';
+import { IdentityIcon, Modal } from '../../ui';
 
 import Complete from './Complete';
 import Details from './Details';

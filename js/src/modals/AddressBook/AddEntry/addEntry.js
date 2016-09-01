@@ -4,8 +4,7 @@ import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import Modal from '../../../ui/Modal';
-import Form, { Input, InputAddress } from '../../../ui/Form';
+import { Modal, Form, Input, InputAddress } from '../../../ui';
 import { ERRORS, validateAddress, validateName } from '../../../services/validation';
 
 import styles from '../style.css';

@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import Modal from '../../ui/Modal';
+import { Modal } from '../../ui';
 
 const STAGE_NAMES = ['fund account'];
 

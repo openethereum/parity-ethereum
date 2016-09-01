@@ -4,10 +4,9 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import Api from '../../api';
-import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
-import Errors from '../../ui/Errors';
-import Tooltips from '../../ui/Tooltips';
 import { FirstRun } from '../../modals';
+import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
+import { Errors, Tooltips } from '../../ui';
 
 import AppContainer from './AppContainer';
 import FrameError from './FrameError';

@@ -4,10 +4,7 @@ import ContentCreate from 'material-ui/svg-icons/content/create';
 
 import { FundAccount, Transfer } from '../../modals';
 
-import Balances from '../../ui/Balances';
-import Container, { Title } from '../../ui/Container';
-import Form, { FormWrap, InputInline } from '../../ui/Form';
-import IdentityIcon from '../../ui/IdentityIcon';
+import { Balances, Container, ContainerTitle, Form, FormWrap, InputInline, IdentityIcon } from '../../ui';
 
 import Actions from './Actions';
 import Transactions from './Transactions';
@@ -76,7 +73,7 @@ export default class Account extends Component {
                 label='account name'
                 hint='a descriptive name for the account'
                 value={ name }
-                static={ <Title title={ title } /> }
+                static={ <ContainerTitle title={ title } /> }
                 onChange={ this.onEditName } />
             </FormWrap>
             <FormWrap>

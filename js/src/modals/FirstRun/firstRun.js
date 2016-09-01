@@ -7,7 +7,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { newError } from '../../ui/Errors';
-import Modal from '../../ui/Modal';
+import { Modal } from '../../ui';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
 
