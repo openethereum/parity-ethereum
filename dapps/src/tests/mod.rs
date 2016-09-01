@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain generator for tests.
+//! Dapps server test suite
 
-mod bloom;
-mod block;
-mod complete;
-mod fork;
-pub mod generator;
-mod transaction;
+mod helpers;
 
-pub use self::complete::BlockFinalizer;
-pub use self::generator::{ChainIterator, ChainGenerator};
+mod api;
+mod authorization;
+mod redirection;
+mod validation;
+

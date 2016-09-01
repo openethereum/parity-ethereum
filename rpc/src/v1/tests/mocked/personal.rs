@@ -76,7 +76,7 @@ fn should_return_false_if_signer_is_disabled() {
 
 
 	// then
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn should_return_port_number_if_signer_is_enabled() {
 
 
 	// then
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn accounts() {
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_listAccounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn new_account() {
 	let tester = setup(None);
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_newAccount", "params": ["pass"], "id": 1}"#;
 
-	let res = tester.io.handle_request(request);
+	let res = tester.io.handle_request_sync(request);
 
 	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
@@ -131,7 +131,7 @@ fn should_be_able_to_get_account_info() {
 	tester.accounts.set_account_meta(address.clone(), "{foo: 69}".to_owned()).unwrap();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
-	let res = tester.io.handle_request(request);
+	let res = tester.io.handle_request_sync(request);
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
 	assert_eq!(res, Some(response));
 }
@@ -146,13 +146,13 @@ fn should_be_able_to_set_name() {
 
 	let request = format!(r#"{{"jsonrpc": "2.0", "method": "personal_setAccountName", "params": ["0x{}", "Test"], "id": 1}}"#, address.hex());
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
-	let res = tester.io.handle_request(&request);
+	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
 	let uuid = tester.accounts.accounts_info().unwrap().get(&address).unwrap().uuid.as_ref().unwrap().clone();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
-	let res = tester.io.handle_request(request);
+	let res = tester.io.handle_request_sync(request);
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
 	assert_eq!(res, Some(response));
 }
@@ -167,13 +167,13 @@ fn should_be_able_to_set_meta() {
 
 	let request = format!(r#"{{"jsonrpc": "2.0", "method": "personal_setAccountMeta", "params": ["0x{}", "{{foo: 69}}"], "id": 1}}"#, address.hex());
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
-	let res = tester.io.handle_request(&request);
+	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
 	let uuid = tester.accounts.accounts_info().unwrap().get(&address).unwrap().uuid.as_ref().unwrap().clone();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
-	let res = tester.io.handle_request(request);
+	let res = tester.io.handle_request_sync(request);
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"{}\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid, uuid);
 	assert_eq!(res, Some(response));
 }
@@ -197,7 +197,7 @@ fn sign_and_send_transaction_with_invalid_password() {
 
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidPassword)"},"id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response.into()));
+	assert_eq!(tester.io.handle_request_sync(request.as_ref()), Some(response.into()));
 }
 
 #[test]
@@ -232,7 +232,7 @@ fn sign_and_send_transaction() {
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+	assert_eq!(tester.io.handle_request_sync(request.as_ref()), Some(response));
 
 	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
 
@@ -250,5 +250,5 @@ fn sign_and_send_transaction() {
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
-	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+	assert_eq!(tester.io.handle_request_sync(request.as_ref()), Some(response));
 }

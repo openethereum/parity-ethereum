@@ -178,5 +178,5 @@ mod tests {
 		}"#;
 		let _deserialized: BlockChain = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields
-	//}
+	}
 }
