@@ -31,7 +31,7 @@ use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionOrigin};
-use miner::work_notify::WorkPoster;
+use miner::work_notify::{WorkPoster, NotifyWork};
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
 
@@ -45,6 +45,16 @@ pub enum PendingSet {
 	AlwaysSealing,
 	/// Try the sealing block, but if it is not currently sealing, fallback to the queue.
 	SealingOrElseQueue,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct StratumOptions {
+	/// Working directory
+	io_path: String,
+	/// Network address
+	addr: String,
+	/// Port
+	port: u16,
 }
 
 /// Configures the behaviour of the miner.
@@ -70,6 +80,8 @@ pub struct MinerOptions {
 	pub work_queue_size: usize,
 	/// Can we submit two different solutions for the same block and expect both to result in an import?
 	pub enable_resubmission: bool,
+	/// If stratum server will run
+	pub stratum: Option<StratumOptions>,
 }
 
 impl Default for MinerOptions {
@@ -85,6 +97,7 @@ impl Default for MinerOptions {
 			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
 			enable_resubmission: true,
+			stratum: None,
 		}
 	}
 }
@@ -180,7 +193,7 @@ pub struct Miner {
 	engine: Arc<Engine>,
 
 	accounts: Option<Arc<AccountProvider>>,
-	work_poster: Option<WorkPoster>,
+	notifiers: RwLock<Vec<Box<NotifyWork>>>,
 	gas_pricer: Mutex<GasPricer>,
 }
 
@@ -198,16 +211,38 @@ impl Miner {
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
 			engine: spec.engine.clone(),
-			work_poster: None,
+			notifiers: RwLock::new(Vec::new()),
 			gas_pricer: Mutex::new(GasPricer::new_fixed(20_000_000_000u64.into())),
 		}
 	}
 
+	#[cfg(feature="stratum")]
+	fn stratum_probably(miner: &Arc<Miner>) -> Option<Box<NotifyWork>> {
+		use super::work_dispatcher;
+
+		miner.options.stratum.as_ref().and_then(|stratum_options| {
+			work_dispatcher::Stratum::new(miner.clone(), "").or_else(
+				|e| {
+					warn!(target: "stratum", "Cannot start stratum server");
+					Err(e)
+				}
+			).ok().map(|stratum| Box::new(stratum) as Box<NotifyWork>)
+		})
+	}
+
+	#[cfg(not(feature="stratum"))]
+	fn stratum_probably(options: &MinerOptions) -> Option<Box<NotifyWork>> {
+		None
+	}
+
+	fn push_notifier(&self, notifier: Box<NotifyWork>) {
+		self.notifiers.write().push(notifier)
+	}
+
 	/// Creates new instance of miner
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
-		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
 		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
-		Arc::new(Miner {
+		let miner = Arc::new(Miner {
 			transaction_queue: txq,
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
@@ -218,9 +253,19 @@ impl Miner {
 			options: options,
 			accounts: accounts,
 			engine: spec.engine.clone(),
-			work_poster: work_poster,
+			notifiers: RwLock::new(Vec::new()),
 			gas_pricer: Mutex::new(gas_pricer),
-		})
+		});
+
+		if !miner.options.new_work_notify.is_empty() {
+			let http_poster = Box::new(WorkPoster::new(&miner.options.new_work_notify));
+			miner.push_notifier(http_poster as Box<NotifyWork>);
+		};
+		Miner::stratum_probably(&miner).map(|stratum_notifier| {
+			miner.push_notifier(stratum_notifier)
+		});
+
+		miner
 	}
 
 	fn forced_sealing(&self) -> bool {
@@ -366,7 +411,7 @@ impl Miner {
 				let is_new = original_work_hash.map_or(true, |h| block.block().fields().header.hash() != h);
 				sealing_work.queue.push(block);
 				// If push notifications are enabled we assume all work items are used.
-				if self.work_poster.is_some() && is_new {
+				if !self.notifiers.read().is_empty() && is_new {
 					sealing_work.queue.use_last_ref();
 				}
 				(Some((pow_hash, difficulty, number)), is_new)
@@ -377,7 +422,11 @@ impl Miner {
 			(work, is_new)
 		};
 		if is_new {
-			work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|p| p.notify(pow_hash, difficulty, number)));
+			work.map(|(pow_hash, difficulty, number)| {
+				for notifier in self.notifiers.read().iter() {
+					notifier.notify(pow_hash, difficulty, number)
+				}
+			});
 		}
 	}
 

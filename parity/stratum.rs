@@ -22,7 +22,7 @@ use ethcore_stratum::{Stratum as StratumServer, PushWorkHandler, RemoteJobDispat
 use std::thread;
 use modules::service_urls;
 use boot;
-use hypervisor::service::IpcModuleId;
+use hypervisor::service::{IpcModuleId, HYPERVISOR_IPC_URL};
 use std::net::SocketAddr;
 use std::str::FromStr;
 
@@ -34,7 +34,10 @@ pub fn main() {
 	let service_config: ServiceConfiguration = boot::payload()
 		.unwrap_or_else(|e| panic!("Fatal: error reading boot arguments ({:?})", e));
 
-	let job_dispatcher = dependency!(RemoteJobDispatcher, service_urls::MINING_JOB_DISPATCHER);
+	let job_dispatcher = dependency!(
+		RemoteJobDispatcher,
+		&service_urls::with_base(&service_config.io_path, service_urls::MINING_JOB_DISPATCHER),
+	);
 
 	let stop = boot::main_thread();
 	let server =
@@ -47,9 +50,16 @@ pub fn main() {
 			|e| panic!("Fatal: cannot start stratum server({:?})", e)
 		);
 
-	boot::host_service(service_urls::STRATUM, stop.clone(), server.clone() as Arc<PushWorkHandler>);
+	boot::host_service(
+		&service_urls::with_base(&service_config.io_path, service_urls::STRATUM),
+		stop.clone(),
+		server.clone() as Arc<PushWorkHandler>
+	);
 
-	let _ = boot::register(STRATUM_MODULE_ID);
+	let _ = boot::register(
+		&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL),
+		STRATUM_MODULE_ID
+	);
 
 	while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
 		thread::park_timeout(std::time::Duration::from_millis(1000));

@@ -57,6 +57,7 @@ pub trait PushWorkHandler: Send + Sync {
 
 #[derive(Binary)]
 pub struct ServiceConfiguration {
+	pub io_path: String,
 	pub listen_addr: String,
 	pub secret: Option<H256>,
 }
