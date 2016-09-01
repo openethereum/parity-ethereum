@@ -13,7 +13,7 @@ class Errors extends Component {
   };
 
   render () {
-    const { message, visible } = this.props;
+    const { message, visible, onCloseErrors } = this.props;
 
     if (!message || !visible) {
       return null;
@@ -24,7 +24,7 @@ class Errors extends Component {
         open
         message={ message }
         autoHideDuration={ 5000 }
-        onRequestClose={ this.props.onCloseErrors } />
+        onRequestClose={ onCloseErrors } />
     );
   }
 }

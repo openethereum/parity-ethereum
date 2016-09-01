@@ -290,6 +290,7 @@ class Application extends Component {
   }
 
   pollStatus () {
+    const { onUpdateStatus } = this.props;
     const nextTimeout = () => setTimeout(() => this.pollStatus(), 1000);
 
     Promise
@@ -306,7 +307,7 @@ class Application extends Component {
           this.retrieveBalances();
         }
 
-        this.props.onUpdateStatus({
+        onUpdateStatus({
           blockNumber,
           clientVersion,
           netChain,

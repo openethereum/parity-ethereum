@@ -14,7 +14,9 @@ class Tooltips extends Component {
   }
 
   componentDidMount () {
-    this.props.onNextTooltip();
+    const { onNextTooltip } = this.props;
+
+    onNextTooltip();
   }
 
   render () {

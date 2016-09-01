@@ -27,12 +27,12 @@ import { statusReducer } from './views/Application/Status';
 import styles from './reset.css';
 import './index.html';
 
-const store = createStore(combineReducers({
+const reducers = combineReducers({
   errors: errorReducer,
   status: statusReducer,
   tooltip: tooltipReducer
-}), {});
-
+});
+const store = createStore(reducers, {});
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(

@@ -30,13 +30,16 @@ class Tooltip extends Component {
   }
 
   componentWillMount () {
-    this.props.onNewTooltip(tooltipId);
+    const { onNewTooltip } = this.props;
+
+    onNewTooltip(tooltipId);
     tooltipId++;
   }
 
   render () {
     const { id } = this.state;
-    const { currentId, maxId } = this.props;
+    const { currentId, maxId, top, left, onCloseTooltips, onNextTooltip } = this.props;
+    const inlineStyles = { top, left };
 
     if (id !== currentId) {
       return null;
@@ -48,21 +51,18 @@ class Tooltip extends Component {
           key='skipButton'
           icon={ <ContentClear /> }
           label='Skip'
-          onTouchTap={ this.props.onCloseTooltips } />,
+          onTouchTap={ onCloseTooltips } />,
         <FlatButton
           key='nextButton'
           icon={ <NavigationArrowForward /> }
           label='Next'
-          onTouchTap={ this.props.onNextTooltip } />
+          onTouchTap={ onNextTooltip } />
       ] : (
       <FlatButton
         icon={ <ActionDoneAll /> }
         label='Done'
-        onTouchTap={ this.props.onCloseTooltips } />
+        onTouchTap={ onCloseTooltips } />
       );
-
-    const { top, left } = this.props;
-    const inlineStyles = { top, left };
 
     return (
       <div
