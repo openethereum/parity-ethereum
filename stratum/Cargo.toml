@@ -12,7 +12,7 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 [dependencies]
 log = "0.3"
 json-tcp-server = { git = "https://github.com/ethcore/json-tcp-server" }
-jsonrpc-core = "2.1"
+jsonrpc-core = "3.0"
 mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
 ethcore-util = { path = "../util" }
 ethcore-devtools = { path = "../devtools" }

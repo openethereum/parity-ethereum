@@ -260,7 +260,7 @@ impl BlockQueue {
 	fn drain_verifying(verifying: &mut VecDeque<VerifyingBlock>, verified: &mut VecDeque<PreverifiedBlock>, bad: &mut HashSet<H256>) {
 		while !verifying.is_empty() && verifying.front().unwrap().block.is_some() {
 			let block = verifying.pop_front().unwrap().block.unwrap();
-			if bad.contains(&block.header.parent_hash) {
+			if bad.contains(block.header.parent_hash()) {
 				bad.insert(block.header.hash());
 			}
 			else {
@@ -313,7 +313,7 @@ impl BlockQueue {
 				return Err(ImportError::KnownBad.into());
 			}
 
-			if bad.contains(&header.parent_hash) {
+			if bad.contains(header.parent_hash()) {
 				bad.insert(h.clone());
 				return Err(ImportError::KnownBad.into());
 			}
@@ -351,7 +351,7 @@ impl BlockQueue {
 
 		let mut new_verified = VecDeque::new();
 		for block in verified.drain(..) {
-			if bad.contains(&block.header.parent_hash) {
+			if bad.contains(block.header.parent_hash()) {
 				bad.insert(block.header.hash());
 				processing.remove(&block.header.hash());
 			} else {

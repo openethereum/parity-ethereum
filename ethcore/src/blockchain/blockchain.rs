@@ -380,7 +380,7 @@ impl BlockChain {
 					children: vec![]
 				};
 
-				let batch = DBTransaction::new(&db);
+				let mut batch = DBTransaction::new(&db);
 				batch.put(db::COL_HEADERS, &hash, block.header_rlp().as_raw());
 				batch.put(db::COL_BODIES, &hash, &Self::block_to_body(genesis));
 
@@ -419,7 +419,7 @@ impl BlockChain {
 					}
 				}
 
-				let batch = db.transaction();
+				let mut batch = db.transaction();
 				batch.put(db::COL_EXTRA, b"first", &hash);
 				db.write(batch).expect("Low level database error.");
 
@@ -451,7 +451,7 @@ impl BlockChain {
 	#[cfg(test)]
 	fn rewind(&self) -> Option<H256> {
 		use db::Key;
-		let batch = self.db.transaction();
+		let mut batch =self.db.transaction();
 		// track back to the best block we have in the blocks database
 		if let Some(best_block_hash) = self.db.get(db::COL_EXTRA, b"best").unwrap() {
 			let best_block_hash = H256::from_slice(&best_block_hash);
@@ -604,7 +604,7 @@ impl BlockChain {
 
 		assert!(self.pending_best_block.read().is_none());
 
-		let batch = self.db.transaction();
+		let mut batch = self.db.transaction();
 
 		let block_rlp = UntrustedRlp::new(bytes);
 		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
@@ -625,7 +625,7 @@ impl BlockChain {
 				location: BlockLocation::CanonChain,
 			};
 
-			self.prepare_update(&batch, ExtrasUpdate {
+			self.prepare_update(&mut batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: self.prepare_block_details_update(bytes, &info),
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
@@ -659,7 +659,7 @@ impl BlockChain {
 			let mut update = HashMap::new();
 			update.insert(hash, block_details);
 
-			self.prepare_update(&batch, ExtrasUpdate {
+			self.prepare_update(&mut batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: update,
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
@@ -682,7 +682,7 @@ impl BlockChain {
 		let mut parent_details = self.block_details(&block_hash)
 			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
 
-		let batch = self.db.transaction();
+		let mut batch = self.db.transaction();
 		parent_details.children.push(child_hash);
 
 		let mut update = HashMap::new();
@@ -701,7 +701,7 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, batch: &DBTransaction, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
+	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -782,7 +782,7 @@ impl BlockChain {
 	}
 
 	/// Prepares extras update.
-	fn prepare_update(&self, batch: &DBTransaction, update: ExtrasUpdate, is_best: bool) {
+	fn prepare_update(&self, batch: &mut DBTransaction, update: ExtrasUpdate, is_best: bool) {
 		{
 			let block_hashes: Vec<_> = update.block_details.keys().cloned().collect();
 
@@ -830,7 +830,7 @@ impl BlockChain {
 		}
 	}
 
-	/// Applt pending insertion updates
+	/// Apply pending insertion updates
 	pub fn commit(&self) {
 		let mut pending_best_block = self.pending_best_block.write();
 		let mut pending_write_hashes = self.pending_block_hashes.write();
@@ -961,15 +961,45 @@ impl BlockChain {
 		let block = BlockView::new(block_bytes);
 		let transaction_hashes = block.transaction_hashes();
 
-		transaction_hashes.into_iter()
-			.enumerate()
-			.fold(HashMap::new(), |mut acc, (i ,tx_hash)| {
-				acc.insert(tx_hash, TransactionAddress {
-					block_hash: info.hash.clone(),
-					index: i
-				});
-				acc
-			})
+		match info.location {
+			BlockLocation::CanonChain => {
+				transaction_hashes.into_iter()
+					.enumerate()
+					.map(|(i ,tx_hash)| {
+						(tx_hash, TransactionAddress {
+							block_hash: info.hash.clone(),
+							index: i
+						})
+					})
+					.collect()
+			},
+			BlockLocation::BranchBecomingCanonChain(ref data) => {
+				let addresses = data.enacted.iter()
+					.flat_map(|hash| {
+						let bytes = self.block_body(hash).expect("Enacted block must be in database.");
+						let hashes = BodyView::new(&bytes).transaction_hashes();
+						hashes.into_iter()
+							.enumerate()
+							.map(|(i, tx_hash)| (tx_hash, TransactionAddress {
+								block_hash: hash.clone(),
+								index: i,
+							}))
+							.collect::<HashMap<H256, TransactionAddress>>()
+					});
+
+				let current_addresses = transaction_hashes.into_iter()
+					.enumerate()
+					.map(|(i ,tx_hash)| {
+						(tx_hash, TransactionAddress {
+							block_hash: info.hash.clone(),
+							index: i
+						})
+					});
+
+				addresses.chain(current_addresses).collect()
+			},
+			BlockLocation::Branch => HashMap::new(),
+		}
 	}
 
 	/// This functions returns modified blocks blooms.
@@ -1116,7 +1146,6 @@ impl BlockChain {
 #[cfg(test)]
 mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
-	use std::str::FromStr;
 	use std::sync::Arc;
 	use rustc_serialize::hex::FromHex;
 	use util::{Database, DatabaseConfig};
@@ -1127,7 +1156,9 @@ mod tests {
 	use tests::helpers::*;
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
+	use blockchain::extras::TransactionAddress;
 	use views::BlockView;
+	use transaction::{Transaction, Action};
 
 	fn new_db(path: &str) -> Arc<Database> {
 		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
@@ -1147,8 +1178,8 @@ mod tests {
 		assert_eq!(bc.best_block_number(), 0);
 
 		// when
-		let batch = db.transaction();
-		bc.insert_block(&batch, &first, vec![]);
+		let mut batch =db.transaction();
+		bc.insert_block(&mut batch, &first, vec![]);
 		assert_eq!(bc.best_block_number(), 0);
 		bc.commit();
 		// NOTE no db.write here (we want to check if best block is cached)
@@ -1177,8 +1208,8 @@ mod tests {
 		assert_eq!(bc.block_hash(1), None);
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
 
-		let batch = db.transaction();
-		bc.insert_block(&batch, &first, vec![]);
+		let mut batch =db.transaction();
+		bc.insert_block(&mut batch, &first, vec![]);
 		db.write(batch).unwrap();
 		bc.commit();
 
@@ -1203,11 +1234,11 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
-		let batch = db.transaction();
+		let mut batch =db.transaction();
 		for _ in 0..10 {
 			let block = canon_chain.generate(&mut finalizer).unwrap();
 			block_hashes.push(BlockView::new(&block).header_view().sha3());
-			bc.insert_block(&batch, &block, vec![]);
+			bc.insert_block(&mut batch, &block, vec![]);
 			bc.commit();
 		}
 		db.write(batch).unwrap();
@@ -1238,20 +1269,20 @@ mod tests {
 		let db = new_db(temp.as_str());
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
-		let batch = db.transaction();
+		let mut batch =db.transaction();
 		for b in &[&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b] {
-			bc.insert_block(&batch, b, vec![]);
+			bc.insert_block(&mut batch, b, vec![]);
 			bc.commit();
 		}
-		bc.insert_block(&batch, &b1b, vec![]);
-		bc.insert_block(&batch, &b2a, vec![]);
-		bc.insert_block(&batch, &b2b, vec![]);
-		bc.insert_block(&batch, &b3a, vec![]);
-		bc.insert_block(&batch, &b3b, vec![]);
-		bc.insert_block(&batch, &b4a, vec![]);
-		bc.insert_block(&batch, &b4b, vec![]);
-		bc.insert_block(&batch, &b5a, vec![]);
-		bc.insert_block(&batch, &b5b, vec![]);
+		bc.insert_block(&mut batch, &b1b, vec![]);
+		bc.insert_block(&mut batch, &b2a, vec![]);
+		bc.insert_block(&mut batch, &b2b, vec![]);
+		bc.insert_block(&mut batch, &b3a, vec![]);
+		bc.insert_block(&mut batch, &b3b, vec![]);
+		bc.insert_block(&mut batch, &b4a, vec![]);
+		bc.insert_block(&mut batch, &b4b, vec![]);
+		bc.insert_block(&mut batch, &b5a, vec![]);
+		bc.insert_block(&mut batch, &b5b, vec![]);
 		db.write(batch).unwrap();
 
 		assert_eq!(
@@ -1260,6 +1291,106 @@ mod tests {
 		);
 
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
+	}
+
+	#[test]
+	fn test_overwriting_transaction_addresses() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let mut fork_chain = canon_chain.fork(1);
+		let mut fork_finalizer = finalizer.fork();
+
+		let t1 = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+
+		let t2 = Transaction {
+			nonce: 1.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+
+		let t3 = Transaction {
+			nonce: 2.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+
+		let b1a = canon_chain
+			.with_transaction(t1.clone())
+			.with_transaction(t2.clone())
+			.generate(&mut finalizer).unwrap();
+
+		// insert transactions in different order
+		let b1b = fork_chain
+			.with_transaction(t2.clone())
+			.with_transaction(t1.clone())
+			.generate(&mut fork_finalizer).unwrap();
+
+		let b2 = fork_chain
+			.with_transaction(t3.clone())
+			.generate(&mut fork_finalizer).unwrap();
+
+		let b1a_hash = BlockView::new(&b1a).header_view().sha3();
+		let b1b_hash = BlockView::new(&b1b).header_view().sha3();
+		let b2_hash = BlockView::new(&b2).header_view().sha3();
+
+		let t1_hash = t1.hash();
+		let t2_hash = t2.hash();
+		let t3_hash = t3.hash();
+
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+
+		let mut batch = db.transaction();
+		let _ = bc.insert_block(&mut batch, &b1a, vec![]);
+		bc.commit();
+		let _ = bc.insert_block(&mut batch, &b1b, vec![]);
+		bc.commit();
+		db.write(batch).unwrap();
+
+		assert_eq!(bc.best_block_hash(), b1a_hash);
+		assert_eq!(bc.transaction_address(&t1_hash).unwrap(), TransactionAddress {
+			block_hash: b1a_hash.clone(),
+			index: 0,
+		});
+		assert_eq!(bc.transaction_address(&t2_hash).unwrap(), TransactionAddress {
+			block_hash: b1a_hash.clone(),
+			index: 1,
+		});
+
+		// now let's make forked chain the canon chain
+		let mut batch = db.transaction();
+		let _ = bc.insert_block(&mut batch, &b2, vec![]);
+		bc.commit();
+		db.write(batch).unwrap();
+
+		assert_eq!(bc.best_block_hash(), b2_hash);
+		assert_eq!(bc.transaction_address(&t1_hash).unwrap(), TransactionAddress {
+			block_hash: b1b_hash.clone(),
+			index: 1,
+		});
+		assert_eq!(bc.transaction_address(&t2_hash).unwrap(), TransactionAddress {
+			block_hash: b1b_hash.clone(),
+			index: 0,
+		});
+		assert_eq!(bc.transaction_address(&t3_hash).unwrap(), TransactionAddress {
+			block_hash: b2_hash.clone(),
+			index: 0,
+		});
 	}
 
 	#[test]
@@ -1286,17 +1417,17 @@ mod tests {
 		let db = new_db(temp.as_str());
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
-		let batch = db.transaction();
-		let ir1 = bc.insert_block(&batch, &b1, vec![]);
+		let mut batch = db.transaction();
+		let ir1 = bc.insert_block(&mut batch, &b1, vec![]);
 		bc.commit();
-		let ir2 = bc.insert_block(&batch, &b2, vec![]);
+		let ir2 = bc.insert_block(&mut batch, &b2, vec![]);
 		bc.commit();
-		let ir3b = bc.insert_block(&batch, &b3b, vec![]);
+		let ir3b = bc.insert_block(&mut batch, &b3b, vec![]);
 		bc.commit();
 		db.write(batch).unwrap();
 		assert_eq!(bc.block_hash(3).unwrap(), b3b_hash);
-		let batch = db.transaction();
-		let ir3a = bc.insert_block(&batch, &b3a, vec![]);
+		let mut batch =db.transaction();
+		let ir3a = bc.insert_block(&mut batch, &b3a, vec![]);
 		bc.commit();
 		db.write(batch).unwrap();
 
@@ -1402,8 +1533,8 @@ mod tests {
 			let db = new_db(temp.as_str());
 			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
-			let batch = db.transaction();
-			bc.insert_block(&batch, &first, vec![]);
+			let mut batch =db.transaction();
+			bc.insert_block(&mut batch, &first, vec![]);
 			db.write(batch).unwrap();
 			bc.commit();
 			assert_eq!(bc.best_block_hash(), first_hash);
@@ -1434,7 +1565,7 @@ mod tests {
 		let mut block_header = bc.block_header(&best_hash);
 
 		while !block_header.is_none() {
-			block_header = bc.block_header(&block_header.unwrap().parent_hash);
+			block_header = bc.block_header(&block_header.unwrap().parent_hash());
 		}
 		assert!(bc.cache_size().blocks > 1024 * 1024);
 
@@ -1462,13 +1593,13 @@ mod tests {
 	fn find_transaction_by_hash() {
 		let genesis = "f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0af81e09f8c46ca322193edfda764fa7e88e81923f802f1d325ec0b0308ac2cd0a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000830200008083023e38808454c98c8142a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421880102030405060708c0c0".from_hex().unwrap();
 		let b1 = "f904a8f901faa0ce1f26f798dd03c8782d63b3e42e79a64eaea5694ea686ac5d7ce3df5171d1aea01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0a65c2364cd0f1542d761823dc0109c6b072f14c20459598c5455c274601438f4a070616ebd7ad2ed6fb7860cf7e9df00163842351c38a87cac2c1cb193895035a2a05c5b4fc43c2d45787f54e1ae7d27afdb4ad16dfc567c5692070d5c4556e0b1d7b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000830200000183023ec683021536845685109780a029f07836e4e59229b3a065913afc27702642c683bba689910b2b2fd45db310d3888957e6d004a31802f902a7f85f800a8255f094aaaf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca0575da4e21b66fa764be5f74da9389e67693d066fb0d1312e19e17e501da00ecda06baf5a5327595f6619dfc2fcb3f2e6fb410b5810af3cb52d0e7508038e91a188f85f010a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba04fa966bf34b93abc1bcd665554b7f316b50f928477b50be0f3285ead29d18c5ba017bba0eeec1625ab433746955e125d46d80b7fdc97386c51266f842d8e02192ef85f020a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca004377418ae981cc32b1312b4a427a1d69a821b28db8584f5f2bd8c6d42458adaa053a1dba1af177fac92f3b6af0a9fa46a22adf56e686c93794b6a012bf254abf5f85f030a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca04fe13febd28a05f4fcb2f451d7ddc2dda56486d9f8c79a62b0ba4da775122615a0651b2382dd402df9ebc27f8cb4b2e0f3cea68dda2dca0ee9603608f0b6f51668f85f040a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba078e6a0ba086a08f8450e208a399bb2f2d2a0d984acd2517c7c7df66ccfab567da013254002cd45a97fac049ae00afbc43ed0d9961d0c56a3b2382c80ce41c198ddf85f050a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba0a7174d8f43ea71c8e3ca9477691add8d80ac8e0ed89d8d8b572041eef81f4a54a0534ea2e28ec4da3b5b944b18c51ec84a5cf35f5b3343c5fb86521fd2d388f506f85f060a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba034bd04065833536a10c77ee2a43a5371bc6d34837088b861dd9d4b7f44074b59a078807715786a13876d3455716a6b9cb2186b7a4887a5c31160fc877454958616c0".from_hex().unwrap();
-		let b1_hash = H256::from_str("f53f268d23a71e85c7d6d83a9504298712b84c1a2ba220441c86eeda0bf0b6e3").unwrap();
+		let b1_hash: H256 = "f53f268d23a71e85c7d6d83a9504298712b84c1a2ba220441c86eeda0bf0b6e3".into();
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
-		let batch = db.transaction();
-		bc.insert_block(&batch, &b1, vec![]);
+		let mut batch =db.transaction();
+		bc.insert_block(&mut batch, &b1, vec![]);
 		db.write(batch).unwrap();
 		bc.commit();
 
@@ -1480,8 +1611,8 @@ mod tests {
 	}
 
 	fn insert_block(db: &Arc<Database>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
-		let batch = db.transaction();
-		let res = bc.insert_block(&batch, bytes, receipts);
+		let mut batch =db.transaction();
+		let res = bc.insert_block(&mut batch, bytes, receipts);
 		db.write(batch).unwrap();
 		bc.commit();
 		res
@@ -1490,11 +1621,11 @@ mod tests {
 	#[test]
 	fn test_bloom_filter_simple() {
 		// TODO: From here
-		let bloom_b1 = H2048::from_str("00000020000000000000000000000000000000000000000002000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000400000000000000000000002000").unwrap();
+		let bloom_b1: H2048 = "00000020000000000000000000000000000000000000000002000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000400000000000000000000002000".into();
 
-		let bloom_b2 = H2048::from_str("00000000000000000000000000000000000000000000020000001000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
+		let bloom_b2: H2048 = "00000000000000000000000000000000000000000000020000001000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
 
-		let bloom_ba = H2048::from_str("00000000000000000000000000000000000000000000020000000800000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
+		let bloom_ba: H2048 = "00000000000000000000000000000000000000000000020000000800000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
 
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -1569,16 +1700,16 @@ mod tests {
 			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
 
-			let batch = db.transaction();
+			let mut batch =db.transaction();
 			// create a longer fork
 			for _ in 0..5 {
 				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
-				bc.insert_block(&batch, &canon_block, vec![]);
+				bc.insert_block(&mut batch, &canon_block, vec![]);
 				bc.commit();
 			}
 
 			assert_eq!(bc.best_block_number(), 5);
-			bc.insert_block(&batch, &uncle, vec![]);
+			bc.insert_block(&mut batch, &uncle, vec![]);
 			db.write(batch).unwrap();
 			bc.commit();
 		}
@@ -1604,10 +1735,10 @@ mod tests {
 		let db = new_db(temp.as_str());
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
-		let batch = db.transaction();
-		bc.insert_block(&batch, &first, vec![]);
+		let mut batch =db.transaction();
+		bc.insert_block(&mut batch, &first, vec![]);
 		bc.commit();
-		bc.insert_block(&batch, &second, vec![]);
+		bc.insert_block(&mut batch, &second, vec![]);
 		bc.commit();
 		db.write(batch).unwrap();
 

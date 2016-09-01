@@ -33,7 +33,7 @@ use service::{HypervisorService, IpcModuleId};
 use std::process::{Command,Child};
 use std::collections::HashMap;
 
-pub use service::{HypervisorServiceClient, CLIENT_MODULE_ID, SYNC_MODULE_ID};
+pub use service::{HypervisorServiceClient, ControlService, CLIENT_MODULE_ID, SYNC_MODULE_ID};
 
 pub type BinaryId = &'static str;
 
@@ -174,6 +174,10 @@ impl Hypervisor {
 		self.service.unchecked_count() == 0
 	}
 
+	pub fn modules_shutdown(&self) -> bool {
+		self.service.running_count() == 0
+	}
+
 	/// Waits for every required module to check in
 	pub fn wait_for_startup(&self) {
 		let mut worker = self.ipc_worker.write().unwrap();
@@ -182,21 +186,30 @@ impl Hypervisor {
 		}
 	}
 
-	/// Shutdown the ipc and all managed child processes
-	pub fn shutdown(&self, wait_time: Option<std::time::Duration>) {
-		if wait_time.is_some() { std::thread::sleep(wait_time.unwrap()) }
-
-		let mut childs = self.processes.write().unwrap();
-		for (ref mut module, ref mut child) in childs.iter_mut() {
-			trace!(target: "hypervisor", "Stopping process module: {}", module);
-			child.kill().unwrap();
+	/// Waits for every required module to check in
+	pub fn wait_for_shutdown(&self) {
+		let mut worker = self.ipc_worker.write().unwrap();
+		while !self.modules_shutdown() {
+			worker.poll()
 		}
+	}
+
+	/// Shutdown the ipc and all managed child processes
+	pub fn shutdown(&self) {
+		let mut childs = self.processes.write().unwrap();
+		for (ref mut module, _) in childs.iter_mut() {
+			trace!(target: "hypervisor", "Stopping process module: {}", module);
+			self.service.send_shutdown(**module);
+		}
+		trace!(target: "hypervisor", "Waiting for shutdown...");
+		self.wait_for_shutdown();
+		trace!(target: "hypervisor", "All modules reported shutdown");
 	}
 }
 
 impl Drop for Hypervisor {
 	fn drop(&mut self) {
-		self.shutdown(Some(std::time::Duration::new(1, 0)));
+		self.shutdown();
 	}
 }
 

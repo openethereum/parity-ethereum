@@ -16,7 +16,6 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
 use serde::de::{Visitor, MapVisitor};
-use serde::ser;
 use super::{Cipher, CipherSer, CipherSerParams, Kdf, KdfSer, KdfSerParams, H256};
 
 #[derive(Debug, PartialEq)]
@@ -141,60 +140,26 @@ impl Serialize for Crypto {
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 		where S: Serializer
 	{
-		serializer.serialize_struct("Crypto", CryptoMapVisitor {
-			value: self,
-			state: 0,
-		})
-	}
-}
-
-struct CryptoMapVisitor<'a> {
-	value: &'a Crypto,
-	state: u8,
-}
-
-impl<'a> ser::MapVisitor for CryptoMapVisitor<'a> {
-	fn visit<S>(&mut self, serializer: &mut S) -> Result<Option<()>, S::Error>
-		where S: Serializer
-	{
-		match self.state {
-			0 => {
-				self.state += 1;
-				match self.value.cipher {
-					Cipher::Aes128Ctr(_) => Ok(Some(try!(serializer.serialize_struct_elt("cipher", &CipherSer::Aes128Ctr)))),
-				}
+		let mut state = try!(serializer.serialize_struct("Crypto", 6));
+		match self.cipher {
+			Cipher::Aes128Ctr(ref params) => {
+				try!(serializer.serialize_struct_elt(&mut state, "cipher", &CipherSer::Aes128Ctr));
+				try!(serializer.serialize_struct_elt(&mut state, "cipherparams", params));
 			},
-			1 => {
-				self.state += 1;
-				match self.value.cipher {
-					Cipher::Aes128Ctr(ref params) => Ok(Some(try!(serializer.serialize_struct_elt("cipherparams", params)))),
-				}
-			},
-			2 => {
-				self.state += 1;
-				Ok(Some(try!(serializer.serialize_struct_elt("ciphertext", &self.value.ciphertext))))
-			},
-			3 => {
-				self.state += 1;
-				match self.value.kdf {
-					Kdf::Pbkdf2(_) => Ok(Some(try!(serializer.serialize_struct_elt("kdf", &KdfSer::Pbkdf2)))),
-					Kdf::Scrypt(_) => Ok(Some(try!(serializer.serialize_struct_elt("kdf", &KdfSer::Scrypt)))),
-				}
-			},
-			4 => {
-				self.state += 1;
-				match self.value.kdf {
-					Kdf::Pbkdf2(ref params) => Ok(Some(try!(serializer.serialize_struct_elt("kdfparams", params)))),
-					Kdf::Scrypt(ref params) => Ok(Some(try!(serializer.serialize_struct_elt("kdfparams", params)))),
-				}
-			},
-			5 => {
-				self.state += 1;
-				Ok(Some(try!(serializer.serialize_struct_elt("mac", &self.value.mac))))
-			},
-			_ => {
-				Ok(None)
-			}
 		}
+		try!(serializer.serialize_struct_elt(&mut state, "ciphertext", &self.ciphertext));
+		match self.kdf {
+			Kdf::Pbkdf2(ref params) => {
+				try!(serializer.serialize_struct_elt(&mut state, "kdf", &KdfSer::Pbkdf2));
+				try!(serializer.serialize_struct_elt(&mut state, "kdfparams", params));
+			},
+			Kdf::Scrypt(ref params) => {
+				try!(serializer.serialize_struct_elt(&mut state, "kdf", &KdfSer::Scrypt));
+				try!(serializer.serialize_struct_elt(&mut state, "kdfparams", params));
+			},
+		}
+
+		try!(serializer.serialize_struct_elt(&mut state, "mac", &self.mac));
+		serializer.serialize_struct_end(state)
 	}
 }

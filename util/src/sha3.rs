@@ -18,15 +18,12 @@
 extern crate sha3 as sha3_ext;
 
 use std::io;
-use std::mem::uninitialized;
 use tiny_keccak::Keccak;
-use bytes::{BytesConvertable, Populatable};
 use hash::{H256, FixedHash};
 use self::sha3_ext::*;
 
 /// Get the SHA3 (i.e. Keccak) hash of the empty bytes string.
 pub const SHA3_EMPTY: H256 = H256( [0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70] );
-
 
 /// Types implementing this trait are sha3able.
 ///
@@ -50,17 +47,16 @@ pub trait Hashable {
 	}
 }
 
-impl<T> Hashable for T where T: BytesConvertable {
+impl<T> Hashable for T where T: AsRef<[u8]> {
 	fn sha3(&self) -> H256 {
-		unsafe {
-			let mut ret: H256 = uninitialized();
-			self.sha3_into(ret.as_slice_mut());
-			ret
-		}
+		let mut ret: H256 = H256::zero();
+		self.sha3_into(&mut *ret);
+		ret
 	}
 	fn sha3_into(&self, dest: &mut [u8]) {
+		let input: &[u8] = self.as_ref();
+
 		unsafe {
-			let input: &[u8] = self.as_slice();
 			sha3_256(dest.as_mut_ptr(), dest.len(), input.as_ptr(), input.len());
 		}
 	}

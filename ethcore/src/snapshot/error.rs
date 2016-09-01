@@ -35,6 +35,10 @@ pub enum Error {
 	IncompleteChain,
 	/// Old starting block in a pruned database.
 	OldBlockPrunedDB,
+	/// Missing code.
+	MissingCode(Vec<H256>),
+	/// Unrecognized code encoding.
+	UnrecognizedCodeState(u8),
 	/// Trie error.
 	Trie(TrieError),
 	/// Decoder error.
@@ -51,6 +55,8 @@ impl fmt::Display for Error {
 			Error::IncompleteChain => write!(f, "Cannot create snapshot due to incomplete chain."),
 			Error::OldBlockPrunedDB => write!(f, "Attempted to create a snapshot at an old block while using \
 				a pruned database. Please re-run with the --pruning archive flag."),
+			Error::MissingCode(ref missing) => write!(f, "Incomplete snapshot: {} contract codes not found.", missing.len()),
+			Error::UnrecognizedCodeState(state) => write!(f, "Unrecognized code encoding ({})", state),
 			Error::Io(ref err) => err.fmt(f),
 			Error::Decoder(ref err) => err.fmt(f),
 			Error::Trie(ref err) => err.fmt(f),

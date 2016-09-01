@@ -8,9 +8,9 @@ build = "build.rs"
 libc = "0.2.11"
 rand = "0.3.14"
 ethkey = { path = "../ethkey" }
-serde = "0.7"
-serde_json = "0.7"
-serde_macros = { version = "0.7", optional = true }
+serde = "0.8"
+serde_json = "0.8"
+serde_macros = { version = "0.8", optional = true }
 rustc-serialize = "0.3"
 rust-crypto = "0.2.36"
 tiny-keccak = "1.0"
@@ -21,7 +21,7 @@ itertools = "0.4"
 ethcrypto = { path = "../ethcrypto" }
 
 [build-dependencies]
-serde_codegen = { version = "0.7", optional = true }
+serde_codegen = { version = "0.8", optional = true }
 
 [features]
 default = ["serde_codegen"]
