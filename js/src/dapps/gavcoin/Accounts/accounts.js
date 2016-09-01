@@ -8,8 +8,8 @@ import styles from './style.css';
 
 export default class Accounts extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    instance: PropTypes.object
+    api: PropTypes.object.isRequired,
+    instance: PropTypes.object.isRequired
   }
 
   static propTypes = {

@@ -21,8 +21,8 @@ const editIconStyle = {
 
 export default class AddressBook extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    contacts: PropTypes.array
+    api: PropTypes.object.isRequired,
+    contacts: PropTypes.array.isRequired
   };
 
   static propTypes = {

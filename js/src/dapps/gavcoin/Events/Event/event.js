@@ -12,7 +12,7 @@ const EMPTY_COLUMN = (
 
 export default class Event extends Component {
   static contextTypes = {
-    accounts: PropTypes.array
+    accounts: PropTypes.array.isRequired
   }
 
   static propTypes = {

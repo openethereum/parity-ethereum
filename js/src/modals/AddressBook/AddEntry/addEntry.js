@@ -12,7 +12,7 @@ import styles from '../style.css';
 
 export default class AddEntry extends Component {
   static contextTypes = {
-    contacts: PropTypes.array
+    contacts: PropTypes.array.isRequired
   };
 
   static propTypes = {

@@ -15,7 +15,7 @@ const NAME_ID = ' ';
 
 export default class ActionBuyIn extends Component {
   static contextTypes = {
-    instance: PropTypes.object
+    instance: PropTypes.object.isRequired
   }
 
   static propTypes = {

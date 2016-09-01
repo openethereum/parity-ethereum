@@ -5,7 +5,7 @@ import styles from './style.css';
 
 export default class IdentityIcon extends Component {
   static contextTypes = {
-    contracts: React.PropTypes.array
+    contracts: PropTypes.array.isRequired
   }
 
   static propTypes = {

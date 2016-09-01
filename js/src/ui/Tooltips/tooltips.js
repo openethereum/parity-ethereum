@@ -7,10 +7,6 @@ import { nextTooltip } from './actions';
 import styles from './style.css';
 
 class Tooltips extends Component {
-  static contextTypes = {
-    store: PropTypes.object
-  }
-
   static propTypes = {
     currentId: PropTypes.number,
     closed: PropTypes.bool,

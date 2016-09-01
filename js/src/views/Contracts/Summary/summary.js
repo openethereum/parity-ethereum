@@ -6,7 +6,7 @@ import IdentityIcon from '../../../ui/IdentityIcon';
 
 export default class Summary extends Component {
   static contextTypes = {
-    api: React.PropTypes.object
+    api: React.PropTypes.object.isRequired
   }
 
   static propTypes = {

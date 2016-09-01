@@ -9,8 +9,8 @@ import styles from './style.css';
 
 export default class InputAddressSelect extends Component {
   static contextTypes = {
-    accounts: PropTypes.array,
-    contacts: PropTypes.array
+    accounts: PropTypes.array.isRequired,
+    contacts: PropTypes.array.isRequired
   };
 
   static propTypes = {

@@ -10,8 +10,8 @@ function nicename (name) {
 
 export default class Contract extends Component {
   static contextTypes = {
-    api: React.PropTypes.object,
-    contracts: PropTypes.array
+    api: React.PropTypes.object.isRequired,
+    contracts: PropTypes.array.isRequired
   }
 
   static propTypes = {

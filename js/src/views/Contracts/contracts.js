@@ -6,8 +6,8 @@ import styles from './style.css';
 
 export default class Contracts extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    contracts: PropTypes.array
+    api: PropTypes.object.isRequired,
+    contracts: PropTypes.array.isRequired
   }
 
   state = {

@@ -6,7 +6,7 @@ import styles from './style.css';
 
 export default class Dapps extends Component {
   static contextTypes = {
-    api: PropTypes.object
+    api: PropTypes.object.isRequired
   }
 
   state = {

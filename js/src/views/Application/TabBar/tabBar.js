@@ -13,7 +13,7 @@ import styles from '../style.css';
 
 export default class TabBar extends Component {
   static contextTypes = {
-    router: PropTypes.object
+    router: PropTypes.object.isRequired
   }
 
   render () {

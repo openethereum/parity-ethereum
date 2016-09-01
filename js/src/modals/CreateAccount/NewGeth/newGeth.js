@@ -10,7 +10,7 @@ import styles from './style.css';
 export default class NewGeth extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
-    accounts: PropTypes.array
+    accounts: PropTypes.array.isRequired
   }
 
   static propTypes = {

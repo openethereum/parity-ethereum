@@ -15,7 +15,7 @@ const CHECK_STYLE = {
 
 export default class Details extends Component {
   static contextTypes = {
-    accounts: PropTypes.array
+    accounts: PropTypes.array.isRequired
   }
 
   static propTypes = {

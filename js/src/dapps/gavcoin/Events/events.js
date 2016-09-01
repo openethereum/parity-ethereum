@@ -13,7 +13,7 @@ export default class Events extends Component {
   }
 
   static contextTypes = {
-    instance: PropTypes.object
+    instance: PropTypes.object.isRequired
   }
 
   static propTypes = {

@@ -13,10 +13,6 @@ import styles from '../style.css';
 let tooltipId = 0;
 
 class Tooltip extends Component {
-  static contextTypes = {
-    tooltips: PropTypes.object
-  }
-
   static propTypes = {
     title: PropTypes.string,
     text: PropTypes.string,

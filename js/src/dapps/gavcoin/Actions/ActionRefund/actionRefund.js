@@ -16,7 +16,7 @@ const NAME_ID = ' ';
 
 export default class ActionRefund extends Component {
   static contextTypes = {
-    instance: PropTypes.object
+    instance: PropTypes.object.isRequired
   }
 
   static propTypes = {
