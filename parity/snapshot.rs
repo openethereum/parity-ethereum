@@ -72,17 +72,20 @@ impl SnapshotCommand {
 		// load spec file
 		let spec = try!(self.spec.spec());
 
+		// load genesis hash
+		let genesis_hash = spec.genesis_header().hash();
+
+		// database paths
+		let db_dirs = self.dirs.database(genesis_hash, spec.fork_name.clone());
+
 		// user defaults path
-		let user_defaults_path = self.dirs.user_defaults_path(&spec.fork_name);
+		let user_defaults_path = db_dirs.user_defaults_path();
 
 		// load user defaults
 		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 		// check if tracing is on
 		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
-
-		// load genesis hash
-		let genesis_hash = spec.genesis_header().hash();
 
 		// Setup logging
 		let _logger = setup_log(&self.logger_config);
@@ -93,10 +96,10 @@ impl SnapshotCommand {
 		let algorithm = self.pruning.to_algorithm(&user_defaults);
 
 		// prepare client_path
-		let client_path = self.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
+		let client_path = db_dirs.client_path(algorithm);
 
 		// execute upgrades
-		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
+		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile()));
 
 		// prepare client config
 		let client_config = to_client_config(&self.cache_config, self.mode, tracing, self.compaction, self.wal, VMType::default(), "".into(), algorithm);

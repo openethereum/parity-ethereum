@@ -96,8 +96,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// load spec
 	let spec = try!(cmd.spec.spec());
 
+	// load genesis hash
+	let genesis_hash = spec.genesis_header().hash();
+
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
 	// user defaults path
-	let user_defaults_path = cmd.dirs.user_defaults_path(&spec.fork_name);
+	let user_defaults_path = db_dirs.user_defaults_path();
 
 	// load user defaults
 	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
@@ -105,19 +111,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// check if tracing is on
 	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
-	let fork_name = spec.fork_name.clone();
-
-	// load genesis hash
-	let genesis_hash = spec.genesis_header().hash();
-
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// prepare client_path
-	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
+	let client_path = db_dirs.client_path(algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {

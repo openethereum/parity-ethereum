@@ -71,9 +71,9 @@ impl Directories {
 
 #[derive(Debug, PartialEq)]
 pub struct DatabaseDirectories {
-	path: String,
-	genesis_hash: H256,
-	fork_name: Option<String>,
+	pub path: String,
+	pub genesis_hash: H256,
+	pub fork_name: Option<String>,
 }
 
 impl DatabaseDirectories {
