@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import { updateIsConnected, updateIsNodeRunning } from '../actions/app';
+import { updateIsConnected, updateIsNodeRunning } from '../actions/signer';
 
 import { isParityRunning } from '../utils/parity';
 
