@@ -56,7 +56,7 @@ impl FromStr for Bytes {
 			2 if value.starts_with("0x") => vec![],
 			_ if value.starts_with("0x") && value.len() % 2 == 1 => {
 				let v = "0".to_owned() + &value[2..];
-				FromHex::from_hex(v.as_ref() as &str).unwrap_or(vec![]),
+				FromHex::from_hex(v.as_str()).unwrap_or(vec![])
 			},
 			_ if value.starts_with("0x") => FromHex::from_hex(&value[2..]).unwrap_or(vec![]),
 			_ => FromHex::from_hex(value).unwrap_or(vec![]),
