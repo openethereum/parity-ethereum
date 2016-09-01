@@ -296,8 +296,8 @@ fn memorydb_denote() {
 	for _ in 0..1000 {
 		let r = H256::random();
 		let k = r.sha3();
-		let (v, rc) = m.denote(&k, r.to_bytes());
-		assert_eq!(v, r.as_slice());
+		let (v, rc) = m.denote(&k, r.to_vec());
+		assert_eq!(v, &*r);
 		assert_eq!(rc, 0);
 	}
 

@@ -231,7 +231,7 @@ impl Spec {
 			{
 				let mut t = SecTrieDBMut::new(db, &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
-					try!(t.insert(address.as_slice(), &account.rlp()));
+					try!(t.insert(&**address, &account.rlp()));
 				}
 			}
 			for (address, account) in self.genesis_state.get().iter() {
