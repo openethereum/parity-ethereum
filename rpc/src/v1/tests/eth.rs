@@ -157,7 +157,7 @@ fn eth_get_balance() {
 		"id": 1
 	}"#;
 	let res_latest = r#"{"jsonrpc":"2.0","result":"0x09","id":1}"#.to_owned();
-	assert_eq!(tester.handler.handle_request(req_latest).unwrap(), res_latest);
+	assert_eq!(tester.handler.handle_request_sync(req_latest).unwrap(), res_latest);
 
 	// non-existant account
 	let req_new_acc = r#"{
@@ -168,7 +168,7 @@ fn eth_get_balance() {
 	}"#;
 
 	let res_new_acc = r#"{"jsonrpc":"2.0","result":"0x00","id":3}"#.to_owned();
-	assert_eq!(tester.handler.handle_request(req_new_acc).unwrap(), res_new_acc);
+	assert_eq!(tester.handler.handle_request_sync(req_new_acc).unwrap(), res_new_acc);
 }
 
 #[test]
@@ -183,7 +183,7 @@ fn eth_block_number() {
 	}"#;
 
 	let res_number = r#"{"jsonrpc":"2.0","result":"0x20","id":1}"#.to_owned();
-	assert_eq!(tester.handler.handle_request(req_number).unwrap(), res_number);
+	assert_eq!(tester.handler.handle_request_sync(req_number).unwrap(), res_number);
 }
 
 // a frontier-like test with an expanded gas limit and balance on known account.
@@ -299,7 +299,7 @@ fn eth_transaction_count() {
 
 	let res_before = r#"{"jsonrpc":"2.0","result":"0x00","id":15}"#;
 
-	assert_eq!(tester.handler.handle_request(&req_before).unwrap(), res_before);
+	assert_eq!(tester.handler.handle_request_sync(&req_before).unwrap(), res_before);
 
 	let req_send_trans = r#"{
 		"jsonrpc": "2.0",
@@ -315,7 +315,7 @@ fn eth_transaction_count() {
 	}"#;
 
 	// dispatch the transaction.
-	tester.handler.handle_request(&req_send_trans).unwrap();
+	tester.handler.handle_request_sync(&req_send_trans).unwrap();
 
 	// we have submitted the transaction -- but this shouldn't be reflected in a "latest" query.
 	let req_after_latest = r#"{
@@ -327,7 +327,7 @@ fn eth_transaction_count() {
 
 	let res_after_latest = r#"{"jsonrpc":"2.0","result":"0x00","id":17}"#;
 
-	assert_eq!(&tester.handler.handle_request(&req_after_latest).unwrap(), res_after_latest);
+	assert_eq!(&tester.handler.handle_request_sync(&req_after_latest).unwrap(), res_after_latest);
 
 	// the pending transactions should have been updated.
 	let req_after_pending = r#"{
@@ -339,7 +339,7 @@ fn eth_transaction_count() {
 
 	let res_after_pending = r#"{"jsonrpc":"2.0","result":"0x01","id":18}"#;
 
-	assert_eq!(&tester.handler.handle_request(&req_after_pending).unwrap(), res_after_pending);
+	assert_eq!(&tester.handler.handle_request_sync(&req_after_pending).unwrap(), res_after_pending);
 }
 
 fn verify_transaction_counts(name: String, chain: BlockChain) {
@@ -400,12 +400,12 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 		let number = b.header_view().number();
 
 		let (req, res) = by_hash(hash, count, &mut id);
-		assert_eq!(tester.handler.handle_request(&req), Some(res));
+		assert_eq!(tester.handler.handle_request_sync(&req), Some(res));
 
 		// uncles can share block numbers, so skip them.
 		if tester.client.block_hash(BlockID::Number(number)) == Some(hash) {
 			let (req, res) = by_number(number, count, &mut id);
-			assert_eq!(tester.handler.handle_request(&req), Some(res));
+			assert_eq!(tester.handler.handle_request_sync(&req), Some(res));
 		}
 	}
 }
@@ -415,7 +415,7 @@ fn starting_nonce_test() {
 	let tester = EthTester::from_spec(Spec::load(POSITIVE_NONCE_SPEC));
 	let address = Address::from(10);
 
-	let sample = tester.handler.handle_request(&(r#"
+	let sample = tester.handler.handle_request_sync(&(r#"
 		{
 			"jsonrpc": "2.0",
 			"method": "eth_getTransactionCount",

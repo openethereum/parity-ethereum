@@ -108,15 +108,15 @@ impl Stratum {
 				Ok(val) => val,
 				Err(e) => {
 					warn!(target: "stratum", "Invalid payload: '{}' ({:?})", &initial, e);
-					try!(to_value(&[0u8; 0]))
+					to_value(&[0u8; 0])
 				},
 			},
-			None => try!(to_value(&[0u8; 0])),
+			None => to_value(&[0u8; 0]),
 		})
 	}
 
 	fn authorize(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
-		from_params::<(String, String)>(params).and_then(|(worker_id, secret)|{
+		from_params::<(String, String)>(params).map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
 				let hash = secret.sha3();
 				if hash != valid_secret {
