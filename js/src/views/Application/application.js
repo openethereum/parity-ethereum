@@ -1,25 +1,20 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-import { combineReducers, createStore } from 'redux';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import Api from '../../api';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
-import Errors, { errorReducer } from '../../ui/Errors';
-import muiTheme from '../../ui/Theme';
-import Tooltips, { tooltipReducer } from '../../ui/Tooltips';
+import Errors from '../../ui/Errors';
+import Tooltips from '../../ui/Tooltips';
 import ParityBar from '../ParityBar';
 import { FirstRun } from '../../modals';
-import Status from './Status';
+import Status, { updateStatus } from './Status';
 import TabBar from './TabBar';
 
 import styles from './style.css';
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
-const store = createStore(combineReducers({
-  errors: errorReducer,
-  tooltip: tooltipReducer
-}), {});
-
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
 const ETH_TOKEN = {
@@ -31,30 +26,23 @@ const ETH_TOKEN = {
   tag: 'ΞTH'
 };
 
-export default class Application extends Component {
+let lastBlockNumber = new BigNumber(-1);
+
+class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
     accounts: PropTypes.array,
     contacts: PropTypes.array,
     contracts: PropTypes.array,
-    tokens: PropTypes.array,
-    muiTheme: PropTypes.object,
-    store: PropTypes.object
+    tokens: PropTypes.array
   }
 
   static propTypes = {
-    children: PropTypes.node
+    children: PropTypes.node,
+    onUpdateStatus: PropTypes.func
   }
 
   state = {
-    blockNumber: new BigNumber(-1),
-    clientVersion: '',
-    netChain: '',
-    netPeers: {
-      active: new BigNumber(0),
-      connected: new BigNumber(0),
-      max: new BigNumber(0)
-    },
     showFirst: false,
     accounts: [],
     contacts: [],
@@ -70,7 +58,6 @@ export default class Application extends Component {
 
   render () {
     const { children } = this.props;
-    const { blockNumber, clientVersion, netChain, netPeers } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
     if (inFrame) {
@@ -95,11 +82,7 @@ export default class Application extends Component {
         <Errors />
         <TabBar />
         { children }
-        <Status
-          blockNumber={ blockNumber }
-          clientVersion={ clientVersion }
-          netChain={ netChain }
-          netPeers={ netPeers } />
+        <Status />
       </div>
     );
   }
@@ -125,9 +108,7 @@ export default class Application extends Component {
       accounts,
       contacts,
       contracts,
-      tokens,
-      muiTheme,
-      store
+      tokens
     };
   }
 
@@ -320,17 +301,20 @@ export default class Application extends Component {
         api.eth.syncing()
       ])
       .then(([blockNumber, clientVersion, netChain, netPeers, syncing]) => {
-        if (blockNumber.gt(this.state.blockNumber)) {
+        if (blockNumber.gt(lastBlockNumber)) {
+          lastBlockNumber = blockNumber;
           this.retrieveBalances();
         }
 
-        this.setState({
+        this.props.onUpdateStatus({
           blockNumber,
           clientVersion,
           netChain,
           netPeers,
           syncing
-        }, nextTimeout);
+        });
+
+        nextTimeout();
       })
       .catch((error) => {
         console.error('pollStatus', error);
@@ -345,3 +329,18 @@ export default class Application extends Component {
     });
   }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    onUpdateStatus: updateStatus
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Application);

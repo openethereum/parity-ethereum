@@ -1,8 +1,10 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import styles from './style.css';
 
-export default class Status extends Component {
+class Status extends Component {
   static propTypes = {
     blockNumber: PropTypes.object,
     clientVersion: PropTypes.string,
@@ -14,6 +16,10 @@ export default class Status extends Component {
     const { clientVersion, blockNumber, netChain, netPeers } = this.props;
     const isTestNet = netChain === 'morden';
     const netStyle = `${styles.network} ${styles[isTestNet ? 'networktest' : 'networklive']}`;
+
+    if (!blockNumber) {
+      return null;
+    }
 
     return (
       <div className={ styles.status }>
@@ -37,3 +43,23 @@ export default class Status extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { blockNumber, clientVersion, netPeers, netChain } = state.status;
+
+  return {
+    blockNumber,
+    clientVersion,
+    netPeers,
+    netChain
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Status);
