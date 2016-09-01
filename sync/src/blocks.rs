@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
+use rlp::*;
 use network::NetworkError;
 use ethcore::header::{ Header as BlockHeader};
 
@@ -283,11 +284,11 @@ impl BlockCollection {
 			transactions_root: info.transactions_root().clone(),
 			uncles: info.uncles_hash().clone(),
 		};
-		if header_id.transactions_root == rlp::SHA3_NULL_RLP && header_id.uncles == rlp::SHA3_EMPTY_LIST_RLP {
+		if header_id.transactions_root == sha3::SHA3_NULL_RLP && header_id.uncles == sha3::SHA3_EMPTY_LIST_RLP {
 			// empty body, just mark as downloaded
 			let mut body_stream = RlpStream::new_list(2);
-			body_stream.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-			body_stream.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+			body_stream.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
+			body_stream.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
 			block.body = Some(body_stream.out());
 		}
 		else {
@@ -337,6 +338,7 @@ mod test {
 	use ethcore::views::HeaderView;
 	use ethcore::header::BlockNumber;
 	use util::*;
+	use rlp::*;
 
 	fn is_empty(bc: &BlockCollection) -> bool {
 		bc.heads.is_empty() &&

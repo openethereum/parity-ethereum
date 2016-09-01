@@ -88,6 +88,7 @@
 ///
 
 use util::*;
+use rlp::*;
 use network::*;
 use std::mem::{replace};
 use ethcore::views::{HeaderView, BlockView};
@@ -1531,6 +1532,7 @@ mod tests {
 	use super::*;
 	use ::SyncConfig;
 	use util::*;
+	use rlp::*;
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::views::BlockView;
 	use ethcore::header::*;
@@ -1548,8 +1550,8 @@ mod tests {
 
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+		rlp.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
+		rlp.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
 		rlp.out()
 	}
 

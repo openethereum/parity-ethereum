@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::rlp::encode;
 use ethcore::contract_address;
 use ethcore::transaction::{LocalizedTransaction, Action, SignedTransaction};
 use v1::types::{Bytes, H160, H256, U256};
@@ -75,7 +74,7 @@ impl From<LocalizedTransaction> for Transaction {
 				Action::Create => Some(contract_address(&t.sender().unwrap(), &t.nonce).into()),
 				Action::Call(_) => None,
 			},
-			raw: encode(&t.signed).to_vec().into(),
+			raw: ::rlp::encode(&t.signed).to_vec().into(),
 		}
 	}
 }
@@ -101,7 +100,7 @@ impl From<SignedTransaction> for Transaction {
 				Action::Create => Some(contract_address(&t.sender().unwrap(), &t.nonce).into()),
 				Action::Call(_) => None,
 			},
-			raw: encode(&t).to_vec().into(),
+			raw: ::rlp::encode(&t).to_vec().into(),
 		}
 	}
 }
