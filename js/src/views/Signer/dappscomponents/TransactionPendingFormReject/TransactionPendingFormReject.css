@@ -1,0 +1,10 @@
+/* the rejection button itself, once .reject has been pressed */
+.rejectButton {
+  display: block !important;
+  margin-bottom: 5px;
+}
+
+.rejectText {
+  margin-bottom: 10px;
+}
+

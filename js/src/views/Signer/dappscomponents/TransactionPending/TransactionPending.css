@@ -1,0 +1,90 @@
+.container {
+  padding: 25px 0 15px;
+}
+
+.transactionDetails {
+  border-right: 1px solid #eee;
+  margin-right: 2rem;
+}
+
+.mainContainer > * {
+  display: inline-block;
+  vertical-align: middle;
+  min-height: 120px;
+}
+
+.iconsContainer {
+  display: inline-block;
+  min-width: 180px;
+  color: rgba(0, 0, 0, .3);
+  font-size: .8em;
+}
+
+.iconsContainer > * {
+  float: left;
+  margin-right: 3px;
+}
+
+.iconsContainer:after {
+  clear: both;
+}
+
+.inputs {
+  margin-right: 30px;
+  margin-left: 30px;
+  width: 180px;
+  position: relative;
+  top: -15px; /* due to material ui weird styling */
+}
+
+.hasInfoIcon svg,
+.miningTime svg,
+.gasPrice svg,
+.data svg {
+  width: 16px !important;
+  height: 16px !important;
+  position: relative;
+  bottom: -3px;
+  fill: rgba(0,0,0, 0.35) !important;
+}
+
+/* TODO [ToDr] composes was handling weird errors when linking from other app */
+.miningTime {
+  /* composes: hasInfoIcon; */
+}
+
+.gasPrice {
+  /* composes: hasInfoIcon; */
+}
+
+.data  {
+  /* composes: hasInfoIcon; */
+  cursor: pointer;
+}
+
+.data.noData {
+  cursor: text;
+}
+
+
+.dataTooltip {
+  word-wrap: break-word;
+  max-width: 400px;
+}
+
+.expandedData {
+  display: block;
+  padding: 15px;
+  background: gray;
+  word-wrap: break-word;
+  color: #fff;
+}
+
+.expandedContainer {
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.expandedContainer:empty {
+  padding: 0;
+}

@@ -1,0 +1,28 @@
+.acc {
+  text-align: center;
+  display: inline-block;
+}
+
+.acc > * {
+  display: block;
+}
+
+.address {
+  font-family: monospace;
+}
+
+.acc img {
+  width: 28px;
+  height: 28px;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+
+.name {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 110px;
+  display: inline-block;
+  vertical-align: middle;
+}

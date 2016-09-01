@@ -1,5 +1,6 @@
 import React, { Component, PropTypes } from 'react';
-import { RequestPendingWeb3, RequestFinishedWeb3 } from 'dapps-react-components';
+import { RequestPendingWeb3, RequestFinishedWeb3 } from '../../dappscomponents';
+
 import styles from './Requests.css';
 
 export default class Requests extends Component {

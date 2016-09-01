@@ -1,0 +1,30 @@
+.container {
+  padding: 25px 0 15px;
+}
+
+.mainContainer > * {
+  display: inline-block;
+  vertical-align: middle;
+  min-height: 120px;
+}
+
+.statusContainer {
+  width: 180px;
+}
+
+.transactionDetails {
+  border-right: 1px solid #eee;
+  margin-right: 2rem;
+}
+
+.isConfirmed {
+  color: green;
+}
+
+.isRejected {
+  opacity: 0.7;
+}
+
+.txHash {
+  word-break: break-all;
+}

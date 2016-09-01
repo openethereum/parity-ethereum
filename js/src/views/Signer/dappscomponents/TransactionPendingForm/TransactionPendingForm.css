@@ -1,0 +1,22 @@
+.container {
+  width: 200px;
+}
+.rejectToggle {
+  display: block;
+  cursor: pointer;
+  color: #00e;
+  opacity: .7;
+  transition: opacity .5s;
+}
+
+.rejectToggle:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.rejectToggle svg {
+  position: relative;
+  width: 18px !important;
+  height: 18px !important;
+  top: 3px;
+}

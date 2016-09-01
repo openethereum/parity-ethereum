@@ -11,7 +11,8 @@ import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 import { muiTheme } from './ui';
-import { Accounts, Account, Application, Contract, Contracts, Dapp, Dapps, Signer } from './views';
+import { Accounts, Account, Application, Contract, Contracts, Dapp, Dapps } from './views';
+import SignerRoutes from './views/Signer/Routes';
 
 import { errorReducer } from './ui/Errors';
 import { tooltipReducer } from './ui/Tooltips';
@@ -29,18 +30,39 @@ const store = createStore(reducers, {});
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
-  <Provider store={ store }>
-    <MuiThemeProvider muiTheme={ muiTheme }>
-      <Router history={ routerHistory } className={ styles.reset }>
-        <Redirect from='/' to='/accounts' />
-        <Route path='/' component={ Application }>
-          <Route path='accounts' component={ Accounts } />
-          <Route path='account/:address' component={ Account } />
-          <Route path='apps' component={ Dapps } />
-          <Route path='app/:name' component={ Dapp } />
-          <Route path='contracts' component={ Contracts } />
-          <Route path='contract/:address' component={ Contract } />
-          <Route path='signer' component={ Signer } />
+  <Provider
+    store={ store }>
+    <MuiThemeProvider
+      muiTheme={ muiTheme }>
+      <Router
+        className={ styles.reset }
+        history={ routerHistory }>
+        <Redirect
+          from='/'
+          to='/accounts' />
+        <Route
+          path='/'
+          component={ Application }>
+          <Route
+            path='accounts'
+            component={ Accounts } />
+          <Route
+            path='account/:address'
+            component={ Account } />
+          <Route
+            path='apps'
+            component={ Dapps } />
+          <Route
+            path='app/:name'
+            component={ Dapp } />
+          <Route
+            path='contracts'
+            component={ Contracts } />
+          <Route
+            path='contract/:address'
+            component={ Contract } />
+          <SignerRoutes
+            path='signer' />
         </Route>
       </Router>
     </MuiThemeProvider>

@@ -1,0 +1,16 @@
+.accountContainer {
+  padding: 20px;
+}
+
+.accountContainer:not(:first-child) {
+  border-top: 1px solid #eee;
+}
+
+.account {
+  display: inline-block;
+  margin-right: 20px;
+}
+
+.accountInfo {
+  display: inline-block;
+}
