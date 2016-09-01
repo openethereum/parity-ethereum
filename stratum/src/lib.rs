@@ -161,7 +161,7 @@ impl Stratum {
 impl PushWorkHandler for Stratum {
 	fn push_work_all(&self, payload: String) -> Result<(), Error> {
 		let workers = self.workers.read();
-		println!("pushing work for {} workers", workers.len());
+		trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &payload);
 		for (ref addr, _) in workers.iter() {
 			try!(self.rpc_server.push_message(addr, payload.as_bytes()));
 		}

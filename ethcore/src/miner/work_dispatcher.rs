@@ -16,7 +16,6 @@
 
 use ethcore_stratum::{JobDispatcher, RemoteWorkHandler, PushWorkHandler};
 use std::sync::Arc;
-use nanoipc::{NanoSocket, GuardedSocket};
 use std::sync::atomic::Ordering;
 use std::thread;
 use nanoipc;
@@ -73,18 +72,19 @@ impl From<nanoipc::SocketError> for Error {
 }
 
 impl super::work_notify::NotifyWork for Stratum {
+	#[allow(unused_must_use)]
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		let client = nanoipc::init_client::<RemoteWorkHandler<_>>(
-			&format!("ipc://{}/stratum-job-handler.ipc", self.base_dir)
-		).unwrap_or_else(|e|
-			warn!(target: "stratum", "Unable to push work for stratum service: {:?}", e)
-		);
-		client.push_work_all(
-			self.dispatcher.payload(pow_hash, difficulty, number)
-		).unwrap_or_else(
-			|e| warn!(target: "stratum", "Error while pushing work: {:?}", e)
-		);
-		*self.dispatcher.last_work.write() = Some((pow_hash, difficulty, number))
+		nanoipc::init_client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/parity-stratum.ipc", self.base_dir))
+			.and_then(|client| {
+				client.push_work_all(
+					self.dispatcher.payload(pow_hash, difficulty, number)
+				).unwrap_or_else(
+					|e| warn!(target: "stratum", "Error while pushing work: {:?}", e)
+				);
+				*self.dispatcher.last_work.write() = Some((pow_hash, difficulty, number));
+				Ok(client)
+			})
+			.map_err(|e| warn!(target: "stratum", "Can't connect to stratum service: {:?}", e));
 	}
 }
 
@@ -98,7 +98,7 @@ impl Stratum {
 	}
 
 	pub fn run_async(&self) {
-		let socket_url = format!("ipc://{}/stratum-job-dispatcher.ipc", &self.base_dir);
+		let socket_url = format!("ipc://{}/ipc/parity-mining-jobs.ipc", &self.base_dir);
 		let stop = self.stop.share();
 		let service = self.dispatcher.clone() as Arc<JobDispatcher>;
 		thread::spawn(move || {

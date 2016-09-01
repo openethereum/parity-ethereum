@@ -40,7 +40,6 @@ pub mod service_urls {
 	#[cfg(feature="stratum")]
 	pub const MINING_JOB_DISPATCHER: &'static str = "parity-mining-jobs.ipc";
 
-
 	pub fn with_base(data_dir: &str, service_path: &str) -> String {
 		let mut path = PathBuf::from(data_dir);
 		path.push(service_path);
@@ -128,16 +127,16 @@ pub fn stratum (hypervisor_ref: &mut Option<Hypervisor>, maybe_config: &Option<:
 					listen_addr: config.listen_addr.to_owned(),
 					secret: config.secret,
 				}).expect("Any binary-derived struct is serializable by definition")
-			);
+			).cli(vec!["stratum".to_owned()]);
 		hypervisor = hypervisor.module(super::stratum::MODULE_ID, args);
 		*hypervisor_ref = Some(hypervisor);
 	}
 }
 
-#[cfg(feature="stratum")]
-pub fn stratum (hypervisor_ref: &mut Option<Hypervisor>, maybe_config: &Option<::ethcore::miner::StratumOptions>)
+#[cfg(not(feature="stratum"))]
+pub fn stratum (_hypervisor_ref: &mut Option<Hypervisor>, maybe_config: &Option<::ethcore::miner::StratumOptions>)
 {
-	if let Some(_) = maybe_config {
+	if let &Some(_) = maybe_config {
 		warn!(
 			"Stratum arguments ignored: parity should be recompiled with --features=\"stratum\"\n
 			 Use \"cargo build --features=\"stratum\"\""

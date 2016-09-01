@@ -321,11 +321,16 @@ impl Configuration {
 
 	fn stratum_options(&self) -> Result<Option<StratumOptions>, String> {
 		if self.args.flag_stratum {
-			Some(StratumOptions {
+			Ok(Some(StratumOptions {
 				io_path: self.directories().db,
 				listen_addr: self.stratum_interface(),
 				port: self.args.flag_stratum_port,
-			})
+				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3())),
+			}))
+		}
+		else
+		{
+			Ok(None)
 		}
 	}
 
@@ -346,7 +351,7 @@ impl Configuration {
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
-			stratum: None,
+			stratum: try!(self.stratum_options()),
 		};
 
 		Ok(options)

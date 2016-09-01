@@ -135,7 +135,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create supervisor
 	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
-	modules::stratum(&mut hypervisor, stratum_options);
+	modules::stratum(&mut hypervisor, &cmd.miner_options.stratum);
 
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
@@ -183,10 +183,6 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
-
-	if let Some(stratum_options) = cmd.miner_options {
-
-	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(

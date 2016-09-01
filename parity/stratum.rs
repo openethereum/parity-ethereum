@@ -16,16 +16,14 @@
 
 //! Parity sync service
 
-use std;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use ethcore_stratum::{Stratum as StratumServer, PushWorkHandler, RemoteJobDispatcher, ServiceConfiguration};
-use std::thread;
 use modules::service_urls;
 use boot;
 use hypervisor::service::IpcModuleId;
 use hypervisor::{HYPERVISOR_IPC_URL, ControlService};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, IpAddr};
 use std::str::FromStr;
 use nanoipc;
 
@@ -59,8 +57,13 @@ pub fn main() {
 
 	let server =
 		StratumServer::start(
-			&SocketAddr::from_str(&service_config.listen_addr)
-				.unwrap_or_else(|e| panic!("Fatal: invalid listen address ({:?})", e)),
+			&SocketAddr::new(
+				IpAddr::from_str(&service_config.listen_addr)
+					.unwrap_or_else(|e|
+						panic!("Fatal: invalid listen address: '{}' ({:?})", &service_config.listen_addr, e)
+					),
+				service_config.port,
+			),
 			job_dispatcher.service().clone(),
 			service_config.secret
 		).unwrap_or_else(

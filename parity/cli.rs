@@ -394,6 +394,7 @@ pub struct Args {
 	pub flag_stratum: bool,
 	pub flag_stratum_interface: String,
 	pub flag_stratum_port: u16,
+	pub flag_stratum_secret: Option<String>,
 
 	// legacy...
 	pub flag_geth: bool,

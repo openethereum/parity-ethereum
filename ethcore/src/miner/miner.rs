@@ -223,8 +223,8 @@ impl Miner {
 	fn stratum_probably(miner: &Arc<Miner>) -> Option<Box<NotifyWork>> {
 		use super::work_dispatcher;
 
-		miner.options.stratum.as_ref().and_then(|_| {
-			work_dispatcher::Stratum::new("").or_else(|e|
+		miner.options.stratum.as_ref().and_then(|opts| {
+			work_dispatcher::Stratum::new(&opts.io_path).or_else(|e|
 			{
 				warn!(target: "stratum", "Cannot start stratum server");
 				Err(e)
@@ -238,7 +238,7 @@ impl Miner {
 	}
 
 	#[cfg(not(feature="stratum"))]
-	fn stratum_probably(options: &MinerOptions) -> Option<Box<NotifyWork>> {
+	fn stratum_probably(_miner: &Arc<Miner>) -> Option<Box<NotifyWork>> {
 		None
 	}
 
