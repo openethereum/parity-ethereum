@@ -5,7 +5,7 @@ import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
-import Tooltip from '../../../ui/Tooltip';
+import { Tooltip } from '../../../ui/Tooltips';
 
 import styles from '../style.css';
 

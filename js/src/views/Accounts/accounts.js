@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import Actions from './Actions';
 import Summary from './Summary';
 import { AddressBook, CreateAccount } from '../../modals';
-import Tooltip from '../../ui/Tooltip';
+import { Tooltip } from '../../ui/Tooltips';
 
 import styles from './style.css';
 

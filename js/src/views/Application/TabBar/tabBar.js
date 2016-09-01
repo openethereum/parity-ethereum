@@ -4,11 +4,10 @@ import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
-// import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
 import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
-import Tooltip from '../../../ui/Tooltip';
+import { Tooltip } from '../../../ui/Tooltips';
 
 import styles from '../style.css';
 

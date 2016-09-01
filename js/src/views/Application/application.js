@@ -1,20 +1,24 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-
+import { combineReducers, createStore } from 'redux';
 import { Snackbar } from 'material-ui';
 
 import Api from '../../api';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
 import muiTheme from '../../ui/Theme';
 import ParityBar from '../ParityBar';
-import { TooltipOverlay } from '../../ui/Tooltip';
-
+import Tooltips, { tooltipReducer } from '../../ui/Tooltips';
 import { FirstRun } from '../../modals';
 import Status from './Status';
 import TabBar from './TabBar';
+
 import styles from './style.css';
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
+const store = createStore(combineReducers({
+  tooltipReducer
+}), {});
+
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
 const ETH_TOKEN = {
@@ -34,7 +38,8 @@ export default class Application extends Component {
     contracts: PropTypes.array,
     errorHandler: PropTypes.func,
     tokens: PropTypes.array,
-    muiTheme: PropTypes.object
+    muiTheme: PropTypes.object,
+    store: PropTypes.object
   }
 
   static propTypes = {
@@ -85,19 +90,18 @@ export default class Application extends Component {
     }
 
     return (
-      <TooltipOverlay>
+      <div className={ styles.container }>
         { this.renderSnackbar() }
-        <div className={ styles.container }>
-          { this.renderFirstRunDialog() }
-          <TabBar />
-          { children }
-          <Status
-            blockNumber={ blockNumber }
-            clientVersion={ clientVersion }
-            netChain={ netChain }
-            netPeers={ netPeers } />
-        </div>
-      </TooltipOverlay>
+        { this.renderFirstRunDialog() }
+        <Tooltips />
+        <TabBar />
+        { children }
+        <Status
+          blockNumber={ blockNumber }
+          clientVersion={ clientVersion }
+          netChain={ netChain }
+          netPeers={ netPeers } />
+      </div>
     );
   }
 
@@ -140,7 +144,8 @@ export default class Application extends Component {
       contracts,
       errorHandler: this.errorHandler,
       tokens,
-      muiTheme
+      muiTheme,
+      store
     };
   }
 
