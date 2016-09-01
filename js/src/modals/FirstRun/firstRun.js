@@ -5,6 +5,7 @@ import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
+import { newError } from '../../ui/Errors';
 import Modal from '../../ui/Modal';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
@@ -17,7 +18,7 @@ const STAGE_NAMES = ['welcome', 'new account', 'recovery', 'completed'];
 export default class FirstRun extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
-    errorHandler: PropTypes.func.isRequired
+    store: PropTypes.object
   }
 
   static propTypes = {
@@ -137,10 +138,19 @@ export default class FirstRun extends Component {
         this.onNext();
       })
       .catch((error) => {
+        console.error('onCreate', error);
+
         this.setState({
           canCreate: true
         });
-        this.context.errorHandler(error);
+
+        this.newError(error);
       });
+  }
+
+  newError = (error) => {
+    const { store } = this.context;
+
+    store.dispatch(newError(error));
   }
 }

@@ -8,6 +8,7 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import Api from '../../api';
+import { newError } from '../../ui/Errors';
 import IdentityIcon from '../../ui/IdentityIcon';
 import Modal from '../../ui/Modal';
 
@@ -30,7 +31,7 @@ const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
 export default class Transfer extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
-    errorHandler: PropTypes.func.isRequired
+    store: PropTypes.object
   }
 
   static propTypes = {
@@ -390,7 +391,7 @@ export default class Transfer extends Component {
           sending: false
         });
 
-        this.context.errorHandler(error);
+        this.newError(error);
       });
     });
   }
@@ -515,6 +516,15 @@ export default class Transfer extends Component {
           gasPrice: gasPrice.toString(),
           gasPriceDefault: gasPrice.toFormat()
         }, this.recalculate);
+      })
+      .catch((error) => {
+        console.error('getDefaults', error);
       });
+  }
+
+  newError = (error) => {
+    const { store } = this.context;
+
+    store.dispatch(newError(error));
   }
 }

@@ -8,6 +8,7 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import Modal from '../../ui/Modal';
+import { newError } from '../../ui/Errors';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -28,7 +29,7 @@ const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 export default class CreateAccount extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
-    errorHandler: PropTypes.func.isRequired
+    store: PropTypes.object
   }
 
   static propTypes = {
@@ -50,13 +51,16 @@ export default class CreateAccount extends Component {
   }
 
   render () {
-    const steps = this.state.createType === 'fromNew' ? STAGE_NAMES : STAGE_IMPORT;
+    const { createType, stage } = this.state;
+    const steps = createType === 'fromNew'
+      ? STAGE_NAMES
+      : STAGE_IMPORT;
 
     return (
       <Modal
         visible
         actions={ this.renderDialogActions() }
-        current={ this.state.stage }
+        current={ stage }
         steps={ steps }>
         { this.renderPage() }
       </Modal>
@@ -64,7 +68,9 @@ export default class CreateAccount extends Component {
   }
 
   renderPage () {
-    switch (this.state.stage) {
+    const { createType, stage } = this.state;
+
+    switch (stage) {
       case 0:
         return (
           <CreationType
@@ -72,25 +78,25 @@ export default class CreateAccount extends Component {
         );
 
       case 1:
-        if (this.state.createType === 'fromNew') {
+        if (createType === 'fromNew') {
           return (
             <NewAccount
               onChange={ this.onChangeDetails } />
           );
-        } else if (this.state.createType === 'fromGeth') {
+        } else if (createType === 'fromGeth') {
           return (
             <NewGeth
               onChange={ this.onChangeGeth } />
           );
-        } else {
-          return (
-            <NewImport
-              onChange={ this.onChangeWallet } />
-          );
         }
 
+        return (
+          <NewImport
+            onChange={ this.onChangeWallet } />
+        );
+
       case 2:
-        if (this.state.createType === 'fromGeth') {
+        if (createType === 'fromGeth') {
           return (
             <AccountDetailsGeth
               addresses={ this.state.gethAddresses } />
@@ -107,7 +113,9 @@ export default class CreateAccount extends Component {
   }
 
   renderDialogActions () {
-    switch (this.state.stage) {
+    const { createType, stage } = this.state;
+
+    switch (stage) {
       case 0:
         return [
           <FlatButton
@@ -122,7 +130,7 @@ export default class CreateAccount extends Component {
             onTouchTap={ this.onNext } />
         ];
       case 1:
-        const createLabel = this.state.createType === 'fromNew'
+        const createLabel = createType === 'fromNew'
           ? 'Create'
           : 'Import';
 
@@ -144,6 +152,7 @@ export default class CreateAccount extends Component {
             primary
             onTouchTap={ this.onCreate } />
         ];
+
       case 2:
         return (
           <FlatButton
@@ -168,13 +177,14 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const api = this.context.api;
+    const { createType } = this.state;
+    const { api } = this.context;
 
     this.setState({
       canCreate: false
     });
 
-    if (this.state.createType === 'fromNew') {
+    if (createType === 'fromNew') {
       return api.personal
         .newAccountFromPhrase(this.state.phrase, this.state.password)
         .then((address) => {
@@ -187,17 +197,20 @@ export default class CreateAccount extends Component {
           this.props.onUpdate && this.props.onUpdate();
         })
         .catch((error) => {
+          console.error('onCreate', error);
+
           this.setState({
             canCreate: true
           });
 
-          this.context.errorHandler(error);
+          this.newError(error);
         });
-    } else if (this.state.createType === 'fromGeth') {
+    } else if (createType === 'fromGeth') {
       return api.personal
         .importGethAccounts(this.state.gethAddresses)
         .then((result) => {
           console.log('result', result);
+
           return Promise.all(this.state.gethAddresses.map((address) => {
             return api.personal.setAccountName(address, 'Geth Import');
           }));
@@ -207,11 +220,13 @@ export default class CreateAccount extends Component {
           this.props.onUpdate && this.props.onUpdate();
         })
         .catch((error) => {
+          console.error('onCreate', error);
+
           this.setState({
             canCreate: true
           });
 
-          this.context.errorHandler(error);
+          this.newError(error);
         });
     }
 
@@ -231,11 +246,13 @@ export default class CreateAccount extends Component {
         this.props.onUpdate && this.props.onUpdate();
       })
       .catch((error) => {
+        console.error('onCreate', error);
+
         this.setState({
           canCreate: true
         });
 
-        this.context.errorHandler(error);
+        this.newError(error);
       });
   }
 
@@ -280,5 +297,11 @@ export default class CreateAccount extends Component {
       password,
       json
     });
+  }
+
+  newError = (error) => {
+    const { store } = this.context;
+
+    store.dispatch(newError(error));
   }
 }

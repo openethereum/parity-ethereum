@@ -60,6 +60,8 @@ export default class TabBar extends Component {
   }
 
   onActivate = (tab) => {
-    this.context.router.push(tab.props['data-route']);
+    const { router } = this.context;
+
+    router.push(tab.props['data-route']);
   }
 }

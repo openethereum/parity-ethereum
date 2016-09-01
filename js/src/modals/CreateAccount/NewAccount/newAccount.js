@@ -4,6 +4,7 @@ import IconButton from 'material-ui/IconButton';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
+import { newError } from '../../../ui/Errors';
 import Form, { Input } from '../../../ui/Form';
 import IdentityIcon from '../../../ui/IdentityIcon';
 
@@ -18,7 +19,7 @@ const ERRORS = {
 export default class CreateAccount extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
-    errorHandler: PropTypes.func.isRequired
+    store: PropTypes.object
   }
 
   static propTypes = {
@@ -176,8 +177,10 @@ export default class CreateAccount extends Component {
           });
       })
       .catch((error) => {
+        console.log('createIdentities', error);
+
         setTimeout(this.createIdentities, 1000);
-        this.context.errorHandler(error);
+        this.newError(error);
       });
   }
 
@@ -258,5 +261,11 @@ export default class CreateAccount extends Component {
       password2Error: error2,
       isValidPass: !error2
     }, this.updateParent);
+  }
+
+  newError = (error) => {
+    const { store } = this.context;
+
+    store.dispatch(newError(error));
   }
 }

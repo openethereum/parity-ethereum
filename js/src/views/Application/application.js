@@ -1,13 +1,13 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { combineReducers, createStore } from 'redux';
-import { Snackbar } from 'material-ui';
 
 import Api from '../../api';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
+import Errors, { errorReducer } from '../../ui/Errors';
 import muiTheme from '../../ui/Theme';
-import ParityBar from '../ParityBar';
 import Tooltips, { tooltipReducer } from '../../ui/Tooltips';
+import ParityBar from '../ParityBar';
 import { FirstRun } from '../../modals';
 import Status from './Status';
 import TabBar from './TabBar';
@@ -16,6 +16,7 @@ import styles from './style.css';
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
 const store = createStore(combineReducers({
+  errors: errorReducer,
   tooltip: tooltipReducer
 }), {});
 
@@ -36,7 +37,6 @@ export default class Application extends Component {
     accounts: PropTypes.array,
     contacts: PropTypes.array,
     contracts: PropTypes.array,
-    errorHandler: PropTypes.func,
     tokens: PropTypes.array,
     muiTheme: PropTypes.object,
     store: PropTypes.object
@@ -92,9 +92,9 @@ export default class Application extends Component {
 
     return (
       <div className={ styles.container }>
-        { this.renderSnackbar() }
         { this.renderFirstRunDialog() }
         <Tooltips />
+        <Errors />
         <TabBar />
         { children }
         <Status
@@ -103,22 +103,6 @@ export default class Application extends Component {
           netChain={ netChain }
           netPeers={ netPeers } />
       </div>
-    );
-  }
-
-  renderSnackbar () {
-    const { errorMessage, showError } = this.state;
-
-    if (!errorMessage || !showError) {
-      return;
-    }
-
-    return (
-      <Snackbar
-        open
-        message={ errorMessage }
-        autoHideDuration={ 5000 }
-        onRequestClose={ this.onCloseError } />
     );
   }
 
@@ -143,7 +127,6 @@ export default class Application extends Component {
       accounts,
       contacts,
       contracts,
-      errorHandler: this.errorHandler,
       tokens,
       muiTheme,
       store
@@ -153,15 +136,6 @@ export default class Application extends Component {
   onCloseError = () => {
     this.setState({
       showError: false
-    });
-  }
-
-  errorHandler = (error) => {
-    console.error('errorHandler', error);
-
-    this.setState({
-      errorMessage: `ERROR: ${error.message}`,
-      showError: true
     });
   }
 
@@ -207,9 +181,7 @@ export default class Application extends Component {
         this.setState({
           accounts,
           contacts
-        });
-
-        nextTimeout();
+        }, nextTimeout);
       })
       .catch((error) => {
         console.error('retrieveAccounts', error);

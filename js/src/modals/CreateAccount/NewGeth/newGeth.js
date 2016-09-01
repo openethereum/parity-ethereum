@@ -10,8 +10,7 @@ import styles from './style.css';
 export default class NewGeth extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
-    accounts: PropTypes.array,
-    errorHandler: PropTypes.func.isRequired
+    accounts: PropTypes.array
   }
 
   static propTypes = {
@@ -108,6 +107,9 @@ export default class NewGeth extends Component {
                 })
             });
           });
+      })
+      .catch((error) => {
+        console.error('loadAvailable', error);
       });
   }
 }
