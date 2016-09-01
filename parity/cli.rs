@@ -202,6 +202,9 @@ Sealing/Mining Options:
                            submitted for the same work package will go unused.
   --notify-work URLS       URLs to which work package notifications are pushed.
                            URLS should be a comma-delimited list of HTTP URLs.
+  --stratum                Run Stratum server for miners to connect
+  --stratum-interface IP   Address to for stratum server to listen on [default: local]
+  --stratum-port PORT      Address to for stratum server to listen on [default: 8008]
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
@@ -387,6 +390,11 @@ pub struct Args {
 	pub flag_log_file: Option<String>,
 	pub flag_no_color: bool,
 	pub flag_no_network: bool,
+
+	pub flag_stratum: bool,
+	pub flag_stratum_interface: String,
+	pub flag_stratum_port: u16,
+
 	// legacy...
 	pub flag_geth: bool,
 	pub flag_nodekey: Option<String>,

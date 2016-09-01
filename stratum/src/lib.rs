@@ -336,7 +336,7 @@ mod tests {
 	fn receives_initial_paylaod() {
 		let addr = SocketAddr::from_str("0.0.0.0:19975").unwrap();
 		Stratum::start(&addr, DummyManager::new(), None).unwrap();
-		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#;
+		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 2}"#;
 
 		let response = String::from_utf8(dummy_request(&addr, request.as_bytes())).unwrap();
 

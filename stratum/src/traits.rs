@@ -59,6 +59,7 @@ pub trait PushWorkHandler: Send + Sync {
 pub struct ServiceConfiguration {
 	pub io_path: String,
 	pub listen_addr: String,
+	pub port: u16,
 	pub secret: Option<H256>,
 }
 

@@ -47,14 +47,17 @@ pub enum PendingSet {
 	SealingOrElseQueue,
 }
 
+/// Configures stratum server options.
 #[derive(Debug, PartialEq)]
 pub struct StratumOptions {
 	/// Working directory
-	io_path: String,
+	pub io_path: String,
 	/// Network address
-	addr: String,
+	pub listen_addr: String,
 	/// Port
-	port: u16,
+	pub port: u16,
+	/// Secret for peers
+	pub secret: Option<H256>,
 }
 
 /// Configures the behaviour of the miner.
@@ -220,13 +223,17 @@ impl Miner {
 	fn stratum_probably(miner: &Arc<Miner>) -> Option<Box<NotifyWork>> {
 		use super::work_dispatcher;
 
-		miner.options.stratum.as_ref().and_then(|stratum_options| {
-			work_dispatcher::Stratum::new(miner.clone(), "").or_else(
-				|e| {
-					warn!(target: "stratum", "Cannot start stratum server");
-					Err(e)
-				}
-			).ok().map(|stratum| Box::new(stratum) as Box<NotifyWork>)
+		miner.options.stratum.as_ref().and_then(|_| {
+			work_dispatcher::Stratum::new("").or_else(|e|
+			{
+				warn!(target: "stratum", "Cannot start stratum server");
+				Err(e)
+			})
+			.ok().map(|stratum|
+			{
+				stratum.run_async();
+				Box::new(stratum) as Box<NotifyWork>
+			})
 		})
 	}
 

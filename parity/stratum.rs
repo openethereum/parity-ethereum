@@ -18,15 +18,30 @@
 
 use std;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use ethcore_stratum::{Stratum as StratumServer, PushWorkHandler, RemoteJobDispatcher, ServiceConfiguration};
 use std::thread;
 use modules::service_urls;
 use boot;
-use hypervisor::service::{IpcModuleId, HYPERVISOR_IPC_URL};
+use hypervisor::service::IpcModuleId;
+use hypervisor::{HYPERVISOR_IPC_URL, ControlService};
 use std::net::SocketAddr;
 use std::str::FromStr;
+use nanoipc;
 
-const STRATUM_MODULE_ID: IpcModuleId = 8000;
+pub const MODULE_ID: IpcModuleId = 8000;
+
+#[derive(Default)]
+struct StratumControlService {
+	pub stop: Arc<AtomicBool>,
+}
+
+impl ControlService for StratumControlService {
+	fn shutdown(&self) {
+		trace!(target: "hypervisor", "Received shutdown from control service");
+		self.stop.store(true, ::std::sync::atomic::Ordering::Relaxed);
+	}
+}
 
 pub fn main() {
 	boot::setup_cli_logger("stratum");
@@ -36,10 +51,12 @@ pub fn main() {
 
 	let job_dispatcher = dependency!(
 		RemoteJobDispatcher,
-		&service_urls::with_base(&service_config.io_path, service_urls::MINING_JOB_DISPATCHER),
+		&service_urls::with_base(&service_config.io_path, service_urls::MINING_JOB_DISPATCHER)
 	);
 
-	let stop = boot::main_thread();
+	let _ = boot::main_thread();
+	let service_stop = Arc::new(AtomicBool::new(false));
+
 	let server =
 		StratumServer::start(
 			&SocketAddr::from_str(&service_config.listen_addr)
@@ -52,16 +69,28 @@ pub fn main() {
 
 	boot::host_service(
 		&service_urls::with_base(&service_config.io_path, service_urls::STRATUM),
-		stop.clone(),
+		service_stop.clone(),
 		server.clone() as Arc<PushWorkHandler>
 	);
 
-	let _ = boot::register(
+	let hypervisor = boot::register(
 		&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL),
-		STRATUM_MODULE_ID
+		&service_urls::with_base(&service_config.io_path, service_urls::STRATUM_CONTROL),
+		MODULE_ID
 	);
 
-	while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
-		thread::park_timeout(std::time::Duration::from_millis(1000));
+	let control_service = Arc::new(StratumControlService::default());
+	let as_control = control_service.clone() as Arc<ControlService>;
+	let mut worker = nanoipc::Worker::<ControlService>::new(&as_control);
+	worker.add_reqrep(
+		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_CONTROL)
+	).unwrap();
+
+	while !control_service.stop.load(Ordering::SeqCst) {
+		worker.poll();
 	}
+	service_stop.store(true, Ordering::SeqCst);
+
+	hypervisor.module_shutdown(MODULE_ID);
+	trace!(target: "hypervisor", "Stratum process terminated gracefully");
 }

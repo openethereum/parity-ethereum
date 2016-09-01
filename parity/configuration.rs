@@ -25,7 +25,7 @@ use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::client::{VMType, Mode};
-use ethcore::miner::MinerOptions;
+use ethcore::miner::{MinerOptions, StratumOptions};
 
 use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
@@ -319,6 +319,16 @@ impl Configuration {
 		Ok(cfg)
 	}
 
+	fn stratum_options(&self) -> Result<Option<StratumOptions>, String> {
+		if self.args.flag_stratum {
+			Some(StratumOptions {
+				io_path: self.directories().db,
+				listen_addr: self.stratum_interface(),
+				port: self.args.flag_stratum_port,
+			})
+		}
+	}
+
 	fn miner_options(&self) -> Result<MinerOptions, String> {
 		let reseal = try!(self.args.flag_reseal_on_txs.parse::<ResealPolicy>());
 
@@ -604,6 +614,14 @@ impl Configuration {
 	fn dapps_interface(&self) -> String {
 		match self.args.flag_dapps_interface.as_str() {
 			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
+	fn stratum_interface(&self) -> String {
+		match self.args.flag_stratum_interface.as_str() {
+			"local" => "127.0.0.1",
+			"all" => "0.0.0.0",
 			x => x,
 		}.into()
 	}

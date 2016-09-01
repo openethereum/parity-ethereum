@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethcore_stratum::{JobDispatcher, RemoteWorkHandler, PushWorkHandler};
-use miner::miner::Miner;
-use std::sync::{Weak, Arc};
+use std::sync::Arc;
 use nanoipc::{NanoSocket, GuardedSocket};
 use std::sync::atomic::Ordering;
 use std::thread;
@@ -24,27 +23,45 @@ use nanoipc;
 use util::{H256, U256, FixedHash};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
-use util::Mutex;
+use util::{Mutex, RwLock};
 
 pub struct StratumJobDispatcher {
-	miner: Weak<Miner>,
+	last_work: RwLock<Option<(H256, U256, u64)>>,
+	seed_compute: Mutex<SeedHashCompute>,
 }
 
 impl JobDispatcher for StratumJobDispatcher {
+	fn initial(&self) -> Option<String> {
+		self.last_work.read().map(|(pow_hash, difficulty, number)| {
+			self.payload(pow_hash, difficulty, number)
+		})
+	}
 }
 
 impl StratumJobDispatcher {
-	fn new(miner: Arc<Miner>) -> StratumJobDispatcher {
-		StratumJobDispatcher { miner: Arc::downgrade(&miner), }
+	fn new() -> StratumJobDispatcher {
+		StratumJobDispatcher {
+			seed_compute: Mutex::new(SeedHashCompute::new()),
+			last_work: RwLock::new(None),
+		}
+	}
+
+	fn payload(&self, pow_hash: H256, difficulty: U256, number: u64) -> String {
+		// TODO: move this to engine
+		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let seed_hash = &self.seed_compute.lock().get_seedhash(number);
+		let seed_hash = H256::from_slice(&seed_hash[..]);
+		format!(
+			r#"{{ "result": ["0x{}","0x{}","0x{}","0x{:x}"] }}"#,
+			pow_hash.hex(), seed_hash.hex(), target.hex(), number
+		)
 	}
 }
 
 pub struct Stratum {
 	dispatcher: Arc<StratumJobDispatcher>,
-	push_handler: GuardedSocket<RemoteWorkHandler<NanoSocket>>,
 	base_dir: String,
 	stop: ::devtools::StopGuard,
-	seed_compute: Mutex<SeedHashCompute>,
 }
 
 pub enum Error {
@@ -57,30 +74,26 @@ impl From<nanoipc::SocketError> for Error {
 
 impl super::work_notify::NotifyWork for Stratum {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		// TODO: move this to engine
-		let target = Ethash::difficulty_to_boundary(&difficulty);
-		let seed_hash = &self.seed_compute.lock().get_seedhash(number);
-		let seed_hash = H256::from_slice(&seed_hash[..]);
-		let body = format!(
-			r#"{{ "result": ["0x{}","0x{}","0x{}","0x{:x}"] }}"#,
-			pow_hash.hex(), seed_hash.hex(), target.hex(), number
-		);
-
-		self.push_handler.push_work_all(body).unwrap_or_else(
+		let client = nanoipc::init_client::<RemoteWorkHandler<_>>(&handler_url)
+			.unwrap_or_else(|e|
+				warn!(target: "stratum", "Unable to push work for stratum service: {:?}", e)
+			);
+		client.push_work_all(
+			self.dispatcher.payload(pow_hash, difficulty, number)
+		).unwrap_or_else(
 			|e| warn!(target: "stratum", "Error while pushing work: {:?}", e)
 		);
+		*self.dispatcher.last_work.write() = Some((pow_hash, difficulty, number))
 	}
 }
 
 impl Stratum {
-	pub fn new(miner: Arc<Miner>, base_dir: &str) -> Result<Stratum, Error> {
+	pub fn new(base_dir: &str) -> Result<Stratum, Error> {
 		let handler_url = format!("ipc://{}/stratum-job-handler.ipc", base_dir);
 		Ok(Stratum {
-			dispatcher: Arc::new(StratumJobDispatcher::new(miner)),
-			push_handler: try!(nanoipc::init_client::<RemoteWorkHandler<_>>(&handler_url)),
+			dispatcher: Arc::new(StratumJobDispatcher::new()),
 			base_dir: base_dir.to_owned(),
 			stop: ::devtools::StopGuard::new(),
-			seed_compute: Mutex::new(SeedHashCompute::new()),
 		})
 	}
 

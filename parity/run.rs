@@ -133,6 +133,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
 
+	// create supervisor
+	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
+	modules::stratum(&mut hypervisor, stratum_options);
+
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);
@@ -162,9 +166,6 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
 
-	// create supervisor
-	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
-
 	// create client service.
 	let service = try!(ClientService::start(
 		client_config,
@@ -182,6 +183,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
+
+	if let Some(stratum_options) = cmd.miner_options {
+
+	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
