@@ -7,8 +7,10 @@ import Api from '../../api';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
 import Errors from '../../ui/Errors';
 import Tooltips from '../../ui/Tooltips';
-import ParityBar from '../ParityBar';
 import { FirstRun } from '../../modals';
+
+import AppContainer from './AppContainer';
+import FrameError from './FrameError';
 import Status, { updateStatus } from './Status';
 import TabBar from './TabBar';
 
@@ -43,7 +45,7 @@ class Application extends Component {
   }
 
   state = {
-    showFirst: false,
+    showFirstRun: false,
     accounts: [],
     contacts: [],
     contracts: [],
@@ -58,45 +60,30 @@ class Application extends Component {
 
   render () {
     const { children } = this.props;
+    const { showFirstRun } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
     if (inFrame) {
       return (
-        <div className={ styles.apperror }>
-          ERROR: This application cannot and should not be loaded in an embedded iFrame
-        </div>
+        <FrameError />
       );
     } else if (root === 'app') {
       return (
-        <div className={ styles.container }>
-          { children }
-          <ParityBar />
-        </div>
+        <AppContainer />
       );
     }
 
     return (
       <div className={ styles.container }>
-        { this.renderFirstRunDialog() }
+        <FirstRun
+          visible={ showFirstRun }
+          onClose={ this.onCloseFirst } />
         <Tooltips />
         <Errors />
         <TabBar />
         { children }
         <Status />
       </div>
-    );
-  }
-
-  renderFirstRunDialog () {
-    const { showFirst } = this.state;
-
-    if (!showFirst) {
-      return null;
-    }
-
-    return (
-      <FirstRun
-        onClose={ this.onCloseFirst } />
     );
   }
 
@@ -154,7 +141,7 @@ class Application extends Component {
         this.setState({
           accounts,
           contacts,
-          showFirst: accounts.length === 0
+          showFirstRun: accounts.length === 0
         }, nextTimeout);
       })
       .catch((error) => {
@@ -326,7 +313,7 @@ class Application extends Component {
 
   onCloseFirst = () => {
     this.setState({
-      showFirst: false
+      showFirstRun: false
     });
   }
 }

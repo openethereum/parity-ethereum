@@ -22,6 +22,7 @@ class FirstRun extends Component {
   }
 
   static propTypes = {
+    visible: PropTypes.bool,
     onClose: PropTypes.func.isRequired,
     onNewError: PropTypes.func
   }
@@ -36,10 +37,17 @@ class FirstRun extends Component {
   }
 
   render () {
+    const { visible } = this.props;
+    const { stage } = this.state;
+
+    if (!visible) {
+      return null;
+    }
+
     return (
       <Modal
         actions={ this.renderDialogActions() }
-        current={ this.state.stage }
+        current={ stage }
         steps={ STAGE_NAMES }
         visible>
         { this.renderStage() }
@@ -48,7 +56,9 @@ class FirstRun extends Component {
   }
 
   renderStage () {
-    switch (this.state.stage) {
+    const { stage } = this.state;
+
+    switch (stage) {
       case 0:
         return (
           <Welcome />
@@ -73,7 +83,9 @@ class FirstRun extends Component {
   }
 
   renderDialogActions () {
-    switch (this.state.stage) {
+    const { stage } = this.state;
+
+    switch (stage) {
       case 0:
       case 2:
         return (
@@ -83,6 +95,7 @@ class FirstRun extends Component {
             primary
             onTouchTap={ this.onNext } />
         );
+
       case 1:
         return (
           <FlatButton
@@ -92,6 +105,7 @@ class FirstRun extends Component {
             primary
             onTouchTap={ this.onCreate } />
         );
+
       case 3:
         return (
           <FlatButton
@@ -104,14 +118,18 @@ class FirstRun extends Component {
   }
 
   onClose = () => {
+    const { onClose } = this.props;
+
     this.setState({
       stage: 0
-    }, this.props.onClose);
+    }, onClose);
   }
 
   onNext = () => {
+    const { stage } = this.state;
+
     this.setState({
-      stage: this.state.stage + 1
+      stage: stage + 1
     });
   }
 
@@ -126,7 +144,7 @@ class FirstRun extends Component {
   }
 
   onCreate = () => {
-    const api = this.context.api;
+    const { api } = this.context;
 
     this.setState({
       canCreate: false
