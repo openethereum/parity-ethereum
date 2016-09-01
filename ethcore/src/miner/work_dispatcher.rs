@@ -74,10 +74,11 @@ impl From<nanoipc::SocketError> for Error {
 
 impl super::work_notify::NotifyWork for Stratum {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		let client = nanoipc::init_client::<RemoteWorkHandler<_>>(&handler_url)
-			.unwrap_or_else(|e|
-				warn!(target: "stratum", "Unable to push work for stratum service: {:?}", e)
-			);
+		let client = nanoipc::init_client::<RemoteWorkHandler<_>>(
+			&format!("ipc://{}/stratum-job-handler.ipc", self.base_dir)
+		).unwrap_or_else(|e|
+			warn!(target: "stratum", "Unable to push work for stratum service: {:?}", e)
+		);
 		client.push_work_all(
 			self.dispatcher.payload(pow_hash, difficulty, number)
 		).unwrap_or_else(
@@ -89,7 +90,6 @@ impl super::work_notify::NotifyWork for Stratum {
 
 impl Stratum {
 	pub fn new(base_dir: &str) -> Result<Stratum, Error> {
-		let handler_url = format!("ipc://{}/stratum-job-handler.ipc", base_dir);
 		Ok(Stratum {
 			dispatcher: Arc::new(StratumJobDispatcher::new()),
 			base_dir: base_dir.to_owned(),
