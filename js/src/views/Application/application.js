@@ -55,12 +55,10 @@ export default class Application extends Component {
       connected: new BigNumber(0),
       max: new BigNumber(0)
     },
-    showError: false,
     showFirst: false,
     accounts: [],
     contacts: [],
     contracts: [],
-    errorMessage: null,
     tokens: []
   }
 
@@ -133,12 +131,6 @@ export default class Application extends Component {
     };
   }
 
-  onCloseError = () => {
-    this.setState({
-      showError: false
-    });
-  }
-
   retrieveAccounts = () => {
     const nextTimeout = () => setTimeout(this.retrieveAccounts, 1000);
 
@@ -180,7 +172,8 @@ export default class Application extends Component {
 
         this.setState({
           accounts,
-          contacts
+          contacts,
+          showFirst: accounts.length === 0
         }, nextTimeout);
       })
       .catch((error) => {
@@ -236,8 +229,7 @@ export default class Application extends Component {
         });
 
         this.setState({
-          accounts,
-          showFirst: accounts.length === 0
+          accounts
         });
       })
       .catch((error) => {
