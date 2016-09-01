@@ -17,7 +17,7 @@ export default class appProvider {
 
   checkIfIsRunning () {
     const url = this.store.getState().app.url;
-    const { isNodeRunning, isLoading } = this.store.getState().app;
+    const { isNodeRunning, isLoading } = this.store.getState().signer;
 
     isParityRunning(url).then(isRunning => {
       if (isRunning !== isNodeRunning || isLoading) {

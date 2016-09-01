@@ -1,7 +1,6 @@
 import { hashHistory } from 'react-router';
 
 export default class AppMiddleware {
-
   toMiddleware () {
     return store => next => action => {
       next(action);
@@ -14,14 +13,14 @@ export default class AppMiddleware {
   }
 
   redirect (store) {
-    const { isLoading, isNodeRunning } = store.getState().app;
+    const { isLoading, isNodeRunning } = store.getState().signer;
 
     if (isLoading) {
-      hashHistory.push('/loading');
+      hashHistory.push('/signer/loading');
     } else if (!isNodeRunning) {
-      hashHistory.push('/offline');
+      hashHistory.push('/signer/offline');
     } else {
-      hashHistory.push('/');
+      hashHistory.push('/signer');
     }
   }
 
