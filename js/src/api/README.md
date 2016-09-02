@@ -83,7 +83,7 @@ attach contract
 
 ```javascript
 const abi = [{ name: 'callMe', inputs: [{ type: 'bool', ...}, { type: 'string', ...}]}, ...abi...];
-const contract = new EthApi.Contract(ethapi, abi);
+const contract = new ethapi.newContract(abi);
 ```
 
 deploy

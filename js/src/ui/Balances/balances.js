@@ -1,24 +1,25 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import Api from '../../api';
-
 import styles from './style.css';
 
 export default class Balances extends Component {
   static propTypes = {
+    api: PropTypes.object,
     account: PropTypes.object,
     onChange: PropTypes.func
   }
 
   render () {
+    const { api } = this.context;
+
     let body = this.props.account.balances
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
         const token = balance.token;
         const value = token.format
           ? new BigNumber(balance.value).div(new BigNumber(token.format)).toFormat(3)
-          : Api.format.fromWei(balance.value).toFormat(3);
+          : api.format.fromWei(balance.value).toFormat(3);
 
         return (
           <div

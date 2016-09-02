@@ -1,6 +1,6 @@
 const PAGE_SIZE = 25;
 
-import Api from '../../api';
+import format from '../../api/format';
 import { call } from './call';
 
 function _call (method, params, test) {
@@ -37,8 +37,8 @@ function transactions (address, page, test = false) {
   }, test).then((transactions) => {
     return transactions.map((tx) => {
       return {
-        from: Api.format.toChecksumAddress(tx.from),
-        to: Api.format.toChecksumAddress(tx.to),
+        from: format.toChecksumAddress(tx.from),
+        to: format.toChecksumAddress(tx.to),
         hash: tx.hash,
         blockNumber: tx.blockNumber,
         timeStamp: tx.timeStamp,

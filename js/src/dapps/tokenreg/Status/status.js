@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import styles from './style.css';
 
-const { Api } = window.parity;
+const { api } = window.parity;
 
 export default class Status extends Component {
   static propTypes = {
@@ -18,7 +18,7 @@ export default class Status extends Component {
       <div className={ styles.status }>
         <div className={ styles.address }>Token Registry at { address }</div>
         <div className={ styles.owner }>Owned by { owner }</div>
-        <div className={ styles.fee }>Registration fee { Api.format.fromWei(fee).toFixed(3) }ΞTH</div>
+        <div className={ styles.fee }>Registration fee { api.format.fromWei(fee).toFixed(3) }ΞTH</div>
       </div>
     );
   }

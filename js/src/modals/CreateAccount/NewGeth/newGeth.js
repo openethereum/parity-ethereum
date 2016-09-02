@@ -2,7 +2,6 @@ import React, { Component, PropTypes } from 'react';
 
 import { Checkbox } from 'material-ui';
 
-import Api from '../../../api';
 import IdentityIcon from '../../../ui/IdentityIcon';
 
 import styles from './style.css';
@@ -101,7 +100,7 @@ export default class NewGeth extends Component {
                 .map((address, idx) => {
                   return {
                     address,
-                    balance: Api.format.fromWei(balances[idx]).toFormat(5),
+                    balance: api.format.fromWei(balances[idx]).toFormat(5),
                     checked: false
                   };
                 })

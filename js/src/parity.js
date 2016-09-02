@@ -6,8 +6,11 @@ import { IdentityIcon } from './ui';
 
 es6Promise.polyfill();
 
+const api = new Api(new Api.Transport.Http('/rpc/'));
+
 window.parity = {
-  Api: Api,
+  Api,
+  api,
   react: {
     IdentityIcon
   }

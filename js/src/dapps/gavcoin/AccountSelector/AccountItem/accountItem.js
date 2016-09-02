@@ -13,9 +13,20 @@ export default class AccountItem extends Component {
   render () {
     const { account, gavBalance } = this.props;
 
-    const balance = gavBalance
-      ? (account.gavBalance ? `${account.gavBalance}GAV` : '')
-      : (account.ethBalance ? `${account.ethBalance}ΞTH` : '');
+    let balance;
+    let token;
+
+    if (gavBalance) {
+      if (account.gavBalance) {
+        balance = account.gavBalance;
+        token = 'GAV';
+      }
+    } else {
+      if (account.ethBalance) {
+        balance = account.ethBalance;
+        token = 'ΞTH';
+      }
+    }
 
     return (
       <div className={ styles.account }>
@@ -29,7 +40,7 @@ export default class AccountItem extends Component {
             { account.name || account.address }
           </div>
           <div className={ styles.balance }>
-            { balance }
+            { balance }<small> { token }</small>
           </div>
         </div>
       </div>

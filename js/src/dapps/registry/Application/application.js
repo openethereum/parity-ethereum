@@ -7,14 +7,12 @@ import registryAbi from '../abi/registry.json';
 import Loading from '../Loading';
 import Status from '../Status';
 
-const { Api } = window.parity;
+const { api } = window.parity;
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
 const muiTheme = getMuiTheme(lightBaseTheme);
 
 export default class Application extends Component {
   static childContextTypes = {
-    api: PropTypes.object,
     instance: PropTypes.object,
     muiTheme: PropTypes.object
   }
@@ -52,7 +50,6 @@ export default class Application extends Component {
 
   getChildContext () {
     return {
-      api,
       instance: this.state.instance,
       muiTheme
     };

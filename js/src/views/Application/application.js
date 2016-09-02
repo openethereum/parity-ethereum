@@ -217,7 +217,7 @@ class Application extends Component {
       .then((registryAddress) => {
         contracts.registry = api.newContract(registryAbi, registryAddress);
 
-        return contracts.registry.instance.getAddress.call({}, [Api.format.sha3('tokenreg'), 'A']);
+        return contracts.registry.instance.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
       })
       .then((tokenregAddress) => {
         contracts.tokenreg = api.newContract(tokenRegAbi, tokenregAddress);

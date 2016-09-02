@@ -60,13 +60,13 @@ export default class Api {
     return this._events;
   }
 
+  get format () {
+    return format;
+  }
+
   newContract (abi, address) {
     return new Contract(this, abi).at(address);
   }
-
-  static format = format;
-
-  static Contract = Contract
 
   static Transport = {
     Http: Http,

@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 
-const { Api } = window.parity;
+const { api } = window.parity;
 
 export const ERRORS = {
   invalidAccount: 'please select an account to transact with',
@@ -30,11 +30,11 @@ export function validateAccount (account) {
     return ERRORS.invalidAccount;
   }
 
-  if (!Api.format.isAddressValid(account.address)) {
+  if (!api.format.isAddressValid(account.address)) {
     return ERRORS.invalidAddress;
   }
 
-  account.address = Api.format.toChecksumAddress(account.address);
+  account.address = api.format.toChecksumAddress(account.address);
 
   return null;
 }

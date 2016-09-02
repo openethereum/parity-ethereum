@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
 import LinearProgress from 'material-ui/LinearProgress';
 
-import Api from '../../../api';
+import format from '../../../api/format';
 import etherscan from '../../../3rdparty/etherscan';
 import { Container, IdentityIcon } from '../../../ui';
 
@@ -26,7 +26,7 @@ function formatTime (time) {
 }
 
 function formatEther (value) {
-  const ether = Api.format.fromWei(value);
+  const ether = format.fromWei(value);
 
   if (ether.gt(0)) {
     return `${ether.toFormat(5)}`;

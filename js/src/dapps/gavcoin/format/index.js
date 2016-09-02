@@ -1,4 +1,4 @@
-const { Api } = window.parity;
+const { api } = window.parity;
 
 const DIVISOR = 10 ** 6;
 
@@ -29,5 +29,5 @@ export function formatCoins (amount, decimals = 6) {
 }
 
 export function formatEth (eth, decimals = 3) {
-  return Api.format.fromWei(eth).toFormat(decimals);
+  return api.format.fromWei(eth).toFormat(decimals);
 }

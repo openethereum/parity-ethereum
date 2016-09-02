@@ -8,14 +8,12 @@ import tokenregAbi from '../abi/tokenreg.json';
 import Loading from '../Loading';
 import Status from '../Status';
 
-const { Api } = window.parity;
+const { api } = window.parity;
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
 const muiTheme = getMuiTheme(lightBaseTheme);
 
 export default class Application extends Component {
   static childContextTypes = {
-    api: PropTypes.object,
     instance: PropTypes.object,
     muiTheme: PropTypes.object
   }
@@ -51,7 +49,6 @@ export default class Application extends Component {
 
   getChildContext () {
     return {
-      api,
       instance: this.state.instance,
       muiTheme
     };
@@ -76,7 +73,7 @@ export default class Application extends Component {
         console.log(`registry found at ${registryAddress}`);
         const registry = api.newContract(registryAbi, registryAddress).instance;
 
-        return registry.getAddress.call({}, [Api.format.sha3('tokenreg'), 'A']);
+        return registry.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
       })
       .then((address) => {
         console.log(`tokenreg was found at ${address}`);

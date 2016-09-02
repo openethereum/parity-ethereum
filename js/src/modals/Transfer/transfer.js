@@ -9,7 +9,6 @@ import ContentSend from 'material-ui/svg-icons/content/send';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import Api from '../../api';
 import { newError } from '../../ui/Errors';
 import { IdentityIcon, Modal } from '../../ui';
 
@@ -281,11 +280,12 @@ class Transfer extends Component {
   }
 
   _onUpdateRecipient (recipient) {
+    const { api } = this.context;
     let recipientError = null;
 
     if (!recipient || !recipient.length) {
       recipientError = ERRORS.requireRecipient;
-    } else if (!Api.format.isAddressValid(recipient)) {
+    } else if (!api.format.isAddressValid(recipient)) {
       recipientError = ERRORS.invalidAddress;
     }
 
@@ -340,6 +340,7 @@ class Transfer extends Component {
   }
 
   _sendEth () {
+    const { api } = this.context;
     const { account } = this.props;
     const { data, gas, gasPrice, recipient, value } = this.state;
     const options = {
@@ -347,7 +348,7 @@ class Transfer extends Component {
       to: recipient,
       gas,
       gasPrice,
-      value: Api.format.toWei(value || 0)
+      value: api.format.toWei(value || 0)
     };
 
     if (data && data.length) {
@@ -419,6 +420,7 @@ class Transfer extends Component {
   }
 
   _estimateGasEth () {
+    const { api } = this.context;
     const { account } = this.props;
     const { data, gas, gasPrice, recipient, value } = this.state;
     const options = {
@@ -426,7 +428,7 @@ class Transfer extends Component {
       to: recipient,
       gas,
       gasPrice,
-      value: Api.format.toWei(value || 0)
+      value: api.format.toWei(value || 0)
     };
 
     if (data && data.length) {
@@ -458,6 +460,7 @@ class Transfer extends Component {
   }
 
   recalculate = () => {
+    const { api } = this.context;
     const { account } = this.props;
 
     if (!account) {
@@ -478,7 +481,7 @@ class Transfer extends Component {
 
     if (valueAll) {
       if (isEth) {
-        const bn = Api.format.fromWei(availableEth.minus(gasTotal));
+        const bn = api.format.fromWei(availableEth.minus(gasTotal));
         value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
       } else {
         value = available.div(format).toString();
@@ -486,7 +489,7 @@ class Transfer extends Component {
     }
 
     if (isEth) {
-      totalEth = totalEth.plus(Api.format.toWei(value || 0));
+      totalEth = totalEth.plus(api.format.toWei(value || 0));
     }
 
     if (new BigNumber(value || 0).gt(available.div(format))) {
@@ -500,7 +503,7 @@ class Transfer extends Component {
     }
 
     this.setState({
-      total: Api.format.fromWei(totalEth).toString(),
+      total: api.format.fromWei(totalEth).toString(),
       totalError,
       value,
       valueError

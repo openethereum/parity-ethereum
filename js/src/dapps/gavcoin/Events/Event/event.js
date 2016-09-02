@@ -62,7 +62,8 @@ export default class Event extends Component {
   }
 
   renderAddressName (address) {
-    const account = this.context.accounts.find((_account) => _account.address === address);
+    const { accounts } = this.context;
+    const account = accounts.find((_account) => _account.address === address);
 
     if (account) {
       return (
@@ -86,7 +87,7 @@ export default class Event extends Component {
 
     return (
       <td className={ styles.ethvalue }>
-        { formatEth(price) }ΞTH
+        { formatEth(price) }<small> ΞTH</small>
       </td>
     );
   }
@@ -98,7 +99,7 @@ export default class Event extends Component {
 
     return (
       <td className={ styles.gavvalue }>
-        { formatCoins(value) }GAV
+        { formatCoins(value) }<small> GAV</small>
       </td>
     );
   }

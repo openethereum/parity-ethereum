@@ -2,7 +2,6 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Checkbox, MenuItem } from 'material-ui';
 
-import Api from '../../../api';
 import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
 
 import styles from '../style.css';
@@ -15,6 +14,7 @@ const CHECK_STYLE = {
 
 export default class Details extends Component {
   static contextTypes = {
+    api: PropTypes.object,
     accounts: PropTypes.array.isRequired
   }
 
@@ -97,7 +97,7 @@ export default class Details extends Component {
   }
 
   renderTokenSelect () {
-    const { accounts } = this.context;
+    const { accounts, api } = this.context;
     const { address, tag } = this.props;
 
     const account = accounts.find((acc) => acc.address === address);
@@ -107,7 +107,7 @@ export default class Details extends Component {
       let value = 0;
 
       if (isEth) {
-        value = Api.format.fromWei(balance.value).toFormat(3);
+        value = api.format.fromWei(balance.value).toFormat(3);
       } else {
         value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
       }

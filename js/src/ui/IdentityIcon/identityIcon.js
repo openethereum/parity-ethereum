@@ -5,7 +5,7 @@ import styles from './style.css';
 
 export default class IdentityIcon extends Component {
   static contextTypes = {
-    contracts: PropTypes.array.isRequired
+    contracts: PropTypes.array
   }
 
   static propTypes = {
@@ -32,9 +32,10 @@ export default class IdentityIcon extends Component {
   }
 
   updateIcon (_address) {
+    const { contracts } = this.context;
     const { inline } = this.props;
     const address = _address.toLowerCase();
-    const contract = (this.context.contracts || []).find((c) => c.address.toLowerCase() === address);
+    const contract = (contracts || []).find((c) => c.address.toLowerCase() === address);
 
     if (contract && contract.images) {
       this.setState({

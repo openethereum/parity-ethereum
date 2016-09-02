@@ -1,4 +1,4 @@
-import Api from '../api';
+import format from '../api/format';
 
 export const ERRORS = {
   invalidAddress: 'address is an invalid network address',
@@ -12,10 +12,10 @@ export function validateAddress (address) {
 
   if (!address) {
     addressError = ERRORS.invalidAddress;
-  } else if (!Api.format.isAddressValid(address)) {
+  } else if (!format.isAddressValid(address)) {
     addressError = ERRORS.invalidAddress;
   } else {
-    address = Api.format.toChecksumAddress(address);
+    address = format.toChecksumAddress(address);
   }
 
   return {

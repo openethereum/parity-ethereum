@@ -9,7 +9,7 @@ import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
 import styles from '../style.css';
 
-const { Api } = window.parity;
+const { api } = window.parity;
 
 const DIVISOR = 10 ** 6;
 const NAME_ID = ' ';
@@ -32,7 +32,7 @@ export default class ActionRefund extends Component {
     sending: false,
     amount: 0,
     amountError: ERRORS.invalidAmount,
-    price: Api.format.fromWei(this.props.price).toString(),
+    price: api.format.fromWei(this.props.price).toString(),
     priceError: null
   }
 
@@ -74,7 +74,8 @@ export default class ActionRefund extends Component {
   }
 
   renderFields () {
-    const priceLabel = `price in ΞTH (current ${Api.format.fromWei(this.props.price).toFormat(3)})`;
+    const priceLabel = `price in ΞTH (current ${api.format.fromWei(this.props.price).toFormat(3)})`;
+
     return (
       <div>
         <AccountSelector
@@ -133,8 +134,8 @@ export default class ActionRefund extends Component {
   }
 
   onSend = () => {
-    const { instance } = this.context;
-    const price = Api.format.toWei(this.state.price);
+    const { api, instance } = this.context;
+    const price = api.format.toWei(this.state.price);
     const amount = new BigNumber(this.state.amount).mul(DIVISOR);
     const values = [price.toString(), amount.toFixed(0)];
     const options = {
