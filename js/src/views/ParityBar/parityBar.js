@@ -3,6 +3,7 @@ import React, { Component } from 'react';
 import { IconButton } from 'material-ui';
 import ActionSwapVert from 'material-ui/svg-icons/action/swap-vert';
 
+import imagesParitybar from '../../images/paritybar.png';
 import styles from './style.css';
 
 export default class ParityBar extends Component {
@@ -15,7 +16,7 @@ export default class ParityBar extends Component {
             href='/#/apps'>
             <img
               className={ styles.logo }
-              src='/images/paritybar.png' />
+              src={ imagesParitybar } />
           </a>
           <IconButton className={ styles.button }>
             <ActionSwapVert />

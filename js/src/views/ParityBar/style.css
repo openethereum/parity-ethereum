@@ -29,4 +29,6 @@
 }
 
 a.noshow {
+  border: none;
+  outline: none !important;
 }

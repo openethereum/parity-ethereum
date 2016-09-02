@@ -16,8 +16,8 @@
 .iconsContainer {
   display: inline-block;
   min-width: 180px;
-  color: rgba(0, 0, 0, .3);
   font-size: .8em;
+  opacity: 0.5;
 }
 
 .iconsContainer > * {
@@ -45,7 +45,6 @@
   height: 16px !important;
   position: relative;
   bottom: -3px;
-  fill: rgba(0,0,0, 0.35) !important;
 }
 
 /* TODO [ToDr] composes was handling weird errors when linking from other app */
