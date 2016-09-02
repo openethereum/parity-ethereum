@@ -45,6 +45,7 @@ use rand::{Rng, OsRng};
 
 pub use self::error::Error;
 pub use self::service::{RestorationStatus, Service, SnapshotService};
+pub use self::watcher::Watcher;
 
 pub mod io;
 pub mod service;
@@ -52,6 +53,7 @@ pub mod service;
 mod account;
 mod block;
 mod error;
+mod watcher;
 
 #[cfg(test)]
 mod tests;
