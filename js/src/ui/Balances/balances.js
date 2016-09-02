@@ -4,8 +4,11 @@ import React, { Component, PropTypes } from 'react';
 import styles from './style.css';
 
 export default class Balances extends Component {
+  static contextTypes = {
+    api: PropTypes.object
+  }
+
   static propTypes = {
-    api: PropTypes.object,
     account: PropTypes.object,
     onChange: PropTypes.func
   }
