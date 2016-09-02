@@ -19,7 +19,7 @@
 //! Uses `URLHint` to resolve addresses into Dapps bundle file location.
 
 use zip;
-use std::{fs, env};
+use std::{fs, env, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -147,6 +147,23 @@ pub enum ValidationError {
 	HashMismatch { expected: H256, got: H256, },
 }
 
+impl fmt::Display for ValidationError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		match *self {
+			ValidationError::Io(ref io) => write!(f, "Unexpected IO error occured: {:?}", io),
+			ValidationError::Zip(ref zip) => write!(f, "Unable to read ZIP archive: {:?}", zip),
+			ValidationError::InvalidDappId => write!(f, "Dapp ID is invalid. It should be 32 bytes hash of content."),
+			ValidationError::ManifestNotFound => write!(f, "Downloaded Dapp bundle did not contain valid manifest.json file."),
+			ValidationError::ManifestSerialization(ref err) => {
+				write!(f, "There was an error during Dapp Manifest serialization: {:?}", err)
+			},
+			ValidationError::HashMismatch { ref expected, ref got } => {
+				write!(f, "Hash of downloaded content did not match. Expected:{:?}, Got:{:?}.", expected, got)
+			},
+		}
+	}
+}
+
 impl From<io::Error> for ValidationError {
 	fn from(err: io::Error) -> Self {
 		ValidationError::Io(err)
@@ -202,8 +219,8 @@ impl ContentValidator for DappInstaller {
 
 	fn validate_and_install(&self, app_path: PathBuf) -> Result<Manifest, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
-		let mut file = try!(fs::File::open(app_path));
-		let hash = try!(sha3(&mut file));
+		let mut file_reader = io::BufReader::new(try!(fs::File::open(app_path)));
+		let hash = try!(sha3(&mut file_reader));
 		let dapp_id = try!(self.dapp_id.as_str().parse().map_err(|_| ValidationError::InvalidDappId));
 		if dapp_id != hash {
 			return Err(ValidationError::HashMismatch {
@@ -211,6 +228,7 @@ impl ContentValidator for DappInstaller {
 				got: hash,
 			});
 		}
+		let file = file_reader.into_inner();
 		// Unpack archive
 		let mut zip = try!(zip::ZipArchive::new(file));
 		// First find manifest file
