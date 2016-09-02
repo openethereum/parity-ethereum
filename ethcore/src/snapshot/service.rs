@@ -27,8 +27,10 @@ use super::{ManifestData, StateRebuilder, BlockRebuilder};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
+use client::Client;
 use engines::Engine;
 use error::Error;
+use ids::BlockID;
 use service::ClientIoMessage;
 use spec::Spec;
 
@@ -269,6 +271,13 @@ impl Service {
 		dir
 	}
 
+	// get the temporary snapshot dir.
+	fn temp_snapshot_dir(&self) -> PathBuf {
+		let mut dir = self.root_dir();
+		dir.push("in_progress");
+		dir
+	}
+
 	// get the restoration directory.
 	fn restoration_dir(&self) -> PathBuf {
 		let mut dir = self.root_dir();
@@ -326,6 +335,34 @@ impl Service {
 				Err(e.into())
 			}
 		}
+	}
+
+	/// Take a snapshot at the block with the given number.
+	/// calling this while a restoration is in progress or vice versa
+	/// will lead to a race condition where the first one to finish will
+	/// have their produced snapshot overwritten.
+	pub fn take_snapshot(&self, client: &Client, num: u64) -> Result<(), Error> {
+		info!("Taking snapshot at #{}", num);
+
+		let temp_dir = self.temp_snapshot_dir();
+		let snapshot_dir = self.snapshot_dir();
+
+		let _ = fs::remove_dir_all(&temp_dir);
+		let writer = try!(LooseWriter::new(temp_dir.clone()));
+		let progress = Default::default();
+
+		// Todo [rob] log progress.
+		try!(client.take_snapshot(writer, BlockID::Number(num), &progress));
+		let mut reader = self.reader.write();
+
+		// destroy the old snapshot reader.
+		*reader = None;
+
+		try!(fs::rename(temp_dir, &snapshot_dir));
+
+		*reader = Some(try!(LooseReader::new(snapshot_dir)));
+
+		Ok(())
 	}
 
 	/// Initialize the restoration synchronously.
@@ -393,14 +430,7 @@ impl Service {
 		try!(fs::create_dir(&snapshot_dir));
 
 		trace!(target: "snapshot", "copying restored snapshot files over");
-		for maybe_file in try!(fs::read_dir(self.temp_recovery_dir())) {
-			let path = try!(maybe_file).path();
-			if let Some(name) = path.file_name().map(|x| x.to_owned()) {
-				let mut new_path = snapshot_dir.clone();
-				new_path.push(name);
-				try!(fs::rename(path, new_path));
-			}
-		}
+		try!(fs::rename(self.temp_recovery_dir(), &snapshot_dir));
 
 		let _ = fs::remove_dir_all(self.restoration_dir());
 

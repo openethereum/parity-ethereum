@@ -46,6 +46,8 @@ pub enum ClientIoMessage {
 	FeedStateChunk(H256, Bytes),
 	/// Feed a block chunk to the snapshot service
 	FeedBlockChunk(H256, Bytes),
+	/// Take a snapshot for the block with given number.
+	TakeSnapshot(u64),
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -170,6 +172,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			}
 			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
 			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
+			ClientIoMessage::TakeSnapshot(num) => {
+				if let Err(e) = self.snapshot.take_snapshot(&*self.client, num) {
+					warn!("Failed to take snapshot at block #{}: {}", num, e);
+				}
+			}
 			_ => {} // ignore other messages
 		}
 	}
