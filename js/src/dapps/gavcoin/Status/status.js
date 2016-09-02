@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { formatBlockNumber, formatCoins, formatEth } from '../format';
 
-import styles from './style.css';
+import styles from './status.css';
 
 export default class Status extends Component {
   static propTypes = {

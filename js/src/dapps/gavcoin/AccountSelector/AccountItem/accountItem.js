@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import styles from './style.css';
+import styles from './accountItem.css';
 
 const { IdentityIcon } = window.parity.react;
 

@@ -4,7 +4,7 @@ import { Chip } from 'material-ui';
 
 const { IdentityIcon } = window.parity.react;
 
-import styles from './style.css';
+import styles from './accounts.css';
 
 export default class Accounts extends Component {
   static contextTypes = {

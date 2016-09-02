@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { formatBlockNumber, formatCoins, formatEth } from '../../format';
 
-import styles from '../style.css';
+import styles from '../events.css';
 
 const { IdentityIcon } = window.parity.react;
 

@@ -4,7 +4,7 @@ import { IconButton } from 'material-ui';
 import ActionSwapVert from 'material-ui/svg-icons/action/swap-vert';
 
 import imagesParitybar from '../../images/paritybar.png';
-import styles from './style.css';
+import styles from './parityBar.css';
 
 export default class ParityBar extends Component {
   render () {

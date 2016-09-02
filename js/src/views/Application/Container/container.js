@@ -6,7 +6,7 @@ import { Errors, Tooltips } from '../../../ui';
 import Status from '../Status';
 import TabBar from '../TabBar';
 
-import styles from '../style.css';
+import styles from '../application.css';
 
 export default class Container extends Component {
   static propTypes = {

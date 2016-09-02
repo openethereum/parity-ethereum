@@ -5,7 +5,7 @@ import ActionAddShoppingCart from 'material-ui/svg-icons/action/add-shopping-car
 import AvReplay from 'material-ui/svg-icons/av/replay';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
-import styles from './style.css';
+import styles from './actions.css';
 
 export default class Actions extends Component {
   static propTypes = {

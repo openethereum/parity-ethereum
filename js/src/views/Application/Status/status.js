@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import styles from './style.css';
+import styles from './status.css';
 
 class Status extends Component {
   static propTypes = {

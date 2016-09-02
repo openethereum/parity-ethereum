@@ -9,7 +9,7 @@ import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
 import { Tooltip } from '../../../ui';
 
-import styles from '../style.css';
+import styles from '../application.css';
 import imagesParitybar from '../../../images/paritybar.png';
 
 export default class TabBar extends Component {

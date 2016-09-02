@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 
-import styles from './style.css';
+import styles from './loading.css';
 
 export default class Loading extends Component {
   render () {

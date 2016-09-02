@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import Container from '../../ui/Container';
 
-import styles from './style.css';
+import styles from './contract.css';
 
 function nicename (name) {
   return name.split(/(?=[A-Z])/).join(' ');

@@ -7,7 +7,7 @@ import AccountSelector from '../../AccountSelector';
 import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
-import styles from '../style.css';
+import styles from '../actions.css';
 
 const { api } = window.parity;
 

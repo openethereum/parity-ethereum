@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import Summary from './Summary';
 
-import styles from './style.css';
+import styles from './contracts.css';
 
 export default class Contracts extends Component {
   static contextTypes = {

@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 
 import { CircularProgress } from 'material-ui';
 
-import styles from './style.css';
+import styles from './loading.css';
 
 export default class Loading extends Component {
   render () {

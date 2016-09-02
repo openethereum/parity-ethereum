@@ -5,7 +5,7 @@ import AccountSelector from '../AccountSelector';
 
 const { IdentityIcon } = window.parity.react;
 
-import styles from './style.css';
+import styles from './accountSelectorText.css';
 
 const NAME_ID = ' ';
 

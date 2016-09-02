@@ -5,7 +5,7 @@ import EventNewTranch from './EventNewTranch';
 import EventRefund from './EventRefund';
 import EventTransfer from './EventTransfer';
 
-import styles from './style.css';
+import styles from './events.css';
 
 export default class Events extends Component {
   static childContextTypes = {

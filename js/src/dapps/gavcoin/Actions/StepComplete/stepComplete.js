@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 
-import styles from '../style.css';
+import styles from '../actions.css';
 
 export default class StepComplete extends Component {
   render () {

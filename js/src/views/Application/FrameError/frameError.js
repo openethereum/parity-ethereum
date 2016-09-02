@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 
-import styles from '../style.css';
+import styles from '../application.css';
 
 export default class FrameError extends Component {
   render () {

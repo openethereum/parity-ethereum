@@ -4,7 +4,7 @@ import { Actionbar } from '../../ui';
 
 import Summary from './Summary';
 
-import styles from './style.css';
+import styles from './dapps.css';
 
 export default class Dapps extends Component {
   static contextTypes = {

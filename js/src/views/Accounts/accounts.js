@@ -7,7 +7,7 @@ import Summary from './Summary';
 import { AddressBook, CreateAccount } from '../../modals';
 import { Actionbar, Tooltip } from '../../ui';
 
-import styles from './style.css';
+import styles from './accounts.css';
 
 export default class Accounts extends Component {
   static contextTypes = {

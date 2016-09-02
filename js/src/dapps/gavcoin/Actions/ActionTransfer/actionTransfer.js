@@ -8,7 +8,7 @@ import AccountSelectorText from '../../AccountSelectorText';
 import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
-import styles from '../style.css';
+import styles from '../actions.css';
 
 const DIVISOR = 10 ** 6;
 const NAME_ID = ' ';
