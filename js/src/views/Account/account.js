@@ -9,7 +9,7 @@ import { Actionbar, Balances, Container, ContainerTitle, Form, FormWrap, InputIn
 
 import Transactions from './Transactions';
 
-import styles from './style.css';
+import styles from './account.css';
 
 const DEFAULT_NAME = 'Unnamed';
 
@@ -66,25 +66,27 @@ export default class Account extends Component {
           <IdentityIcon
             address={ address } />
           <Form>
-            <FormWrap>
+            <div
+              className={ styles.floatleft }>
               <InputInline
                 label='account name'
                 hint='a descriptive name for the account'
                 value={ name }
                 static={ <ContainerTitle title={ title } /> }
                 onChange={ this.onEditName } />
-            </FormWrap>
-            <FormWrap>
               <div className={ styles.infoline }>
                 { address }
               </div>
               <div className={ styles.infoline }>
                 { account.txCount.toFormat() } outgoing transactions
               </div>
+            </div>
+            <div
+              className={ styles.balances }>
               <Balances
                 account={ account }
                 onChange={ this.onChangeBalances } />
-            </FormWrap>
+            </div>
           </Form>
         </Container>
         <Transactions

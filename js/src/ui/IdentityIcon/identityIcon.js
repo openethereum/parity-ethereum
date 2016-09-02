@@ -39,9 +39,7 @@ export default class IdentityIcon extends Component {
 
     if (contract && contract.images) {
       this.setState({
-        iconsrc: inline
-          ? contract.images.small
-          : contract.images.normal
+        iconsrc: contract.images[inline ? 'small' : 'normal']
       });
 
       return;
@@ -57,15 +55,16 @@ export default class IdentityIcon extends Component {
   }
 
   render () {
-    const { center, inline, padded } = this.props;
+    const { address, center, inline, padded } = this.props;
+    const { iconsrc } = this.state;
     const size = inline ? '32px' : '56px';
-    const className = `${styles.icon} ${center ? styles.center : styles.right} ${padded ? styles.padded : null} ${inline ? styles.inline : null}`;
+    const className = `${styles.icon} ${center ? styles.center : styles.left} ${padded ? styles.padded : null} ${inline ? styles.inline : null}`;
 
     return (
       <img
         className={ className }
-        src={ this.state.iconsrc }
-        value={ this.props.address }
+        src={ iconsrc }
+        value={ address }
         width={ size }
         height={ size } />
     );

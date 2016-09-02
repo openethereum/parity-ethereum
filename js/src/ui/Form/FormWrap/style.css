@@ -1,5 +1,6 @@
 .stretch {
   width: 75%;
+  clear: both;
 }
 
 .stretch input {

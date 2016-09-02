@@ -7,7 +7,7 @@ import format from '../../../api/format';
 import etherscan from '../../../3rdparty/etherscan';
 import { Container, IdentityIcon } from '../../../ui';
 
-import styles from '../style.css';
+import styles from '../account.css';
 
 function formatHash (hash) {
   if (!hash || hash.length <= 21) {

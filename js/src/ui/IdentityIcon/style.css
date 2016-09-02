@@ -7,6 +7,12 @@
   text-align: center;
 }
 
+.left {
+  float: left;
+  text-align: left;
+  margin-right: 1em;
+}
+
 .right {
   float: right;
   text-align: right;

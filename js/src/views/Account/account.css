@@ -7,6 +7,15 @@
   line-height: 1.618em;
 }
 
+.floatleft {
+  float: left;
+  margin-bottom: 0.5em;
+}
+
+.balances {
+  clear: both;
+}
+
 .right {
   text-align: right;
 }
