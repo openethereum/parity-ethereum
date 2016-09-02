@@ -1,5 +1,7 @@
 import React, { Component } from 'react';
 
+import imagesEthcore from '../../../images/ethcore-logo-white-square.png';
+
 const LOGO_STYLE = {
   float: 'right',
   width: '25%',
@@ -11,7 +13,7 @@ export default class FirstRun extends Component {
     return (
       <div>
         <img
-          src='images/ethcore-logo-white-square.png'
+          src={ imagesEthcore }
           alt='Ethcore Ltd.'
           style={ LOGO_STYLE } />
         <p>Welcome to <strong>Parity</strong>, the fastest and simplest way to run your node.</p>
