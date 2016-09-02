@@ -108,7 +108,8 @@ export default class Transactions extends Component {
     if (this.state.transactions && this.state.transactions.length) {
       transactions = (this.state.transactions || []).map((tx) => {
         const hashLink = `${prefix}tx/${tx.hash}`;
-
+        const value = formatEther(tx.value);
+        const token = value ? 'ΞTH' : null;
         const tosection = (tx.to && tx.to.length)
           ? this.renderAddress(prefix, tx.to)
           : (<td className={ `${styles.center}` }></td>);
@@ -119,7 +120,9 @@ export default class Transactions extends Component {
             { this.renderAddress(prefix, tx.from) }
             { tosection }
             <td className={ styles.center }>
-              <a href={ hashLink } target='_blank' className={ styles.link }>{ formatHash(tx.hash) }</a>
+              <a href={ hashLink } target='_blank' className={ styles.link }>
+                { formatHash(tx.hash) }
+              </a>
             </td>
             <td className={ styles.right }>
               { formatNumber(tx.blockNumber) }
@@ -128,7 +131,7 @@ export default class Transactions extends Component {
               { formatTime(tx.timeStamp) }
             </td>
             <td className={ styles.value }>
-              { formatEther(tx.value) }<small> ΞTH</small>
+              { formatEther(tx.value) }<small> { token }</small>
             </td>
           </tr>
         );

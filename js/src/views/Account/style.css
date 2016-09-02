@@ -26,7 +26,11 @@
 .transactions tr {
   line-height: 32px;
   vertical-align: top;
-  font-family: 'Roboto Mono', monospace;
+  /*font-family: 'Roboto Mono', monospace;*/
+}
+
+.transactions th {
+  color: #aaa;
 }
 
 .transactions tr td {
