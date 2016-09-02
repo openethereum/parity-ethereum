@@ -1497,7 +1497,7 @@ impl ChainSync {
 					}
 				}
 
-				peer_info.last_sent_transactions = to_send;
+				peer_info.last_sent_transactions = all_transactions_hashes.clone();
 				Some((*peer_id, packet.out()))
 			})
 			.collect::<Vec<_>>();
@@ -1882,9 +1882,9 @@ mod tests {
 		// Try to propagate same transactions for the second time
 		let peer_count2 = sync.propagate_new_transactions(&mut io);
 
-		// 1 message should be send
+		// 2 message should be send
 		assert_eq!(2, io.queue.len());
-		// 1 peer should be updated but only once
+		// 1 peer should be updated twice
 		assert_eq!(1, peer_count);
 		assert_eq!(1, peer_count2);
 		// TRANSACTIONS_PACKET
@@ -1892,6 +1892,38 @@ mod tests {
 		assert_eq!(0x02, io.queue[1].packet_id);
 	}
 
+	#[test]
+	fn propagates_transactions_without_alternating() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, EachBlockWith::Uncle);
+		client.insert_transaction_to_queue();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
+		let mut queue = VecDeque::new();
+		// should sent some
+		{
+
+			let mut io = TestIo::new(&mut client, &mut queue, None);
+			let peer_count = sync.propagate_new_transactions(&mut io);
+			assert_eq!(1, io.queue.len());
+			assert_eq!(1, peer_count);
+		}
+		// Insert some more
+		client.insert_transaction_to_queue();
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+		// Propagate new transactions
+		let peer_count2 = sync.propagate_new_transactions(&mut io);
+		// And now the peer should have all transactions
+		let peer_count3 = sync.propagate_new_transactions(&mut io);
+
+		// 2 message should be send (in total)
+		assert_eq!(2, io.queue.len());
+		// 1 peer should be updated but only once after inserting new transaction
+		assert_eq!(1, peer_count2);
+		assert_eq!(0, peer_count3);
+		// TRANSACTIONS_PACKET
+		assert_eq!(0x02, io.queue[0].packet_id);
+		assert_eq!(0x02, io.queue[1].packet_id);
+	}
 
 	#[test]
 	fn handles_peer_new_block_malformed() {
