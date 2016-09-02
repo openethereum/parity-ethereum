@@ -10,6 +10,7 @@ import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 import { Tooltip } from '../../../ui';
 
 import styles from '../style.css';
+import imagesParitybar from '../../../images/paritybar.png';
 
 export default class TabBar extends Component {
   static contextTypes = {
@@ -27,7 +28,7 @@ export default class TabBar extends Component {
         <ToolbarGroup>
           <img
             className={ styles.logo }
-            src='/images/paritybar.png' />
+            src={ imagesParitybar } />
         </ToolbarGroup>
         <Tabs
           className={ styles.tabs }

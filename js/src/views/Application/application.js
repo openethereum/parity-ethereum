@@ -14,15 +14,26 @@ import Status, { updateStatus } from './Status';
 import TabBar from './TabBar';
 
 import styles from './style.css';
+import imagesEthereum32 from '../../images/contracts/ethereum-32.png';
+import imagesEthereum56 from '../../images/contracts/ethereum-56.png';
+import imagesGavcoin32 from '../../images/contracts/gavcoin-32.png';
+import imagesGavcoin56 from '../../images/contracts/gavcoin-56.png';
 
 const api = new Api(new Api.Transport.Http('/rpc/'));
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
-const ETH_TOKEN = {
-  images: {
-    small: '/images/contracts/ethereum-32.png',
-    normal: '/images/contracts/ethereum-56.png'
+const images = {
+  ethereum: {
+    small: imagesEthereum32,
+    normal: imagesEthereum56
   },
+  gavcoin: {
+    small: imagesGavcoin32,
+    normal: imagesGavcoin56
+  }
+};
+const ETH_TOKEN = {
+  images: images.ethereum,
   name: 'Ethereum',
   tag: 'ΞTH'
 };
@@ -239,10 +250,7 @@ class Application extends Component {
             tokens.push({
               address: token[0],
               format: token[2].toString(),
-              images: {
-                small: `/images/contracts/${token[3].toLowerCase()}-32.png`,
-                normal: `/images/contracts/${token[3].toLowerCase()}-56.png`
-              },
+              images: images[token[3].toLowerCase()],
               supply: '0',
               tag: token[1],
               name: token[3],
