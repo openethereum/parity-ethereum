@@ -22,6 +22,7 @@ use tests::helpers::*;
 use common::*;
 use devtools::*;
 use miner::Miner;
+use rlp::{Rlp, View};
 
 #[test]
 fn imports_from_empty() {

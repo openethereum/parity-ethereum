@@ -109,7 +109,7 @@ impl Engine for BasicAuthority {
 			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = ap.sign(*block.header().author(), message) {
-				return Some(vec![encode(&(&*signature as &[u8])).to_vec()]);
+				return Some(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
@@ -131,6 +131,8 @@ impl Engine for BasicAuthority {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		use rlp::{UntrustedRlp, View};
+
 		// check the signature is legit.
 		let sig = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H520>());
 		let signer = public_to_address(&try!(recover(&sig.into(), &header.bare_hash())));
@@ -172,7 +174,7 @@ impl Engine for BasicAuthority {
 impl Header {
 	/// Get the none field of the header.
 	pub fn signature(&self) -> H520 {
-		decode(&self.seal()[0])
+		::rlp::decode(&self.seal()[0])
 	}
 }
 
@@ -228,7 +230,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H520::default()).to_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
 
 		let verify_result = engine.verify_block_unordered(&header, None);
 		assert!(verify_result.is_err());

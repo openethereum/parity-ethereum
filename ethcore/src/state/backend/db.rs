@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use rlp;
 use util::journaldb::JournalDB;
 use util::trie::{Trie, TrieError, TrieFactory};
-use util::rlp::decode;
 use util::{Bytes, H256, Address, Hashable, HashDB, U256, Uint};
 
 use std::cell::RefCell;
@@ -115,7 +115,7 @@ impl state::Backend for Database {
 			.expect("account storage root always valid; qed");
 
 		let item: U256 = match db.get(key) {
-			Ok(x) => x.map_or_else(U256::zero, decode),
+			Ok(x) => x.map_or_else(U256::zero, rlp::decode),
 			Err(e) => panic!("Potential DB corruption encountered: {}", e),
 		};
 		item.into()

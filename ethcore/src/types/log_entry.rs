@@ -18,8 +18,9 @@
 
 use std::ops::Deref;
 use util::{H256, Address, Bytes, HeapSizeOf, Hashable};
-use util::rlp::*;
 use util::bloom::Bloomable;
+use rlp::*;
+
 use basic_types::LogBloom;
 use header::BlockNumber;
 use ethjson;

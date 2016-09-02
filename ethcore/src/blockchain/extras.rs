@@ -18,6 +18,7 @@
 
 use bloomchain;
 use util::*;
+use rlp::*;
 use header::BlockNumber;
 use receipt::Receipt;
 use db::Key;

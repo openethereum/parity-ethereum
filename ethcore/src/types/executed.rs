@@ -17,7 +17,7 @@
 //! Transaction execution format module.
 
 use util::{Bytes, U256, Address, U512};
-use util::rlp::*;
+use rlp::*;
 use trace::{VMTrace, FlatTrace};
 use types::log_entry::LogEntry;
 use types::state_diff::StateDiff;
@@ -203,7 +203,8 @@ pub type ExecutionResult = Result<Executed, ExecutionError>;
 
 #[test]
 fn should_encode_and_decode_call_type() {
-	use util::rlp;
+	use rlp;
+
 	let original = CallType::Call;
 	let encoded = rlp::encode(&original);
 	let decoded = rlp::decode(&encoded);
