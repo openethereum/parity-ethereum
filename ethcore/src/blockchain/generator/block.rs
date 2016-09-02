@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::rlp::*;
+use rlp::*;
 use util::{H256, H2048};
 use util::bytes::Bytes;
 use header::Header;

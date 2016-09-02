@@ -32,11 +32,11 @@ use super::{Trie, TrieItem, TrieError};
 /// # Example
 /// ```
 /// extern crate ethcore_util as util;
+///
 /// use util::trie::*;
 /// use util::hashdb::*;
 /// use util::memorydb::*;
 /// use util::hash::*;
-/// use util::rlp::*;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();

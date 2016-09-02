@@ -29,8 +29,8 @@ use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::{H256, Address, FixedHash, U256, H64, Uint};
 use util::sha3::*;
-use util::rlp::{encode, decode, UntrustedRlp, View};
 use util::{FromHex, Mutex};
+use rlp::{self, UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::header::Header as BlockHeader;
@@ -123,7 +123,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 					timestamp: view.timestamp().into(),
 					difficulty: view.difficulty().into(),
 					total_difficulty: total_difficulty.into(),
-					seal_fields: view.seal().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
+					seal_fields: view.seal().into_iter().map(|f| rlp::decode(&f)).map(Bytes::new).collect(),
 					uncles: block_view.uncle_hashes().into_iter().map(Into::into).collect(),
 					transactions: match include_txs {
 						true => BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect()),
@@ -147,7 +147,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	fn uncle(&self, id: UncleID) -> Result<Value, Error> {
 		let client = take_weak!(self.client);
 		let uncle: BlockHeader = match client.uncle(id) {
-			Some(rlp) => decode(&rlp),
+			Some(rlp) => rlp::decode(&rlp),
 			None => { return Ok(Value::Null); }
 		};
 		let parent_difficulty = match client.block_total_difficulty(BlockID::Hash(uncle.parent_hash().clone())) {
@@ -173,7 +173,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 			total_difficulty: (uncle.difficulty().clone() + parent_difficulty).into(),
 			receipts_root: uncle.receipts_root().clone().into(),
 			extra_data: uncle.extra_data().clone().into(),
-			seal_fields: uncle.seal().clone().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
+			seal_fields: uncle.seal().clone().into_iter().map(|f| rlp::decode(&f)).map(Bytes::new).collect(),
 			uncles: vec![],
 			transactions: BlockTransactions::Hashes(vec![]),
 		};
@@ -566,7 +566,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
-			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
+			let seal = vec![rlp::encode(&mix_hash).to_vec(), rlp::encode(&nonce).to_vec()];
 			let r = miner.submit_seal(&*client, pow_hash, seal);
 			Ok(to_value(&r.is_ok()))
 		})

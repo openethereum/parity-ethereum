@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::{Address, H256, U256, Uint};
-use util::rlp::encode;
 use util::bytes::ToPretty;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
@@ -70,7 +69,7 @@ pub fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: Transactio
 		t.with_signature(signature)
 	};
 
-	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
+	trace!(target: "miner", "send_transaction: dispatching tx: {}", ::rlp::encode(&signed_transaction).to_vec().pretty());
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 
@@ -84,7 +83,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionReques
 		t.with_signature(signature)
 	};
 
-	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
+	trace!(target: "miner", "send_transaction: dispatching tx: {}", ::rlp::encode(&signed_transaction).to_vec().pretty());
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 

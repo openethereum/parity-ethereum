@@ -23,8 +23,10 @@ use util::Bytes;
 use util::{Address, FixedHash, H256};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
-use util::rlp::{decode, Rlp, RlpStream, Stream, View};
 use util::sha3::Hashable;
+
+use rlp::{decode, Rlp, RlpStream, Stream, View};
+
 
 // attempt to migrate a key, value pair. None if migration not possible.
 fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {

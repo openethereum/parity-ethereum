@@ -90,29 +90,32 @@
 extern crate rustc_serialize;
 extern crate rand;
 extern crate rocksdb;
-#[macro_use]
-extern crate heapsize;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate itertools;
 extern crate env_logger;
 extern crate crypto as rcrypto;
 extern crate secp256k1;
 extern crate arrayvec;
 extern crate elastic_array;
-#[macro_use]
-extern crate log as rlog;
 extern crate time;
 extern crate ethcore_devtools as devtools;
 extern crate libc;
 extern crate target_info;
 extern crate bigint;
 extern crate parking_lot;
-pub extern crate using_queue;
-pub extern crate table;
 extern crate ansi_term;
 extern crate tiny_keccak;
+extern crate rlp;
+
+#[macro_use]
+extern crate heapsize;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate itertools;
+#[macro_use]
+extern crate log as rlog;
+
+pub extern crate using_queue;
+pub extern crate table;
 
 pub mod bloom;
 pub mod standard;
@@ -122,7 +125,6 @@ pub mod from_json;
 pub mod common;
 pub mod error;
 pub mod bytes;
-pub mod rlp;
 pub mod misc;
 pub mod vector;
 pub mod sha3;
@@ -144,7 +146,6 @@ mod timer;
 
 pub use common::*;
 pub use misc::*;
-pub use rlp::*;
 pub use hashdb::*;
 pub use memorydb::*;
 pub use overlaydb::*;

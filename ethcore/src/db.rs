@@ -20,7 +20,8 @@ use std::ops::Deref;
 use std::hash::Hash;
 use std::collections::HashMap;
 use util::{DBTransaction, Database, RwLock};
-use util::rlp::{encode, Encodable, decode, Decodable};
+
+use rlp;
 
 // database columns
 /// Column for State
@@ -83,12 +84,12 @@ pub trait Key<T> {
 /// Should be used to write value into database.
 pub trait Writable {
 	/// Writes the value into the database.
-	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]>;
+	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: Deref<Target = [u8]>;
 
 	/// Writes the value into the database and updates the cache.
 	fn write_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
-	T: Encodable,
+	T: rlp::Encodable,
 	R: Deref<Target = [u8]> {
 		self.write(col, &key, &value);
 		match policy {
@@ -104,7 +105,7 @@ pub trait Writable {
 	/// Writes the values into the database and updates the cache.
 	fn extend_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
-	T: Encodable,
+	T: rlp::Encodable,
 	R: Deref<Target = [u8]> {
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
@@ -127,13 +128,13 @@ pub trait Writable {
 pub trait Readable {
 	/// Returns value for given key.
 	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where
-	T: Decodable,
+	T: rlp::Decodable,
 	R: Deref<Target = [u8]>;
 
 	/// Returns value for given key either in cache or in database.
 	fn read_with_cache<K, T, C>(&self, col: Option<u32>, cache: &RwLock<C>, key: &K) -> Option<T> where
 		K: Key<T> + Eq + Hash + Clone,
-		T: Clone + Decodable,
+		T: Clone + rlp::Decodable,
 		C: Cache<K, T> {
 		{
 			let read = cache.read();
@@ -169,17 +170,17 @@ pub trait Readable {
 }
 
 impl Writable for DBTransaction {
-	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]> {
-		self.put(col, &key.key(), &encode(value));
+	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: Deref<Target = [u8]> {
+		self.put(col, &key.key(), &rlp::encode(value));
 	}
 }
 
 impl Readable for Database {
-	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where T: Decodable, R: Deref<Target = [u8]> {
+	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where T: rlp::Decodable, R: Deref<Target = [u8]> {
 		let result = self.get(col, &key.key());
 
 		match result {
-			Ok(option) => option.map(|v| decode(&v)),
+			Ok(option) => option.map(|v| rlp::decode(&v)),
 			Err(err) => {
 				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
 			}
