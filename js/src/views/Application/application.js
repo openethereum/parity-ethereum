@@ -49,6 +49,7 @@ class Application extends Component {
 
   static propTypes = {
     children: PropTypes.node,
+    netChain: PropTypes.string,
     onUpdateStatus: PropTypes.func
   }
 
@@ -172,8 +173,9 @@ class Application extends Component {
         return Promise.all(
           balancesTxCounts.map(([balance, txCount], idx) => {
             const account = accounts[idx];
+            const isTest = this.props.netChain === 'morden';
 
-            account.txCount = txCount.sub(0x100000); // WHY?
+            account.txCount = txCount.sub(isTest ? 0x100000 : 0); // WHY?
             account.balances = [{
               token: ETH_TOKEN,
               value: balance.toString()
@@ -319,7 +321,11 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  return {};
+  const { netChain } = state.status;
+
+  return {
+    netChain
+  };
 }
 
 function mapDispatchToProps (dispatch) {
