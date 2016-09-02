@@ -1,11 +1,10 @@
 import 'isomorphic-fetch';
-
 import es6Promise from 'es6-promise';
-es6Promise.polyfill();
 
 import Api from './api';
+import { IdentityIcon } from './ui';
 
-import IdentityIcon from './ui/IdentityIcon';
+es6Promise.polyfill();
 
 window.parity = {
   Api: Api,

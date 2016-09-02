@@ -1,8 +1,8 @@
+import 'isomorphic-fetch';
 import ReactDOM from 'react-dom';
 import React from 'react';
-
 import injectTapEventPlugin from 'react-tap-event-plugin';
-injectTapEventPlugin();
+import es6Promise from 'es6-promise';
 
 import { createHashHistory } from 'history';
 import { Provider } from 'react-redux';
@@ -20,7 +20,7 @@ import { statusReducer } from './views/Application/Status';
 // TODO: This is VERY messy, just dumped here to get the Signer going
 import Signer from './views/Signer/containers/Root';
 import signerMiddlewares from './views/Signer/middlewares';
-import { signer as signerReducer, toastr as signerToastrReducer, requests as signerRequestsReducer } from './views/Signer/reducers';
+import { signer as signerReducer, toastr as toastrReducer, requests as requestsReducer } from './views/Signer/reducers';
 import Web3 from 'web3';
 import { Web3Provider, web3Extension } from './views/Signer/dappscomponents';
 import { WebSocketsProvider, Ws } from './views/Signer/utils';
@@ -29,12 +29,14 @@ import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
 import styles from './reset.css';
 import './index.html';
 
+es6Promise.polyfill();
+injectTapEventPlugin();
+
 const initToken = window.localStorage.getItem('sysuiToken');
 const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host : '127.0.0.1:8180';
-
+const routerHistory = useRouterHistory(createHashHistory)({});
 const ws = new Ws(parityUrl);
 const web3 = new Web3(new WebSocketsProvider(ws));
-
 web3Extension(web3).map((extension) => web3._extend(extension));
 
 function tokenSetter (token, cb) {
@@ -46,15 +48,18 @@ const reducers = combineReducers({
   status: statusReducer,
   tooltip: tooltipReducer,
   signer: signerReducer,
-  toastr: signerToastrReducer,
-  requests: signerRequestsReducer
+  toastr: toastrReducer,
+  requests: requestsReducer
 });
 const store = applyMiddleware(...signerMiddlewares(ws, tokenSetter))(
   window.devToolsExtension
     ? window.devToolsExtension()(createStore)
     : createStore
 )(reducers);
-const routerHistory = useRouterHistory(createHashHistory)({});
+
+new WsDataProvider(store, ws); // eslint-disable-line no-new
+new SignerDataProvider(store, ws); // eslint-disable-line no-new
+ws.init(initToken);
 
 ReactDOM.render(
   <Provider store={ store }>
@@ -77,8 +82,3 @@ ReactDOM.render(
   </Provider>,
   document.querySelector('#container')
 );
-
-new WsDataProvider(store, ws); // eslint-disable-line no-new
-new SignerDataProvider(store, ws); // eslint-disable-line no-new
-
-ws.init(initToken);

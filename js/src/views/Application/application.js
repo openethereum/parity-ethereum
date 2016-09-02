@@ -4,16 +4,13 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import Api from '../../api';
-import { FirstRun } from '../../modals';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
-import { Errors, Tooltips } from '../../ui';
 
-import AppContainer from './AppContainer';
+import Container from './Container';
+import DappContainer from './DappContainer';
 import FrameError from './FrameError';
-import Status, { updateStatus } from './Status';
-import TabBar from './TabBar';
+import { updateStatus } from './Status';
 
-import styles from './style.css';
 import imagesEthereum32 from '../../images/contracts/ethereum-32.png';
 import imagesEthereum56 from '../../images/contracts/ethereum-56.png';
 import imagesGavcoin32 from '../../images/contracts/gavcoin-32.png';
@@ -22,6 +19,7 @@ import imagesGavcoin56 from '../../images/contracts/gavcoin-56.png';
 const api = new Api(new Api.Transport.Http('/rpc/'));
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
+// TODO: Images should not be imported like this, should be via the content from GitHubHint contract (here until it is ready)
 const images = {
   ethereum: {
     small: imagesEthereum32,
@@ -79,22 +77,16 @@ class Application extends Component {
       );
     } else if (root === 'app') {
       return (
-        <AppContainer
+        <DappContainer
           children={ children } />
       );
     }
 
     return (
-      <div className={ styles.container }>
-        <FirstRun
-          visible={ showFirstRun }
-          onClose={ this.onCloseFirst } />
-        <Tooltips />
-        <Errors />
-        <TabBar />
-        { children }
-        <Status />
-      </div>
+      <Container
+        children={ children }
+        showFirstRun={ showFirstRun }
+        onCloseFirstRun={ this.onCloseFirstRun } />
     );
   }
 
@@ -319,7 +311,7 @@ class Application extends Component {
       });
   }
 
-  onCloseFirst = () => {
+  onCloseFirstRun = () => {
     this.setState({
       showFirstRun: false
     });
