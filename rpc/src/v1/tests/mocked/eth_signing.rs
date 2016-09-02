@@ -104,7 +104,7 @@ fn should_post_sign_to_queue() {
 		],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x1","id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
