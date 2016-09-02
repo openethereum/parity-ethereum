@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
 
-import styles from './style.css';
+import styles from './modalSteps.css';
 
 export default class ModalSteps extends Component {
   static propTypes = {

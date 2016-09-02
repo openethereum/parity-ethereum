@@ -4,7 +4,7 @@ import { bindActionCreators } from 'redux';
 
 import { nextTooltip } from './actions';
 
-import styles from './style.css';
+import styles from './tooltips.css';
 
 class Tooltips extends Component {
   static propTypes = {

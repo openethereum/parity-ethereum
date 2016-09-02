@@ -8,7 +8,7 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 
 import { newTooltip, nextTooltip, closeTooltips } from '../actions';
 
-import styles from '../style.css';
+import styles from '../tooltips.css';
 
 let tooltipId = 0;
 

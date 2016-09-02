@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import blockies from 'blockies';
 
-import styles from './style.css';
+import styles from './identityIcon.css';
 
 export default class IdentityIcon extends Component {
   static contextTypes = {
