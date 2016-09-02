@@ -22,7 +22,7 @@ use action_params::ActionParams;
 use evm::Ext;
 
 /// Evm errors.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Error {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	/// The state should be reverted to the state from before the

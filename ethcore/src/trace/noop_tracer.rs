@@ -18,7 +18,7 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::{Tracer, VMTracer, FlatTrace};
+use trace::{Tracer, VMTracer, FlatTrace, TraceError};
 use trace::trace::{Call, Create, VMTrace};
 
 /// Nonoperative tracer. Does not trace anything.
@@ -47,11 +47,11 @@ impl Tracer for NoopTracer {
 		assert!(code.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, _: Vec<FlatTrace>) {
+	fn trace_failed_call(&mut self, call: Option<Call>, _: Vec<FlatTrace>, _: TraceError) {
 		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_failed_create(&mut self, create: Option<Create>, _: Vec<FlatTrace>) {
+	fn trace_failed_create(&mut self, create: Option<Create>, _: Vec<FlatTrace>, _: TraceError) {
 		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
 	}
 
