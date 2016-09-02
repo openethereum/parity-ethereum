@@ -11,7 +11,9 @@ export default class Complete extends Component {
   }
 
   render () {
-    if (this.props.sending) {
+    const { sending } = this.props;
+
+    if (sending) {
       return (
         <div>
           <div className={ styles.info }>
@@ -25,7 +27,7 @@ export default class Complete extends Component {
     return (
       <div>
         <div className={ styles.info }>
-          The transaction was sent and awaits verification in the signer. <a href='http://127.0.0.1:8180' target='_blank'>Enter the signer</a> and authenticate the correct transactions with your account password.
+          The transaction was sent and awaits verification in the signer. <a href='/#/signer'>Enter the signer</a> and authenticate the correct transactions with your account password.
         </div>
       </div>
     );
