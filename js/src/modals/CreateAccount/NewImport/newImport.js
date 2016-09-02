@@ -6,7 +6,7 @@ import EditorAttachFile from 'material-ui/svg-icons/editor/attach-file';
 
 import Form, { Input } from '../../../ui/Form';
 
-import styles from '../style.css';
+import styles from '../createAccount.css';
 
 const FAKEPATH = 'C:\\fakepath\\';
 const STYLE_HIDDEN = { display: 'none' };

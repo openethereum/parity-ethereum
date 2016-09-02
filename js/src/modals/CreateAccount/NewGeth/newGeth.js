@@ -4,7 +4,7 @@ import { Checkbox } from 'material-ui';
 
 import IdentityIcon from '../../../ui/IdentityIcon';
 
-import styles from './style.css';
+import styles from './newGeth.css';
 
 export default class NewGeth extends Component {
   static contextTypes = {

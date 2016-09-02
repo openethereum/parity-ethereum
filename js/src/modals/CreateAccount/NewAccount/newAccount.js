@@ -9,7 +9,7 @@ import { newError } from '../../../ui/Errors';
 import Form, { Input } from '../../../ui/Form';
 import IdentityIcon from '../../../ui/IdentityIcon';
 
-import styles from '../style.css';
+import styles from '../createAccount.css';
 
 const ERRORS = {
   noName: 'you need to specify a valid name for the account',

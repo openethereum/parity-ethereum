@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import Input from '../Input';
 
-import styles from '../style.css';
+import styles from './inputInline.css';
 
 export default class InputInline extends Component {
   static propTypes = {

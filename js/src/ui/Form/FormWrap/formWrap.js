@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import styles from './style.css';
+import styles from './formWrap.css';
 
 export default class FormWrap extends Component {
   static propTypes = {

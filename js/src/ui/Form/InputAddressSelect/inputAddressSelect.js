@@ -5,7 +5,7 @@ import IdentityIcon from '../../IdentityIcon';
 import InputAddress from '../InputAddress';
 import Select from '../Select';
 
-import styles from './style.css';
+import styles from './inputAddressSelect.css';
 
 export default class InputAddressSelect extends Component {
   static contextTypes = {

@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import styles from './style.css';
+import styles from './balances.css';
 
 export default class Balances extends Component {
   static contextTypes = {

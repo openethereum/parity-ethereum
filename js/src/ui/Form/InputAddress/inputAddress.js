@@ -3,7 +3,7 @@ import React, { Component, PropTypes } from 'react';
 import Input from '../Input';
 import IdentityIcon from '../../IdentityIcon';
 
-import styles from './style.css';
+import styles from './inputAddress.css';
 
 export default class InputAddress extends Component {
   static propTypes = {

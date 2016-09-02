@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import LinearProgress from 'material-ui/LinearProgress';
 
-import styles from '../style.css';
+import styles from '../transfer.css';
 
 export default class Complete extends Component {
   static propTypes = {

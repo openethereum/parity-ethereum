@@ -16,7 +16,7 @@ import Complete from './Complete';
 import Details from './Details';
 import Extras from './Extras';
 import ERRORS from './errors';
-import styles from './style.css';
+import styles from './transfer.css';
 
 const DEFAULT_GAS = '21000';
 const DEFAULT_GASPRICE = '20000000000';

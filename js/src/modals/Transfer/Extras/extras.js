@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import Form, { Input } from '../../../ui/Form';
 
-import styles from '../style.css';
+import styles from '../transfer.css';
 
 export default class Extras extends Component {
   static propTypes = {

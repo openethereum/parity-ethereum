@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import styles from './style.css';
+import styles from './accountDetailsGeth.css';
 
 export default class AccountDetailsGeth extends Component {
   static propTypes = {

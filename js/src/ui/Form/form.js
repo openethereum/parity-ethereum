@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import styles from './style.css';
+import styles from './form.css';
 
 export default class Form extends Component {
   static propTypes = {

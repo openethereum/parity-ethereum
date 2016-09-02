@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { CardTitle } from 'material-ui/Card';
 
-import styles from './style.css';
+import styles from './title.css';
 
 const TITLE_STYLE = { textTransform: 'uppercase', padding: 0 };
 

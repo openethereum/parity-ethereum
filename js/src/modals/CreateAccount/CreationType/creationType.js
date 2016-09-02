@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import styles from '../style.css';
+import styles from '../createAccount.css';
 
 export default class CreationType extends Component {
   static propTypes = {

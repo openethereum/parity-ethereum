@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Toolbar, ToolbarGroup, ToolbarTitle } from 'material-ui/Toolbar';
 
-import styles from './style.css';
+import styles from './actionbar.css';
 
 export default class Actionbar extends Component {
   static propTypes = {

@@ -10,7 +10,7 @@ import { IdentityIcon, Modal } from '../../ui';
 import AddEntry from './AddEntry';
 import EditEntry from './EditEntry';
 
-import styles from './style.css';
+import styles from './addressBook.css';
 
 const editIconStyle = {
   color: 'rgb(0, 151, 167)',

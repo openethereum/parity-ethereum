@@ -4,7 +4,7 @@ import { Checkbox, MenuItem } from 'material-ui';
 
 import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
 
-import styles from '../style.css';
+import styles from '../transfer.css';
 
 const CHECK_STYLE = {
   position: 'absolute',
