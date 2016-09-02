@@ -142,10 +142,6 @@ module.exports = {
       '/api/ping': {
         forward: 'http://127.0.0.1:8180/index.html',
         changeOrigin: true
-      },
-      '/api*': {
-        target: 'http://localhost:8180',
-        changeOrigin: true
       }
     }
   }
