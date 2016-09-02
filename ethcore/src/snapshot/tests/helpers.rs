@@ -25,7 +25,7 @@ use util::hash::{FixedHash, H256};
 use util::hashdb::HashDB;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 use util::trie::{TrieDB, TrieDBMut, Trie};
-use util::rlp::SHA3_NULL_RLP;
+use util::sha3::SHA3_NULL_RLP;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;

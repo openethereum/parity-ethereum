@@ -119,6 +119,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
 		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain));
 		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain));
+		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain));
 	}
 }
 

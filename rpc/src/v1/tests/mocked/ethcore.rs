@@ -126,7 +126,7 @@ fn rpc_ethcore_min_gas_price() {
 	io.add_delegate(ethcore_client(&client, &miner, &sync, &net).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_minGasPrice", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x01312d00","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x1312d00","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

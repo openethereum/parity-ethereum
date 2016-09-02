@@ -16,7 +16,7 @@
 
 use std::fmt;
 use rustc_serialize::hex::ToHex;
-use rlp::{View, DecoderError, UntrustedRlp, PayloadInfo, Prototype, RlpDecodable};
+use ::{View, DecoderError, UntrustedRlp, PayloadInfo, Prototype, RlpDecodable};
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
 	fn from(rlp: UntrustedRlp<'a>) -> Rlp<'a> {
@@ -162,8 +162,10 @@ impl<'a, 'view> Iterator for RlpIterator<'a, 'view> {
 
 #[test]
 fn break_it() {
-	use common::*;
-	let h: Bytes = FromHex::from_hex("f84d0589010efbef67941f79b2a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap();
+	use rustc_serialize::hex::FromHex;
+	use bigint::uint::U256;
+
+	let h: Vec<u8> = FromHex::from_hex("f84d0589010efbef67941f79b2a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap();
 	let r: Rlp = Rlp::new(&h);
 	let u: U256 = r.val_at(1);
 	assert_eq!(format!("{}", u), "19526463837540678066");

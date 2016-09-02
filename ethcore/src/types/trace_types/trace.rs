@@ -17,9 +17,10 @@
 //! Tracing datatypes.
 
 use util::{U256, Bytes, Address};
-use util::rlp::*;
 use util::sha3::Hashable;
 use util::bloom::Bloomable;
+use rlp::*;
+
 use action_params::ActionParams;
 use basic_types::LogBloom;
 use types::executed::CallType;

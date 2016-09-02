@@ -32,6 +32,8 @@ const MAX_VM_DEPTH_FOR_THREAD: usize = 64;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
+	use rlp::{RlpStream, Stream};
+
 	let mut stream = RlpStream::new_list(2);
 	stream.append(address);
 	stream.append(nonce);

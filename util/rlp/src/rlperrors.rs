@@ -16,7 +16,7 @@
 
 use std::fmt;
 use std::error::Error as StdError;
-use rlp::bytes::FromBytesError;
+use bytes::FromBytesError;
 
 #[derive(Debug, PartialEq, Eq)]
 /// Error concerning the RLP decoder.

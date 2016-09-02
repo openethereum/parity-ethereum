@@ -27,6 +27,7 @@ use engines::Engine;
 use ethereum;
 use devtools::*;
 use miner::Miner;
+use rlp::{self, RlpStream, Stream};
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -116,7 +117,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	rlp.append(header);
 	rlp.begin_list(transactions.len());
 	for t in transactions {
-		rlp.append_raw(&encode::<SignedTransaction>(t).to_vec(), 1);
+		rlp.append_raw(&rlp::encode::<SignedTransaction>(t).to_vec(), 1);
 	}
 	rlp.append(&uncles);
 	rlp.out()

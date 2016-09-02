@@ -19,6 +19,7 @@
 use std::collections::hash_map::Entry;
 use util::*;
 use pod_account::*;
+use rlp::*;
 
 use std::cell::{Ref, RefCell, Cell};
 
@@ -333,6 +334,7 @@ mod tests {
 	use util::*;
 	use super::*;
 	use account_db::*;
+	use rlp::*;
 
 	#[test]
 	fn account_compress() {

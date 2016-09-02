@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::rlp::*;
 use util::{Address, H256, Uint, U256};
+use util::sha3::SHA3_NULL_RLP;
 use ethjson;
 use super::seal::Seal;
 

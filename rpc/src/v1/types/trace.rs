@@ -608,7 +608,7 @@ mod tests {
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"call","action":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x06","gas":"0x07","input":"0x1234","callType":"call"},"result":{"gasUsed":"0x08","output":"0x5678"},"traceAddress":["0x0a"],"subtraces":"0x01","transactionPosition":"0x0b","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0x0d","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"call","action":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","input":"0x1234","callType":"call"},"result":{"gasUsed":"0x8","output":"0x5678"},"traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -673,6 +673,6 @@ mod tests {
 			}
 		]);
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"0x000000000000000000000000000000000000002a":{"balance":"=","nonce":{"+":"0x01"},"code":"=","storage":{"0x000000000000000000000000000000000000000000000000000000000000002a":"="}},"0x0000000000000000000000000000000000000045":{"balance":"=","nonce":{"*":{"from":"0x01","to":"0x00"}},"code":{"-":"0x60"},"storage":{}}}"#);
+		assert_eq!(serialized, r#"{"0x000000000000000000000000000000000000002a":{"balance":"=","nonce":{"+":"0x1"},"code":"=","storage":{"0x000000000000000000000000000000000000000000000000000000000000002a":"="}},"0x0000000000000000000000000000000000000045":{"balance":"=","nonce":{"*":{"from":"0x1","to":"0x0"}},"code":{"-":"0x60"},"storage":{}}}"#);
 	}
 }
