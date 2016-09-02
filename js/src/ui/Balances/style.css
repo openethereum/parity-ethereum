@@ -27,7 +27,7 @@
 
 .balance div {
   display: inline-block;
-  font-family: 'Roboto Mono', monospace;
+  /*font-family: 'Roboto Mono', monospace;*/
   line-height: 24px;
   margin: 0 1em 0 0;
   vertical-align: top;
