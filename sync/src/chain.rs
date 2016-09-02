@@ -1505,11 +1505,13 @@ impl ChainSync {
 
 		// Send RLPs
 		let sent = lucky_peers.len();
-		for (peer_id, rlp) in lucky_peers.into_iter() {
-			self.send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
-		}
+		if sent > 0 {
+			for (peer_id, rlp) in lucky_peers.into_iter() {
+				self.send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
+			}
 
-		trace!(target: "sync", "Sent up to {} transactions to {} peers.", transactions.len(), sent);
+			trace!(target: "sync", "Sent up to {} transactions to {} peers.", transactions.len(), sent);
+		}
 		sent
 	}
 
