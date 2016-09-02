@@ -41,6 +41,23 @@ use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
 
+/// Helper for removing directories in case of error.
+struct Guard(bool, PathBuf);
+
+impl Guard {
+	fn new(path: PathBuf) -> Self { Guard(true, path) }
+
+	fn disarm(mut self) { self.0 = false }
+}
+
+impl Drop for Guard {
+	fn drop(&mut self) {
+		if self.0 {
+			let _ = fs::remove_dir_all(&self.1);
+		}
+	}
+}
+
 /// Statuses for restorations.
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum RestorationStatus {
@@ -98,6 +115,7 @@ struct Restoration {
 	writer: LooseWriter,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
+	guard: Guard,
 }
 
 struct RestorationParams<'a> {
@@ -106,6 +124,7 @@ struct RestorationParams<'a> {
 	db_path: PathBuf, // database path
 	writer: LooseWriter, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
+	guard: Guard, // guard for the restoration directory.
 }
 
 impl Restoration {
@@ -133,6 +152,7 @@ impl Restoration {
 			writer: params.writer,
 			snappy_buffer: Vec::new(),
 			final_state_root: root,
+			guard: params.guard,
 		})
 	}
 
@@ -181,6 +201,7 @@ impl Restoration {
 
 		try!(self.writer.finish(self.manifest));
 
+		self.guard.disarm();
 		Ok(())
 	}
 
@@ -348,10 +369,12 @@ impl Service {
 		let snapshot_dir = self.snapshot_dir();
 
 		let _ = fs::remove_dir_all(&temp_dir);
+
 		let writer = try!(LooseWriter::new(temp_dir.clone()));
 		let progress = Default::default();
 
 		// Todo [rob] log progress.
+		let guard = Guard::new(temp_dir.clone());
 		try!(client.take_snapshot(writer, BlockID::Number(num), &progress));
 		let mut reader = self.reader.write();
 
@@ -362,6 +385,7 @@ impl Service {
 
 		*reader = Some(try!(LooseReader::new(snapshot_dir)));
 
+		guard.disarm();
 		Ok(())
 	}
 
@@ -393,6 +417,7 @@ impl Service {
 			db_path: self.restoration_db(),
 			writer: writer,
 			genesis: &self.genesis_block,
+			guard: Guard::new(rest_dir),
 		};
 
 		*res = Some(try!(Restoration::new(params)));
