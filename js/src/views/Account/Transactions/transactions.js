@@ -29,7 +29,7 @@ function formatEther (value) {
   const ether = Api.format.fromWei(value);
 
   if (ether.gt(0)) {
-    return `${ether.toFormat(5)} ΞTH`;
+    return `${ether.toFormat(5)}`;
   }
 
   return null;
@@ -128,7 +128,7 @@ export default class Transactions extends Component {
               { formatTime(tx.timeStamp) }
             </td>
             <td className={ styles.value }>
-              { formatEther(tx.value) }
+              { formatEther(tx.value) }<small> ΞTH</small>
             </td>
           </tr>
         );

@@ -63,9 +63,11 @@ export default class Details extends Component {
             <Input
               disabled
               label='total transaction amount'
-              hint='the total amount of the transaction'
-              error={ totalError }
-              value={ `${total} ΞTH` } />
+              error={ totalError }>
+              <div className={ styles.inputoverride }>
+                { total }<small> ΞTH</small>
+              </div>
+            </Input>
           </div>
           <div>
             <Checkbox
@@ -117,7 +119,7 @@ export default class Details extends Component {
             { token.name }
           </div>
           <div className={ styles.tokenbalance }>
-            { value } { token.tag }
+            { value }<small> { token.tag }</small>
           </div>
         </div>
       );

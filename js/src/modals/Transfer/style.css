@@ -109,3 +109,7 @@
   color: #aaa;
   font-size: 0.75em;
 }
+
+.inputoverride {
+  padding-top: 24px !important;
+}

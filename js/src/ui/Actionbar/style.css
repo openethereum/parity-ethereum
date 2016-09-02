@@ -7,14 +7,14 @@
 }
 
 .toolbuttons button {
-  color: white !important;
+  /*color: white !important;*/
   margin: 10px 0 10px 16px !important;
 }
 
 .toolbuttons button:hover {
-  background: rgba(80, 80, 80, 0.5) !important;
+  /*background: rgba(80, 80, 80, 0.5) !important;*/
 }
 
 .toolbuttons svg {
-  fill: white !important;
+  /*fill: white !important;*/
 }
