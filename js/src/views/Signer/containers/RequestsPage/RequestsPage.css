@@ -1,0 +1,7 @@
+.request:not(:first-child) {
+  border-top: 1px solid #eee;
+}
+
+.noRequestsMsg {
+  padding: 25px 0 ;
+}

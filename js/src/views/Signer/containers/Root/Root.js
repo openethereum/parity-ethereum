@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 
 import { Actionbar, Container } from '../../../../ui';
 
-import ToastrContainer from '../../components/ToastrContainer';
+import { ToastrContainer } from '../../components';
 import { removeToast } from '../../actions/toastr';
 
 import LoadingPage from '../LoadingPage';

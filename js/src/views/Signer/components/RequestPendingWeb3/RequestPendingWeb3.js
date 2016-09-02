@@ -5,7 +5,6 @@ import SignWeb3 from '../SignRequestWeb3';
 import Web3Compositor from '../Web3Compositor';
 
 class RequestPendingWeb3 extends Component {
-
   static contextTypes = {
     web3: PropTypes.object.isRequired
   };

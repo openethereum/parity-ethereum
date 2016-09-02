@@ -22,7 +22,7 @@ import Signer from './views/Signer/containers/Root';
 import signerMiddlewares from './views/Signer/middlewares';
 import { signer as signerReducer, toastr as toastrReducer, requests as requestsReducer } from './views/Signer/reducers';
 import Web3 from 'web3';
-import { Web3Provider, web3Extension } from './views/Signer/dappscomponents';
+import { Web3Provider, web3Extension } from './views/Signer/components';
 import { WebSocketsProvider, Ws } from './views/Signer/utils';
 import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
 

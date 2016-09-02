@@ -1,5 +1,5 @@
-import { withToastr } from '../dappscomponents/util/toastr';
-import { identity } from '../dappscomponents/util/util';
+import { withToastr } from '../components/util/toastr';
+import { identity } from '../components/util/util';
 
 import { createAction } from 'redux-actions';
 

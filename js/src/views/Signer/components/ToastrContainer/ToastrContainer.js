@@ -1,11 +1,9 @@
-
 import React, { Component, PropTypes } from 'react';
 import Paper from 'material-ui/Paper';
 
 import styles from './ToastrContainer.css';
 
 export default class ToastrContainer extends Component {
-
   static propTypes = {
     toasts: PropTypes.array.isRequired,
     actions: PropTypes.shape({
@@ -39,5 +37,4 @@ export default class ToastrContainer extends Component {
       );
     });
   }
-
 }

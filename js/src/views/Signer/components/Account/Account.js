@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import styles from './Account.css';
 
-import Identicon from '../Identicon';
+import { IdentityIcon } from '../../../../ui';
 import AccountLink from '../AccountLink';
 
 export default class Account extends Component {
@@ -40,7 +40,9 @@ export default class Account extends Component {
     const { address, chain, className } = this.props;
     return (
       <div className={ `${styles.acc} ${className}` } title={ this.renderTitle() }>
-        <Identicon address={ address } chain={ chain } />
+        <AccountLink address={ address } chain={ chain }>
+          <IdentityIcon center address={ address } />
+        </AccountLink>
         { this.renderName() }
         { this.renderBalance() }
       </div>
