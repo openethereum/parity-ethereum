@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Rlp serialization module
+//! Recursive Length Prefix serialization crate.
 //!
 //! Allows encoding, decoding, and view onto rlp-slice
 //!
@@ -64,27 +64,29 @@ pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, P
 pub use self::rlpin::{Rlp, RlpIterator};
 pub use self::rlpstream::RlpStream;
 pub use self::rlpcompression::RlpType;
-pub use elastic_array::ElasticArray1024;
-use super::hash::H256;
+
+extern crate bigint;
+extern crate elastic_array;
+extern crate rustc_serialize;
+
+#[macro_use]
+extern crate lazy_static;
+
+use elastic_array::ElasticArray1024;
 
 /// The RLP encoded empty data (used to mean "null value").
 pub const NULL_RLP: [u8; 1] = [0x80; 1];
 /// The RLP encoded empty list.
 pub const EMPTY_LIST_RLP: [u8; 1] = [0xC0; 1];
-/// The SHA3 of the RLP encoding of empty data.
-pub const SHA3_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
-/// The SHA3 of the RLP encoding of empty list.
-pub const SHA3_EMPTY_LIST_RLP: H256 = H256( [0x1d, 0xcc, 0x4d, 0xe8, 0xde, 0xc7, 0x5d, 0x7a, 0xab, 0x85, 0xb5, 0x67, 0xb6, 0xcc, 0xd4, 0x1a, 0xd3, 0x12, 0x45, 0x1b, 0x94, 0x8a, 0x74, 0x13, 0xf0, 0xa1, 0x42, 0xfd, 0x40, 0xd4, 0x93, 0x47] );
 
 /// Shortcut function to decode trusted rlp
 ///
 /// ```rust
-/// extern crate ethcore_util as util;
-/// use util::rlp::*;
+/// extern crate rlp;
 ///
 /// fn main () {
 /// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
-/// 	let animals: Vec<String> = decode(&data);
+/// 	let animals: Vec<String> = rlp::decode(&data);
 /// 	assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
 /// }
 /// ```
@@ -96,12 +98,11 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
 /// Shortcut function to encode structure into rlp.
 ///
 /// ```rust
-/// extern crate ethcore_util as util;
-/// use util::rlp::*;
+/// extern crate rlp;
 ///
 /// fn main () {
 /// 	let animal = "cat";
-/// 	let out = encode(&animal).to_vec();
+/// 	let out = rlp::encode(&animal).to_vec();
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```

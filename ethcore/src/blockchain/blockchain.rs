@@ -18,6 +18,7 @@
 
 use bloomchain as bc;
 use util::*;
+use rlp::*;
 use header::*;
 use super::extras::*;
 use transaction::*;

@@ -1229,6 +1229,8 @@ mod test {
 
 	#[test]
 	fn should_reject_incorectly_signed_transaction() {
+		use rlp::{self, RlpStream, Stream};
+
 		// given
 		let mut txq = TransactionQueue::new();
 		let tx = new_unsigned_tx(123.into(), 1.into());
@@ -1243,7 +1245,7 @@ mod test {
 			s.append(&0u64); // v
 			s.append(&U256::zero()); // r
 			s.append(&U256::zero()); // s
-			decode(s.as_raw())
+			rlp::decode(s.as_raw())
 		};
 		// when
 		let res = txq.add(stx, &default_account_details, TransactionOrigin::External);

@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use rlp::{UntrustedRlp, View, Compressible, encode, ElasticArray1024, Stream, RlpStream};
-use rlp::commonrlps::{BLOCKS_RLP_SWAPPER, SNAPSHOT_RLP_SWAPPER};
+use ::{UntrustedRlp, View, Compressible, encode, Stream, RlpStream};
+use commonrlps::{BLOCKS_RLP_SWAPPER, SNAPSHOT_RLP_SWAPPER};
+
 use std::collections::HashMap;
+use elastic_array::ElasticArray1024;
 
 /// Stores RLPs used for compression
 pub struct InvalidRlpSwapper<'a> {
@@ -169,8 +171,8 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 
 #[cfg(test)]
 mod tests {
-	use rlp::{UntrustedRlp, Compressible, View, RlpType};
-	use rlp::rlpcompression::InvalidRlpSwapper;
+	use ::{UntrustedRlp, Compressible, View, RlpType};
+	use rlpcompression::InvalidRlpSwapper;
 
 	#[test]
 	fn invalid_rlp_swapper() {
@@ -221,25 +223,5 @@ mod tests {
 		let malformed = vec![248, 81, 128, 128, 128, 128, 128, 160, 12, 51, 241, 93, 69, 218, 74, 138, 79, 115, 227, 44, 216, 81, 46, 132, 85, 235, 96, 45, 252, 48, 181, 29, 75, 141, 217, 215, 86, 160, 109, 130, 160, 140, 36, 93, 200, 109, 215, 100, 241, 246, 99, 135, 92, 168, 149, 170, 114, 9, 143, 4, 93, 25, 76, 54, 176, 119, 230, 170, 154, 105, 47, 121, 10, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128];
 		let malformed_rlp = UntrustedRlp::new(&malformed);
 		assert_eq!(malformed_rlp.decompress(RlpType::Blocks).to_vec(), malformed);
-	}
-
-	#[test]
-	#[ignore]
-	fn test_compression() {
-		use kvdb::*;
-		let path = "db to test".to_string();
-		let values: Vec<_> = Database::open_default(&path).unwrap().iter(Some(2)).map(|(_, v)| v).collect();
-		let mut decomp_size = 0;
-		let mut comp_size = 0;
-
-		for v in &values {
-			let rlp = UntrustedRlp::new(v);
-			let compressed = rlp.compress(RlpType::Blocks).to_vec();
-			comp_size += compressed.len();
-			let decompressed = rlp.decompress(RlpType::Blocks).to_vec();
-			decomp_size += decompressed.len();
-		}
-		println!("Decompressed bytes {:?}, compressed bytes: {:?}", decomp_size, comp_size);
-		assert!(decomp_size > comp_size);
 	}
 }
