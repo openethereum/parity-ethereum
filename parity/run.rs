@@ -28,6 +28,7 @@ use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNoti
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
+use ethcore::snapshot;
 use ethsync::SyncConfig;
 use informant::Informant;
 
@@ -45,6 +46,9 @@ use modules;
 use rpc_apis;
 use rpc;
 use url;
+
+const SNAPSHOT_PERIOD: u64 = 10000;
+const SNAPSHOT_HISTORY: u64 = 1000;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -248,6 +252,15 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		accounts: account_provider.clone(),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
+
+	let watcher = snapshot::Watcher::new(
+		service.client(),
+		service.io().channel(),
+		SNAPSHOT_PERIOD,
+		SNAPSHOT_HISTORY,
+	);
+
+	service.add_notify(Arc::new(watcher));
 
 	// start ui
 	if cmd.ui {
