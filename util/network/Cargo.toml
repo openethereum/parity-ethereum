@@ -25,6 +25,7 @@ ethcore-util = { path = ".." }
 ethcore-devtools = { path = "../../devtools" }
 ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }
+rlp = { path = "../rlp" }
 
 [features]
 default = []

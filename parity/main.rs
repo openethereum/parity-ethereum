@@ -26,12 +26,8 @@ extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
 extern crate ethcore_devtools as devtools;
-#[macro_use]
-extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
-#[macro_use]
-extern crate log as rlog;
 extern crate env_logger;
 extern crate ethcore_logger;
 extern crate ctrlc;
@@ -45,8 +41,8 @@ extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate serde;
 extern crate serde_json;
-#[macro_use]
-extern crate hyper; // for price_info.rs
+extern crate rlp;
+
 extern crate json_ipc_server as jsonipc;
 
 extern crate ethcore_ipc_hypervisor as hypervisor;
@@ -54,10 +50,18 @@ extern crate ethcore_rpc;
 
 extern crate ethcore_signer;
 extern crate ansi_term;
-#[macro_use]
-extern crate lazy_static;
+
 extern crate regex;
 extern crate isatty;
+
+#[macro_use]
+extern crate ethcore_util as util;
+#[macro_use]
+extern crate log as rlog;
+#[macro_use]
+extern crate hyper; // for price_info.rs
+#[macro_use]
+extern crate lazy_static;
 
 #[cfg(feature="stratum")]
 extern crate ethcore_stratum;

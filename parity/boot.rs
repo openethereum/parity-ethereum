@@ -42,7 +42,7 @@ pub fn host_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: A
 		let mut worker = nanoipc::Worker::<T>::new(&service);
 		worker.add_reqrep(&socket_url).unwrap();
 
-		while !stop_guard.load(Ordering::Relaxed) {
+		while !stop_guard.load(Ordering::SeqCst) {
 			worker.poll();
 		}
 	});

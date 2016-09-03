@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::rlp::*;
+use rlp::*;
 use util::{H256, H2048};
-use util::U256;
 use util::bytes::Bytes;
 use header::Header;
 use transaction::SignedTransaction;
@@ -24,6 +23,7 @@ use transaction::SignedTransaction;
 use super::fork::Forkable;
 use super::bloom::WithBloom;
 use super::complete::CompleteBlock;
+use super::transaction::WithTransaction;
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default)]
@@ -44,7 +44,7 @@ impl Encodable for Block {
 
 impl Forkable for Block {
 	fn fork(mut self, fork_number: usize) -> Self where Self: Sized {
-		let difficulty = self.header.difficulty().clone() - U256::from(fork_number);
+		let difficulty = self.header.difficulty().clone() - fork_number.into();
 		self.header.set_difficulty(difficulty);
 		self
 	}
@@ -53,6 +53,13 @@ impl Forkable for Block {
 impl WithBloom for Block {
 	fn with_bloom(mut self, bloom: H2048) -> Self where Self: Sized {
 		self.header.set_log_bloom(bloom);
+		self
+	}
+}
+
+impl WithTransaction for Block {
+	fn with_transaction(mut self, transaction: SignedTransaction) -> Self where Self: Sized {
+		self.transactions.push(transaction);
 		self
 	}
 }

@@ -10,9 +10,9 @@ build = "build.rs"
 
 [dependencies]
 log = "0.3"
-serde = "0.7.0"
-serde_json = "0.7.0"
-jsonrpc-core = "2.1"
+serde = "0.8"
+serde_json = "0.8"
+jsonrpc-core = "3.0"
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 ethcore-io = { path = "../util/io" }
 ethcore-util = { path = "../util" }
@@ -23,16 +23,17 @@ ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }
 ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
+rlp = { path = "../util/rlp" }
 rustc-serialize = "0.3"
 transient-hashmap = "0.1"
-serde_macros = { version = "0.7.0", optional = true }
+serde_macros = { version = "0.8.0", optional = true }
 clippy = { version = "0.0.85", optional = true}
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ethcore-ipc = { path = "../ipc/rpc" }
 time = "0.1"
 
 [build-dependencies]
-serde_codegen = { version = "0.7.0", optional = true }
+serde_codegen = { version = "0.8.0", optional = true }
 
 [features]
 default = ["serde_codegen"]

@@ -18,6 +18,7 @@
 
 use bloomchain;
 use util::*;
+use rlp::*;
 use header::BlockNumber;
 use receipt::Receipt;
 use db::Key;
@@ -176,7 +177,7 @@ impl Encodable for BlockDetails {
 }
 
 /// Represents address of certain transaction within block
-#[derive(Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TransactionAddress {
 	/// Block hash
 	pub block_hash: H256,

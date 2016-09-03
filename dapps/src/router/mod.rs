@@ -73,20 +73,20 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 		// Choose proper handler depending on path / domain
 		let url = extract_url(&req);
 		let endpoint = extract_endpoint(&url);
+		let control = self.control.take().expect("on_request is called only once; control is always defined at start; qed");
 
 		self.handler = match endpoint {
 			// First check special endpoints
 			(ref path, ref endpoint) if self.special.contains_key(endpoint) => {
-				self.special.get(endpoint).unwrap().to_handler(path.clone().unwrap_or_default())
+				self.special.get(endpoint).unwrap().to_async_handler(path.clone().unwrap_or_default(), control)
 			},
 			// Then delegate to dapp
 			(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
-				self.endpoints.get(&path.app_id).unwrap().to_handler(path.clone())
+				self.endpoints.get(&path.app_id).unwrap().to_async_handler(path.clone(), control)
 			},
 			// Try to resolve and fetch the dapp
 			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
-				let control = self.control.take().expect("on_request is called only once, thus control is always defined.");
-				self.fetch.to_handler(path.clone(), control)
+				self.fetch.to_async_handler(path.clone(), control)
 			},
 			// Redirection to main page (maybe 404 instead?)
 			(Some(ref path), _) if *req.method() == hyper::method::Method::Get => {
@@ -100,7 +100,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			},
 			// RPC by default
 			_ => {
-				self.special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default())
+				self.special.get(&SpecialEndpoint::Rpc).unwrap().to_async_handler(EndpointPath::default(), control)
 			}
 		};
 
@@ -135,7 +135,7 @@ impl<A: Authorization> Router<A> {
 		allowed_hosts: Option<Vec<String>>,
 		) -> Self {
 
-		let handler = special.get(&SpecialEndpoint::Rpc).unwrap().to_handler(EndpointPath::default());
+		let handler = special.get(&SpecialEndpoint::Api).unwrap().to_handler(EndpointPath::default());
 		Router {
 			control: Some(control),
 			main_page: main_page,
