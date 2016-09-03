@@ -110,7 +110,7 @@ impl HypervisorService {
 		let modules = self.modules.read().unwrap();
 		modules.get(&module_id).map(|module| {
 			trace!(target: "hypervisor", "Sending shutdown to {}({})", module_id, &module.control_url);
-			let client = nanoipc::init_client::<ControlServiceClient<_>>(&module.control_url).unwrap();
+			let client = nanoipc::fast_client::<ControlServiceClient<_>>(&module.control_url).unwrap();
 			client.shutdown();
 			trace!(target: "hypervisor", "Sent shutdown to {}", module_id);
 		});
