@@ -2120,7 +2120,8 @@ mod tests {
 		client.insert_transaction_to_queue();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let mut queue = VecDeque::new();
-		let mut io = TestIo::new(&mut client, &mut queue, None);
+		let mut ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &mut ss, &mut queue, None);
 		let peer_count = sync.propagate_new_transactions(&mut io);
 		// Try to propagate same transactions for the second time
 		let peer_count2 = sync.propagate_new_transactions(&mut io);
@@ -2141,7 +2142,8 @@ mod tests {
 		client.insert_transaction_to_queue();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let mut queue = VecDeque::new();
-		let mut io = TestIo::new(&mut client, &mut queue, None);
+		let mut ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &mut ss, &mut queue, None);
 		let peer_count = sync.propagate_new_transactions(&mut io);
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[]);
 		// Try to propagate same transactions for the second time
@@ -2164,17 +2166,18 @@ mod tests {
 		client.insert_transaction_to_queue();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let mut queue = VecDeque::new();
+		let mut ss = TestSnapshotService::new();
 		// should sent some
 		{
 
-			let mut io = TestIo::new(&mut client, &mut queue, None);
+			let mut io = TestIo::new(&mut client, &mut ss, &mut queue, None);
 			let peer_count = sync.propagate_new_transactions(&mut io);
 			assert_eq!(1, io.queue.len());
 			assert_eq!(1, peer_count);
 		}
 		// Insert some more
 		client.insert_transaction_to_queue();
-		let mut io = TestIo::new(&mut client, &mut queue, None);
+		let mut io = TestIo::new(&mut client, &mut ss, &mut queue, None);
 		// Propagate new transactions
 		let peer_count2 = sync.propagate_new_transactions(&mut io);
 		// And now the peer should have all transactions
