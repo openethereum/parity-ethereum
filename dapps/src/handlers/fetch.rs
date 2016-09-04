@@ -16,7 +16,7 @@
 
 //! Hyper Server Handler that fetches a file during a request (proxy).
 
-use std::fmt;
+use std::{fs, fmt};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::AtomicBool;
@@ -29,51 +29,50 @@ use hyper::status::StatusCode;
 use handlers::ContentHandler;
 use handlers::client::{Client, FetchResult};
 use apps::redirection_address;
-use apps::urlhint::GithubApp;
-use apps::manifest::Manifest;
 
 const FETCH_TIMEOUT: u64 = 30;
 
-enum FetchState {
-	NotStarted(GithubApp),
+enum FetchState<T: fmt::Debug> {
+	NotStarted(String),
 	Error(ContentHandler),
 	InProgress {
 		deadline: Instant,
 		receiver: mpsc::Receiver<FetchResult>,
 	},
-	Done(Manifest),
+	Done((String, T)),
 }
 
 pub trait ContentValidator {
 	type Error: fmt::Debug + fmt::Display;
+	type Result: fmt::Debug;
 
-	fn validate_and_install(&self, app: PathBuf) -> Result<Manifest, Self::Error>;
-	fn done(&self, Option<&Manifest>);
+	fn validate_and_install(&self, app: PathBuf) -> Result<(String, Self::Result), Self::Error>;
+	fn done(&self, Option<&Self::Result>);
 }
 
 pub struct ContentFetcherHandler<H: ContentValidator> {
 	abort: Arc<AtomicBool>,
 	control: Option<Control>,
-	status: FetchState,
+	status: FetchState<H::Result>,
 	client: Option<Client>,
 	using_dapps_domains: bool,
-	dapp: H,
+	installer: H,
 }
 
 impl<H: ContentValidator> Drop for ContentFetcherHandler<H> {
 	fn drop(&mut self) {
-		let manifest = match self.status {
-			FetchState::Done(ref manifest) => Some(manifest),
+		let result = match self.status {
+			FetchState::Done((_, ref result)) => Some(result),
 			_ => None,
 		};
-		self.dapp.done(manifest);
+		self.installer.done(result);
 	}
 }
 
 impl<H: ContentValidator> ContentFetcherHandler<H> {
 
 	pub fn new(
-		app: GithubApp,
+		url: String,
 		abort: Arc<AtomicBool>,
 		control: Control,
 		using_dapps_domains: bool,
@@ -84,9 +83,9 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 			abort: abort,
 			control: Some(control),
 			client: Some(client),
-			status: FetchState::NotStarted(app),
+			status: FetchState::NotStarted(url),
 			using_dapps_domains: using_dapps_domains,
-			dapp: handler,
+			installer: handler,
 		}
 	}
 
@@ -97,8 +96,8 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 	}
 
 
-	fn fetch_app(client: &mut Client, app: &GithubApp, abort: Arc<AtomicBool>, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
-		client.request(app.url(), abort, Box::new(move || {
+	fn fetch_content(client: &mut Client, url: &str, abort: Arc<AtomicBool>, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
+		client.request(url, abort, Box::new(move || {
 			trace!(target: "dapps", "Fetching finished.");
 			// Ignoring control errors
 			let _ = control.ready(Next::read());
@@ -108,14 +107,14 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 
 impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<H> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
-		let status = if let FetchState::NotStarted(ref app) = self.status {
+		let status = if let FetchState::NotStarted(ref url) = self.status {
 			Some(match *request.method() {
 				// Start fetching content
 				Method::Get => {
-					trace!(target: "dapps", "Fetching dapp: {:?}", app);
+					trace!(target: "dapps", "Fetching content from: {:?}", url);
 					let control = self.control.take().expect("on_request is called only once, thus control is always Some");
 					let client = self.client.as_mut().expect("on_request is called before client is closed.");
-					let fetch = Self::fetch_app(client, app, self.abort.clone(), control);
+					let fetch = Self::fetch_content(client, url, self.abort.clone(), control);
 					match fetch {
 						Ok(receiver) => FetchState::InProgress {
 							deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),
@@ -163,7 +162,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 						trace!(target: "dapps", "Fetching dapp finished. Starting validation.");
 						Self::close_client(&mut self.client);
 						// Unpack and verify
-						let state = match self.dapp.validate_and_install(path.clone()) {
+						let state = match self.installer.validate_and_install(path.clone()) {
 							Err(e) => {
 								trace!(target: "dapps", "Error while validating dapp: {:?}", e);
 								FetchState::Error(ContentHandler::html(
@@ -171,15 +170,14 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 									format!("<h1>Downloaded bundle does not contain valid app.</h1><pre>{}</pre>", e),
 								))
 							},
-							Ok(manifest) => FetchState::Done(manifest)
+							Ok(result) => FetchState::Done(result)
 						};
 						// Remove temporary zip file
-						// TODO [todr] Uncomment me
-						// let _ = fs::remove_file(path);
+						let _ = fs::remove_file(path);
 						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {
-						warn!(target: "dapps", "Unable to fetch new dapp: {:?}", e);
+						warn!(target: "dapps", "Unable to fetch content: {:?}", e);
 						let error = ContentHandler::html(
 							StatusCode::BadGateway,
 							"<h1>There was an error when fetching the dapp.</h1>".into(),
@@ -203,10 +201,10 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		match self.status {
-			FetchState::Done(ref manifest) => {
-				trace!(target: "dapps", "Fetching dapp finished. Redirecting to {}", manifest.id);
+			FetchState::Done((ref id, _)) => {
+				trace!(target: "dapps", "Fetching content finished. Redirecting to {}", id);
 				res.set_status(StatusCode::Found);
-				res.headers_mut().set(header::Location(redirection_address(self.using_dapps_domains, &manifest.id)));
+				res.headers_mut().set(header::Location(redirection_address(self.using_dapps_domains, id)));
 				Next::write()
 			},
 			FetchState::Error(ref mut handler) => handler.on_response(res),
