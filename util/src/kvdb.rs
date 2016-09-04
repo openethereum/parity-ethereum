@@ -456,7 +456,10 @@ impl Database {
 		self.close();
 
 		let mut backup_db = PathBuf::from(&self.path);
+		backup_db.pop();
 		backup_db.push("backup_db");
+		println!("Path at {:?}", self.path);
+		println!("Backup at {:?}", backup_db);
 
 		let existed = match fs::rename(&self.path, &backup_db) {
 			Ok(_) => true,
@@ -486,6 +489,8 @@ impl Database {
 		// reopen the database and steal handles into self
 		let db = try!(Self::open(&self.config, &self.path));
 		*self.db.write() = mem::replace(&mut *db.db.write(), None);
+		*self.overlay.write() = mem::replace(&mut *db.overlay.write(), Vec::new());
+		println!("Restored {} cols", self.db.read().as_ref().unwrap().cfs.len());
 		Ok(())
 	}
 }

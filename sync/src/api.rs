@@ -73,7 +73,7 @@ pub struct EthSync {
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, snapshot_service: Arc<SnapshotService>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
-		let chain_sync = ChainSync::new(config, &*chain, snapshot_service.clone());
+		let chain_sync = ChainSync::new(config, &*chain);
 		let service = try!(NetworkService::new(try!(network_config.into_basic())));
 		let sync = Arc::new(EthSync{
 			network: service,

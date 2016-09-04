@@ -96,7 +96,7 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo, BlockImportError};
 use ethcore::error::*;
 use ethcore::block::Block;
-use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
+use ethcore::snapshot::{ManifestData, RestorationStatus};
 use sync_io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -321,18 +321,16 @@ pub struct ChainSync {
 	fork_block: Option<(BlockNumber, H256)>,
 	/// Snapshot downloader.
 	snapshot: Snapshot,
-	/// Client snapshot service.
-	snapshot_service: Arc<SnapshotService>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig, chain: &BlockChainClient, snapshot_service: Arc<SnapshotService>) -> ChainSync {
+	pub fn new(config: SyncConfig, chain: &BlockChainClient) -> ChainSync {
 		let chain = chain.chain_info();
-		let mut sync = ChainSync {
-			state: SyncState::ChainHead,
+		ChainSync {
+			state: SyncState::Idle,
 			starting_block: chain.best_block_number,
 			highest_block: None,
 			last_imported_block: chain.best_block_number,
@@ -348,10 +346,7 @@ impl ChainSync {
 			network_id: config.network_id,
 			fork_block: config.fork_block,
 			snapshot: Snapshot::new(),
-			snapshot_service: snapshot_service,
-		};
-		sync.reset();
-		sync
+		}
 	}
 
 	/// @returns Synchonization status
@@ -384,12 +379,12 @@ impl ChainSync {
 
 	#[cfg_attr(feature="dev", allow(for_kv_map))] // Because it's not possible to get `values_mut()`
 	/// Reset sync. Clear all downloaded data but keep the queue
-	fn reset(&mut self) {
+	fn reset(&mut self, io: &mut SyncIo) {
 		self.blocks.clear();
 		self.snapshot.clear();
 		if self.state == SyncState::SnapshotData {
 			debug!(target:"sync", "Aborting snapshot restore");
-			self.snapshot_service.abort_restore();
+			io.snapshot_service().abort_restore();
 		}
 		for (_, ref mut p) in &mut self.peers {
 			p.asking_blocks.clear();
@@ -407,7 +402,7 @@ impl ChainSync {
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Restarting");
-		self.reset();
+		self.reset(io);
 		self.start_sync_round(io);
 		self.continue_sync(io);
 	}
@@ -419,7 +414,7 @@ impl ChainSync {
 		if self.active_peers.is_empty() {
 			trace!(target: "sync", "No more active peers");
 			if self.state == SyncState::ChainHead {
-				self.complete_sync();
+				self.complete_sync(io);
 			} else {
 				self.restart(io);
 			}
@@ -811,7 +806,8 @@ impl ChainSync {
 			return Ok(());
 		}
 
-		let manifest = match ManifestData::from_rlp(r.as_raw()) {
+		let manifest_rlp = try!(r.at(0));
+		let manifest = match ManifestData::from_rlp(&manifest_rlp.as_raw()) {
 			Err(e) => {
 				trace!(target: "sync", "{}: Ignored bad manifest: {:?}", peer_id, e);
 				io.disconnect_peer(peer_id);
@@ -820,8 +816,8 @@ impl ChainSync {
 			}
 			Ok(manifest) => manifest,
 		};
-		self.snapshot.reset_to(&manifest, &r.as_raw().sha3());
-		self.snapshot_service.begin_restore(manifest);
+		self.snapshot.reset_to(&manifest, &manifest_rlp.as_raw().sha3());
+		io.snapshot_service().begin_restore(manifest);
 		self.state = SyncState::SnapshotData;
 
 		// give a task to the same peer first.
@@ -845,7 +841,7 @@ impl ChainSync {
 		}
 
 		// check service status
-		match self.snapshot_service.status() {
+		match io.snapshot_service().status() {
 			RestorationStatus::Inactive | RestorationStatus::Failed => {
 				trace!(target: "sync", "{}: Snapshot restoration aborted", peer_id);
 				self.state = SyncState::Idle;
@@ -853,7 +849,7 @@ impl ChainSync {
 				self.continue_sync(io);
 				return Ok(());
 			},
-			RestorationStatus::Ongoing => {
+			RestorationStatus::Ongoing { .. } => {
 				trace!(target: "sync", "{}: Snapshot restoration is ongoing", peer_id);
 			},
 		}
@@ -862,11 +858,11 @@ impl ChainSync {
 		match self.snapshot.validate_chunk(&snapshot_data) {
 			Ok(ChunkType::Block(hash)) => {
 				trace!(target: "sync", "{}: Processing block chunk", peer_id);
-				self.snapshot_service.restore_block_chunk(hash, snapshot_data);
+				io.snapshot_service().restore_block_chunk(hash, snapshot_data);
 			}
 			Ok(ChunkType::State(hash)) => {
 				trace!(target: "sync", "{}: Processing state chunk", peer_id);
-				self.snapshot_service.restore_state_chunk(hash, snapshot_data);
+				io.snapshot_service().restore_state_chunk(hash, snapshot_data);
 			}
 			Err(()) => {
 				trace!(target: "sync", "{}: Got bad snapshot chunk", peer_id);
@@ -923,14 +919,14 @@ impl ChainSync {
 		}
 		if self.state != SyncState::Waiting && self.state != SyncState::SnapshotWaiting
 			&& !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.can_sync()) {
-			self.complete_sync();
+			self.complete_sync(io);
 		}
 	}
 
 	/// Called after all blocks have been downloaded
-	fn complete_sync(&mut self) {
+	fn complete_sync(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Sync complete");
-		self.reset();
+		self.reset(io);
 		self.state = SyncState::Idle;
 	}
 
@@ -1284,7 +1280,7 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		if pv64 {
-			let manifest = self.snapshot_service.manifest();
+			let manifest = io.snapshot_service().manifest();
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
 			let manifest_hash = manifest.map_or(H256::new(), |m| m.into_rlp().sha3());
 			packet.append(&manifest_hash);
@@ -1436,11 +1432,13 @@ impl ChainSync {
 		}
 		let rlp = match io.snapshot_service().manifest() {
 			Some(manifest) => {
+				trace!(target: "sync", "{} <- SnapshotManifest", peer_id);
 				let mut rlp = RlpStream::new_list(1);
 				rlp.append_raw(&manifest.into_rlp(), 1);
 				rlp
 			},
 			None => {
+				trace!(target: "sync", "{}: No manifest to return", peer_id);
 				let rlp = RlpStream::new_list(0);
 				rlp
 			}
@@ -1572,7 +1570,7 @@ impl ChainSync {
 		if self.state == SyncState::Waiting && !io.chain().queue_info().is_full() && self.state == SyncState::Waiting {
 			self.state = SyncState::Blocks;
 			self.continue_sync(io);
-		} else if self.state == SyncState::SnapshotWaiting && self.snapshot_service.status() == RestorationStatus::Inactive {
+		} else if self.state == SyncState::SnapshotWaiting && io.snapshot_service().status() == RestorationStatus::Inactive {
 			self.state = SyncState::Idle;
 			self.continue_sync(io);
 		}
@@ -1998,8 +1996,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
-		let ss = Arc::new(TestSnapshotService::new());
-		let mut sync = ChainSync::new(SyncConfig::default(), client, ss);
+		let mut sync = ChainSync::new(SyncConfig::default(), client);
 		sync.peers.insert(0,
 			PeerInfo {
 				protocol_version: 0,

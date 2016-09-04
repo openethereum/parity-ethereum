@@ -17,15 +17,16 @@
 use util::*;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
+use ethcore::client::{EachBlockWith};
 use super::helpers::*;
-
 
 pub struct TestSnapshotService {
 	manifest: Option<ManifestData>,
 	chunks: HashMap<H256, Bytes>,
 
 	restoration_manifest: Mutex<Option<ManifestData>>,
-	restoration_chunks: Mutex<HashMap<H256, Bytes>>,
+	state_restoration_chunks: Mutex<HashMap<H256, Bytes>>,
+	block_restoration_chunks: Mutex<HashMap<H256, Bytes>>,
 }
 
 impl TestSnapshotService {
@@ -34,7 +35,8 @@ impl TestSnapshotService {
 			manifest: None,
 			chunks: HashMap::new(),
 			restoration_manifest: Mutex::new(None),
-			restoration_chunks: Mutex::new(HashMap::new()),
+			state_restoration_chunks: Mutex::new(HashMap::new()),
+			block_restoration_chunks: Mutex::new(HashMap::new()),
 		}
 	}
 
@@ -56,7 +58,8 @@ impl TestSnapshotService {
 			manifest: Some(manifest),
 			chunks: chunks,
 			restoration_manifest: Mutex::new(None),
-			restoration_chunks: Mutex::new(HashMap::new()),
+			state_restoration_chunks: Mutex::new(HashMap::new()),
+			block_restoration_chunks: Mutex::new(HashMap::new()),
 		}
 	}
 }
@@ -72,36 +75,37 @@ impl SnapshotService for TestSnapshotService {
 
 	fn status(&self) -> RestorationStatus {
 		match &*self.restoration_manifest.lock() {
-			&Some(ref manifest) if self.restoration_chunks.lock().len() == manifest.state_hashes.len() + manifest.block_hashes.len() => RestorationStatus::Inactive,
-			&Some(_) => RestorationStatus::Ongoing,
+			&Some(ref manifest) if self.state_restoration_chunks.lock().len() == manifest.state_hashes.len() &&
+				self.block_restoration_chunks.lock().len() == manifest.block_hashes.len() => RestorationStatus::Inactive,
+			&Some(_) => RestorationStatus::Ongoing {
+				state_chunks_done: self.state_restoration_chunks.lock().len() as u32,
+				block_chunks_done: self.block_restoration_chunks.lock().len() as u32,
+			},
 			&None => RestorationStatus::Inactive,
 		}
 	}
 
-	fn chunks_done(&self) -> (usize, usize) {
-		unimplemented!();
-	}
-
-	fn begin_restore(&self, manifest: ManifestData) -> bool {
+	fn begin_restore(&self, manifest: ManifestData) {
 		*self.restoration_manifest.lock() = Some(manifest);
-		self.restoration_chunks.lock().clear();
-		true
+		self.state_restoration_chunks.lock().clear();
+		self.block_restoration_chunks.lock().clear();
 	}
 
 	fn abort_restore(&self) {
 		*self.restoration_manifest.lock() = None;
-		self.restoration_chunks.lock().clear();
+		self.state_restoration_chunks.lock().clear();
+		self.block_restoration_chunks.lock().clear();
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
 		if self.restoration_manifest.lock().as_ref().map_or(false, |ref m| m.state_hashes.iter().any(|h| h == &hash)) {
-			self.restoration_chunks.lock().insert(hash, chunk);
+			self.state_restoration_chunks.lock().insert(hash, chunk);
 		}
 	}
 
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
 		if self.restoration_manifest.lock().as_ref().map_or(false, |ref m| m.block_hashes.iter().any(|h| h == &hash)) {
-			self.restoration_chunks.lock().insert(hash, chunk);
+			self.block_restoration_chunks.lock().insert(hash, chunk);
 		}
 	}
 }
@@ -111,7 +115,9 @@ fn snapshot_sync() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(2);
 	net.peer_mut(0).snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 1));
-	net.sync();
-	assert_eq!(net.peer(1).snapshot_service.restoration_chunks.lock().len(), net.peer(0).snapshot_service.restoration_chunks.lock().len());
+	net.peer_mut(0).chain.add_blocks(1, EachBlockWith::Nothing);
+	net.sync_steps(19); // status + manifest + chunks
+	assert_eq!(net.peer(1).snapshot_service.state_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().state_hashes.len());
+	assert_eq!(net.peer(1).snapshot_service.block_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().block_hashes.len());
 }
 

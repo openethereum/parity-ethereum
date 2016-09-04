@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::{ManifestData, StateRebuilder, BlockRebuilder};
+use super::{ManifestData, StateRebuilder, BlockRebuilder, RestorationStatus, SnapshotService};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
@@ -39,53 +39,6 @@ use util::{Bytes, H256, Mutex, RwLock, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
-
-/// Statuses for restorations.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum RestorationStatus {
-	///	No restoration.
-	Inactive,
-	/// Ongoing restoration.
-	Ongoing,
-	/// Failed restoration.
-	Failed,
-}
-
-/// The interface for a snapshot network service.
-/// This handles:
-///    - restoration of snapshots to temporary databases.
-///    - responding to queries for snapshot manifests and chunks
-pub trait SnapshotService : Sync + Send {
-	/// Query the most recent manifest data.
-	fn manifest(&self) -> Option<ManifestData>;
-
-	/// Get raw chunk for a given hash.
-	fn chunk(&self, hash: H256) -> Option<Bytes>;
-
-	/// Ask the snapshot service for the restoration status.
-	fn status(&self) -> RestorationStatus;
-
-	/// Ask the snapshot service for the number of chunks completed.
-	/// Return a tuple of (state_chunks, block_chunks).
-	/// Undefined when not restoring.
-	fn chunks_done(&self) -> (usize, usize);
-
-	/// Begin snapshot restoration.
-	/// If restoration in-progress, this will reset it.
-	/// From this point on, any previous snapshot may become unavailable.
-	fn begin_restore(&self, manifest: ManifestData);
-
-	/// Abort an in-progress restoration if there is one.
-	fn abort_restore(&self);
-
-	/// Feed a raw state chunk to the service to be processed asynchronously.
-	/// no-op if not currently restoring.
-	fn restore_state_chunk(&self, hash: H256, chunk: Bytes);
-
-	/// Feed a raw block chunk to the service to be processed asynchronously.
-	/// no-op if currently restoring.
-	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
-}
 
 /// State restoration manager.
 struct Restoration {
@@ -334,7 +287,10 @@ impl Service {
 
 		*res = Some(try!(Restoration::new(params)));
 
-		*self.status.lock() = RestorationStatus::Ongoing;
+		*self.status.lock() = RestorationStatus::Ongoing {
+			state_chunks_done: self.state_chunks.load(Ordering::Relaxed) as u32,
+			block_chunks_done: self.block_chunks.load(Ordering::Relaxed) as u32,
+		};
 		Ok(())
 	}
 
@@ -392,7 +348,7 @@ impl Service {
 
 		match self.status() {
 			RestorationStatus::Inactive | RestorationStatus::Failed => Ok(()),
-			RestorationStatus::Ongoing => {
+			RestorationStatus::Ongoing { .. } => {
 				let res = {
 					let rest = match *restoration {
 						Some(ref mut r) => r,
@@ -461,10 +417,6 @@ impl SnapshotService for Service {
 
 	fn status(&self) -> RestorationStatus {
 		*self.status.lock()
-	}
-
-	fn chunks_done(&self) -> (usize, usize) {
-		(self.state_chunks.load(Ordering::Relaxed), self.block_chunks.load(Ordering::Relaxed))
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) {

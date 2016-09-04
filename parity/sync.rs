@@ -20,6 +20,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use hypervisor::{SYNC_MODULE_ID, HYPERVISOR_IPC_URL, ControlService};
 use ethcore::client::{RemoteClient, ChainNotify};
+use ethcore::snapshot::{RemoteSnapshotService};
 use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
 use modules::service_urls;
 use boot;
@@ -45,8 +46,9 @@ pub fn main() {
 		.unwrap_or_else(|e| panic!("Fatal: error reading boot arguments ({:?})", e));
 
 	let remote_client = dependency!(RemoteClient, &service_urls::with_base(&service_config.io_path, service_urls::CLIENT));
+	let remote_snapshot = dependency!(RemoteSnapshotService, &service_urls::with_base(&service_config.io_path, service_urls::SNAPSHOT));
 
-	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), service_config.net).unwrap();
+	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), remote_snapshot.service().clone(), service_config.net).unwrap();
 
 	let _ = boot::main_thread();
 	let service_stop = Arc::new(AtomicBool::new(false));

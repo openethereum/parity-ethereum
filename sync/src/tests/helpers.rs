@@ -117,7 +117,7 @@ impl TestNet {
 			let mut config = SyncConfig::default();
 			config.fork_block = fork;
 			let ss = Arc::new(TestSnapshotService::new());
-			let sync = ChainSync::new(config, &chain, ss.clone());
+			let sync = ChainSync::new(config, &chain);
 			net.peers.push(TestPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,

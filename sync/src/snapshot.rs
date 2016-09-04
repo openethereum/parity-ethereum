@@ -85,11 +85,11 @@ impl Snapshot {
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// check state chunks first
 		let mut chunk = self.pending_state_chunks.iter()
-			.find(|&h| !self.downloading_chunks.contains(h))
+			.find(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
 			.cloned();
 		if chunk.is_none() {
 			chunk = self.pending_block_chunks.iter()
-				.find(|&h| !self.downloading_chunks.contains(h))
+				.find(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
 				.cloned();
 		}
 
