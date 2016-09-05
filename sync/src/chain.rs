@@ -88,6 +88,7 @@
 ///
 
 use util::*;
+use rlp::*;
 use network::*;
 use std::mem::{replace};
 use ethcore::views::{HeaderView, BlockView};
@@ -1504,11 +1505,13 @@ impl ChainSync {
 
 		// Send RLPs
 		let sent = lucky_peers.len();
-		for (peer_id, rlp) in lucky_peers.into_iter() {
-			self.send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
-		}
+		if sent > 0 {
+			for (peer_id, rlp) in lucky_peers.into_iter() {
+				self.send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
+			}
 
-		trace!(target: "sync", "Sent up to {} transactions to {} peers.", transactions.len(), sent);
+			trace!(target: "sync", "Sent up to {} transactions to {} peers.", transactions.len(), sent);
+		}
 		sent
 	}
 
@@ -1559,6 +1562,7 @@ mod tests {
 	use super::*;
 	use ::SyncConfig;
 	use util::*;
+	use rlp::*;
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::views::BlockView;
 	use ethcore::header::*;
@@ -1576,8 +1580,8 @@ mod tests {
 
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+		rlp.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
+		rlp.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
 		rlp.out()
 	}
 

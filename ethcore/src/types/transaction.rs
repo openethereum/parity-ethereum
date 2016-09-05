@@ -18,7 +18,7 @@
 
 use std::ops::Deref;
 use std::cell::*;
-use util::rlp::*;
+use rlp::*;
 use util::sha3::Hashable;
 use util::{H256, Address, U256, Bytes};
 use ethkey::{Signature, sign, Secret, recover, public_to_address, Error as EthkeyError};
@@ -275,7 +275,7 @@ impl SignedTransaction {
 		match hash {
 			Some(h) => h,
 			None => {
-				let h = self.rlp_sha3();
+				let h = (&*self.rlp_bytes()).sha3();
 				self.hash.set(Some(h));
 				h
 			}

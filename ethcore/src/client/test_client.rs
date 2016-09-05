@@ -18,6 +18,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
+use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
@@ -204,7 +205,7 @@ impl TestBlockChainClient {
 					txs.append(&signed_tx);
 					txs.out()
 				},
-				_ => rlp::EMPTY_LIST_RLP.to_vec()
+				_ => ::rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
 			let mut rlp = RlpStream::new_list(3);
@@ -222,8 +223,8 @@ impl TestBlockChainClient {
 		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
@@ -234,8 +235,8 @@ impl TestBlockChainClient {
 		header.set_parent_hash(H256::from(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
 		self.blocks.write().insert(hash, rlp.out());
 	}
 

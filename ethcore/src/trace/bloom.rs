@@ -1,6 +1,6 @@
 use bloomchain::Bloom;
 use bloomchain::group::{BloomGroup, GroupPosition};
-use util::rlp::*;
+use rlp::*;
 use basic_types::LogBloom;
 
 /// Helper structure representing bloom of the trace.

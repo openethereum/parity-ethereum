@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! View onto transaction rlp
-use util::{Rlp, U256, Bytes, Hashable, H256, View};
+use util::{U256, Bytes, Hashable, H256};
+use rlp::{Rlp, View};
 
 /// View onto transaction rlp.
 pub struct TransactionView<'a> {

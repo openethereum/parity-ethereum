@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain::group as bc;
-use util::rlp::*;
+use rlp::*;
 use util::HeapSizeOf;
 use super::Bloom;
 
