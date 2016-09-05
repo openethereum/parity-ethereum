@@ -140,7 +140,7 @@ mod tests {
 	use util::bloom::Bloomable;
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide};
 	use trace::flat::FlatTrace;
-	use trace::{Filter, AddressesFilter};
+	use trace::{Filter, AddressesFilter, TraceError};
 	use types::executed::CallType;
 
 	#[test]
@@ -286,7 +286,7 @@ mod tests {
 				input: vec![0x5],
 				call_type: CallType::Call,
 			}),
-			result: Res::FailedCall,
+			result: Res::FailedCall(TraceError::OutOfGas),
 			trace_address: vec![0].into_iter().collect(),
 			subtraces: 0,
 		};

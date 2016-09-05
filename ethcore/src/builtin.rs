@@ -127,14 +127,14 @@ impl Impl for EcRecover {
 		let s = H256::from_slice(&input[96..128]);
 
 		let bit = match v[31] {
-			27 | 28 if &v.as_slice()[..31] == &[0; 31] => v[31] - 27,
+			27 | 28 if &v.0[..31] == &[0; 31] => v[31] - 27,
 			_ => return,
 		};
 
 		let s = Signature::from_rsv(&r, &s, bit);
 		if s.is_valid() {
 			if let Ok(p) = ec_recover(&s, &hash) {
-				let r = p.as_slice().sha3();
+				let r = p.sha3();
 
 				let out_len = min(output.len(), 32);
 

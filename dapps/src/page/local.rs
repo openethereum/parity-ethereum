@@ -49,7 +49,7 @@ impl Endpoint for LocalPageEndpoint {
 			app: LocalDapp::new(self.path.clone()),
 			prefix: None,
 			path: path,
-			file: None,
+			file: Default::default(),
 			safe_to_embed: false,
 		})
 	}

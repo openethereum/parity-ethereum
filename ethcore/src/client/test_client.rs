@@ -18,6 +18,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
+use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
@@ -33,7 +34,7 @@ use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::{Factory as EvmFactory, VMType};
-use miner::{Miner, MinerService};
+use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 
 use block_queue::BlockQueueInfo;
@@ -204,7 +205,7 @@ impl TestBlockChainClient {
 					txs.append(&signed_tx);
 					txs.out()
 				},
-				_ => rlp::EMPTY_LIST_RLP.to_vec()
+				_ => ::rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
 			let mut rlp = RlpStream::new_list(3);
@@ -222,8 +223,8 @@ impl TestBlockChainClient {
 		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
@@ -234,8 +235,8 @@ impl TestBlockChainClient {
 		header.set_parent_hash(H256::from(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
@@ -253,6 +254,24 @@ impl TestBlockChainClient {
 			BlockID::Earliest => self.numbers.read().get(&0).cloned(),
 			BlockID::Latest | BlockID::Pending => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
 		}
+	}
+
+	/// Inserts a transaction to miners transactions queue.
+	pub fn insert_transaction_to_queue(&self) {
+		let keypair = Random.generate().unwrap();
+		let tx = Transaction {
+			action: Action::Create,
+			value: U256::from(100),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::one(),
+			nonce: U256::zero()
+		};
+		let signed_tx = tx.sign(keypair.secret());
+		self.set_balance(signed_tx.sender().unwrap(), 10_000_000.into());
+		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
+		let res = res.into_iter().next().unwrap().expect("Successful import");
+		assert_eq!(res, TransactionImportResult::Current);
 	}
 }
 

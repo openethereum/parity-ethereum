@@ -19,6 +19,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Weak;
 use common::*;
+use rlp::{UntrustedRlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -392,6 +393,7 @@ mod tests {
 	use common::*;
 	use std::thread::sleep;
 	use std::time::{Duration};
+	use rlp::{UntrustedRlp, RlpStream, Stream, View};
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;

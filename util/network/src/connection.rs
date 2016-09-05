@@ -23,7 +23,7 @@ use mio::tcp::*;
 use util::hash::*;
 use util::sha3::*;
 use util::bytes::*;
-use util::rlp::*;
+use rlp::*;
 use std::io::{self, Cursor, Read, Write};
 use error::*;
 use io::{IoContext, StreamToken};

@@ -60,7 +60,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 		try!(self.active());
 		try!(expect_no_params(params));
 		let queue = take_weak!(self.queue);
-		to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>())
+		Ok(to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>()))
 	}
 
 	fn confirm_request(&self, params: Params) -> Result<Value, Error> {
@@ -104,7 +104,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 			|(id, )| {
 				let queue = take_weak!(self.queue);
 				let res = queue.request_rejected(id.into());
-				to_value(&res.is_some())
+				Ok(to_value(&res.is_some()))
 			}
 		)
 	}

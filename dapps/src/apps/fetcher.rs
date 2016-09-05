@@ -19,17 +19,18 @@
 //! Uses `URLHint` to resolve addresses into Dapps bundle file location.
 
 use zip;
-use std::{fs, env};
+use std::{fs, env, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool};
 use rustc_serialize::hex::FromHex;
 
-use hyper::Control;
+use hyper;
 use hyper::status::StatusCode;
 
 use random_filename;
+use SyncStatus;
 use util::{Mutex, H256};
 use util::sha3::sha3;
 use page::LocalPageEndpoint;
@@ -44,6 +45,7 @@ const MAX_CACHED_DAPPS: usize = 10;
 pub struct AppFetcher<R: URLHint = URLHintContract> {
 	dapps_path: PathBuf,
 	resolver: R,
+	sync: Arc<SyncStatus>,
 	dapps: Arc<Mutex<ContentCache>>,
 }
 
@@ -56,13 +58,14 @@ impl<R: URLHint> Drop for AppFetcher<R> {
 
 impl<R: URLHint> AppFetcher<R> {
 
-	pub fn new(resolver: R) -> Self {
+	pub fn new(resolver: R, sync_status: Arc<SyncStatus>) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
 
 		AppFetcher {
 			dapps_path: dapps_path,
 			resolver: resolver,
+			sync: sync_status,
 			dapps: Arc::new(Mutex::new(ContentCache::default())),
 		}
 	}
@@ -74,56 +77,81 @@ impl<R: URLHint> AppFetcher<R> {
 
 	pub fn contains(&self, app_id: &str) -> bool {
 		let mut dapps = self.dapps.lock();
-		match dapps.get(app_id) {
-			// Check if we already have the app
-			Some(_) => true,
-			// fallback to resolver
-			None => match app_id.from_hex() {
-				Ok(app_id) => self.resolver.resolve(app_id).is_some(),
-				_ => false,
-			},
+		// Check if we already have the app
+		if dapps.get(app_id).is_some() {
+			return true;
+		}
+		// fallback to resolver
+		if let Ok(app_id) = app_id.from_hex() {
+			// if app_id is valid, but we are syncing always return true.
+			if self.sync.is_major_syncing() {
+				return true;
+			}
+			// else try to resolve the app_id
+			self.resolver.resolve(app_id).is_some()
+		} else {
+			false
 		}
 	}
 
-	pub fn to_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
+	pub fn to_async_handler(&self, path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let mut dapps = self.dapps.lock();
 		let app_id = path.app_id.clone();
+
+		if self.sync.is_major_syncing() {
+			return Box::new(ContentHandler::error(
+				StatusCode::ServiceUnavailable,
+				"Sync In Progress",
+				"Your node is still syncing. We cannot resolve any content before it's fully synced.",
+				Some("<a href=\"javascript:window.location.reload()\">Refresh</a>")
+			));
+		}
 
 		let (new_status, handler) = {
 			let status = dapps.get(&app_id);
 			match status {
 				// Just server dapp
 				Some(&mut ContentStatus::Ready(ref endpoint)) => {
-					(None, endpoint.to_handler(path))
+					(None, endpoint.to_async_handler(path, control))
 				},
 				// App is already being fetched
 				Some(&mut ContentStatus::Fetching(_)) => {
-					(None, Box::new(ContentHandler::html(
+					(None, Box::new(ContentHandler::error_with_refresh(
 						StatusCode::ServiceUnavailable,
-						format!(
-							"<html><head>{}</head><body>{}</body></html>",
-							"<meta http-equiv=\"refresh\" content=\"1\">",
-							"<h1>This dapp is already being downloaded.</h1><h2>Please wait...</h2>",
-						)
+						"Download In Progress",
+						"This dapp is already being downloaded. Please wait...",
+						None,
 					)) as Box<Handler>)
 				},
 				// We need to start fetching app
 				None => {
 					let app_hex = app_id.from_hex().expect("to_handler is called only when `contains` returns true.");
-					let app = self.resolver.resolve(app_hex).expect("to_handler is called only when `contains` returns true.");
-					let abort = Arc::new(AtomicBool::new(false));
+					let app = self.resolver.resolve(app_hex);
 
-					(Some(ContentStatus::Fetching(abort.clone())), Box::new(ContentFetcherHandler::new(
-						app,
-						abort,
-						control,
-						path.using_dapps_domains,
-						DappInstaller {
-							dapp_id: app_id.clone(),
-							dapps_path: self.dapps_path.clone(),
-							dapps: self.dapps.clone(),
-						}
-					)) as Box<Handler>)
+					if let Some(app) = app {
+						let abort = Arc::new(AtomicBool::new(false));
+
+						(Some(ContentStatus::Fetching(abort.clone())), Box::new(ContentFetcherHandler::new(
+							app,
+							abort,
+							control,
+							path.using_dapps_domains,
+							DappInstaller {
+								dapp_id: app_id.clone(),
+								dapps_path: self.dapps_path.clone(),
+								dapps: self.dapps.clone(),
+							}
+						)) as Box<Handler>)
+					} else {
+						// This may happen when sync status changes in between
+						// `contains` and `to_handler`
+						(None, Box::new(ContentHandler::error(
+							StatusCode::NotFound,
+							"Resource Not Found",
+							"Requested resource was not found.",
+							None
+						)) as Box<Handler>)
+					}
 				},
 			}
 		};
@@ -145,6 +173,23 @@ pub enum ValidationError {
 	ManifestNotFound,
 	ManifestSerialization(String),
 	HashMismatch { expected: H256, got: H256, },
+}
+
+impl fmt::Display for ValidationError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		match *self {
+			ValidationError::Io(ref io) => write!(f, "Unexpected IO error occured: {:?}", io),
+			ValidationError::Zip(ref zip) => write!(f, "Unable to read ZIP archive: {:?}", zip),
+			ValidationError::InvalidDappId => write!(f, "Dapp ID is invalid. It should be 32 bytes hash of content."),
+			ValidationError::ManifestNotFound => write!(f, "Downloaded Dapp bundle did not contain valid manifest.json file."),
+			ValidationError::ManifestSerialization(ref err) => {
+				write!(f, "There was an error during Dapp Manifest serialization: {:?}", err)
+			},
+			ValidationError::HashMismatch { ref expected, ref got } => {
+				write!(f, "Hash of downloaded content did not match. Expected:{:?}, Got:{:?}.", expected, got)
+			},
+		}
+	}
 }
 
 impl From<io::Error> for ValidationError {
@@ -202,8 +247,8 @@ impl ContentValidator for DappInstaller {
 
 	fn validate_and_install(&self, app_path: PathBuf) -> Result<Manifest, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
-		let mut file = try!(fs::File::open(app_path));
-		let hash = try!(sha3(&mut file));
+		let mut file_reader = io::BufReader::new(try!(fs::File::open(app_path)));
+		let hash = try!(sha3(&mut file_reader));
 		let dapp_id = try!(self.dapp_id.as_str().parse().map_err(|_| ValidationError::InvalidDappId));
 		if dapp_id != hash {
 			return Err(ValidationError::HashMismatch {
@@ -211,6 +256,7 @@ impl ContentValidator for DappInstaller {
 				got: hash,
 			});
 		}
+		let file = file_reader.into_inner();
 		// Unpack archive
 		let mut zip = try!(zip::ZipArchive::new(file));
 		// First find manifest file
@@ -276,6 +322,7 @@ impl ContentValidator for DappInstaller {
 #[cfg(test)]
 mod tests {
 	use std::env;
+	use std::sync::Arc;
 	use util::Bytes;
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
@@ -294,7 +341,7 @@ mod tests {
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = AppFetcher::new(FakeResolver);
+		let fetcher = AppFetcher::new(FakeResolver, Arc::new(|| false));
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),

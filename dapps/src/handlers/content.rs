@@ -21,6 +21,8 @@ use hyper::{header, server, Decoder, Encoder, Next};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
+use util::version;
+
 pub struct ContentHandler {
 	code: StatusCode,
 	content: String,
@@ -38,15 +40,6 @@ impl ContentHandler {
 		}
 	}
 
-	pub fn forbidden(content: String, mimetype: String) -> Self {
-		ContentHandler {
-			code: StatusCode::Forbidden,
-			content: content,
-			mimetype: mimetype,
-			write_pos: 0
-		}
-	}
-
 	pub fn not_found(content: String, mimetype: String) -> Self {
 		ContentHandler {
 			code: StatusCode::NotFound,
@@ -58,6 +51,28 @@ impl ContentHandler {
 
 	pub fn html(code: StatusCode, content: String) -> Self {
 		Self::new(code, content, "text/html".into())
+	}
+
+	pub fn error(code: StatusCode, title: &str, message: &str, details: Option<&str>) -> Self {
+		Self::html(code, format!(
+			include_str!("../error_tpl.html"),
+			title=title,
+			meta="",
+			message=message,
+			details=details.unwrap_or_else(|| ""),
+			version=version(),
+		))
+	}
+
+	pub fn error_with_refresh(code: StatusCode, title: &str, message: &str, details: Option<&str>) -> Self {
+		Self::html(code, format!(
+			include_str!("../error_tpl.html"),
+			title=title,
+			meta="<meta http-equiv=\"refresh\" content=\"1\">",
+			message=message,
+			details=details.unwrap_or_else(|| ""),
+			version=version(),
+		))
 	}
 
 	pub fn new(code: StatusCode, content: String, mimetype: String) -> Self {

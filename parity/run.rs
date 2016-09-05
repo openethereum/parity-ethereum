@@ -224,6 +224,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
+		sync: sync_provider.clone(),
 	};
 
 	// start dapps server

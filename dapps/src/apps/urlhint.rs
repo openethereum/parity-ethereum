@@ -33,8 +33,9 @@ pub struct GithubApp {
 
 impl GithubApp {
 	pub fn url(&self) -> String {
+		// Since https fetcher doesn't support redirections we use direct link
 		// format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
-		format!("http://github.todr.me/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
+		format!("https://codeload.github.com/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
 	}
 
 	fn commit(bytes: &[u8]) -> Option<[u8;COMMIT_LEN]> {
@@ -300,6 +301,6 @@ mod tests {
 		let url = app.url();
 
 		// then
-		assert_eq!(url, "http://github.todr.me/test/xyz/zip/000102030405060708090a0b0c0d0e0f10111213".to_owned());
+		assert_eq!(url, "https://codeload.github.com/test/xyz/zip/000102030405060708090a0b0c0d0e0f10111213".to_owned());
 	}
 }

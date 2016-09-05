@@ -17,7 +17,7 @@
 //! This migration compresses the state db.
 
 use util::migration::{SimpleMigration, Progress};
-use util::rlp::{Compressible, UntrustedRlp, View, RlpType};
+use rlp::{Compressible, UntrustedRlp, View, RlpType};
 
 /// Compressing migration.
 #[derive(Default)]

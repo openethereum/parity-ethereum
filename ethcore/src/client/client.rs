@@ -22,11 +22,11 @@ use std::time::{Instant};
 use time::precise_time_ns;
 
 // util
-use util::{journaldb, rlp, Bytes, View, PerfTimer, Itertools, Mutex, RwLock};
-use util::journaldb::JournalDB;
-use util::rlp::{UntrustedRlp};
+use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock};
+use util::journaldb::{self, JournalDB};
 use util::{U256, H256, H520, Address, H2048, Uint};
 use util::sha3::*;
+use util::TrieFactory;
 use util::kvdb::*;
 
 // other
@@ -64,9 +64,10 @@ use trace;
 use trace::FlatTransactionTraces;
 use evm::Factory as EvmFactory;
 use miner::{Miner, MinerService};
-use util::TrieFactory;
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
+use rlp::{View, UntrustedRlp};
+
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -878,7 +879,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.block_receipts(hash).map(|receipts| rlp::encode(&receipts).to_vec())
+		self.chain.block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).to_vec())
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {

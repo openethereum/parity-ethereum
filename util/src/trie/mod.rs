@@ -84,7 +84,7 @@ pub trait Trie {
 	fn root(&self) -> &H256;
 
 	/// Is the trie empty?
-	fn is_empty(&self) -> bool { *self.root() == ::rlp::SHA3_NULL_RLP }
+	fn is_empty(&self) -> bool { *self.root() == ::sha3::SHA3_NULL_RLP }
 
 	/// Does the trie contain a given key?
 	fn contains(&self, key: &[u8]) -> Result<bool> {

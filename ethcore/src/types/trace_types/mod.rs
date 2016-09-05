@@ -16,6 +16,7 @@
 
 //! Types used in the public api
 
+pub mod error;
 pub mod filter;
 pub mod flat;
 pub mod trace;

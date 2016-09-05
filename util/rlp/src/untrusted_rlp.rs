@@ -17,8 +17,9 @@
 use std::cell::Cell;
 use std::fmt;
 use rustc_serialize::hex::ToHex;
-use rlp::bytes::{FromBytes, FromBytesResult, FromBytesError};
-use rlp::{View, Decoder, Decodable, DecoderError, RlpDecodable};
+
+use bytes::{FromBytes, FromBytesResult, FromBytesError};
+use ::{View, Decoder, Decodable, DecoderError, RlpDecodable};
 
 /// rlp offset
 #[derive(Copy, Clone, Debug)]
@@ -490,7 +491,7 @@ impl RlpDecodable for u8 {
 
 #[cfg(test)]
 mod tests {
-	use rlp::{UntrustedRlp, View};
+	use ::{UntrustedRlp, View};
 	#[test]
 	fn test_rlp_display() {
 		use rustc_serialize::hex::FromHex;

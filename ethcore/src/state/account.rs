@@ -19,6 +19,7 @@
 use std::collections::hash_map::Entry;
 use util::*;
 use pod_account::*;
+use rlp::*;
 
 use std::cell::{Ref, RefCell, Cell};
 
@@ -287,7 +288,7 @@ impl Account {
 				// so we can call overloaded `to_bytes` method
 				let res = match v.is_zero() {
 					true => t.remove(k),
-					false => t.insert(k, &encode(&U256::from(v.as_slice()))),
+					false => t.insert(k, &encode(&U256::from(&*v))),
 				};
 
 				if let Err(e) = res {
@@ -333,6 +334,7 @@ mod tests {
 	use util::*;
 	use super::*;
 	use account_db::*;
+	use rlp::*;
 
 	#[test]
 	fn account_compress() {

@@ -30,7 +30,8 @@ pub use self::tendermint::Tendermint;
 pub use self::signed_vote::SignedVote;
 pub use self::propose_collect::ProposeCollect;
 
-use common::{HashMap, SemanticVersion, Header, EnvInfo, Address, Builtin, BTreeMap, U256, Bytes, SignedTransaction, Error, UntrustedRlp, H520};
+use common::{HashMap, SemanticVersion, Header, EnvInfo, Address, Builtin, BTreeMap, U256, Bytes, SignedTransaction, Error, H520};
+use rlp::UntrustedRlp;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;

@@ -25,7 +25,7 @@ use util::hash::{FixedHash, H256};
 use util::hashdb::HashDB;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 use util::trie::{TrieDB, TrieDBMut, Trie};
-use util::rlp::SHA3_NULL_RLP;
+use util::sha3::SHA3_NULL_RLP;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -78,7 +78,7 @@ impl StateProducer {
 		let new_accs = rng.gen::<u32>() % 5;
 
 		for _ in 0..new_accs {
-			let address_hash = H256::random();
+			let address_hash = H256(rng.gen());
 			let balance: usize = rng.gen();
 			let nonce: usize = rng.gen();
 			let acc = ::state::Account::new_basic(balance.into(), nonce.into()).rlp();
