@@ -46,8 +46,6 @@ pub enum ClientIoMessage {
 	FeedStateChunk(H256, Bytes),
 	/// Feed a block chunk to the snapshot service
 	FeedBlockChunk(H256, Bytes),
-	/// Signal consensus step timeout.
-	ConsensusStep(u64),
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -148,8 +146,6 @@ struct ClientIoHandler {
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
 const CLIENT_TICK_MS: u64 = 5000;
-/// Timer token representing the consensus step timeouts.
-pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 1;
 
 impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
