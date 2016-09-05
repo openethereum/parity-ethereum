@@ -106,18 +106,22 @@ export default class Events extends Component {
 
         console.log(logs);
 
-        const minedEvents = this.state.minedEvents
-          .concat(logs.filter((log) => log.type === 'mined').map(logToEvent))
+        const minedEvents = logs
+          .filter((log) => log.type === 'mined')
+          .map(logToEvent)
+          .reverse()
+          .concat(this.state.minedEvents)
           .sort(sortEvents);
-        const pendingEvents = this.state.pendingEvents
-          .filter((event) => {
+        const pendingEvents = logs
+          .filter((log) => log.type === 'pending')
+          .map(logToEvent)
+          .reverse()
+          .concat(this.state.pendingEvents.filter((event) => {
             return !logs.find((log) => {
               return (log.type === 'mined') && (log.transactionHash === event.transactionHash);
             });
-          })
-          .reverse()
-          .concat(logs.filter((log) => log.type === 'pending').map(logToEvent))
-          .reverse();
+          }))
+          .sort(sortEvents);
         const allEvents = pendingEvents.concat(minedEvents);
 
         this.setState({
