@@ -54,15 +54,13 @@ extern crate jsonrpc_core;
 extern crate ws;
 #[cfg(feature = "ui")]
 extern crate parity_dapps_signer as signer;
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;
 
 mod authcode_store;
 mod ws_server;
+#[cfg(test)]
+mod tests;
 
 pub use authcode_store::*;
 pub use ws_server::*;
-
-#[cfg(test)]
-mod tests {
-	#[test]
-	fn should_work() {}
-}
