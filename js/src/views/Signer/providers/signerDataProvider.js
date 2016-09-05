@@ -7,33 +7,35 @@ export default class SignerDataProvider {
   constructor (store, ws) {
     this.store = store;
     this.ws = ws;
-    this.ws.onOpen.push(::this.onWsOpen);
-    this.ws.onError.push(::this.onWsError);
-    this.ws.onClose.push(::this.onWsError);
 
     this.checkIfIsRunning();
+
+    this.ws.onOpen.push(this.onWsOpen);
+    this.ws.onError.push(this.onWsError);
+    this.ws.onClose.push(this.onWsError);
   }
 
-  checkIfIsRunning () {
+  checkIfIsRunning = () => {
     const { isNodeRunning, isLoading, url } = this.store.getState().signer;
+    const nextCheck = () => setTimeout(this.checkIfIsRunning, 1000);
 
-    isParityRunning(url).then(isRunning => {
-      if (isRunning !== isNodeRunning || isLoading) {
-        this.store.dispatch(updateIsNodeRunning(isRunning));
-      }
+    isParityRunning(url)
+      .then((isRunning) => {
+        if (isRunning !== isNodeRunning || isLoading) {
+          this.store.dispatch(updateIsNodeRunning(isRunning));
+        }
 
-      // call later
-      const interval = isRunning ? 5000 : 1000;
-      setTimeout(() => this.checkIfIsRunning(), interval);
-    });
+        nextCheck();
+      });
   }
 
-  onWsOpen () {
-    logger.log('[APP Provider] connected');
+  onWsOpen = () => {
+    logger.log('[Signer Provider] connected');
     this.store.dispatch(updateIsConnected(true));
   }
 
-  onWsError () {
+  onWsError = () => {
+    logger.log('[Signer Provider] error');
     this.store.dispatch(updateIsConnected(false));
   }
 }
