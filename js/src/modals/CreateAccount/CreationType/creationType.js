@@ -21,7 +21,7 @@ export default class CreationType extends Component {
           name='creationType'
           onChange={ this.onChange }>
           <RadioButton
-            label='Create new account via username & password'
+            label='Create new account manually'
             value='fromNew' />
           <RadioButton
             label='Import accounts from Geth keystore'
