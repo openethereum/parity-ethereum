@@ -40,7 +40,7 @@ use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
 
 /// Statuses for restorations.
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum RestorationStatus {
 	///	No restoration.
 	Inactive,
@@ -517,5 +517,52 @@ impl SnapshotService for Service {
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
 		self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk))
 			.expect("snapshot service and io service are kept alive by client service; qed");
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use service::ClientIoMessage;
+	use io::{IoService};
+	use devtools::RandomTempPath;
+	use tests::helpers::get_test_spec;
+	use util::journaldb::Algorithm;
+
+	use snapshot::ManifestData;
+	use super::*;
+
+	#[test]
+	fn sends_async_messages() {
+		let service = IoService::<ClientIoMessage>::start().unwrap();
+
+		let dir = RandomTempPath::new();
+		let mut dir = dir.as_path().to_owned();
+		dir.push("pruning");
+		dir.push("db");
+
+		let service = Service::new(
+			&get_test_spec(),
+			Algorithm::Archive,
+			dir,
+			service.channel()
+		).unwrap();
+
+		assert!(service.manifest().is_none());
+		assert!(service.chunk(Default::default()).is_none());
+		assert_eq!(service.status(), RestorationStatus::Inactive);
+		assert_eq!(service.chunks_done(), (0, 0));
+
+		let manifest = ManifestData {
+			state_hashes: vec![],
+			block_hashes: vec![],
+			state_root: Default::default(),
+			block_number: 0,
+			block_hash: Default::default(),
+		};
+
+		service.begin_restore(manifest);
+		service.abort_restore();
+		service.restore_state_chunk(Default::default(), vec![]);
+		service.restore_block_chunk(Default::default(), vec![]);
 	}
 }
