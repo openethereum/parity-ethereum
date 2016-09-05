@@ -23,9 +23,8 @@ use ethcore_logger::{Config as LogConfig, setup_log};
 use ethcore_rpc::NetworkSettings;
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
-use util::journaldb::Algorithm;
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -36,10 +35,14 @@ use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{
+	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
+	tracing_switch_to_bool, fatdb_switch_to_bool,
+};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
+use user_defaults::UserDefaults;
 use dapps;
 use signer;
 use modules;
@@ -82,33 +85,47 @@ pub struct RunCmd {
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
-	// increase max number of open files
-	raise_fd_limit();
+	// set up panic handler
+	let panic_handler = PanicHandler::new_in_arc();
 
 	// set up logger
 	let logger = try!(setup_log(&cmd.logger_config));
 
-	// set up panic handler
-	let panic_handler = PanicHandler::new_in_arc();
+	// increase max number of open files
+	raise_fd_limit();
 
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
-	let fork_name = spec.fork_name.clone();
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
+
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client_path
-	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
+	let client_path = db_dirs.client_path(algorithm);
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -119,16 +136,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	info!("Starting {}", Colour::White.bold().paint(version()));
 	info!("State DB configuation: {}{}{}",
 		Colour::White.bold().paint(algorithm.as_str()),
-		match cmd.fat_db {
-			Switch::On if algorithm == Algorithm::Archive => format!("{}", Colour::White.bold().paint(" +Fat")), 
-			Switch::On => die("Fat DB is not supported with the chosen pruning option. Please rerun with `--pruning=archive`"),
-			Switch::Auto => die("--fat-db auto is not supported."),
-			Switch::Off => "".to_owned(),
+		match fat_db {
+			true => format!("{}", Colour::White.bold().paint(" +Fat")),
+			false => "".to_owned(),
 		},
-		match cmd.tracing {
-			Switch::On => format!("{}", Colour::White.bold().paint(" +Trace")),
-			Switch::Auto => format!("{}", Colour::White.bold().paint(" +?Trace")),
-			Switch::Off => "".to_owned(),
+		match tracing {
+			true => format!("{}", Colour::White.bold().paint(" +Trace")),
+			false => "".to_owned(),
 		}
 	);
 
@@ -159,17 +173,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		&cmd.dirs,
-		genesis_hash,
 		cmd.mode,
-		cmd.tracing,
-		cmd.fat_db,
-		cmd.pruning,
+		tracing,
+		fat_db,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
 		cmd.name,
-		fork_name.as_ref(),
+		algorithm,
 	);
 
 	// set up bootnodes
@@ -273,6 +284,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
 	}
 
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
+
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
 
@@ -358,10 +374,4 @@ fn wait_for_exit(
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap());
 	info!("Finishing work, please wait...");
-}
-
-
-fn die(msg: &'static str) -> ! {
-	println!("{}", msg);
-	::std::process::exit(-1)
 }

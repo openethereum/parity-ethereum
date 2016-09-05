@@ -24,14 +24,15 @@ use ethcore_logger::{setup_log, Config as LogConfig};
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
 use ethcore::ids::BlockID;
 
 use cache::CacheConfig;
-use params::{SpecType, Pruning};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
+use user_defaults::UserDefaults;
 use fdlimit;
 
 use io::PanicHandler;
@@ -75,22 +76,37 @@ impl SnapshotCommand {
 		// load genesis hash
 		let genesis_hash = spec.genesis_header().hash();
 
-		// Setup logging
-		let _logger = setup_log(&self.logger_config);
+		// database paths
+		let db_dirs = self.dirs.database(genesis_hash, spec.fork_name.clone());
+
+		// user defaults path
+		let user_defaults_path = db_dirs.user_defaults_path();
+
+		// load user defaults
+		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 		fdlimit::raise_fd_limit();
 
 		// select pruning algorithm
-		let algorithm = self.pruning.to_algorithm(&self.dirs, genesis_hash, spec.fork_name.as_ref());
+		let algorithm = self.pruning.to_algorithm(&user_defaults);
+
+		// check if tracing is on
+		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
+
+		// check if fatdb is on
+		let fat_db = try!(fatdb_switch_to_bool(self.fat_db, &user_defaults, algorithm));
+
+		// Setup logging
+		let _logger = setup_log(&self.logger_config);
 
 		// prepare client_path
-		let client_path = self.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
+		let client_path = db_dirs.client_path(algorithm);
 
 		// execute upgrades
-		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
+		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile()));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, &self.dirs, genesis_hash, self.mode, self.tracing, self.fat_db, self.pruning, self.compaction, self.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm);
 
 		let service = try!(ClientService::start(
 			client_config,

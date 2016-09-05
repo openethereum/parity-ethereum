@@ -52,7 +52,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, Switch
+	ChainNotify,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -169,11 +169,10 @@ impl Client {
 
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, db.clone()));
-		let tracedb = Arc::new(try!(TraceDB::new(config.tracing, db.clone(), chain.clone())));
+		let tracedb = Arc::new(TraceDB::new(config.tracing, db.clone(), chain.clone()));
 		let trie_spec = match config.fat_db {
-			Switch::On => TrieSpec::Fat,
-			Switch::Off => TrieSpec::Secure,
-			Switch::Auto => TrieSpec::Secure,
+			true => TrieSpec::Fat,
+			false => TrieSpec::Secure,
 		};
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);

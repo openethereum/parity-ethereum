@@ -18,7 +18,7 @@ use std::str::FromStr;
 pub use std::time::Duration;
 pub use block_queue::BlockQueueConfig;
 pub use blockchain::Config as BlockChainConfig;
-pub use trace::{Config as TraceConfig, Switch};
+pub use trace::Config as TraceConfig;
 pub use evm::VMType;
 pub use verification::VerifierType;
 use util::{journaldb, CompactionProfile};
@@ -91,7 +91,7 @@ pub struct ClientConfig {
 	/// VM type.
 	pub vm_type: VMType,
 	/// Fat DB enabled?
-	pub fat_db: Switch,
+	pub fat_db: bool,
 	/// The JournalDB ("pruning") algorithm to use.
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
