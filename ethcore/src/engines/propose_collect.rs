@@ -49,12 +49,12 @@ impl ProposeCollect {
 
 	/// Vote on hash using the signed hash, true if vote counted.
 	pub fn vote(&self, voter: Address) -> bool {
-		match self.votes.try_read().unwrap().contains(&voter) || !self.voters.contains(&voter) {
-			true => false,
-		 	false => {
-		 		self.votes.try_write().unwrap().insert(voter);
-		 		true
-			},
+		let is_known = self.votes.try_read().unwrap().contains(&voter);
+		if !is_known && self.voters.contains(&voter) {
+		 	self.votes.try_write().unwrap().insert(voter);
+		 	true
+		} else {
+			false
 		}
 	}
 
@@ -65,11 +65,6 @@ impl ProposeCollect {
 			false => false,
 		};
 		self.is_won.load(Ordering::Relaxed) || threshold_checker()
-	}
-
-	/// Get addresses backing given hash.
-	pub fn votes(&self) -> HashSet<Address> {
-		self.votes.try_read().unwrap().clone()
 	}
 }
 
