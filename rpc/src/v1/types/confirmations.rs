@@ -96,7 +96,7 @@ mod tests {
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0x0f","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -120,7 +120,7 @@ mod tests {
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0x0f","payload":{"transaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x0186a0","data":"0x010203","nonce":"0x01"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"transaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1"}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -130,7 +130,7 @@ mod tests {
 	fn should_deserialize_modification() {
 		// given
 		let s1 = r#"{
-			"gasPrice":"0x0ba43b7400"
+			"gasPrice":"0xba43b7400"
 		}"#;
 		let s2 = r#"{}"#;
 

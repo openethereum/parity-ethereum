@@ -73,6 +73,8 @@ fn snap_and_restore() {
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
+		rebuilder.check_missing().unwrap();
+
 		new_db
 	};
 

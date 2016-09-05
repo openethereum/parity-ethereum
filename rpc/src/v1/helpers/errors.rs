@@ -30,6 +30,7 @@ mod codes {
 	pub const UNSUPPORTED_REQUEST: i64 = -32000;
 	pub const NO_WORK: i64 = -32001;
 	pub const NO_AUTHOR: i64 = -32002;
+	pub const NO_NEW_WORK: i64 = -32003;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
@@ -37,7 +38,8 @@ mod codes {
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const SIGNER_DISABLED: i64 = -32030;
 	pub const REQUEST_REJECTED: i64 = -32040;
-	pub const REQUEST_NOT_FOUND: i64 = -32041;
+	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
+	pub const REQUEST_NOT_FOUND: i64 = -32042;
 	pub const COMPILATION_ERROR: i64 = -32050;
 }
 
@@ -65,6 +67,13 @@ pub fn request_rejected() -> Error {
 	}
 }
 
+pub fn request_rejected_limit() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::REQUEST_REJECTED_LIMIT),
+		message: "Request has been rejected because of queue limit.".into(),
+		data: None,
+	}
+}
 
 pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 	Error {
@@ -110,6 +119,14 @@ pub fn no_work() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_WORK),
 		message: "Still syncing.".into(),
+		data: None
+	}
+}
+
+pub fn no_new_work() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NO_NEW_WORK),
+		message: "Work has not changed.".into(),
 		data: None
 	}
 }

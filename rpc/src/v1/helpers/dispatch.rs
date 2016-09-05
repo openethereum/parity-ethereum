@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::{Address, H256, U256, Uint};
-use util::rlp::encode;
 use util::bytes::ToPretty;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
@@ -50,13 +49,13 @@ pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: Sig
 
 	import
 		.map_err(errors::from_transaction_error)
-		.and_then(|_| to_value(&hash))
+		.map(|_| to_value(&hash))
 }
 
 pub fn signature_with_password(accounts: &AccountProvider, address: Address, hash: H256, pass: String) -> Result<Value, Error> {
 	accounts.sign_with_password(address, pass, hash)
 		.map_err(errors::from_password_error)
-		.and_then(|hash| to_value(&RpcH520::from(hash)))
+		.map(|hash| to_value(&RpcH520::from(hash)))
 }
 
 pub fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, password: String) -> Result<Value, Error>
@@ -70,7 +69,7 @@ pub fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: Transactio
 		t.with_signature(signature)
 	};
 
-	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
+	trace!(target: "miner", "send_transaction: dispatching tx: {}", ::rlp::encode(&signed_transaction).to_vec().pretty());
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 
@@ -84,7 +83,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionReques
 		t.with_signature(signature)
 	};
 
-	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
+	trace!(target: "miner", "send_transaction: dispatching tx: {}", ::rlp::encode(&signed_transaction).to_vec().pretty());
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 

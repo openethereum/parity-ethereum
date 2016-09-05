@@ -96,6 +96,7 @@ impl SnapshotCommand {
 			client_config,
 			&spec,
 			Path::new(&client_path),
+			Path::new(&self.dirs.ipc_path()),
 			Arc::new(Miner::with_spec(&spec))
 		).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -108,6 +109,7 @@ impl SnapshotCommand {
 		let (service, _panic_handler) = try!(self.start_service());
 
 		warn!("Snapshot restoration is experimental and the format may be subject to change.");
+		warn!("On encountering an unexpected error, please ensure that you have a recent snapshot.");
 
 		let snapshot = service.snapshot_service();
 		let reader = PackedReader::new(Path::new(&file))
@@ -120,9 +122,9 @@ impl SnapshotCommand {
 		// drop the client so we don't restore while it has open DB handles.
 		drop(service);
 
-		if !snapshot.begin_restore(manifest.clone()) {
-			return Err("Failed to begin restoration.".into());
-		}
+		try!(snapshot.init_restore(manifest.clone()).map_err(|e| {
+			format!("Failed to begin restoration: {}", e)
+		}));
 
 		let (num_state, num_blocks) = (manifest.state_hashes.len(), manifest.block_hashes.len());
 

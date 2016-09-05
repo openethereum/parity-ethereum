@@ -30,13 +30,13 @@ extern crate tiny_keccak;
 extern crate lazy_static;
 // reexport it nicely
 extern crate ethkey as _ethkey;
+extern crate ethcrypto as crypto;
 
 pub mod dir;
 pub mod ethkey;
 
 mod account;
 mod json;
-mod crypto;
 
 mod error;
 mod ethstore;

@@ -52,7 +52,13 @@ macro_rules! impl_uint {
 				let mut bytes = [0u8; 8 * $size];
 				self.0.to_big_endian(&mut bytes);
 				let len = cmp::max((self.0.bits() + 7) / 8, 1);
-				hex.push_str(&bytes[bytes.len() - len..].to_hex());
+				let bytes_hex = bytes[bytes.len() - len..].to_hex();
+
+				if bytes_hex.starts_with('0') {
+					hex.push_str(&bytes_hex[1..]);
+				} else {
+					hex.push_str(&bytes_hex);
+				}
 				serializer.serialize_str(&hex)
 			}
 		}
@@ -87,3 +93,38 @@ macro_rules! impl_uint {
 }
 
 impl_uint!(U256, EthU256, 4);
+
+
+#[cfg(test)]
+mod tests {
+	use super::U256;
+	use serde_json;
+
+	#[test]
+	fn should_serialize_u256() {
+		let serialized1 = serde_json::to_string(&U256(0.into())).unwrap();
+		let serialized2 = serde_json::to_string(&U256(1.into())).unwrap();
+		let serialized3 = serde_json::to_string(&U256(16.into())).unwrap();
+		let serialized4 = serde_json::to_string(&U256(256.into())).unwrap();
+
+		assert_eq!(serialized1, r#""0x0""#);
+		assert_eq!(serialized2, r#""0x1""#);
+		assert_eq!(serialized3, r#""0x10""#);
+		assert_eq!(serialized4, r#""0x100""#);
+	}
+
+	#[test]
+	fn should_deserialize_u256() {
+		let deserialized1: U256 = serde_json::from_str(r#""0x""#).unwrap();
+		let deserialized2: U256 = serde_json::from_str(r#""0x0""#).unwrap();
+		let deserialized3: U256 = serde_json::from_str(r#""0x1""#).unwrap();
+		let deserialized4: U256 = serde_json::from_str(r#""0x01""#).unwrap();
+		let deserialized5: U256 = serde_json::from_str(r#""0x100""#).unwrap();
+
+		assert_eq!(deserialized1, U256(0.into()));
+		assert_eq!(deserialized2, U256(0.into()));
+		assert_eq!(deserialized3, U256(1.into()));
+		assert_eq!(deserialized4, U256(1.into()));
+		assert_eq!(deserialized5, U256(256.into()));
+	}
+}

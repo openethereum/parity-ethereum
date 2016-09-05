@@ -1,5 +1,6 @@
 stages:
   - build
+  - test
   - deploy
 variables:
   GIT_DEPTH: "3"
@@ -17,8 +18,10 @@ linux-beta:
     - tags
     - stable
   script:
+    - export
     - cargo build --release --verbose
     - strip target/release/parity
+    - cp target/release/parity parity
   tags:
     - rust
     - rust-beta
@@ -26,24 +29,12 @@ linux-beta:
     paths:
     - target/release/parity
     name: "${CI_BUILD_NAME}_parity"
-linux-stable:
-  stage: build
-  image: ethcore/rust:stable
-  only:
-    - master
-    - beta
-    - tags
-    - stable
-  script:
-    - cargo build --release --verbose
-    - strip target/release/parity
+  stage: deploy
   tags:
     - rust
-    - rust-stable
-  artifacts:
-    paths:
-    - target/release/parity
-    name: "${CI_BUILD_NAME}_parity"
+    - rust-beta
+  script:
+    - ./deploy.sh
 linux-nightly:
   stage: build
   image: ethcore/rust:nightly
@@ -62,6 +53,7 @@ linux-nightly:
     paths:
     - target/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
@@ -91,6 +83,8 @@ linux-armv7:
     - tags
     - stable
   script:
+    - export
+    - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
@@ -113,6 +107,8 @@ linux-arm:
     - tags
     - stable
   script:
+    - export
+    - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
@@ -126,6 +122,7 @@ linux-arm:
     paths:
     - target/arm-unknown-linux-gnueabihf/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-armv6:
   stage: build
   image: ethcore/rust-arm:latest
@@ -135,6 +132,8 @@ linux-armv6:
     - tags
     - stable
   script:
+    - export
+    - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
@@ -148,6 +147,7 @@ linux-armv6:
     paths:
     - target/arm-unknown-linux-gnueabi/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-aarch64:
   stage: build
   image: ethcore/rust-arm:latest
@@ -157,6 +157,8 @@ linux-aarch64:
     - tags
     - stable
   script:
+    - export
+    - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
@@ -170,6 +172,7 @@ linux-aarch64:
     paths:
     - target/aarch64-unknown-linux-gnu/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 darwin:
   stage: build
   only:
@@ -205,3 +208,30 @@ windows:
     - target/release/parity.exe
     - target/release/parity.pdb
     name: "${CI_BUILD_NAME}_parity"
+linux-stable:
+  stage: build
+  image: ethcore/rust:stable
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - export
+    - cargo build --release --verbose
+    - strip target/release/parity
+  tags:
+    - rust
+    - rust-stable
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "${CI_BUILD_NAME}_parity"
+test-linux:
+  stage: test
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - ./test.sh --verbose
+  dependencies:
+    - linux-stable

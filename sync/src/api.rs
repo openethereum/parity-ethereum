@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
-use util::{U256, H256, Secret, Populatable};
+use util::{U256, H256};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::header::BlockNumber;
@@ -32,7 +32,7 @@ use parking_lot::RwLock;
 pub const ETH_PROTOCOL: &'static str = "eth";
 
 /// Sync configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SyncConfig {
 	/// Max blocks to download ahead
 	pub max_download_ahead_blocks: usize,
@@ -119,6 +119,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
 		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain));
 		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain));
+		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain));
 	}
 }
 
@@ -215,8 +216,10 @@ impl ManageNetwork for EthSync {
 #[derive(Binary, Debug, Clone, PartialEq, Eq)]
 /// Network service configuration
 pub struct NetworkConfiguration {
-	/// Directory path to store network configuration. None means nothing will be saved
+	/// Directory path to store general network configuration. None means nothing will be saved
 	pub config_path: Option<String>,
+	/// Directory path to store network-specific configuration. None means nothing will be saved
+	pub net_config_path: Option<String>,
 	/// IP address to listen for incoming connections. Listen to all connections by default
 	pub listen_address: Option<String>,
 	/// IP address to advertise. Detected automatically if none.
@@ -230,7 +233,7 @@ pub struct NetworkConfiguration {
 	/// List of initial node addresses
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
-	pub use_secret: Option<Secret>,
+	pub use_secret: Option<H256>,
 	/// Max number of connected peers to maintain
 	pub max_peers: u32,
 	/// Min number of connected peers to maintain
@@ -264,6 +267,7 @@ impl NetworkConfiguration {
 
 		Ok(BasicNetworkConfiguration {
 			config_path: self.config_path,
+			net_config_path: self.net_config_path,
 			listen_address: match self.listen_address { None => None, Some(addr) => Some(try!(SocketAddr::from_str(&addr))) },
 			public_address:  match self.public_address { None => None, Some(addr) => Some(try!(SocketAddr::from_str(&addr))) },
 			udp_port: self.udp_port,
@@ -283,6 +287,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 	fn from(other: BasicNetworkConfiguration) -> Self {
 		NetworkConfiguration {
 			config_path: other.config_path,
+			net_config_path: other.net_config_path,
 			listen_address: other.listen_address.and_then(|addr| Some(format!("{}", addr))),
 			public_address: other.public_address.and_then(|addr| Some(format!("{}", addr))),
 			udp_port: other.udp_port,
@@ -302,4 +307,5 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 pub struct ServiceConfiguration {
 	pub sync: SyncConfig,
 	pub net: NetworkConfiguration,
+	pub io_path: String,
 }

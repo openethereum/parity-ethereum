@@ -17,7 +17,7 @@
 //! Flat trace module
 
 use std::collections::VecDeque;
-use util::rlp::*;
+use rlp::*;
 use util::HeapSizeOf;
 use basic_types::LogBloom;
 use super::trace::{Action, Res};
@@ -167,7 +167,6 @@ mod tests {
 
 	#[test]
 	fn test_trace_serialization() {
-		use util::rlp;
 		// block #51921
 
 		let flat_trace = FlatTrace {
@@ -220,8 +219,8 @@ mod tests {
 			FlatTransactionTraces(vec![flat_trace1, flat_trace2])
 		]);
 
-		let encoded = rlp::encode(&block_traces);
-		let decoded = rlp::decode(&encoded);
+		let encoded = ::rlp::encode(&block_traces);
+		let decoded = ::rlp::decode(&encoded);
 		assert_eq!(block_traces, decoded);
 	}
 }

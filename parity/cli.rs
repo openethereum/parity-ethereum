@@ -73,6 +73,9 @@ Account Options:
                            Signer UIs.
   --signer-port PORT       Specify the port of Trusted Signer server
                            [default: 8180].
+  --signer-interface IP    Specify the hostname portion of the Trusted Signer
+                           server, IP should be an interface's IP address,
+                           or local [default: local].
   --signer-path PATH       Specify directory where Signer UIs tokens should
                            be stored. [default: $HOME/.parity/signer]
   --signer-no-validation   Disable Origin and Host headers validation for
@@ -131,6 +134,11 @@ API and Console Options:
   --dapps-interface IP     Specify the hostname portion of the Dapps
                            server, IP should be an interface's IP address,
                            or local [default: local].
+  --dapps-hosts HOSTS      List of allowed Host header values. This option will
+                           validate the Host header sent by the browser, it
+                           is additional security against some attack
+                           vectors. Special options: "all", "none",
+                           [default: none].
   --dapps-user USERNAME    Specify username for Dapps server. It will be
                            used in HTTP Basic Authentication Scheme.
                            If --dapps-pass is not specified you will be
@@ -170,7 +178,7 @@ Sealing/Mining Options:
                            lenient - Same as strict when mining, and cheap
                            when not [default: cheap].
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
-                           [default: 0.005]. The minimum gas price is set
+                           [default: 0]. The minimum gas price is set
                            accordingly.
   --usd-per-eth SOURCE     USD value of a single ETH. SOURCE may be either an
                            amount in USD, a web service or 'auto' to use each
@@ -348,12 +356,14 @@ pub struct Args {
 	pub flag_no_dapps: bool,
 	pub flag_dapps_port: u16,
 	pub flag_dapps_interface: String,
+	pub flag_dapps_hosts: String,
 	pub flag_dapps_user: Option<String>,
 	pub flag_dapps_pass: Option<String>,
 	pub flag_dapps_path: String,
 	pub flag_force_signer: bool,
 	pub flag_no_signer: bool,
 	pub flag_signer_port: u16,
+	pub flag_signer_interface: String,
 	pub flag_signer_path: String,
 	pub flag_signer_no_validation: bool,
 	pub flag_force_sealing: bool,
@@ -376,7 +386,7 @@ pub struct Args {
 	pub flag_version: bool,
 	pub flag_from: String,
 	pub flag_to: String,
-  pub flag_at: String,
+	pub flag_at: String,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_log_file: Option<String>,

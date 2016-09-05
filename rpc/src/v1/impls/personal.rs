@@ -17,14 +17,15 @@
 //! Account management (personal) rpc implementation
 use std::sync::{Arc, Weak};
 use std::collections::{BTreeMap};
+use util::{Address};
 use jsonrpc_core::*;
+use ethkey::{Brain, Generator};
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160, TransactionRequest};
 use v1::helpers::{errors, TransactionRequest as TRequest};
 use v1::helpers::params::expect_no_params;
 use v1::helpers::dispatch::unlock_sign_and_dispatch;
 use ethcore::account_provider::AccountProvider;
-use util::{Address, KeyPair};
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 
@@ -62,9 +63,9 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		try!(self.active());
 		try!(expect_no_params(params));
 
-		self.signer_port
+		Ok(self.signer_port
 			.map(|v| to_value(&v))
-			.unwrap_or_else(|| to_value(&false))
+			.unwrap_or_else(|| to_value(&false)))
 	}
 
 	fn accounts(&self, params: Params) -> Result<Value, Error> {
@@ -73,7 +74,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 
 		let store = take_weak!(self.accounts);
 		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
-		to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+		Ok(to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>()))
 	}
 
 	fn new_account(&self, params: Params) -> Result<Value, Error> {
@@ -82,7 +83,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			|(pass, )| {
 				let store = take_weak!(self.accounts);
 				match store.new_account(&pass) {
-					Ok(address) => to_value(&RpcH160::from(address)),
+					Ok(address) => Ok(to_value(&RpcH160::from(address))),
 					Err(e) => Err(errors::account("Could not create account.", e)),
 				}
 			}
@@ -94,8 +95,8 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		from_params::<(String, String, )>(params).and_then(
 			|(phrase, pass, )| {
 				let store = take_weak!(self.accounts);
-				match store.insert_account(*KeyPair::from_phrase(&phrase).secret(), &pass) {
-					Ok(address) => to_value(&RpcH160::from(address)),
+				match store.insert_account(*Brain::new(phrase).generate().unwrap().secret(), &pass) {
+					Ok(address) => Ok(to_value(&RpcH160::from(address))),
 					Err(e) => Err(errors::account("Could not create account.", e)),
 				}
 			}
@@ -108,7 +109,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			|(json, pass, )| {
 				let store = take_weak!(self.accounts);
 				match store.import_presale(json.as_bytes(), &pass).or_else(|_| store.import_wallet(json.as_bytes(), &pass)) {
-					Ok(address) => to_value(&RpcH160::from(address)),
+					Ok(address) => Ok(to_value(&RpcH160::from(address))),
 					Err(e) => Err(errors::account("Could not create account.", e)),
 				}
 			}
@@ -173,10 +174,10 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 		Ok(Value::Object(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
 			let m = map![
-				"name".to_owned() => to_value(&v.name).unwrap(),
-				"meta".to_owned() => to_value(&v.meta).unwrap(),
+				"name".to_owned() => to_value(&v.name),
+				"meta".to_owned() => to_value(&v.meta),
 				"uuid".to_owned() => if let &Some(ref uuid) = &v.uuid {
-					to_value(uuid).unwrap()
+					to_value(uuid)
 				} else {
 					Value::Null
 				}
@@ -189,16 +190,16 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		try!(self.active());
 		try!(expect_no_params(params));
 		let store = take_weak!(self.accounts);
-		to_value(&store.list_geth_accounts(false).into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+		Ok(to_value(&store.list_geth_accounts(false).into_iter().map(Into::into).collect::<Vec<RpcH160>>()))
 	}
 
 	fn import_geth_accounts(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Vec<RpcH160>,)>(params).and_then(|(addresses,)| {
 			let store = take_weak!(self.accounts);
-			to_value(&try!(store
+			Ok(to_value(&try!(store
 				.import_geth_accounts(addresses.into_iter().map(Into::into).collect(), false)
 				.map_err(|e| errors::account("Couldn't import Geth accounts", e))
-			).into_iter().map(Into::into).collect::<Vec<RpcH160>>())
+			).into_iter().map(Into::into).collect::<Vec<RpcH160>>()))
 		})
 	}
 }

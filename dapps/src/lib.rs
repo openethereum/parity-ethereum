@@ -52,13 +52,16 @@ extern crate serde;
 extern crate serde_json;
 extern crate zip;
 extern crate rand;
+extern crate ethabi;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
-extern crate parity_dapps;
-extern crate ethcore_rpc;
-extern crate ethcore_util as util;
 extern crate mime_guess;
 extern crate rustc_serialize;
+extern crate parity_dapps;
+extern crate https_fetch;
+extern crate ethcore_rpc;
+extern crate ethcore_util as util;
+extern crate linked_hash_map;
 
 mod endpoint;
 mod apps;
@@ -69,6 +72,10 @@ mod rpc;
 mod api;
 mod proxypac;
 mod url;
+#[cfg(test)]
+mod tests;
+
+pub use self::apps::urlhint::ContractClient;
 
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
@@ -84,6 +91,7 @@ static DAPPS_DOMAIN : &'static str = ".parity";
 pub struct ServerBuilder {
 	dapps_path: String,
 	handler: Arc<IoHandler>,
+	registrar: Arc<ContractClient>,
 }
 
 impl Extendable for ServerBuilder {
@@ -94,23 +102,38 @@ impl Extendable for ServerBuilder {
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new(dapps_path: String) -> Self {
+	pub fn new(dapps_path: String, registrar: Arc<ContractClient>) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path,
-			handler: Arc::new(IoHandler::new())
+			handler: Arc::new(IoHandler::new()),
+			registrar: registrar,
 		}
 	}
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecure_http(&self, addr: &SocketAddr) -> Result<Server, ServerError> {
-		Server::start_http(addr, NoAuth, self.handler.clone(), self.dapps_path.clone())
+	pub fn start_unsecured_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
+		Server::start_http(
+			addr,
+			hosts,
+			NoAuth,
+			self.handler.clone(),
+			self.dapps_path.clone(),
+			self.registrar.clone()
+		)
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(&self, addr: &SocketAddr, username: &str, password: &str) -> Result<Server, ServerError> {
-		Server::start_http(addr, HttpBasicAuth::single_user(username, password), self.handler.clone(), self.dapps_path.clone())
+	pub fn start_basic_auth_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+		Server::start_http(
+			addr,
+			hosts,
+			HttpBasicAuth::single_user(username, password),
+			self.handler.clone(),
+			self.dapps_path.clone(),
+			self.registrar.clone()
+		)
 	}
 }
 
@@ -121,10 +144,32 @@ pub struct Server {
 }
 
 impl Server {
-	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>, dapps_path: String) -> Result<Server, ServerError> {
+	/// Returns a list of allowed hosts or `None` if all hosts are allowed.
+	fn allowed_hosts(hosts: Option<Vec<String>>, bind_address: String) -> Option<Vec<String>> {
+		let mut allowed = Vec::new();
+
+		match hosts {
+			Some(hosts) => allowed.extend_from_slice(&hosts),
+			None => return None,
+		}
+
+		// Add localhost domain as valid too if listening on loopback interface.
+		allowed.push(bind_address.replace("127.0.0.1", "localhost").into());
+		allowed.push(bind_address.into());
+		Some(allowed)
+	}
+
+	fn start_http<A: Authorization + 'static>(
+		addr: &SocketAddr,
+		hosts: Option<Vec<String>>,
+		authorization: A,
+		handler: Arc<IoHandler>,
+		dapps_path: String,
+		registrar: Arc<ContractClient>,
+	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let apps_fetcher = Arc::new(apps::fetcher::AppFetcher::default());
+		let apps_fetcher = Arc::new(apps::fetcher::AppFetcher::new(apps::urlhint::URLHintContract::new(registrar)));
 		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
 		let special = Arc::new({
 			let mut special = HashMap::new();
@@ -133,7 +178,7 @@ impl Server {
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special
 		});
-		let bind_address = format!("{}", addr);
+		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));
 
 		try!(hyper::Server::http(addr))
 			.handle(move |ctrl| router::Router::new(
@@ -143,7 +188,7 @@ impl Server {
 				endpoints.clone(),
 				special.clone(),
 				authorization.clone(),
-				bind_address.clone(),
+				hosts.clone(),
 			))
 			.map(|(l, srv)| {
 
@@ -162,6 +207,12 @@ impl Server {
 	/// Set callback for panics.
 	pub fn set_panic_handler<F>(&self, handler: F) where F : Fn() -> () + Send + 'static {
 		*self.panic_handler.lock().unwrap() = Some(Box::new(handler));
+	}
+
+	#[cfg(test)]
+	/// Returns address that this server is bound to.
+	pub fn addr(&self) -> &SocketAddr {
+		self.server.as_ref().expect("server is always Some at the start; it's consumed only when object is dropped; qed").addr()
 	}
 }
 
@@ -196,3 +247,23 @@ pub fn random_filename() -> String {
 	rng.gen_ascii_chars().take(12).collect()
 }
 
+#[cfg(test)]
+mod util_tests {
+	use super::Server;
+
+	#[test]
+	fn should_return_allowed_hosts() {
+		// given
+		let bind_address = "127.0.0.1".to_owned();
+
+		// when
+		let all = Server::allowed_hosts(None, bind_address.clone());
+		let address = Server::allowed_hosts(Some(Vec::new()), bind_address.clone());
+		let some = Server::allowed_hosts(Some(vec!["ethcore.io".into()]), bind_address.clone());
+
+		// then
+		assert_eq!(all, None);
+		assert_eq!(address, Some(vec!["localhost".into(), "127.0.0.1".into()]));
+		assert_eq!(some, Some(vec!["ethcore.io".into(), "localhost".into(), "127.0.0.1".into()]));
+	}
+}

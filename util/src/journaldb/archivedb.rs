@@ -156,14 +156,13 @@ impl JournalDB for ArchiveDB {
 		self.latest_era.is_none()
 	}
 
-	fn commit(&mut self, batch: &DBTransaction, now: u64, _id: &H256, _end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, batch: &mut DBTransaction, now: u64, _id: &H256, _end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
-				assert!(rc == 1);
 				batch.put(self.column, &key, &value);
 				inserts += 1;
 			}
@@ -185,14 +184,13 @@ impl JournalDB for ArchiveDB {
 		Ok((inserts + deletes) as u32)
 	}
 
-	fn inject(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
-				assert!(rc == 1);
 				if try!(self.backing.get(self.column, &key)).is_some() {
 					return Err(BaseDataError::AlreadyExists(key).into());
 				}
@@ -227,6 +225,10 @@ impl JournalDB for ArchiveDB {
 
 	fn backing(&self) -> &Arc<Database> {
 		&self.backing
+	}
+
+	fn consolidate(&mut self, with: MemoryDB) {
+		self.overlay.consolidate(with);
 	}
 }
 

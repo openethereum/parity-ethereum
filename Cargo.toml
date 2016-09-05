@@ -38,9 +38,10 @@ ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-logger = { path = "logger" }
+rlp = { path = "util/rlp" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ethcore-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.82", optional = true}
+clippy = { version = "0.0.85", optional = true}
 ethcore-stratum = { path = "stratum" }
 
 [target.'cfg(windows)'.dependencies]
@@ -50,7 +51,7 @@ winapi = "0.2"
 daemonize = "0.2"
 
 [dependencies.hyper]
-version = "0.8"
+version = "0.9"
 default-features = false
 
 [features]
@@ -61,6 +62,7 @@ dapps = ["ethcore-dapps"]
 ipc = ["ethcore/ipc"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 json-tests = ["ethcore/json-tests"]
+stratum = ["ipc"]
 
 [[bin]]
 path = "parity/main.rs"

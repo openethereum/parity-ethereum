@@ -26,12 +26,8 @@ extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
 extern crate ethcore_devtools as devtools;
-#[macro_use]
-extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
-#[macro_use]
-extern crate log as rlog;
 extern crate env_logger;
 extern crate ethcore_logger;
 extern crate ctrlc;
@@ -43,8 +39,8 @@ extern crate semver;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
-#[macro_use]
-extern crate hyper; // for price_info.rs
+extern crate rlp;
+
 extern crate json_ipc_server as jsonipc;
 
 extern crate ethcore_ipc_hypervisor as hypervisor;
@@ -52,13 +48,36 @@ extern crate ethcore_rpc;
 
 extern crate ethcore_signer;
 extern crate ansi_term;
-#[macro_use]
-extern crate lazy_static;
+
 extern crate regex;
 extern crate isatty;
 
+#[macro_use]
+extern crate ethcore_util as util;
+#[macro_use]
+extern crate log as rlog;
+#[macro_use]
+extern crate hyper; // for price_info.rs
+#[macro_use]
+extern crate lazy_static;
+
+#[cfg(feature="stratum")]
+extern crate ethcore_stratum;
+
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
+
+macro_rules! dependency {
+	($dep_ty:ident, $url:expr) => {
+		{
+			let dep = boot::dependency::<$dep_ty<_>>($url)
+				.unwrap_or_else(|e| panic!("Fatal: error connecting service ({:?})", e));
+			dep.handshake()
+				.unwrap_or_else(|e| panic!("Fatal: error in connected service ({:?})", e));
+			dep
+		}
+	}
+}
 
 mod cache;
 mod upgrade;
@@ -83,6 +102,10 @@ mod presale;
 mod run;
 mod sync;
 mod snapshot;
+mod boot;
+
+#[cfg(feature="stratum")]
+mod stratum;
 
 use std::{process, env};
 use cli::print_version;
@@ -116,12 +139,33 @@ fn start() -> Result<String, String> {
 	execute(cmd)
 }
 
+#[cfg(feature="stratum")]
+mod stratum_optional {
+	pub fn probably_run() -> bool {
+		// just redirect to the stratum::main()
+		if ::std::env::args().nth(1).map_or(false, |arg| arg == "stratum") {
+			super::stratum::main();
+			true
+		}
+		else { false }
+	}
+}
+
+#[cfg(not(feature="stratum"))]
+mod stratum_optional {
+	pub fn probably_run() -> bool {
+		false
+	}
+}
+
 fn main() {
 	// just redirect to the sync::main()
 	if std::env::args().nth(1).map_or(false, |arg| arg == "sync") {
 		sync::main();
 		return;
 	}
+
+	if stratum_optional::probably_run() { return; }
 
 	match start() {
 		Ok(result) => {

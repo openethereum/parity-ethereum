@@ -32,6 +32,8 @@ const MAX_VM_DEPTH_FOR_THREAD: usize = 64;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
+	use rlp::{RlpStream, Stream};
+
 	let mut stream = RlpStream::new_list(2);
 	stream.append(address);
 	stream.append(nonce);
@@ -483,6 +485,7 @@ impl<'a> Executive<'a> {
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests {
+	use ethkey::{Generator, Random};
 	use super::*;
 	use common::*;
 	use evm::{Factory, VMType};
@@ -1002,7 +1005,7 @@ mod tests {
 	// TODO: fix (preferred) or remove
 	evm_test_ignore!{test_transact_simple: test_transact_simple_jit, test_transact_simple_int}
 	fn test_transact_simple(factory: Factory) {
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
@@ -1069,7 +1072,7 @@ mod tests {
 
 	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_jit, test_transact_invalid_nonce_int}
 	fn test_transact_invalid_nonce(factory: Factory) {
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
@@ -1102,7 +1105,7 @@ mod tests {
 
 	evm_test!{test_transact_gas_limit_reached: test_transact_gas_limit_reached_jit, test_transact_gas_limit_reached_int}
 	fn test_transact_gas_limit_reached(factory: Factory) {
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
@@ -1137,7 +1140,7 @@ mod tests {
 	evm_test!{test_not_enough_cash: test_not_enough_cash_jit, test_not_enough_cash_int}
 	fn test_not_enough_cash(factory: Factory) {
 
-		let keypair = KeyPair::create().unwrap();
+		let keypair = Random.generate().unwrap();
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(18),

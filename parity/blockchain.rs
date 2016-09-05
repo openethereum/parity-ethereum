@@ -24,7 +24,8 @@ use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use ethcore_logger::{setup_log, Config as LogConfig};
 use io::{PanicHandler, ForwardPanic};
-use util::{PayloadInfo, ToPretty};
+use util::ToPretty;
+use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
@@ -140,6 +141,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		client_config,
 		&spec,
 		Path::new(&client_path),
+		Path::new(&cmd.dirs.ipc_path()),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -250,6 +252,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 		client_config,
 		&spec,
 		Path::new(&client_path),
+		Path::new(&cmd.dirs.ipc_path()),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 

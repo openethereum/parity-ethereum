@@ -20,6 +20,7 @@ use util::*;
 use header::*;
 use transaction::*;
 use super::{TransactionView, HeaderView};
+use rlp::{Rlp, View};
 
 /// View onto block rlp.
 pub struct BodyView<'a> {

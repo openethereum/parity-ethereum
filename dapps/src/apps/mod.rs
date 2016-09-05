@@ -19,6 +19,7 @@ use page::PageEndpoint;
 use proxypac::ProxyPac;
 use parity_dapps::WebApp;
 
+mod cache;
 mod fs;
 pub mod urlhint;
 pub mod fetcher;
@@ -33,7 +34,14 @@ pub const API_PATH : &'static str =  "api";
 pub const UTILS_PATH : &'static str =  "parity-utils";
 
 pub fn main_page() -> &'static str {
-	"/home/"
+	"home"
+}
+pub fn redirection_address(using_dapps_domains: bool, app_id: &str) -> String {
+	if using_dapps_domains {
+		format!("http://{}{}/", app_id, DAPPS_DOMAIN)
+	} else {
+		format!("/{}/", app_id)
+	}
 }
 
 pub fn utils() -> Box<Endpoint> {

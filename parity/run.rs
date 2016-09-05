@@ -179,13 +179,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	}
 
 	// create supervisor
-	let mut hypervisor = modules::hypervisor();
+	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
 
 	// create client service.
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
 		Path::new(&client_path),
+		Path::new(&cmd.dirs.ipc_path()),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -238,6 +239,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let dapps_deps = dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
+		client: client.clone(),
 	};
 
 	// start dapps server
@@ -273,6 +275,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
+
+	// hypervisor should be shutdown first while everything still works and can be
+	// terminated gracefully
+	drop(hypervisor);
 
 	Ok(())
 }

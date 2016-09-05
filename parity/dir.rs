@@ -66,6 +66,13 @@ impl Directories {
 		dir.push("db");
 		dir
 	}
+
+	/// Get the ipc sockets path
+	pub fn ipc_path(&self) -> PathBuf {
+		let mut dir = Path::new(&self.db).to_path_buf();
+		dir.push("ipc");
+		dir
+	}
 }
 
 #[cfg(test)]

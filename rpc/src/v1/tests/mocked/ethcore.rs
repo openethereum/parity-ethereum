@@ -80,7 +80,7 @@ fn rpc_ethcore_extra_data() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_extraData", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x01020304","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn rpc_ethcore_default_extra_data() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_defaultExtraData", "params": [], "id": 1}"#;
 	let response = format!(r#"{{"jsonrpc":"2.0","result":"0x{}","id":1}}"#, misc::version_data().to_hex());
 
-	assert_eq!(io.handle_request(request), Some(response));
+	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn rpc_ethcore_gas_floor_target() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_gasFloorTarget", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x3039","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -126,9 +126,9 @@ fn rpc_ethcore_min_gas_price() {
 	io.add_delegate(ethcore_client(&client, &miner, &sync, &net).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_minGasPrice", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x01312d00","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x1312d00","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn rpc_ethcore_dev_logs() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogs", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["b","a"],"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn rpc_ethcore_dev_logs_levels() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogsLevels", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"rpc=trace","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn rpc_ethcore_transactions_limit() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_transactionsLimit", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":1024,"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn rpc_ethcore_net_chain() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netChain", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"testchain","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn rpc_ethcore_net_peers() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netPeers", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"active":0,"connected":120,"max":50},"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -222,7 +222,7 @@ fn rpc_ethcore_net_port() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netPort", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":30303,"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -237,7 +237,7 @@ fn rpc_ethcore_rpc_settings() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_rpcSettings", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"enabled":true,"interface":"all","port":8545},"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn rpc_ethcore_node_name() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_nodeName", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"mynode","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -269,7 +269,7 @@ fn rpc_ethcore_unsigned_transactions_count() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":0,"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -284,5 +284,5 @@ fn rpc_ethcore_unsigned_transactions_count_when_signer_disabled() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

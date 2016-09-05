@@ -22,6 +22,7 @@ use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
+use snapshot::ManifestData;
 use snapshot::service::Service as SnapshotService;
 use std::sync::atomic::AtomicBool;
 
@@ -39,6 +40,8 @@ pub enum ClientIoMessage {
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
 	NewTransactions(Vec<Bytes>),
+	/// Begin snapshot restoration
+	BeginRestoration(ManifestData),
 	/// Feed a state chunk to the snapshot service
 	FeedStateChunk(H256, Bytes),
 	/// Feed a block chunk to the snapshot service
@@ -60,6 +63,7 @@ impl ClientService {
 		config: ClientConfig,
 		spec: &Spec,
 		db_path: &Path,
+		ipc_path: &Path,
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
 	{
@@ -86,7 +90,7 @@ impl ClientService {
 		try!(io_service.register_handler(client_io));
 
 		let stop_guard = ::devtools::StopGuard::new();
-		run_ipc(client.clone(), stop_guard.share());
+		run_ipc(ipc_path, client.clone(), stop_guard.share());
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
@@ -159,6 +163,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
 			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
+			ClientIoMessage::BeginRestoration(ref manifest) => {
+				if let Err(e) = self.snapshot.init_restore(manifest.clone()) {
+					warn!("Failed to initialize snapshot restoration: {}", e);
+				}
+			}
 			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
 			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
 			_ => {} // ignore other messages
@@ -167,10 +176,13 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 }
 
 #[cfg(feature="ipc")]
-fn run_ipc(client: Arc<Client>, stop: Arc<AtomicBool>) {
+fn run_ipc(base_path: &Path, client: Arc<Client>, stop: Arc<AtomicBool>) {
+	let mut path = base_path.to_owned();
+	path.push("parity-chain.ipc");
+	let socket_addr = format!("ipc://{}", path.to_string_lossy());
 	::std::thread::spawn(move || {
 		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
-		worker.add_reqrep("ipc:///tmp/parity-chain.ipc").expect("Ipc expected to initialize with no issues");
+		worker.add_reqrep(&socket_addr).expect("Ipc expected to initialize with no issues");
 
 		while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
 			worker.poll();
@@ -179,7 +191,7 @@ fn run_ipc(client: Arc<Client>, stop: Arc<AtomicBool>) {
 }
 
 #[cfg(not(feature="ipc"))]
-fn run_ipc(_client: Arc<Client>, _stop: Arc<AtomicBool>) {
+fn run_ipc(_base_path: &Path, _client: Arc<Client>, _stop: Arc<AtomicBool>) {
 }
 
 #[cfg(test)]
@@ -202,6 +214,7 @@ mod tests {
 		let service = ClientService::start(
 			ClientConfig::default(),
 			&spec,
+			&path,
 			&path,
 			Arc::new(Miner::with_spec(&spec)),
 		);

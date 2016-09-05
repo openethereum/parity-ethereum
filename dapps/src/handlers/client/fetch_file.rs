@@ -18,7 +18,8 @@
 
 use std::{env, io, fs, fmt};
 use std::path::PathBuf;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use random_filename;
 
@@ -27,19 +28,23 @@ use hyper::client::{Request, Response, DefaultTransport as HttpStream};
 use hyper::header::Connection;
 use hyper::{self, Decoder, Encoder, Next};
 
+use super::FetchError;
+
 #[derive(Debug)]
 pub enum Error {
+	Aborted,
 	NotStarted,
 	UnexpectedStatus(StatusCode),
 	IoError(io::Error),
 	HyperError(hyper::Error),
 }
 
-pub type FetchResult = Result<PathBuf, Error>;
+pub type FetchResult = Result<PathBuf, FetchError>;
 pub type OnDone = Box<Fn() + Send>;
 
 pub struct Fetch {
 	path: PathBuf,
+	abort: Arc<AtomicBool>,
 	file: Option<fs::File>,
 	result: Option<FetchResult>,
 	sender: mpsc::Sender<FetchResult>,
@@ -54,9 +59,9 @@ impl fmt::Debug for Fetch {
 
 impl Drop for Fetch {
     fn drop(&mut self) {
-		let res = self.result.take().unwrap_or(Err(Error::NotStarted));
+		let res = self.result.take().unwrap_or(Err(Error::NotStarted.into()));
 		// Remove file if there was an error
-		if res.is_err() {
+		if res.is_err() || self.is_aborted() {
 			if let Some(file) = self.file.take() {
 				drop(file);
 				// Remove file
@@ -72,12 +77,13 @@ impl Drop for Fetch {
 }
 
 impl Fetch {
-	pub fn new(sender: mpsc::Sender<FetchResult>, on_done: OnDone) -> Self {
+	pub fn new(sender: mpsc::Sender<FetchResult>, abort: Arc<AtomicBool>, on_done: OnDone) -> Self {
 		let mut dir = env::temp_dir();
 		dir.push(random_filename());
 
 		Fetch {
 			path: dir,
+			abort: abort,
 			file: None,
 			result: None,
 			sender: sender,
@@ -86,19 +92,38 @@ impl Fetch {
 	}
 }
 
+impl Fetch {
+	fn is_aborted(&self) -> bool {
+		self.abort.load(Ordering::SeqCst)
+	}
+	fn mark_aborted(&mut self) -> Next {
+		self.result = Some(Err(Error::Aborted.into()));
+		Next::end()
+	}
+}
+
 impl hyper::client::Handler<HttpStream> for Fetch {
     fn on_request(&mut self, req: &mut Request) -> Next {
+		if self.is_aborted() {
+			return self.mark_aborted();
+		}
         req.headers_mut().set(Connection::close());
         read()
     }
 
     fn on_request_writable(&mut self, _encoder: &mut Encoder<HttpStream>) -> Next {
+		if self.is_aborted() {
+			return self.mark_aborted();
+		}
         read()
     }
 
     fn on_response(&mut self, res: Response) -> Next {
+		if self.is_aborted() {
+			return self.mark_aborted();
+		}
 		if *res.status() != StatusCode::Ok {
-			self.result = Some(Err(Error::UnexpectedStatus(*res.status())));
+			self.result = Some(Err(Error::UnexpectedStatus(*res.status()).into()));
 			return Next::end();
 		}
 
@@ -110,20 +135,23 @@ impl hyper::client::Handler<HttpStream> for Fetch {
 				read()
 			},
 			Err(err) => {
-				self.result = Some(Err(Error::IoError(err)));
+				self.result = Some(Err(Error::IoError(err).into()));
 				Next::end()
 			},
 		}
     }
 
     fn on_response_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
+		if self.is_aborted() {
+			return self.mark_aborted();
+		}
         match io::copy(decoder, self.file.as_mut().expect("File is there because on_response has created it.")) {
             Ok(0) => Next::end(),
             Ok(_) => read(),
             Err(e) => match e.kind() {
                 io::ErrorKind::WouldBlock => Next::read(),
                 _ => {
-					self.result = Some(Err(Error::IoError(e)));
+					self.result = Some(Err(Error::IoError(e).into()));
                     Next::end()
                 }
             }
@@ -131,7 +159,7 @@ impl hyper::client::Handler<HttpStream> for Fetch {
     }
 
     fn on_error(&mut self, err: hyper::Error) -> Next {
-		self.result = Some(Err(Error::HyperError(err)));
+		self.result = Some(Err(Error::HyperError(err).into()));
         Next::remove()
     }
 }
