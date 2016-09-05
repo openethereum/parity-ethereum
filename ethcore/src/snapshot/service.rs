@@ -275,6 +275,13 @@ impl Service {
 			}
 		}
 
+		// delete the temporary snapshot dir if it does exist.
+		if let Err(e) = fs::remove_dir_all(service.temp_snapshot_dir()) {
+			if e.kind() != ErrorKind {
+				return Err(e.into())
+			}
+		}
+
 		Ok(service)
 	}
 

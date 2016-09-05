@@ -49,6 +49,8 @@ impl Broadcast for IoChannel<ClientIoMessage> {
 			None => return,
 		};
 
+		trace!(target: "snapshot_watcher", "broadcast: {}", num);
+
 		if let Err(e) = self.send(ClientIoMessage::TakeSnapshot(num)) {
 			warn!("Snapshot watcher disconnected from IoService: {}", e);
 		}
@@ -88,6 +90,8 @@ impl ChainNotify for Watcher {
 		_: Vec<H256>,
 		_duration: u64)
 	{
+		trace!(target: "snapshot_watcher", "{} imported", imported.len());
+
 		let highest = imported.into_iter()
 			.filter_map(|h| self.oracle.to_number(h))
 			.filter(|&num| num >= self.period + self.history)

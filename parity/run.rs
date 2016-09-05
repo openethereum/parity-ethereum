@@ -257,6 +257,22 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
 
+	// the watcher must be kept alive.
+	let _watcher = match cmd.no_periodic_snapshot {
+		true => None,
+		false => {
+			let watcher = Arc::new(snapshot::Watcher::new(
+				service.client(),
+				service.io().channel(),
+				SNAPSHOT_PERIOD,
+				SNAPSHOT_HISTORY,
+			));
+
+			service.add_notify(watcher.clone());
+			Some(watcher)
+		},
+	};
+
 	if !cmd.no_periodic_snapshot {
 		let watcher = snapshot::Watcher::new(
 			service.client(),
