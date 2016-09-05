@@ -31,7 +31,6 @@ use engines::Engine;
 use error::Error;
 use service::ClientIoMessage;
 use spec::Spec;
-use client::Client;
 
 use io::IoChannel;
 
@@ -39,6 +38,12 @@ use util::{Bytes, H256, Mutex, RwLock, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
+
+/// External database restoration handler
+pub trait DatabaseRestore : Send + Sync {
+	/// Restart with a new backend. Takes ownership of passed database and moves it to a new location.
+	fn restore_db(&self, new_db: &str) -> Result<(), Error>;
+}
 
 /// State restoration manager.
 struct Restoration {
@@ -162,12 +167,12 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	client: Arc<Client>,
+	db_restore: Arc<DatabaseRestore>,
 }
 
 impl Service {
 	/// Create a new snapshot service.
-	pub fn new(spec: &Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel, client: Arc<Client>) -> Result<Self, Error> {
+	pub fn new(spec: &Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel, db_restore: Arc<DatabaseRestore>) -> Result<Self, Error> {
 		let db_path = try!(client_db.parent().and_then(Path::parent)
 			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.".into()))).to_owned();
 
@@ -191,7 +196,7 @@ impl Service {
 			genesis_block: spec.genesis_block(),
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
-			client: client,
+			db_restore: db_restore,
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -251,7 +256,7 @@ impl Service {
 		let our_db = self.restoration_db();
 
 		trace!(target: "snapshot", "replacing {:?} with {:?}", self.client_db, our_db);
-		try!(self.client.restore_db(our_db.to_str().unwrap()));
+		try!(self.db_restore.restore_db(our_db.to_str().unwrap()));
 		Ok(())
 	}
 
@@ -448,14 +453,22 @@ impl SnapshotService for Service {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use service::ClientIoMessage;
 	use io::{IoService};
 	use devtools::RandomTempPath;
 	use tests::helpers::get_test_spec;
 	use util::journaldb::Algorithm;
-
-	use snapshot::ManifestData;
+	use error::Error;
+	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
+
+	struct NoopDBRestore;
+	impl DatabaseRestore for NoopDBRestore {
+		fn restore_db(&self, _new_db: &str) -> Result<(), Error> {
+			Ok(())
+		}
+	}
 
 	#[test]
 	fn sends_async_messages() {
@@ -470,13 +483,13 @@ mod tests {
 			&get_test_spec(),
 			Algorithm::Archive,
 			dir,
-			service.channel()
+			service.channel(),
+			Arc::new(NoopDBRestore),
 		).unwrap();
 
 		assert!(service.manifest().is_none());
 		assert!(service.chunk(Default::default()).is_none());
 		assert_eq!(service.status(), RestorationStatus::Inactive);
-		assert_eq!(service.chunks_done(), (0, 0));
 
 		let manifest = ManifestData {
 			state_hashes: vec![],

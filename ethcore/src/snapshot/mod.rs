@@ -44,7 +44,7 @@ use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
 
 pub use self::error::Error;
-pub use self::service::Service;
+pub use self::service::{Service, DatabaseRestore};
 pub use self::traits::{SnapshotService, RemoteSnapshotService};
 pub use types::snapshot_manifest::ManifestData;
 pub use types::restoration_status::RestorationStatus;

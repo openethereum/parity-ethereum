@@ -32,7 +32,7 @@ use util::kvdb::*;
 // other
 use io::*;
 use views::{BlockView, HeaderView, BodyView};
-use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult};
+use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
 use state::State;
 use spec::Spec;
@@ -599,7 +599,7 @@ impl Client {
 
 	/// Take a snapshot at the given block.
 	/// If the ID given is "latest", this will default to 1000 blocks behind.
-	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockID, p: &snapshot::Progress) -> Result<(), ::error::Error> {
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockID, p: &snapshot::Progress) -> Result<(), EthcoreError> {
 		let db = self.state_db.read().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = try!(self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at)));
@@ -627,22 +627,6 @@ impl Client {
 
 		try!(snapshot::take_snapshot(&self.chain.read(), start_hash, db.as_hashdb(), writer, p));
 
-		Ok(())
-	}
-
-	/// Restart the client with a new backend
-	pub fn restore_db(&self, new_db: &str) -> Result<(), ClientError> {
-		let _import_lock = self.import_lock.lock();
-		let mut state_db = self.state_db.write();
-		let mut chain = self.chain.write();
-		let mut tracedb = self.tracedb.write();
-		self.miner.clear();
-		let db = self.db.write();
-		try!(db.restore(new_db));
-
-		*state_db = journaldb::new(db.clone(), self.pruning, ::db::COL_STATE);
-		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
-		*tracedb = try!(TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone()));
 		Ok(())
 	}
 
@@ -688,6 +672,25 @@ impl Client {
 		}
 	}
 }
+
+impl snapshot::DatabaseRestore for Client {
+	/// Restart the client with a new backend
+	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError> {
+		let _import_lock = self.import_lock.lock();
+		let mut state_db = self.state_db.write();
+		let mut chain = self.chain.write();
+		let mut tracedb = self.tracedb.write();
+		self.miner.clear();
+		let db = self.db.write();
+		try!(db.restore(new_db));
+
+		*state_db = journaldb::new(db.clone(), self.pruning, ::db::COL_STATE);
+		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
+		*tracedb = try!(TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone()).map_err(ClientError::from));
+		Ok(())
+	}
+}
+
 
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockID, analytics: CallAnalytics) -> Result<Executed, CallError> {
