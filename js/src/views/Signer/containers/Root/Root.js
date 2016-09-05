@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
-import { Actionbar, Container } from '../../../../ui';
+import { Actionbar } from '../../../../ui';
 
 import { ToastrContainer } from '../../components';
 import { removeToast } from '../../actions/toastr';
@@ -36,15 +36,13 @@ export class Root extends Component {
       <div>
         <Actionbar
           title='Parity Trusted Signer' />
-        <Container>
-          <div className={ styles.mainContainer }>
-            { this.renderPage() }
-          </div>
-          <ToastrContainer
-            toasts={ toastr.toasts }
-            actions={ actions }
-          />
-        </Container>
+        <div className={ styles.mainContainer }>
+          { this.renderPage() }
+        </div>
+        <ToastrContainer
+          toasts={ toastr.toasts }
+          actions={ actions }
+        />
       </div>
     );
   }

@@ -1,6 +1,9 @@
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
+
+import { Container, ContainerTitle } from '../../../../ui';
 
 import { RequestPendingWeb3, RequestFinishedWeb3 } from '../../components';
 import * as RequestsActions from '../../actions/requests';
@@ -28,37 +31,51 @@ class RequestsPage extends Component {
 
     return (
       <div>
-        { this.renderFinishedRequests() }
         { this.renderPendingRequests() }
+        { this.renderFinishedRequests() }
       </div>
     );
   }
 
+  _sortRequests = (a, b) => {
+    return new BigNumber(b.id).cmp(a.id);
+  }
+
   renderPendingRequests () {
-    const { requests } = this.props;
-    if (!requests.pending.length) {
+    const { pending } = this.props.requests;
+
+    if (!pending.length) {
       return;
     }
 
+    const items = pending.sort(this._sortRequests).map(data => this.renderPending(data));
+
     return (
-      <div>
-        <h2>Pending Requests</h2>
-        <div>{ requests.pending.map(data => this.renderPending(data)) }</div>
-      </div>
+      <Container>
+        <ContainerTitle title='Pending Requests' />
+        <div className={ styles.items }>
+          { items }
+        </div>
+      </Container>
     );
   }
 
   renderFinishedRequests () {
     const { finished } = this.props.requests;
+
     if (!finished.length) {
       return;
     }
 
+    const items = finished.sort(this._sortRequests).map(data => this.renderFinished(data));
+
     return (
-      <div>
-        <h2>Finished Requests</h2>
-        <div>{ finished.map(data => this.renderFinished(data)) }</div>
-      </div>
+      <Container>
+        <ContainerTitle title='Finished Requests' />
+        <div className={ styles.items }>
+          { items }
+        </div>
+      </Container>
     );
   }
 
@@ -98,9 +115,11 @@ class RequestsPage extends Component {
 
   renderNoRequestsMsg () {
     return (
-      <div className={ styles.noRequestsMsg }>
-        <h3>There are no requests requiring your confirmation.</h3>
-      </div>
+      <Container>
+        <div className={ styles.noRequestsMsg }>
+          There are no requests requiring your confirmation.
+        </div>
+      </Container>
     );
   }
 }
