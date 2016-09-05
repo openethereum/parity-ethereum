@@ -104,9 +104,11 @@ export default class Application extends Component {
   }
 
   getChildContext () {
+    const { instance } = this.state;
+
     return {
       api,
-      instance: this.state.instance,
+      instance,
       muiTheme
     };
   }
@@ -124,7 +126,7 @@ export default class Application extends Component {
   }
 
   onNewBlockNumber = (blockNumber) => {
-    const { instance } = this.state;
+    const { instance, accounts } = this.state;
 
     Promise
       .all([
@@ -140,7 +142,6 @@ export default class Application extends Component {
           price
         });
 
-        const { accounts } = this.state;
         const gavQueries = accounts.map((account) => instance.balanceOf.call({}, [account.address]));
         const ethQueries = accounts.map((account) => api.eth.getBalance(account.address));
 
@@ -150,8 +151,6 @@ export default class Application extends Component {
         ]);
       })
       .then(([gavBalances, ethBalances]) => {
-        const { accounts } = this.state;
-
         this.setState({
           ethBalance: ethBalances.reduce((total, balance) => total.add(balance), new BigNumber(0)),
           gavBalance: gavBalances.reduce((total, balance) => total.add(balance), new BigNumber(0)),
