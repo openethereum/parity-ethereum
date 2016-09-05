@@ -134,7 +134,7 @@ export default class ActionRefund extends Component {
   }
 
   onSend = () => {
-    const { api, instance } = this.context;
+    const { instance } = this.context;
     const price = api.format.toWei(this.state.price);
     const amount = new BigNumber(this.state.amount).mul(DIVISOR);
     const values = [price.toString(), amount.toFixed(0)];
