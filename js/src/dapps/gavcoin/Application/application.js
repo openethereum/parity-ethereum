@@ -165,6 +165,9 @@ export default class Application extends Component {
             return account;
           })
         });
+      })
+      .catch((error) => {
+        console.error('onNewBlockNumber', error);
       });
   }
 
@@ -206,7 +209,7 @@ export default class Application extends Component {
         api.events.subscribe('eth.blockNumber', this.onNewBlockNumber);
       })
       .catch((error) => {
-        console.error(error);
+        console.error('attachInterface', error);
       });
   }
 }

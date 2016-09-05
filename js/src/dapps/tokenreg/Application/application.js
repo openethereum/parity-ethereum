@@ -48,8 +48,10 @@ export default class Application extends Component {
   }
 
   getChildContext () {
+    const { instance } = this.state;
+
     return {
-      instance: this.state.instance,
+      instance,
       muiTheme
     };
   }
@@ -98,7 +100,7 @@ export default class Application extends Component {
           });
       })
       .catch((error) => {
-        console.error(error);
+        console.error('attachInterface', error);
       });
   }
 }
