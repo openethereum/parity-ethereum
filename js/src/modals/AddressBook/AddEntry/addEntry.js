@@ -5,7 +5,7 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { Modal, Form, Input, InputAddress } from '../../../ui';
-import { ERRORS, validateAddress, validateName } from '../../../services/validation';
+import { ERRORS, validateAddress, validateName } from '../../../util/validation';
 
 import styles from '../addressBook.css';
 

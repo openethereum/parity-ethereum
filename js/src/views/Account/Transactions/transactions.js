@@ -5,6 +5,7 @@ import { bindActionCreators } from 'redux';
 import moment from 'moment';
 import LinearProgress from 'material-ui/LinearProgress';
 
+import { retrieveAccount } from '../../../util';
 import format from '../../../api/format';
 import etherscan from '../../../3rdparty/etherscan';
 import { Container, IdentityIcon } from '../../../ui';
@@ -69,19 +70,8 @@ class Transactions extends Component {
   }
 
   renderAddress (prefix, address) {
-    const cmp = (_account) => _account.address === address;
-
-    let account = this.context.accounts.find(cmp);
-    if (!account) {
-      account = this.context.contacts.find(cmp);
-      if (!account) {
-        account = this.context.contracts.find(cmp);
-        if (!account) {
-          account = this.context.tokens.find(cmp);
-        }
-      }
-    }
-
+    const { accounts, contacts, contracts, tokens } = this.context;
+    const account = retrieveAccount(address, accounts, contacts, contracts, tokens);
     const link = `${prefix}address/${address}`;
     const name = account
       ? account.name.toUpperCase()

@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import Api from '../../api';
-import { eip20Abi, registryAbi, tokenRegAbi } from '../../services/abi';
+import { eip20Abi, registryAbi, tokenRegAbi } from '../../util/abi';
 
 import Container from './Container';
 import DappContainer from './DappContainer';

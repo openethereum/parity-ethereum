@@ -2,17 +2,22 @@ import React, { Component, PropTypes } from 'react';
 
 import styles from './Account.css';
 
+import { retrieveAccount } from '../../../../util';
 import { IdentityIcon } from '../../../../ui';
 import AccountLink from '../AccountLink';
 
 export default class Account extends Component {
+  static contextTypes = {
+    accounts: PropTypes.array,
+    contacts: PropTypes.array,
+    contracts: PropTypes.array
+  }
 
   static propTypes = {
     className: PropTypes.string,
     address: PropTypes.string.isRequired,
     chain: PropTypes.string.isRequired,
-    balance: PropTypes.object, // eth BigNumber, not required since it mght take time to fetch
-    name: PropTypes.string
+    balance: PropTypes.object // eth BigNumber, not required since it mght take time to fetch
   };
 
   state = {
@@ -50,7 +55,9 @@ export default class Account extends Component {
   }
 
   renderTitle () {
-    const { name, address } = this.props;
+    const { address } = this.props;
+    const name = this._retrieveName();
+
     if (name) {
       return address + ' ' + name;
     }
@@ -66,7 +73,9 @@ export default class Account extends Component {
   }
 
   renderName () {
-    const { address, name } = this.props;
+    const { address } = this.props;
+    const name = this._retrieveName();
+
     if (!name) {
       return (
         <AccountLink address={ address } chain={ this.props.chain }>
@@ -74,6 +83,7 @@ export default class Account extends Component {
         </AccountLink>
       );
     }
+
     return (
       <AccountLink address={ address } chain={ this.props.chain } >
         <span>
@@ -82,6 +92,15 @@ export default class Account extends Component {
         </span>
       </AccountLink>
     );
+  }
+
+  _retrieveName () {
+    const { accounts, contacts, contracts, tokens } = this.context;
+    const { address } = this.props;
+
+    const account = retrieveAccount(address, accounts, contacts, contracts, tokens);
+
+    return account ? account.name : null;
   }
 
   tinyAddress () {
@@ -95,5 +114,4 @@ export default class Account extends Component {
     const len = address.length;
     return address.slice(2, 8) + '..' + address.slice(len - 7);
   }
-
 }
