@@ -444,8 +444,7 @@ use env_info::*;
 use spec::*;
 use transaction::*;
 use util::log::init_log;
-use trace::trace;
-use trace::FlatTrace;
+use trace::{FlatTrace, TraceError, trace};
 use types::executed::CallType;
 
 #[test]
@@ -538,7 +537,7 @@ fn should_trace_failed_create_transaction() {
 			gas: 78792.into(),
 			init: vec![91, 96, 0, 86],
 		}),
-		result: trace::Res::FailedCreate,
+		result: trace::Res::FailedCreate(TraceError::OutOfGas),
 		subtraces: 0
 	}];
 
@@ -869,7 +868,7 @@ fn should_trace_failed_call_transaction() {
 			input: vec![],
 			call_type: CallType::Call,
 		}),
-		result: trace::Res::FailedCall,
+		result: trace::Res::FailedCall(TraceError::OutOfGas),
 		subtraces: 0,
 	}];
 
@@ -1084,7 +1083,7 @@ fn should_trace_failed_subcall_transaction() {
 			input: vec![],
 			call_type: CallType::Call,
 		}),
-		result: trace::Res::FailedCall,
+		result: trace::Res::FailedCall(TraceError::OutOfGas),
 	}];
 
 	assert_eq!(result.trace, expected_trace);
@@ -1217,7 +1216,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 			input: vec![],
 			call_type: CallType::Call,
 		}),
-		result: trace::Res::FailedCall,
+		result: trace::Res::FailedCall(TraceError::OutOfGas),
 	}, FlatTrace {
 		trace_address: vec![0, 0].into_iter().collect(),
 		subtraces: 0,

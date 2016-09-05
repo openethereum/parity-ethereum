@@ -19,7 +19,7 @@
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide};
-use trace::{Tracer, VMTracer, FlatTrace};
+use trace::{Tracer, VMTracer, FlatTrace, TraceError};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]
@@ -112,23 +112,23 @@ impl Tracer for ExecutiveTracer {
 		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>) {
+	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>, error: TraceError) {
 		let trace = FlatTrace {
 			trace_address: Default::default(),
 			subtraces: top_level_subtraces(&subs),
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
-			result: Res::FailedCall,
+			result: Res::FailedCall(error),
 		};
 		debug!(target: "trace", "Traced failed call {:?}", trace);
 		self.traces.push(trace);
 		self.traces.extend(update_trace_address(subs));
 	}
 
-	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>) {
+	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>, error: TraceError) {
 		let trace = FlatTrace {
 			subtraces: top_level_subtraces(&subs),
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
-			result: Res::FailedCreate,
+			result: Res::FailedCreate(error),
 			trace_address: Default::default(),
 		};
 		debug!(target: "trace", "Traced failed create {:?}", trace);
