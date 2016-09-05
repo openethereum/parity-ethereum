@@ -16,8 +16,7 @@
 
 use std::collections::BTreeMap;
 use serde::{Serialize, Serializer};
-use ethcore::trace::trace;
-use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace};
+use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
@@ -319,16 +318,13 @@ impl From<trace::Suicide> for Suicide {
 }
 
 /// Action
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub enum Action {
 	/// Call
-	#[serde(rename="call")]
 	Call(Call),
 	/// Create
-	#[serde(rename="create")]
 	Create(Create),
 	/// Suicide
-	#[serde(rename="suicide")]
 	Suicide(Suicide),
 }
 
@@ -384,22 +380,17 @@ impl From<trace::CreateResult> for CreateResult {
 }
 
 /// Response
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub enum Res {
 	/// Call
-	#[serde(rename="call")]
 	Call(CallResult),
 	/// Create
-	#[serde(rename="create")]
 	Create(CreateResult),
 	/// Call failure
-	#[serde(rename="failedCall")]
-	FailedCall,
+	FailedCall(TraceError),
 	/// Creation failure
-	#[serde(rename="failedCreate")]
-	FailedCreate,
+	FailedCreate(TraceError),
 	/// None
-	#[serde(rename="none")]
 	None,
 }
 
@@ -408,37 +399,71 @@ impl From<trace::Res> for Res {
 		match t {
 			trace::Res::Call(call) => Res::Call(CallResult::from(call)),
 			trace::Res::Create(create) => Res::Create(CreateResult::from(create)),
-			trace::Res::FailedCall => Res::FailedCall,
-			trace::Res::FailedCreate => Res::FailedCreate,
+			trace::Res::FailedCall(error) => Res::FailedCall(error),
+			trace::Res::FailedCreate(error) => Res::FailedCreate(error),
 			trace::Res::None => Res::None,
 		}
 	}
 }
 
 /// Trace
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct LocalizedTrace {
 	/// Action
 	action: Action,
 	/// Result
 	result: Res,
 	/// Trace address
-	#[serde(rename="traceAddress")]
 	trace_address: Vec<U256>,
 	/// Subtraces
 	subtraces: U256,
 	/// Transaction position
-	#[serde(rename="transactionPosition")]
 	transaction_position: U256,
 	/// Transaction hash
-	#[serde(rename="transactionHash")]
 	transaction_hash: H256,
 	/// Block Number
-	#[serde(rename="blockNumber")]
 	block_number: U256,
 	/// Block Hash
-	#[serde(rename="blockHash")]
 	block_hash: H256,
+}
+
+impl Serialize for LocalizedTrace {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+		where S: Serializer
+	{
+		let mut state = try!(serializer.serialize_struct("LocalizedTrace", 9));
+		match self.action {
+			Action::Call(ref call) => {
+				try!(serializer.serialize_struct_elt(&mut state, "type", "call"));
+				try!(serializer.serialize_struct_elt(&mut state, "action", call));
+			},
+			Action::Create(ref create) => {
+				try!(serializer.serialize_struct_elt(&mut state, "type", "create"));
+				try!(serializer.serialize_struct_elt(&mut state, "action", create));
+			},
+			Action::Suicide(ref suicide) => {
+				try!(serializer.serialize_struct_elt(&mut state, "type", "suicide"));
+				try!(serializer.serialize_struct_elt(&mut state, "action", suicide));
+			},
+		}
+
+		match self.result {
+			Res::Call(ref call) => try!(serializer.serialize_struct_elt(&mut state, "result", call)),
+			Res::Create(ref create) => try!(serializer.serialize_struct_elt(&mut state, "result", create)),
+			Res::FailedCall(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
+			Res::FailedCreate(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
+			Res::None => try!(serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)),
+		}
+
+		try!(serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address));
+		try!(serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces));
+		try!(serializer.serialize_struct_elt(&mut state, "transactionPosition", &self.transaction_position));
+		try!(serializer.serialize_struct_elt(&mut state, "transactionHash", &self.transaction_hash));
+		try!(serializer.serialize_struct_elt(&mut state, "blockNumber", &self.block_number));
+		try!(serializer.serialize_struct_elt(&mut state, "blockHash", &self.block_hash));
+
+		serializer.serialize_struct_end(state)
+	}
 }
 
 impl From<EthLocalizedTrace> for LocalizedTrace {
@@ -457,10 +482,9 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 }
 
 /// Trace
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct Trace {
 	/// Trace address
-	#[serde(rename="traceAddress")]
 	trace_address: Vec<U256>,
 	/// Subtraces
 	subtraces: U256,
@@ -468,6 +492,41 @@ pub struct Trace {
 	action: Action,
 	/// Result
 	result: Res,
+}
+
+impl Serialize for Trace {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+		where S: Serializer
+	{
+		let mut state = try!(serializer.serialize_struct("Trace", 4));
+		match self.action {
+			Action::Call(ref call) => {
+				try!(serializer.serialize_struct_elt(&mut state, "type", "call"));
+				try!(serializer.serialize_struct_elt(&mut state, "action", call));
+			},
+			Action::Create(ref create) => {
+				try!(serializer.serialize_struct_elt(&mut state, "type", "create"));
+				try!(serializer.serialize_struct_elt(&mut state, "action", create));
+			},
+			Action::Suicide(ref suicide) => {
+				try!(serializer.serialize_struct_elt(&mut state, "type", "suicide"));
+				try!(serializer.serialize_struct_elt(&mut state, "action", suicide));
+			},
+		}
+
+		match self.result {
+			Res::Call(ref call) => try!(serializer.serialize_struct_elt(&mut state, "result", call)),
+			Res::Create(ref create) => try!(serializer.serialize_struct_elt(&mut state, "result", create)),
+			Res::FailedCall(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
+			Res::FailedCreate(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
+			Res::None => try!(serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)),
+		}
+
+		try!(serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address));
+		try!(serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces));
+
+		serializer.serialize_struct_end(state)
+	}
 }
 
 impl From<FlatTrace> for Trace {
@@ -511,7 +570,8 @@ impl From<Executed> for TraceResults {
 mod tests {
 	use serde_json;
 	use std::collections::BTreeMap;
-	use v1::types::{Bytes, U256, H256, H160};
+	use v1::types::Bytes;
+	use ethcore::trace::TraceError;
 	use super::*;
 
 	#[test]
@@ -527,29 +587,118 @@ mod tests {
 	}
 
 	#[test]
-	fn test_trace_serialize() {
+	fn test_trace_call_serialize() {
 		let t = LocalizedTrace {
 			action: Action::Call(Call {
-				from: H160::from(4),
-				to: H160::from(5),
-				value: U256::from(6),
-				gas: U256::from(7),
+				from: 4.into(),
+				to: 5.into(),
+				value: 6.into(),
+				gas: 7.into(),
 				input: Bytes::new(vec![0x12, 0x34]),
 				call_type: CallType::Call,
 			}),
 			result: Res::Call(CallResult {
-				gas_used: U256::from(8),
+				gas_used: 8.into(),
 				output: vec![0x56, 0x78].into(),
 			}),
-			trace_address: vec![U256::from(10)],
-			subtraces: U256::from(1),
-			transaction_position: U256::from(11),
-			transaction_hash: H256::from(12),
-			block_number: U256::from(13),
-			block_hash: H256::from(14),
+			trace_address: vec![10.into()],
+			subtraces: 1.into(),
+			transaction_position: 11.into(),
+			transaction_hash: 12.into(),
+			block_number: 13.into(),
+			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"action":{"call":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","input":"0x1234","callType":"call"}},"result":{"call":{"gasUsed":"0x8","output":"0x5678"}},"traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"call","action":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","input":"0x1234","callType":"call"},"result":{"gasUsed":"0x8","output":"0x5678"},"traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+	}
+
+	#[test]
+	fn test_trace_failed_call_serialize() {
+		let t = LocalizedTrace {
+			action: Action::Call(Call {
+				from: 4.into(),
+				to: 5.into(),
+				value: 6.into(),
+				gas: 7.into(),
+				input: Bytes::new(vec![0x12, 0x34]),
+				call_type: CallType::Call,
+			}),
+			result: Res::FailedCall(TraceError::OutOfGas),
+			trace_address: vec![10.into()],
+			subtraces: 1.into(),
+			transaction_position: 11.into(),
+			transaction_hash: 12.into(),
+			block_number: 13.into(),
+			block_hash: 14.into(),
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"type":"call","action":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","input":"0x1234","callType":"call"},"error":"Out of gas","traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+	}
+
+	#[test]
+	fn test_trace_create_serialize() {
+		let t = LocalizedTrace {
+			action: Action::Create(Create {
+				from: 4.into(),
+				value: 6.into(),
+				gas: 7.into(),
+				init: Bytes::new(vec![0x12, 0x34]),
+			}),
+			result: Res::Create(CreateResult {
+				gas_used: 8.into(),
+				code: vec![0x56, 0x78].into(),
+				address: 0xff.into(),
+			}),
+			trace_address: vec![10.into()],
+			subtraces: 1.into(),
+			transaction_position: 11.into(),
+			transaction_hash: 12.into(),
+			block_number: 13.into(),
+			block_hash: 14.into(),
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+	}
+
+	#[test]
+	fn test_trace_failed_create_serialize() {
+		let t = LocalizedTrace {
+			action: Action::Create(Create {
+				from: 4.into(),
+				value: 6.into(),
+				gas: 7.into(),
+				init: Bytes::new(vec![0x12, 0x34]),
+			}),
+			result: Res::FailedCreate(TraceError::OutOfGas),
+			trace_address: vec![10.into()],
+			subtraces: 1.into(),
+			transaction_position: 11.into(),
+			transaction_hash: 12.into(),
+			block_number: 13.into(),
+			block_hash: 14.into(),
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234"},"error":"Out of gas","traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+	}
+
+	#[test]
+	fn test_trace_suicide_serialize() {
+		let t = LocalizedTrace {
+			action: Action::Suicide(Suicide {
+				address: 4.into(),
+				refund_address: 6.into(),
+				balance: 7.into(),
+			}),
+			result: Res::None,
+			trace_address: vec![10.into()],
+			subtraces: 1.into(),
+			transaction_position: 11.into(),
+			transaction_hash: 12.into(),
+			block_number: 13.into(),
+			block_hash: 14.into(),
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"type":"suicide","action":{"address":"0x0000000000000000000000000000000000000004","refundAddress":"0x0000000000000000000000000000000000000006","balance":"0x7"},"result":null,"traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -615,45 +764,5 @@ mod tests {
 		]);
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, r#"{"0x000000000000000000000000000000000000002a":{"balance":"=","nonce":{"+":"0x1"},"code":"=","storage":{"0x000000000000000000000000000000000000000000000000000000000000002a":"="}},"0x0000000000000000000000000000000000000045":{"balance":"=","nonce":{"*":{"from":"0x1","to":"0x0"}},"code":{"-":"0x60"},"storage":{}}}"#);
-	}
-
-	#[test]
-	fn test_action_serialize() {
-		let actions = vec![Action::Call(Call {
-			from: H160::from(1),
-			to: H160::from(2),
-			value: U256::from(3),
-			gas: U256::from(4),
-			input: vec![0x12, 0x34].into(),
-			call_type: CallType::Call,
-		}), Action::Create(Create {
-			from: H160::from(5),
-			value: U256::from(6),
-			gas: U256::from(7),
-			init: vec![0x56, 0x78].into(),
-		})];
-
-		let serialized = serde_json::to_string(&actions).unwrap();
-		assert_eq!(serialized, r#"[{"call":{"from":"0x0000000000000000000000000000000000000001","to":"0x0000000000000000000000000000000000000002","value":"0x3","gas":"0x4","input":"0x1234","callType":"call"}},{"create":{"from":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","init":"0x5678"}}]"#);
-	}
-
-	#[test]
-	fn test_result_serialize() {
-		let results = vec![
-			Res::Call(CallResult {
-				gas_used: U256::from(1),
-				output: vec![0x12, 0x34].into(),
-			}),
-			Res::Create(CreateResult {
-				gas_used: U256::from(2),
-				code: vec![0x45, 0x56].into(),
-				address: H160::from(3),
-			}),
-			Res::FailedCall,
-			Res::FailedCreate,
-		];
-
-		let serialized = serde_json::to_string(&results).unwrap();
-		assert_eq!(serialized, r#"[{"call":{"gasUsed":"0x1","output":"0x1234"}},{"create":{"gasUsed":"0x2","code":"0x4556","address":"0x0000000000000000000000000000000000000003"}},"failedCall","failedCreate"]"#);
 	}
 }
