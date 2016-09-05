@@ -37,11 +37,29 @@ impl HashToNumber for Client {
 	}
 }
 
+// helper trait for broadcasting a block to take a snapshot at.
+trait Broadcast: Send + Sync {
+	fn take_at(&self, num: Option<u64>);
+}
+
+impl Broadcast for IoChannel<ClientIoMessage> {
+	fn take_at(&self, num: Option<u64>) {
+		let num = match num {
+			Some(n) => n,
+			None => return,
+		};
+
+		if let Err(e) = self.send(ClientIoMessage::TakeSnapshot(num)) {
+			warn!("Snapshot watcher disconnected from IoService: {}", e);
+		}
+	}
+}
+
 /// A `ChainNotify` implementation which will trigger a snapshot event
 /// at certain block numbers.
 pub struct Watcher {
 	oracle: Arc<HashToNumber>,
-	channel: IoChannel<ClientIoMessage>,
+	broadcast: Box<Broadcast>,
 	period: u64,
 	history: u64,
 }
@@ -53,7 +71,7 @@ impl Watcher {
 	pub fn new(client: Arc<Client>, channel: IoChannel<ClientIoMessage>, period: u64, history: u64) -> Self {
 		Watcher {
 			oracle: client,
-			channel: channel,
+			broadcast: Box::new(channel),
 			period: period,
 			history: history,
 		}
@@ -70,7 +88,6 @@ impl ChainNotify for Watcher {
 		_: Vec<H256>,
 		_duration: u64)
 	{
-
 		let highest = imported.into_iter()
 			.filter_map(|h| self.oracle.to_number(h))
 			.filter(|&num| num >= self.period + self.history)
@@ -78,23 +95,20 @@ impl ChainNotify for Watcher {
 			.filter(|num| num % self.period == 0)
 			.fold(0, ::std::cmp::max);
 
-		if highest != 0 {
-			if let Err(e) = self.channel.send(ClientIoMessage::TakeSnapshot(highest)) {
-				warn!("Snapshot watcher disconnected from IoService: {}", e);
-			}
+		match highest {
+			0 => self.broadcast.take_at(None),
+			_ => self.broadcast.take_at(Some(highest)),
 		}
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{HashToNumber, Watcher};
+	use super::{Broadcast, HashToNumber, Watcher};
 
 	use client::ChainNotify;
-	use service::ClientIoMessage;
 
-	use util::{H256, U256, Mutex};
-	use io::{IoContext, IoHandler, IoService};
+	use util::{H256, U256};
 
 	use std::collections::HashMap;
 	use std::sync::Arc;
@@ -107,30 +121,23 @@ mod tests {
 		}
 	}
 
-	struct Handler(Arc<Mutex<Vec<u64>>>);
-
-	impl IoHandler<ClientIoMessage> for Handler {
-		fn message(&self, _context: &IoContext<ClientIoMessage>, message: &ClientIoMessage) {
-			match *message {
-				ClientIoMessage::TakeSnapshot(num) => self.0.lock().push(num),
-				_ => {}
+	struct TestBroadcast(Option<u64>);
+	impl Broadcast for TestBroadcast {
+		fn take_at(&self, num: Option<u64>) {
+			if num != self.0 {
+				panic!("Watcher broadcast wrong number. Expected {:?}, found {:?}", self.0, num);
 			}
 		}
 	}
 
-	// helper harness for tests.
-	fn harness(numbers: Vec<u64>, period: u64, history: u64) -> Vec<u64> {
-		let events = Arc::new(Mutex::new(Vec::new()));
-
-		let service = IoService::start().unwrap();
-		service.register_handler(Arc::new(Handler(events.clone()))).unwrap();
-
+	// helper harness for tests which expect a notification.
+	fn harness(numbers: Vec<u64>, period: u64, history: u64, expected: Option<u64>) {
 		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| H256::from(U256::from(x))).collect();
-		let mut map = hashes.clone().into_iter().zip(numbers).collect();
+		let map = hashes.clone().into_iter().zip(numbers).collect();
 
 		let watcher = Watcher {
 			oracle: Arc::new(TestOracle(map)),
-			channel: service.channel(),
+			broadcast: Box::new(TestBroadcast(expected)),
 			period: period,
 			history: history,
 		};
@@ -143,35 +150,27 @@ mod tests {
 			vec![],
 			0,
 		);
-
-		drop(service);
-
-		// binding necessary for compilation.
-		let v = events.lock().clone();
-		v
 	}
+
+	// helper
 
 	#[test]
 	fn should_not_fire() {
-		let events = harness(vec![0], 5, 0);
-		assert_eq!(events, vec![]);
+		harness(vec![0], 5, 0, None);
 	}
 
 	#[test]
 	fn fires_once_for_two() {
-		let events = harness(vec![14, 15], 10, 5);
-		assert_eq!(events, vec![10]);
+		harness(vec![14, 15], 10, 5, Some(10));
 	}
 
 	#[test]
 	fn finds_highest() {
-		let events = harness(vec![15, 25], 10, 5);
-		assert_eq!(events, vec![20]);
+		harness(vec![15, 25], 10, 5, Some(20));
 	}
 
 	#[test]
 	fn doesnt_fire_before_history() {
-		let events = harness(vec![10, 11], 10, 5);
-		assert_eq!(events, vec![]);
+		harness(vec![10, 11], 10, 5, None);
 	}
 }

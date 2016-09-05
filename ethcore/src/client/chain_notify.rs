@@ -20,8 +20,7 @@ use util::H256;
 /// Represents what has to be handled by actor listening to chain events
 #[derive(Ipc)]
 pub trait ChainNotify : Send + Sync {
-	/// fires when chain has new blocks, not including those encountered during
-	/// a major sync.
+	/// fires when chain has new blocks.
 	fn new_blocks(&self,
 		_imported: Vec<H256>,
 		_invalid: Vec<H256>,
