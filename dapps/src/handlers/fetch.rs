@@ -16,7 +16,7 @@
 
 //! Hyper Server Handler that fetches a file during a request (proxy).
 
-use std::fmt;
+use std::{fs, fmt};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::AtomicBool;
@@ -165,7 +165,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 				match rec {
 					// Unpack and validate
 					Ok(Ok(path)) => {
-						trace!(target: "dapps", "Fetching content finished. Starting validation.");
+						trace!(target: "dapps", "Fetching content finished. Starting validation ({:?})", path);
 						Self::close_client(&mut self.client);
 						// Unpack and verify
 						let state = match self.installer.validate_and_install(path.clone()) {
@@ -181,8 +181,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 							Ok(result) => FetchState::Done(result)
 						};
 						// Remove temporary zip file
-						// TODO [todr] Uncomment me
-						// let _ = fs::remove_file(path);
+						let _ = fs::remove_file(path);
 						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {

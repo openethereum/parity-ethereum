@@ -197,7 +197,7 @@ impl fmt::Display for ValidationError {
 		match *self {
 			ValidationError::Io(ref io) => write!(f, "Unexpected IO error occured: {:?}", io),
 			ValidationError::Zip(ref zip) => write!(f, "Unable to read ZIP archive: {:?}", zip),
-			ValidationError::InvalidContentId => write!(f, "ID is invalid. It should be 26 bits keccak hash of content."),
+			ValidationError::InvalidContentId => write!(f, "ID is invalid. It should be 256 bits keccak hash of content."),
 			ValidationError::ManifestNotFound => write!(f, "Downloaded Dapp bundle did not contain valid manifest.json file."),
 			ValidationError::ManifestSerialization(ref err) => {
 				write!(f, "There was an error during Dapp Manifest serialization: {:?}", err)
@@ -233,6 +233,10 @@ impl ContentValidator for ContentInstaller {
 	type Result = PathBuf;
 
 	fn validate_and_install(&self, path: PathBuf) -> Result<(String, PathBuf), ValidationError> {
+		// Create dir
+		try!(fs::create_dir_all(&self.content_path));
+
+		// And prepare path for a file
 		let filename = path.file_name().expect("We always fetch a file.");
 		let mut content_path = self.content_path.clone();
 		content_path.push(&filename);
