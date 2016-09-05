@@ -16,7 +16,7 @@
 
 //! Hyper Server Handler that fetches a file during a request (proxy).
 
-use std::{fs, fmt};
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::AtomicBool;
@@ -120,16 +120,20 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 							deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),
 							receiver: receiver,
 						},
-						Err(e) => FetchState::Error(ContentHandler::html(
+						Err(e) => FetchState::Error(ContentHandler::error(
 							StatusCode::BadGateway,
-							format!("<h1>Error starting dapp download.</h1><pre>{}</pre>", e),
+							"Unable To Start Dapp Download",
+							"Could not initialize download of the dapp. It might be a problem with the remote server.",
+							Some(&format!("{}", e)),
 						)),
 					}
 				},
 				// or return error
-				_ => FetchState::Error(ContentHandler::html(
+				_ => FetchState::Error(ContentHandler::error(
 					StatusCode::MethodNotAllowed,
-					"<h1>Only <code>GET</code> requests are allowed.</h1>".into(),
+					"Method Not Allowed",
+					"Only <code>GET</code> requests are allowed.",
+					None,
 				)),
 			})
 		} else { None };
@@ -146,10 +150,12 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 			// Request may time out
 			FetchState::InProgress { ref deadline, .. } if *deadline < Instant::now() => {
 				trace!(target: "dapps", "Fetching dapp failed because of timeout.");
-				let timeout = ContentHandler::html(
+				let timeout = ContentHandler::error(
 					StatusCode::GatewayTimeout,
-					format!("<h1>Could not fetch app bundle within {} seconds.</h1>", FETCH_TIMEOUT),
-					);
+					"Download Timeout",
+					&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
+					None
+				);
 				Self::close_client(&mut self.client);
 				(Some(FetchState::Error(timeout)), Next::write())
 			},
@@ -159,28 +165,33 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 				match rec {
 					// Unpack and validate
 					Ok(Ok(path)) => {
-						trace!(target: "dapps", "Fetching dapp finished. Starting validation.");
+						trace!(target: "dapps", "Fetching content finished. Starting validation.");
 						Self::close_client(&mut self.client);
 						// Unpack and verify
 						let state = match self.installer.validate_and_install(path.clone()) {
 							Err(e) => {
-								trace!(target: "dapps", "Error while validating dapp: {:?}", e);
-								FetchState::Error(ContentHandler::html(
+								trace!(target: "dapps", "Error while validating content: {:?}", e);
+								FetchState::Error(ContentHandler::error(
 									StatusCode::BadGateway,
-									format!("<h1>Downloaded bundle does not contain valid app.</h1><pre>{}</pre>", e),
+									"Invalid Dapp",
+									"Downloaded bundle does not contain a valid content.",
+									Some(&format!("{:?}", e))
 								))
 							},
 							Ok(result) => FetchState::Done(result)
 						};
 						// Remove temporary zip file
-						let _ = fs::remove_file(path);
+						// TODO [todr] Uncomment me
+						// let _ = fs::remove_file(path);
 						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {
 						warn!(target: "dapps", "Unable to fetch content: {:?}", e);
-						let error = ContentHandler::html(
+						let error = ContentHandler::error(
 							StatusCode::BadGateway,
-							"<h1>There was an error when fetching the dapp.</h1>".into(),
+							"Download Error",
+							"There was an error when fetching the content.",
+							Some(&format!("{:?}", e)),
 						);
 						(Some(FetchState::Error(error)), Next::write())
 					},

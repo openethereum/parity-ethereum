@@ -24,12 +24,12 @@ use DAPPS_DOMAIN;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::{Url, Host};
-use hyper::{self, server, Next, Encoder, Decoder, Control};
+use hyper::{self, server, Next, Encoder, Decoder, Control, StatusCode};
 use hyper::net::HttpStream;
 use apps;
 use apps::fetcher::ContentFetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
-use handlers::{Redirection, extract_url};
+use handlers::{Redirection, extract_url, ContentHandler};
 use self::auth::{Authorization, Authorized};
 
 /// Special endpoints are accessible on every domain (every dapp)
@@ -55,9 +55,16 @@ pub struct Router<A: Authorization + 'static> {
 impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
+
+		// Choose proper handler depending on path / domain
+		let url = extract_url(&req);
+		let endpoint = extract_endpoint(&url);
+		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
+
 		// Validate Host header
 		if let Some(ref hosts) = self.allowed_hosts {
-			if !host_validation::is_valid(&req, hosts, self.endpoints.keys().cloned().collect()) {
+			let is_valid = is_utils || host_validation::is_valid(&req, hosts, self.endpoints.keys().cloned().collect());
+			if !is_valid {
 				self.handler = host_validation::host_invalid_response();
 				return self.handler.on_request(req);
 			}
@@ -70,11 +77,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			return self.handler.on_request(req);
 		}
 
-		// Choose proper handler depending on path / domain
-		let url = extract_url(&req);
-		let endpoint = extract_endpoint(&url);
 		let control = self.control.take().expect("on_request is called only once; control is always defined at start; qed");
-
 		self.handler = match endpoint {
 			// First check special endpoints
 			(ref path, ref endpoint) if self.special.contains_key(endpoint) => {
@@ -91,7 +94,12 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			// Redirection to main page (maybe 404 instead?)
 			(Some(ref path), _) if *req.method() == hyper::method::Method::Get => {
 				let address = apps::redirection_address(path.using_dapps_domains, self.main_page);
-				Redirection::new(address.as_str())
+				Box::new(ContentHandler::error(
+					StatusCode::NotFound,
+					"404 Not Found",
+					"Requested content was not found.",
+					Some(&format!("Go back to the <a href=\"{}\">Home Page</a>.", address))
+				))
 			},
 			// Redirect any GET request to home.
 			_ if *req.method() == hyper::method::Method::Get => {

@@ -94,7 +94,7 @@ impl Fetch {
 
 impl Fetch {
 	fn is_aborted(&self) -> bool {
-		self.abort.load(Ordering::Relaxed)
+		self.abort.load(Ordering::SeqCst)
 	}
 	fn mark_aborted(&mut self) -> Next {
 		self.result = Some(Err(Error::Aborted.into()));

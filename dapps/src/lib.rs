@@ -62,6 +62,8 @@ extern crate https_fetch;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate linked_hash_map;
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;
 
 mod endpoint;
 mod apps;
@@ -87,11 +89,22 @@ use ethcore_rpc::Extendable;
 
 static DAPPS_DOMAIN : &'static str = ".parity";
 
+/// Indicates sync status
+pub trait SyncStatus: Send + Sync {
+	/// Returns true if there is a major sync happening.
+	fn is_major_syncing(&self) -> bool;
+}
+
+impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
+	fn is_major_syncing(&self) -> bool { self() }
+}
+
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
 	dapps_path: String,
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
+	sync_status: Arc<SyncStatus>,
 }
 
 impl Extendable for ServerBuilder {
@@ -107,7 +120,13 @@ impl ServerBuilder {
 			dapps_path: dapps_path,
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
+			sync_status: Arc::new(|| false),
 		}
+	}
+
+	/// Change default sync status.
+	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
+		self.sync_status = status;
 	}
 
 	/// Asynchronously start server with no authentication,
@@ -119,7 +138,8 @@ impl ServerBuilder {
 			NoAuth,
 			self.handler.clone(),
 			self.dapps_path.clone(),
-			self.registrar.clone()
+			self.registrar.clone(),
+			self.sync_status.clone(),
 		)
 	}
 
@@ -132,7 +152,8 @@ impl ServerBuilder {
 			HttpBasicAuth::single_user(username, password),
 			self.handler.clone(),
 			self.dapps_path.clone(),
-			self.registrar.clone()
+			self.registrar.clone(),
+			self.sync_status.clone(),
 		)
 	}
 }
@@ -166,10 +187,11 @@ impl Server {
 		handler: Arc<IoHandler>,
 		dapps_path: String,
 		registrar: Arc<ContractClient>,
+		sync_status: Arc<SyncStatus>,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar)));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
 		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
 		let special = Arc::new({
 			let mut special = HashMap::new();
