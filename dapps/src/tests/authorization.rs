@@ -54,7 +54,7 @@ fn should_reject_on_invalid_auth() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 401 Unauthorized".to_owned());
-	assert_eq!(response.body, "15\n<h1>Unauthorized</h1>\n0\n\n".to_owned());
+	assert!(response.body.contains("Unauthorized"), response.body);
 	assert_eq!(response.headers_raw.contains("WWW-Authenticate"), false);
 }
 
