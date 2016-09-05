@@ -403,18 +403,18 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let offset = stack.pop_back();
 				let size = stack.pop_back();
 				let sha3 = self.mem.read_slice(offset, size).sha3();
-				stack.push(U256::from(sha3.as_slice()));
+				stack.push(U256::from(&*sha3));
 			},
 			instructions::SLOAD => {
 				let key = H256::from(&stack.pop_back());
-				let word = U256::from(ext.storage_at(&key).as_slice());
+				let word = U256::from(&*ext.storage_at(&key));
 				stack.push(word);
 			},
 			instructions::SSTORE => {
 				let address = H256::from(&stack.pop_back());
 				let val = stack.pop_back();
 
-				let current_val = U256::from(ext.storage_at(&address).as_slice());
+				let current_val = U256::from(&*ext.storage_at(&address));
 				// Increase refund for clear
 				if !self.is_zero(&current_val) && self.is_zero(&val) {
 					ext.inc_sstore_clears();
@@ -491,7 +491,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::BLOCKHASH => {
 				let block_number = stack.pop_back();
 				let block_hash = ext.blockhash(&block_number);
-				stack.push(U256::from(block_hash.as_slice()));
+				stack.push(U256::from(&*block_hash));
 			},
 			instructions::COINBASE => {
 				stack.push(address_to_u256(ext.env_info().author.clone()));
@@ -807,7 +807,7 @@ fn u256_to_address(value: &U256) -> Address {
 
 #[inline]
 fn address_to_u256(value: Address) -> U256 {
-	U256::from(H256::from(value).as_slice())
+	U256::from(&*H256::from(value))
 }
 
 #[test]

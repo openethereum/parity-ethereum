@@ -20,8 +20,8 @@ use block::Block;
 use header::Header;
 
 use views::BlockView;
-use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
-use util::rlp::{Compressible, RlpType};
+use rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
+use rlp::{Compressible, RlpType};
 use util::{Bytes, Hashable, H256};
 
 const HEADER_FIELDS: usize = 10;
@@ -103,7 +103,7 @@ impl AbridgedBlock {
 		header.set_gas_used(try!(rlp.val_at(7)));
 		header.set_timestamp(try!(rlp.val_at(8)));
 		header.set_extra_data(try!(rlp.val_at(9)));
-		
+
 		let transactions = try!(rlp.val_at(10));
 		let uncles: Vec<Header> = try!(rlp.val_at(11));
 

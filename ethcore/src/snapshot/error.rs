@@ -22,7 +22,7 @@ use ids::BlockID;
 
 use util::H256;
 use util::trie::TrieError;
-use util::rlp::DecoderError;
+use rlp::DecoderError;
 
 /// Snapshot-related errors.
 #[derive(Debug)]

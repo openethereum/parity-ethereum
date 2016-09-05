@@ -2,6 +2,7 @@
 
 export TARGETS="
 	-p bigint\
+	-p rlp\
 	-p ethash \
 	-p ethcore \
 	-p ethcore-dapps \

@@ -24,6 +24,7 @@
 use common::*;
 use engines::Engine;
 use blockchain::*;
+use rlp::{UntrustedRlp, View};
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -240,6 +241,7 @@ mod tests {
 	use spec::*;
 	use transaction::*;
 	use tests::helpers::*;
+	use rlp::View;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -346,6 +348,8 @@ mod tests {
 	#[test]
 	#[cfg_attr(feature="dev", allow(similar_names))]
 	fn test_verify_block() {
+		use rlp::{RlpStream, Stream};
+
 		// Test against morden
 		let mut good = Header::new();
 		let spec = Spec::new_test();
@@ -411,7 +415,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
-		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| encode::<SignedTransaction>(t).to_vec()).collect());
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<SignedTransaction>(t).to_vec()).collect());
 
 		let mut parent = good.clone();
 		parent.set_number(9);

@@ -24,7 +24,7 @@ use mio::udp::*;
 use util::sha3::*;
 use time;
 use util::hash::*;
-use util::rlp::*;
+use rlp::*;
 use node_table::*;
 use error::NetworkError;
 use io::{StreamToken, IoContext};

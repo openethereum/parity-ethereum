@@ -60,7 +60,7 @@ impl ContentCache {
 				ContentStatus::Fetching(ref abort) => {
 					trace!(target: "dapps", "Aborting {} because of limit.", entry.0);
 					// Mark as aborted
-					abort.store(true, Ordering::Relaxed);
+					abort.store(true, Ordering::SeqCst);
 				},
 				ContentStatus::Ready(ref endpoint) => {
 					trace!(target: "dapps", "Removing {} because of limit.", entry.0);

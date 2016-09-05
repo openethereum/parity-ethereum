@@ -1,0 +1,18 @@
+[package]
+description = "HTTPS fetching library"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "https-fetch"
+version = "0.1.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+log = "0.3"
+mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
+rustls = { git = "https://github.com/ctz/rustls" }
+clippy = { version = "0.0.85", optional = true}
+
+[features]
+default = []
+ca-github-only = []
+dev = ["clippy"]
