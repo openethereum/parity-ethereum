@@ -384,7 +384,7 @@ pub struct Args {
 	pub flag_from: String,
 	pub flag_to: String,
 	pub flag_at: String,
-  pub flag_no_periodic_snapshot: bool,
+	pub flag_no_periodic_snapshot: bool,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_log_file: Option<String>,

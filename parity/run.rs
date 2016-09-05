@@ -273,17 +273,6 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		},
 	};
 
-	if !cmd.no_periodic_snapshot {
-		let watcher = snapshot::Watcher::new(
-			service.client(),
-			service.io().channel(),
-			SNAPSHOT_PERIOD,
-			SNAPSHOT_HISTORY,
-		);
-
-		service.add_notify(Arc::new(watcher));
-	}
-
 	// start ui
 	if cmd.ui {
 		if !cmd.dapps_conf.enabled {
