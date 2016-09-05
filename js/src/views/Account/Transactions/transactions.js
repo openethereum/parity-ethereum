@@ -144,7 +144,7 @@ export default class Transactions extends Component {
               <th>&nbsp;</th>
               <th className={ styles.left }>from</th>
               <th className={ styles.left }>to</th>
-              <th className={ styles.center }>txhash</th>
+              <th className={ styles.center }>transaction</th>
               <th className={ styles.right }>block</th>
               <th className={ styles.right }>age</th>
               <th className={ styles.right }>value</th>
