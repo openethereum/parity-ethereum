@@ -15,7 +15,7 @@ class OfflinePage extends Component {
   render () {
     return (
       <Container>
-        ContainerTitle title='Offline' />
+        <ContainerTitle title='Offline' />
         <p>Could not connect to the node. Make sure Parity is running and Trusted Signer is enabled.</p>
         { this.renderInstallLink() }
       </Container>
