@@ -1,11 +1,12 @@
 function updateStatus (state, action) {
-  const { blockNumber, clientVersion, netPeers, netChain } = action.status;
+  const { blockNumber, clientVersion, netPeers, netChain, isTest } = action.status;
 
   return Object.assign({}, state, {
     blockNumber,
     clientVersion,
     netPeers,
-    netChain
+    netChain,
+    isTest
   });
 }
 

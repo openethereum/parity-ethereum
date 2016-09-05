@@ -9,13 +9,13 @@ class Status extends Component {
     blockNumber: PropTypes.object,
     clientVersion: PropTypes.string,
     netPeers: PropTypes.object,
-    netChain: PropTypes.string
+    netChain: PropTypes.string,
+    isTest: PropTypes.bool
   }
 
   render () {
-    const { clientVersion, blockNumber, netChain, netPeers } = this.props;
-    const isTestNet = netChain === 'morden';
-    const netStyle = `${styles.network} ${styles[isTestNet ? 'networktest' : 'networklive']}`;
+    const { clientVersion, blockNumber, netChain, netPeers, isTest } = this.props;
+    const netStyle = `${styles.network} ${styles[isTest ? 'networktest' : 'networklive']}`;
 
     if (!blockNumber) {
       return null;
@@ -36,7 +36,7 @@ class Status extends Component {
             </div>
           </div>
           <div className={ netStyle }>
-            { isTestNet ? 'test' : netChain }
+            { isTest ? 'test' : netChain }
           </div>
         </div>
       </div>
@@ -45,13 +45,14 @@ class Status extends Component {
 }
 
 function mapStateToProps (state) {
-  const { blockNumber, clientVersion, netPeers, netChain } = state.status;
+  const { blockNumber, clientVersion, netPeers, netChain, isTest } = state.status;
 
   return {
     blockNumber,
     clientVersion,
     netPeers,
-    netChain
+    netChain,
+    isTest
   };
 }
 

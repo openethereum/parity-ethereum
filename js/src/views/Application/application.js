@@ -50,6 +50,7 @@ class Application extends Component {
   static propTypes = {
     children: PropTypes.node,
     netChain: PropTypes.string,
+    isTest: PropTypes.bool,
     onUpdateStatus: PropTypes.func
   }
 
@@ -173,7 +174,7 @@ class Application extends Component {
         return Promise.all(
           balancesTxCounts.map(([balance, txCount], idx) => {
             const account = accounts[idx];
-            const isTest = this.props.netChain === 'morden';
+            const { isTest } = this.props;
 
             account.txCount = txCount.sub(isTest ? 0x100000 : 0); // WHY?
             account.balances = [{
@@ -291,6 +292,8 @@ class Application extends Component {
         api.eth.syncing()
       ])
       .then(([blockNumber, clientVersion, netChain, netPeers, syncing]) => {
+        const isTest = netChain === 'morden' || netChain === 'testnet';
+
         if (blockNumber.gt(lastBlockNumber)) {
           lastBlockNumber = blockNumber;
           this.retrieveBalances();
@@ -301,6 +304,7 @@ class Application extends Component {
           clientVersion,
           netChain,
           netPeers,
+          isTest,
           syncing
         });
 
@@ -321,10 +325,11 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { netChain } = state.status;
+  const { netChain, isTest } = state.status;
 
   return {
-    netChain
+    netChain,
+    isTest
   };
 }
 

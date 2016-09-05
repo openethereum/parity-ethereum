@@ -1,5 +1,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import moment from 'moment';
 import LinearProgress from 'material-ui/LinearProgress';
 
@@ -35,7 +37,7 @@ function formatEther (value) {
   return null;
 }
 
-export default class Transactions extends Component {
+class Transactions extends Component {
   static contextTypes = {
     api: PropTypes.object,
     accounts: PropTypes.array,
@@ -45,7 +47,8 @@ export default class Transactions extends Component {
   }
 
   static propTypes = {
-    address: PropTypes.string.isRequired
+    address: PropTypes.string.isRequired,
+    isTest: PropTypes.bool
   }
 
   state = {
@@ -100,10 +103,9 @@ export default class Transactions extends Component {
   }
 
   renderTransactions () {
+    const { isTest } = this.props;
+    const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
     let transactions = null;
-    const prefix = this.state.isTest
-      ? 'https://testnet.etherscan.io/'
-      : 'https://etherscan.io/';
 
     if (this.state.transactions && this.state.transactions.length) {
       transactions = (this.state.transactions || []).map((tx) => {
@@ -169,20 +171,32 @@ export default class Transactions extends Component {
   }
 
   getTransactions = () => {
-    this.context.api.ethcore
-      .netChain()
-      .then((netChain) => {
-        const isTest = netChain === 'morden';
+    const { isTest } = this.props;
 
-        return etherscan.account
-          .transactions(this.props.address, 0, isTest)
-          .then((transactions) => {
-            this.setState({
-              transactions,
-              isTest,
-              loading: false
-            });
-          });
+    return etherscan.account
+      .transactions(this.props.address, 0, isTest)
+      .then((transactions) => {
+        this.setState({
+          transactions,
+          loading: false
+        });
       });
   }
 }
+
+function mapStateToProps (state) {
+  const { isTest } = state.status;
+
+  return {
+    isTest
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Transactions);
