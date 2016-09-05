@@ -76,28 +76,27 @@ export default class Events extends Component {
     const { instance } = this.context;
     let key = 0;
 
+    const sortEvents = (a, b) => b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
+    const logToEvent = (eventName, log) => {
+      const { blockNumber, logIndex, transactionHash, transactionIndex, params, type } = log;
+
+      return {
+        type: eventName,
+        state: type,
+        blockNumber,
+        logIndex,
+        transactionHash,
+        transactionIndex,
+        params,
+        key: ++key
+      };
+    };
+
     ['Approval', 'Buyin', 'Refund', 'Transfer', 'NewTranch'].forEach((eventName) => {
       const options = {
         fromBlock: 0,
         toBlock: 'pending'
       };
-
-      const logToEvent = (log) => {
-        const { blockNumber, logIndex, transactionHash, transactionIndex, params, type } = log;
-
-        return {
-          type: eventName,
-          state: type,
-          blockNumber,
-          logIndex,
-          transactionHash,
-          transactionIndex,
-          params,
-          key: ++key
-        };
-      };
-
-      const sortEvents = (a, b) => b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
 
       instance[eventName].subscribe(options, (logs) => {
         if (!logs.length) {
@@ -108,13 +107,13 @@ export default class Events extends Component {
 
         const minedEvents = logs
           .filter((log) => log.type === 'mined')
-          .map(logToEvent)
+          .map((log) => logToEvent(eventName, log))
           .reverse()
           .concat(this.state.minedEvents)
           .sort(sortEvents);
         const pendingEvents = logs
           .filter((log) => log.type === 'pending')
-          .map(logToEvent)
+          .map((log) => logToEvent(eventName, log))
           .reverse()
           .concat(this.state.pendingEvents.filter((event) => {
             return !logs.find((log) => {
