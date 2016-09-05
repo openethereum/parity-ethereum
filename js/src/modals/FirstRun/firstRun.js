@@ -56,7 +56,7 @@ class FirstRun extends Component {
   }
 
   renderStage () {
-    const { stage } = this.state;
+    const { address, name, phrase, stage } = this.state;
 
     switch (stage) {
       case 0:
@@ -71,9 +71,9 @@ class FirstRun extends Component {
       case 2:
         return (
           <AccountDetails
-            address={ this.state.address }
-            name={ this.state.name }
-            phrase={ this.state.phrase } />
+            address={ address }
+            name={ name }
+            phrase={ phrase } />
         );
       case 3:
         return (
@@ -83,7 +83,7 @@ class FirstRun extends Component {
   }
 
   renderDialogActions () {
-    const { stage } = this.state;
+    const { canCreate, stage } = this.state;
 
     switch (stage) {
       case 0:
@@ -101,7 +101,7 @@ class FirstRun extends Component {
           <FlatButton
             icon={ <ActionDone /> }
             label='Create'
-            disabled={ !this.state.canCreate }
+            disabled={ !canCreate }
             primary
             onTouchTap={ this.onCreate } />
         );
@@ -145,14 +145,15 @@ class FirstRun extends Component {
 
   onCreate = () => {
     const { api } = this.context;
+    const { name, phrase, password } = this.state;
 
     this.setState({
       canCreate: false
     });
 
     return api.personal
-      .newAccountFromPhrase(this.state.phrase, this.state.password)
-      .then((address) => api.personal.setAccountName(address, this.state.name))
+      .newAccountFromPhrase(phrase, password)
+      .then((address) => api.personal.setAccountName(address, name))
       .then(() => {
         this.onNext();
       })

@@ -47,18 +47,20 @@ class CreateAccount extends Component {
   }
 
   render () {
+    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error } = this.state;
+
     return (
       <Form>
         <Input
           label='account name'
           hint='a descriptive name for the account'
-          error={ this.state.accountNameError }
-          value={ this.state.accountName }
+          error={ accountNameError }
+          value={ accountName }
           onChange={ this.onEditAccountName } />
         <Input
           label='password hint'
           hint='(optional) a hint to help with remembering the password'
-          value={ this.state.passwordHint }
+          value={ passwordHint }
           onChange={ this.onEditPasswordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
@@ -67,8 +69,8 @@ class CreateAccount extends Component {
               label='password'
               hint='a strong, unique password'
               type='password'
-              error={ this.state.password1Error }
-              value={ this.state.password1 }
+              error={ password1Error }
+              value={ password1 }
               onChange={ this.onEditPassword1 } />
           </div>
           <div className={ styles.password }>
@@ -77,8 +79,8 @@ class CreateAccount extends Component {
               label='password (repeat)'
               hint='verify your password'
               type='password'
-              error={ this.state.password2Error }
-              value={ this.state.password2 }
+              error={ password2Error }
+              value={ password2 }
               onChange={ this.onEditPassword2 } />
           </div>
         </div>
@@ -89,11 +91,13 @@ class CreateAccount extends Component {
   }
 
   renderIdentitySelector () {
-    if (!this.state.accounts) {
+    const { accounts, selectedAddress } = this.state;
+
+    if (!accounts) {
       return null;
     }
 
-    const buttons = Object.keys(this.state.accounts).map((address) => {
+    const buttons = Object.keys(accounts).map((address) => {
       return (
         <RadioButton
           className={ styles.button }
@@ -104,7 +108,7 @@ class CreateAccount extends Component {
 
     return (
       <RadioButtonGroup
-        valueSelected={ this.state.selectedAddress }
+        valueSelected={ selectedAddress }
         className={ styles.selector }
         name='identitySelector'
         onChange={ this.onChangeIdentity }>
@@ -114,11 +118,13 @@ class CreateAccount extends Component {
   }
 
   renderIdentities () {
-    if (!this.state.accounts) {
+    const { accounts } = this.state;
+
+    if (!accounts) {
       return null;
     }
 
-    const identities = Object.keys(this.state.accounts).map((address) => {
+    const identities = Object.keys(accounts).map((address) => {
       return (
         <div
           className={ styles.identity }
@@ -146,7 +152,7 @@ class CreateAccount extends Component {
   }
 
   createIdentities = () => {
-    const api = this.context.api;
+    const { api } = this.context;
 
     Promise
       .all([
@@ -186,12 +192,15 @@ class CreateAccount extends Component {
   }
 
   updateParent = () => {
-    this.props.onChange(this.state.isValidName && this.state.isValidPass, {
-      address: this.state.selectedAddress,
-      name: this.state.accountName,
-      passwordHint: this.state.passwordHint,
-      password: this.state.password1,
-      phrase: this.state.accounts[this.state.selectedAddress].phrase
+    const { isValidName, isValidPass, accounts, accountName, passwordHint, password1, selectedAddress } = this.state;
+    const isValid = isValidName && isValidPass;
+
+    this.props.onChange(isValid, {
+      address: selectedAddress,
+      name: accountName,
+      passwordHint,
+      password: password1,
+      phrase: accounts[selectedAddress].phrase
     });
   }
 

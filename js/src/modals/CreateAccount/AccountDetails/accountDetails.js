@@ -11,24 +11,26 @@ export default class AccountDetails extends Component {
   }
 
   render () {
+    const { address, name } = this.props;
+
     return (
       <Form>
         <IdentityIcon
           padded
-          address={ this.props.address } />
+          address={ address } />
         <FormWrap>
           <Input
             disabled
             hint='a descriptive name for the account'
             label='account name'
-            value={ this.props.name } />
+            value={ name } />
         </FormWrap>
         <FormWrap>
           <Input
             disabled
             hint='the network address for the account'
             label='address'
-            value={ this.props.address } />
+            value={ address } />
         </FormWrap>
         { this.renderPhrase() }
       </Form>
@@ -36,7 +38,9 @@ export default class AccountDetails extends Component {
   }
 
   renderPhrase () {
-    if (!this.props.phrase) {
+    const { phrase } = this.props;
+
+    if (!phrase) {
       return null;
     }
 
@@ -48,7 +52,7 @@ export default class AccountDetails extends Component {
           label='account recovery phrase (take note)'
           multiLine
           rows={ 1 }
-          value={ this.props.phrase } />
+          value={ phrase } />
       </FormWrap>
     );
   }

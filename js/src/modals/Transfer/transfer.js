@@ -66,11 +66,13 @@ class Transfer extends Component {
   }
 
   render () {
+    const { stage, extras } = this.state;
+
     return (
       <Modal
         actions={ this.renderDialogActions() }
-        current={ this.state.stage }
-        steps={ this.state.extras ? STAGES_EXTRA : STAGES_BASIC }
+        current={ stage }
+        steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
         title={ this.renderAccount() }
         visible>
         { this.renderPage() }
@@ -101,9 +103,11 @@ class Transfer extends Component {
   }
 
   renderPage () {
-    if (this.state.stage === 0) {
+    const { extras, stage } = this.state;
+
+    if (stage === 0) {
       return this.renderDetailsPage();
-    } else if (this.state.stage === 1 && this.state.extras) {
+    } else if (stage === 1 && extras) {
       return this.renderExtrasPage();
     }
 
@@ -111,10 +115,12 @@ class Transfer extends Component {
   }
 
   renderCompletePage () {
+    const { sending, txhash } = this.state;
+
     return (
       <Complete
-        sending={ this.state.sending }
-        txhash={ this.state.txhash } />
+        sending={ sending }
+        txhash={ txhash } />
     );
   }
 
@@ -154,6 +160,8 @@ class Transfer extends Component {
   }
 
   renderDialogActions () {
+    const { extras, sending, stage } = this.state;
+
     const cancelBtn = (
       <FlatButton
         icon={ <ContentClear /> }
@@ -175,7 +183,7 @@ class Transfer extends Component {
     );
     const sendBtn = (
       <FlatButton
-        disabled={ !this.isValid() || this.state.sending }
+        disabled={ !this.isValid() || sending }
         icon={ <ContentSend /> }
         label='Send' primary
         onTouchTap={ this.onSend } />
@@ -187,13 +195,13 @@ class Transfer extends Component {
         onTouchTap={ this.onClose } />
     );
 
-    switch (this.state.stage) {
+    switch (stage) {
       case 0:
-        return this.state.extras
+        return extras
           ? [cancelBtn, nextBtn]
           : [cancelBtn, sendBtn];
       case 1:
-        return this.state.extras
+        return extras
           ? [cancelBtn, prevBtn, sendBtn]
           : [doneBtn];
       default:

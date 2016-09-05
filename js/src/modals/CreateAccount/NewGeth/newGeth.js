@@ -25,12 +25,14 @@ export default class NewGeth extends Component {
   }
 
   render () {
-    if (!this.state.available.length) {
+    const { available } = this.state;
+
+    if (!available.length) {
       return (
         <div className={ styles.list }>There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance</div>
       );
     }
-    const checkboxes = this.state.available.map((account) => {
+    const checkboxes = available.map((account) => {
       const label = (
         <div className={ styles.selection }>
           <div className={ styles.icon }>
@@ -69,7 +71,7 @@ export default class NewGeth extends Component {
       return;
     }
 
-    const available = this.state.available;
+    const { available } = this.state;
     const account = available.find((_account) => _account.address === address);
     account.checked = checked;
     const selected = available.filter((_account) => _account.checked);
@@ -82,7 +84,7 @@ export default class NewGeth extends Component {
   }
 
   loadAvailable = () => {
-    const api = this.context.api;
+    const { accounts, api } = this.context;
 
     api.personal
       .listGethAccounts()
@@ -95,7 +97,7 @@ export default class NewGeth extends Component {
             this.setState({
               available: addresses
                 .filter((address) => {
-                  return !this.context.accounts.find((account) => account.address === address);
+                  return !accounts.find((account) => account.address === address);
                 })
                 .map((address, idx) => {
                   return {

@@ -18,10 +18,12 @@ export default class FundAccount extends Component {
   }
 
   render () {
+    const { stage } = this.state;
+
     return (
       <Modal
         actions={ this.renderDialogActions() }
-        current={ this.state.stage }
+        current={ stage }
         steps={ STAGE_NAMES }
         visible>
         <div>
