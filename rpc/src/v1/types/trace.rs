@@ -99,6 +99,7 @@ pub struct VMOperation {
 	/// Information concerning the execution of the operation.
 	pub ex: Option<VMExecutedOperation>,
 	/// Subordinate trace of the CALL/CREATE if applicable.
+	#[serde(bound="VMTrace: Serialize")]
 	pub sub: Option<VMTrace>,
 }
 
