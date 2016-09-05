@@ -344,6 +344,27 @@ mod tests {
 	}
 
 	#[test]
+	fn should_decode_urlhint_content_output() {
+		// given
+		let mut registrar = FakeRegistrar::new();
+		registrar.responses = Mutex::new(vec![
+			Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
+			Ok("00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadcafebeefbeefcafedeaddeedfeedffffffff000000000000000000000000000000000000000000000000000000000000003d68747470733a2f2f657468636f72652e696f2f6173736574732f696d616765732f657468636f72652d626c61636b2d686f72697a6f6e74616c2e706e67000000".from_hex().unwrap()),
+		]);
+		let urlhint = URLHintContract::new(Arc::new(registrar));
+
+		// when
+		let res = urlhint.resolve("test".bytes().collect());
+
+		// then
+		assert_eq!(res, Some(URLHintResult::Content(Content {
+			url: "https://ethcore.io/assets/images/ethcore-black-horizontal.png".into(),
+			mime: "image/png".into(),
+			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
+		})))
+	}
+
+	#[test]
 	fn should_return_valid_url() {
 		// given
 		let app = GithubApp {

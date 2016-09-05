@@ -17,7 +17,7 @@
 use std::env;
 use std::str;
 use std::sync::Arc;
-use rustc_serialize::hex::{ToHex, FromHex};
+use rustc_serialize::hex::FromHex;
 
 use ServerBuilder;
 use Server;

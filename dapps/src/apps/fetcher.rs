@@ -145,7 +145,7 @@ impl<R: URLHint> ContentFetcher<R> {
 						),
 						Some(URLHintResult::Content(content)) => (
 							Some(ContentStatus::Fetching(abort.clone())),
-								Box::new(ContentFetcherHandler::new(
+							Box::new(ContentFetcherHandler::new(
 								content.url,
 								abort,
 								control,
