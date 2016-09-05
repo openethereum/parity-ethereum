@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use util::*;
+use util::{H256, Hashable};
+use std::collections::HashSet;
 use ethcore::snapshot::ManifestData;
 
 #[derive(PartialEq, Eq, Debug)]

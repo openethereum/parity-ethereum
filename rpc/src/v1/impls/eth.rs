@@ -255,7 +255,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		let res = match status.state {
 			SyncState::Idle => SyncStatus::None,
 			SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead
-				| SyncState::SnapshotManifest | SyncState::SnapshotData | SyncState:: SnapshotWaiting => {
+				| SyncState::SnapshotManifest | SyncState::SnapshotData | SyncState::SnapshotWaiting => {
 				let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
 				let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
 

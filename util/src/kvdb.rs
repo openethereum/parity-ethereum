@@ -446,7 +446,7 @@ impl Database {
 	}
 
 	/// Close the database
-	pub fn close(&self) {
+	fn close(&self) {
 		*self.db.write() = None;
 		self.overlay.write().clear();
 	}
@@ -490,7 +490,6 @@ impl Database {
 		let db = try!(Self::open(&self.config, &self.path));
 		*self.db.write() = mem::replace(&mut *db.db.write(), None);
 		*self.overlay.write() = mem::replace(&mut *db.overlay.write(), Vec::new());
-		println!("Restored {} cols", self.db.read().as_ref().unwrap().cfs.len());
 		Ok(())
 	}
 }

@@ -2169,7 +2169,6 @@ mod tests {
 		let mut ss = TestSnapshotService::new();
 		// should sent some
 		{
-
 			let mut io = TestIo::new(&mut client, &mut ss, &mut queue, None);
 			let peer_count = sync.propagate_new_transactions(&mut io);
 			assert_eq!(1, io.queue.len());
