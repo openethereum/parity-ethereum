@@ -24,6 +24,7 @@ use rlp::*;
 use action_params::ActionParams;
 use basic_types::LogBloom;
 use types::executed::CallType;
+use super::error::Error;
 
 /// `Call` result.
 #[derive(Debug, Clone, PartialEq, Default, Binary)]
@@ -322,9 +323,9 @@ pub enum Res {
 	/// Successful create action result.
 	Create(CreateResult),
 	/// Failed call.
-	FailedCall,
+	FailedCall(Error),
 	/// Failed create.
-	FailedCreate,
+	FailedCreate(Error),
 	/// None
 	None,
 }
@@ -342,13 +343,15 @@ impl Encodable for Res {
 				s.append(&1u8);
 				s.append(create);
 			},
-			Res::FailedCall => {
-				s.begin_list(1);
+			Res::FailedCall(ref err) => {
+				s.begin_list(2);
 				s.append(&2u8);
+				s.append(err);
 			},
-			Res::FailedCreate => {
-				s.begin_list(1);
+			Res::FailedCreate(ref err) => {
+				s.begin_list(2);
 				s.append(&3u8);
+				s.append(err);
 			},
 			Res::None => {
 				s.begin_list(1);
@@ -365,8 +368,8 @@ impl Decodable for Res {
 		match action_type {
 			0 => d.val_at(1).map(Res::Call),
 			1 => d.val_at(1).map(Res::Create),
-			2 => Ok(Res::FailedCall),
-			3 => Ok(Res::FailedCreate),
+			2 => d.val_at(1).map(Res::FailedCall),
+			3 => d.val_at(1).map(Res::FailedCreate),
 			4 => Ok(Res::None),
 			_ => Err(DecoderError::Custom("Invalid result type.")),
 		}
@@ -378,7 +381,7 @@ impl Res {
 	pub fn bloom(&self) -> LogBloom {
 		match *self {
 			Res::Create(ref create) => create.bloom(),
-			Res::Call(_) | Res::FailedCall | Res::FailedCreate | Res::None => Default::default(),
+			Res::Call(_) | Res::FailedCall(_) | Res::FailedCreate(_) | Res::None => Default::default(),
 		}
 	}
 }
