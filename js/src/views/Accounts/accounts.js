@@ -51,10 +51,12 @@ export default class Accounts extends Component {
 
     return (
       <Actionbar
+        className={ styles.toolbar }
         title='Accounts Overview'
         buttons={ buttons }>
         <Tooltip
-          left='5%' top='85%'
+          className={ styles.toolbarTooltip }
+          right
           text='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item' />
       </Actionbar>
     );
@@ -70,7 +72,7 @@ export default class Accounts extends Component {
     const { tokens } = this.state;
     const firstTooltip = (
       <Tooltip
-        top='80%'
+        className={ styles.accountTooltip }
         text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
     );
 

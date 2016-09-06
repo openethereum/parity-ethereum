@@ -16,10 +16,10 @@ class Tooltip extends Component {
   static propTypes = {
     title: PropTypes.string,
     text: PropTypes.string,
-    top: PropTypes.string,
-    left: PropTypes.string,
+    right: PropTypes.bool,
     currentId: PropTypes.number,
     maxId: PropTypes.number,
+    className: PropTypes.string,
     onNewTooltip: PropTypes.func,
     onNextTooltip: PropTypes.func,
     onCloseTooltips: PropTypes.func
@@ -38,8 +38,8 @@ class Tooltip extends Component {
 
   render () {
     const { id } = this.state;
-    const { currentId, maxId, top, left, onCloseTooltips, onNextTooltip } = this.props;
-    const inlineStyles = { top, left };
+    const { className, currentId, maxId, right, onCloseTooltips, onNextTooltip } = this.props;
+    const classes = `${styles.box} ${right ? styles.arrowRight : styles.arrowLeft} ${className}`;
 
     if (id !== currentId) {
       return null;
@@ -66,8 +66,7 @@ class Tooltip extends Component {
 
     return (
       <div
-        style={ inlineStyles }
-        className={ styles.box }>
+        className={ classes }>
         <div className={ styles.title }>
           { this.props.title }
         </div>

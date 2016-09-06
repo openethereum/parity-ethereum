@@ -21,6 +21,16 @@
   position: relative;
 }
 
+.accountTooltip {
+  top: 5.5em;
+  left: 5em;
+}
+
+.toolbarTooltip {
+  right: 20px;
+  top: 4em;
+}
+
 .tooltitle {
   text-transform: uppercase;
 }

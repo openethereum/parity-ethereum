@@ -7,14 +7,15 @@ export default class Actionbar extends Component {
   static propTypes = {
     title: PropTypes.string,
     buttons: PropTypes.array,
-    children: PropTypes.node
+    children: PropTypes.node,
+    className: PropTypes.string
   };
 
   render () {
-    const { children } = this.props;
+    const { children, className } = this.props;
 
     return (
-      <Toolbar>
+      <Toolbar className={ className }>
         { this.renderTitle() }
         { this.renderButtons() }
         { children }
