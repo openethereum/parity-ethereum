@@ -17,7 +17,9 @@ export default class Addresses extends Component {
     return (
       <div className={ styles.addresses }>
         { this.renderActionbar() }
-        <List accounts={ contacts } />
+        <List
+          contact
+          accounts={ contacts } />
       </div>
     );
   }

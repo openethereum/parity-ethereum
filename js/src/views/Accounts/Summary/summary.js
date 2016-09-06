@@ -15,7 +15,7 @@ export default class Summary extends Component {
 
   static propTypes = {
     account: PropTypes.object.isRequired,
-    contact: PropTypes.string,
+    contact: PropTypes.bool,
     children: PropTypes.node
   }
 

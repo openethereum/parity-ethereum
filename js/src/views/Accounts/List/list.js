@@ -7,7 +7,8 @@ import styles from './list.css';
 
 export default class List extends Component {
   static propTypes = {
-    accounts: PropTypes.array
+    accounts: PropTypes.array,
+    contact: PropTypes.bool
   };
 
   render () {
@@ -19,7 +20,7 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts } = this.props;
+    const { accounts, contact } = this.props;
 
     if (!accounts || !accounts.length) {
       return (
@@ -37,6 +38,7 @@ export default class List extends Component {
           className={ styles.account }
           key={ account.address }>
           <Summary
+            contact={ contact }
             account={ account } />
         </div>
       );
