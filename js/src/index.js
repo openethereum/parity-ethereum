@@ -11,7 +11,7 @@ import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 import { muiTheme } from './ui';
-import { Accounts, Account, Application, Contract, Contracts, Dapp, Dapps } from './views';
+import { Accounts, Account, Addresses, Application, Contract, Contracts, Dapp, Dapps } from './views';
 
 import { errorReducer } from './ui/Errors';
 import { tooltipReducer } from './ui/Tooltips';
@@ -70,6 +70,7 @@ ReactDOM.render(
           <Route path='/' component={ Application }>
             <Route path='accounts' component={ Accounts } />
             <Route path='account/:address' component={ Account } />
+            <Route path='addresses' component={ Addresses } />
             <Route path='apps' component={ Dapps } />
             <Route path='app/:name' component={ Dapp } />
             <Route path='contracts' component={ Contracts } />

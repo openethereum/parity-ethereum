@@ -42,8 +42,8 @@ class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
     accounts: PropTypes.array,
+    balances: PropTypes.object,
     contacts: PropTypes.array,
-    contracts: PropTypes.array,
     tokens: PropTypes.array
   }
 
@@ -57,6 +57,7 @@ class Application extends Component {
   state = {
     showFirstRun: false,
     accounts: [],
+    balances: {},
     contacts: [],
     contracts: [],
     tokens: []
@@ -93,13 +94,13 @@ class Application extends Component {
   }
 
   getChildContext () {
-    const { accounts, contacts, contracts, tokens } = this.state;
+    const { accounts, balances, contacts, tokens } = this.state;
 
     return {
       api,
       accounts,
+      balances,
       contacts,
-      contracts,
       tokens
     };
   }
@@ -122,9 +123,7 @@ class Application extends Component {
           if (uuid) {
             const account = this.state.accounts.find((_account) => _account.uuid === uuid) || {
               address,
-              uuid,
-              balances: [],
-              txCount: 0
+              uuid
             };
 
             accounts.push(Object.assign(account, {
@@ -157,13 +156,13 @@ class Application extends Component {
   }
 
   retrieveBalances = () => {
-    const { accounts, tokens } = this.state;
+    const { accounts, contacts, tokens } = this.state;
+    const balances = {};
+    const addresses = accounts.concat(contacts).map((account) => account.address);
 
     return Promise
       .all(
-        accounts.map((account) => {
-          const { address } = account;
-
+        addresses.map((address) => {
           return Promise.all([
             api.eth.getBalance(address),
             api.eth.getTransactionCount(address)
@@ -173,29 +172,32 @@ class Application extends Component {
       .then((balancesTxCounts) => {
         return Promise.all(
           balancesTxCounts.map(([balance, txCount], idx) => {
-            const account = accounts[idx];
+            const address = addresses[idx];
             const { isTest } = this.props;
 
-            account.txCount = txCount.sub(isTest ? 0x100000 : 0); // WHY?
-            account.balances = [{
-              token: ETH_TOKEN,
-              value: balance.toString()
-            }];
+            balances[address] = {
+              txCount: txCount.sub(isTest ? 0x100000 : 0),
+              tokens: [{
+                token: ETH_TOKEN,
+                value: balance.toString()
+              }]
+            };
 
             return Promise.all(
               tokens.map((token) => {
-                return token.contract.instance.balanceOf.call({}, [account.address]);
+                return token.contract.instance.balanceOf.call({}, [address]);
               })
             );
           })
         );
       })
-      .then((balances) => {
-        accounts.forEach((account, idx) => {
-          const balanceOf = balances[idx];
+      .then((tokenBalances) => {
+        addresses.forEach((address, idx) => {
+          const balanceOf = tokenBalances[idx];
+          const balance = balances[address];
 
           tokens.forEach((token, tidx) => {
-            account.balances.push({
+            balance.tokens.push({
               token,
               value: balanceOf[tidx].toString()
             });
@@ -203,7 +205,7 @@ class Application extends Component {
         });
 
         this.setState({
-          accounts
+          balances
         });
       })
       .catch((error) => {
@@ -212,66 +214,42 @@ class Application extends Component {
   }
 
   retrieveTokens = () => {
-    const contracts = {};
-    const tokens = [];
-
     api.ethcore
       .registryAddress()
       .then((registryAddress) => {
-        contracts.registry = api.newContract(registryAbi, registryAddress);
+        const registry = api.newContract(registryAbi, registryAddress);
 
-        return contracts.registry.instance.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
+        return registry.instance.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
       })
       .then((tokenregAddress) => {
-        contracts.tokenreg = api.newContract(tokenRegAbi, tokenregAddress);
+        const tokenreg = api.newContract(tokenRegAbi, tokenregAddress);
 
-        return contracts.tokenreg.instance.tokenCount.call();
+        return tokenreg.instance.tokenCount
+          .call()
+          .then((numTokens) => {
+            const promises = [];
+
+            while (promises.length < numTokens.toNumber()) {
+              promises.push(tokenreg.instance.token.call({}, [promises.length]));
+            }
+
+            return Promise.all(promises);
+          });
       })
-      .then((tokenCount) => {
-        const promises = [];
-
-        while (promises.length < tokenCount.toNumber()) {
-          promises.push(contracts.tokenreg.instance.token.call({}, [promises.length]));
-        }
-
-        return Promise.all(promises);
-      })
-      .then((_tokens) => {
-        return Promise.all(
-          _tokens.map((token) => {
-            const contract = api.newContract(eip20Abi);
-            contract.at(token[0]);
-
-            tokens.push({
-              address: token[0],
-              format: token[2].toString(),
-              images: images[token[3].toLowerCase()],
-              supply: '0',
-              tag: token[1],
-              name: token[3],
-              contract
-            });
-
-            return contract.instance.totalSupply.call();
-          })
-        );
-      })
-      .then((supplies) => {
-        supplies.forEach((supply, idx) => {
-          tokens[idx].supply = supply.toString();
-        });
-
+      .then((tokens) => {
         this.setState({
-          tokens,
-          contracts: Object.keys(contracts).map((name) => {
-            const contract = contracts[name];
+          tokens: tokens.map((token) => {
+            const [address, tag, format, name] = token;
 
             return {
+              address,
               name,
-              contract,
-              address: contract.address
+              tag,
+              format: format.toString(),
+              images: images[name.toLowerCase()],
+              contract: api.newContract(eip20Abi, address)
             };
-          }).concat(tokens)
+          })
         }, this.retrieveBalances);
       })
       .catch((error) => {
@@ -294,11 +272,6 @@ class Application extends Component {
       .then(([blockNumber, clientVersion, netChain, netPeers, syncing]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
 
-        if (blockNumber.gt(lastBlockNumber)) {
-          lastBlockNumber = blockNumber;
-          this.retrieveBalances();
-        }
-
         onUpdateStatus({
           blockNumber,
           clientVersion,
@@ -307,6 +280,11 @@ class Application extends Component {
           isTest,
           syncing
         });
+
+        if (blockNumber.gt(lastBlockNumber)) {
+          lastBlockNumber = blockNumber;
+          this.retrieveBalances();
+        }
 
         nextTimeout();
       })

@@ -19,6 +19,4 @@ muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)'; // 'rgba(255, 136, 0, 0.5)'; // 'rgb(80, 80, 80)';
 
-console.log(muiTheme.raisedButton);
-
 export default muiTheme;

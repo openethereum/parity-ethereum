@@ -1,11 +1,12 @@
 import React, { Component, PropTypes } from 'react';
+import { Link } from 'react-router';
 import { FlatButton } from 'material-ui';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
 import Summary from './Summary';
 import { AddressBook, CreateAccount } from '../../modals';
-import { Actionbar, Tooltip } from '../../ui';
+import { Actionbar, Container, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -41,12 +42,14 @@ export default class Accounts extends Component {
         label='new account'
         primary
         onTouchTap={ this.onNewAccountClick } />,
-      <FlatButton
+      <Link
         key='addressBook'
-        icon={ <CommunicationContacts /> }
-        label='address book'
-        primary
-        onTouchTap={ this.onAddressBookClick } />
+        to='/addresses'>
+        <FlatButton
+          icon={ <CommunicationContacts /> }
+          label='address book'
+          primary />
+      </Link>
     ];
 
     return (
@@ -65,32 +68,34 @@ export default class Accounts extends Component {
   renderAccounts () {
     const { accounts } = this.context;
 
-    if (!accounts) {
-      return null;
+    if (!accounts || !accounts.length) {
+      return (
+        <Container className={ styles.empty }>
+          <div>
+            There are currently no accounts attached to this instance.
+          </div>
+        </Container>
+      );
     }
 
-    const { tokens } = this.state;
     const firstTooltip = (
       <Tooltip
         className={ styles.accountTooltip }
         text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
     );
 
-    return accounts
-      .filter((acc) => acc.uuid)
-      .map((account, idx) => {
-        return (
-          <div
-            className={ styles.account }
-            key={ account.address }>
-            <Summary
-              account={ account }
-              tokens={ tokens }>
-              { idx === 0 ? firstTooltip : null }
-            </Summary>
-          </div>
-        );
-      });
+    return accounts.map((account, idx) => {
+      return (
+        <div
+          className={ styles.account }
+          key={ account.address }>
+          <Summary
+            account={ account }>
+            { idx === 0 ? firstTooltip : null }
+          </Summary>
+        </div>
+      );
+    });
   }
 
   renderNewDialog () {

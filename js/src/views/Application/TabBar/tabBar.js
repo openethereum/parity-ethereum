@@ -12,15 +12,23 @@ import { Tooltip } from '../../../ui';
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../images/ethcore-block.png';
 
+const TABMAP = {
+  accounts: 'account',
+  address: 'account',
+  addresses: 'account',
+  apps: 'app',
+  contracts: 'contract'
+};
+
 export default class TabBar extends Component {
   static contextTypes = {
     router: PropTypes.object.isRequired
   }
 
   render () {
-    const hash = (window.location.hash || '')
-      .replace('#/', '').replace('accounts', 'account').replace('apps', 'app')
-      .split('?')[0].split('/')[0];
+    const windowHash = (window.location.hash || '')
+      .split('?')[0].split('/')[1];
+    const hash = TABMAP[windowHash] || windowHash;
 
     return (
       <Toolbar

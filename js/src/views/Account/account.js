@@ -5,7 +5,7 @@ import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
 import { FundAccount, Transfer } from '../../modals';
-import { Actionbar, Balances, Container, ContainerTitle, Form, FormWrap, InputInline, IdentityIcon } from '../../ui';
+import { Actionbar, Balances, Container, ContainerTitle, Form, InputInline, IdentityIcon } from '../../ui';
 
 import Transactions from './Transactions';
 
@@ -16,7 +16,8 @@ const DEFAULT_NAME = 'Unnamed';
 export default class Account extends Component {
   static contextTypes = {
     api: React.PropTypes.object,
-    accounts: PropTypes.array
+    accounts: PropTypes.array,
+    balances: PropTypes.object
   }
 
   static propTypes = {
@@ -40,11 +41,13 @@ export default class Account extends Component {
   }
 
   render () {
+    const { accounts, balances } = this.context;
     const { address } = this.props.params;
     const { name } = this.state;
-    const account = this.context.accounts.find((account) => account.address === address);
+    const balance = balances[address];
+    const account = accounts.find((_account) => _account.address === address);
 
-    if (!account) {
+    if (!balance || !account) {
       return null;
     }
 
@@ -78,7 +81,7 @@ export default class Account extends Component {
                 { address }
               </div>
               <div className={ styles.infoline }>
-                { account.txCount.toFormat() } outgoing transactions
+                { balance.txCount.toFormat() } outgoing transactions
               </div>
             </div>
             <div

@@ -1,34 +1,20 @@
-.accounts {
+.addresses {
   display: flex;
   flex-wrap: wrap;
 }
 
-.account {
+.address {
   flex: 0 1 50%;
   width: 50%;
   position: relative;
 }
 
-.account:nth-child(odd)>div {
+.address:nth-child(odd)>div {
   padding-right: 0.5em !important;
 }
 
-.account:nth-child(even)>div {
+.address:nth-child(even)>div {
   padding-left: 0.5em !important;
-}
-
-.accountTooltip {
-  top: 5.5em;
-  left: 5em;
-}
-
-.toolbar {
-  position: relative;
-}
-
-.toolbarTooltip {
-  right: 20px;
-  top: 4em;
 }
 
 .empty {

@@ -6,14 +6,18 @@ import styles from './container.css';
 
 export default class Container extends Component {
   static propTypes = {
-    children: PropTypes.node
+    children: PropTypes.node,
+    className: PropTypes.string
   }
 
   render () {
+    const { children, className } = this.props;
+    const classes = `${styles.container} ${className}`;
+
     return (
-      <div className={ styles.container }>
+      <div className={ classes }>
         <Card className={ styles.padded }>
-          { this.props.children }
+          { children }
         </Card>
       </div>
     );

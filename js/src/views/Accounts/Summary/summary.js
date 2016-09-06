@@ -11,7 +11,7 @@ export default class Summary extends Component {
 
   static propTypes = {
     account: PropTypes.object.isRequired,
-    tokens: PropTypes.array,
+    to: PropTypes.string,
     children: PropTypes.node
   }
 
@@ -20,13 +20,13 @@ export default class Summary extends Component {
   }
 
   render () {
-    const account = this.props.account;
+    const { account, children, to } = this.props;
 
     if (!account) {
       return null;
     }
 
-    const viewLink = `/account/${account.address}`;
+    const viewLink = `/${to || 'account'}/${account.address}`;
 
     return (
       <Container>
@@ -36,9 +36,8 @@ export default class Summary extends Component {
           title={ <Link to={ viewLink }>{ account.name || 'Unnamed' }</Link> }
           byline={ account.address } />
         <Balances
-          account={ account }
-          tokens={ this.props.tokens } />
-        { this.props.children }
+          account={ account } />
+        { children }
       </Container>
     );
   }

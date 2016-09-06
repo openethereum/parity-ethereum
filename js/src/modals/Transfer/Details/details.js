@@ -15,7 +15,7 @@ const CHECK_STYLE = {
 export default class Details extends Component {
   static contextTypes = {
     api: PropTypes.object,
-    accounts: PropTypes.array.isRequired
+    balances: PropTypes.object
   }
 
   static propTypes = {
@@ -97,11 +97,10 @@ export default class Details extends Component {
   }
 
   renderTokenSelect () {
-    const { accounts, api } = this.context;
+    const { api, balances } = this.context;
     const { address, tag } = this.props;
 
-    const account = accounts.find((acc) => acc.address === address);
-    const items = account.balances.map((balance, idx) => {
+    const items = balances[address].tokens.map((balance, idx) => {
       const token = balance.token;
       const isEth = idx === 0;
       let value = 0;
@@ -145,13 +144,8 @@ export default class Details extends Component {
     );
   }
 
-  onChangeToken = (event, value) => {
-    const { accounts } = this.context;
-    const { address } = this.props;
-
-    const account = accounts.find((acc) => acc.address === address);
-
-    this.props.onChange('tag', account.balances[value].token.tag);
+  onChangeToken = (event, idx, tag) => {
+    this.props.onChange('tag', tag);
   }
 
   onEditRecipient = (event, recipient) => {
