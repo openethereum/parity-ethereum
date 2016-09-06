@@ -108,7 +108,16 @@ impl EthTester {
 		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
 		let miner_service = miner_service(&spec, account_provider.clone());
-		let client = Client::new(ClientConfig::default(), &spec, dir.as_path(), miner_service.clone(), IoChannel::disconnected()).unwrap();
+
+		let db_config = ::util::kvdb::DatabaseConfig::with_columns(::ethcore::db::NUM_COLUMNS);
+		let client = Client::new(
+			ClientConfig::default(),
+			&spec,
+			dir.as_path(),
+			miner_service.clone(),
+			IoChannel::disconnected(),
+			&db_config
+		).unwrap();
 		let sync_provider = sync_provider();
 		let external_miner = Arc::new(ExternalMiner::default());
 
