@@ -80,7 +80,7 @@ impl ClientService {
 
 		let pruning = config.pruning;
 		let client = try!(Client::new(config, &spec, db_path, miner, io_service.channel()));
-		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel()));
+		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel(), client.clone()));
 
 		let snapshot = Arc::new(snapshot);
 
@@ -92,7 +92,7 @@ impl ClientService {
 		try!(io_service.register_handler(client_io));
 
 		let stop_guard = ::devtools::StopGuard::new();
-		run_ipc(ipc_path, client.clone(), stop_guard.share());
+		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
@@ -183,12 +183,25 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 }
 
 #[cfg(feature="ipc")]
-fn run_ipc(base_path: &Path, client: Arc<Client>, stop: Arc<AtomicBool>) {
+fn run_ipc(base_path: &Path, client: Arc<Client>, snapshot_service: Arc<SnapshotService>, stop: Arc<AtomicBool>) {
 	let mut path = base_path.to_owned();
 	path.push("parity-chain.ipc");
 	let socket_addr = format!("ipc://{}", path.to_string_lossy());
+	let s = stop.clone();
 	::std::thread::spawn(move || {
 		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
+		worker.add_reqrep(&socket_addr).expect("Ipc expected to initialize with no issues");
+
+		while !s.load(::std::sync::atomic::Ordering::Relaxed) {
+			worker.poll();
+		}
+	});
+
+	let mut path = base_path.to_owned();
+	path.push("parity-snapshot.ipc");
+	let socket_addr = format!("ipc://{}", path.to_string_lossy());
+	::std::thread::spawn(move || {
+		let mut worker = nanoipc::Worker::new(&(snapshot_service as Arc<::snapshot::SnapshotService>));
 		worker.add_reqrep(&socket_addr).expect("Ipc expected to initialize with no issues");
 
 		while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
@@ -198,7 +211,7 @@ fn run_ipc(base_path: &Path, client: Arc<Client>, stop: Arc<AtomicBool>) {
 }
 
 #[cfg(not(feature="ipc"))]
-fn run_ipc(_base_path: &Path, _client: Arc<Client>, _stop: Arc<AtomicBool>) {
+fn run_ipc(_base_path: &Path, _client: Arc<Client>, _snapshot_service: Arc<SnapshotService>, _stop: Arc<AtomicBool>) {
 }
 
 #[cfg(test)]

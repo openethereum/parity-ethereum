@@ -14,22 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
-pub mod executed;
-pub mod block_status;
-pub mod account_diff;
-pub mod state_diff;
-pub mod block_queue_info;
-pub mod filter;
-pub mod trace_filter;
-pub mod call_analytics;
-pub mod transaction_import;
-pub mod block_import_error;
-pub mod restoration_status;
-pub mod snapshot_manifest;
+use tests::helpers::{serve_with_registrar, request};
+
+#[test]
+fn should_resolve_dapp() {
+	// given
+	let (server, registrar) = serve_with_registrar();
+
+	// when
+	let response = request(server,
+		"\
+			GET / HTTP/1.1\r\n\
+			Host: 1472a9e190620cdf6b31f383373e45efcfe869a820c91f9ccd7eb9fb45e4985d.parity\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
+	assert_eq!(registrar.calls.lock().len(), 2);
+}
+

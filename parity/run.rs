@@ -187,13 +187,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// take handle to client
 	let client = service.client();
+	let snapshot_service = service.snapshot_service();
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), &cmd.logger_config,
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service, &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
@@ -232,6 +233,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
+		sync: sync_provider.clone(),
 	};
 
 	// start dapps server
