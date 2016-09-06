@@ -147,16 +147,22 @@ struct ClientIoHandler {
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
+const SNAPSHOT_TICK_TIMER: TimerToken = 1;
+
 const CLIENT_TICK_MS: u64 = 5000;
+const SNAPSHOT_TICK_MS: u64 = 10000;
 
 impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
+		io.register_timer(SNAPSHOT_TICK_TIMER, SNAPSHOT_TICK_MS).expect("Error registering snapshot timer");
 	}
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
-		if timer == CLIENT_TICK_TIMER {
-			self.client.tick();
+		match timer {
+			CLIENT_TICK_TIMER => self.client.tick(),
+			SNAPSHOT_TICK_TIMER => self.snapshot.tick(),
+			_ => warn!("IO service triggered unregistered timer '{}'", timer),
 		}
 	}
 

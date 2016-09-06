@@ -191,6 +191,7 @@ pub struct Service {
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
 	db_restore: Arc<DatabaseRestore>,
+	progress: super::Progress,
 }
 
 impl Service {
@@ -220,6 +221,7 @@ impl Service {
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
 			db_restore: db_restore,
+			progress: Default::default(),
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -297,12 +299,22 @@ impl Service {
 		Ok(())
 	}
 
+	/// Tick the snapshot service. This will log any active snapshot
+	/// being taken.
+	pub fn tick(&self) {
+		if self.progress.done() { return }
+
+		let p = &self.progress;
+		info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
+	}
+
 	/// Take a snapshot at the block with the given number.
 	/// calling this while a restoration is in progress or vice versa
 	/// will lead to a race condition where the first one to finish will
 	/// have their produced snapshot overwritten.
 	pub fn take_snapshot(&self, client: &Client, num: u64) -> Result<(), Error> {
 		info!("Taking snapshot at #{}", num);
+		self.progress.reset();
 
 		let temp_dir = self.temp_snapshot_dir();
 		let snapshot_dir = self.snapshot_dir();
@@ -310,11 +322,12 @@ impl Service {
 		let _ = fs::remove_dir_all(&temp_dir);
 
 		let writer = try!(LooseWriter::new(temp_dir.clone()));
-		let progress = Default::default();
 
-		// Todo [rob] log progress.
 		let guard = Guard::new(temp_dir.clone());
-		try!(client.take_snapshot(writer, BlockID::Number(num), &progress));
+		try!(client.take_snapshot(writer, BlockID::Number(num), &self.progress));
+
+		info!("Finished taking snapshot at #{}", num);
+
 		let mut reader = self.reader.write();
 
 		// destroy the old snapshot reader.
