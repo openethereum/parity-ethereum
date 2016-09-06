@@ -5,7 +5,7 @@ import {
   fetchFee, setFee,
   fetchOwner, setOwner
 } from './actions';
-import registryAbi from '../abi/registry.json';
+import registryAbi from './abi/registry.json';
 const { api } = window.parity;
 
 const initialState = {
