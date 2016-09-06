@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import actions from './actions';
+import * as actions from './actions';
 
 class Container extends Component {
 
