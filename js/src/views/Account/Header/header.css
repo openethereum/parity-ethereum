@@ -1,0 +1,17 @@
+.balances {
+  clear: both;
+}
+
+.editicon {
+  margin-left: 0.5em;
+}
+
+.floatleft {
+  float: left;
+  margin-bottom: 0.5em;
+}
+
+.infoline {
+  color: #aaa;
+  line-height: 1.618em;
+}
