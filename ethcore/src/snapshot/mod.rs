@@ -44,8 +44,10 @@ use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
 
 pub use self::error::Error;
+
 pub use self::service::{Service, DatabaseRestore};
 pub use self::traits::{SnapshotService, RemoteSnapshotService};
+pub use self::watcher::Watcher;
 pub use types::snapshot_manifest::ManifestData;
 pub use types::restoration_status::RestorationStatus;
 
@@ -55,6 +57,7 @@ pub mod service;
 mod account;
 mod block;
 mod error;
+mod watcher;
 
 #[cfg(test)]
 mod tests;
@@ -80,17 +83,28 @@ pub struct Progress {
 }
 
 impl Progress {
+	/// Reset the progress.
+	pub fn reset(&self) {
+		self.accounts.store(0, Ordering::Release);
+		self.blocks.store(0, Ordering::Release);
+		self.size.store(0, Ordering::Release);
+
+		// atomic fence here to ensure the others are written first?
+		// logs might very rarely get polluted if not.
+		self.done.store(false, Ordering::Release);
+	}
+
 	/// Get the number of accounts snapshotted thus far.
-	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Relaxed) }
+	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Acquire) }
 
 	/// Get the number of blocks snapshotted thus far.
-	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Relaxed) }
+	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
 
 	/// Get the written size of the snapshot in bytes.
-	pub fn size(&self) -> usize { self.size.load(Ordering::Relaxed) }
+	pub fn size(&self) -> usize { self.size.load(Ordering::Acquire) }
 
 	/// Whether the snapshot is complete.
-	pub fn done(&self) -> bool  { self.done.load(Ordering::SeqCst) }
+	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
 
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.

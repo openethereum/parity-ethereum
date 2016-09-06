@@ -27,8 +27,10 @@ use super::{ManifestData, StateRebuilder, BlockRebuilder, RestorationStatus, Sna
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
+use client::Client;
 use engines::Engine;
 use error::Error;
+use ids::BlockID;
 use service::ClientIoMessage;
 use spec::Spec;
 
@@ -39,8 +41,25 @@ use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
 
+/// Helper for removing directories in case of error.
+struct Guard(bool, PathBuf);
+
+impl Guard {
+	fn new(path: PathBuf) -> Self { Guard(true, path) }
+
+	fn disarm(mut self) { self.0 = false }
+}
+
+impl Drop for Guard {
+	fn drop(&mut self) {
+		if self.0 {
+			let _ = fs::remove_dir_all(&self.1);
+		}
+	}
+}
+
 /// External database restoration handler
-pub trait DatabaseRestore : Send + Sync {
+pub trait DatabaseRestore: Send + Sync {
 	/// Restart with a new backend. Takes ownership of passed database and moves it to a new location.
 	fn restore_db(&self, new_db: &str) -> Result<(), Error>;
 }
@@ -55,6 +74,7 @@ struct Restoration {
 	writer: LooseWriter,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
+	guard: Guard,
 }
 
 struct RestorationParams<'a> {
@@ -63,6 +83,7 @@ struct RestorationParams<'a> {
 	db_path: PathBuf, // database path
 	writer: LooseWriter, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
+	guard: Guard, // guard for the restoration directory.
 }
 
 impl Restoration {
@@ -90,6 +111,7 @@ impl Restoration {
 			writer: params.writer,
 			snappy_buffer: Vec::new(),
 			final_state_root: root,
+			guard: params.guard,
 		})
 	}
 
@@ -138,6 +160,7 @@ impl Restoration {
 
 		try!(self.writer.finish(self.manifest));
 
+		self.guard.disarm();
 		Ok(())
 	}
 
@@ -168,6 +191,7 @@ pub struct Service {
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
 	db_restore: Arc<DatabaseRestore>,
+	progress: super::Progress,
 }
 
 impl Service {
@@ -197,6 +221,7 @@ impl Service {
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
 			db_restore: db_restore,
+			progress: Default::default(),
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -208,6 +233,13 @@ impl Service {
 
 		// delete the temporary restoration dir if it does exist.
 		if let Err(e) = fs::remove_dir_all(service.restoration_dir()) {
+			if e.kind() != ErrorKind::NotFound {
+				return Err(e.into())
+			}
+		}
+
+		// delete the temporary snapshot dir if it does exist.
+		if let Err(e) = fs::remove_dir_all(service.temp_snapshot_dir()) {
 			if e.kind() != ErrorKind::NotFound {
 				return Err(e.into())
 			}
@@ -227,6 +259,13 @@ impl Service {
 	fn snapshot_dir(&self) -> PathBuf {
 		let mut dir = self.root_dir();
 		dir.push("current");
+		dir
+	}
+
+	// get the temporary snapshot dir.
+	fn temp_snapshot_dir(&self) -> PathBuf {
+		let mut dir = self.root_dir();
+		dir.push("in_progress");
 		dir
 	}
 
@@ -260,6 +299,48 @@ impl Service {
 		Ok(())
 	}
 
+	/// Tick the snapshot service. This will log any active snapshot
+	/// being taken.
+	pub fn tick(&self) {
+		if self.progress.done() { return }
+
+		let p = &self.progress;
+		info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
+	}
+
+	/// Take a snapshot at the block with the given number.
+	/// calling this while a restoration is in progress or vice versa
+	/// will lead to a race condition where the first one to finish will
+	/// have their produced snapshot overwritten.
+	pub fn take_snapshot(&self, client: &Client, num: u64) -> Result<(), Error> {
+		info!("Taking snapshot at #{}", num);
+		self.progress.reset();
+
+		let temp_dir = self.temp_snapshot_dir();
+		let snapshot_dir = self.snapshot_dir();
+
+		let _ = fs::remove_dir_all(&temp_dir);
+
+		let writer = try!(LooseWriter::new(temp_dir.clone()));
+
+		let guard = Guard::new(temp_dir.clone());
+		try!(client.take_snapshot(writer, BlockID::Number(num), &self.progress));
+
+		info!("Finished taking snapshot at #{}", num);
+
+		let mut reader = self.reader.write();
+
+		// destroy the old snapshot reader.
+		*reader = None;
+
+		try!(fs::rename(temp_dir, &snapshot_dir));
+
+		*reader = Some(try!(LooseReader::new(snapshot_dir)));
+
+		guard.disarm();
+		Ok(())
+	}
+
 	/// Initialize the restoration synchronously.
 	pub fn init_restore(&self, manifest: ManifestData) -> Result<(), Error> {
 		let rest_dir = self.restoration_dir();
@@ -288,6 +369,7 @@ impl Service {
 			db_path: self.restoration_db(),
 			writer: writer,
 			genesis: &self.genesis_block,
+			guard: Guard::new(rest_dir),
 		};
 
 		*res = Some(try!(Restoration::new(params)));
@@ -328,14 +410,7 @@ impl Service {
 		try!(fs::create_dir(&snapshot_dir));
 
 		trace!(target: "snapshot", "copying restored snapshot files over");
-		for maybe_file in try!(fs::read_dir(self.temp_recovery_dir())) {
-			let path = try!(maybe_file).path();
-			if let Some(name) = path.file_name().map(|x| x.to_owned()) {
-				let mut new_path = snapshot_dir.clone();
-				new_path.push(name);
-				try!(fs::rename(path, new_path));
-			}
-		}
+		try!(fs::rename(self.temp_recovery_dir(), &snapshot_dir));
 
 		let _ = fs::remove_dir_all(self.restoration_dir());
 
@@ -451,6 +526,12 @@ impl SnapshotService for Service {
 	}
 }
 
+impl Drop for Service {
+	fn drop(&mut self) {
+		self.abort_restore();
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
@@ -503,11 +584,5 @@ mod tests {
 		service.abort_restore();
 		service.restore_state_chunk(Default::default(), vec![]);
 		service.restore_block_chunk(Default::default(), vec![]);
-	}
-}
-
-impl Drop for Service {
-	fn drop(&mut self) {
-		self.abort_restore();
 	}
 }
