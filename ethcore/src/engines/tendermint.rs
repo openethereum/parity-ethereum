@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Weak;
 use common::*;
 use rlp::{UntrustedRlp, View, encode};
+use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -278,15 +279,9 @@ impl Engine for Tendermint {
 	///
 	/// None is returned if not enough signatures can be collected.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		accounts.and_then(|ap| {
-			let header = block.header();
-			if header.author() == &self.proposer() {
-				ap.sign(*header.author(), header.bare_hash())
-					.ok()
-					.and_then(|signature| Some(vec![encode(&(&*signature as &[u8])).to_vec()]))
-			} else {
-				None
-			}
+		self.s.try_read().and_then(|s| match *s {
+			Step::Commit(ref seal) => Some(seal.clone()),
+			_ => None,
 		})
 	}
 
@@ -302,22 +297,35 @@ impl Engine for Tendermint {
 		}
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		// check the seal fields.
-		// TODO: pull this out into common code.
-		if header.seal().len() != self.seal_fields() {
-			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
-			)));
+	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		if header.seal().len() < self.threshold() {
+			Err(From::from(BlockError::InvalidSealArity(
+				Mismatch { expected: self.threshold(), found: header.seal().len() }
+			)))
+		} else {
+			Ok(())
 		}
-		Ok(())
 	}
 
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		Ok(())
+	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		let to_address = |b: &Vec<u8>| {
+			let sig: H520 = try!(UntrustedRlp::new(b.as_slice()).as_val());
+			Ok(public_to_address(&try!(recover(&sig.into(), &header.bare_hash()))))
+		};
+		let validator_set = self.our_params.validators.iter().cloned().collect();
+		let seal_set = try!(header
+							.seal()
+							.iter()
+							.map(to_address)
+							.collect::<Result<HashSet<_>, Error>>());
+		if self.threshold() < seal_set.intersection(&validator_set).count() {
+			Ok(())
+		} else {
+			try!(Err(BlockError::InvalidSeal))
+		}
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -336,7 +344,7 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		try!(t.check_low_s());
 		Ok(())
 	}
