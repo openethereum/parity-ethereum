@@ -23,7 +23,6 @@ use std::{fs, env, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool};
 use rustc_serialize::hex::FromHex;
 
 use hyper;
@@ -76,10 +75,12 @@ impl<R: URLHint> AppFetcher<R> {
 	}
 
 	pub fn contains(&self, app_id: &str) -> bool {
-		let mut dapps = self.dapps.lock();
-		// Check if we already have the app
-		if dapps.get(app_id).is_some() {
-			return true;
+		{
+			let mut dapps = self.dapps.lock();
+			// Check if we already have the app
+			if dapps.get(app_id).is_some() {
+				return true;
+			}
 		}
 		// fallback to resolver
 		if let Ok(app_id) = app_id.from_hex() {
@@ -115,25 +116,19 @@ impl<R: URLHint> AppFetcher<R> {
 					(None, endpoint.to_async_handler(path, control))
 				},
 				// App is already being fetched
-				Some(&mut ContentStatus::Fetching(_)) => {
-					(None, Box::new(ContentHandler::error_with_refresh(
-						StatusCode::ServiceUnavailable,
-						"Download In Progress",
-						"This dapp is already being downloaded. Please wait...",
-						None,
-					)) as Box<Handler>)
+				Some(&mut ContentStatus::Fetching(ref fetch_control)) => {
+					trace!(target: "dapps", "Content fetching in progress. Waiting...");
+					(None, fetch_control.to_handler(control))
 				},
 				// We need to start fetching app
 				None => {
+					trace!(target: "dapps", "Content fetching unavailable. Fetching...");
 					let app_hex = app_id.from_hex().expect("to_handler is called only when `contains` returns true.");
 					let app = self.resolver.resolve(app_hex);
 
 					if let Some(app) = app {
-						let abort = Arc::new(AtomicBool::new(false));
-
-						(Some(ContentStatus::Fetching(abort.clone())), Box::new(ContentFetcherHandler::new(
+						let (handler, fetch_control) = ContentFetcherHandler::new(
 							app,
-							abort,
 							control,
 							path.using_dapps_domains,
 							DappInstaller {
@@ -141,7 +136,9 @@ impl<R: URLHint> AppFetcher<R> {
 								dapps_path: self.dapps_path.clone(),
 								dapps: self.dapps.clone(),
 							}
-						)) as Box<Handler>)
+						);
+
+						(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
 					} else {
 						// This may happen when sync status changes in between
 						// `contains` and `to_handler`
