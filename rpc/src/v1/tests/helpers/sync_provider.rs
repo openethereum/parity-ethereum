@@ -49,6 +49,8 @@ impl TestSyncProvider {
 				num_peers: config.num_peers,
 				num_active_peers: 0,
 				mem_used: 0,
+				num_snapshot_chunks: 0,
+				snapshot_chunks_done: 0,
 			}),
 		}
 	}
