@@ -46,6 +46,8 @@ pub enum ClientIoMessage {
 	FeedStateChunk(H256, Bytes),
 	/// Feed a block chunk to the snapshot service
 	FeedBlockChunk(H256, Bytes),
+	/// Take a snapshot for the block with given number.
+	TakeSnapshot(u64),
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -78,7 +80,7 @@ impl ClientService {
 
 		let pruning = config.pruning;
 		let client = try!(Client::new(config, &spec, db_path, miner, io_service.channel()));
-		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel()));
+		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel(), client.clone()));
 
 		let snapshot = Arc::new(snapshot);
 
@@ -90,7 +92,7 @@ impl ClientService {
 		try!(io_service.register_handler(client_io));
 
 		let stop_guard = ::devtools::StopGuard::new();
-		run_ipc(ipc_path, client.clone(), stop_guard.share());
+		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
@@ -145,16 +147,22 @@ struct ClientIoHandler {
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
+const SNAPSHOT_TICK_TIMER: TimerToken = 1;
+
 const CLIENT_TICK_MS: u64 = 5000;
+const SNAPSHOT_TICK_MS: u64 = 10000;
 
 impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
 		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
+		io.register_timer(SNAPSHOT_TICK_TIMER, SNAPSHOT_TICK_MS).expect("Error registering snapshot timer");
 	}
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
-		if timer == CLIENT_TICK_TIMER {
-			self.client.tick();
+		match timer {
+			CLIENT_TICK_TIMER => self.client.tick(),
+			SNAPSHOT_TICK_TIMER => self.snapshot.tick(),
+			_ => warn!("IO service triggered unregistered timer '{}'", timer),
 		}
 	}
 
@@ -170,18 +178,36 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			}
 			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
 			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
+			ClientIoMessage::TakeSnapshot(num) => {
+				if let Err(e) = self.snapshot.take_snapshot(&*self.client, num) {
+					warn!("Failed to take snapshot at block #{}: {}", num, e);
+				}
+			}
 			_ => {} // ignore other messages
 		}
 	}
 }
 
 #[cfg(feature="ipc")]
-fn run_ipc(base_path: &Path, client: Arc<Client>, stop: Arc<AtomicBool>) {
+fn run_ipc(base_path: &Path, client: Arc<Client>, snapshot_service: Arc<SnapshotService>, stop: Arc<AtomicBool>) {
 	let mut path = base_path.to_owned();
 	path.push("parity-chain.ipc");
 	let socket_addr = format!("ipc://{}", path.to_string_lossy());
+	let s = stop.clone();
 	::std::thread::spawn(move || {
 		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
+		worker.add_reqrep(&socket_addr).expect("Ipc expected to initialize with no issues");
+
+		while !s.load(::std::sync::atomic::Ordering::Relaxed) {
+			worker.poll();
+		}
+	});
+
+	let mut path = base_path.to_owned();
+	path.push("parity-snapshot.ipc");
+	let socket_addr = format!("ipc://{}", path.to_string_lossy());
+	::std::thread::spawn(move || {
+		let mut worker = nanoipc::Worker::new(&(snapshot_service as Arc<::snapshot::SnapshotService>));
 		worker.add_reqrep(&socket_addr).expect("Ipc expected to initialize with no issues");
 
 		while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
@@ -191,7 +217,7 @@ fn run_ipc(base_path: &Path, client: Arc<Client>, stop: Arc<AtomicBool>) {
 }
 
 #[cfg(not(feature="ipc"))]
-fn run_ipc(_base_path: &Path, _client: Arc<Client>, _stop: Arc<AtomicBool>) {
+fn run_ipc(_base_path: &Path, _client: Arc<Client>, _snapshot_service: Arc<SnapshotService>, _stop: Arc<AtomicBool>) {
 }
 
 #[cfg(test)]

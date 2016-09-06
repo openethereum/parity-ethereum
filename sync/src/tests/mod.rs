@@ -15,5 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod helpers;
+pub mod snapshot;
 mod chain;
 mod rpc;
