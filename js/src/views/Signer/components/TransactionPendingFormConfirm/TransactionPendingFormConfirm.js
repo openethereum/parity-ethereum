@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
-
-import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
+
+import { Input } from '../../../../ui';
 
 import styles from './TransactionPendingFormConfirm.css';
 
@@ -25,15 +25,13 @@ export default class TransactionPendingFormConfirm extends Component {
 
     return (
       <div className={ styles.confirmForm }>
-        <TextField
+        <Input
           onChange={ this.onModifyPassword }
           onKeyDown={ this.onKeyDown }
-          name='password'
-          fullWidth
-          floatingLabelText='Account Password'
+          label='Account Password'
+          hint='unlock the account'
           type='password'
-          value={ password }
-        />
+          value={ password } />
         <div
           data-tip
           data-place='bottom'

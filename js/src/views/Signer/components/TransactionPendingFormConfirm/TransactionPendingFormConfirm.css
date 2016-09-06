@@ -1,7 +1,7 @@
 .confirmForm {
   margin-top: -40px;
+  psotion: relative;
 }
-
 
 .confirmButton {
   display: block !important;

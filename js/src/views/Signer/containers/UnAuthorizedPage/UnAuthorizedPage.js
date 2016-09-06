@@ -1,8 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
-import { RaisedButton, TextField } from 'material-ui';
+import { RaisedButton } from 'material-ui';
 
+import { Input } from '../../../../ui';
 import { updateToken } from '../../actions/signer';
 
 import styles from './UnAuthorizedPage.css';
@@ -46,14 +47,12 @@ class UnAuthorizedPage extends Component {
         </p>
         <p>Make sure Parity is running, generate authorization token:</p>
         <p><code className={ styles.code }>$ parity signer new-token</code> &nbsp;and paste the token below:</p>
-        <TextField
-          name='token'
-          type='text'
+        <Input
           value={ token }
           disabled={ processing }
           onChange={ this.onTokenChange }
-          floatingLabelText='Authorization Token'
-        />
+          hint='token from Parity'
+          label='Authorization Token' />
         <br />
         <RaisedButton
           primary

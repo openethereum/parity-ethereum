@@ -14,15 +14,17 @@
 }
 
 .iconsContainer {
-  display: inline-block;
-  min-width: 180px;
+  display: block;
+  text-align: center;
   font-size: .8em;
   opacity: 0.5;
+  width: 830px;
+  margin-right: 30px;
 }
 
 .iconsContainer > * {
-  float: left;
   margin-right: 3px;
+  display: inline-block;
 }
 
 .iconsContainer:after {
