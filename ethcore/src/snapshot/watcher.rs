@@ -26,14 +26,22 @@ use util::hash::H256;
 
 use std::sync::Arc;
 
-// helper trait for transforming hashes to numbers.
-trait HashToNumber: Send + Sync {
+// helper trait for transforming hashes to numbers and checking if syncing.
+trait Oracle: Send + Sync {
 	fn to_number(&self, hash: H256) -> Option<u64>;
+
+	fn is_major_syncing(&self) -> bool;
 }
 
-impl HashToNumber for Client {
+impl Oracle for Client {
 	fn to_number(&self, hash: H256) -> Option<u64> {
 		self.block_header(BlockID::Hash(hash)).map(|h| HeaderView::new(&h).number())
+	}
+
+	fn is_major_syncing(&self) -> bool {
+		let queue_info = self.queue_info();
+
+		queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
 	}
 }
 
@@ -60,7 +68,7 @@ impl Broadcast for IoChannel<ClientIoMessage> {
 /// A `ChainNotify` implementation which will trigger a snapshot event
 /// at certain block numbers.
 pub struct Watcher {
-	oracle: Arc<HashToNumber>,
+	oracle: Arc<Oracle>,
 	broadcast: Box<Broadcast>,
 	period: u64,
 	history: u64,
@@ -90,6 +98,8 @@ impl ChainNotify for Watcher {
 		_: Vec<H256>,
 		_duration: u64)
 	{
+		if self.oracle.is_major_syncing() { return }
+
 		trace!(target: "snapshot_watcher", "{} imported", imported.len());
 
 		let highest = imported.into_iter()
@@ -108,7 +118,7 @@ impl ChainNotify for Watcher {
 
 #[cfg(test)]
 mod tests {
-	use super::{Broadcast, HashToNumber, Watcher};
+	use super::{Broadcast, Oracle, Watcher};
 
 	use client::ChainNotify;
 
@@ -119,10 +129,12 @@ mod tests {
 
 	struct TestOracle(HashMap<H256, u64>);
 
-	impl HashToNumber for TestOracle {
+	impl Oracle for TestOracle {
 		fn to_number(&self, hash: H256) -> Option<u64> {
 			self.0.get(&hash).cloned()
 		}
+
+		fn is_major_syncing(&self) -> bool { false }
 	}
 
 	struct TestBroadcast(Option<u64>);
