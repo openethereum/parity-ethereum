@@ -16,9 +16,11 @@
 
 //! Key-Value store abstraction with `RocksDB` backend.
 
+use std::io::ErrorKind;
 use common::*;
 use elastic_array::*;
 use std::default::Default;
+use std::path::PathBuf;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column};
@@ -189,12 +191,18 @@ impl<'a> Iterator for DatabaseIterator {
 	}
 }
 
+struct DBAndColumns {
+	db: DB,
+	cfs: Vec<Column>,
+}
+
 /// Key-Value database.
 pub struct Database {
-	db: DB,
+	db: RwLock<Option<DBAndColumns>>,
+	config: DatabaseConfig,
 	write_opts: WriteOptions,
-	cfs: Vec<Column>,
 	overlay: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
+	path: String,
 }
 
 impl Database {
@@ -278,11 +286,13 @@ impl Database {
 			},
 			Err(s) => { return Err(s); }
 		};
+		let num_cols = cfs.len();
 		Ok(Database {
-			db: db,
+			db: RwLock::new(Some(DBAndColumns{ db: db, cfs: cfs })),
+			config: config.clone(),
 			write_opts: write_opts,
-			overlay: RwLock::new((0..(cfs.len() + 1)).map(|_| HashMap::new()).collect()),
-			cfs: cfs,
+			overlay: RwLock::new((0..(num_cols + 1)).map(|_| HashMap::new()).collect()),
+			path: path.to_owned(),
 		})
 	}
 
@@ -320,94 +330,167 @@ impl Database {
 
 	/// Commit buffered changes to database.
 	pub fn flush(&self) -> Result<(), String> {
-		let batch = WriteBatch::new();
-		let mut overlay = self.overlay.write();
+		match &*self.db.read() {
+			&Some(DBAndColumns { ref db, ref cfs }) => {
+				let batch = WriteBatch::new();
+				let mut overlay = self.overlay.write();
 
-		for (c, column) in overlay.iter_mut().enumerate() {
-			let column_data = mem::replace(column, HashMap::new());
-			for (key, state) in column_data.into_iter() {
-				match state {
-					KeyState::Delete => {
-						if c > 0 {
-							try!(batch.delete_cf(self.cfs[c - 1], &key));
-						} else {
-							try!(batch.delete(&key));
-						}
-					},
-					KeyState::Insert(value) => {
-						if c > 0 {
-							try!(batch.put_cf(self.cfs[c - 1], &key, &value));
-						} else {
-							try!(batch.put(&key, &value));
-						}
-					},
-					KeyState::InsertCompressed(value) => {
-						let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
-						if c > 0 {
-							try!(batch.put_cf(self.cfs[c - 1], &key, &compressed));
-						} else {
-							try!(batch.put(&key, &value));
+				for (c, column) in overlay.iter_mut().enumerate() {
+					let column_data = mem::replace(column, HashMap::new());
+					for (key, state) in column_data.into_iter() {
+						match state {
+							KeyState::Delete => {
+								if c > 0 {
+									try!(batch.delete_cf(cfs[c - 1], &key));
+								} else {
+									try!(batch.delete(&key));
+								}
+							},
+							KeyState::Insert(value) => {
+								if c > 0 {
+									try!(batch.put_cf(cfs[c - 1], &key, &value));
+								} else {
+									try!(batch.put(&key, &value));
+								}
+							},
+							KeyState::InsertCompressed(value) => {
+								let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
+								if c > 0 {
+									try!(batch.put_cf(cfs[c - 1], &key, &compressed));
+								} else {
+									try!(batch.put(&key, &value));
+								}
+							}
 						}
 					}
 				}
-			}
+				db.write_opt(batch, &self.write_opts)
+			},
+			&None => Err("Database is closed".to_owned())
 		}
-		self.db.write_opt(batch, &self.write_opts)
 	}
 
 
 	/// Commit transaction to database.
 	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
-		let batch = WriteBatch::new();
-		let ops = tr.ops;
-		for op in ops {
-			match op {
-				DBOp::Insert { col, key, value } => {
-					try!(col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(self.cfs[c as usize], &key, &value)))
-				},
-				DBOp::InsertCompressed { col, key, value } => {
-					let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
-					try!(col.map_or_else(|| batch.put(&key, &compressed), |c| batch.put_cf(self.cfs[c as usize], &key, &compressed)))
-				},
-				DBOp::Delete { col, key } => {
-					try!(col.map_or_else(|| batch.delete(&key), |c| batch.delete_cf(self.cfs[c as usize], &key)))
-				},
-			}
+		match &*self.db.read() {
+			&Some(DBAndColumns { ref db, ref cfs }) => {
+				let batch = WriteBatch::new();
+				let ops = tr.ops;
+				for op in ops {
+					match op {
+						DBOp::Insert { col, key, value } => {
+							try!(col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(cfs[c as usize], &key, &value)))
+						},
+						DBOp::InsertCompressed { col, key, value } => {
+							let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
+							try!(col.map_or_else(|| batch.put(&key, &compressed), |c| batch.put_cf(cfs[c as usize], &key, &compressed)))
+						},
+						DBOp::Delete { col, key } => {
+							try!(col.map_or_else(|| batch.delete(&key), |c| batch.delete_cf(cfs[c as usize], &key)))
+						},
+					}
+				}
+				db.write_opt(batch, &self.write_opts)
+			},
+			&None => Err("Database is closed".to_owned())
 		}
-		self.db.write_opt(batch, &self.write_opts)
 	}
 
 	/// Get value by key.
 	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<Bytes>, String> {
-		let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
-		match overlay.get(key) {
-			Some(&KeyState::Insert(ref value)) | Some(&KeyState::InsertCompressed(ref value)) => Ok(Some(value.clone())),
-			Some(&KeyState::Delete) => Ok(None),
-			None => {
-				col.map_or_else(
-					|| self.db.get(key).map(|r| r.map(|v| v.to_vec())),
-					|c| self.db.get_cf(self.cfs[c as usize], key).map(|r| r.map(|v| v.to_vec())))
+		match &*self.db.read() {
+			&Some(DBAndColumns { ref db, ref cfs }) => {
+				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
+				match overlay.get(key) {
+					Some(&KeyState::Insert(ref value)) | Some(&KeyState::InsertCompressed(ref value)) => Ok(Some(value.clone())),
+					Some(&KeyState::Delete) => Ok(None),
+					None => {
+						col.map_or_else(
+							|| db.get(key).map(|r| r.map(|v| v.to_vec())),
+							|c| db.get_cf(cfs[c as usize], key).map(|r| r.map(|v| v.to_vec())))
+					},
+				}
 			},
+			&None => Ok(None),
 		}
 	}
 
 	/// Get value by partial key. Prefix size should match configured prefix size. Only searches flushed values.
-	// TODO: support prefix seek for unflushed ata
+	// TODO: support prefix seek for unflushed data
 	pub fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
-		let mut iter = col.map_or_else(|| self.db.iterator(IteratorMode::From(prefix, Direction::Forward)),
-			|c| self.db.iterator_cf(self.cfs[c as usize], IteratorMode::From(prefix, Direction::Forward)).unwrap());
-		match iter.next() {
-			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
-			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
-			_ => None
+		match &*self.db.read() {
+			&Some(DBAndColumns { ref db, ref cfs }) => {
+				let mut iter = col.map_or_else(|| db.iterator(IteratorMode::From(prefix, Direction::Forward)),
+					|c| db.iterator_cf(cfs[c as usize], IteratorMode::From(prefix, Direction::Forward)).unwrap());
+				match iter.next() {
+					// TODO: use prefix_same_as_start read option (not availabele in C API currently)
+					Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
+					_ => None
+				}
+			},
+			&None => None,
 		}
 	}
 
 	/// Get database iterator for flushed data.
 	pub fn iter(&self, col: Option<u32>) -> DatabaseIterator {
 		//TODO: iterate over overlay
-		col.map_or_else(|| DatabaseIterator { iter: self.db.iterator(IteratorMode::Start) },
-			|c| DatabaseIterator { iter: self.db.iterator_cf(self.cfs[c as usize], IteratorMode::Start).unwrap() })
+		match &*self.db.read() {
+			&Some(DBAndColumns { ref db, ref cfs }) => {
+				col.map_or_else(|| DatabaseIterator { iter: db.iterator(IteratorMode::Start) },
+					|c| DatabaseIterator { iter: db.iterator_cf(cfs[c as usize], IteratorMode::Start).unwrap() })
+			},
+			&None => panic!("Not supported yet") //TODO: return an empty iterator or change return type
+		}
+	}
+
+	/// Close the database
+	fn close(&self) {
+		*self.db.write() = None;
+		self.overlay.write().clear();
+	}
+
+	/// Restore the database from a copy at given path.
+	pub fn restore(&self, new_db: &str) -> Result<(), UtilError> {
+		self.close();
+
+		let mut backup_db = PathBuf::from(&self.path);
+		backup_db.pop();
+		backup_db.push("backup_db");
+		println!("Path at {:?}", self.path);
+		println!("Backup at {:?}", backup_db);
+
+		let existed = match fs::rename(&self.path, &backup_db) {
+			Ok(_) => true,
+			Err(e) => if let ErrorKind::NotFound = e.kind() {
+				false
+			} else {
+				return Err(e.into());
+			}
+		};
+
+		match fs::rename(&new_db, &self.path) {
+			Ok(_) => {
+				// clean up the backup.
+				if existed {
+					try!(fs::remove_dir_all(&backup_db));
+				}
+			}
+			Err(e) => {
+				// restore the backup.
+				if existed {
+					try!(fs::rename(&backup_db, &self.path));
+				}
+				return Err(e.into())
+			}
+		}
+
+		// reopen the database and steal handles into self
+		let db = try!(Self::open(&self.config, &self.path));
+		*self.db.write() = mem::replace(&mut *db.db.write(), None);
+		*self.overlay.write() = mem::replace(&mut *db.overlay.write(), Vec::new());
+		Ok(())
 	}
 }
 

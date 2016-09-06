@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::{ManifestData, StateRebuilder, BlockRebuilder};
+use super::{ManifestData, StateRebuilder, BlockRebuilder, RestorationStatus, SnapshotService};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
@@ -39,51 +39,10 @@ use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
 
-/// Statuses for restorations.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum RestorationStatus {
-	///	No restoration.
-	Inactive,
-	/// Ongoing restoration.
-	Ongoing,
-	/// Failed restoration.
-	Failed,
-}
-
-/// The interface for a snapshot network service.
-/// This handles:
-///    - restoration of snapshots to temporary databases.
-///    - responding to queries for snapshot manifests and chunks
-pub trait SnapshotService {
-	/// Query the most recent manifest data.
-	fn manifest(&self) -> Option<ManifestData>;
-
-	/// Get raw chunk for a given hash.
-	fn chunk(&self, hash: H256) -> Option<Bytes>;
-
-	/// Ask the snapshot service for the restoration status.
-	fn status(&self) -> RestorationStatus;
-
-	/// Ask the snapshot service for the number of chunks completed.
-	/// Return a tuple of (state_chunks, block_chunks).
-	/// Undefined when not restoring.
-	fn chunks_done(&self) -> (usize, usize);
-
-	/// Begin snapshot restoration.
-	/// If restoration in-progress, this will reset it.
-	/// From this point on, any previous snapshot may become unavailable.
-	fn begin_restore(&self, manifest: ManifestData);
-
-	/// Abort an in-progress restoration if there is one.
-	fn abort_restore(&self);
-
-	/// Feed a raw state chunk to the service to be processed asynchronously.
-	/// no-op if not currently restoring.
-	fn restore_state_chunk(&self, hash: H256, chunk: Bytes);
-
-	/// Feed a raw block chunk to the service to be processed asynchronously.
-	/// no-op if currently restoring.
-	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
+/// External database restoration handler
+pub trait DatabaseRestore : Send + Sync {
+	/// Restart with a new backend. Takes ownership of passed database and moves it to a new location.
+	fn restore_db(&self, new_db: &str) -> Result<(), Error>;
 }
 
 /// State restoration manager.
@@ -208,11 +167,12 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
+	db_restore: Arc<DatabaseRestore>,
 }
 
 impl Service {
 	/// Create a new snapshot service.
-	pub fn new(spec: &Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel) -> Result<Self, Error> {
+	pub fn new(spec: &Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel, db_restore: Arc<DatabaseRestore>) -> Result<Self, Error> {
 		let db_path = try!(client_db.parent().and_then(Path::parent)
 			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.".into()))).to_owned();
 
@@ -236,6 +196,7 @@ impl Service {
 			genesis_block: spec.genesis_block(),
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
+			db_restore: db_restore,
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -295,37 +256,8 @@ impl Service {
 		let our_db = self.restoration_db();
 
 		trace!(target: "snapshot", "replacing {:?} with {:?}", self.client_db, our_db);
-
-		let mut backup_db = self.restoration_dir();
-		backup_db.push("backup_db");
-
-		let _ = fs::remove_dir_all(&backup_db);
-
-		let existed = match fs::rename(&self.client_db, &backup_db) {
-			Ok(_) => true,
-			Err(e) => if let ErrorKind::NotFound = e.kind() {
-				false
-			} else {
-				return Err(e.into());
-			}
-		};
-
-		match fs::rename(&our_db, &self.client_db) {
-			Ok(_) => {
-				// clean up the backup.
-				if existed {
-					try!(fs::remove_dir_all(&backup_db));
-				}
-				Ok(())
-			}
-			Err(e) => {
-				// restore the backup.
-				if existed {
-					try!(fs::rename(&backup_db, &self.client_db));
-				}
-				Err(e.into())
-			}
-		}
+		try!(self.db_restore.restore_db(our_db.to_str().unwrap()));
+		Ok(())
 	}
 
 	/// Initialize the restoration synchronously.
@@ -360,7 +292,10 @@ impl Service {
 
 		*res = Some(try!(Restoration::new(params)));
 
-		*self.status.lock() = RestorationStatus::Ongoing;
+		*self.status.lock() = RestorationStatus::Ongoing {
+			state_chunks_done: self.state_chunks.load(Ordering::Relaxed) as u32,
+			block_chunks_done: self.block_chunks.load(Ordering::Relaxed) as u32,
+		};
 		Ok(())
 	}
 
@@ -418,7 +353,7 @@ impl Service {
 
 		match self.status() {
 			RestorationStatus::Inactive | RestorationStatus::Failed => Ok(()),
-			RestorationStatus::Ongoing => {
+			RestorationStatus::Ongoing { .. } => {
 				let res = {
 					let rest = match *restoration {
 						Some(ref mut r) => r,
@@ -489,10 +424,6 @@ impl SnapshotService for Service {
 		*self.status.lock()
 	}
 
-	fn chunks_done(&self) -> (usize, usize) {
-		(self.state_chunks.load(Ordering::Relaxed), self.block_chunks.load(Ordering::Relaxed))
-	}
-
 	fn begin_restore(&self, manifest: ManifestData) {
 		self.io_channel.send(ClientIoMessage::BeginRestoration(manifest))
 			.expect("snapshot service and io service are kept alive by client service; qed");
@@ -522,14 +453,22 @@ impl SnapshotService for Service {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use service::ClientIoMessage;
 	use io::{IoService};
 	use devtools::RandomTempPath;
 	use tests::helpers::get_test_spec;
 	use util::journaldb::Algorithm;
-
-	use snapshot::ManifestData;
+	use error::Error;
+	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
+
+	struct NoopDBRestore;
+	impl DatabaseRestore for NoopDBRestore {
+		fn restore_db(&self, _new_db: &str) -> Result<(), Error> {
+			Ok(())
+		}
+	}
 
 	#[test]
 	fn sends_async_messages() {
@@ -544,13 +483,13 @@ mod tests {
 			&get_test_spec(),
 			Algorithm::Archive,
 			dir,
-			service.channel()
+			service.channel(),
+			Arc::new(NoopDBRestore),
 		).unwrap();
 
 		assert!(service.manifest().is_none());
 		assert!(service.chunk(Default::default()).is_none());
 		assert_eq!(service.status(), RestorationStatus::Inactive);
-		assert_eq!(service.chunks_done(), (0, 0));
 
 		let manifest = ManifestData {
 			state_hashes: vec![],
@@ -564,5 +503,11 @@ mod tests {
 		service.abort_restore();
 		service.restore_state_chunk(Default::default(), vec![]);
 		service.restore_block_chunk(Default::default(), vec![]);
+	}
+}
+
+impl Drop for Service {
+	fn drop(&mut self) {
+		self.abort_restore();
 	}
 }

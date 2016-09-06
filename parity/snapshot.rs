@@ -129,10 +129,9 @@ impl SnapshotCommand {
 
 		let informant_handle = snapshot.clone();
 		::std::thread::spawn(move || {
- 			while let RestorationStatus::Ongoing = informant_handle.status() {
- 				let (state_chunks, block_chunks) = informant_handle.chunks_done();
+ 			while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done } = informant_handle.status() {
  				info!("Processed {}/{} state chunks and {}/{} block chunks.",
- 					state_chunks, num_state, block_chunks, num_blocks);
+ 					state_chunks_done, num_state, block_chunks_done, num_blocks);
 
  				::std::thread::sleep(Duration::from_secs(5));
  			}
@@ -161,7 +160,7 @@ impl SnapshotCommand {
 		}
 
 		match snapshot.status() {
-			RestorationStatus::Ongoing => Err("Snapshot file is incomplete and missing chunks.".into()),
+			RestorationStatus::Ongoing { .. } => Err("Snapshot file is incomplete and missing chunks.".into()),
 			RestorationStatus::Failed => Err("Snapshot restoration failed.".into()),
 			RestorationStatus::Inactive => {
 				info!("Restoration complete.");
