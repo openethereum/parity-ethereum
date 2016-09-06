@@ -9,8 +9,8 @@ import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
 import { Tooltip } from '../../../ui';
 
-import styles from '../application.css';
-import imagesParitybar from '../../../images/paritybar.png';
+import styles from './tabBar.css';
+import imagesEthcoreBlock from '../../../images/ethcore-block.png';
 
 export default class TabBar extends Component {
   static contextTypes = {
@@ -26,9 +26,10 @@ export default class TabBar extends Component {
       <Toolbar
         className={ styles.toolbar }>
         <ToolbarGroup>
-          <img
-            className={ styles.logo }
-            src={ imagesParitybar } />
+          <div className={ styles.logo }>
+            <img src={ imagesEthcoreBlock } />
+            <div>Parity</div>
+          </div>
         </ToolbarGroup>
         <Tabs
           className={ styles.tabs }

@@ -1,0 +1,34 @@
+.toolbar {
+  background: rgb(65, 65, 65) !important;
+  height: 72px !important;
+  position: relative;
+}
+
+.tabs {
+  width: 100%;
+  position: relative;
+}
+
+.tabbarTooltip {
+  left: 2em;
+  top: 0;
+}
+
+.logo {
+  margin: 22px 3em 0 0;
+  white-space: nowrap;
+}
+
+.logo img {
+  height: 28px;
+  width: 28px;
+  margin-right: 0.5em;
+}
+
+.logo div {
+  display: inline-block;
+  text-transform: uppercase;
+  line-height: 32px;
+  vertical-align: top;
+  letter-spacing: 0.2em;
+}
