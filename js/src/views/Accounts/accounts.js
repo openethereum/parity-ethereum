@@ -1,5 +1,4 @@
 import React, { Component, PropTypes } from 'react';
-import { Link } from 'react-router';
 import { FlatButton } from 'material-ui';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import ContentAdd from 'material-ui/svg-icons/content/add';
@@ -45,14 +44,12 @@ export default class Accounts extends Component {
         label='new account'
         primary
         onTouchTap={ this.onNewAccountClick } />,
-      <Link
+      <FlatButton
         key='addressBook'
-        to='/addresses'>
-        <FlatButton
-          icon={ <CommunicationContacts /> }
-          label='address book'
-          primary />
-      </Link>
+        icon={ <CommunicationContacts /> }
+        label='address book'
+        primary
+        onTouchTap={ this.onAddressBookClick } />
     ];
 
     return (

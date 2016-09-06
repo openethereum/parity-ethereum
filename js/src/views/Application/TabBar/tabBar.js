@@ -1,10 +1,9 @@
 import React, { Component, PropTypes } from 'react';
-
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
-
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
 import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
+import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
 import { Tooltip } from '../../../ui';
@@ -14,8 +13,7 @@ import imagesEthcoreBlock from '../../../images/ethcore-block.png';
 
 const TABMAP = {
   accounts: 'account',
-  address: 'account',
-  addresses: 'account',
+  addresses: 'address',
   apps: 'app',
   contracts: 'contract'
 };
@@ -52,6 +50,12 @@ export default class TabBar extends Component {
               className={ styles.tabbarTooltip }
               text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           </Tab>
+          <Tab
+            data-route='/addresses'
+            value='address'
+            icon={ <CommunicationContacts /> }
+            label='address book'
+            onActive={ this.onActivate } />
           <Tab
             data-route='/apps'
             value='app'

@@ -21,7 +21,7 @@ const editIconStyle = {
 export default class AddressBook extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
-    accounts: PropTypes.array.isRequired
+    contacts: PropTypes.array.isRequired
   };
 
   static propTypes = {
@@ -64,8 +64,7 @@ export default class AddressBook extends Component {
   }
 
   renderEntries () {
-    const { accounts } = this.context;
-    const contacts = accounts.filter((account) => !account.uuid);
+    const { contacts } = this.context;
 
     if (!contacts.length) {
       return (
