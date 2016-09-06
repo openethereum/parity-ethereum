@@ -1,9 +1,7 @@
 import React, { Component } from 'react';
+import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 
-import { IconButton } from 'material-ui';
-import ActionSwapVert from 'material-ui/svg-icons/action/swap-vert';
-
-import imagesParitybar from '../../images/paritybar.png';
+import imagesEthcoreBlock from '../../images/ethcore-block.png';
 import styles from './parityBar.css';
 
 export default class ParityBar extends Component {
@@ -12,15 +10,17 @@ export default class ParityBar extends Component {
       <div className={ styles.bar }>
         <div className={ styles.corner }>
           <a
-            className={ styles.noshow }
+            className={ styles.link }
             href='/#/apps'>
-            <img
-              className={ styles.logo }
-              src={ imagesParitybar } />
+            <img src={ imagesEthcoreBlock } />
+            <div>Parity</div>
           </a>
-          <IconButton className={ styles.button }>
-            <ActionSwapVert />
-          </IconButton>
+          <a
+            className={ styles.link }
+            href='/#/signer'>
+            <ActionFingerprint />
+            <div>Signer</div>
+          </a>
         </div>
       </div>
     );
