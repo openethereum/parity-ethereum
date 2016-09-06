@@ -84,6 +84,7 @@ impl Configuration {
 		let cache_config = self.cache_config();
 		let spec = try!(self.chain().parse());
 		let tracing = try!(self.args.flag_tracing.parse());
+		let fat_db = try!(self.args.flag_fat_db.parse());
 		let compaction = try!(self.args.flag_db_compaction.parse());
 		let wal = !self.args.flag_fast_and_loose;
 		let enable_network = self.enable_network(&mode);
@@ -138,6 +139,7 @@ impl Configuration {
 				wal: wal,
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				vm_type: vm_type,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
@@ -154,6 +156,7 @@ impl Configuration {
 				wal: wal,
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				from_block: try!(to_block_id(&self.args.flag_from)),
 				to_block: try!(to_block_id(&self.args.flag_to)),
 			};
@@ -167,6 +170,7 @@ impl Configuration {
 				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
@@ -183,6 +187,7 @@ impl Configuration {
 				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
@@ -214,6 +219,7 @@ impl Configuration {
 				miner_extras: try!(self.miner_extras()),
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				compaction: compaction,
 				wal: wal,
 				vm_type: vm_type,
@@ -715,6 +721,7 @@ mod tests {
 			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
+			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
 		})));
 	}
@@ -735,6 +742,7 @@ mod tests {
 			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
+			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
 		})));
@@ -756,6 +764,7 @@ mod tests {
 			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
+			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
 		})));
@@ -802,6 +811,7 @@ mod tests {
 			ui: false,
 			name: "".into(),
 			custom_bootnodes: false,
+			fat_db: Default::default(),
 		}));
 	}
 

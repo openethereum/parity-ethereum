@@ -23,6 +23,7 @@ use ethcore_logger::{Config as LogConfig, setup_log};
 use ethcore_rpc::NetworkSettings;
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
+use util::journaldb::Algorithm;
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
@@ -65,6 +66,7 @@ pub struct RunCmd {
 	pub miner_extras: MinerExtras,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub vm_type: VMType,
@@ -115,7 +117,20 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(algorithm.as_str()));
+	info!("State DB configuation: {}{}{}",
+		Colour::White.bold().paint(algorithm.as_str()),
+		match cmd.fat_db {
+			Switch::On if algorithm == Algorithm::Archive => format!("{}", Colour::White.bold().paint(" +Fat")), 
+			Switch::On => die("Fat DB is not supported with the chosen pruning option. Please rerun with `--pruning=archive`"),
+			Switch::Auto => die("--fat-db auto is not supported."),
+			Switch::Off => "".to_owned(),
+		},
+		match cmd.tracing {
+			Switch::On => format!("{}", Colour::White.bold().paint(" +Trace")),
+			Switch::Auto => format!("{}", Colour::White.bold().paint(" +?Trace")),
+			Switch::Off => "".to_owned(),
+		}
+	);
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -148,6 +163,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		genesis_hash,
 		cmd.mode,
 		cmd.tracing,
+		cmd.fat_db,
 		cmd.pruning,
 		cmd.compaction,
 		cmd.wal,
@@ -343,4 +359,10 @@ fn wait_for_exit(
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap());
 	info!("Finishing work, please wait...");
+}
+
+
+fn die(msg: &'static str) -> ! {
+	println!("{}", msg);
+	::std::process::exit(-1)
 }

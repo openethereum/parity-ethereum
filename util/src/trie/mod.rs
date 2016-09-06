@@ -233,4 +233,7 @@ impl TrieFactory {
 			TrieSpec::Fat => Ok(Box::new(try!(FatDBMut::from_existing(db, root)))),
 		}
 	}
+
+	/// Returns true iff the trie DB is a fat DB (allows enumeration of keys).
+	pub fn is_fat(&self) -> bool { self.spec == TrieSpec::Fat } 
 }

@@ -22,7 +22,6 @@ pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
 pub use verification::VerifierType;
 use util::{journaldb, CompactionProfile};
-use util::trie::TrieSpec;
 
 /// Client state db compaction profile
 #[derive(Debug, PartialEq)]
@@ -91,8 +90,8 @@ pub struct ClientConfig {
 	pub tracing: TraceConfig,
 	/// VM type.
 	pub vm_type: VMType,
-	/// Trie type.
-	pub trie_spec: TrieSpec,
+	/// Fat DB enabled?
+	pub fat_db: Switch,
 	/// The JournalDB ("pruning") algorithm to use.
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
@@ -102,7 +101,7 @@ pub struct ClientConfig {
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
 	/// Should db have WAL enabled?
-	pub db_wal: bool, 
+	pub db_wal: bool,
 	/// Operating mode
 	pub mode: Mode,
 	/// Type of block verifier used by client.

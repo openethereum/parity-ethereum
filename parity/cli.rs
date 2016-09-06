@@ -204,17 +204,24 @@ Sealing/Mining Options:
                            URLS should be a comma-delimited list of HTTP URLs.
 
 Footprint Options:
-  --tracing BOOL           Indicates if full transaction tracing should be
-                           enabled. Works only if client had been fully synced
-                           with tracing enabled. BOOL may be one of auto, on,
-                           off. auto uses last used value of this option (off
-                           if it does not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
                            may be one of auto, archive, fast:
                            archive - keep all state trie data. No pruning.
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
+  --tracing BOOL           Indicates if full transaction tracing should be
+                           enabled. Works only if client had been fully synced
+                           with tracing enabled. BOOL may be one of auto, on,
+                           off. auto uses last used value of this option (off
+                           if it does not exist) [default: auto].
+  --fat-db BOOL            Build appropriate information to allow enumeration
+                           of all accounts and storage keys. Doubles the size
+                           of the state database. BOOL may be one of on,
+                           off. [default: off].
+  --db-compaction TYPE     Database compaction type. TYPE may be one of:
+                           ssd - suitable for SSDs and fast HDDs;
+                           hdd - suitable for slow HDDs [default: ssd].
   --cache-size-db MB       Override database cache size [default: 64].
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes [default: 8].
@@ -225,10 +232,6 @@ Footprint Options:
                            options.
   --fast-and-loose         Disables DB WAL, which gives a significant speed up
                            but means an unclean exit is unrecoverable.
-  --db-compaction TYPE     Database compaction type. TYPE may be one of:
-                           ssd - suitable for SSDs and fast HDDs;
-                           hdd - suitable for slow HDDs [default: ssd].
-  --fat-db                 Fat database.
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -321,8 +324,6 @@ pub struct Args {
 	pub flag_import_geth_keys: bool,
 	pub flag_bootnodes: Option<String>,
 	pub flag_network_id: Option<String>,
-	pub flag_pruning: String,
-	pub flag_tracing: String,
 	pub flag_port: u16,
 	pub flag_min_peers: u16,
 	pub flag_max_peers: u16,
@@ -332,6 +333,10 @@ pub struct Args {
 	pub flag_reserved_peers: Option<String>,
 	pub flag_reserved_only: bool,
 
+	pub flag_pruning: String,
+	pub flag_tracing: String,
+	pub flag_fat_db: String,
+	pub flag_db_compaction: String,
 	pub flag_cache_size_db: u32,
 	pub flag_cache_size_blocks: u32,
 	pub flag_cache_size_queue: u32,
@@ -411,8 +416,6 @@ pub struct Args {
 	pub flag_dapps_off: bool,
 	pub flag_ipcpath: Option<String>,
 	pub flag_ipcapi: Option<String>,
-	pub flag_db_compaction: String,
-	pub flag_fat_db: bool,
 }
 
 impl Default for Args {
