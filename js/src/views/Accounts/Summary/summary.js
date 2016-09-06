@@ -1,8 +1,12 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
+import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
+import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 
 import Balances from '../../../ui/Balances';
 import { Container, ContainerTitle, IdentityIcon } from '../../../ui';
+
+import styles from './summary.css';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -11,7 +15,7 @@ export default class Summary extends Component {
 
   static propTypes = {
     account: PropTypes.object.isRequired,
-    to: PropTypes.string,
+    contact: PropTypes.string,
     children: PropTypes.node
   }
 
@@ -20,16 +24,22 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, children, to } = this.props;
+    const { account, children, contact } = this.props;
 
     if (!account) {
       return null;
     }
 
-    const viewLink = `/${to || 'account'}/${account.address}`;
+    const viewLink = `/${contact ? 'address' : 'account'}/${account.address}`;
+    const typeIcon = contact
+      ? <CommunicationContacts />
+      : <ActionAccountBalanceWallet />;
 
     return (
       <Container>
+        <div className={ styles.typeIcon }>
+          { typeIcon }
+        </div>
         <IdentityIcon
           address={ account.address } />
         <ContainerTitle

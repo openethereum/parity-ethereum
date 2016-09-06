@@ -49,7 +49,7 @@ export default class Addresses extends Component {
           className={ styles.address }
           key={ contact.address }>
           <Summary
-            to='address'
+            contact
             account={ contact } />
         </div>
       );
