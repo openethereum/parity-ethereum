@@ -1,3 +1,1 @@
-const Signer = null;
-
-export default Signer;
+export default from './signer';

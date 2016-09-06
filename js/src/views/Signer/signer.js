@@ -2,19 +2,18 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
-import { Actionbar } from '../../../../ui';
+import { Actionbar } from '../../ui';
 
-import { ToastrContainer } from '../../components';
-import { removeToast } from '../../actions/toastr';
+import { removeToast } from './actions/toastr';
+import { ToastrContainer } from './components';
+import LoadingPage from './containers/LoadingPage';
+import OfflinePage from './containers/OfflinePage';
+import RequestsPage from './containers/RequestsPage';
+import UnAuthorizedPage from './containers/UnAuthorizedPage';
 
-import LoadingPage from '../LoadingPage';
-import OfflinePage from '../OfflinePage';
-import RequestsPage from '../RequestsPage';
-import UnAuthorizedPage from '../UnAuthorizedPage';
+import styles from './signer.css';
 
-import styles from './Root.css';
-
-export class Root extends Component {
+export class Signer extends Component {
   static propTypes = {
     toastr: PropTypes.shape({
       toasts: PropTypes.array.isRequired
@@ -33,7 +32,7 @@ export class Root extends Component {
     const { toastr, actions } = this.props;
 
     return (
-      <div>
+      <div className={ styles.signer }>
         <Actionbar
           title='Parity Trusted Signer' />
         <div className={ styles.mainContainer }>
@@ -83,4 +82,4 @@ function mapDispatchToProps (dispatch) {
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(Root);
+)(Signer);

@@ -11,14 +11,13 @@ import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 import { muiTheme } from './ui';
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps } from './views';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer } from './views';
 
 import { errorReducer } from './ui/Errors';
 import { tooltipReducer } from './ui/Tooltips';
 import { statusReducer } from './views/Application/Status';
 
 // TODO: This is VERY messy, just dumped here to get the Signer going
-import Signer from './views/Signer/containers/Root';
 import signerMiddlewares from './views/Signer/middlewares';
 import { signer as signerReducer, toastr as toastrReducer, requests as requestsReducer } from './views/Signer/reducers';
 import Web3 from 'web3';
