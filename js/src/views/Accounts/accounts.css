@@ -1,24 +1,8 @@
 .accounts {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.account {
-  flex: 0 1 50%;
-  width: 50%;
-  position: relative;
-}
-
-.account:nth-child(odd)>div {
-  padding-right: 0.5em !important;
-}
-
-.account:nth-child(even)>div {
-  padding-left: 0.5em !important;
 }
 
 .accountTooltip {
-  top: 5.5em;
+  top: 13em;
   left: 5em;
 }
 
@@ -29,13 +13,4 @@
 .toolbarTooltip {
   right: 20px;
   top: 4em;
-}
-
-.empty {
-  width: 100%;
-  display: block;
-}
-
-.empty div {
-  color: #aaa;
 }

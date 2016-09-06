@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
-import Summary from '../Accounts/Summary';
-import { Actionbar, Container } from '../../ui';
+import List from '../Accounts/List';
+import { Actionbar } from '../../ui';
 
 import styles from './addresses.css';
 
@@ -12,14 +12,12 @@ export default class Addresses extends Component {
   }
 
   render () {
-    console.log(this.renderAddresses());
+    const { contacts } = this.context;
 
     return (
-      <div>
+      <div className={ styles.addresses }>
         { this.renderActionbar() }
-        <div className={ styles.addresses }>
-          { this.renderAddresses() }
-        </div>
+        <List accounts={ contacts } />
       </div>
     );
   }
@@ -30,29 +28,5 @@ export default class Addresses extends Component {
         className={ styles.toolbar }
         title='Saved Addresses' />
     );
-  }
-
-  renderAddresses () {
-    const { contacts } = this.context;
-
-    if (!contacts || !contacts.length) {
-      return (
-        <Container className={ styles.empty }>
-          There are currently no saved addresses.
-        </Container>
-      );
-    }
-
-    return contacts.map((contact, idx) => {
-      return (
-        <div
-          className={ styles.address }
-          key={ contact.address }>
-          <Summary
-            contact
-            account={ contact } />
-        </div>
-      );
-    });
   }
 }

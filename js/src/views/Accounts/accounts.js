@@ -4,9 +4,9 @@ import { FlatButton } from 'material-ui';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
-import Summary from './Summary';
+import List from './List';
 import { AddressBook, CreateAccount } from '../../modals';
-import { Actionbar, Container, Tooltip } from '../../ui';
+import { Actionbar, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -22,14 +22,17 @@ export default class Accounts extends Component {
   }
 
   render () {
+    const { accounts } = this.context;
+
     return (
-      <div>
+      <div className={ styles.accounts }>
         { this.renderAddressBook() }
         { this.renderNewDialog() }
         { this.renderActionbar() }
-        <div className={ styles.accounts }>
-          { this.renderAccounts() }
-        </div>
+        <List accounts={ accounts } />
+        <Tooltip
+          className={ styles.accountTooltip }
+          text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
       </div>
     );
   }
@@ -63,39 +66,6 @@ export default class Accounts extends Component {
           text='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item' />
       </Actionbar>
     );
-  }
-
-  renderAccounts () {
-    const { accounts } = this.context;
-
-    if (!accounts || !accounts.length) {
-      return (
-        <Container className={ styles.empty }>
-          <div>
-            There are currently no accounts attached to this instance.
-          </div>
-        </Container>
-      );
-    }
-
-    const firstTooltip = (
-      <Tooltip
-        className={ styles.accountTooltip }
-        text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
-    );
-
-    return accounts.map((account, idx) => {
-      return (
-        <div
-          className={ styles.account }
-          key={ account.address }>
-          <Summary
-            account={ account }>
-            { idx === 0 ? firstTooltip : null }
-          </Summary>
-        </div>
-      );
-    });
   }
 
   renderNewDialog () {

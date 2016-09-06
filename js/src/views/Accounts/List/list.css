@@ -1,22 +1,19 @@
-.addresses {
-}
-
 .list {
   display: flex;
   flex-wrap: wrap;
 }
 
-.address {
+.account {
   flex: 0 1 50%;
   width: 50%;
   position: relative;
 }
 
-.address:nth-child(odd)>div {
+.account:nth-child(odd)>div {
   padding-right: 0.5em !important;
 }
 
-.address:nth-child(even)>div {
+.account:nth-child(even)>div {
   padding-left: 0.5em !important;
 }
 
