@@ -21,7 +21,7 @@ use std::io::ErrorKind;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use super::{ManifestData, StateRebuilder, BlockRebuilder, RestorationStatus, SnapshotService};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
@@ -192,6 +192,7 @@ pub struct Service {
 	block_chunks: AtomicUsize,
 	db_restore: Arc<DatabaseRestore>,
 	progress: super::Progress,
+	taking_snapshot: AtomicBool,
 }
 
 impl Service {
@@ -222,6 +223,7 @@ impl Service {
 			block_chunks: AtomicUsize::new(0),
 			db_restore: db_restore,
 			progress: Default::default(),
+			taking_snapshot: AtomicBool::new(false),
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -302,7 +304,7 @@ impl Service {
 	/// Tick the snapshot service. This will log any active snapshot
 	/// being taken.
 	pub fn tick(&self) {
-		if self.progress.done() { return }
+		if self.progress.done() || !self.taking_snapshot.load(Ordering::SeqCst) { return }
 
 		let p = &self.progress;
 		info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
@@ -313,6 +315,11 @@ impl Service {
 	/// will lead to a race condition where the first one to finish will
 	/// have their produced snapshot overwritten.
 	pub fn take_snapshot(&self, client: &Client, num: u64) -> Result<(), Error> {
+		if self.taking_snapshot.compare_and_swap(false, true, Ordering::SeqCst) {
+			info!("Skipping snapshot at #{} as another one is currently in-progress.", num);
+			return Ok(());
+		}
+
 		info!("Taking snapshot at #{}", num);
 		self.progress.reset();
 
@@ -324,7 +331,10 @@ impl Service {
 		let writer = try!(LooseWriter::new(temp_dir.clone()));
 
 		let guard = Guard::new(temp_dir.clone());
-		try!(client.take_snapshot(writer, BlockID::Number(num), &self.progress));
+		let res = client.take_snapshot(writer, BlockID::Number(num), &self.progress);
+
+		self.taking_snapshot.store(false, Ordering::SeqCst);
+		try!(res);
 
 		info!("Finished taking snapshot at #{}", num);
 
