@@ -23,7 +23,7 @@ use error::*;
 use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
 use snapshot::ManifestData;
-use snapshot::service::Service as SnapshotService;
+use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
 
 #[cfg(feature="ipc")]
@@ -60,11 +60,12 @@ pub struct ClientService {
 }
 
 impl ClientService {
-	/// Start the service in a separate thread.
+	/// Start the `ClientService`.
 	pub fn start(
 		config: ClientConfig,
 		spec: &Spec,
-		db_path: &Path,
+		client_path: &Path,
+		snapshot_path: &Path,
 		ipc_path: &Path,
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
@@ -78,11 +79,25 @@ impl ClientService {
 			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
 		}
 
-		let pruning = config.pruning;
-		let client = try!(Client::new(config, &spec, db_path, miner, io_service.channel()));
-		let snapshot = try!(SnapshotService::new(spec, pruning, db_path.into(), io_service.channel(), client.clone()));
+		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+		db_config.cache_size = config.db_cache_size;
+		db_config.compaction = config.db_compaction.compaction_profile();
+		db_config.wal = config.db_wal;
 
-		let snapshot = Arc::new(snapshot);
+		let pruning = config.pruning;
+		let client = try!(Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config));
+
+		let snapshot_params = SnapServiceParams {
+			engine: spec.engine.clone(),
+			genesis_block: spec.genesis_block(),
+			db_config: db_config,
+			pruning: pruning,
+			channel: io_service.channel(),
+			snapshot_root: snapshot_path.into(),
+			client_db: client_path.into(),
+			db_restore: client.clone(),
+		};
+		let snapshot = Arc::new(try!(SnapshotService::new(snapshot_params)));
 
 		panic_handler.forward_from(&*client);
 		let client_io = Arc::new(ClientIoHandler {
@@ -232,15 +247,25 @@ mod tests {
 	#[test]
 	fn it_can_be_started() {
 		let temp_path = RandomTempPath::new();
-		let mut path = temp_path.as_path().to_owned();
-		path.push("pruning");
-		path.push("db");
+		let path = temp_path.as_path().to_owned();
+		let client_path = {
+			let mut path = path.to_owned();
+			path.push("client");
+			path
+		};
+
+		let snapshot_path = {
+			let mut path = path.to_owned();
+			path.push("snapshot");
+			path
+		};
 
 		let spec = get_test_spec();
 		let service = ClientService::start(
 			ClientConfig::default(),
 			&spec,
-			&path,
+			&client_path,
+			&snapshot_path,
 			&path,
 			Arc::new(Miner::with_spec(&spec)),
 		);

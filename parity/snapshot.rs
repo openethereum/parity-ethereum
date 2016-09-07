@@ -82,8 +82,9 @@ impl SnapshotCommand {
 		// select pruning algorithm
 		let algorithm = self.pruning.to_algorithm(&self.dirs, genesis_hash, spec.fork_name.as_ref());
 
-		// prepare client_path
+		// prepare client and snapshot paths.
 		let client_path = self.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
+		let snapshot_path = self.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
 
 		// execute upgrades
 		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
@@ -94,8 +95,9 @@ impl SnapshotCommand {
 		let service = try!(ClientService::start(
 			client_config,
 			&spec,
-			Path::new(&client_path),
-			Path::new(&self.dirs.ipc_path()),
+			&client_path,
+			&snapshot_path,
+			&self.dirs.ipc_path(),
 			Arc::new(Miner::with_spec(&spec))
 		).map_err(|e| format!("Client service error: {:?}", e)));
 

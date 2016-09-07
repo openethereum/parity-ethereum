@@ -25,18 +25,23 @@ use devtools::*;
 use miner::Miner;
 use crossbeam;
 use io::IoChannel;
+use util::kvdb::DatabaseConfig;
 
 pub fn run_test_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_path: &str) {
 	let socket_path = socket_path.to_owned();
 	scope.spawn(move || {
 		let temp = RandomTempPath::create_dir();
 		let spec = get_test_spec();
+		let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
 			temp.as_path(),
 			Arc::new(Miner::with_spec(&spec)),
-			IoChannel::disconnected()).unwrap();
+			IoChannel::disconnected(),
+			&db_config
+		).unwrap();
 		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
 		worker.add_reqrep(&socket_path).unwrap();
 		while !stop.load(Ordering::Relaxed) {

@@ -33,15 +33,22 @@ trait Oracle: Send + Sync {
 	fn is_major_syncing(&self) -> bool;
 }
 
-impl Oracle for Client {
+struct StandardOracle<F> where F: 'static + Send + Sync + Fn() -> bool {
+	client: Arc<Client>,
+	sync_status: F,
+}
+
+impl<F> Oracle for StandardOracle<F>
+	where F: Send + Sync + Fn() -> bool
+{
 	fn to_number(&self, hash: H256) -> Option<u64> {
-		self.block_header(BlockID::Hash(hash)).map(|h| HeaderView::new(&h).number())
+		self.client.block_header(BlockID::Hash(hash)).map(|h| HeaderView::new(&h).number())
 	}
 
 	fn is_major_syncing(&self) -> bool {
-		let queue_info = self.queue_info();
+		let queue_info = self.client.queue_info();
 
-		queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
+		(self.sync_status)() || queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
 	}
 }
 
@@ -68,7 +75,7 @@ impl Broadcast for IoChannel<ClientIoMessage> {
 /// A `ChainNotify` implementation which will trigger a snapshot event
 /// at certain block numbers.
 pub struct Watcher {
-	oracle: Arc<Oracle>,
+	oracle: Box<Oracle>,
 	broadcast: Box<Broadcast>,
 	period: u64,
 	history: u64,
@@ -78,9 +85,14 @@ impl Watcher {
 	/// Create a new `Watcher` which will trigger a snapshot event
 	/// once every `period` blocks, but only after that block is
 	/// `history` blocks old.
-	pub fn new(client: Arc<Client>, channel: IoChannel<ClientIoMessage>, period: u64, history: u64) -> Self {
+	pub fn new<F>(client: Arc<Client>, sync_status: F, channel: IoChannel<ClientIoMessage>, period: u64, history: u64) -> Self
+		where F: 'static + Send + Sync + Fn() -> bool
+	{
 		Watcher {
-			oracle: client,
+			oracle: Box::new(StandardOracle {
+				client: client,
+				sync_status: sync_status,
+			}),
 			broadcast: Box::new(channel),
 			period: period,
 			history: history,
@@ -125,7 +137,6 @@ mod tests {
 	use util::{H256, U256};
 
 	use std::collections::HashMap;
-	use std::sync::Arc;
 
 	struct TestOracle(HashMap<H256, u64>);
 
@@ -152,7 +163,7 @@ mod tests {
 		let map = hashes.clone().into_iter().zip(numbers).collect();
 
 		let watcher = Watcher {
-			oracle: Arc::new(TestOracle(map)),
+			oracle: Box::new(TestOracle(map)),
 			broadcast: Box::new(TestBroadcast(expected)),
 			period: period,
 			history: history,
