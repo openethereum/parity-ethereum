@@ -31,7 +31,6 @@ export default class TabBar extends Component {
     const windowHash = (window.location.hash || '')
       .split('?')[0].split('/')[1];
     const hash = TABMAP[windowHash] || windowHash;
-    console.log(hash);
 
     return (
       <Toolbar
