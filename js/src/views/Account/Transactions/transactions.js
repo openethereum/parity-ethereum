@@ -94,82 +94,85 @@ class Transactions extends Component {
 
   renderTransactions () {
     const { isTest } = this.props;
-    const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
-    let transactions = null;
+    const { loading, transactions } = this.state;
 
-    if (this.state.transactions && this.state.transactions.length) {
-      transactions = (this.state.transactions || []).map((tx) => {
-        const hashLink = `${prefix}tx/${tx.hash}`;
-        const value = formatEther(tx.value);
-        const token = value ? 'ΞTH' : null;
-        const tosection = (tx.to && tx.to.length)
-          ? this.renderAddress(prefix, tx.to)
-          : (<td className={ `${styles.center}` }></td>);
-
-        return (
-          <tr key={ tx.hash }>
-            <td className={ styles.center }></td>
-            { this.renderAddress(prefix, tx.from) }
-            { tosection }
-            <td className={ styles.center }>
-              <a href={ hashLink } target='_blank' className={ styles.link }>
-                { formatHash(tx.hash) }
-              </a>
-            </td>
-            <td className={ styles.right }>
-              { formatNumber(tx.blockNumber) }
-            </td>
-            <td className={ styles.right }>
-              { formatTime(tx.timeStamp) }
-            </td>
-            <td className={ styles.value }>
-              { formatEther(tx.value) }<small> { token }</small>
-            </td>
-          </tr>
-        );
-      });
-
-      return (
-        <table className={ styles.transactions }>
-          <thead>
-            <tr className={ styles.info }>
-              <th>&nbsp;</th>
-              <th className={ styles.left }>from</th>
-              <th className={ styles.left }>to</th>
-              <th className={ styles.center }>transaction</th>
-              <th className={ styles.right }>block</th>
-              <th className={ styles.right }>age</th>
-              <th className={ styles.right }>value</th>
-            </tr>
-          </thead>
-          <tbody>
-            { transactions }
-          </tbody>
-        </table>
-      );
-    } else if (this.state.loading) {
+    if (loading) {
       return (
         <LinearProgress mode='indeterminate' />
       );
+    } else if (!transactions.length) {
+      return (
+        <div className={ styles.infonone }>
+          No transactions were found for this account
+        </div>
+      );
     }
 
+    const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
+    const rows = (transactions || []).map((tx) => {
+      const hashLink = `${prefix}tx/${tx.hash}`;
+      const value = formatEther(tx.value);
+      const token = value ? 'ΞTH' : null;
+      const tosection = (tx.to && tx.to.length)
+        ? this.renderAddress(prefix, tx.to)
+        : (<td className={ `${styles.center}` }></td>);
+
+      return (
+        <tr key={ tx.hash }>
+          <td className={ styles.center }></td>
+          { this.renderAddress(prefix, tx.from) }
+          { tosection }
+          <td className={ styles.center }>
+            <a href={ hashLink } target='_blank' className={ styles.link }>
+              { formatHash(tx.hash) }
+            </a>
+          </td>
+          <td className={ styles.right }>
+            { formatNumber(tx.blockNumber) }
+          </td>
+          <td className={ styles.right }>
+            { formatTime(tx.timeStamp) }
+          </td>
+          <td className={ styles.value }>
+            { formatEther(tx.value) }<small> { token }</small>
+          </td>
+        </tr>
+      );
+    });
+
     return (
-      <div className={ styles.infonone }>
-        No transactions were found for this account
-      </div>
+      <table className={ styles.transactions }>
+        <thead>
+          <tr className={ styles.info }>
+            <th>&nbsp;</th>
+            <th className={ styles.left }>from</th>
+            <th className={ styles.left }>to</th>
+            <th className={ styles.center }>transaction</th>
+            <th className={ styles.right }>block</th>
+            <th className={ styles.right }>age</th>
+            <th className={ styles.right }>value</th>
+          </tr>
+        </thead>
+        <tbody>
+          { rows }
+        </tbody>
+      </table>
     );
   }
 
   getTransactions = () => {
-    const { isTest } = this.props;
+    const { isTest, address } = this.props;
 
     return etherscan.account
-      .transactions(this.props.address, 0, isTest)
+      .transactions(address, 0, isTest)
       .then((transactions) => {
         this.setState({
           transactions,
           loading: false
         });
+      })
+      .catch((error) => {
+        console.error('getTransactions', error);
       });
   }
 }

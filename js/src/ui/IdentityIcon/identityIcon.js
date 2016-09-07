@@ -36,8 +36,6 @@ export default class IdentityIcon extends Component {
     const { inline } = this.props;
     const token = (tokens || []).find((c) => c.address === _address);
 
-    console.log(tokens);
-
     if (token && token.images) {
       this.setState({
         iconsrc: token.images[inline ? 'small' : 'normal']

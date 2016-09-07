@@ -17,8 +17,13 @@ export default class Balances extends Component {
   render () {
     const { api, balances } = this.context;
     const { account } = this.props;
+    const balance = balances[account.address];
 
-    let body = balances[account.address].tokens
+    if (!balance) {
+      return null;
+    }
+
+    let body = balance.tokens
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
         const token = balance.token;

@@ -36,14 +36,9 @@ export default class Header extends Component {
     const { name } = this.state;
     const balance = balances[address];
 
-    const title = (
-      <span>
-        <span>{ name || DEFAULT_NAME }</span>
-        <ContentCreate
-          className={ styles.editicon }
-          color='rgb(0, 151, 167)' />
-      </span>
-    );
+    if (!account) {
+      return null;
+    }
 
     return (
       <Container>
@@ -55,14 +50,12 @@ export default class Header extends Component {
               label='account name'
               hint='a descriptive name for the account'
               value={ name }
-              static={ <ContainerTitle title={ title } /> }
+              static={ this.renderTitle(name) }
               onChange={ this.onEditName } />
             <div className={ styles.infoline }>
               { address }
             </div>
-            <div className={ styles.infoline }>
-              { balance.txCount.toFormat() } outgoing transactions
-            </div>
+            { this.renderTxCount(balance) }
           </div>
           <div className={ styles.balances }>
             <Balances
@@ -70,6 +63,31 @@ export default class Header extends Component {
           </div>
         </Form>
       </Container>
+    );
+  }
+
+  renderTitle (name) {
+    return (
+      <ContainerTitle title={
+        <span>
+          <span>{ name || DEFAULT_NAME }</span>
+          <ContentCreate
+            className={ styles.editicon }
+            color='rgb(0, 151, 167)' />
+        </span>
+      } />
+    );
+  }
+
+  renderTxCount (balance) {
+    if (!balance) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.infoline }>
+        { balance.txCount.toFormat() } outgoing transactions
+      </div>
     );
   }
 
