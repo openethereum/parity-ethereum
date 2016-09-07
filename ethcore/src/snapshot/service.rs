@@ -187,9 +187,6 @@ pub struct ServiceParams {
 	/// The directory to put snapshots in.
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
-	/// The client's database directory.
-	/// Usually "<chain hash>/<pruning>/db".
-	pub client_db: PathBuf,
 	/// A handle for database restoration.
 	pub db_restore: Arc<DatabaseRestore>,
 }
@@ -198,7 +195,6 @@ pub struct ServiceParams {
 /// This controls taking snapshots and restoring from them.
 pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
-	client_db: PathBuf,
 	snapshot_root: PathBuf,
 	db_config: DatabaseConfig,
 	io_channel: Channel,
@@ -219,7 +215,6 @@ impl Service {
 	pub fn new(params: ServiceParams) -> Result<Self, Error> {
 		let mut service = Service {
 			restoration: Mutex::new(None),
-			client_db: params.client_db,
 			snapshot_root: params.snapshot_root,
 			db_config: params.db_config,
 			io_channel: params.channel,
@@ -301,7 +296,6 @@ impl Service {
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let our_db = self.restoration_db();
 
-		trace!(target: "snapshot", "replacing {:?} with {:?}", self.client_db, our_db);
 		try!(self.db_restore.restore_db(our_db.to_str().unwrap()));
 		Ok(())
 	}
@@ -585,7 +579,6 @@ mod tests {
 			pruning: Algorithm::Archive,
 			channel: service.channel(),
 			snapshot_root: dir,
-			client_db: client_db,
 			db_restore: Arc::new(NoopDBRestore),
 		};
 
