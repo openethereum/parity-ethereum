@@ -51,7 +51,7 @@ use url;
 const SNAPSHOT_PERIOD: u64 = 10000;
 
 // how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 1000;
+const SNAPSHOT_HISTORY: u64 = 500;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
