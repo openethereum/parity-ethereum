@@ -29,9 +29,9 @@
 }
 
 .link img, .link svg {
-  height: 28px !important;
-  width: 28px !important;
-  margin-right: 0.5em;
+  height: 24px !important;
+  width: 24px !important;
+  margin: 2px 0.5em 0 0;
 }
 
 .link div {
