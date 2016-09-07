@@ -52,6 +52,7 @@
 }
 
 .button {
+  overflow: visible !important;
 }
 
 .label {
@@ -62,19 +63,18 @@
 
 .labelText {
   text-transform: uppercase;
-  line-height: 32px;
   vertical-align: top;
-  letter-spacing: 0.2em;
 }
 
 .labelBubble {
   border-radius: 50%;
-  padding: 3px 5px;
+  padding: 5px;
   background: red;
   color: white;
   font-size: 0.7em;
+  line-height: 0.7em;
   position: absolute;
-  top: -2px;
+  top: 0px;
   right: -10px;
 }
 
@@ -87,4 +87,9 @@
   margin-left: 1em;
   display: inline-block;
   cursor: pointer;
+}
+
+.parityIcon {
+  width: 24px;
+  height: 24px;
 }

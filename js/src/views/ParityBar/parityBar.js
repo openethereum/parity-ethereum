@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
@@ -7,7 +8,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { Embedded as Signer } from '../Signer';
 
-import imagesEthcoreBlock from '../../images/ethcore-block.png';
+import imagesEthcoreBlock from '../../images/ethcore-block-blue.png';
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
@@ -28,21 +29,28 @@ class ParityBar extends Component {
   }
 
   renderBar () {
+    const parityIcon = (
+      <img
+        src={ imagesEthcoreBlock }
+        className={ styles.parityIcon } />
+    );
+
     return (
       <div className={ styles.bar }>
         <div className={ styles.corner }>
-          <a
-            className={ styles.link }
-            href='/#/apps'>
-            <img src={ imagesEthcoreBlock } />
-            { this.renderLabel('Parity') }
-          </a>
-          <a
-            className={ styles.link }
-            onTouchTap={ this.toggleDisplay }>
-            <ActionFingerprint />
-            { this.renderSignerLabel() }
-          </a>
+          <Link to='/apps'>
+            <FlatButton
+              className={ styles.button }
+              icon={ parityIcon }
+              label={ this.renderLabel('Parity') }
+              primary />
+          </Link>
+          <FlatButton
+            className={ styles.button }
+            icon={ <ActionFingerprint /> }
+            label={ this.renderSignerLabel() }
+            primary
+            onTouchTap={ this.toggleDisplay } />
         </div>
       </div>
     );
