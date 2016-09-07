@@ -36,7 +36,7 @@ use spec::Spec;
 
 use io::IoChannel;
 
-use util::{Bytes, H256, Mutex, RwLock, UtilError};
+use util::{Bytes, H256, Mutex, RwLock, RwLockReadGuard, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
@@ -71,7 +71,7 @@ struct Restoration {
 	block_chunks_left: HashSet<H256>,
 	state: StateRebuilder,
 	blocks: BlockRebuilder,
-	writer: LooseWriter,
+	writer: Option<LooseWriter>,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
@@ -81,7 +81,7 @@ struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
 	db_path: PathBuf, // database path
-	writer: LooseWriter, // writer for recovered snapshot.
+	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
 }
@@ -121,7 +121,10 @@ impl Restoration {
 			let len = try!(snappy::decompress_into(chunk, &mut self.snappy_buffer));
 
 			try!(self.state.feed(&self.snappy_buffer[..len]));
-			try!(self.writer.write_state_chunk(hash, chunk));
+
+			if let Some(ref mut writer) = self.writer.as_mut() {
+				try!(writer.write_state_chunk(hash, chunk));
+			}
 		}
 
 		Ok(())
@@ -133,7 +136,9 @@ impl Restoration {
 			let len = try!(snappy::decompress_into(chunk, &mut self.snappy_buffer));
 
 			try!(self.blocks.feed(&self.snappy_buffer[..len], engine));
-			try!(self.writer.write_block_chunk(hash, chunk));
+			if let Some(ref mut writer) = self.writer.as_mut() {
+				try!(writer.write_block_chunk(hash, chunk));
+			}
 		}
 
 		Ok(())
@@ -158,7 +163,9 @@ impl Restoration {
 		// connect out-of-order chunks.
 		self.blocks.glue_chunks();
 
-		try!(self.writer.finish(self.manifest));
+		if let Some(writer) = self.writer {
+			try!(writer.finish(self.manifest));
+		}
 
 		self.guard.disarm();
 		Ok(())
@@ -299,6 +306,11 @@ impl Service {
 		Ok(())
 	}
 
+	/// Get a reference to the snapshot reader.
+	pub fn reader(&self) -> RwLockReadGuard<Option<LooseReader>> {
+		self.reader.read()
+	}
+
 	/// Tick the snapshot service. This will log any active snapshot
 	/// being taken.
 	pub fn tick(&self) {
@@ -342,7 +354,8 @@ impl Service {
 	}
 
 	/// Initialize the restoration synchronously.
-	pub fn init_restore(&self, manifest: ManifestData) -> Result<(), Error> {
+	/// The recover flag indicates whether to recover the restored snapshot.
+	pub fn init_restore(&self, manifest: ManifestData, recover: bool) -> Result<(), Error> {
 		let rest_dir = self.restoration_dir();
 
 		let mut res = self.restoration.lock();
@@ -361,7 +374,10 @@ impl Service {
 		try!(fs::create_dir_all(&rest_dir));
 
 		// make new restoration.
-		let writer = try!(LooseWriter::new(self.temp_recovery_dir()));
+		let writer = match recover {
+			true => Some(try!(LooseWriter::new(self.temp_recovery_dir()))),
+			false => None
+		};
 
 		let params = RestorationParams {
 			manifest: manifest,
@@ -390,32 +406,35 @@ impl Service {
 		self.state_chunks.store(0, Ordering::SeqCst);
 		self.block_chunks.store(0, Ordering::SeqCst);
 
+		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
+
 		// destroy the restoration before replacing databases and snapshot.
 		try!(rest.take().map(Restoration::finalize).unwrap_or(Ok(())));
 		try!(self.replace_client_db());
 
-		let mut reader = self.reader.write();
-		*reader = None; // destroy the old reader if it existed.
+		if recover {
+			let mut reader = self.reader.write();
+			*reader = None; // destroy the old reader if it existed.
 
-		let snapshot_dir = self.snapshot_dir();
+			let snapshot_dir = self.snapshot_dir();
 
-		trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
-		if let Err(e) = fs::remove_dir_all(&snapshot_dir) {
-			match e.kind() {
-				ErrorKind::NotFound => {}
-				_ => return Err(e.into()),
+			trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
+			if let Err(e) = fs::remove_dir_all(&snapshot_dir) {
+				match e.kind() {
+					ErrorKind::NotFound => {}
+					_ => return Err(e.into()),
+				}
 			}
+
+			try!(fs::create_dir(&snapshot_dir));
+
+			trace!(target: "snapshot", "copying restored snapshot files over");
+			try!(fs::rename(self.temp_recovery_dir(), &snapshot_dir));
+
+			*reader = Some(try!(LooseReader::new(snapshot_dir)));
 		}
 
-		try!(fs::create_dir(&snapshot_dir));
-
-		trace!(target: "snapshot", "copying restored snapshot files over");
-		try!(fs::rename(self.temp_recovery_dir(), &snapshot_dir));
-
 		let _ = fs::remove_dir_all(self.restoration_dir());
-
-		*reader = Some(try!(LooseReader::new(snapshot_dir)));
-
 		*self.status.lock() = RestorationStatus::Inactive;
 
 		Ok(())

@@ -34,6 +34,7 @@ Usage:
   parity signer new-token [options]
   parity snapshot <file> [options]
   parity restore <file> [options]
+  parity restore local [options]
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
@@ -307,6 +308,7 @@ pub struct Args {
 	pub cmd_snapshot: bool,
 	pub cmd_restore: bool,
 	pub cmd_ui: bool,
+	pub cmd_local: bool,
 	pub arg_pid_file: String,
 	pub arg_file: Option<String>,
 	pub arg_path: Vec<String>,

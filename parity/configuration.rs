@@ -172,6 +172,7 @@ impl Configuration {
 				wal: wal,
 				kind: snapshot::Kind::Take,
 				block_at: try!(to_block_id(&self.args.flag_at)),
+				local: false, // unimportant
 			};
 			Cmd::Snapshot(snapshot_cmd)
 		} else if self.args.cmd_restore {
@@ -188,6 +189,7 @@ impl Configuration {
 				wal: wal,
 				kind: snapshot::Kind::Restore,
 				block_at: try!(to_block_id("latest")), // unimportant.
+				local: self.args.cmd_local,
 			};
 			Cmd::Snapshot(restore_cmd)
 		} else {
