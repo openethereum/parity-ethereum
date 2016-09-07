@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "build": "npm run buildApp",
-    "buildApp": "webpack",
+    "buildApp": "NODE_ENV=production webpack",
     "buildLibrary": "rollup --config ./rollup.library.js",
     "clean": "rm -rf ./build",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
