@@ -10,6 +10,8 @@ import { updateLogging } from '../../actions/logger';
 import ToastrContainer from '../../components/ToastrContainer';
 import StatusPage from '../StatusPage';
 
+// TODO [jacogr] get rid of this ASAP
+import 'dapp-styles/dist/dapp-styles.css';
 import styles from './status.css';
 
 class Container extends Component {

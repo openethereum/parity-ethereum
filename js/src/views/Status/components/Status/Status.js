@@ -40,6 +40,7 @@ export default class Status extends Component {
 
   renderSettings () {
     const { status, statusSettings } = this.props;
+
     return (
       <div { ...this._test('settings') }>
         <h1><span>Network</span> settings</h1>
