@@ -286,7 +286,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 #[test]
 fn eth_transaction_count() {
 	let secret = "8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2".into();
-	let tester = EthTester::from_spec(Spec::load(TRANSACTION_COUNT_SPEC));
+	let tester = EthTester::from_spec(Spec::load(TRANSACTION_COUNT_SPEC).expect("invalid chain spec"));
 	let address = tester.accounts.insert_account(secret, "").unwrap();
 	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
 
@@ -412,7 +412,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 
 #[test]
 fn starting_nonce_test() {
-	let tester = EthTester::from_spec(Spec::load(POSITIVE_NONCE_SPEC));
+	let tester = EthTester::from_spec(Spec::load(POSITIVE_NONCE_SPEC).expect("invalid chain spec"));
 	let address = Address::from(10);
 
 	let sample = tester.handler.handle_request_sync(&(r#"
