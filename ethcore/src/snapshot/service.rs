@@ -391,8 +391,8 @@ impl Service {
 		*res = Some(try!(Restoration::new(params)));
 
 		*self.status.lock() = RestorationStatus::Ongoing {
-			state_chunks_done: self.state_chunks.load(Ordering::Relaxed) as u32,
-			block_chunks_done: self.block_chunks.load(Ordering::Relaxed) as u32,
+			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
+			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
 		};
 		Ok(())
 	}
@@ -515,7 +515,13 @@ impl SnapshotService for Service {
 	}
 
 	fn status(&self) -> RestorationStatus {
-		*self.status.lock()
+		let mut cur_status = self.status.lock();
+		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done } = *cur_status {
+			*state_chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32;
+			*block_chunks_done = self.block_chunks.load(Ordering::SeqCst) as u32;
+		}
+
+		cur_status.clone()
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) {

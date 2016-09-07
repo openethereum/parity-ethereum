@@ -69,7 +69,7 @@ pub struct SnapshotCommand {
 fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, recover: bool) -> Result<(), String> {
 	let manifest = reader.manifest();
 
-	info!("Restoring to block #{}, {:?}", manifest.block_number, manifest.block_hash);
+	info!("Restoring to block #{} (0x{:?})", manifest.block_number, manifest.block_hash);
 
 	try!(snapshot.init_restore(manifest.clone(), recover).map_err(|e| {
 		format!("Failed to begin restoration: {}", e)
