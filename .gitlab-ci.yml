@@ -1,6 +1,6 @@
 stages:
-  - test
   - build
+  - test
   - deploy
 variables:
   GIT_DEPTH: "3"
