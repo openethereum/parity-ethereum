@@ -1,3 +1,8 @@
+.actionbar {
+  padding: 0.25em 24px !important;
+  height: auto !important;
+}
+
 .tooltitle {
   text-transform: uppercase;
   color: white;

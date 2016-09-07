@@ -34,7 +34,7 @@ export class Signer extends Component {
     return (
       <div className={ styles.signer }>
         <Actionbar
-          title='Parity Trusted Signer' />
+          title='Trusted Signer' />
         <div className={ styles.mainContainer }>
           { this.renderPage() }
         </div>
