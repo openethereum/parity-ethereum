@@ -1,11 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
-import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
 import Container, { Title } from '../../../ui/Container';
 import IdentityIcon from '../../../ui/IdentityIcon';
-
-import styles from './summary.css';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -28,9 +25,6 @@ export default class Summary extends Component {
 
     return (
       <Container>
-        <div className={ styles.typeIcon }>
-          <NavigationApps />
-        </div>
         <IdentityIcon
           address={ app.address } />
         <Title
