@@ -31,7 +31,7 @@ export default class AddAddress extends Component {
         visible
         actions={ this.renderDialogActions() }>
         <div className={ styles.header }>
-          <h3>add contact</h3>
+          <h3>add saved address</h3>
         </div>
         { this.renderFields() }
       </Modal>
