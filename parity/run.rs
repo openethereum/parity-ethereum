@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
-use std::path::Path;
 use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
@@ -110,8 +109,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
+	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, fork_name.as_ref());
 
 	// execute upgrades
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
@@ -171,14 +171,15 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	}
 
 	// create supervisor
-	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
+	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
 
 	// create client service.
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
