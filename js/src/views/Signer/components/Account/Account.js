@@ -10,7 +10,8 @@ export default class Account extends Component {
   static contextTypes = {
     accounts: PropTypes.array,
     contacts: PropTypes.array,
-    contracts: PropTypes.array
+    contracts: PropTypes.array,
+    tokens: PropTypes.array
   }
 
   static propTypes = {
@@ -98,6 +99,7 @@ export default class Account extends Component {
     const { accounts, contacts, contracts, tokens } = this.context;
     const { address } = this.props;
 
+    console.log(tokens);
     const account = retrieveAccount(address, accounts, contacts, contracts, tokens);
 
     return account ? account.name : null;

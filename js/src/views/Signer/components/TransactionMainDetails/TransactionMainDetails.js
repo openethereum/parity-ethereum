@@ -18,7 +18,8 @@ export default class TransactionMainDetails extends Component {
     chain: PropTypes.string.isRequired,
     to: PropTypes.string, // undefined if it's a contract
     toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched
-    className: PropTypes.string
+    className: PropTypes.string,
+    children: PropTypes.node
   };
 
   componentWillMount () {
@@ -42,11 +43,12 @@ export default class TransactionMainDetails extends Component {
   }
 
   render () {
-    const { className } = this.props;
+    const { className, children } = this.props;
     return (
       <div className={ className }>
         { this.renderTransfer() }
         { this.renderContract() }
+        { children }
       </div>
     );
   }
@@ -60,7 +62,9 @@ export default class TransactionMainDetails extends Component {
     return (
       <div className={ styles.transaction }>
         <div className={ styles.from }>
-          <Account address={ from } balance={ fromBalance } chain={ chain } />
+          <div className={ styles.account }>
+            <Account address={ from } balance={ fromBalance } chain={ chain } />
+          </div>
         </div>
         <div className={ styles.tx }>
           { this.renderValue() }
@@ -68,7 +72,9 @@ export default class TransactionMainDetails extends Component {
           { this.renderTotalValue() }
         </div>
         <div className={ styles.to }>
-          <Account address={ to } balance={ toBalance } chain={ chain } />
+          <div className={ styles.account }>
+            <Account address={ to } balance={ toBalance } chain={ chain } />
+          </div>
         </div>
       </div>
     );

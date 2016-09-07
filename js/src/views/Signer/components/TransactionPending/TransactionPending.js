@@ -55,20 +55,20 @@ export default class TransactionPending extends Component {
           <TransactionMainDetails
             { ...this.props }
             className={ styles.transactionDetails }
-            totalValue={ totalValue }
-          />
+            totalValue={ totalValue }>
+            <div className={ styles.iconsContainer }>
+              { this.renderGasPrice() }
+              { this.renderData() }
+            </div>
+            <div className={ styles.expandedContainer }>
+              { this.renderDataExpanded() }
+            </div>
+          </TransactionMainDetails>
           <TransactionPendingForm
             isSending={ this.props.isSending }
             onConfirm={ this.onConfirm }
             onReject={ this.onReject }
           />
-        </div>
-        <div className={ styles.iconsContainer }>
-          { this.renderGasPrice() }
-          { this.renderData() }
-        </div>
-        <div className={ styles.expandedContainer }>
-          { this.renderDataExpanded() }
         </div>
       </div>
     );

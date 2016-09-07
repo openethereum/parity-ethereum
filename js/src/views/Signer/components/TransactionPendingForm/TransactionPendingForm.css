@@ -1,6 +1,12 @@
 .container {
   width: 200px;
+  padding: 20px 40px 0 40px;
+  /*border-left: 1px solid #aaa;*/
+  position: absolute;
+  top: 0;
+  right: 0;
 }
+
 .rejectToggle {
   display: block;
   cursor: pointer;

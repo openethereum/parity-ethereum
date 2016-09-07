@@ -22,8 +22,7 @@
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
-  min-width: 330px;
-  display: inline-block;
+  display: lock;
   vertical-align: middle;
   text-transform: uppercase;
 }

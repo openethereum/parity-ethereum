@@ -3,12 +3,18 @@
 }
 
 .transactionDetails {
-  border-right: 1px solid #eee;
-  margin-right: 2rem;
+  margin-right: 321px;
+}
+
+.mainContainer {
+  position: relative;
+}
+
+.mainContainer:after {
+  clear: both;
 }
 
 .mainContainer > * {
-  display: inline-block;
   vertical-align: middle;
   min-height: 120px;
 }
@@ -18,8 +24,7 @@
   text-align: center;
   font-size: .8em;
   opacity: 0.5;
-  width: 830px;
-  margin-right: 30px;
+  padding: 1em 0 0 0;
 }
 
 .iconsContainer > * {
