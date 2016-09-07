@@ -23,10 +23,15 @@ export default class TabBar extends Component {
     router: PropTypes.object.isRequired
   }
 
+  static propTypes = {
+    pending: PropTypes.array
+  }
+
   render () {
     const windowHash = (window.location.hash || '')
       .split('?')[0].split('/')[1];
     const hash = TABMAP[windowHash] || windowHash;
+    console.log(hash);
 
     return (
       <Toolbar
@@ -45,7 +50,7 @@ export default class TabBar extends Component {
             data-route='/accounts'
             value='account'
             icon={ <ActionAccountBalanceWallet /> }
-            label='accounts'
+            label={ this.renderLabel('accounts') }
             onActive={ this.onActivate }>
             <Tooltip
               className={ styles.tabbarTooltip }
@@ -56,25 +61,49 @@ export default class TabBar extends Component {
             data-route='/addresses'
             value='address'
             icon={ <CommunicationContacts /> }
-            label='address book'
+            label={ this.renderLabel('address book') }
             onActive={ this.onActivate } />
           <Tab
             className={ hash === 'app' ? styles.tabactive : '' }
             data-route='/apps'
             value='app'
             icon={ <NavigationApps /> }
-            label='apps'
+            label={ this.renderLabel('apps') }
             onActive={ this.onActivate } />
           <Tab
             className={ hash === 'signer' ? styles.tabactive : '' }
             data-route='/signer'
             value='signer'
             icon={ <ActionFingerprint /> }
-            label='signer'
+            label={ this.renderSignerLabel() }
             onActive={ this.onActivate } />
         </Tabs>
       </Toolbar>
     );
+  }
+
+  renderLabel (name, bubble) {
+    return (
+      <div className={ styles.label }>
+        { name }
+        { bubble }
+      </div>
+    );
+  }
+
+  renderSignerLabel () {
+    const { pending } = this.props;
+    let bubble = null;
+
+    if (pending && pending.length) {
+      bubble = (
+        <div className={ styles.labelBubble }>
+          { pending.length }
+        </div>
+      );
+    }
+
+    return this.renderLabel('signer', bubble);
   }
 
   onActivate = (tab) => {

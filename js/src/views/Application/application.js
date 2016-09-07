@@ -9,7 +9,8 @@ import { eip20Abi, registryAbi, tokenRegAbi } from '../../util/abi';
 import Container from './Container';
 import DappContainer from './DappContainer';
 import FrameError from './FrameError';
-import { updateStatus } from './Status';
+import Status, { updateStatus } from './Status';
+import TabBar from './TabBar';
 
 import imagesEthereum32 from '../../images/contracts/ethereum-32.png';
 import imagesEthereum56 from '../../images/contracts/ethereum-56.png';
@@ -51,7 +52,8 @@ class Application extends Component {
     children: PropTypes.node,
     netChain: PropTypes.string,
     isTest: PropTypes.bool,
-    onUpdateStatus: PropTypes.func
+    onUpdateStatus: PropTypes.func,
+    pending: PropTypes.array
   }
 
   state = {
@@ -70,7 +72,7 @@ class Application extends Component {
   }
 
   render () {
-    const { children } = this.props;
+    const { children, pending } = this.props;
     const { showFirstRun } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
@@ -80,16 +82,20 @@ class Application extends Component {
       );
     } else if (root === 'app') {
       return (
-        <DappContainer
-          children={ children } />
+        <DappContainer>
+          { children }
+        </DappContainer>
       );
     }
 
     return (
       <Container
-        children={ children }
         showFirstRun={ showFirstRun }
-        onCloseFirstRun={ this.onCloseFirstRun } />
+        onCloseFirstRun={ this.onCloseFirstRun }>
+        <TabBar pending={ pending } />
+        { children }
+        <Status />
+      </Container>
     );
   }
 
@@ -304,10 +310,12 @@ class Application extends Component {
 
 function mapStateToProps (state) {
   const { netChain, isTest } = state.status;
+  const { pending } = state.requests;
 
   return {
     netChain,
-    isTest
+    isTest,
+    pending
   };
 }
 

@@ -34,17 +34,33 @@
   margin: 2px 0.5em 0 0;
 }
 
-.link div {
+.link+.link {
+  margin-left: 1em;
+}
+
+.button {
+}
+
+.label {
+  position: relative;
   display: inline-block;
+  vertical-align: top;
+}
+
+.labelText {
   text-transform: uppercase;
   line-height: 32px;
   vertical-align: top;
   letter-spacing: 0.2em;
 }
 
-.link+.link {
-  margin-left: 1em;
-}
-
-.button {
+.labelBubble {
+  border-radius: 50%;
+  padding: 3px 5px;
+  background: red;
+  color: white;
+  font-size: 0.7em;
+  position: absolute;
+  top: -2px;
+  right: -10px;
 }
