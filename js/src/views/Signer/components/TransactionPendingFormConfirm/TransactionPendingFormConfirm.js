@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
 
-import { Input } from '../../../../ui';
+import { Input, SignerIcon } from '../../../../ui';
 
 import styles from './TransactionPendingFormConfirm.css';
 
@@ -44,6 +44,7 @@ export default class TransactionPendingFormConfirm extends Component {
             fullWidth
             primary
             disabled={ isSending }
+            icon={ <SignerIcon className={ styles.signerIcon } /> }
             label={ isSending ? 'Confirming...' : 'Confirm Transaction' }
           />
         </div>
